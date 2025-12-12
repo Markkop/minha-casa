@@ -29,6 +29,7 @@ import {
   ScenarioCard,
   ScenarioCardCompact,
 } from "./scenario-card"
+import { FormulaBreakdown } from "./formula-breakdown"
 import { SettingsButton, SettingsPanel } from "./settings-panel"
 import {
   DEFAULTS,
@@ -404,11 +405,14 @@ export const SimulatorClient = () => {
                   </button>
                 </div>
 
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
                   <ScenarioCard cenario={selectedCenario} isExpanded />
 
+                  {/* Formula breakdown panel */}
+                  <FormulaBreakdown cenario={selectedCenario} />
+
                   {/* Tabela de amortização amostra */}
-                  <Card className="bg-eerieBlack border-brightGrey">
+                  <Card className="bg-eerieBlack border-brightGrey lg:col-span-2 xl:col-span-1">
                     <CardHeader>
                       <CardTitle className="text-base">
                         📅 Evolução das Parcelas (Amostra)
