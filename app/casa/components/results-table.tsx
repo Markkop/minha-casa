@@ -27,10 +27,13 @@ import {
   formatCurrency,
   formatCurrencyCompact,
   formatPercent,
-  TOOLTIPS,
+  generateTooltips,
   type CenarioCompleto,
   type ParcelaDetalhe,
 } from "./utils/calculations"
+
+// Generate default tooltips
+const defaultTooltips = generateTooltips()
 
 // ============================================================================
 // TYPES
@@ -226,6 +229,15 @@ export const ResultsTable = ({ cenarios, onSelectCenario }: ResultsTableProps) =
     return sort.direction === "asc" ? aVal - bVal : bVal - aVal
   })
 
+  // Get best cenario for dynamic tooltip
+  const bestCenario = cenarios.find((c) => c.isBest) || cenarios[0]
+  const dynamicTooltips = bestCenario
+    ? generateTooltips({
+        aporteExtra: bestCenario.aporteExtra,
+        economiaJuros: bestCenario.economiaJuros,
+      })
+    : defaultTooltips
+
   return (
     <div className="overflow-x-auto">
       <Table>
@@ -234,14 +246,14 @@ export const ResultsTable = ({ cenarios, onSelectCenario }: ResultsTableProps) =
             <TableHead className="w-8"></TableHead>
             <SortableHeader
               label="Casa"
-              tooltip={TOOLTIPS.valorImovel}
+              tooltip={defaultTooltips.valorImovel}
               sortKey="valorImovel"
               currentSort={sort}
               onSort={handleSort}
             />
             <SortableHeader
               label="Apto"
-              tooltip={TOOLTIPS.valorApartamento}
+              tooltip={defaultTooltips.valorApartamento}
               sortKey="valorApartamento"
               currentSort={sort}
               onSort={handleSort}
@@ -263,7 +275,7 @@ export const ResultsTable = ({ cenarios, onSelectCenario }: ResultsTableProps) =
             />
             <SortableHeader
               label="Compr."
-              tooltip={TOOLTIPS.comprometimento}
+              tooltip={defaultTooltips.comprometimento}
               sortKey="comprometimento"
               currentSort={sort}
               onSort={handleSort}
@@ -287,7 +299,7 @@ export const ResultsTable = ({ cenarios, onSelectCenario }: ResultsTableProps) =
             />
             <SortableHeader
               label="Economia"
-              tooltip={TOOLTIPS.economiaJuros}
+              tooltip={dynamicTooltips.economiaJuros}
               sortKey="economiaJuros"
               currentSort={sort}
               onSort={handleSort}

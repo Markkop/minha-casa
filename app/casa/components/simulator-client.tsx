@@ -33,9 +33,10 @@ import { SettingsButton, SettingsPanel } from "./settings-panel"
 import {
   DEFAULTS,
   formatCurrency,
+  formatCurrencyCompact,
   formatPercent,
   gerarMatrizCenarios,
-  TOOLTIPS,
+  generateTooltips,
   type CenarioCompleto,
 } from "./utils/calculations"
 import { useSettings } from "./utils/settings"
@@ -229,6 +230,33 @@ export const SimulatorClient = () => {
   const taxaMensalEfetiva = params.taxaAnual / 12 + params.trMensal
   const cetEstimado = params.taxaAnual + params.trMensal * 12 + settings.cetAdditionalCost
 
+  // Generate dynamic tooltips based on current params and settings
+  const tooltips = useMemo(() => {
+    return generateTooltips({
+      reservaEmergencia: params.reservaEmergencia,
+      haircut: params.haircut,
+      haircutRange: settings.sliders.haircut,
+      taxaAnualRange: settings.sliders.taxaAnual,
+      trMensalRange: settings.sliders.trMensal,
+      prazoOptions: settings.prazoOptions,
+      aporteExtra: params.aporteExtra,
+      economiaJuros: bestCenario?.economiaJuros,
+      aporteExtraRange: settings.sliders.aporteExtra,
+      rendaMensalRange: settings.sliders.rendaMensal,
+    })
+  }, [
+    params.reservaEmergencia,
+    params.haircut,
+    params.aporteExtra,
+    settings.sliders.haircut,
+    settings.sliders.taxaAnual,
+    settings.sliders.trMensal,
+    settings.sliders.aporteExtra,
+    settings.sliders.rendaMensal,
+    settings.prazoOptions,
+    bestCenario?.economiaJuros,
+  ])
+
   // Show loading state until settings are loaded
   if (!isLoaded) {
     return (
@@ -268,14 +296,14 @@ export const SimulatorClient = () => {
             title="Taxa Efetiva Mensal"
             value={formatPercent(taxaMensalEfetiva)}
             subtitle={`Juros ${formatPercent(params.taxaAnual)} + TR ${formatPercent(params.trMensal)}`}
-            tooltip={TOOLTIPS.trMensal}
+            tooltip={tooltips.trMensal}
             icon="📊"
           />
           <InfoCard
             title="CET Estimado"
             value={`${formatPercent(cetEstimado)} a.a.`}
             subtitle="Custo Efetivo Total"
-            tooltip={TOOLTIPS.cetEstimado}
+            tooltip={tooltips.cetEstimado}
             icon="💹"
             highlight
           />
@@ -285,7 +313,7 @@ export const SimulatorClient = () => {
               params.capitalDisponivel - params.reservaEmergencia
             )}
             subtitle={`De ${formatCurrency(params.capitalDisponivel)} total`}
-            tooltip={TOOLTIPS.reservaEmergencia}
+            tooltip={tooltips.reservaEmergencia}
             icon="💰"
           />
           <InfoCard
@@ -427,14 +455,14 @@ export const SimulatorClient = () => {
                 <h4 className="text-primary font-semibold">Amortização Extra</h4>
                 <p>
                   SEMPRE escolha &quot;Reduzir Prazo&quot; ao amortizar. Isso maximiza a
-                  economia de juros. No exemplo, aportes de R$ 10.000/mês podem
-                  economizar mais de R$ 1.5 milhão em juros!
+                  economia de juros. Com aportes de {formatCurrency(params.aporteExtra)}/mês você pode
+                  economizar {bestCenario ? formatCurrencyCompact(bestCenario.economiaJuros) : "significativamente"} em juros!
                 </p>
               </div>
               <div className="space-y-2">
                 <h4 className="text-salmon font-semibold">Permuta vs Venda</h4>
                 <p>
-                  A permuta tem deságio (haircut) de 15-20%. A venda posterior
+                  A permuta tem deságio (haircut) de {settings.sliders.haircut.min}-{settings.sliders.haircut.max}%. A venda posterior
                   permite vender pelo preço de mercado e usar a Lei do Bem
                   (isenção de IR se usado para amortizar em 180 dias).
                 </p>

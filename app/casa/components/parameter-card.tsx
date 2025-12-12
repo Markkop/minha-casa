@@ -14,7 +14,7 @@ import { cn } from "@/lib/utils"
 import { InfoCircledIcon } from "@radix-ui/react-icons"
 import type { ChangeEvent, ReactNode } from "react"
 
-import { formatCurrency, TOOLTIPS } from "./utils/calculations"
+import { formatCurrency, generateTooltips } from "./utils/calculations"
 import { useSettings } from "./utils/settings"
 import type { SimulatorParams } from "./simulator-client"
 
@@ -130,6 +130,13 @@ export const ImovelParameterCard = ({ params, onChange }: ParameterCardProps) =>
   const taxaAnualRange = settings.sliders.taxaAnual
   const trMensalRange = settings.sliders.trMensal
 
+  // Generate dynamic tooltips
+  const tooltips = generateTooltips({
+    taxaAnualRange,
+    trMensalRange,
+    prazoOptions,
+  })
+
   return (
     <Card className="bg-eerieBlack border-brightGrey">
       <CardHeader className="pb-4">
@@ -139,7 +146,7 @@ export const ImovelParameterCard = ({ params, onChange }: ParameterCardProps) =>
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        <FieldWithTooltip label="Valor da Casa" tooltip={TOOLTIPS.valorImovel}>
+        <FieldWithTooltip label="Valor da Casa" tooltip={tooltips.valorImovel}>
           <div className="space-y-3">
             <div className="flex gap-2 flex-wrap">
               {presets.map((preset) => (
@@ -170,7 +177,7 @@ export const ImovelParameterCard = ({ params, onChange }: ParameterCardProps) =>
 
         <FieldWithTooltip
           label="Taxa de Juros Anual"
-          tooltip={TOOLTIPS.taxaAnual}
+          tooltip={tooltips.taxaAnual}
         >
           <div className="space-y-2">
             <Slider
@@ -190,7 +197,7 @@ export const ImovelParameterCard = ({ params, onChange }: ParameterCardProps) =>
           </div>
         </FieldWithTooltip>
 
-        <FieldWithTooltip label="TR Mensal" tooltip={TOOLTIPS.trMensal}>
+        <FieldWithTooltip label="TR Mensal" tooltip={tooltips.trMensal}>
           <div className="space-y-2">
             <Slider
               value={[params.trMensal * 100]}
@@ -211,7 +218,7 @@ export const ImovelParameterCard = ({ params, onChange }: ParameterCardProps) =>
 
         <FieldWithTooltip
           label="Prazo (meses)"
-          tooltip={TOOLTIPS.prazoMeses}
+          tooltip={tooltips.prazoMeses}
         >
           <div className="space-y-2">
             <div className="flex gap-2 flex-wrap">
@@ -251,6 +258,11 @@ export const ImovelParameterCard = ({ params, onChange }: ParameterCardProps) =>
 export const RecursosParameterCard = ({ params, onChange }: ParameterCardProps) => {
   const entrada = params.capitalDisponivel - params.reservaEmergencia
 
+  // Generate dynamic tooltips
+  const tooltips = generateTooltips({
+    reservaEmergencia: params.reservaEmergencia,
+  })
+
   return (
     <Card className="bg-eerieBlack border-brightGrey">
       <CardHeader className="pb-4">
@@ -262,7 +274,7 @@ export const RecursosParameterCard = ({ params, onChange }: ParameterCardProps) 
       <CardContent className="space-y-4">
         <FieldWithTooltip
           label="Capital Disponível"
-          tooltip={TOOLTIPS.capitalDisponivel}
+          tooltip={tooltips.capitalDisponivel}
         >
           <CurrencyInput
             value={params.capitalDisponivel}
@@ -272,7 +284,7 @@ export const RecursosParameterCard = ({ params, onChange }: ParameterCardProps) 
 
         <FieldWithTooltip
           label="Reserva de Emergência"
-          tooltip={TOOLTIPS.reservaEmergencia}
+          tooltip={tooltips.reservaEmergencia}
         >
           <CurrencyInput
             value={params.reservaEmergencia}
@@ -301,6 +313,11 @@ export const ImovelCompradorParameterCard = ({ params, onChange }: ParameterCard
   const presets = settings.valoresImovelComprador
   const haircutRange = settings.sliders.haircut
 
+  // Generate dynamic tooltips
+  const tooltips = generateTooltips({
+    haircutRange,
+  })
+
   return (
     <Card className="bg-eerieBlack border-brightGrey">
       <CardHeader className="pb-4">
@@ -312,7 +329,7 @@ export const ImovelCompradorParameterCard = ({ params, onChange }: ParameterCard
       <CardContent className="space-y-4">
         <FieldWithTooltip
           label="Valor do Imóvel"
-          tooltip={TOOLTIPS.valorApartamento}
+          tooltip={tooltips.valorApartamento}
         >
           <div className="space-y-3">
             <div className="flex gap-2 flex-wrap">
@@ -344,7 +361,7 @@ export const ImovelCompradorParameterCard = ({ params, onChange }: ParameterCard
 
         <FieldWithTooltip
           label="Haircut (Deságio Permuta)"
-          tooltip={TOOLTIPS.haircut}
+          tooltip={tooltips.haircut}
         >
           <div className="space-y-2">
             <Slider
@@ -389,6 +406,13 @@ export const AmortizacaoParameterCard = ({ params, onChange }: ParameterCardProp
   const aporteExtraRange = settings.sliders.aporteExtra
   const rendaMensalRange = settings.sliders.rendaMensal
 
+  // Generate dynamic tooltips
+  const tooltips = generateTooltips({
+    aporteExtra: params.aporteExtra,
+    aporteExtraRange,
+    rendaMensalRange,
+  })
+
   return (
     <Card className="bg-eerieBlack border-brightGrey">
       <CardHeader className="pb-4">
@@ -400,7 +424,7 @@ export const AmortizacaoParameterCard = ({ params, onChange }: ParameterCardProp
       <CardContent className="space-y-4">
         <FieldWithTooltip
           label="Aporte Extra Mensal"
-          tooltip={TOOLTIPS.aporteExtra}
+          tooltip={tooltips.aporteExtra}
         >
           <div className="space-y-2">
             <Slider
@@ -418,7 +442,7 @@ export const AmortizacaoParameterCard = ({ params, onChange }: ParameterCardProp
           </div>
         </FieldWithTooltip>
 
-        <FieldWithTooltip label="Renda Mensal" tooltip={TOOLTIPS.rendaMensal}>
+        <FieldWithTooltip label="Renda Mensal" tooltip={tooltips.rendaMensal}>
           <div className="space-y-2">
             <Slider
               value={[params.rendaMensal]}
@@ -437,7 +461,7 @@ export const AmortizacaoParameterCard = ({ params, onChange }: ParameterCardProp
 
         <FieldWithTooltip
           label="Seguros (MIP + DFI)"
-          tooltip="Seguros obrigatórios: Morte e Invalidez Permanente (MIP) e Danos Físicos ao Imóvel (DFI). Estimativa para perfil 40 anos."
+          tooltip={`Seguros obrigatórios: Morte e Invalidez Permanente (MIP) e Danos Físicos ao Imóvel (DFI). Valor atual: ${formatCurrency(params.seguros)}/mês.`}
         >
           <CurrencyInput
             value={params.seguros}
@@ -456,6 +480,9 @@ export const FiltrosCenarioCard = ({ params, onChange }: ParameterCardProps) => 
   const { settings } = useSettings()
   const valoresImovelCasa = settings.valoresImovelCasa
   const valoresImovelComprador = settings.valoresImovelComprador
+
+  // Generate dynamic tooltips
+  const tooltips = generateTooltips()
 
   return (
     <Card className="bg-raisinBlack border-brightGrey">
@@ -524,7 +551,7 @@ export const FiltrosCenarioCard = ({ params, onChange }: ParameterCardProps) => 
 
         <FieldWithTooltip
           label="Estratégias"
-          tooltip={TOOLTIPS.estrategia}
+          tooltip={tooltips.estrategia}
         >
           <div className="flex gap-2">
             {[

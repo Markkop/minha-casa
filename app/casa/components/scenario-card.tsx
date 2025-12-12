@@ -15,10 +15,13 @@ import {
   formatCurrency,
   formatCurrencyCompact,
   formatPercent,
-  TOOLTIPS,
+  generateTooltips,
   type CenarioCompleto,
   type ComprometimentoRendaResult,
 } from "./utils/calculations"
+
+// Generate default tooltips for static components
+const defaultTooltips = generateTooltips()
 
 // ============================================================================
 // TYPES
@@ -121,7 +124,7 @@ const ComprometimentoIndicator = ({ comprometimento }: ComprometimentoIndicatorP
           </div>
         </TooltipTrigger>
         <TooltipContent>
-          <p className="text-xs">{TOOLTIPS.comprometimento}</p>
+          <p className="text-xs">{defaultTooltips.comprometimento}</p>
           {!dentroDoLimite && (
             <p className="text-xs text-salmon mt-1">
               Acima do limite de 30%. Pode dificultar aprovação.
@@ -198,6 +201,12 @@ export const ScenarioCard = ({ cenario, isExpanded = false }: ScenarioCardProps)
     aporteExtra,
   } = cenario
 
+  // Generate dynamic tooltips based on cenario values
+  const tooltips = generateTooltips({
+    aporteExtra,
+    economiaJuros,
+  })
+
   return (
     <Card
       className={cn(
@@ -259,7 +268,7 @@ export const ScenarioCard = ({ cenario, isExpanded = false }: ScenarioCardProps)
             <DataRow
               label="Apto na Permuta"
               value={formatCurrency(financiamento.valorApartamentoUsado)}
-              tooltip="Valor aceito do apartamento na permuta (com haircut)."
+              tooltip={`Valor aceito do apartamento na permuta: ${formatCurrency(financiamento.valorApartamentoUsado)}.`}
               className="text-salmon"
             />
           )}
@@ -273,13 +282,13 @@ export const ScenarioCard = ({ cenario, isExpanded = false }: ScenarioCardProps)
           <DataRow
             label="Primeira Parcela"
             value={formatCurrency(tabelaPadrao.primeiraParcelar)}
-            tooltip="Parcela mais alta do financiamento (início do SAC)."
+            tooltip={`Parcela mais alta do financiamento (início do SAC): ${formatCurrency(tabelaPadrao.primeiraParcelar)}.`}
             highlight
           />
           <DataRow
             label="Última Parcela"
             value={formatCurrency(tabelaPadrao.ultimaParcela)}
-            tooltip="Parcela mais baixa (fim do SAC)."
+            tooltip={`Parcela mais baixa (fim do SAC): ${formatCurrency(tabelaPadrao.ultimaParcela)}.`}
           />
           <div className="pt-1">
             <span className="text-xs text-ashGray">Comprometimento Renda</span>
@@ -299,18 +308,18 @@ export const ScenarioCard = ({ cenario, isExpanded = false }: ScenarioCardProps)
                 +{formatCurrency(aporteExtra)}
               </span>
             }
-            tooltip={TOOLTIPS.aporteExtra}
+            tooltip={tooltips.aporteExtra}
             highlight
           />
           <DataRow
             label="Prazo Real"
             value={`${cenarioOtimizado.prazoReal} meses (${(cenarioOtimizado.prazoReal / 12).toFixed(1)} anos)`}
-            tooltip="Tempo real para quitar com aportes extras."
+            tooltip={`Tempo real para quitar com aportes de ${formatCurrency(aporteExtra)}/mês.`}
           />
           <DataRow
             label="Economia de Tempo"
             value={`${cenarioOtimizado.mesesEconomizados} meses (${cenarioOtimizado.anosEconomizados} anos)`}
-            tooltip="Tempo economizado com amortização acelerada."
+            tooltip={`Você economiza ${cenarioOtimizado.mesesEconomizados} meses (${cenarioOtimizado.anosEconomizados} anos) com amortização acelerada.`}
           />
         </div>
 
@@ -322,12 +331,12 @@ export const ScenarioCard = ({ cenario, isExpanded = false }: ScenarioCardProps)
           <DataRow
             label="Juros (Padrão)"
             value={formatCurrency(tabelaPadrao.totalJuros)}
-            tooltip="Total de juros pagos no prazo completo."
+            tooltip={`Total de juros sem amortização extra: ${formatCurrency(tabelaPadrao.totalJuros)}.`}
           />
           <DataRow
             label="Juros (Otimizado)"
             value={formatCurrency(cenarioOtimizado.totalJuros)}
-            tooltip={TOOLTIPS.economiaJuros}
+            tooltip={tooltips.economiaJuros}
             highlight
           />
           <DataRow
@@ -337,7 +346,7 @@ export const ScenarioCard = ({ cenario, isExpanded = false }: ScenarioCardProps)
                 {formatCurrency(economiaJuros)} ({formatPercent(economiaPercentual)})
               </span>
             }
-            tooltip="Economia total em juros com amortização acelerada."
+            tooltip={`Economia total: ${formatCurrency(economiaJuros)} (${formatPercent(economiaPercentual)} dos juros).`}
           />
         </div>
 
@@ -350,12 +359,12 @@ export const ScenarioCard = ({ cenario, isExpanded = false }: ScenarioCardProps)
             <DataRow
               label="ITBI"
               value={formatCurrency(custosFechamento.itbi.total)}
-              tooltip={TOOLTIPS.itbi}
+              tooltip={tooltips.itbi}
             />
             <DataRow
               label="Cartório/Registro"
               value={formatCurrency(custosFechamento.cartorio.total)}
-              tooltip="Custos de registro de imóveis em SC."
+              tooltip={`Custos de cartório: ${formatCurrency(custosFechamento.cartorio.total)}.`}
             />
             <DataRow
               label="Total Fechamento"
@@ -389,7 +398,7 @@ export const ScenarioCard = ({ cenario, isExpanded = false }: ScenarioCardProps)
                   </span>
                 </TooltipTrigger>
                 <TooltipContent className="max-w-xs">
-                  <p className="text-xs">{TOOLTIPS.cetEstimado}</p>
+                  <p className="text-xs">{tooltips.cetEstimado}</p>
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
