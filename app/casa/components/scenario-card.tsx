@@ -9,18 +9,59 @@ import {
 } from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
 import { CheckCircledIcon, InfoCircledIcon } from "@radix-ui/react-icons"
+import type { ReactNode } from "react"
 
 import {
   formatCurrency,
   formatCurrencyCompact,
   formatPercent,
   TOOLTIPS,
+  type CenarioCompleto,
+  type ComprometimentoRendaResult,
 } from "./utils/calculations"
+
+// ============================================================================
+// TYPES
+// ============================================================================
+
+interface EstrategiaBadgeProps {
+  estrategia: "permuta" | "venda_posterior"
+}
+
+interface ComprometimentoIndicatorProps {
+  comprometimento: ComprometimentoRendaResult
+}
+
+interface DataRowProps {
+  label: string
+  value: ReactNode
+  tooltip?: string
+  highlight?: boolean
+  className?: string
+}
+
+interface ScenarioCardProps {
+  cenario: CenarioCompleto
+  isExpanded?: boolean
+}
+
+interface ScenarioCardCompactProps {
+  cenario: CenarioCompleto
+  onClick?: () => void
+}
+
+interface BestScenarioCardProps {
+  cenario: CenarioCompleto | null
+}
+
+// ============================================================================
+// HELPER COMPONENTS
+// ============================================================================
 
 /**
  * Badge de estratégia
  */
-const EstrategiaBadge = ({ estrategia }) => {
+const EstrategiaBadge = ({ estrategia }: EstrategiaBadgeProps) => {
   const config = {
     permuta: {
       label: "Permuta",
@@ -52,7 +93,7 @@ const EstrategiaBadge = ({ estrategia }) => {
 /**
  * Indicador de comprometimento de renda
  */
-const ComprometimentoIndicator = ({ comprometimento }) => {
+const ComprometimentoIndicator = ({ comprometimento }: ComprometimentoIndicatorProps) => {
   const { percentual, dentroDoLimite } = comprometimento
 
   return (
@@ -95,7 +136,7 @@ const ComprometimentoIndicator = ({ comprometimento }) => {
 /**
  * Linha de dado com tooltip
  */
-const DataRow = ({ label, value, tooltip, highlight, className }) => {
+const DataRow = ({ label, value, tooltip, highlight, className }: DataRowProps) => {
   return (
     <div
       className={cn(
@@ -131,10 +172,14 @@ const DataRow = ({ label, value, tooltip, highlight, className }) => {
   )
 }
 
+// ============================================================================
+// SCENARIO CARDS
+// ============================================================================
+
 /**
  * Card de cenário individual
  */
-export const ScenarioCard = ({ cenario, isExpanded = false }) => {
+export const ScenarioCard = ({ cenario, isExpanded = false }: ScenarioCardProps) => {
   const {
     valorImovel,
     valorApartamento,
@@ -358,7 +403,7 @@ export const ScenarioCard = ({ cenario, isExpanded = false }) => {
 /**
  * Card compacto para grid
  */
-export const ScenarioCardCompact = ({ cenario, onClick }) => {
+export const ScenarioCardCompact = ({ cenario, onClick }: ScenarioCardCompactProps) => {
   const {
     valorImovel,
     valorApartamento,
@@ -464,7 +509,7 @@ export const ScenarioCardCompact = ({ cenario, onClick }) => {
 /**
  * Card de destaque para o melhor cenário
  */
-export const BestScenarioCard = ({ cenario }) => {
+export const BestScenarioCard = ({ cenario }: BestScenarioCardProps) => {
   if (!cenario) return null
 
   const {

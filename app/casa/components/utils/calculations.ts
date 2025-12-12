@@ -3,12 +3,274 @@
  * Todas as fórmulas e cálculos para financiamento habitacional
  */
 
+// ============================================================================
+// TYPES AND INTERFACES
+// ============================================================================
+
+export interface TaxaMensalParams {
+  taxaAnual: number
+  trMensal: number
+}
+
+export interface EntradaParams {
+  capitalDisponivel: number
+  reservaEmergencia: number
+}
+
+export interface PermutaParams {
+  valorApartamento: number
+  haircut: number
+}
+
+export interface VendaPosteriorParams {
+  valorApartamento: number
+  valorFinanciadoExtra: number
+  taxaMensalEfetiva: number
+  mesesCarrego?: number
+  custoCondominioMensal?: number
+}
+
+export interface VendaPosteriorResult {
+  valorBruto: number
+  jurosCarrego: number
+  custosManutencao: number
+  custoTotalCarrego: number
+  valorLiquido: number
+}
+
+export interface FinanciamentoParams {
+  valorImovel: number
+  entrada: number
+  valorApartamento: number
+  estrategia: "permuta" | "venda_posterior"
+  haircut?: number
+}
+
+export interface FinanciamentoResult {
+  valorFinanciado: number
+  entradaTotal: number
+  entradaDinheiro: number
+  valorApartamentoUsado: number
+  estrategia: "permuta" | "venda_posterior"
+  valorApartamentoParaAmortizar?: number
+}
+
+export interface ParcelaSACParams {
+  saldoDevedor: number
+  amortizacaoMensal: number
+  taxaMensalEfetiva: number
+  seguros?: number
+}
+
+export interface ParcelaSACResult {
+  saldoDevedor: number
+  amortizacao: number
+  juros: number
+  seguros: number
+  prestacao: number
+  novoSaldo: number
+}
+
+export interface TabelaSACParams {
+  valorFinanciado: number
+  prazoMeses: number
+  taxaMensalEfetiva: number
+  seguros?: number
+}
+
+export interface ParcelaDetalhe extends ParcelaSACResult {
+  mes: number
+}
+
+export interface TabelaSACResumo {
+  valorFinanciado: number
+  prazoMeses: number
+  amortizacaoMensal: number
+  primeiraParcelar: number
+  ultimaParcela: number
+  totalJuros: number
+  totalPago: number
+  custoTotal: number
+}
+
+export interface TabelaSACResult {
+  parcelas: ParcelaDetalhe[]
+  resumo: TabelaSACResumo
+}
+
+export interface AmortizacaoExtraParams {
+  valorFinanciado: number
+  prazoMeses: number
+  taxaMensalEfetiva: number
+  aporteExtra: number
+  seguros?: number
+}
+
+export interface ParcelaAmortizacaoExtra extends ParcelaSACResult {
+  mes: number
+  aporteExtra: number
+}
+
+export interface AmortizacaoExtraResumo {
+  valorFinanciado: number
+  prazoOriginal: number
+  prazoReal: number
+  mesesEconomizados: number
+  anosEconomizados: string
+  totalJuros: number
+  totalPago: number
+}
+
+export interface AmortizacaoExtraResult {
+  parcelas: ParcelaAmortizacaoExtra[]
+  resumo: AmortizacaoExtraResumo
+}
+
+export interface VendaPosteriorCenarioParams {
+  valorFinanciado: number
+  prazoMeses: number
+  taxaMensalEfetiva: number
+  aporteExtra: number
+  valorApartamento: number
+  mesesAteVenda?: number
+  custoCondominioMensal?: number
+  seguros?: number
+}
+
+export interface ParcelaFase {
+  mes: number
+  fase: number
+  saldoDevedor: number
+  amortizacao: number
+  juros: number
+  prestacao: number
+}
+
+export interface VendaPosteriorCenarioResumo {
+  prazoOriginal: number
+  prazoReal: number
+  mesesEconomizados: number
+  anosEconomizados: string
+  totalJuros: number
+  totalPago: number
+  custoCarregoApto: number
+}
+
+export interface VendaPosteriorCenarioResult {
+  fase1: ParcelaFase[]
+  fase2: ParcelaFase[]
+  vendaApartamento: VendaPosteriorResult
+  amortizacaoExtraordinaria: number
+  resumo: VendaPosteriorCenarioResumo
+}
+
+export interface CustosFechamentoParams {
+  valorImovel: number
+  valorFinanciado: number
+}
+
+export interface ITBIDetalhes {
+  faixaBeneficiada: number
+  faixaFinanciadaRestante: number
+  faixaRecursosProprios: number
+  itbiBeneficiado: number
+  itbiFinanciado: number
+  itbiProprio: number
+  total: number
+}
+
+export interface CartorioDetalhes {
+  registroCompra: number
+  registroAlienacao: number
+  certidoesTaxas: number
+  total: number
+}
+
+export interface CustosFechamentoResult {
+  itbi: ITBIDetalhes
+  cartorio: CartorioDetalhes
+  total: number
+}
+
+export interface ComprometimentoRendaParams {
+  parcela: number
+  rendaMensal: number
+}
+
+export interface ComprometimentoRendaResult {
+  percentual: number
+  percentualFormatado: string
+  limite: number
+  limiteFormatado: string
+  dentroDoLimite: boolean
+  rendaNecessaria: number
+  excesso: number
+}
+
+export interface CenarioCompletoParams {
+  valorImovel: number
+  capitalDisponivel: number
+  reservaEmergencia: number
+  valorApartamento: number
+  estrategia: "permuta" | "venda_posterior"
+  haircut?: number
+  taxaAnual: number
+  trMensal: number
+  prazoMeses: number
+  aporteExtra: number
+  rendaMensal: number
+  custoCondominioMensal?: number
+  seguros?: number
+}
+
+export interface CenarioCompleto {
+  id: string
+  valorImovel: number
+  valorApartamento: number
+  estrategia: "permuta" | "venda_posterior"
+  entrada: number
+  financiamento: FinanciamentoResult
+  taxaAnual: number
+  trMensal: number
+  taxaMensalEfetiva: number
+  cetEstimado: number
+  aporteExtra: number
+  rendaMensal: number
+  tabelaPadrao: TabelaSACResumo
+  parcelasAmostra: ParcelaDetalhe[]
+  cenarioOtimizado: AmortizacaoExtraResumo | VendaPosteriorCenarioResumo
+  custosFechamento: CustosFechamentoResult
+  comprometimento: ComprometimentoRendaResult
+  economiaJuros: number
+  economiaPercentual: number
+  custoTotalPadrao: number
+  custoTotalOtimizado: number
+  isBest?: boolean
+}
+
+export interface MatrizCenariosParams {
+  valoresImovel: readonly number[]
+  valoresApartamento: readonly number[]
+  capitalDisponivel: number
+  reservaEmergencia: number
+  haircut: number
+  taxaAnual: number
+  trMensal: number
+  prazoMeses: number
+  aporteExtra: number
+  rendaMensal: number
+  custoCondominioMensal: number
+  seguros: number
+}
+
+// ============================================================================
+// FORMATTING FUNCTIONS
+// ============================================================================
+
 /**
  * Formata valor para moeda brasileira
- * @param {number} value - Valor a formatar
- * @returns {string} - Valor formatado em BRL
  */
-export const formatCurrency = (value) => {
+export const formatCurrency = (value: number): string => {
   return new Intl.NumberFormat("pt-BR", {
     style: "currency",
     currency: "BRL",
@@ -19,10 +281,8 @@ export const formatCurrency = (value) => {
 
 /**
  * Formata valor para moeda brasileira compacta (K, M)
- * @param {number} value - Valor a formatar
- * @returns {string} - Valor formatado compacto
  */
-export const formatCurrencyCompact = (value) => {
+export const formatCurrencyCompact = (value: number): string => {
   if (value >= 1000000) {
     return `R$ ${(value / 1000000).toFixed(2)}M`
   }
@@ -34,52 +294,48 @@ export const formatCurrencyCompact = (value) => {
 
 /**
  * Formata percentual
- * @param {number} value - Valor decimal (0.115 = 11.5%)
- * @returns {string} - Valor formatado como percentual
  */
-export const formatPercent = (value) => {
+export const formatPercent = (value: number): string => {
   return `${(value * 100).toFixed(2)}%`
 }
 
+// ============================================================================
+// CALCULATION FUNCTIONS
+// ============================================================================
+
 /**
  * Calcula a taxa mensal efetiva combinando juros + TR
- * @param {number} taxaAnual - Taxa de juros anual (ex: 0.115 para 11.5%)
- * @param {number} trMensal - Taxa Referencial mensal (ex: 0.0015 para 0.15%)
- * @returns {number} - Taxa mensal efetiva
  */
-export const calcularTaxaMensalEfetiva = ({ taxaAnual, trMensal }) => {
+export const calcularTaxaMensalEfetiva = ({
+  taxaAnual,
+  trMensal,
+}: TaxaMensalParams): number => {
   const taxaMensalJuros = taxaAnual / 12
   return taxaMensalJuros + trMensal
 }
 
 /**
  * Calcula o valor da entrada disponível
- * @param {number} capitalDisponivel - Capital total disponível
- * @param {number} reservaEmergencia - Valor reservado para emergências
- * @returns {number} - Valor disponível para entrada
  */
-export const calcularEntrada = ({ capitalDisponivel, reservaEmergencia }) => {
+export const calcularEntrada = ({
+  capitalDisponivel,
+  reservaEmergencia,
+}: EntradaParams): number => {
   return capitalDisponivel - reservaEmergencia
 }
 
 /**
  * Calcula o valor do apartamento na permuta (com deságio/haircut)
- * @param {number} valorApartamento - Valor de mercado do apartamento
- * @param {number} haircut - Percentual de deságio (ex: 0.15 para 15%)
- * @returns {number} - Valor aceito na permuta
  */
-export const calcularValorPermuta = ({ valorApartamento, haircut }) => {
+export const calcularValorPermuta = ({
+  valorApartamento,
+  haircut,
+}: PermutaParams): number => {
   return valorApartamento * (1 - haircut)
 }
 
 /**
  * Calcula o valor líquido da venda posterior do apartamento
- * @param {number} valorApartamento - Valor de venda do apartamento
- * @param {number} valorFinanciadoExtra - Valor extra financiado por não usar o apto na entrada
- * @param {number} taxaMensalEfetiva - Taxa mensal efetiva do financiamento
- * @param {number} mesesCarrego - Meses de custo de carregamento (default: 6)
- * @param {number} custoCondominioMensal - Custo mensal de condomínio/IPTU do apto
- * @returns {object} - Valor líquido e breakdown dos custos
  */
 export const calcularValorVendaPosterior = ({
   valorApartamento,
@@ -87,14 +343,10 @@ export const calcularValorVendaPosterior = ({
   taxaMensalEfetiva,
   mesesCarrego = 6,
   custoCondominioMensal = 1000,
-}) => {
-  // Juros pagos no financiamento extra durante o período de carrego
+}: VendaPosteriorParams): VendaPosteriorResult => {
   const jurosCarrego = valorFinanciadoExtra * taxaMensalEfetiva * mesesCarrego
-  // Custos de manutenção do apto vazio
   const custosManutencao = custoCondominioMensal * mesesCarrego
-  // Total de custos
   const custoTotalCarrego = jurosCarrego + custosManutencao
-  // Valor líquido
   const valorLiquido = valorApartamento - custoTotalCarrego
 
   return {
@@ -108,12 +360,6 @@ export const calcularValorVendaPosterior = ({
 
 /**
  * Calcula o valor a ser financiado em cada cenário
- * @param {number} valorImovel - Valor do imóvel a adquirir
- * @param {number} entrada - Valor da entrada em dinheiro
- * @param {number} valorApartamento - Valor do apartamento secundário
- * @param {string} estrategia - "permuta" ou "venda_posterior"
- * @param {number} haircut - Deságio na permuta
- * @returns {object} - Valor financiado e detalhamento
  */
 export const calcularValorFinanciado = ({
   valorImovel,
@@ -121,7 +367,7 @@ export const calcularValorFinanciado = ({
   valorApartamento,
   estrategia,
   haircut = 0.15,
-}) => {
+}: FinanciamentoParams): FinanciamentoResult => {
   if (estrategia === "permuta") {
     const valorPermuta = calcularValorPermuta({ valorApartamento, haircut })
     const entradaTotal = entrada + valorPermuta
@@ -135,7 +381,6 @@ export const calcularValorFinanciado = ({
     }
   }
 
-  // Venda posterior - financia mais no início
   const valorFinanciado = Math.max(0, valorImovel - entrada)
   return {
     valorFinanciado,
@@ -149,18 +394,13 @@ export const calcularValorFinanciado = ({
 
 /**
  * Calcula uma parcela específica no sistema SAC
- * @param {number} saldoDevedor - Saldo devedor atual
- * @param {number} amortizacaoMensal - Valor fixo de amortização
- * @param {number} taxaMensalEfetiva - Taxa mensal (juros + TR)
- * @param {number} seguros - Valor dos seguros (MIP + DFI)
- * @returns {object} - Detalhamento da parcela
  */
 export const calcularParcelaSAC = ({
   saldoDevedor,
   amortizacaoMensal,
   taxaMensalEfetiva,
   seguros = 175,
-}) => {
+}: ParcelaSACParams): ParcelaSACResult => {
   const juros = saldoDevedor * taxaMensalEfetiva
   const prestacao = amortizacaoMensal + juros + seguros
   const novoSaldo = saldoDevedor - amortizacaoMensal
@@ -177,20 +417,15 @@ export const calcularParcelaSAC = ({
 
 /**
  * Gera a tabela completa de amortização SAC
- * @param {number} valorFinanciado - Valor total financiado
- * @param {number} prazoMeses - Prazo em meses
- * @param {number} taxaMensalEfetiva - Taxa mensal efetiva
- * @param {number} seguros - Valor dos seguros mensais
- * @returns {object} - Tabela completa e resumo
  */
 export const gerarTabelaSAC = ({
   valorFinanciado,
   prazoMeses,
   taxaMensalEfetiva,
   seguros = 175,
-}) => {
+}: TabelaSACParams): TabelaSACResult => {
   const amortizacaoMensal = valorFinanciado / prazoMeses
-  const parcelas = []
+  const parcelas: ParcelaDetalhe[] = []
   let saldoDevedor = valorFinanciado
   let totalJuros = 0
   let totalPago = 0
@@ -230,12 +465,6 @@ export const gerarTabelaSAC = ({
 
 /**
  * Calcula o financiamento com amortizações extras mensais
- * @param {number} valorFinanciado - Valor total financiado
- * @param {number} prazoMeses - Prazo original em meses
- * @param {number} taxaMensalEfetiva - Taxa mensal efetiva
- * @param {number} aporteExtra - Valor extra mensal para amortização
- * @param {number} seguros - Valor dos seguros mensais
- * @returns {object} - Tabela e resumo com amortização acelerada
  */
 export const calcularComAmortizacaoExtra = ({
   valorFinanciado,
@@ -243,9 +472,9 @@ export const calcularComAmortizacaoExtra = ({
   taxaMensalEfetiva,
   aporteExtra,
   seguros = 175,
-}) => {
+}: AmortizacaoExtraParams): AmortizacaoExtraResult => {
   const amortizacaoMensal = valorFinanciado / prazoMeses
-  const parcelas = []
+  const parcelas: ParcelaAmortizacaoExtra[] = []
   let saldoDevedor = valorFinanciado
   let totalJuros = 0
   let totalPago = 0
@@ -256,7 +485,6 @@ export const calcularComAmortizacaoExtra = ({
     const juros = saldoDevedor * taxaMensalEfetiva
     const prestacaoBase = amortizacaoMensal + juros + seguros
 
-    // Amortização total = base + extra (limitado ao saldo)
     const amortizacaoTotal = Math.min(
       amortizacaoMensal + aporteExtra,
       saldoDevedor
@@ -270,6 +498,7 @@ export const calcularComAmortizacaoExtra = ({
       juros,
       seguros,
       prestacao: prestacaoTotal,
+      novoSaldo: Math.max(0, saldoDevedor - amortizacaoTotal),
       aporteExtra: Math.min(aporteExtra, saldoDevedor - amortizacaoMensal),
     })
 
@@ -294,8 +523,6 @@ export const calcularComAmortizacaoExtra = ({
 
 /**
  * Calcula o cenário com venda do apartamento e amortização extraordinária
- * @param {object} params - Parâmetros do cenário
- * @returns {object} - Resultado completo do cenário
  */
 export const calcularCenarioVendaPosterior = ({
   valorFinanciado,
@@ -306,9 +533,8 @@ export const calcularCenarioVendaPosterior = ({
   mesesAteVenda = 6,
   custoCondominioMensal = 1000,
   seguros = 175,
-}) => {
-  // Fase 1: Antes da venda do apartamento (só aporte extra mensal)
-  const fase1 = []
+}: VendaPosteriorCenarioParams): VendaPosteriorCenarioResult => {
+  const fase1: ParcelaFase[] = []
   let saldoDevedor = valorFinanciado
   let totalJuros = 0
   let totalPago = 0
@@ -336,21 +562,18 @@ export const calcularCenarioVendaPosterior = ({
     saldoDevedor = Math.max(0, saldoDevedor - amortizacaoTotal)
   }
 
-  // Calcular valor líquido da venda do apartamento
   const vendaApto = calcularValorVendaPosterior({
     valorApartamento,
-    valorFinanciadoExtra: valorApartamento, // Aproximação do extra financiado
+    valorFinanciadoExtra: valorApartamento,
     taxaMensalEfetiva,
     mesesCarrego: mesesAteVenda,
     custoCondominioMensal,
   })
 
-  // Amortização extraordinária com a venda do apto
   const amortizacaoExtraordinaria = Math.min(vendaApto.valorLiquido, saldoDevedor)
   saldoDevedor = Math.max(0, saldoDevedor - amortizacaoExtraordinaria)
 
-  // Fase 2: Após a venda do apartamento
-  const fase2 = []
+  const fase2: ParcelaFase[] = []
   let mesAtual = mesesAteVenda
 
   while (saldoDevedor > 0 && mesAtual < prazoMeses) {
@@ -395,15 +618,14 @@ export const calcularCenarioVendaPosterior = ({
 
 /**
  * Calcula os custos de fechamento (ITBI, registro, taxas)
- * @param {number} valorImovel - Valor do imóvel
- * @param {number} valorFinanciado - Valor financiado
- * @returns {object} - Detalhamento dos custos
  */
-export const calcularCustosFechamento = ({ valorImovel, valorFinanciado }) => {
-  // ITBI Florianópolis - regras especiais SFH
+export const calcularCustosFechamento = ({
+  valorImovel,
+  valorFinanciado,
+}: CustosFechamentoParams): CustosFechamentoResult => {
   const tetoSFH = 226000
-  const aliquotaReduzida = 0.005 // 0.5%
-  const aliquotaPadrao = 0.02 // 2%
+  const aliquotaReduzida = 0.005
+  const aliquotaPadrao = 0.02
 
   const faixaBeneficiada = Math.min(tetoSFH, valorFinanciado)
   const faixaFinanciadaRestante = Math.max(0, valorFinanciado - tetoSFH)
@@ -414,7 +636,6 @@ export const calcularCustosFechamento = ({ valorImovel, valorFinanciado }) => {
   const itbiProprio = faixaRecursosProprios * aliquotaPadrao
   const itbiTotal = itbiBeneficiado + itbiFinanciado + itbiProprio
 
-  // Custos cartorários (estimativa SC)
   const registroCompra = 4000
   const registroAlienacao = 4000
   const certidoesTaxas = 4000
@@ -441,13 +662,13 @@ export const calcularCustosFechamento = ({ valorImovel, valorFinanciado }) => {
 
 /**
  * Calcula o comprometimento de renda
- * @param {number} parcela - Valor da parcela mensal
- * @param {number} rendaMensal - Renda mensal total
- * @returns {object} - Percentual e status de aprovação
  */
-export const calcularComprometimentoRenda = ({ parcela, rendaMensal }) => {
+export const calcularComprometimentoRenda = ({
+  parcela,
+  rendaMensal,
+}: ComprometimentoRendaParams): ComprometimentoRendaResult => {
   const percentual = parcela / rendaMensal
-  const limite = 0.3 // 30%
+  const limite = 0.3
 
   return {
     percentual,
@@ -462,8 +683,6 @@ export const calcularComprometimentoRenda = ({ parcela, rendaMensal }) => {
 
 /**
  * Gera um cenário completo de financiamento
- * @param {object} params - Todos os parâmetros do cenário
- * @returns {object} - Cenário completo com todos os cálculos
  */
 export const gerarCenarioCompleto = ({
   valorImovel,
@@ -479,11 +698,9 @@ export const gerarCenarioCompleto = ({
   rendaMensal,
   custoCondominioMensal = 1000,
   seguros = 175,
-}) => {
-  // Calcular entrada disponível
+}: CenarioCompletoParams): CenarioCompleto => {
   const entrada = calcularEntrada({ capitalDisponivel, reservaEmergencia })
 
-  // Calcular valor financiado
   const financiamento = calcularValorFinanciado({
     valorImovel,
     entrada,
@@ -492,10 +709,8 @@ export const gerarCenarioCompleto = ({
     haircut,
   })
 
-  // Taxa mensal efetiva
   const taxaMensalEfetiva = calcularTaxaMensalEfetiva({ taxaAnual, trMensal })
 
-  // Tabela SAC padrão (sem aportes extras)
   const tabelaPadrao = gerarTabelaSAC({
     valorFinanciado: financiamento.valorFinanciado,
     prazoMeses,
@@ -503,10 +718,9 @@ export const gerarCenarioCompleto = ({
     seguros,
   })
 
-  // Cálculo com amortização extra
-  let cenarioOtimizado
+  let cenarioOtimizado: AmortizacaoExtraResumo | VendaPosteriorCenarioResumo
   if (estrategia === "venda_posterior") {
-    cenarioOtimizado = calcularCenarioVendaPosterior({
+    const resultado = calcularCenarioVendaPosterior({
       valorFinanciado: financiamento.valorFinanciado,
       prazoMeses,
       taxaMensalEfetiva,
@@ -516,84 +730,62 @@ export const gerarCenarioCompleto = ({
       custoCondominioMensal,
       seguros,
     })
+    cenarioOtimizado = resultado.resumo
   } else {
-    cenarioOtimizado = calcularComAmortizacaoExtra({
+    const resultado = calcularComAmortizacaoExtra({
       valorFinanciado: financiamento.valorFinanciado,
       prazoMeses,
       taxaMensalEfetiva,
       aporteExtra,
       seguros,
     })
+    cenarioOtimizado = resultado.resumo
   }
 
-  // Custos de fechamento
   const custosFechamento = calcularCustosFechamento({
     valorImovel,
     valorFinanciado: financiamento.valorFinanciado,
   })
 
-  // Comprometimento de renda
   const comprometimento = calcularComprometimentoRenda({
     parcela: tabelaPadrao.resumo.primeiraParcelar,
     rendaMensal,
   })
 
-  // Economia gerada pela amortização acelerada
   const economiaJuros =
-    tabelaPadrao.resumo.totalJuros - cenarioOtimizado.resumo.totalJuros
+    tabelaPadrao.resumo.totalJuros - cenarioOtimizado.totalJuros
 
   return {
-    // Identificação
     id: `${valorImovel}-${valorApartamento}-${estrategia}`,
     valorImovel,
     valorApartamento,
     estrategia,
-
-    // Entrada e financiamento
     entrada,
     financiamento,
-
-    // Taxas
     taxaAnual,
     trMensal,
     taxaMensalEfetiva,
-    cetEstimado: taxaAnual + trMensal * 12 + 0.02, // CET aproximado
-
-    // Amortização extra
+    cetEstimado: taxaAnual + trMensal * 12 + 0.02,
     aporteExtra,
     rendaMensal,
-
-    // Tabela padrão
     tabelaPadrao: tabelaPadrao.resumo,
-    parcelasAmostra: tabelaPadrao.parcelas.filter(
-      (p) => [1, 12, 24, 60, 120, 180, 240, 300, 360].includes(p.mes)
+    parcelasAmostra: tabelaPadrao.parcelas.filter((p) =>
+      [1, 12, 24, 60, 120, 180, 240, 300, 360].includes(p.mes)
     ),
-
-    // Cenário otimizado
-    cenarioOtimizado: cenarioOtimizado.resumo,
-
-    // Custos adicionais
+    cenarioOtimizado,
     custosFechamento,
-
-    // Análise de renda
     comprometimento,
-
-    // Economia
     economiaJuros,
     economiaPercentual: economiaJuros / tabelaPadrao.resumo.totalJuros,
-
-    // Custo total do imóvel
     custoTotalPadrao:
       valorImovel + tabelaPadrao.resumo.totalJuros + custosFechamento.total,
     custoTotalOtimizado:
-      valorImovel + cenarioOtimizado.resumo.totalJuros + custosFechamento.total,
+      valorImovel + cenarioOtimizado.totalJuros + custosFechamento.total,
   }
 }
 
 /**
  * Gera a matriz completa de cenários
- * @param {object} params - Parâmetros base
- * @returns {array} - Array com todos os cenários calculados
  */
 export const gerarMatrizCenarios = ({
   valoresImovel,
@@ -608,12 +800,12 @@ export const gerarMatrizCenarios = ({
   rendaMensal,
   custoCondominioMensal,
   seguros,
-}) => {
-  const cenarios = []
+}: MatrizCenariosParams): CenarioCompleto[] => {
+  const cenarios: CenarioCompleto[] = []
 
   for (const valorImovel of valoresImovel) {
     for (const valorApartamento of valoresApartamento) {
-      for (const estrategia of ["permuta", "venda_posterior"]) {
+      for (const estrategia of ["permuta", "venda_posterior"] as const) {
         const cenario = gerarCenarioCompleto({
           valorImovel,
           capitalDisponivel,
@@ -634,10 +826,8 @@ export const gerarMatrizCenarios = ({
     }
   }
 
-  // Ordenar por economia de juros (melhor primeiro)
   cenarios.sort((a, b) => a.cenarioOtimizado.totalJuros - b.cenarioOtimizado.totalJuros)
 
-  // Marcar o melhor cenário
   if (cenarios.length > 0) {
     cenarios[0].isBest = true
   }
@@ -645,9 +835,10 @@ export const gerarMatrizCenarios = ({
   return cenarios
 }
 
-/**
- * Constantes e valores padrão
- */
+// ============================================================================
+// CONSTANTS
+// ============================================================================
+
 export const DEFAULTS = {
   valoresImovel: [1960000, 1900000, 1800000],
   valoresApartamento: [550000, 500000, 450000],
@@ -661,11 +852,8 @@ export const DEFAULTS = {
   rendaMensal: 45000,
   custoCondominioMensal: 1000,
   seguros: 175,
-}
+} as const
 
-/**
- * Tooltips explicativos em português
- */
 export const TOOLTIPS = {
   valorImovel:
     "Valor de compra do imóvel. Negocie! Uma entrada robusta dá poder de barganha.",
@@ -699,5 +887,5 @@ export const TOOLTIPS = {
   itbi: "Imposto de Transmissão de Bens Imóveis. Em Florianópolis, 0,5% sobre até R$ 226k financiados via SFH, 2% sobre o restante.",
   leiDoBem:
     "Lei 11.196/2005: isenta ganho de capital na venda de imóvel se o valor for usado para quitar/amortizar financiamento habitacional em até 180 dias.",
-}
+} as const
 

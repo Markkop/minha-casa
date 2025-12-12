@@ -28,7 +28,72 @@ import {
   formatCurrencyCompact,
   formatPercent,
   TOOLTIPS,
+  type CenarioCompleto,
+  type ParcelaDetalhe,
 } from "./utils/calculations"
+
+// ============================================================================
+// TYPES
+// ============================================================================
+
+type SortKey =
+  | "valorImovel"
+  | "valorApartamento"
+  | "valorFinanciado"
+  | "parcela"
+  | "comprometimento"
+  | "prazoReal"
+  | "jurosOtimizado"
+  | "economiaJuros"
+  | "custoTotal"
+
+type SortDirection = "asc" | "desc"
+
+interface SortState {
+  key: SortKey
+  direction: SortDirection
+}
+
+interface SortableHeaderProps {
+  label: string
+  tooltip?: string
+  sortKey: SortKey
+  currentSort: SortState
+  onSort: (key: SortKey) => void
+}
+
+interface EstrategiaBadgeInlineProps {
+  estrategia: "permuta" | "venda_posterior"
+}
+
+interface AprovacaoIndicatorProps {
+  dentroDoLimite: boolean
+}
+
+interface ResultsTableProps {
+  cenarios: CenarioCompleto[]
+  onSelectCenario?: (cenario: CenarioCompleto) => void
+}
+
+interface AmortizationSampleTableProps {
+  parcelas: ParcelaDetalhe[] | null | undefined
+}
+
+interface SummaryComparisonProps {
+  cenarios: CenarioCompleto[] | null | undefined
+}
+
+interface StatCard {
+  label: string
+  value: string
+  icon: string
+  highlight?: boolean
+  variant?: "salmon"
+}
+
+// ============================================================================
+// HELPER COMPONENTS
+// ============================================================================
 
 /**
  * Header com tooltip e sorting
@@ -39,7 +104,7 @@ const SortableHeader = ({
   sortKey,
   currentSort,
   onSort,
-}) => {
+}: SortableHeaderProps) => {
   const isActive = currentSort?.key === sortKey
   const isAsc = isActive && currentSort?.direction === "asc"
 
@@ -77,7 +142,7 @@ const SortableHeader = ({
 /**
  * Badge de estratégia inline
  */
-const EstrategiaBadgeInline = ({ estrategia }) => {
+const EstrategiaBadgeInline = ({ estrategia }: EstrategiaBadgeInlineProps) => {
   const config = {
     permuta: {
       label: "Permuta",
@@ -97,7 +162,7 @@ const EstrategiaBadgeInline = ({ estrategia }) => {
 /**
  * Indicador de status de aprovação
  */
-const AprovacaoIndicator = ({ dentroDoLimite }) => {
+const AprovacaoIndicator = ({ dentroDoLimite }: AprovacaoIndicatorProps) => {
   return (
     <TooltipProvider>
       <Tooltip>
@@ -121,13 +186,17 @@ const AprovacaoIndicator = ({ dentroDoLimite }) => {
   )
 }
 
+// ============================================================================
+// TABLE COMPONENTS
+// ============================================================================
+
 /**
  * Tabela comparativa de cenários
  */
-export const ResultsTable = ({ cenarios, onSelectCenario }) => {
-  const [sort, setSort] = useState({ key: "economiaJuros", direction: "desc" })
+export const ResultsTable = ({ cenarios, onSelectCenario }: ResultsTableProps) => {
+  const [sort, setSort] = useState<SortState>({ key: "economiaJuros", direction: "desc" })
 
-  const handleSort = (key) => {
+  const handleSort = (key: SortKey) => {
     setSort((prev) => ({
       key,
       direction: prev.key === key && prev.direction === "desc" ? "asc" : "desc",
@@ -136,8 +205,8 @@ export const ResultsTable = ({ cenarios, onSelectCenario }) => {
 
   // Ordenar cenários
   const sortedCenarios = [...cenarios].sort((a, b) => {
-    const getValue = (cenario, key) => {
-      const paths = {
+    const getValue = (cenario: CenarioCompleto, key: SortKey): number => {
+      const paths: Record<SortKey, number> = {
         valorImovel: cenario.valorImovel,
         valorApartamento: cenario.valorApartamento,
         valorFinanciado: cenario.financiamento.valorFinanciado,
@@ -307,7 +376,7 @@ export const ResultsTable = ({ cenarios, onSelectCenario }) => {
 /**
  * Tabela de parcelas amostra
  */
-export const AmortizationSampleTable = ({ parcelas }) => {
+export const AmortizationSampleTable = ({ parcelas }: AmortizationSampleTableProps) => {
   if (!parcelas || parcelas.length === 0) return null
 
   return (
@@ -351,7 +420,7 @@ export const AmortizationSampleTable = ({ parcelas }) => {
 /**
  * Resumo comparativo de cenários
  */
-export const SummaryComparison = ({ cenarios }) => {
+export const SummaryComparison = ({ cenarios }: SummaryComparisonProps) => {
   if (!cenarios || cenarios.length === 0) return null
 
   // Calcular estatísticas
@@ -386,7 +455,7 @@ export const SummaryComparison = ({ cenarios }) => {
     ).length,
   }
 
-  const statCards = [
+  const statCards: StatCard[] = [
     {
       label: "Range Financiamento",
       value: `${formatCurrencyCompact(stats.menorFinanciamento)} - ${formatCurrencyCompact(stats.maiorFinanciamento)}`,

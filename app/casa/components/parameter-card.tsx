@@ -3,15 +3,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
 import { Slider } from "@/components/ui/slider"
-import { Switch } from "@/components/ui/switch"
 import {
   Tooltip,
   TooltipContent,
@@ -20,13 +12,45 @@ import {
 } from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
 import { InfoCircledIcon } from "@radix-ui/react-icons"
+import type { ChangeEvent, ReactNode } from "react"
 
 import { formatCurrency, TOOLTIPS } from "./utils/calculations"
+import type { SimulatorParams } from "./simulator-client"
+
+// ============================================================================
+// TYPES
+// ============================================================================
+
+interface FieldWithTooltipProps {
+  label: string
+  tooltip?: string
+  children: ReactNode
+  className?: string
+}
+
+interface CurrencyInputProps {
+  value: number
+  onChange: (value: number) => void
+}
+
+interface PercentInputProps {
+  value: number
+  onChange: (value: number) => void
+}
+
+interface ParameterCardProps {
+  params: SimulatorParams
+  onChange: (params: SimulatorParams) => void
+}
+
+// ============================================================================
+// HELPER COMPONENTS
+// ============================================================================
 
 /**
  * Campo com tooltip informativo
  */
-const FieldWithTooltip = ({ label, tooltip, children, className }) => {
+const FieldWithTooltip = ({ label, tooltip, children, className }: FieldWithTooltipProps) => {
   return (
     <div className={cn("space-y-2", className)}>
       <div className="flex items-center gap-2">
@@ -52,8 +76,8 @@ const FieldWithTooltip = ({ label, tooltip, children, className }) => {
 /**
  * Input monetário formatado
  */
-const CurrencyInput = ({ value, onChange, ...props }) => {
-  const handleChange = (e) => {
+const CurrencyInput = ({ value, onChange, ...props }: CurrencyInputProps) => {
+  const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
     const rawValue = e.target.value.replace(/\D/g, "")
     const numericValue = parseInt(rawValue, 10) || 0
     onChange(numericValue)
@@ -73,8 +97,8 @@ const CurrencyInput = ({ value, onChange, ...props }) => {
 /**
  * Input percentual
  */
-const PercentInput = ({ value, onChange, ...props }) => {
-  const handleChange = (e) => {
+const PercentInput = ({ value, onChange, ...props }: PercentInputProps) => {
+  const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
     const rawValue = e.target.value.replace(/[^\d.,]/g, "").replace(",", ".")
     const numericValue = parseFloat(rawValue) || 0
     onChange(numericValue / 100)
@@ -91,10 +115,14 @@ const PercentInput = ({ value, onChange, ...props }) => {
   )
 }
 
+// ============================================================================
+// PARAMETER CARDS
+// ============================================================================
+
 /**
  * Card de parâmetros do imóvel
  */
-export const ImovelParameterCard = ({ params, onChange }) => {
+export const ImovelParameterCard = ({ params, onChange }: ParameterCardProps) => {
   const presets = [1960000, 1900000, 1800000]
 
   return (
@@ -215,7 +243,7 @@ export const ImovelParameterCard = ({ params, onChange }) => {
 /**
  * Card de parâmetros de recursos
  */
-export const RecursosParameterCard = ({ params, onChange }) => {
+export const RecursosParameterCard = ({ params, onChange }: ParameterCardProps) => {
   const entrada = params.capitalDisponivel - params.reservaEmergencia
 
   return (
@@ -263,7 +291,7 @@ export const RecursosParameterCard = ({ params, onChange }) => {
 /**
  * Card de parâmetros do apartamento
  */
-export const ApartamentoParameterCard = ({ params, onChange }) => {
+export const ApartamentoParameterCard = ({ params, onChange }: ParameterCardProps) => {
   const presets = [550000, 500000, 450000]
 
   return (
@@ -349,7 +377,7 @@ export const ApartamentoParameterCard = ({ params, onChange }) => {
 /**
  * Card de parâmetros de amortização
  */
-export const AmortizacaoParameterCard = ({ params, onChange }) => {
+export const AmortizacaoParameterCard = ({ params, onChange }: ParameterCardProps) => {
   return (
     <Card className="bg-eerieBlack border-brightGrey">
       <CardHeader className="pb-4">
@@ -413,7 +441,7 @@ export const AmortizacaoParameterCard = ({ params, onChange }) => {
 /**
  * Card de filtros de cenário
  */
-export const FiltrosCenarioCard = ({ params, onChange }) => {
+export const FiltrosCenarioCard = ({ params, onChange }: ParameterCardProps) => {
   return (
     <Card className="bg-raisinBlack border-brightGrey">
       <CardHeader className="pb-4">
@@ -485,8 +513,8 @@ export const FiltrosCenarioCard = ({ params, onChange }) => {
         >
           <div className="flex gap-2">
             {[
-              { value: "permuta", label: "Permuta" },
-              { value: "venda_posterior", label: "Venda Posterior" },
+              { value: "permuta" as const, label: "Permuta" },
+              { value: "venda_posterior" as const, label: "Venda Posterior" },
             ].map(({ value, label }) => (
               <button
                 key={value}
@@ -495,7 +523,7 @@ export const FiltrosCenarioCard = ({ params, onChange }) => {
                   const updated = current.includes(value)
                     ? current.filter((v) => v !== value)
                     : [...current, value]
-                  onChange({ ...params, estrategiasFiltro: updated })
+                  onChange({ ...params, estrategiasFiltro: updated as ("permuta" | "venda_posterior")[] })
                 }}
                 className={cn(
                   "px-3 py-1 text-xs rounded-md border transition-all",

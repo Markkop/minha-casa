@@ -35,12 +35,57 @@ import {
   formatPercent,
   gerarMatrizCenarios,
   TOOLTIPS,
+  type CenarioCompleto,
 } from "./utils/calculations"
+
+// ============================================================================
+// TYPES
+// ============================================================================
+
+export interface SimulatorParams {
+  // Imóvel
+  valorImovelSelecionado: number
+  taxaAnual: number
+  trMensal: number
+  prazoMeses: number
+
+  // Recursos
+  capitalDisponivel: number
+  reservaEmergencia: number
+
+  // Apartamento
+  valorApartamentoSelecionado: number
+  haircut: number
+  custoCondominioMensal: number
+
+  // Amortização
+  aporteExtra: number
+  rendaMensal: number
+  seguros: number
+
+  // Filtros
+  valoresImovelFiltro: number[]
+  valoresAptoFiltro: number[]
+  estrategiasFiltro: ("permuta" | "venda_posterior")[]
+}
+
+interface InfoCardProps {
+  title: string
+  value: string
+  subtitle?: string
+  tooltip?: string
+  icon?: string
+  highlight?: boolean
+}
+
+// ============================================================================
+// COMPONENTS
+// ============================================================================
 
 /**
  * Info card com tooltip
  */
-const InfoCard = ({ title, value, subtitle, tooltip, icon, highlight }) => {
+const InfoCard = ({ title, value, subtitle, tooltip, icon, highlight }: InfoCardProps) => {
   return (
     <Card
       className={cn(
@@ -90,7 +135,7 @@ const InfoCard = ({ title, value, subtitle, tooltip, icon, highlight }) => {
  */
 export const SimulatorClient = () => {
   // Estado dos parâmetros
-  const [params, setParams] = useState({
+  const [params, setParams] = useState<SimulatorParams>({
     // Imóvel
     valorImovelSelecionado: DEFAULTS.valoresImovel[0],
     taxaAnual: DEFAULTS.taxaAnual,
@@ -112,14 +157,14 @@ export const SimulatorClient = () => {
     seguros: DEFAULTS.seguros,
 
     // Filtros
-    valoresImovelFiltro: DEFAULTS.valoresImovel,
-    valoresAptoFiltro: DEFAULTS.valoresApartamento,
+    valoresImovelFiltro: [...DEFAULTS.valoresImovel],
+    valoresAptoFiltro: [...DEFAULTS.valoresApartamento],
     estrategiasFiltro: ["permuta", "venda_posterior"],
   })
 
   // Estado da view
   const [activeTab, setActiveTab] = useState("grid")
-  const [selectedCenario, setSelectedCenario] = useState(null)
+  const [selectedCenario, setSelectedCenario] = useState<CenarioCompleto | null>(null)
 
   // Gerar todos os cenários
   const cenarios = useMemo(() => {
