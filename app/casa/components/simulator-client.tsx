@@ -13,7 +13,7 @@ import { InfoCircledIcon } from "@radix-ui/react-icons"
 import { useMemo, useState } from "react"
 
 import {
-  ApartamentoParameterCard,
+  ImovelCompradorParameterCard,
   AmortizacaoParameterCard,
   FiltrosCenarioCard,
   ImovelParameterCard,
@@ -29,6 +29,7 @@ import {
   ScenarioCard,
   ScenarioCardCompact,
 } from "./scenario-card"
+import { SettingsButton, SettingsPanel } from "./settings-panel"
 import {
   DEFAULTS,
   formatCurrency,
@@ -37,6 +38,7 @@ import {
   TOOLTIPS,
   type CenarioCompleto,
 } from "./utils/calculations"
+import { useSettings } from "./utils/settings"
 
 // ============================================================================
 // TYPES
@@ -53,7 +55,7 @@ export interface SimulatorParams {
   capitalDisponivel: number
   reservaEmergencia: number
 
-  // Apartamento
+  // Imóvel do Comprador (antigo Apartamento)
   valorApartamentoSelecionado: number
   haircut: number
   custoCondominioMensal: number
@@ -134,6 +136,9 @@ const InfoCard = ({ title, value, subtitle, tooltip, icon, highlight }: InfoCard
  * Componente principal do simulador
  */
 export const SimulatorClient = () => {
+  // Settings from context
+  const { settings, isLoaded } = useSettings()
+
   // Estado dos parâmetros
   const [params, setParams] = useState<SimulatorParams>({
     // Imóvel
@@ -146,7 +151,7 @@ export const SimulatorClient = () => {
     capitalDisponivel: DEFAULTS.capitalDisponivel,
     reservaEmergencia: DEFAULTS.reservaEmergencia,
 
-    // Apartamento
+    // Imóvel do Comprador (antigo Apartamento)
     valorApartamentoSelecionado: DEFAULTS.valoresApartamento[0],
     haircut: DEFAULTS.haircut,
     custoCondominioMensal: DEFAULTS.custoCondominioMensal,
@@ -165,12 +170,17 @@ export const SimulatorClient = () => {
   // Estado da view
   const [activeTab, setActiveTab] = useState("grid")
   const [selectedCenario, setSelectedCenario] = useState<CenarioCompleto | null>(null)
+  const [showSettings, setShowSettings] = useState(false)
+
+  // Get property values from settings
+  const valoresImovelCasa = settings.valoresImovelCasa
+  const valoresImovelComprador = settings.valoresImovelComprador
 
   // Gerar todos os cenários
   const cenarios = useMemo(() => {
     return gerarMatrizCenarios({
-      valoresImovel: DEFAULTS.valoresImovel,
-      valoresApartamento: DEFAULTS.valoresApartamento,
+      valoresImovel: valoresImovelCasa,
+      valoresApartamento: valoresImovelComprador,
       capitalDisponivel: params.capitalDisponivel,
       reservaEmergencia: params.reservaEmergencia,
       haircut: params.haircut,
@@ -183,6 +193,8 @@ export const SimulatorClient = () => {
       seguros: params.seguros,
     })
   }, [
+    valoresImovelCasa,
+    valoresImovelComprador,
     params.capitalDisponivel,
     params.reservaEmergencia,
     params.haircut,
@@ -213,24 +225,41 @@ export const SimulatorClient = () => {
   // Melhor cenário dos filtrados
   const bestCenario = filteredCenarios.find((c) => c.isBest) || filteredCenarios[0]
 
-  // Taxa efetiva mensal
+  // Taxa efetiva mensal e CET usando settings
   const taxaMensalEfetiva = params.taxaAnual / 12 + params.trMensal
-  const cetEstimado = params.taxaAnual + params.trMensal * 12 + 0.02
+  const cetEstimado = params.taxaAnual + params.trMensal * 12 + settings.cetAdditionalCost
+
+  // Show loading state until settings are loaded
+  if (!isLoaded) {
+    return (
+      <div className="min-h-screen bg-black text-white flex items-center justify-center">
+        <p className="text-ashGray">Carregando...</p>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-black text-white">
       {/* Header */}
       <header className="border-b border-brightGrey bg-raisinBlack">
         <div className="max-w-7xl mx-auto px-4 py-6">
-          <h1 className="text-3xl font-bold text-primary mb-2">
-            🏠 Simulador de Financiamento Imobiliário
-          </h1>
-          <p className="text-ashGray">
-            Sistema SAC com análise completa de cenários, amortização acelerada
-            e estratégias de permuta vs venda posterior
-          </p>
+          <div className="flex items-start justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-primary mb-2">
+                🏠 Simulador de Financiamento Imobiliário
+              </h1>
+              <p className="text-ashGray">
+                Sistema SAC com análise completa de cenários, amortização acelerada
+                e estratégias de permuta vs venda posterior
+              </p>
+            </div>
+            <SettingsButton onClick={() => setShowSettings(true)} />
+          </div>
         </div>
       </header>
+
+      {/* Settings Panel */}
+      <SettingsPanel isOpen={showSettings} onClose={() => setShowSettings(false)} />
 
       <main className="max-w-7xl mx-auto px-4 py-6 space-y-6">
         {/* Info cards rápidos */}
@@ -272,7 +301,7 @@ export const SimulatorClient = () => {
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
           <ImovelParameterCard params={params} onChange={setParams} />
           <RecursosParameterCard params={params} onChange={setParams} />
-          <ApartamentoParameterCard params={params} onChange={setParams} />
+          <ImovelCompradorParameterCard params={params} onChange={setParams} />
           <AmortizacaoParameterCard params={params} onChange={setParams} />
         </div>
 
@@ -449,4 +478,3 @@ export const SimulatorClient = () => {
     </div>
   )
 }
-

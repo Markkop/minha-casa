@@ -15,6 +15,7 @@ import { InfoCircledIcon } from "@radix-ui/react-icons"
 import type { ChangeEvent, ReactNode } from "react"
 
 import { formatCurrency, TOOLTIPS } from "./utils/calculations"
+import { useSettings } from "./utils/settings"
 import type { SimulatorParams } from "./simulator-client"
 
 // ============================================================================
@@ -123,7 +124,11 @@ const PercentInput = ({ value, onChange, ...props }: PercentInputProps) => {
  * Card de parâmetros do imóvel
  */
 export const ImovelParameterCard = ({ params, onChange }: ParameterCardProps) => {
-  const presets = [1960000, 1900000, 1800000]
+  const { settings } = useSettings()
+  const presets = settings.valoresImovelCasa
+  const prazoOptions = settings.prazoOptions
+  const taxaAnualRange = settings.sliders.taxaAnual
+  const trMensalRange = settings.sliders.trMensal
 
   return (
     <Card className="bg-eerieBlack border-brightGrey">
@@ -173,9 +178,9 @@ export const ImovelParameterCard = ({ params, onChange }: ParameterCardProps) =>
               onValueChange={([v]) =>
                 onChange({ ...params, taxaAnual: v / 100 })
               }
-              min={9}
-              max={15}
-              step={0.1}
+              min={taxaAnualRange.min}
+              max={taxaAnualRange.max}
+              step={taxaAnualRange.step}
               className="py-2"
             />
             <PercentInput
@@ -192,9 +197,9 @@ export const ImovelParameterCard = ({ params, onChange }: ParameterCardProps) =>
               onValueChange={([v]) =>
                 onChange({ ...params, trMensal: v / 100 })
               }
-              min={0}
-              max={0.5}
-              step={0.01}
+              min={trMensalRange.min}
+              max={trMensalRange.max}
+              step={trMensalRange.step}
               className="py-2"
             />
             <PercentInput
@@ -209,8 +214,8 @@ export const ImovelParameterCard = ({ params, onChange }: ParameterCardProps) =>
           tooltip={TOOLTIPS.prazoMeses}
         >
           <div className="space-y-2">
-            <div className="flex gap-2">
-              {[240, 300, 360, 420].map((prazo) => (
+            <div className="flex gap-2 flex-wrap">
+              {prazoOptions.map((prazo) => (
                 <button
                   key={prazo}
                   onClick={() => onChange({ ...params, prazoMeses: prazo })}
@@ -289,22 +294,24 @@ export const RecursosParameterCard = ({ params, onChange }: ParameterCardProps) 
 }
 
 /**
- * Card de parâmetros do apartamento
+ * Card de parâmetros do imóvel que o comprador já tem (antigo apartamento)
  */
-export const ApartamentoParameterCard = ({ params, onChange }: ParameterCardProps) => {
-  const presets = [550000, 500000, 450000]
+export const ImovelCompradorParameterCard = ({ params, onChange }: ParameterCardProps) => {
+  const { settings } = useSettings()
+  const presets = settings.valoresImovelComprador
+  const haircutRange = settings.sliders.haircut
 
   return (
     <Card className="bg-eerieBlack border-brightGrey">
       <CardHeader className="pb-4">
         <CardTitle className="text-lg flex items-center gap-2">
           <span className="text-2xl">🏢</span>
-          Apartamento Secundário
+          Imóvel que o Comprador Já Tem
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         <FieldWithTooltip
-          label="Valor do Apartamento"
+          label="Valor do Imóvel"
           tooltip={TOOLTIPS.valorApartamento}
         >
           <div className="space-y-3">
@@ -345,24 +352,24 @@ export const ApartamentoParameterCard = ({ params, onChange }: ParameterCardProp
               onValueChange={([v]) =>
                 onChange({ ...params, haircut: v / 100 })
               }
-              min={5}
-              max={30}
-              step={1}
+              min={haircutRange.min}
+              max={haircutRange.max}
+              step={haircutRange.step}
               className="py-2"
             />
             <div className="flex justify-between text-xs text-dimGray">
-              <span>5%</span>
+              <span>{haircutRange.min}%</span>
               <span className="text-ashGray font-mono">
                 {(params.haircut * 100).toFixed(0)}%
               </span>
-              <span>30%</span>
+              <span>{haircutRange.max}%</span>
             </div>
           </div>
         </FieldWithTooltip>
 
         <FieldWithTooltip
           label="Custo Condomínio/IPTU Mensal"
-          tooltip="Custo mensal para manter o apartamento vazio durante o período de venda."
+          tooltip="Custo mensal para manter o imóvel vazio durante o período de venda."
         >
           <CurrencyInput
             value={params.custoCondominioMensal}
@@ -378,6 +385,10 @@ export const ApartamentoParameterCard = ({ params, onChange }: ParameterCardProp
  * Card de parâmetros de amortização
  */
 export const AmortizacaoParameterCard = ({ params, onChange }: ParameterCardProps) => {
+  const { settings } = useSettings()
+  const aporteExtraRange = settings.sliders.aporteExtra
+  const rendaMensalRange = settings.sliders.rendaMensal
+
   return (
     <Card className="bg-eerieBlack border-brightGrey">
       <CardHeader className="pb-4">
@@ -395,9 +406,9 @@ export const AmortizacaoParameterCard = ({ params, onChange }: ParameterCardProp
             <Slider
               value={[params.aporteExtra]}
               onValueChange={([v]) => onChange({ ...params, aporteExtra: v })}
-              min={0}
-              max={30000}
-              step={1000}
+              min={aporteExtraRange.min}
+              max={aporteExtraRange.max}
+              step={aporteExtraRange.step}
               className="py-2"
             />
             <CurrencyInput
@@ -412,9 +423,9 @@ export const AmortizacaoParameterCard = ({ params, onChange }: ParameterCardProp
             <Slider
               value={[params.rendaMensal]}
               onValueChange={([v]) => onChange({ ...params, rendaMensal: v })}
-              min={30000}
-              max={80000}
-              step={1000}
+              min={rendaMensalRange.min}
+              max={rendaMensalRange.max}
+              step={rendaMensalRange.step}
               className="py-2"
             />
             <CurrencyInput
@@ -442,6 +453,10 @@ export const AmortizacaoParameterCard = ({ params, onChange }: ParameterCardProp
  * Card de filtros de cenário
  */
 export const FiltrosCenarioCard = ({ params, onChange }: ParameterCardProps) => {
+  const { settings } = useSettings()
+  const valoresImovelCasa = settings.valoresImovelCasa
+  const valoresImovelComprador = settings.valoresImovelComprador
+
   return (
     <Card className="bg-raisinBlack border-brightGrey">
       <CardHeader className="pb-4">
@@ -452,15 +467,15 @@ export const FiltrosCenarioCard = ({ params, onChange }: ParameterCardProps) => 
       </CardHeader>
       <CardContent className="space-y-4">
         <FieldWithTooltip
-          label="Valores do Imóvel"
+          label="Valores do Imóvel (Casa)"
           tooltip="Selecione quais valores de imóvel mostrar na comparação."
         >
           <div className="flex gap-2 flex-wrap">
-            {[1960000, 1900000, 1800000].map((valor) => (
+            {valoresImovelCasa.map((valor) => (
               <button
                 key={valor}
                 onClick={() => {
-                  const current = params.valoresImovelFiltro || [1960000, 1900000, 1800000]
+                  const current = params.valoresImovelFiltro || valoresImovelCasa
                   const updated = current.includes(valor)
                     ? current.filter((v) => v !== valor)
                     : [...current, valor]
@@ -468,7 +483,7 @@ export const FiltrosCenarioCard = ({ params, onChange }: ParameterCardProps) => 
                 }}
                 className={cn(
                   "px-3 py-1 text-xs rounded-md border transition-all",
-                  (params.valoresImovelFiltro || [1960000, 1900000, 1800000]).includes(valor)
+                  (params.valoresImovelFiltro || valoresImovelCasa).includes(valor)
                     ? "bg-primary/20 text-primary border-primary"
                     : "bg-middleGray50 border-brightGrey text-dimGray"
                 )}
@@ -480,15 +495,15 @@ export const FiltrosCenarioCard = ({ params, onChange }: ParameterCardProps) => 
         </FieldWithTooltip>
 
         <FieldWithTooltip
-          label="Valores do Apartamento"
-          tooltip="Selecione quais valores de apartamento mostrar na comparação."
+          label="Valores do Imóvel do Comprador"
+          tooltip="Selecione quais valores de imóvel do comprador mostrar na comparação."
         >
           <div className="flex gap-2 flex-wrap">
-            {[550000, 500000, 450000].map((valor) => (
+            {valoresImovelComprador.map((valor) => (
               <button
                 key={valor}
                 onClick={() => {
-                  const current = params.valoresAptoFiltro || [550000, 500000, 450000]
+                  const current = params.valoresAptoFiltro || valoresImovelComprador
                   const updated = current.includes(valor)
                     ? current.filter((v) => v !== valor)
                     : [...current, valor]
@@ -496,7 +511,7 @@ export const FiltrosCenarioCard = ({ params, onChange }: ParameterCardProps) => 
                 }}
                 className={cn(
                   "px-3 py-1 text-xs rounded-md border transition-all",
-                  (params.valoresAptoFiltro || [550000, 500000, 450000]).includes(valor)
+                  (params.valoresAptoFiltro || valoresImovelComprador).includes(valor)
                     ? "bg-salmon/20 text-salmon border-salmon"
                     : "bg-middleGray50 border-brightGrey text-dimGray"
                 )}
@@ -541,4 +556,3 @@ export const FiltrosCenarioCard = ({ params, onChange }: ParameterCardProps) => 
     </Card>
   )
 }
-
