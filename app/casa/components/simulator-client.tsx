@@ -168,7 +168,7 @@ export const SimulatorClient = () => {
   })
 
   // Estado da view
-  const [activeTab, setActiveTab] = useState("grid")
+  const [activeTab, setActiveTab] = useState("table")
   const [selectedCenario, setSelectedCenario] = useState<CenarioCompleto | null>(null)
   const [showSettings, setShowSettings] = useState(false)
 
@@ -324,10 +324,25 @@ export const SimulatorClient = () => {
         {/* Tabs de visualização */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="mb-4">
-            <TabsTrigger value="grid">📊 Grid de Cenários</TabsTrigger>
             <TabsTrigger value="table">📋 Tabela Comparativa</TabsTrigger>
+            <TabsTrigger value="grid">📊 Grid de Cenários</TabsTrigger>
             <TabsTrigger value="detail">🔍 Detalhes</TabsTrigger>
           </TabsList>
+
+          {/* Table View */}
+          <TabsContent value="table">
+            <Card className="bg-raisinBlack border-brightGrey">
+              <CardContent className="p-0">
+                <ResultsTable
+                  cenarios={filteredCenarios}
+                  onSelectCenario={(cenario) => {
+                    setSelectedCenario(cenario)
+                    setActiveTab("detail")
+                  }}
+                />
+              </CardContent>
+            </Card>
+          </TabsContent>
 
           {/* Grid View */}
           <TabsContent value="grid">
@@ -343,21 +358,6 @@ export const SimulatorClient = () => {
                 />
               ))}
             </div>
-          </TabsContent>
-
-          {/* Table View */}
-          <TabsContent value="table">
-            <Card className="bg-raisinBlack border-brightGrey">
-              <CardContent className="p-0">
-                <ResultsTable
-                  cenarios={filteredCenarios}
-                  onSelectCenario={(cenario) => {
-                    setSelectedCenario(cenario)
-                    setActiveTab("detail")
-                  }}
-                />
-              </CardContent>
-            </Card>
           </TabsContent>
 
           {/* Detail View */}
