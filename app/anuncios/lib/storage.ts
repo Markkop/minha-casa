@@ -19,6 +19,7 @@ export interface Imovel {
   precoM2: number | null
   piscina: boolean | null
   link: string | null
+  starred?: boolean
   createdAt: string
 }
 

@@ -11,10 +11,10 @@ import {
 } from "@/components/ui/table"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
-import { removeListing, type Imovel } from "../lib/storage"
+import { removeListing, updateListing, type Imovel } from "../lib/storage"
 import { cn } from "@/lib/utils"
 import { ArrowDownIcon, ArrowUpIcon, MagnifyingGlassIcon } from "@radix-ui/react-icons"
-import { PencilIcon, TrashIcon, LinkIcon } from "lucide-react"
+import { PencilIcon, TrashIcon, LinkIcon, Star } from "lucide-react"
 import { EditModal } from "./edit-modal"
 
 // ============================================================================
@@ -100,6 +100,11 @@ export function ListingsTable({ listings, onListingsChange }: ListingsTableProps
 
   const handleDelete = (id: string) => {
     const updated = removeListing(id)
+    onListingsChange(updated)
+  }
+
+  const handleToggleStar = (id: string, currentStarred: boolean | undefined) => {
+    const updated = updateListing(id, { starred: !currentStarred })
     onListingsChange(updated)
   }
 
@@ -361,7 +366,12 @@ export function ListingsTable({ listings, onListingsChange }: ListingsTableProps
                 {filteredAndSortedListings.map((imovel) => (
                   <TableRow
                     key={imovel.id}
-                    className="border-brightGrey hover:bg-eerieBlack/50"
+                    className={cn(
+                      "border-brightGrey",
+                      imovel.starred
+                        ? "bg-primary/20 hover:bg-primary/30"
+                        : "hover:bg-eerieBlack/50"
+                    )}
                   >
                     <TableCell className="font-medium max-w-[200px] truncate">
                       {imovel.titulo}
@@ -403,6 +413,21 @@ export function ListingsTable({ listings, onListingsChange }: ListingsTableProps
                     </TableCell>
                     <TableCell className="text-center">
                       <div className="flex items-center gap-2 justify-center">
+                        <button
+                          onClick={() => handleToggleStar(imovel.id, imovel.starred)}
+                          className={cn(
+                            "transition-colors p-1",
+                            imovel.starred
+                              ? "text-yellow hover:text-yellow/80"
+                              : "text-muted-foreground hover:text-yellow"
+                          )}
+                          title={imovel.starred ? "Remover dos favoritos" : "Adicionar aos favoritos"}
+                        >
+                          <Star
+                            className="h-4 w-4"
+                            fill={imovel.starred ? "currentColor" : "none"}
+                          />
+                        </button>
                         <button
                           onClick={() => setEditingListing(imovel)}
                           className="text-muted-foreground hover:text-primary transition-colors p-1"
