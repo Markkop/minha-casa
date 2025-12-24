@@ -134,11 +134,47 @@ export function ListingsTable({ listings, onListingsChange }: ListingsTableProps
     return value ? "✓" : "✕"
   }
 
-  const buildGoogleSearchUrl = (titulo: string, endereco: string) => {
-    // Remove special characters, keep alphanumeric and spaces
-    const sanitizedTitle = titulo.replace(/[^\w\s]/gi, '')
-    const sanitizedEndereco = endereco.replace(/[^\w\s]/gi, '')
-    const query = encodeURIComponent(`${sanitizedTitle} ${sanitizedEndereco}`.trim())
+  const normalizeText = (text: string): string => {
+    return text
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '') // Remove diacritics
+      .toLowerCase()
+      .trim()
+  }
+
+  const buildGoogleSearchUrl = (
+    titulo: string,
+    endereco: string,
+    m2Totais: number | null,
+    quartos: number | null,
+    banheiros: number | null
+  ) => {
+    // Normalize text (convert accented chars to simple chars)
+    const normalizedTitle = normalizeText(titulo)
+    const normalizedEndereco = normalizeText(endereco)
+    
+    // Split by spaces and filter out empty strings, then join with +
+    const titleParts = normalizedTitle.split(/\s+/).filter(Boolean)
+    const enderecoParts = normalizedEndereco.split(/\s+/).filter(Boolean)
+    
+    const queryParts = [...titleParts, ...enderecoParts]
+    
+    // Add m2 total if available
+    if (m2Totais !== null) {
+      queryParts.push(`${m2Totais}m2`)
+    }
+    
+    // Add quartos if available
+    if (quartos !== null) {
+      queryParts.push(`${quartos}`, 'quartos')
+    }
+    
+    // Add banheiros if available
+    if (banheiros !== null) {
+      queryParts.push(`${banheiros}`, 'banheiros')
+    }
+    
+    const query = queryParts.join('+')
     return `https://www.google.com/search?q=${query}`
   }
 
@@ -356,7 +392,13 @@ export function ListingsTable({ listings, onListingsChange }: ListingsTableProps
                     </TableCell>
                     <TableCell className="text-center">
                       <a
-                        href={buildGoogleSearchUrl(imovel.titulo, imovel.endereco)}
+                        href={buildGoogleSearchUrl(
+                          imovel.titulo,
+                          imovel.endereco,
+                          imovel.m2Totais,
+                          imovel.quartos,
+                          imovel.banheiros
+                        )}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="text-muted-foreground hover:text-primary transition-colors p-1 inline-block"
