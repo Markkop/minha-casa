@@ -1,0 +1,239 @@
+"use client"
+
+import { useState, useEffect } from "react"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { parseListingWithAI } from "../lib/openai"
+import { addListing, type Imovel } from "../lib/storage"
+import { cn } from "@/lib/utils"
+
+interface ParserModalProps {
+  isOpen: boolean
+  onClose: () => void
+  onListingAdded: (listings: Imovel[]) => void
+  hasApiKey: boolean
+  onOpenSettings: () => void
+}
+
+export function ParserModal({
+  isOpen,
+  onClose,
+  onListingAdded,
+  hasApiKey,
+  onOpenSettings,
+}: ParserModalProps) {
+  const [rawText, setRawText] = useState("")
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [lastParsed, setLastParsed] = useState<Imovel | null>(null)
+
+  // Reset state when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      setRawText("")
+      setError(null)
+      setLastParsed(null)
+    }
+  }, [isOpen])
+
+  const handleParse = async () => {
+    if (!rawText.trim()) {
+      setError("Cole o texto do anúncio para processar")
+      return
+    }
+
+    if (!hasApiKey) {
+      setError("Configure sua chave API nas configurações")
+      return
+    }
+
+    setIsLoading(true)
+    setError(null)
+    setLastParsed(null)
+
+    try {
+      const parsed = await parseListingWithAI(rawText)
+      setLastParsed(parsed)
+      const updated = addListing(parsed)
+      onListingAdded(updated)
+      setRawText("")
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erro ao processar anúncio")
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const formatValue = (
+    value: number | boolean | null,
+    type: "currency" | "number" | "boolean" = "number"
+  ) => {
+    if (value === null) return "—"
+    if (type === "boolean") return value ? "Sim" : "Não"
+    if (type === "currency") {
+      return new Intl.NumberFormat("pt-BR", {
+        style: "currency",
+        currency: "BRL",
+        maximumFractionDigits: 0,
+      }).format(value as number)
+    }
+    return value.toString()
+  }
+
+  if (!isOpen) return null
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      {/* Backdrop */}
+      <div
+        className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+        onClick={onClose}
+      />
+
+      {/* Modal */}
+      <Card className="relative z-10 w-full max-w-lg mx-4 bg-raisinBlack border-brightGrey max-h-[90vh] overflow-hidden flex flex-col">
+        <CardHeader className="flex flex-row items-center justify-between pb-2">
+          <div className="flex items-center gap-3">
+            <CardTitle className="text-lg flex items-center gap-2">
+              <span>🤖</span>
+              <span>Parser de Anúncios</span>
+            </CardTitle>
+            <div
+              className={cn(
+                "flex items-center gap-2 text-xs px-2 py-1 rounded-full",
+                hasApiKey
+                  ? "bg-green/20 text-green"
+                  : "bg-destructive/20 text-destructive"
+              )}
+            >
+              <span
+                className={cn(
+                  "w-2 h-2 rounded-full",
+                  hasApiKey ? "bg-green" : "bg-destructive"
+                )}
+              />
+              {hasApiKey ? "API OK" : "Sem API"}
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className="text-muted-foreground hover:text-white transition-colors"
+          >
+            ✕
+          </button>
+        </CardHeader>
+        <CardContent className="flex-1 flex flex-col gap-4 overflow-y-auto">
+          {/* API Key Warning */}
+          {!hasApiKey && (
+            <div className="bg-destructive/10 border border-destructive/30 rounded-lg p-3">
+              <p className="text-sm text-destructive">
+                Configure sua chave API OpenAI para usar o parser.{" "}
+                <button
+                  onClick={onOpenSettings}
+                  className="underline hover:text-primary transition-colors"
+                >
+                  Abrir configurações
+                </button>
+              </p>
+            </div>
+          )}
+
+          {/* Textarea for raw text */}
+          <div className="flex flex-col gap-2">
+            <label className="text-sm text-ashGray">
+              Cole o texto do anúncio aqui:
+            </label>
+            <textarea
+              value={rawText}
+              onChange={(e) => setRawText(e.target.value)}
+              placeholder="Cole aqui o texto completo do anúncio de imóvel (de sites como ZAP, OLX, VivaReal, etc.)..."
+              className={cn(
+                "min-h-[200px] w-full rounded-lg border bg-input/30 px-4 py-3 text-sm resize-none",
+                "placeholder:text-muted-foreground",
+                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                "disabled:cursor-not-allowed disabled:opacity-50",
+                "border-brightGrey"
+              )}
+              disabled={isLoading}
+            />
+          </div>
+
+          {/* Error message */}
+          {error && (
+            <div className="bg-destructive/10 border border-destructive/30 rounded-lg p-3">
+              <p className="text-sm text-destructive">{error}</p>
+            </div>
+          )}
+
+          {/* Parse button */}
+          <button
+            onClick={handleParse}
+            disabled={isLoading || !hasApiKey || !rawText.trim()}
+            className={cn(
+              "w-full py-3 px-4 rounded-lg font-medium transition-all",
+              "bg-primary text-primary-foreground",
+              "hover:bg-primary/90",
+              "disabled:opacity-50 disabled:cursor-not-allowed",
+              "flex items-center justify-center gap-2"
+            )}
+          >
+            {isLoading ? (
+              <>
+                <span className="animate-spin">⏳</span>
+                Processando...
+              </>
+            ) : (
+              <>
+                <span>✨</span>
+                Extrair Dados com IA
+              </>
+            )}
+          </button>
+
+          {/* Last parsed result */}
+          {lastParsed && (
+            <div className="bg-green/10 border border-green/30 rounded-lg p-4">
+              <p className="text-sm text-green font-medium mb-2">
+                ✓ Imóvel adicionado com sucesso!
+              </p>
+              <div className="grid grid-cols-2 gap-2 text-xs text-ashGray">
+                <div>
+                  <span className="text-muted-foreground">Título:</span>{" "}
+                  <span className="text-white">{lastParsed.titulo}</span>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Preço:</span>{" "}
+                  <span className="text-primary">
+                    {formatValue(lastParsed.preco, "currency")}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">m² privado:</span>{" "}
+                  <span className="text-white">
+                    {formatValue(lastParsed.m2Privado)}m²
+                  </span>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Preço/m²:</span>{" "}
+                  <span className="text-white">
+                    {formatValue(lastParsed.precoM2, "currency")}
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Instructions */}
+          <div className="text-xs text-muted-foreground space-y-1">
+            <p className="font-medium text-ashGray">Dicas:</p>
+            <ul className="list-disc list-inside space-y-0.5">
+              <li>Copie todo o texto do anúncio, incluindo descrição</li>
+              <li>Funciona com anúncios de ZAP, OLX, VivaReal, QuintoAndar</li>
+              <li>A IA extrai automaticamente os dados estruturados</li>
+            </ul>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  )
+}
+
