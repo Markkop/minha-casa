@@ -14,12 +14,14 @@ import { Input } from "@/components/ui/input"
 import { removeListing, type Imovel } from "../lib/storage"
 import { cn } from "@/lib/utils"
 import { ArrowDownIcon, ArrowUpIcon, MagnifyingGlassIcon } from "@radix-ui/react-icons"
+import { PencilIcon, TrashIcon, LinkIcon } from "lucide-react"
+import { EditModal } from "./edit-modal"
 
 // ============================================================================
 // TYPES
 // ============================================================================
 
-type SortKey = "titulo" | "m2Totais" | "m2Privado" | "quartos" | "preco" | "precoM2"
+type SortKey = "titulo" | "m2Totais" | "m2Privado" | "quartos" | "preco" | "precoM2" | "precoM2Privado"
 type SortDirection = "asc" | "desc"
 
 interface SortState {
@@ -94,6 +96,7 @@ export function ListingsTable({ listings, onListingsChange }: ListingsTableProps
   // State for search and sort
   const [searchQuery, setSearchQuery] = useState("")
   const [sort, setSort] = useState<SortState>({ key: "preco", direction: "desc" })
+  const [editingListing, setEditingListing] = useState<Imovel | null>(null)
 
   const handleDelete = (id: string) => {
     const updated = removeListing(id)
@@ -184,6 +187,12 @@ export function ListingsTable({ listings, onListingsChange }: ListingsTableProps
     return Math.round(preco / m2Totais)
   }
 
+  // Calculate R$/m² dynamically using private area
+  const calculatePrecoM2Privado = (preco: number | null, m2Privado: number | null) => {
+    if (preco === null || m2Privado === null || m2Privado === 0) return null
+    return Math.round(preco / m2Privado)
+  }
+
   // Filter and sort listings
   const filteredAndSortedListings = useMemo(() => {
     // First, filter by search query
@@ -214,6 +223,8 @@ export function ListingsTable({ listings, onListingsChange }: ListingsTableProps
             return imovel.preco ?? 0
           case "precoM2":
             return calculatePrecoM2(imovel.preco, imovel.m2Totais) ?? 0
+          case "precoM2Privado":
+            return calculatePrecoM2Privado(imovel.preco, imovel.m2Privado) ?? 0
           default:
             return 0
         }
@@ -335,9 +346,15 @@ export function ListingsTable({ listings, onListingsChange }: ListingsTableProps
                     onSort={handleSort}
                     align="right"
                   />
+                  <SortableHeader
+                    label="R$/m² priv."
+                    sortKey="precoM2Privado"
+                    currentSort={sort}
+                    onSort={handleSort}
+                    align="right"
+                  />
                   <TableHead className="text-primary text-center">Piscina</TableHead>
-                  <TableHead className="text-primary w-12"></TableHead>
-                  <TableHead className="text-primary text-center">Busca</TableHead>
+                  <TableHead className="text-primary text-center w-32">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -370,6 +387,9 @@ export function ListingsTable({ listings, onListingsChange }: ListingsTableProps
                     <TableCell className="text-right font-mono text-sm text-muted-foreground">
                       {formatCurrency(calculatePrecoM2(imovel.preco, imovel.m2Totais))}
                     </TableCell>
+                    <TableCell className="text-right font-mono text-sm text-muted-foreground">
+                      {formatCurrency(calculatePrecoM2Privado(imovel.preco, imovel.m2Privado))}
+                    </TableCell>
                     <TableCell className="text-center">
                       <span
                         className={cn(
@@ -381,31 +401,56 @@ export function ListingsTable({ listings, onListingsChange }: ListingsTableProps
                         {formatBoolean(imovel.piscina)}
                       </span>
                     </TableCell>
-                    <TableCell>
-                      <button
-                        onClick={() => handleDelete(imovel.id)}
-                        className="text-muted-foreground hover:text-destructive transition-colors p-1"
-                        title="Excluir imóvel"
-                      >
-                        🗑️
-                      </button>
-                    </TableCell>
                     <TableCell className="text-center">
-                      <a
-                        href={buildGoogleSearchUrl(
-                          imovel.titulo,
-                          imovel.endereco,
-                          imovel.m2Totais,
-                          imovel.quartos,
-                          imovel.banheiros
+                      <div className="flex items-center gap-2 justify-center">
+                        <button
+                          onClick={() => setEditingListing(imovel)}
+                          className="text-muted-foreground hover:text-primary transition-colors p-1"
+                          title="Editar imóvel"
+                        >
+                          <PencilIcon className="h-4 w-4" />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(imovel.id)}
+                          className="text-muted-foreground hover:text-destructive transition-colors p-1"
+                          title="Excluir imóvel"
+                        >
+                          <TrashIcon className="h-4 w-4" />
+                        </button>
+                        <a
+                          href={buildGoogleSearchUrl(
+                            imovel.titulo,
+                            imovel.endereco,
+                            imovel.m2Totais,
+                            imovel.quartos,
+                            imovel.banheiros
+                          )}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-muted-foreground hover:text-primary transition-colors p-1 inline-block"
+                          title="Buscar no Google"
+                        >
+                          <MagnifyingGlassIcon className="h-4 w-4" />
+                        </a>
+                        {imovel.link ? (
+                          <a
+                            href={imovel.link}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-muted-foreground hover:text-primary transition-colors p-1 inline-block"
+                            title="Abrir link do anúncio"
+                          >
+                            <LinkIcon className="h-4 w-4" />
+                          </a>
+                        ) : (
+                          <span
+                            className="text-muted-foreground opacity-50 p-1 inline-block cursor-not-allowed"
+                            title="Nenhum link disponível"
+                          >
+                            <LinkIcon className="h-4 w-4" />
+                          </span>
                         )}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-muted-foreground hover:text-primary transition-colors p-1 inline-block"
-                        title="Buscar no Google"
-                      >
-                        <MagnifyingGlassIcon className="h-4 w-4" />
-                      </a>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -414,6 +459,17 @@ export function ListingsTable({ listings, onListingsChange }: ListingsTableProps
           </div>
         )}
       </CardContent>
+
+      {/* Edit Modal */}
+      <EditModal
+        isOpen={editingListing !== null}
+        onClose={() => setEditingListing(null)}
+        listing={editingListing}
+        onListingUpdated={(updated) => {
+          onListingsChange(updated)
+          setEditingListing(null)
+        }}
+      />
     </Card>
   )
 }

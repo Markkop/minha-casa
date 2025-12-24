@@ -18,6 +18,7 @@ export interface Imovel {
   preco: number | null
   precoM2: number | null
   piscina: boolean | null
+  link: string | null
   createdAt: string
 }
 
@@ -74,6 +75,24 @@ export function addListing(listing: Imovel): Imovel[] {
 export function removeListing(id: string): Imovel[] {
   const listings = getListings()
   const updated = listings.filter((l) => l.id !== id)
+  saveListings(updated)
+  return updated
+}
+
+export function updateListing(id: string, updates: Partial<Imovel>): Imovel[] {
+  const listings = getListings()
+  const updated = listings.map((listing) => {
+    if (listing.id === id) {
+      // Merge updates while preserving id and createdAt
+      return {
+        ...listing,
+        ...updates,
+        id: listing.id, // Ensure id cannot be changed
+        createdAt: listing.createdAt, // Ensure createdAt cannot be changed
+      }
+    }
+    return listing
+  })
   saveListings(updated)
   return updated
 }

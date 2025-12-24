@@ -113,6 +113,7 @@ export async function parseListingWithAI(rawText: string): Promise<Imovel> {
     preco: parsed.preco,
     precoM2: null, // Calculated dynamically in UI
     piscina: parsed.piscina,
+    link: null, // User must add link manually via edit modal
     createdAt: new Date().toISOString(),
   }
 
