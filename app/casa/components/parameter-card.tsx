@@ -17,6 +17,7 @@ import type { ChangeEvent, ReactNode } from "react"
 import { formatCurrency, generateTooltips } from "./utils/calculations"
 import { useSettings } from "./utils/settings"
 import type { SimulatorParams } from "./simulator-client"
+import { PERCENTAGE_OPTIONS } from "./simulator-client"
 
 // ============================================================================
 // TYPES
@@ -125,7 +126,6 @@ const PercentInput = ({ value, onChange, ...props }: PercentInputProps) => {
  */
 export const ImovelParameterCard = ({ params, onChange }: ParameterCardProps) => {
   const { settings } = useSettings()
-  const presets = settings.valoresImovelCasa
   const prazoOptions = settings.prazoOptions
   const taxaAnualRange = settings.sliders.taxaAnual
   const trMensalRange = settings.sliders.trMensal
@@ -147,32 +147,12 @@ export const ImovelParameterCard = ({ params, onChange }: ParameterCardProps) =>
       </CardHeader>
       <CardContent className="space-y-4">
         <FieldWithTooltip label="Valor da Casa" tooltip={tooltips.valorImovel}>
-          <div className="space-y-3">
-            <div className="flex gap-2 flex-wrap">
-              {presets.map((preset) => (
-                <button
-                  key={preset}
-                  onClick={() =>
-                    onChange({ ...params, valorImovelSelecionado: preset })
-                  }
-                  className={cn(
-                    "px-3 py-1 text-xs rounded-md border transition-all",
-                    params.valorImovelSelecionado === preset
-                      ? "bg-primary text-black border-primary font-bold"
-                      : "bg-middleGray50 border-brightGrey text-ashGray hover:border-primary"
-                  )}
-                >
-                  {formatCurrency(preset)}
-                </button>
-              ))}
-            </div>
-            <CurrencyInput
-              value={params.valorImovelSelecionado}
-              onChange={(v) =>
-                onChange({ ...params, valorImovelSelecionado: v })
-              }
-            />
-          </div>
+          <CurrencyInput
+            value={params.valorImovelSelecionado}
+            onChange={(v) =>
+              onChange({ ...params, valorImovelSelecionado: v })
+            }
+          />
         </FieldWithTooltip>
 
         <FieldWithTooltip
@@ -310,7 +290,6 @@ export const RecursosParameterCard = ({ params, onChange }: ParameterCardProps) 
  */
 export const ImovelCompradorParameterCard = ({ params, onChange }: ParameterCardProps) => {
   const { settings } = useSettings()
-  const presets = settings.valoresImovelComprador
   const haircutRange = settings.sliders.haircut
 
   // Generate dynamic tooltips
@@ -331,32 +310,12 @@ export const ImovelCompradorParameterCard = ({ params, onChange }: ParameterCard
           label="Valor do Imóvel"
           tooltip={tooltips.valorApartamento}
         >
-          <div className="space-y-3">
-            <div className="flex gap-2 flex-wrap">
-              {presets.map((preset) => (
-                <button
-                  key={preset}
-                  onClick={() =>
-                    onChange({ ...params, valorApartamentoSelecionado: preset })
-                  }
-                  className={cn(
-                    "px-3 py-1 text-xs rounded-md border transition-all",
-                    params.valorApartamentoSelecionado === preset
-                      ? "bg-salmon text-black border-salmon font-bold"
-                      : "bg-middleGray50 border-brightGrey text-ashGray hover:border-salmon"
-                  )}
-                >
-                  {formatCurrency(preset)}
-                </button>
-              ))}
-            </div>
-            <CurrencyInput
-              value={params.valorApartamentoSelecionado}
-              onChange={(v) =>
-                onChange({ ...params, valorApartamentoSelecionado: v })
-              }
-            />
-          </div>
+          <CurrencyInput
+            value={params.valorApartamentoSelecionado}
+            onChange={(v) =>
+              onChange({ ...params, valorApartamentoSelecionado: v })
+            }
+          />
         </FieldWithTooltip>
 
         <FieldWithTooltip
@@ -477,12 +436,21 @@ export const AmortizacaoParameterCard = ({ params, onChange }: ParameterCardProp
  * Card de filtros de cenário
  */
 export const FiltrosCenarioCard = ({ params, onChange }: ParameterCardProps) => {
-  const { settings } = useSettings()
-  const valoresImovelCasa = settings.valoresImovelCasa
-  const valoresImovelComprador = settings.valoresImovelComprador
-
   // Generate dynamic tooltips
   const tooltips = generateTooltips()
+
+  // Compute actual values for display
+  const valoresImovelComputados = PERCENTAGE_OPTIONS.map((o) => ({
+    multiplier: o.value,
+    label: o.label,
+    valor: Math.round(params.valorImovelSelecionado * o.value),
+  }))
+
+  const valoresAptoComputados = PERCENTAGE_OPTIONS.map((o) => ({
+    multiplier: o.value,
+    label: o.label,
+    valor: Math.round(params.valorApartamentoSelecionado * o.value),
+  }))
 
   return (
     <Card className="bg-raisinBlack border-brightGrey">
@@ -495,27 +463,28 @@ export const FiltrosCenarioCard = ({ params, onChange }: ParameterCardProps) => 
       <CardContent className="space-y-4">
         <FieldWithTooltip
           label="Valores do Imóvel (Casa)"
-          tooltip="Selecione quais valores de imóvel mostrar na comparação."
+          tooltip="Selecione quais variações de valor do imóvel mostrar na comparação."
         >
           <div className="flex gap-2 flex-wrap">
-            {valoresImovelCasa.map((valor) => (
+            {valoresImovelComputados.map(({ multiplier, label, valor }) => (
               <button
-                key={valor}
+                key={multiplier}
                 onClick={() => {
-                  const current = params.valoresImovelFiltro || valoresImovelCasa
-                  const updated = current.includes(valor)
-                    ? current.filter((v) => v !== valor)
-                    : [...current, valor]
-                  onChange({ ...params, valoresImovelFiltro: updated })
+                  const current = params.valoresImovelFiltroMultipliers
+                  const updated = current.includes(multiplier)
+                    ? current.filter((v) => v !== multiplier)
+                    : [...current, multiplier]
+                  onChange({ ...params, valoresImovelFiltroMultipliers: updated })
                 }}
                 className={cn(
-                  "px-3 py-1 text-xs rounded-md border transition-all",
-                  (params.valoresImovelFiltro || valoresImovelCasa).includes(valor)
+                  "px-3 py-1.5 text-xs rounded-md border transition-all flex flex-col items-center gap-0.5",
+                  params.valoresImovelFiltroMultipliers.includes(multiplier)
                     ? "bg-primary/20 text-primary border-primary"
                     : "bg-middleGray50 border-brightGrey text-dimGray"
                 )}
               >
-                {formatCurrency(valor)}
+                <span className="font-semibold">{label}</span>
+                <span className="text-[10px] opacity-75">{formatCurrency(valor)}</span>
               </button>
             ))}
           </div>
@@ -523,27 +492,28 @@ export const FiltrosCenarioCard = ({ params, onChange }: ParameterCardProps) => 
 
         <FieldWithTooltip
           label="Valores do Imóvel do Comprador"
-          tooltip="Selecione quais valores de imóvel do comprador mostrar na comparação."
+          tooltip="Selecione quais variações de valor do imóvel do comprador mostrar na comparação."
         >
           <div className="flex gap-2 flex-wrap">
-            {valoresImovelComprador.map((valor) => (
+            {valoresAptoComputados.map(({ multiplier, label, valor }) => (
               <button
-                key={valor}
+                key={multiplier}
                 onClick={() => {
-                  const current = params.valoresAptoFiltro || valoresImovelComprador
-                  const updated = current.includes(valor)
-                    ? current.filter((v) => v !== valor)
-                    : [...current, valor]
-                  onChange({ ...params, valoresAptoFiltro: updated })
+                  const current = params.valoresAptoFiltroMultipliers
+                  const updated = current.includes(multiplier)
+                    ? current.filter((v) => v !== multiplier)
+                    : [...current, multiplier]
+                  onChange({ ...params, valoresAptoFiltroMultipliers: updated })
                 }}
                 className={cn(
-                  "px-3 py-1 text-xs rounded-md border transition-all",
-                  (params.valoresAptoFiltro || valoresImovelComprador).includes(valor)
+                  "px-3 py-1.5 text-xs rounded-md border transition-all flex flex-col items-center gap-0.5",
+                  params.valoresAptoFiltroMultipliers.includes(multiplier)
                     ? "bg-salmon/20 text-salmon border-salmon"
                     : "bg-middleGray50 border-brightGrey text-dimGray"
                 )}
               >
-                {formatCurrency(valor)}
+                <span className="font-semibold">{label}</span>
+                <span className="text-[10px] opacity-75">{formatCurrency(valor)}</span>
               </button>
             ))}
           </div>

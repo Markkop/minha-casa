@@ -25,7 +25,6 @@ import {
   AmortizationSampleTable,
 } from "./results-table"
 import {
-  BestScenarioCard,
   ScenarioCard,
   ScenarioCardCompact,
 } from "./scenario-card"
@@ -45,6 +44,15 @@ import { useSettings } from "./utils/settings"
 // ============================================================================
 // TYPES
 // ============================================================================
+
+// Percentage multipliers for filter options
+export const PERCENTAGE_OPTIONS = [
+  { value: 1.0, label: "Original" },
+  { value: 0.95, label: "-5%" },
+  { value: 0.90, label: "-10%" },
+  { value: 0.85, label: "-15%" },
+  { value: 0.80, label: "-20%" },
+] as const
 
 export interface SimulatorParams {
   // Imóvel
@@ -67,9 +75,9 @@ export interface SimulatorParams {
   rendaMensal: number
   seguros: number
 
-  // Filtros
-  valoresImovelFiltro: number[]
-  valoresAptoFiltro: number[]
+  // Filtros (now store percentage multipliers instead of absolute values)
+  valoresImovelFiltroMultipliers: number[]
+  valoresAptoFiltroMultipliers: number[]
   estrategiasFiltro: ("permuta" | "venda_posterior")[]
 }
 
@@ -163,9 +171,9 @@ export const SimulatorClient = () => {
     rendaMensal: DEFAULTS.rendaMensal,
     seguros: DEFAULTS.seguros,
 
-    // Filtros
-    valoresImovelFiltro: [...DEFAULTS.valoresImovel],
-    valoresAptoFiltro: [...DEFAULTS.valoresApartamento],
+    // Filtros (percentage multipliers - Original and -5% selected by default)
+    valoresImovelFiltroMultipliers: [1.0, 0.95], // Original and -5%
+    valoresAptoFiltroMultipliers: [1.0, 0.95], // Original and -5%
     estrategiasFiltro: ["permuta", "venda_posterior"],
   })
 
@@ -174,15 +182,24 @@ export const SimulatorClient = () => {
   const [selectedCenario, setSelectedCenario] = useState<CenarioCompleto | null>(null)
   const [showSettings, setShowSettings] = useState(false)
 
-  // Get property values from settings
-  const valoresImovelCasa = settings.valoresImovelCasa
-  const valoresImovelComprador = settings.valoresImovelComprador
+  // Filtered values based on selected multipliers
+  const valoresImovelFiltrados = useMemo(() => {
+    return params.valoresImovelFiltroMultipliers.map((m) =>
+      Math.round(params.valorImovelSelecionado * m)
+    )
+  }, [params.valorImovelSelecionado, params.valoresImovelFiltroMultipliers])
 
-  // Gerar todos os cenários
+  const valoresAptoFiltrados = useMemo(() => {
+    return params.valoresAptoFiltroMultipliers.map((m) =>
+      Math.round(params.valorApartamentoSelecionado * m)
+    )
+  }, [params.valorApartamentoSelecionado, params.valoresAptoFiltroMultipliers])
+
+  // Gerar todos os cenários using filtered values
   const cenarios = useMemo(() => {
     return gerarMatrizCenarios({
-      valoresImovel: valoresImovelCasa,
-      valoresApartamento: valoresImovelComprador,
+      valoresImovel: valoresImovelFiltrados,
+      valoresApartamento: valoresAptoFiltrados,
       capitalDisponivel: params.capitalDisponivel,
       reservaEmergencia: params.reservaEmergencia,
       haircut: params.haircut,
@@ -195,8 +212,8 @@ export const SimulatorClient = () => {
       seguros: params.seguros,
     })
   }, [
-    valoresImovelCasa,
-    valoresImovelComprador,
+    valoresImovelFiltrados,
+    valoresAptoFiltrados,
     params.capitalDisponivel,
     params.reservaEmergencia,
     params.haircut,
@@ -209,20 +226,13 @@ export const SimulatorClient = () => {
     params.seguros,
   ])
 
-  // Filtrar cenários baseado nos filtros ativos
+  // Filtrar cenários baseado nos filtros ativos (only strategy filter now, values are pre-filtered)
   const filteredCenarios = useMemo(() => {
     return cenarios.filter((c) => {
-      const imovelMatch = params.valoresImovelFiltro.includes(c.valorImovel)
-      const aptoMatch = params.valoresAptoFiltro.includes(c.valorApartamento)
       const estrategiaMatch = params.estrategiasFiltro.includes(c.estrategia)
-      return imovelMatch && aptoMatch && estrategiaMatch
+      return estrategiaMatch
     })
-  }, [
-    cenarios,
-    params.valoresImovelFiltro,
-    params.valoresAptoFiltro,
-    params.estrategiasFiltro,
-  ])
+  }, [cenarios, params.estrategiasFiltro])
 
   // Melhor cenário dos filtrados
   const bestCenario = filteredCenarios.find((c) => c.isBest) || filteredCenarios[0]
@@ -334,9 +344,6 @@ export const SimulatorClient = () => {
           <AmortizacaoParameterCard params={params} onChange={setParams} />
         </div>
 
-        {/* Filtros */}
-        <FiltrosCenarioCard params={params} onChange={setParams} />
-
         {/* Resumo comparativo */}
         <Card className="bg-raisinBlack border-brightGrey">
           <CardHeader className="pb-2">
@@ -347,8 +354,8 @@ export const SimulatorClient = () => {
           </CardContent>
         </Card>
 
-        {/* Melhor cenário em destaque */}
-        {bestCenario && <BestScenarioCard cenario={bestCenario} />}
+        {/* Filtros */}
+        <FiltrosCenarioCard params={params} onChange={setParams} />
 
         {/* Tabs de visualização */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">

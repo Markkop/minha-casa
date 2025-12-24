@@ -279,48 +279,6 @@ export const SettingsPanel = ({ isOpen, onClose }: SettingsPanelProps) => {
               />
             </div>
 
-            {/* Valores do Imóvel (Casa) */}
-            <div className="space-y-2">
-              <Label className="text-sm font-semibold text-primary">
-                Valores do Imóvel (Casa a Comprar)
-              </Label>
-              <p className="text-xs text-dimGray mb-2">
-                Presets de valores para a casa que será financiada.
-              </p>
-              <ValueListInput
-                label=""
-                values={localSettings.valoresImovelCasa}
-                onChange={(values) =>
-                  setLocalSettings({
-                    ...localSettings,
-                    valoresImovelCasa: values.sort((a, b) => b - a),
-                  })
-                }
-                isCurrency
-              />
-            </div>
-
-            {/* Valores do Imóvel do Comprador */}
-            <div className="space-y-2">
-              <Label className="text-sm font-semibold text-primary">
-                Valores do Imóvel que o Comprador Já Tem
-              </Label>
-              <p className="text-xs text-dimGray mb-2">
-                Presets de valores para o imóvel que será usado como entrada (permuta) ou vendido posteriormente.
-              </p>
-              <ValueListInput
-                label=""
-                values={localSettings.valoresImovelComprador}
-                onChange={(values) =>
-                  setLocalSettings({
-                    ...localSettings,
-                    valoresImovelComprador: values.sort((a, b) => b - a),
-                  })
-                }
-                isCurrency
-              />
-            </div>
-
             {/* Slider Ranges */}
             <div className="space-y-4">
               <Label className="text-sm font-semibold text-primary">

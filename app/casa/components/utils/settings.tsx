@@ -19,10 +19,6 @@ export interface SimulatorSettings {
   // Prazos
   prazoOptions: number[] // default: [240, 300, 360, 420]
 
-  // Property values
-  valoresImovelCasa: number[] // default: [1960000, 1900000, 1800000]
-  valoresImovelComprador: number[] // default: [550000, 500000, 450000]
-
   // Slider ranges
   sliders: {
     taxaAnual: SliderRange
@@ -40,8 +36,6 @@ export interface SimulatorSettings {
 export const DEFAULT_SETTINGS: SimulatorSettings = {
   cetAdditionalCost: 0.02,
   prazoOptions: [240, 300, 360, 420],
-  valoresImovelCasa: [1960000, 1900000, 1800000],
-  valoresImovelComprador: [550000, 500000, 450000],
   sliders: {
     taxaAnual: { min: 9, max: 15, step: 0.1 },
     trMensal: { min: 0, max: 0.5, step: 0.01 },
@@ -74,8 +68,6 @@ export const loadSettings = (): SimulatorSettings => {
     return {
       cetAdditionalCost: parsed.cetAdditionalCost ?? DEFAULT_SETTINGS.cetAdditionalCost,
       prazoOptions: parsed.prazoOptions ?? DEFAULT_SETTINGS.prazoOptions,
-      valoresImovelCasa: parsed.valoresImovelCasa ?? DEFAULT_SETTINGS.valoresImovelCasa,
-      valoresImovelComprador: parsed.valoresImovelComprador ?? DEFAULT_SETTINGS.valoresImovelComprador,
       sliders: {
         taxaAnual: { ...DEFAULT_SETTINGS.sliders.taxaAnual, ...parsed.sliders?.taxaAnual },
         trMensal: { ...DEFAULT_SETTINGS.sliders.trMensal, ...parsed.sliders?.trMensal },
