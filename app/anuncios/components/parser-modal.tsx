@@ -2,8 +2,10 @@
 
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import { parseListingWithAI } from "../lib/openai"
-import { addListing, type Imovel } from "../lib/storage"
+import { addListing, updateListing, type Imovel } from "../lib/storage"
 import { cn } from "@/lib/utils"
 
 interface ParserModalProps {
@@ -25,6 +27,7 @@ export function ParserModal({
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [lastParsed, setLastParsed] = useState<Imovel | null>(null)
+  const [linkValue, setLinkValue] = useState("")
 
   // Reset state when modal opens
   useEffect(() => {
@@ -32,6 +35,7 @@ export function ParserModal({
       setRawText("")
       setError(null)
       setLastParsed(null)
+      setLinkValue("")
     }
   }, [isOpen])
 
@@ -77,6 +81,16 @@ export function ParserModal({
       }).format(value as number)
     }
     return value.toString()
+  }
+
+  const handleSaveAndClose = () => {
+    if (!lastParsed) return
+
+    if (linkValue.trim()) {
+      const updated = updateListing(lastParsed.id, { link: linkValue.trim() })
+      onListingAdded(updated)
+    }
+    onClose()
   }
 
   if (!isOpen) return null
@@ -191,8 +205,8 @@ export function ParserModal({
 
           {/* Last parsed result */}
           {lastParsed && (
-            <div className="bg-green/10 border border-green/30 rounded-lg p-4">
-              <p className="text-sm text-green font-medium mb-2">
+            <div className="bg-green/10 border border-green/30 rounded-lg p-4 space-y-4">
+              <p className="text-sm text-green font-medium">
                 ✓ Imóvel adicionado com sucesso!
               </p>
               <div className="grid grid-cols-2 gap-2 text-xs text-ashGray">
@@ -219,6 +233,35 @@ export function ParserModal({
                   </span>
                 </div>
               </div>
+              
+              {/* Link input field */}
+              <div className="flex flex-col gap-2 pt-2 border-t border-green/20">
+                <Label htmlFor="link-input" className="text-sm text-ashGray">
+                  Link (opcional)
+                </Label>
+                <Input
+                  id="link-input"
+                  type="url"
+                  value={linkValue}
+                  onChange={(e) => setLinkValue(e.target.value)}
+                  placeholder="Ex: https://www.zapimoveis.com.br/imovel/..."
+                  className="bg-eerieBlack border-brightGrey text-white placeholder:text-muted-foreground"
+                />
+              </div>
+
+              {/* Save and close button */}
+              <button
+                onClick={handleSaveAndClose}
+                className={cn(
+                  "w-full py-2.5 px-4 rounded-lg font-medium transition-all",
+                  "bg-primary text-primary-foreground",
+                  "hover:bg-primary/90",
+                  "flex items-center justify-center gap-2"
+                )}
+              >
+                <span>💾</span>
+                Salvar e Fechar
+              </button>
             </div>
           )}
 
