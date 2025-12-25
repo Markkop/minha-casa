@@ -94,14 +94,43 @@ function formatCurrency(value: number | null): string {
 }
 
 /**
- * Create custom marker icon with color
+ * Create custom marker icon with color or golden star for starred items
  */
-function createMarkerIcon(color: string): L.DivIcon | null {
+function createMarkerIcon(color: string, starred?: boolean): L.DivIcon | null {
   if (typeof window === "undefined") return null
   
   // Import Leaflet dynamically
   const L = require("leaflet")
   
+  // Golden star icon for starred items
+  if (starred) {
+    return L.divIcon({
+      className: "custom-marker-starred",
+      html: `
+        <div style="
+          width: 32px;
+          height: 32px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5));
+        ">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" 
+                  fill="#fbbf24" 
+                  stroke="#f59e0b" 
+                  stroke-width="1.5" 
+                  stroke-linejoin="round"/>
+          </svg>
+        </div>
+      `,
+      iconSize: [32, 32],
+      iconAnchor: [16, 16],
+      popupAnchor: [0, -16],
+    })
+  }
+  
+  // Regular colored circle for non-starred items
   return L.divIcon({
     className: "custom-marker",
     html: `
@@ -176,7 +205,7 @@ function MapContent({ geocodedListings }: { geocodedListings: GeocodedListing[] 
       {geocodedListings.map((gl) => {
         const precoM2 = calculatePrecoM2(gl.listing.preco, gl.listing.m2Totais)
         const color = getMarkerColor(precoM2, minPreco, maxPreco)
-        const icon = createMarkerIcon(color)
+        const icon = createMarkerIcon(color, gl.listing.starred)
 
         return (
           <Marker
