@@ -42,12 +42,12 @@ interface GeocodedListing {
 // ============================================================================
 
 // Florianópolis center coordinates
-const FLORIANOPOLIS_CENTER: [number, number] = [-27.5954, -48.5480]
-const DEFAULT_ZOOM = 12
+const FLORIANOPOLIS_CENTER: [number, number] = [-27.5954, -48.5080] // -27.584253, -48.506777
+const DEFAULT_ZOOM = 14
 
-// CartoDB Dark Matter tiles (free, no API key)
-const DARK_TILE_URL = "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
-const TILE_ATTRIBUTION = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
+// OpenStreetMap standard tiles (light mode, Google Maps-like)
+const TILE_URL = "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+const TILE_ATTRIBUTION = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
 
 // ============================================================================
 // HELPER FUNCTIONS
@@ -199,9 +199,9 @@ function MapContent({ geocodedListings }: { geocodedListings: GeocodedListing[] 
       center={FLORIANOPOLIS_CENTER}
       zoom={DEFAULT_ZOOM}
       className="h-[400px] rounded-lg"
-      style={{ background: "#1a1a2e" }}
+      style={{ background: "#e5e7eb" }}
     >
-      <TileLayer url={DARK_TILE_URL} attribution={TILE_ATTRIBUTION} />
+      <TileLayer url={TILE_URL} attribution={TILE_ATTRIBUTION} />
       {geocodedListings.map((gl) => {
         const precoM2 = calculatePrecoM2(gl.listing.preco, gl.listing.m2Totais)
         const color = getMarkerColor(precoM2, minPreco, maxPreco)
@@ -238,16 +238,46 @@ function MapContent({ geocodedListings }: { geocodedListings: GeocodedListing[] 
                     </p>
                   )}
                 </div>
-                {gl.listing.link && (
+                <div className="mt-3 pt-2 border-t border-gray-200 space-y-1">
+                  {gl.listing.link && (
+                    <a
+                      href={gl.listing.link}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-600 hover:underline text-xs block"
+                    >
+                      Ver anúncio →
+                    </a>
+                  )}
                   <a
-                    href={gl.listing.link}
+                    href={`https://www.google.com/maps?q=${gl.location.lat},${gl.location.lng}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-blue-600 hover:underline text-xs mt-2 block"
+                    className="text-blue-600 hover:underline text-xs block flex items-center gap-1"
                   >
-                    Ver anúncio →
+                    <svg
+                      className="w-3 h-3"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                      xmlns="http://www.w3.org/2000/svg"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
+                      />
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
+                      />
+                    </svg>
+                    Abrir no Google Maps
                   </a>
-                )}
+                </div>
               </div>
             </Popup>
           </Marker>
