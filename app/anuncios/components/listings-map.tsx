@@ -3,7 +3,9 @@
 import { useEffect, useState, useMemo } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { type Imovel, updateListing } from "../lib/storage"
-import { geocodeAddresses, geocodeAddress, type GeocodedLocation } from "../lib/geocoding"
+import { geocodeAddresses, geocodeAddress, clearCacheForAddresses, type GeocodedLocation } from "../lib/geocoding"
+import { RotateCw } from "lucide-react"
+import { cn } from "@/lib/utils"
 import dynamic from "next/dynamic"
 
 // Dynamically import Leaflet components to avoid SSR issues
@@ -384,13 +386,14 @@ export function ListingsMap({ listings, onListingsChange }: ListingsMapProps) {
   const [isLoading, setIsLoading] = useState(false)
   const [progress, setProgress] = useState({ completed: 0, total: 0 })
   const [mounted, setMounted] = useState(false)
+  const [geocodeKey, setGeocodeKey] = useState(0)
 
   // Track if component is mounted (for SSR)
   useEffect(() => {
     setMounted(true)
   }, [])
 
-  // Geocode all listings when they change
+  // Geocode all listings when they change or geocodeKey changes
   useEffect(() => {
     if (!mounted || listings.length === 0) {
       setGeocodedListings([])
@@ -451,7 +454,15 @@ export function ListingsMap({ listings, onListingsChange }: ListingsMapProps) {
     }
 
     geocodeAll()
-  }, [listings, mounted])
+  }, [listings, mounted, geocodeKey])
+
+  const handleRedoGeocoding = () => {
+    // Clear cache for all listing addresses
+    const addresses = listings.map((listing) => listing.endereco)
+    clearCacheForAddresses(addresses)
+    // Trigger re-geocoding by incrementing geocodeKey
+    setGeocodeKey((prev) => prev + 1)
+  }
 
   if (!mounted) {
     return null
@@ -469,16 +480,30 @@ export function ListingsMap({ listings, onListingsChange }: ListingsMapProps) {
             <span>🗺️</span>
             <span>Mapa de Imóveis</span>
           </div>
-          <div className="text-sm font-normal text-muted-foreground">
-            {isLoading ? (
-              <span>
-                Geocodificando... {progress.completed}/{progress.total}
-              </span>
-            ) : (
-              <span>
-                {geocodedListings.length} de {listings.length} no mapa
-              </span>
-            )}
+          <div className="flex items-center gap-2">
+            <div className="text-sm font-normal text-muted-foreground">
+              {isLoading ? (
+                <span>
+                  Geocodificando... {progress.completed}/{progress.total}
+                </span>
+              ) : (
+                <span>
+                  {geocodedListings.length} de {listings.length} no mapa
+                </span>
+              )}
+            </div>
+            <button
+              onClick={handleRedoGeocoding}
+              disabled={isLoading}
+              className={cn(
+                "p-1.5 rounded hover:bg-eerieBlack transition-colors",
+                "text-muted-foreground hover:text-primary",
+                "disabled:opacity-50 disabled:cursor-not-allowed"
+              )}
+              title="Re-geocodificar todos os endereços"
+            >
+              <RotateCw className={cn("h-4 w-4", isLoading && "animate-spin")} />
+            </button>
           </div>
         </CardTitle>
 

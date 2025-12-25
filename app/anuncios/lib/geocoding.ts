@@ -176,3 +176,15 @@ export function clearGeocodeCache(): void {
   localStorage.removeItem(GEOCODE_CACHE_KEY)
 }
 
+/**
+ * Clear cache for specific addresses
+ */
+export function clearCacheForAddresses(addresses: string[]): void {
+  if (typeof window === "undefined") return
+  const cache = getCache()
+  for (const address of addresses) {
+    delete cache[address]
+  }
+  saveCache(cache)
+}
+
