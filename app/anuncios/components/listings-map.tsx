@@ -2,8 +2,8 @@
 
 import { useEffect, useState, useMemo } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { type Imovel } from "../lib/storage"
-import { geocodeAddresses, type GeocodedLocation } from "../lib/geocoding"
+import { type Imovel, updateListing } from "../lib/storage"
+import { geocodeAddresses, geocodeAddress, type GeocodedLocation } from "../lib/geocoding"
 import dynamic from "next/dynamic"
 
 // Dynamically import Leaflet components to avoid SSR issues
@@ -30,6 +30,7 @@ const Popup = dynamic(
 
 interface ListingsMapProps {
   listings: Imovel[]
+  onListingsChange: (listings: Imovel[]) => void
 }
 
 interface GeocodedListing {
@@ -95,8 +96,11 @@ function formatCurrency(value: number | null): string {
 
 /**
  * Create custom marker icon with color or golden star for starred items
+ * @param color - Color for the marker
+ * @param starred - Whether the listing is starred
+ * @param hasCustomLocation - Whether the marker has a custom (dragged) location
  */
-function createMarkerIcon(color: string, starred?: boolean): L.DivIcon | null {
+function createMarkerIcon(color: string, starred?: boolean, hasCustomLocation?: boolean): L.DivIcon | null {
   if (typeof window === "undefined") return null
   
   // Import Leaflet dynamically
@@ -122,6 +126,19 @@ function createMarkerIcon(color: string, starred?: boolean): L.DivIcon | null {
                   stroke-width="1.5" 
                   stroke-linejoin="round"/>
           </svg>
+          ${hasCustomLocation ? `
+            <div style="
+              position: absolute;
+              top: -2px;
+              right: -2px;
+              width: 10px;
+              height: 10px;
+              background-color: #3b82f6;
+              border: 2px solid white;
+              border-radius: 50%;
+              box-shadow: 0 1px 2px rgba(0,0,0,0.3);
+            "></div>
+          ` : ''}
         </div>
       `,
       iconSize: [32, 32],
@@ -131,6 +148,9 @@ function createMarkerIcon(color: string, starred?: boolean): L.DivIcon | null {
   }
   
   // Regular colored circle for non-starred items
+  const borderColor = hasCustomLocation ? "#3b82f6" : "white"
+  const borderWidth = hasCustomLocation ? "3px" : "2px"
+  
   return L.divIcon({
     className: "custom-marker",
     html: `
@@ -138,10 +158,25 @@ function createMarkerIcon(color: string, starred?: boolean): L.DivIcon | null {
         width: 24px;
         height: 24px;
         background-color: ${color};
-        border: 2px solid white;
+        border: ${borderWidth} solid ${borderColor};
         border-radius: 50%;
         box-shadow: 0 2px 4px rgba(0,0,0,0.3);
-      "></div>
+        position: relative;
+      ">
+        ${hasCustomLocation ? `
+          <div style="
+            position: absolute;
+            top: -4px;
+            right: -4px;
+            width: 8px;
+            height: 8px;
+            background-color: #3b82f6;
+            border: 2px solid white;
+            border-radius: 50%;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.3);
+          "></div>
+        ` : ''}
+      </div>
     `,
     iconSize: [24, 24],
     iconAnchor: [12, 12],
@@ -153,7 +188,13 @@ function createMarkerIcon(color: string, starred?: boolean): L.DivIcon | null {
 // MAP CONTENT COMPONENT (client-side only)
 // ============================================================================
 
-function MapContent({ geocodedListings }: { geocodedListings: GeocodedListing[] }) {
+function MapContent({ 
+  geocodedListings,
+  onListingsChange 
+}: { 
+  geocodedListings: GeocodedListing[]
+  onListingsChange: (listings: Imovel[]) => void
+}) {
   const [leafletLoaded, setLeafletLoaded] = useState(false)
 
   useEffect(() => {
@@ -205,18 +246,57 @@ function MapContent({ geocodedListings }: { geocodedListings: GeocodedListing[] 
       {geocodedListings.map((gl) => {
         const precoM2 = calculatePrecoM2(gl.listing.preco, gl.listing.m2Totais)
         const color = getMarkerColor(precoM2, minPreco, maxPreco)
-        const icon = createMarkerIcon(color, gl.listing.starred)
+        const hasCustomLocation = gl.listing.customLat !== null && gl.listing.customLat !== undefined &&
+                                  gl.listing.customLng !== null && gl.listing.customLng !== undefined
+        const icon = createMarkerIcon(color, gl.listing.starred, hasCustomLocation)
+
+        const handleDragEnd = async (e: L.DragEndEvent) => {
+          const marker = e.target
+          const position = marker.getLatLng()
+          const updatedListings = updateListing(gl.listing.id, {
+            customLat: position.lat,
+            customLng: position.lng,
+          })
+          onListingsChange(updatedListings)
+        }
+
+        const handleResetLocation = async () => {
+          // Clear custom coordinates
+          const updatedListings = updateListing(gl.listing.id, {
+            customLat: null,
+            customLng: null,
+          })
+          
+          // Re-geocode the address
+          const location = await geocodeAddress(gl.listing.endereco)
+          if (location) {
+            // Update with new geocoded location (but don't set as custom)
+            // The component will re-render and use the geocoded location
+            onListingsChange(updatedListings)
+          } else {
+            onListingsChange(updatedListings)
+          }
+        }
 
         return (
           <Marker
             key={gl.listing.id}
             position={[gl.location.lat, gl.location.lng]}
             icon={icon || undefined}
+            draggable={true}
+            eventHandlers={{
+              dragend: handleDragEnd,
+            }}
           >
             <Popup>
               <div className="text-sm min-w-[200px]">
                 <h3 className="font-bold text-gray-900 mb-1">{gl.listing.titulo}</h3>
                 <p className="text-gray-600 text-xs mb-2">{gl.listing.endereco}</p>
+                {hasCustomLocation && (
+                  <p className="text-xs text-blue-600 mb-2 font-medium">
+                    📍 Localização personalizada
+                  </p>
+                )}
                 <div className="space-y-1">
                   <p>
                     <span className="font-medium">Preço:</span>{" "}
@@ -239,6 +319,14 @@ function MapContent({ geocodedListings }: { geocodedListings: GeocodedListing[] 
                   )}
                 </div>
                 <div className="mt-3 pt-2 border-t border-gray-200 space-y-1">
+                  {hasCustomLocation && (
+                    <button
+                      onClick={handleResetLocation}
+                      className="text-blue-600 hover:underline text-xs block w-full text-left mb-1"
+                    >
+                      🔄 Restaurar localização original
+                    </button>
+                  )}
                   {gl.listing.link && (
                     <a
                       href={gl.listing.link}
@@ -291,7 +379,7 @@ function MapContent({ geocodedListings }: { geocodedListings: GeocodedListing[] 
 // MAIN COMPONENT
 // ============================================================================
 
-export function ListingsMap({ listings }: ListingsMapProps) {
+export function ListingsMap({ listings, onListingsChange }: ListingsMapProps) {
   const [geocodedListings, setGeocodedListings] = useState<GeocodedListing[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [progress, setProgress] = useState({ completed: 0, total: 0 })
@@ -311,23 +399,54 @@ export function ListingsMap({ listings }: ListingsMapProps) {
 
     const geocodeAll = async () => {
       setIsLoading(true)
-      setProgress({ completed: 0, total: listings.length })
-
-      const addresses = listings.map((l) => l.endereco)
-      const results = await geocodeAddresses(addresses, (completed, total) => {
-        setProgress({ completed, total })
-      })
-
-      // Match results back to listings
-      const geocoded: GeocodedListing[] = []
+      
+      // Separate listings with custom locations from those needing geocoding
+      const listingsWithCustom: GeocodedListing[] = []
+      const listingsToGeocode: Imovel[] = []
+      
       for (const listing of listings) {
-        const location = results.get(listing.endereco)
-        if (location) {
-          geocoded.push({ listing, location })
+        // Check if listing has custom coordinates
+        if (listing.customLat !== null && listing.customLat !== undefined &&
+            listing.customLng !== null && listing.customLng !== undefined) {
+          // Use custom coordinates
+          listingsWithCustom.push({
+            listing,
+            location: {
+              lat: listing.customLat,
+              lng: listing.customLng,
+              displayName: listing.endereco,
+            },
+          })
+        } else {
+          // Needs geocoding
+          listingsToGeocode.push(listing)
         }
       }
 
-      setGeocodedListings(geocoded)
+      // Geocode only listings without custom coordinates
+      if (listingsToGeocode.length > 0) {
+        setProgress({ completed: listingsWithCustom.length, total: listings.length })
+        
+        const addresses = listingsToGeocode.map((l) => l.endereco)
+        const results = await geocodeAddresses(addresses, (completed, total) => {
+          setProgress({ completed: listingsWithCustom.length + completed, total: listings.length })
+        })
+
+        // Match results back to listings
+        const geocoded: GeocodedListing[] = [...listingsWithCustom]
+        for (const listing of listingsToGeocode) {
+          const location = results.get(listing.endereco)
+          if (location) {
+            geocoded.push({ listing, location })
+          }
+        }
+
+        setGeocodedListings(geocoded)
+      } else {
+        // All listings have custom coordinates
+        setGeocodedListings(listingsWithCustom)
+      }
+      
       setIsLoading(false)
     }
 
@@ -403,7 +522,7 @@ export function ListingsMap({ listings }: ListingsMapProps) {
             </p>
           </div>
         ) : (
-          <MapContent geocodedListings={geocodedListings} />
+          <MapContent geocodedListings={geocodedListings} onListingsChange={onListingsChange} />
         )}
       </CardContent>
     </Card>

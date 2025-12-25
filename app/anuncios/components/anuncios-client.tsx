@@ -106,7 +106,7 @@ export function AnunciosClient() {
         />
 
         {/* Map View */}
-        <ListingsMap listings={listings} />
+        <ListingsMap listings={listings} onListingsChange={handleListingsChange} />
       </main>
     </div>
   )

@@ -20,6 +20,8 @@ export interface Imovel {
   piscina: boolean | null
   link: string | null
   starred?: boolean
+  customLat?: number | null
+  customLng?: number | null
   createdAt: string
 }
 
