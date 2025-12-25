@@ -97,16 +97,31 @@ function formatCurrency(value: number | null): string {
 }
 
 /**
+ * Format price compactly for marker labels (always in thousands, e.g., 1400k)
+ */
+function formatCompactPrice(value: number | null): string {
+  if (value === null) return ""
+  
+  // Always format as thousands (e.g., 1400k for 1.4 million)
+  const thousands = value / 1000
+  // Show as whole number (e.g., 1400k instead of 1400.0k)
+  return `${thousands.toFixed(0)}k`
+}
+
+/**
  * Create custom marker icon with color or golden star for starred items
  * @param color - Color for the marker
+ * @param price - Price to display on the marker
  * @param starred - Whether the listing is starred
  * @param hasCustomLocation - Whether the marker has a custom (dragged) location
  */
-function createMarkerIcon(color: string, starred?: boolean, hasCustomLocation?: boolean): L.DivIcon | null {
+function createMarkerIcon(color: string, price: number | null, starred?: boolean, hasCustomLocation?: boolean): L.DivIcon | null {
   if (typeof window === "undefined") return null
   
   // Import Leaflet dynamically
   const L = require("leaflet")
+  
+  const priceLabel = formatCompactPrice(price)
   
   // Golden star icon for starred items
   if (starred) {
@@ -114,38 +129,58 @@ function createMarkerIcon(color: string, starred?: boolean, hasCustomLocation?: 
       className: "custom-marker-starred",
       html: `
         <div style="
-          width: 32px;
-          height: 32px;
           display: flex;
+          flex-direction: column;
           align-items: center;
-          justify-content: center;
           filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5));
         ">
-          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" 
-                  fill="#fbbf24" 
-                  stroke="#f59e0b" 
-                  stroke-width="1.5" 
-                  stroke-linejoin="round"/>
-          </svg>
-          ${hasCustomLocation ? `
+          <div style="
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+          ">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" 
+                    fill="#fbbf24" 
+                    stroke="#f59e0b" 
+                    stroke-width="1.5" 
+                    stroke-linejoin="round"/>
+            </svg>
+            ${hasCustomLocation ? `
+              <div style="
+                position: absolute;
+                top: -2px;
+                right: -2px;
+                width: 10px;
+                height: 10px;
+                background-color: #3b82f6;
+                border: 2px solid white;
+                border-radius: 50%;
+                box-shadow: 0 1px 2px rgba(0,0,0,0.3);
+              "></div>
+            ` : ''}
+          </div>
+          ${priceLabel ? `
             <div style="
-              position: absolute;
-              top: -2px;
-              right: -2px;
-              width: 10px;
-              height: 10px;
-              background-color: #3b82f6;
-              border: 2px solid white;
-              border-radius: 50%;
-              box-shadow: 0 1px 2px rgba(0,0,0,0.3);
-            "></div>
+              margin-top: 2px;
+              padding: 3px 6px;
+              background-color: rgba(0, 0, 0, 0.75);
+              color: white;
+              font-size: 13px;
+              font-weight: bold;
+              border-radius: 3px;
+              white-space: nowrap;
+              line-height: 1;
+            ">${priceLabel}</div>
           ` : ''}
         </div>
       `,
-      iconSize: [32, 32],
-      iconAnchor: [16, 16],
-      popupAnchor: [0, -16],
+      iconSize: priceLabel ? [32, 48] : [32, 32],
+      iconAnchor: [16, priceLabel ? 48 : 16],
+      popupAnchor: [0, priceLabel ? -48 : -16],
     })
   }
   
@@ -157,32 +192,51 @@ function createMarkerIcon(color: string, starred?: boolean, hasCustomLocation?: 
     className: "custom-marker",
     html: `
       <div style="
-        width: 24px;
-        height: 24px;
-        background-color: ${color};
-        border: ${borderWidth} solid ${borderColor};
-        border-radius: 50%;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.3);
-        position: relative;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
       ">
-        ${hasCustomLocation ? `
+        <div style="
+          width: 24px;
+          height: 24px;
+          background-color: ${color};
+          border: ${borderWidth} solid ${borderColor};
+          border-radius: 50%;
+          box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+          position: relative;
+        ">
+          ${hasCustomLocation ? `
+            <div style="
+              position: absolute;
+              top: -4px;
+              right: -4px;
+              width: 8px;
+              height: 8px;
+              background-color: #3b82f6;
+              border: 2px solid white;
+              border-radius: 50%;
+              box-shadow: 0 1px 2px rgba(0,0,0,0.3);
+            "></div>
+          ` : ''}
+        </div>
+        ${priceLabel ? `
           <div style="
-            position: absolute;
-            top: -4px;
-            right: -4px;
-            width: 8px;
-            height: 8px;
-            background-color: #3b82f6;
-            border: 2px solid white;
-            border-radius: 50%;
-            box-shadow: 0 1px 2px rgba(0,0,0,0.3);
-          "></div>
+            margin-top: 2px;
+            padding: 3px 6px;
+            background-color: rgba(0, 0, 0, 0.75);
+            color: white;
+            font-size: 13px;
+            font-weight: bold;
+            border-radius: 3px;
+            white-space: nowrap;
+            line-height: 1;
+          ">${priceLabel}</div>
         ` : ''}
       </div>
     `,
-    iconSize: [24, 24],
-    iconAnchor: [12, 12],
-    popupAnchor: [0, -12],
+    iconSize: priceLabel ? [24, 40] : [24, 24],
+    iconAnchor: [12, priceLabel ? 40 : 12],
+    popupAnchor: [0, priceLabel ? -40 : -12],
   })
 }
 
@@ -250,7 +304,7 @@ function MapContent({
         const color = getMarkerColor(precoM2, minPreco, maxPreco)
         const hasCustomLocation = gl.listing.customLat !== null && gl.listing.customLat !== undefined &&
                                   gl.listing.customLng !== null && gl.listing.customLng !== undefined
-        const icon = createMarkerIcon(color, gl.listing.starred, hasCustomLocation)
+        const icon = createMarkerIcon(color, gl.listing.preco, gl.listing.starred, hasCustomLocation)
 
         const handleDragEnd = async (e: L.DragEndEvent) => {
           const marker = e.target
