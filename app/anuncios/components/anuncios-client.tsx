@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { ListingsTable } from "./listings-table"
+import { ListingsMap } from "./listings-map"
 import { SettingsModal } from "./settings-modal"
 import { ParserModal } from "./parser-modal"
 import { DataManagement } from "./data-management"
@@ -103,6 +104,9 @@ export function AnunciosClient() {
           listings={listings}
           onListingsChange={handleListingsChange}
         />
+
+        {/* Map View */}
+        <ListingsMap listings={listings} />
       </main>
     </div>
   )
