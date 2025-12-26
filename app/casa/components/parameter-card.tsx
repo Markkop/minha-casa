@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
 import { InfoCircledIcon } from "@radix-ui/react-icons"
-import type { ChangeEvent, ReactNode } from "react"
+import { useState, useEffect, type ReactNode } from "react"
 
 import { formatCurrency, generateTooltips } from "./utils/calculations"
 import { useSettings } from "./utils/settings"
@@ -76,20 +76,77 @@ const FieldWithTooltip = ({ label, tooltip, children, className }: FieldWithTool
 }
 
 /**
- * Input monetário formatado
+ * Input monetário formatado - shows raw value while editing, formatted on blur
  */
 const CurrencyInput = ({ value, onChange, ...props }: CurrencyInputProps) => {
-  const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
-    const rawValue = e.target.value.replace(/\D/g, "")
+  const [isFocused, setIsFocused] = useState(false)
+  const [inputValue, setInputValue] = useState(value.toString())
+
+  // Sync inputValue with external value when not focused
+  useEffect(() => {
+    if (!isFocused) {
+      setInputValue(value.toString())
+    }
+  }, [value, isFocused])
+
+  const handleFocus = () => {
+    setIsFocused(true)
+    // Show raw number when focused
+    setInputValue(value.toString())
+  }
+
+  const handleBlur = () => {
+    setIsFocused(false)
+    // Parse and commit the value
+    const rawValue = inputValue.replace(/\D/g, "")
     const numericValue = parseInt(rawValue, 10) || 0
     onChange(numericValue)
+    setInputValue(numericValue.toString())
+  }
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    // Allow only digits
+    const newValue = e.target.value.replace(/\D/g, "")
+    setInputValue(newValue)
+    // Update parent in real-time
+    const numericValue = parseInt(newValue, 10) || 0
+    onChange(numericValue)
+  }
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    // Allow: backspace, delete, tab, escape, enter, arrows
+    if (
+      e.key === "Backspace" ||
+      e.key === "Delete" ||
+      e.key === "Tab" ||
+      e.key === "Escape" ||
+      e.key === "Enter" ||
+      e.key === "ArrowLeft" ||
+      e.key === "ArrowRight" ||
+      e.key === "Home" ||
+      e.key === "End"
+    ) {
+      return
+    }
+    // Allow Ctrl/Cmd + A, C, V, X
+    if ((e.ctrlKey || e.metaKey) && ["a", "c", "v", "x"].includes(e.key.toLowerCase())) {
+      return
+    }
+    // Block non-numeric keys
+    if (!/^\d$/.test(e.key)) {
+      e.preventDefault()
+    }
   }
 
   return (
     <Input
       type="text"
-      value={formatCurrency(value)}
+      inputMode="numeric"
+      value={isFocused ? inputValue : formatCurrency(value)}
       onChange={handleChange}
+      onFocus={handleFocus}
+      onBlur={handleBlur}
+      onKeyDown={handleKeyDown}
       className="font-mono"
       {...props}
     />
@@ -97,20 +154,78 @@ const CurrencyInput = ({ value, onChange, ...props }: CurrencyInputProps) => {
 }
 
 /**
- * Input percentual
+ * Input percentual - shows raw value while editing, formatted on blur
  */
 const PercentInput = ({ value, onChange, ...props }: PercentInputProps) => {
-  const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
-    const rawValue = e.target.value.replace(/[^\d.,]/g, "").replace(",", ".")
-    const numericValue = parseFloat(rawValue) || 0
+  const [isFocused, setIsFocused] = useState(false)
+  const [inputValue, setInputValue] = useState((value * 100).toFixed(2))
+
+  // Sync inputValue with external value when not focused
+  useEffect(() => {
+    if (!isFocused) {
+      setInputValue((value * 100).toFixed(2))
+    }
+  }, [value, isFocused])
+
+  const handleFocus = () => {
+    setIsFocused(true)
+    // Show raw percentage when focused (without the % symbol)
+    setInputValue((value * 100).toFixed(2))
+  }
+
+  const handleBlur = () => {
+    setIsFocused(false)
+    // Parse and commit the value
+    const cleanValue = inputValue.replace(/[^\d.,]/g, "").replace(",", ".")
+    const numericValue = parseFloat(cleanValue) || 0
     onChange(numericValue / 100)
+    setInputValue(numericValue.toFixed(2))
+  }
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    // Allow digits, dot and comma
+    const newValue = e.target.value.replace(/[^\d.,]/g, "")
+    setInputValue(newValue)
+    // Update parent in real-time
+    const cleanValue = newValue.replace(",", ".")
+    const numericValue = parseFloat(cleanValue) || 0
+    onChange(numericValue / 100)
+  }
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    // Allow: backspace, delete, tab, escape, enter, arrows
+    if (
+      e.key === "Backspace" ||
+      e.key === "Delete" ||
+      e.key === "Tab" ||
+      e.key === "Escape" ||
+      e.key === "Enter" ||
+      e.key === "ArrowLeft" ||
+      e.key === "ArrowRight" ||
+      e.key === "Home" ||
+      e.key === "End"
+    ) {
+      return
+    }
+    // Allow Ctrl/Cmd + A, C, V, X
+    if ((e.ctrlKey || e.metaKey) && ["a", "c", "v", "x"].includes(e.key.toLowerCase())) {
+      return
+    }
+    // Allow digits and decimal point/comma
+    if (!/^[\d.,]$/.test(e.key)) {
+      e.preventDefault()
+    }
   }
 
   return (
     <Input
       type="text"
-      value={`${(value * 100).toFixed(2)}%`}
+      inputMode="decimal"
+      value={isFocused ? inputValue : `${(value * 100).toFixed(2)}%`}
       onChange={handleChange}
+      onFocus={handleFocus}
+      onBlur={handleBlur}
+      onKeyDown={handleKeyDown}
       className="font-mono"
       {...props}
     />
