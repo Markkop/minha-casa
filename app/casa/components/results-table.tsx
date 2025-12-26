@@ -47,7 +47,6 @@ type SortKey =
   | "comprometimento"
   | "prazoReal"
   | "jurosOtimizado"
-  | "economiaJuros"
   | "custoTotal"
 
 type SortDirection = "asc" | "desc"
@@ -197,7 +196,7 @@ const AprovacaoIndicator = ({ dentroDoLimite }: AprovacaoIndicatorProps) => {
  * Tabela comparativa de cenários
  */
 export const ResultsTable = ({ cenarios, onSelectCenario }: ResultsTableProps) => {
-  const [sort, setSort] = useState<SortState>({ key: "economiaJuros", direction: "desc" })
+  const [sort, setSort] = useState<SortState>({ key: "custoTotal", direction: "asc" })
 
   const handleSort = (key: SortKey) => {
     setSort((prev) => ({
@@ -217,7 +216,6 @@ export const ResultsTable = ({ cenarios, onSelectCenario }: ResultsTableProps) =
         comprometimento: cenario.comprometimento.percentual,
         prazoReal: cenario.cenarioOtimizado.prazoReal,
         jurosOtimizado: cenario.cenarioOtimizado.totalJuros,
-        economiaJuros: cenario.economiaJuros,
         custoTotal: cenario.custoTotalOtimizado,
       }
       return paths[key] ?? 0
@@ -267,8 +265,8 @@ export const ResultsTable = ({ cenarios, onSelectCenario }: ResultsTableProps) =
               onSort={handleSort}
             />
             <SortableHeader
-              label="1ª Parcela"
-              tooltip="Primeira parcela (maior valor no SAC)"
+              label="Total/mês"
+              tooltip="Aporte extra mensal + primeira parcela (maior valor no SAC)"
               sortKey="parcela"
               currentSort={sort}
               onSort={handleSort}
@@ -280,9 +278,6 @@ export const ResultsTable = ({ cenarios, onSelectCenario }: ResultsTableProps) =
               currentSort={sort}
               onSort={handleSort}
             />
-            <TableHead className="text-primary">
-              📈 Aporte/mês
-            </TableHead>
             <SortableHeader
               label="Prazo"
               tooltip="Prazo real com amortização extra"
@@ -291,16 +286,9 @@ export const ResultsTable = ({ cenarios, onSelectCenario }: ResultsTableProps) =
               onSort={handleSort}
             />
             <SortableHeader
-              label="💸 Juros a Pagar"
+              label="Juros"
               tooltip="Total de juros que você vai pagar (com amortização extra)"
               sortKey="jurosOtimizado"
-              currentSort={sort}
-              onSort={handleSort}
-            />
-            <SortableHeader
-              label="Economia"
-              tooltip={dynamicTooltips.economiaJuros}
-              sortKey="economiaJuros"
               currentSort={sort}
               onSort={handleSort}
             />
@@ -334,7 +322,11 @@ export const ResultsTable = ({ cenarios, onSelectCenario }: ResultsTableProps) =
                 {formatCurrencyCompact(cenario.valorImovel)}
               </TableCell>
               <TableCell className="font-mono text-sm text-salmon">
-                {formatCurrencyCompact(cenario.valorApartamento)}
+                {formatCurrencyCompact(
+                  cenario.estrategia === "permuta"
+                    ? cenario.financiamento.valorApartamentoUsado
+                    : cenario.valorApartamento
+                )}
               </TableCell>
               <TableCell>
                 <EstrategiaBadgeInline estrategia={cenario.estrategia} />
@@ -342,8 +334,10 @@ export const ResultsTable = ({ cenarios, onSelectCenario }: ResultsTableProps) =
               <TableCell className="font-mono text-sm">
                 {formatCurrencyCompact(cenario.financiamento.valorFinanciado)}
               </TableCell>
-              <TableCell className="font-mono text-sm">
-                {formatCurrencyCompact(cenario.tabelaPadrao.primeiraParcelar)}
+              <TableCell className="font-mono text-sm text-primary font-bold">
+                {formatCurrencyCompact(
+                  cenario.aporteExtra + cenario.tabelaPadrao.primeiraParcelar
+                )}
               </TableCell>
               <TableCell>
                 <div className="flex items-center gap-2">
@@ -362,17 +356,11 @@ export const ResultsTable = ({ cenarios, onSelectCenario }: ResultsTableProps) =
                   </span>
                 </div>
               </TableCell>
-              <TableCell className="font-mono text-sm text-primary font-bold">
-                +{formatCurrencyCompact(cenario.aporteExtra)}
-              </TableCell>
               <TableCell className="font-mono text-sm text-primary">
                 {(cenario.cenarioOtimizado.prazoReal / 12).toFixed(1)}a
               </TableCell>
               <TableCell className="font-mono text-sm text-salmon font-bold">
                 {formatCurrencyCompact(cenario.cenarioOtimizado.totalJuros)}
-              </TableCell>
-              <TableCell className="font-mono text-sm text-green">
-                {formatCurrencyCompact(cenario.economiaJuros)}
               </TableCell>
               <TableCell className="font-mono text-sm font-bold">
                 {formatCurrencyCompact(cenario.custoTotalOtimizado)}

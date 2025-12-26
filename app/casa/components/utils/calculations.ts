@@ -840,7 +840,7 @@ export const gerarMatrizCenarios = ({
 // ============================================================================
 
 export const DEFAULTS = {
-  valoresImovel: [1960000, 1900000, 1800000],
+  valoresImovel: [2000000, 1900000, 1800000],
   valoresApartamento: [550000, 500000, 450000],
   capitalDisponivel: 700000,
   reservaEmergencia: 100000,

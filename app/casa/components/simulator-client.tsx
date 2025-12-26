@@ -79,6 +79,22 @@ export interface SimulatorParams {
   valoresImovelFiltroMultipliers: number[]
   valoresAptoFiltroMultipliers: number[]
   estrategiasFiltro: ("permuta" | "venda_posterior")[]
+
+  // Base values and multipliers for slider support (10% to 200%)
+  valorImovelBase: number
+  valorImovelMultiplier: number
+  capitalDisponivelBase: number
+  capitalDisponivelMultiplier: number
+  reservaEmergenciaBase: number
+  reservaEmergenciaMultiplier: number
+  valorApartamentoBase: number
+  valorApartamentoMultiplier: number
+  custoCondominioBase: number
+  custoCondominioMultiplier: number
+  segurosBase: number
+  segurosMultiplier: number
+  prazoMesesBase: number
+  prazoMesesMultiplier: number
 }
 
 interface InfoCardProps {
@@ -175,7 +191,115 @@ export const SimulatorClient = () => {
     valoresImovelFiltroMultipliers: [1.0, 0.95], // Original and -5%
     valoresAptoFiltroMultipliers: [1.0, 0.95], // Original and -5%
     estrategiasFiltro: ["permuta", "venda_posterior"],
+
+    // Base values and multipliers for slider support (10% to 200%)
+    valorImovelBase: DEFAULTS.valoresImovel[0],
+    valorImovelMultiplier: 1.0,
+    capitalDisponivelBase: DEFAULTS.capitalDisponivel,
+    capitalDisponivelMultiplier: 1.0,
+    reservaEmergenciaBase: DEFAULTS.reservaEmergencia,
+    reservaEmergenciaMultiplier: 1.0,
+    valorApartamentoBase: DEFAULTS.valoresApartamento[0],
+    valorApartamentoMultiplier: 1.0,
+    custoCondominioBase: DEFAULTS.custoCondominioMensal,
+    custoCondominioMultiplier: 1.0,
+    segurosBase: DEFAULTS.seguros,
+    segurosMultiplier: 1.0,
+    prazoMesesBase: DEFAULTS.prazoMeses,
+    prazoMesesMultiplier: 1.0,
   })
+
+  // Handlers for value and slider changes
+  const handleValueChange = (
+    field:
+      | "valorImovel"
+      | "capitalDisponivel"
+      | "reservaEmergencia"
+      | "valorApartamento"
+      | "custoCondominio"
+      | "seguros"
+      | "prazoMeses",
+    newValue: number
+  ) => {
+    const baseField = `${field}Base` as keyof SimulatorParams
+    const multiplierField = `${field}Multiplier` as keyof SimulatorParams
+
+    setParams((prev) => ({
+      ...prev,
+      [baseField]: newValue,
+      [multiplierField]: 1.0,
+    }))
+  }
+
+  const handleSliderChange = (
+    field:
+      | "valorImovel"
+      | "capitalDisponivel"
+      | "reservaEmergencia"
+      | "valorApartamento"
+      | "custoCondominio"
+      | "seguros"
+      | "prazoMeses",
+    multiplier: number
+  ) => {
+    // Clamp multiplier to 0.1 (10%) to 2.0 (200%)
+    const clampedMultiplier = Math.max(0.1, Math.min(2.0, multiplier))
+    const multiplierField = `${field}Multiplier` as keyof SimulatorParams
+
+    setParams((prev) => ({
+      ...prev,
+      [multiplierField]: clampedMultiplier,
+    }))
+  }
+
+  // Compute actual values from base * multiplier (keep in sync)
+  const computedParams = useMemo(() => {
+    return {
+      ...params,
+      valorImovelSelecionado: Math.round(
+        params.valorImovelBase * params.valorImovelMultiplier
+      ),
+      capitalDisponivel: Math.round(
+        params.capitalDisponivelBase * params.capitalDisponivelMultiplier
+      ),
+      reservaEmergencia: Math.round(
+        params.reservaEmergenciaBase * params.reservaEmergenciaMultiplier
+      ),
+      valorApartamentoSelecionado: Math.round(
+        params.valorApartamentoBase * params.valorApartamentoMultiplier
+      ),
+      custoCondominioMensal: Math.round(
+        params.custoCondominioBase * params.custoCondominioMultiplier
+      ),
+      seguros: Math.round(params.segurosBase * params.segurosMultiplier),
+      prazoMeses: Math.round(
+        params.prazoMesesBase * params.prazoMesesMultiplier
+      ),
+    }
+  }, [
+    params.valorImovelBase,
+    params.valorImovelMultiplier,
+    params.capitalDisponivelBase,
+    params.capitalDisponivelMultiplier,
+    params.reservaEmergenciaBase,
+    params.reservaEmergenciaMultiplier,
+    params.valorApartamentoBase,
+    params.valorApartamentoMultiplier,
+    params.custoCondominioBase,
+    params.custoCondominioMultiplier,
+    params.segurosBase,
+    params.segurosMultiplier,
+    params.prazoMesesBase,
+    params.prazoMesesMultiplier,
+    params.taxaAnual,
+    params.trMensal,
+    params.haircut,
+    params.aporteExtra,
+    params.rendaMensal,
+    params.valoresImovelFiltroMultipliers,
+    params.valoresAptoFiltroMultipliers,
+    params.estrategiasFiltro,
+  ])
 
   // Estado da view
   const [activeTab, setActiveTab] = useState("table")
@@ -185,45 +309,45 @@ export const SimulatorClient = () => {
   // Filtered values based on selected multipliers
   const valoresImovelFiltrados = useMemo(() => {
     return params.valoresImovelFiltroMultipliers.map((m) =>
-      Math.round(params.valorImovelSelecionado * m)
+      Math.round(computedParams.valorImovelSelecionado * m)
     )
-  }, [params.valorImovelSelecionado, params.valoresImovelFiltroMultipliers])
+  }, [computedParams.valorImovelSelecionado, params.valoresImovelFiltroMultipliers])
 
   const valoresAptoFiltrados = useMemo(() => {
     return params.valoresAptoFiltroMultipliers.map((m) =>
-      Math.round(params.valorApartamentoSelecionado * m)
+      Math.round(computedParams.valorApartamentoSelecionado * m)
     )
-  }, [params.valorApartamentoSelecionado, params.valoresAptoFiltroMultipliers])
+  }, [computedParams.valorApartamentoSelecionado, params.valoresAptoFiltroMultipliers])
 
   // Gerar todos os cenários using filtered values
   const cenarios = useMemo(() => {
     return gerarMatrizCenarios({
       valoresImovel: valoresImovelFiltrados,
       valoresApartamento: valoresAptoFiltrados,
-      capitalDisponivel: params.capitalDisponivel,
-      reservaEmergencia: params.reservaEmergencia,
-      haircut: params.haircut,
-      taxaAnual: params.taxaAnual,
-      trMensal: params.trMensal,
-      prazoMeses: params.prazoMeses,
-      aporteExtra: params.aporteExtra,
-      rendaMensal: params.rendaMensal,
-      custoCondominioMensal: params.custoCondominioMensal,
-      seguros: params.seguros,
+      capitalDisponivel: computedParams.capitalDisponivel,
+      reservaEmergencia: computedParams.reservaEmergencia,
+      haircut: computedParams.haircut,
+      taxaAnual: computedParams.taxaAnual,
+      trMensal: computedParams.trMensal,
+      prazoMeses: computedParams.prazoMeses,
+      aporteExtra: computedParams.aporteExtra,
+      rendaMensal: computedParams.rendaMensal,
+      custoCondominioMensal: computedParams.custoCondominioMensal,
+      seguros: computedParams.seguros,
     })
   }, [
     valoresImovelFiltrados,
     valoresAptoFiltrados,
-    params.capitalDisponivel,
-    params.reservaEmergencia,
-    params.haircut,
-    params.taxaAnual,
-    params.trMensal,
-    params.prazoMeses,
-    params.aporteExtra,
-    params.rendaMensal,
-    params.custoCondominioMensal,
-    params.seguros,
+    computedParams.capitalDisponivel,
+    computedParams.reservaEmergencia,
+    computedParams.haircut,
+    computedParams.taxaAnual,
+    computedParams.trMensal,
+    computedParams.prazoMeses,
+    computedParams.aporteExtra,
+    computedParams.rendaMensal,
+    computedParams.custoCondominioMensal,
+    computedParams.seguros,
   ])
 
   // Filtrar cenários baseado nos filtros ativos (only strategy filter now, values are pre-filtered)
@@ -238,27 +362,27 @@ export const SimulatorClient = () => {
   const bestCenario = filteredCenarios.find((c) => c.isBest) || filteredCenarios[0]
 
   // Taxa efetiva mensal e CET usando settings
-  const taxaMensalEfetiva = params.taxaAnual / 12 + params.trMensal
-  const cetEstimado = params.taxaAnual + params.trMensal * 12 + settings.cetAdditionalCost
+  const taxaMensalEfetiva = computedParams.taxaAnual / 12 + computedParams.trMensal
+  const cetEstimado = computedParams.taxaAnual + computedParams.trMensal * 12 + settings.cetAdditionalCost
 
   // Generate dynamic tooltips based on current params and settings
   const tooltips = useMemo(() => {
     return generateTooltips({
-      reservaEmergencia: params.reservaEmergencia,
-      haircut: params.haircut,
+      reservaEmergencia: computedParams.reservaEmergencia,
+      haircut: computedParams.haircut,
       haircutRange: settings.sliders.haircut,
       taxaAnualRange: settings.sliders.taxaAnual,
       trMensalRange: settings.sliders.trMensal,
       prazoOptions: settings.prazoOptions,
-      aporteExtra: params.aporteExtra,
+      aporteExtra: computedParams.aporteExtra,
       economiaJuros: bestCenario?.economiaJuros,
       aporteExtraRange: settings.sliders.aporteExtra,
       rendaMensalRange: settings.sliders.rendaMensal,
     })
   }, [
-    params.reservaEmergencia,
-    params.haircut,
-    params.aporteExtra,
+    computedParams.reservaEmergencia,
+    computedParams.haircut,
+    computedParams.aporteExtra,
     settings.sliders.haircut,
     settings.sliders.taxaAnual,
     settings.sliders.trMensal,
@@ -306,7 +430,7 @@ export const SimulatorClient = () => {
           <InfoCard
             title="Taxa Efetiva Mensal"
             value={formatPercent(taxaMensalEfetiva)}
-            subtitle={`Juros ${formatPercent(params.taxaAnual)} + TR ${formatPercent(params.trMensal)}`}
+            subtitle={`Juros ${formatPercent(computedParams.taxaAnual)} + TR ${formatPercent(computedParams.trMensal)}`}
             tooltip={tooltips.trMensal}
             icon="📊"
           />
@@ -321,9 +445,9 @@ export const SimulatorClient = () => {
           <InfoCard
             title="Entrada Disponível"
             value={formatCurrency(
-              params.capitalDisponivel - params.reservaEmergencia
+              computedParams.capitalDisponivel - computedParams.reservaEmergencia
             )}
-            subtitle={`De ${formatCurrency(params.capitalDisponivel)} total`}
+            subtitle={`De ${formatCurrency(computedParams.capitalDisponivel)} total`}
             tooltip={tooltips.reservaEmergencia}
             icon="💰"
           />
@@ -338,10 +462,30 @@ export const SimulatorClient = () => {
 
         {/* Painel de configuração */}
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
-          <ImovelParameterCard params={params} onChange={setParams} />
-          <RecursosParameterCard params={params} onChange={setParams} />
-          <ImovelCompradorParameterCard params={params} onChange={setParams} />
-          <AmortizacaoParameterCard params={params} onChange={setParams} />
+          <ImovelParameterCard
+            params={{ ...params, ...computedParams }}
+            onChange={setParams}
+            onValueChange={handleValueChange}
+            onSliderChange={handleSliderChange}
+          />
+          <RecursosParameterCard
+            params={{ ...params, ...computedParams }}
+            onChange={setParams}
+            onValueChange={handleValueChange}
+            onSliderChange={handleSliderChange}
+          />
+          <ImovelCompradorParameterCard
+            params={{ ...params, ...computedParams }}
+            onChange={setParams}
+            onValueChange={handleValueChange}
+            onSliderChange={handleSliderChange}
+          />
+          <AmortizacaoParameterCard
+            params={{ ...params, ...computedParams }}
+            onChange={setParams}
+            onValueChange={handleValueChange}
+            onSliderChange={handleSliderChange}
+          />
         </div>
 
         {/* Resumo comparativo */}
@@ -355,7 +499,7 @@ export const SimulatorClient = () => {
         </Card>
 
         {/* Filtros */}
-        <FiltrosCenarioCard params={params} onChange={setParams} />
+        <FiltrosCenarioCard params={{ ...params, ...computedParams }} onChange={setParams} />
 
         {/* Tabs de visualização */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
@@ -466,7 +610,7 @@ export const SimulatorClient = () => {
                 <h4 className="text-primary font-semibold">Amortização Extra</h4>
                 <p>
                   SEMPRE escolha &quot;Reduzir Prazo&quot; ao amortizar. Isso maximiza a
-                  economia de juros. Com aportes de {formatCurrency(params.aporteExtra)}/mês você pode
+                  economia de juros. Com aportes de {formatCurrency(computedParams.aporteExtra)}/mês você pode
                   economizar {bestCenario ? formatCurrencyCompact(bestCenario.economiaJuros) : "significativamente"} em juros!
                 </p>
               </div>

@@ -43,6 +43,28 @@ interface PercentInputProps {
 interface ParameterCardProps {
   params: SimulatorParams
   onChange: (params: SimulatorParams) => void
+  onValueChange?: (
+    field:
+      | "valorImovel"
+      | "capitalDisponivel"
+      | "reservaEmergencia"
+      | "valorApartamento"
+      | "custoCondominio"
+      | "seguros"
+      | "prazoMeses",
+    newValue: number
+  ) => void
+  onSliderChange?: (
+    field:
+      | "valorImovel"
+      | "capitalDisponivel"
+      | "reservaEmergencia"
+      | "valorApartamento"
+      | "custoCondominio"
+      | "seguros"
+      | "prazoMeses",
+    multiplier: number
+  ) => void
 }
 
 // ============================================================================
@@ -233,13 +255,42 @@ const PercentInput = ({ value, onChange, ...props }: PercentInputProps) => {
 }
 
 // ============================================================================
+// HELPER FUNCTIONS
+// ============================================================================
+
+/**
+ * Calculate slider range from base value (10% to 200%)
+ */
+const calculateSliderRange = (base: number, isCurrency = false): { min: number; max: number; step: number } => {
+  if (isCurrency) {
+    return {
+      min: Math.round(base * 0.1),
+      max: Math.round(base * 2.0),
+      step: 10000, // 10k step for currency
+    }
+  }
+  return {
+    min: base * 0.1,
+    max: base * 2.0,
+    step: Math.max(1, base * 0.01),
+  }
+}
+
+/**
+ * Format multiplier as percentage
+ */
+const formatPercentage = (multiplier: number): string => {
+  return `${(multiplier * 100).toFixed(0)}%`
+}
+
+// ============================================================================
 // PARAMETER CARDS
 // ============================================================================
 
 /**
  * Card de parâmetros do imóvel
  */
-export const ImovelParameterCard = ({ params, onChange }: ParameterCardProps) => {
+export const ImovelParameterCard = ({ params, onChange, onValueChange, onSliderChange }: ParameterCardProps) => {
   const { settings } = useSettings()
   const prazoOptions = settings.prazoOptions
   const taxaAnualRange = settings.sliders.taxaAnual
@@ -252,6 +303,9 @@ export const ImovelParameterCard = ({ params, onChange }: ParameterCardProps) =>
     prazoOptions,
   })
 
+  const valorImovelRange = calculateSliderRange(params.valorImovelBase, true)
+  const prazoRange = calculateSliderRange(params.prazoMesesBase, false)
+
   return (
     <Card className="bg-eerieBlack border-brightGrey">
       <CardHeader className="pb-4">
@@ -262,12 +316,42 @@ export const ImovelParameterCard = ({ params, onChange }: ParameterCardProps) =>
       </CardHeader>
       <CardContent className="space-y-4">
         <FieldWithTooltip label="Valor da Casa" tooltip={tooltips.valorImovel}>
-          <CurrencyInput
-            value={params.valorImovelSelecionado}
-            onChange={(v) =>
-              onChange({ ...params, valorImovelSelecionado: v })
-            }
-          />
+          <div className="space-y-2">
+            {onSliderChange && (
+              <Slider
+                value={[params.valorImovelSelecionado]}
+                onValueChange={([v]) => {
+                  const multiplier = v / params.valorImovelBase
+                  onSliderChange("valorImovel", multiplier)
+                }}
+                min={valorImovelRange.min}
+                max={valorImovelRange.max}
+                step={valorImovelRange.step}
+                className="py-2"
+              />
+            )}
+            <div className="flex justify-between text-xs text-dimGray">
+              {onSliderChange && (
+                <>
+                  <span>{formatCurrency(valorImovelRange.min)}</span>
+                  <span className="text-ashGray font-mono">
+                    {formatPercentage(params.valorImovelMultiplier)}
+                  </span>
+                  <span>{formatCurrency(valorImovelRange.max)}</span>
+                </>
+              )}
+            </div>
+            <CurrencyInput
+              value={params.valorImovelSelecionado}
+              onChange={(v) => {
+                if (onValueChange) {
+                  onValueChange("valorImovel", v)
+                } else {
+                  onChange({ ...params, valorImovelSelecionado: v })
+                }
+              }}
+            />
+          </div>
         </FieldWithTooltip>
 
         <FieldWithTooltip
@@ -316,11 +400,39 @@ export const ImovelParameterCard = ({ params, onChange }: ParameterCardProps) =>
           tooltip={tooltips.prazoMeses}
         >
           <div className="space-y-2">
+            {onSliderChange && (
+              <Slider
+                value={[params.prazoMeses]}
+                onValueChange={([v]) => {
+                  const multiplier = v / params.prazoMesesBase
+                  onSliderChange("prazoMeses", multiplier)
+                }}
+                min={prazoRange.min}
+                max={prazoRange.max}
+                step={prazoRange.step}
+                className="py-2"
+              />
+            )}
+            {onSliderChange && (
+              <div className="flex justify-between text-xs text-dimGray">
+                <span>{Math.round(prazoRange.min)} meses</span>
+                <span className="text-ashGray font-mono">
+                  {formatPercentage(params.prazoMesesMultiplier)}
+                </span>
+                <span>{Math.round(prazoRange.max)} meses</span>
+              </div>
+            )}
             <div className="flex gap-2 flex-wrap">
               {prazoOptions.map((prazo) => (
                 <button
                   key={prazo}
-                  onClick={() => onChange({ ...params, prazoMeses: prazo })}
+                  onClick={() => {
+                    if (onValueChange) {
+                      onValueChange("prazoMeses", prazo)
+                    } else {
+                      onChange({ ...params, prazoMeses: prazo })
+                    }
+                  }}
                   className={cn(
                     "px-3 py-1 text-xs rounded-md border transition-all",
                     params.prazoMeses === prazo
@@ -335,9 +447,14 @@ export const ImovelParameterCard = ({ params, onChange }: ParameterCardProps) =>
             <Input
               type="number"
               value={params.prazoMeses}
-              onChange={(e) =>
-                onChange({ ...params, prazoMeses: parseInt(e.target.value) || 360 })
-              }
+              onChange={(e) => {
+                const value = parseInt(e.target.value) || 360
+                if (onValueChange) {
+                  onValueChange("prazoMeses", value)
+                } else {
+                  onChange({ ...params, prazoMeses: value })
+                }
+              }}
               className="font-mono"
             />
           </div>
@@ -350,13 +467,16 @@ export const ImovelParameterCard = ({ params, onChange }: ParameterCardProps) =>
 /**
  * Card de parâmetros de recursos
  */
-export const RecursosParameterCard = ({ params, onChange }: ParameterCardProps) => {
+export const RecursosParameterCard = ({ params, onChange, onValueChange, onSliderChange }: ParameterCardProps) => {
   const entrada = params.capitalDisponivel - params.reservaEmergencia
 
   // Generate dynamic tooltips
   const tooltips = generateTooltips({
     reservaEmergencia: params.reservaEmergencia,
   })
+
+  const capitalRange = calculateSliderRange(params.capitalDisponivelBase, true)
+  const reservaRange = calculateSliderRange(params.reservaEmergenciaBase, true)
 
   return (
     <Card className="bg-eerieBlack border-brightGrey">
@@ -371,20 +491,80 @@ export const RecursosParameterCard = ({ params, onChange }: ParameterCardProps) 
           label="Capital Disponível"
           tooltip={tooltips.capitalDisponivel}
         >
-          <CurrencyInput
-            value={params.capitalDisponivel}
-            onChange={(v) => onChange({ ...params, capitalDisponivel: v })}
-          />
+          <div className="space-y-2">
+            {onSliderChange && (
+              <Slider
+                value={[params.capitalDisponivel]}
+                onValueChange={([v]) => {
+                  const multiplier = v / params.capitalDisponivelBase
+                  onSliderChange("capitalDisponivel", multiplier)
+                }}
+                min={capitalRange.min}
+                max={capitalRange.max}
+                step={capitalRange.step}
+                className="py-2"
+              />
+            )}
+            {onSliderChange && (
+              <div className="flex justify-between text-xs text-dimGray">
+                <span>{formatCurrency(capitalRange.min)}</span>
+                <span className="text-ashGray font-mono">
+                  {formatPercentage(params.capitalDisponivelMultiplier)}
+                </span>
+                <span>{formatCurrency(capitalRange.max)}</span>
+              </div>
+            )}
+            <CurrencyInput
+              value={params.capitalDisponivel}
+              onChange={(v) => {
+                if (onValueChange) {
+                  onValueChange("capitalDisponivel", v)
+                } else {
+                  onChange({ ...params, capitalDisponivel: v })
+                }
+              }}
+            />
+          </div>
         </FieldWithTooltip>
 
         <FieldWithTooltip
           label="Reserva de Emergência"
           tooltip={tooltips.reservaEmergencia}
         >
-          <CurrencyInput
-            value={params.reservaEmergencia}
-            onChange={(v) => onChange({ ...params, reservaEmergencia: v })}
-          />
+          <div className="space-y-2">
+            {onSliderChange && (
+              <Slider
+                value={[params.reservaEmergencia]}
+                onValueChange={([v]) => {
+                  const multiplier = v / params.reservaEmergenciaBase
+                  onSliderChange("reservaEmergencia", multiplier)
+                }}
+                min={reservaRange.min}
+                max={reservaRange.max}
+                step={reservaRange.step}
+                className="py-2"
+              />
+            )}
+            {onSliderChange && (
+              <div className="flex justify-between text-xs text-dimGray">
+                <span>{formatCurrency(reservaRange.min)}</span>
+                <span className="text-ashGray font-mono">
+                  {formatPercentage(params.reservaEmergenciaMultiplier)}
+                </span>
+                <span>{formatCurrency(reservaRange.max)}</span>
+              </div>
+            )}
+            <CurrencyInput
+              value={params.reservaEmergencia}
+              onChange={(v) => {
+                if (onValueChange) {
+                  onValueChange("reservaEmergencia", v)
+                } else {
+                  onChange({ ...params, reservaEmergencia: v })
+                }
+              }}
+            />
+          </div>
         </FieldWithTooltip>
 
         <div className="pt-2 border-t border-brightGrey">
@@ -403,7 +583,7 @@ export const RecursosParameterCard = ({ params, onChange }: ParameterCardProps) 
 /**
  * Card de parâmetros do imóvel que o comprador já tem (antigo apartamento)
  */
-export const ImovelCompradorParameterCard = ({ params, onChange }: ParameterCardProps) => {
+export const ImovelCompradorParameterCard = ({ params, onChange, onValueChange, onSliderChange }: ParameterCardProps) => {
   const { settings } = useSettings()
   const haircutRange = settings.sliders.haircut
 
@@ -411,6 +591,9 @@ export const ImovelCompradorParameterCard = ({ params, onChange }: ParameterCard
   const tooltips = generateTooltips({
     haircutRange,
   })
+
+  const valorAptoRange = calculateSliderRange(params.valorApartamentoBase, true)
+  const custoCondominioRange = calculateSliderRange(params.custoCondominioBase, true)
 
   return (
     <Card className="bg-eerieBlack border-brightGrey">
@@ -425,12 +608,40 @@ export const ImovelCompradorParameterCard = ({ params, onChange }: ParameterCard
           label="Valor do Imóvel"
           tooltip={tooltips.valorApartamento}
         >
-          <CurrencyInput
-            value={params.valorApartamentoSelecionado}
-            onChange={(v) =>
-              onChange({ ...params, valorApartamentoSelecionado: v })
-            }
-          />
+          <div className="space-y-2">
+            {onSliderChange && (
+              <Slider
+                value={[params.valorApartamentoSelecionado]}
+                onValueChange={([v]) => {
+                  const multiplier = v / params.valorApartamentoBase
+                  onSliderChange("valorApartamento", multiplier)
+                }}
+                min={valorAptoRange.min}
+                max={valorAptoRange.max}
+                step={valorAptoRange.step}
+                className="py-2"
+              />
+            )}
+            {onSliderChange && (
+              <div className="flex justify-between text-xs text-dimGray">
+                <span>{formatCurrency(valorAptoRange.min)}</span>
+                <span className="text-ashGray font-mono">
+                  {formatPercentage(params.valorApartamentoMultiplier)}
+                </span>
+                <span>{formatCurrency(valorAptoRange.max)}</span>
+              </div>
+            )}
+            <CurrencyInput
+              value={params.valorApartamentoSelecionado}
+              onChange={(v) => {
+                if (onValueChange) {
+                  onValueChange("valorApartamento", v)
+                } else {
+                  onChange({ ...params, valorApartamentoSelecionado: v })
+                }
+              }}
+            />
+          </div>
         </FieldWithTooltip>
 
         <FieldWithTooltip
@@ -462,10 +673,40 @@ export const ImovelCompradorParameterCard = ({ params, onChange }: ParameterCard
           label="Custo Condomínio/IPTU Mensal"
           tooltip="Custo mensal para manter o imóvel vazio durante o período de venda."
         >
-          <CurrencyInput
-            value={params.custoCondominioMensal}
-            onChange={(v) => onChange({ ...params, custoCondominioMensal: v })}
-          />
+          <div className="space-y-2">
+            {onSliderChange && (
+              <Slider
+                value={[params.custoCondominioMensal]}
+                onValueChange={([v]) => {
+                  const multiplier = v / params.custoCondominioBase
+                  onSliderChange("custoCondominio", multiplier)
+                }}
+                min={custoCondominioRange.min}
+                max={custoCondominioRange.max}
+                step={custoCondominioRange.step}
+                className="py-2"
+              />
+            )}
+            {onSliderChange && (
+              <div className="flex justify-between text-xs text-dimGray">
+                <span>{formatCurrency(custoCondominioRange.min)}</span>
+                <span className="text-ashGray font-mono">
+                  {formatPercentage(params.custoCondominioMultiplier)}
+                </span>
+                <span>{formatCurrency(custoCondominioRange.max)}</span>
+              </div>
+            )}
+            <CurrencyInput
+              value={params.custoCondominioMensal}
+              onChange={(v) => {
+                if (onValueChange) {
+                  onValueChange("custoCondominio", v)
+                } else {
+                  onChange({ ...params, custoCondominioMensal: v })
+                }
+              }}
+            />
+          </div>
         </FieldWithTooltip>
       </CardContent>
     </Card>
@@ -475,7 +716,7 @@ export const ImovelCompradorParameterCard = ({ params, onChange }: ParameterCard
 /**
  * Card de parâmetros de amortização
  */
-export const AmortizacaoParameterCard = ({ params, onChange }: ParameterCardProps) => {
+export const AmortizacaoParameterCard = ({ params, onChange, onValueChange, onSliderChange }: ParameterCardProps) => {
   const { settings } = useSettings()
   const aporteExtraRange = settings.sliders.aporteExtra
   const rendaMensalRange = settings.sliders.rendaMensal
@@ -486,6 +727,8 @@ export const AmortizacaoParameterCard = ({ params, onChange }: ParameterCardProp
     aporteExtraRange,
     rendaMensalRange,
   })
+
+  const segurosRange = calculateSliderRange(params.segurosBase, true)
 
   return (
     <Card className="bg-eerieBlack border-brightGrey">
@@ -537,10 +780,40 @@ export const AmortizacaoParameterCard = ({ params, onChange }: ParameterCardProp
           label="Seguros (MIP + DFI)"
           tooltip={`Seguros obrigatórios: Morte e Invalidez Permanente (MIP) e Danos Físicos ao Imóvel (DFI). Valor atual: ${formatCurrency(params.seguros)}/mês.`}
         >
-          <CurrencyInput
-            value={params.seguros}
-            onChange={(v) => onChange({ ...params, seguros: v })}
-          />
+          <div className="space-y-2">
+            {onSliderChange && (
+              <Slider
+                value={[params.seguros]}
+                onValueChange={([v]) => {
+                  const multiplier = v / params.segurosBase
+                  onSliderChange("seguros", multiplier)
+                }}
+                min={segurosRange.min}
+                max={segurosRange.max}
+                step={segurosRange.step}
+                className="py-2"
+              />
+            )}
+            {onSliderChange && (
+              <div className="flex justify-between text-xs text-dimGray">
+                <span>{formatCurrency(segurosRange.min)}</span>
+                <span className="text-ashGray font-mono">
+                  {formatPercentage(params.segurosMultiplier)}
+                </span>
+                <span>{formatCurrency(segurosRange.max)}</span>
+              </div>
+            )}
+            <CurrencyInput
+              value={params.seguros}
+              onChange={(v) => {
+                if (onValueChange) {
+                  onValueChange("seguros", v)
+                } else {
+                  onChange({ ...params, seguros: v })
+                }
+              }}
+            />
+          </div>
         </FieldWithTooltip>
       </CardContent>
     </Card>

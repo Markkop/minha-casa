@@ -260,9 +260,9 @@ export const ScenarioCard = ({ cenario, isExpanded = false }: ScenarioCardProps)
             tooltip="Valor total a ser financiado após entrada e/ou permuta."
           />
           <DataRow
-            label="Entrada Total"
-            value={formatCurrency(financiamento.entradaTotal)}
-            tooltip="Soma de dinheiro + valor do apartamento (se permuta)."
+            label="Entrada sem Apto"
+            value={formatCurrency(financiamento.entradaDinheiro)}
+            tooltip="Valor em dinheiro da entrada, sem incluir o apartamento."
           />
           {estrategia === "permuta" && (
             <DataRow
@@ -272,6 +272,11 @@ export const ScenarioCard = ({ cenario, isExpanded = false }: ScenarioCardProps)
               className="text-salmon"
             />
           )}
+          <DataRow
+            label="Entrada Total"
+            value={formatCurrency(financiamento.entradaTotal)}
+            tooltip="Soma de dinheiro + valor do apartamento (se permuta)."
+          />
         </div>
 
         {/* Parcelas */}
@@ -309,6 +314,12 @@ export const ScenarioCard = ({ cenario, isExpanded = false }: ScenarioCardProps)
               </span>
             }
             tooltip={tooltips.aporteExtra}
+            highlight
+          />
+          <DataRow
+            label="1ª Parcela + Amort. Extra"
+            value={formatCurrency(tabelaPadrao.primeiraParcelar + aporteExtra)}
+            tooltip={`Total da primeira parcela incluindo amortização extra: ${formatCurrency(tabelaPadrao.primeiraParcelar)} (parcela) + ${formatCurrency(aporteExtra)} (extra) = ${formatCurrency(tabelaPadrao.primeiraParcelar + aporteExtra)}.`}
             highlight
           />
           <DataRow
