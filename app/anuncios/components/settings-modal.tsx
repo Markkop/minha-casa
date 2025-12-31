@@ -19,6 +19,7 @@ export function SettingsModal({ isOpen, onClose, onApiKeyChange }: SettingsModal
   const [isValidating, setIsValidating] = useState(false)
   const [validationError, setValidationError] = useState<string | null>(null)
   const [savedKey, setSavedKey] = useState<string | null>(null)
+  const [copied, setCopied] = useState(false)
 
   useEffect(() => {
     if (isOpen) {
@@ -66,6 +67,18 @@ export function SettingsModal({ isOpen, onClose, onApiKeyChange }: SettingsModal
     onApiKeyChange(false)
   }
 
+  const handleCopy = async () => {
+    if (!savedKey) return
+    
+    try {
+      await navigator.clipboard.writeText(savedKey)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    } catch (err) {
+      console.error("Failed to copy key:", err)
+    }
+  }
+
   const maskApiKey = (key: string) => {
     if (key.length <= 8) return key
     return `${key.slice(0, 7)}...${key.slice(-4)}`
@@ -109,12 +122,21 @@ export function SettingsModal({ isOpen, onClose, onApiKeyChange }: SettingsModal
                     {maskApiKey(savedKey)}
                   </p>
                 </div>
-                <button
-                  onClick={handleRemove}
-                  className="text-xs text-destructive hover:text-destructive/80 transition-colors"
-                >
-                  Remover
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={handleCopy}
+                    className="text-xs text-primary hover:text-primary/80 transition-colors"
+                    title="Copiar chave"
+                  >
+                    {copied ? "✓ Copiado!" : "📋 Copiar"}
+                  </button>
+                  <button
+                    onClick={handleRemove}
+                    className="text-xs text-destructive hover:text-destructive/80 transition-colors"
+                  >
+                    Remover
+                  </button>
+                </div>
               </div>
             ) : (
               <div className="bg-destructive/10 border border-destructive/30 rounded-lg p-3">
