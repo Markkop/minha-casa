@@ -1,5 +1,5 @@
 import React, { useMemo, useRef, useState } from 'react';
-import { useFrame, useThree } from '@react-three/fiber';
+import { useFrame, useThree, ThreeEvent } from '@react-three/fiber';
 import { Text } from '@react-three/drei';
 import * as THREE from 'three';
 import { ElementHeight, ConnectionType } from '../lib/types';
@@ -137,9 +137,9 @@ const SolidConnector = ({
         position={[0, 0, -from.depth/2]} 
         receiveShadow 
         castShadow
-        onClick={(e) => { e.stopPropagation(); onToggle(); }}
-        onPointerOver={(e) => { e.stopPropagation(); setHovered(true); document.body.style.cursor = 'pointer'; }}
-        onPointerOut={(e) => { e.stopPropagation(); setHovered(false); document.body.style.cursor = 'auto'; }}
+        onClick={(e: ThreeEvent<MouseEvent>) => { e.stopPropagation(); onToggle(); }}
+        onPointerOver={(e: ThreeEvent<PointerEvent>) => { e.stopPropagation(); setHovered(true); document.body.style.cursor = 'pointer'; }}
+        onPointerOut={(e: ThreeEvent<PointerEvent>) => { e.stopPropagation(); setHovered(false); document.body.style.cursor = 'auto'; }}
        >
           <extrudeGeometry args={[shape, { depth: from.depth, bevelEnabled: false }]} />
           <meshStandardMaterial color={displayColor} roughness={0.8} />
