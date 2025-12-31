@@ -1,6 +1,7 @@
 "use client"
 
 import { useMemo, useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
 import {
   Table,
   TableBody,
@@ -109,6 +110,7 @@ function SortableHeader({
 // ============================================================================
 
 export function ListingsTable({ listings, onListingsChange, refreshTrigger }: ListingsTableProps) {
+  const router = useRouter()
   // State for search and sort
   const [searchQuery, setSearchQuery] = useState("")
   const [sort, setSort] = useState<SortState>({ key: "preco", direction: "desc" })
@@ -544,7 +546,19 @@ export function ListingsTable({ listings, onListingsChange, refreshTrigger }: Li
                       {formatDate(imovel.addedAt)}
                     </TableCell>
                     <TableCell className="font-medium max-w-[200px] truncate">
-                      {imovel.titulo}
+                      {imovel.link ? (
+                        <a
+                          href={imovel.link}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="hover:text-primary transition-colors cursor-pointer"
+                          title={`Abrir anúncio: ${imovel.titulo}`}
+                        >
+                          {imovel.titulo}
+                        </a>
+                      ) : (
+                        imovel.titulo
+                      )}
                     </TableCell>
                     <TableCell className="text-muted-foreground max-w-[180px] truncate">
                       <a
@@ -569,7 +583,15 @@ export function ListingsTable({ listings, onListingsChange, refreshTrigger }: Li
                     <TableCell className="text-center font-mono text-sm">
                       {formatNumber(imovel.banheiros)}
                     </TableCell>
-                    <TableCell className="text-right font-mono text-sm text-primary">
+                    <TableCell 
+                      className="text-right font-mono text-sm text-primary cursor-pointer hover:text-primary/80 transition-colors"
+                      onClick={() => {
+                        if (imovel.preco !== null) {
+                          router.push(`/casa?valorImovel=${imovel.preco}`)
+                        }
+                      }}
+                      title="Clique para usar este valor no simulador"
+                    >
                       {formatCurrency(imovel.preco)}
                     </TableCell>
                     <TableCell className="text-right font-mono text-sm text-muted-foreground">

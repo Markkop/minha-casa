@@ -1,4 +1,5 @@
 import type { Metadata } from "next"
+import { Suspense } from "react"
 import { SimulatorClient } from "./components/simulator-client"
 import { SettingsProvider } from "./components/utils/settings"
 
@@ -11,7 +12,13 @@ export const metadata: Metadata = {
 export default function CasaPage() {
   return (
     <SettingsProvider>
-      <SimulatorClient />
+      <Suspense fallback={
+        <div className="min-h-screen bg-black text-white flex items-center justify-center">
+          <p className="text-ashGray">Carregando...</p>
+        </div>
+      }>
+        <SimulatorClient />
+      </Suspense>
     </SettingsProvider>
   )
 }

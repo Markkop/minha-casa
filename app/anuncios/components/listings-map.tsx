@@ -346,7 +346,21 @@ function MapContent({
           >
             <Popup>
               <div className="text-sm min-w-[200px]">
-                <h3 className="font-bold text-gray-900 mb-1">{gl.listing.titulo}</h3>
+                <h3 className="font-bold text-gray-900 mb-1">
+                  {gl.listing.link ? (
+                    <a
+                      href={gl.listing.link}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="hover:text-primary transition-colors cursor-pointer"
+                      title={`Abrir anúncio: ${gl.listing.titulo}`}
+                    >
+                      {gl.listing.titulo}
+                    </a>
+                  ) : (
+                    gl.listing.titulo
+                  )}
+                </h3>
                 <p className="text-gray-600 text-xs mb-2">{gl.listing.endereco}</p>
                 {hasCustomLocation && (
                   <p className="text-xs text-blue-600 mb-2 font-medium">

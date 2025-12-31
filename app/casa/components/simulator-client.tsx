@@ -10,7 +10,8 @@ import {
 } from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
 import { InfoCircledIcon } from "@radix-ui/react-icons"
-import { useMemo, useState } from "react"
+import { useMemo, useState, useEffect } from "react"
+import { useSearchParams } from "next/navigation"
 
 import {
   ImovelCompradorParameterCard,
@@ -164,6 +165,7 @@ const InfoCard = ({ title, value, subtitle, tooltip, icon, highlight }: InfoCard
 export const SimulatorClient = () => {
   // Settings from context
   const { settings, isLoaded } = useSettings()
+  const searchParams = useSearchParams()
 
   // Estado dos parâmetros
   const [params, setParams] = useState<SimulatorParams>({
@@ -208,6 +210,27 @@ export const SimulatorClient = () => {
     prazoMesesBase: DEFAULTS.prazoMeses,
     prazoMesesMultiplier: 1.0,
   })
+
+  // Read valorImovel from URL parameter on mount
+  useEffect(() => {
+    const valorImovelParam = searchParams.get("valorImovel")
+    if (valorImovelParam) {
+      const valorImovel = parseFloat(valorImovelParam)
+      if (!isNaN(valorImovel) && valorImovel > 0) {
+        setParams((prev) => ({
+          ...prev,
+          valorImovelBase: valorImovel,
+          valorImovelMultiplier: 1.0,
+        }))
+        // Clean up URL parameter after reading
+        if (typeof window !== "undefined") {
+          const url = new URL(window.location.href)
+          url.searchParams.delete("valorImovel")
+          window.history.replaceState({}, "", url.toString())
+        }
+      }
+    }
+  }, [searchParams])
 
   // Handlers for value and slider changes
   const handleValueChange = (
