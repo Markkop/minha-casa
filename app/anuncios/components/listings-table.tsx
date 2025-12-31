@@ -36,7 +36,7 @@ import { EditModal } from "./edit-modal"
 // TYPES
 // ============================================================================
 
-type SortKey = "titulo" | "m2Totais" | "m2Privado" | "quartos" | "preco" | "precoM2" | "precoM2Privado"
+type SortKey = "titulo" | "m2Totais" | "m2Privado" | "quartos" | "preco" | "precoM2" | "precoM2Privado" | "addedAt"
 type SortDirection = "asc" | "desc"
 
 interface SortState {
@@ -176,6 +176,35 @@ export function ListingsTable({ listings, onListingsChange, refreshTrigger }: Li
     return value ? "✓" : "✕"
   }
 
+  const formatDate = (value: string | undefined) => {
+    if (!value) return "31 dez 2025"
+    try {
+      const date = new Date(value + "T00:00:00") // Add time to avoid timezone issues
+      return new Intl.DateTimeFormat("pt-BR", {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+      }).format(date)
+    } catch {
+      return "31 dez 2025"
+    }
+  }
+
+  const formatFullDateTime = (createdAt: string) => {
+    try {
+      const date = new Date(createdAt)
+      return new Intl.DateTimeFormat("pt-BR", {
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      }).format(date)
+    } catch {
+      return ""
+    }
+  }
+
   const normalizeText = (text: string): string => {
     return text
       .normalize('NFD')
@@ -264,6 +293,8 @@ export function ListingsTable({ listings, onListingsChange, refreshTrigger }: Li
             return calculatePrecoM2(imovel.preco, imovel.m2Totais) ?? 0
           case "precoM2Privado":
             return calculatePrecoM2Privado(imovel.preco, imovel.m2Privado) ?? 0
+          case "addedAt":
+            return imovel.addedAt || "2025-12-31"
           default:
             return 0
         }
@@ -343,6 +374,13 @@ export function ListingsTable({ listings, onListingsChange, refreshTrigger }: Li
               <TableHeader>
                 <TableRow className="border-brightGrey hover:bg-transparent">
                   <SortableHeader
+                    label="Adicionado"
+                    sortKey="addedAt"
+                    currentSort={sort}
+                    onSort={handleSort}
+                    align="center"
+                  />
+                  <SortableHeader
                     label="Título"
                     sortKey="titulo"
                     currentSort={sort}
@@ -407,6 +445,12 @@ export function ListingsTable({ listings, onListingsChange, refreshTrigger }: Li
                         : "hover:bg-eerieBlack/50"
                     )}
                   >
+                    <TableCell 
+                      className="text-center text-sm text-muted-foreground"
+                      title={formatFullDateTime(imovel.createdAt)}
+                    >
+                      {formatDate(imovel.addedAt)}
+                    </TableCell>
                     <TableCell className="font-medium max-w-[200px] truncate">
                       {imovel.titulo}
                     </TableCell>

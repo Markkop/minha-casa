@@ -15,9 +15,10 @@ interface DataManagementProps {
   listingsCount: number
   onOpenParser: () => void
   onImportSuccess?: () => void
+  onSwitchToCollection?: (collectionId: string) => void
 }
 
-export function DataManagement({ onDataChange, listingsCount, onOpenParser, onImportSuccess }: DataManagementProps) {
+export function DataManagement({ onDataChange, listingsCount, onOpenParser, onImportSuccess, onSwitchToCollection }: DataManagementProps) {
   const [showConfirmClear, setShowConfirmClear] = useState(false)
   const [showExportModal, setShowExportModal] = useState(false)
   const [showImportModal, setShowImportModal] = useState(false)
@@ -168,6 +169,7 @@ export function DataManagement({ onDataChange, listingsCount, onOpenParser, onIm
         onClose={() => setShowImportModal(false)}
         onImportSuccess={handleImportSuccess}
         onDataChange={onDataChange}
+        onSwitchToCollection={onSwitchToCollection}
       />
     </>
   )

@@ -115,6 +115,7 @@ export async function parseListingWithAI(rawText: string): Promise<Imovel> {
     piscina: parsed.piscina,
     link: null, // User must add link manually via edit modal
     createdAt: new Date().toISOString(),
+    addedAt: new Date().toISOString().split('T')[0], // "2025-12-31" format
   }
 
   return imovel

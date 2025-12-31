@@ -7,6 +7,7 @@ import {
   importCollections,
   getActiveCollection,
   getListingsForCollection,
+  setActiveCollection,
   type Imovel,
 } from "../lib/storage"
 import { cn } from "@/lib/utils"
@@ -16,6 +17,7 @@ interface ImportModalProps {
   onClose: () => void
   onImportSuccess?: () => void
   onDataChange?: (listings: Imovel[]) => void
+  onSwitchToCollection?: (collectionId: string) => void
 }
 
 export function ImportModal({
@@ -23,6 +25,7 @@ export function ImportModal({
   onClose,
   onImportSuccess,
   onDataChange,
+  onSwitchToCollection,
 }: ImportModalProps) {
   const [importText, setImportText] = useState("")
   const [error, setError] = useState<string | null>(null)
@@ -47,16 +50,27 @@ export function ImportModal({
 
     try {
       // ImportCollections handles all formats: FullExport, CollectionExport, and legacy array
-      importCollections(importText)
+      const { data, lastImportedCollectionId } = importCollections(importText)
+      
+      // Switch to the imported collection if one was imported
+      if (lastImportedCollectionId) {
+        setActiveCollection(lastImportedCollectionId)
+        onSwitchToCollection?.(lastImportedCollectionId)
+        
+        // Reload listings from the imported collection
+        const updatedListings = getListingsForCollection(lastImportedCollectionId)
+        onDataChange?.(updatedListings)
+      } else {
+        // Fallback: reload listings from active collection after import
+        const updatedCollection = getActiveCollection()
+        if (updatedCollection) {
+          const updatedListings = getListingsForCollection(updatedCollection.id)
+          onDataChange?.(updatedListings)
+        }
+      }
+      
       setSuccess("Dados importados com sucesso!")
       onImportSuccess?.()
-      
-      // Reload listings from active collection after import
-      const updatedCollection = getActiveCollection()
-      if (updatedCollection) {
-        const updatedListings = getListingsForCollection(updatedCollection.id)
-        onDataChange?.(updatedListings)
-      }
       
       setImportText("")
       setTimeout(() => setSuccess(null), 3000)

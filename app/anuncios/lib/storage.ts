@@ -24,6 +24,7 @@ export interface Imovel {
   customLat?: number | null
   customLng?: number | null
   createdAt: string
+  addedAt?: string
 }
 
 export interface Collection {
@@ -499,6 +500,12 @@ export function importToCollection(json: string, collectionId?: string): Imovel[
       throw new Error("Invalid format: expected array or CollectionExport object")
     }
 
+    // Ensure all imported listings have addedAt field
+    listingsToImport = listingsToImport.map((listing) => ({
+      ...listing,
+      addedAt: listing.addedAt || "2025-12-31",
+    }))
+
     // Merge with existing listings (avoid duplicates by ID)
     const existing = data.listings[targetId] || []
     const existingIds = new Set(existing.map((l) => l.id))
@@ -514,10 +521,11 @@ export function importToCollection(json: string, collectionId?: string): Imovel[
   }
 }
 
-export function importCollections(json: string): CollectionsData {
+export function importCollections(json: string): { data: CollectionsData; lastImportedCollectionId: string | null } {
   try {
     const parsed = JSON.parse(json)
     const data = ensureCollectionsData()
+    let lastImportedCollectionId: string | null = null
 
     // Handle different import formats
     if (Array.isArray(parsed)) {
@@ -534,12 +542,16 @@ export function importCollections(json: string): CollectionsData {
           item !== null &&
           typeof item.id === "string" &&
           typeof item.titulo === "string"
-      )
+      ).map((listing) => ({
+        ...listing,
+        addedAt: listing.addedAt || "2025-12-31",
+      }))
 
       const existing = data.listings[targetId] || []
       const existingIds = new Set(existing.map((l) => l.id))
       const newListings = validatedListings.filter((l) => !existingIds.has(l.id))
       data.listings[targetId] = [...existing, ...newListings]
+      lastImportedCollectionId = targetId
     } else if (parsed.collection && parsed.listings && Array.isArray(parsed.listings)) {
       // CollectionExport format: single collection with listings
       const collectionExport = parsed as CollectionExport
@@ -574,9 +586,13 @@ export function importCollections(json: string): CollectionsData {
           item !== null &&
           typeof item.id === "string" &&
           typeof item.titulo === "string"
-      )
+      ).map((listing) => ({
+        ...listing,
+        addedAt: listing.addedAt || "2025-12-31",
+      }))
       const newListings = validatedListings.filter((l) => !existingIds.has(l.id))
       data.listings[collection.id] = [...existing, ...newListings]
+      lastImportedCollectionId = collection.id
     } else if (parsed.collections && Array.isArray(parsed.collections)) {
       // FullExport format: multiple collections
       const fullExport = parsed as FullExport
@@ -615,9 +631,14 @@ export function importCollections(json: string): CollectionsData {
             item !== null &&
             typeof item.id === "string" &&
             typeof item.titulo === "string"
-        )
+        ).map((listing) => ({
+          ...listing,
+          addedAt: listing.addedAt || "2025-12-31",
+        }))
         const newListings = validatedListings.filter((l) => !existingIds.has(l.id))
         data.listings[collection.id] = [...existing, ...newListings]
+        // Track the last collection processed (for FullExport, use the last one)
+        lastImportedCollectionId = collection.id
       })
     } else {
       throw new Error("Invalid format: expected FullExport, CollectionExport, or array of Imovel")
@@ -641,7 +662,7 @@ export function importCollections(json: string): CollectionsData {
     }
 
     saveCollectionsData(data)
-    return data
+    return { data, lastImportedCollectionId }
   } catch (error) {
     console.error("Failed to import collections:", error)
     throw error

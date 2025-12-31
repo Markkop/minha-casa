@@ -39,6 +39,7 @@ export function EditModal({
     preco: null,
     piscina: null,
     link: null,
+    addedAt: undefined,
   })
   const [error, setError] = useState<string | null>(null)
 
@@ -56,6 +57,7 @@ export function EditModal({
         preco: listing.preco,
         piscina: listing.piscina,
         link: listing.link,
+        addedAt: listing.addedAt || "2025-12-31",
       })
       setError(null)
     }
@@ -310,6 +312,20 @@ export function EditModal({
                 value={formData.link || ""}
                 onChange={(e) => handleInputChange("link", e.target.value)}
                 placeholder="Ex: https://www.zapimoveis.com.br/imovel/..."
+                className="bg-eerieBlack border-brightGrey text-white placeholder:text-muted-foreground"
+              />
+            </div>
+
+            {/* Data */}
+            <div className="md:col-span-2 space-y-2">
+              <Label htmlFor="addedAt" className="text-sm text-ashGray">
+                Data
+              </Label>
+              <Input
+                id="addedAt"
+                type="date"
+                value={formData.addedAt || "2025-12-31"}
+                onChange={(e) => handleInputChange("addedAt", e.target.value)}
                 className="bg-eerieBlack border-brightGrey text-white placeholder:text-muted-foreground"
               />
             </div>

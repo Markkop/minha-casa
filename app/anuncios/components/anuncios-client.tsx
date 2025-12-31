@@ -13,6 +13,8 @@ import {
   ensureCollectionsData,
   getListingsForCollection,
   getActiveCollection,
+  getCollection,
+  setActiveCollection,
   hasApiKey as checkHasApiKey,
   decompressCollectionData,
   importToCollection,
@@ -73,10 +75,12 @@ export function AnunciosClient() {
     const collection = getActiveCollection()
     setActiveCollection(collection)
     setListings(collection ? getListingsForCollection(collection.id) : [])
+    setCollectionRefreshTrigger((prev) => prev + 1)
   }
 
   const handleListingsChange = (newListings: Imovel[]) => {
     setListings(newListings)
+    setCollectionRefreshTrigger((prev) => prev + 1)
   }
 
   const handleApiKeyChange = (hasKey: boolean) => {
@@ -89,6 +93,15 @@ export function AnunciosClient() {
       setListings(getListingsForCollection(collection.id))
     } else {
       setListings([])
+    }
+  }
+
+  const handleSwitchToCollection = (collectionId: string) => {
+    const collection = getCollection(collectionId)
+    if (collection) {
+      setActiveCollection(collectionId)
+      handleCollectionChange(collection)
+      setCollectionRefreshTrigger((prev) => prev + 1)
     }
   }
 
@@ -124,17 +137,17 @@ export function AnunciosClient() {
     if (!shareData) return
 
     try {
-      const activeCollection = getActiveCollection()
-      if (!activeCollection) {
-        throw new Error("Nenhuma coleção ativa")
-      }
-
       // Import the shared collection data (CollectionExport format)
       const json = JSON.stringify(shareData)
-      const listings = importToCollection(json, activeCollection.id)
-      setListings(listings)
-      setCollectionRefreshTrigger((prev) => prev + 1)
-      loadListings()
+      const { data, lastImportedCollectionId } = importCollections(json)
+      
+      // Switch to the imported collection if one was imported
+      if (lastImportedCollectionId) {
+        handleSwitchToCollection(lastImportedCollectionId)
+      } else {
+        // Fallback: reload listings from active collection
+        loadListings()
+      }
 
       setShowShareConfirm(false)
       setShareData(null)
@@ -299,6 +312,7 @@ export function AnunciosClient() {
             listingsCount={listings.length}
             onOpenParser={() => setShowParser(true)}
             onImportSuccess={() => setCollectionRefreshTrigger((prev) => prev + 1)}
+            onSwitchToCollection={handleSwitchToCollection}
           />
         </div>
 
