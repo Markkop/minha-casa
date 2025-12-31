@@ -249,6 +249,98 @@ export function ListingsTable({ listings, onListingsChange, refreshTrigger }: Li
     return `https://www.google.com/search?q=${query}`
   }
 
+  /**
+   * Parse and normalize address for Google Maps
+   * Formats address in a standard way that Google Maps can better understand
+   */
+  const parseAddressForGoogleMaps = (endereco: string): string => {
+    if (!endereco || endereco.trim() === "") {
+      return "Florianópolis, SC, Brasil"
+    }
+
+    // Normalize the address
+    let normalized = endereco.trim()
+    
+    // Remove extra whitespace
+    normalized = normalized.replace(/\s+/g, " ")
+    
+    // Common address abbreviations normalization (preserve word boundaries)
+    const abbreviations: Record<string, string> = {
+      "\\br\\b": "Rua",
+      "\\bav\\b": "Avenida",
+      "\\bav\\.\\b": "Avenida",
+      "\\bavenida\\b": "Avenida",
+      "\\brua\\b": "Rua",
+      "\\bal\\b": "Alameda",
+      "\\bal\\.\\b": "Alameda",
+      "\\btrav\\b": "Travessa",
+      "\\btrav\\.\\b": "Travessa",
+      "\\bsc\\b": "SC",
+      "\\bsanta catarina\\b": "Santa Catarina",
+      "\\bflorianopolis\\b": "Florianópolis",
+      "\\bflorianópolis\\b": "Florianópolis",
+      "\\bfloripa\\b": "Florianópolis",
+    }
+    
+    // Apply abbreviations (case-insensitive, word boundaries)
+    let processed = normalized
+    for (const [pattern, replacement] of Object.entries(abbreviations)) {
+      const regex = new RegExp(pattern, "gi")
+      processed = processed.replace(regex, replacement)
+    }
+    
+    // Check if address already includes city/state context
+    const lowerAddress = processed.toLowerCase()
+    const hasCity = /\b(florianópolis|florianopolis|floripa)\b/.test(lowerAddress)
+    const hasState = /\b(sc|santa catarina)\b/.test(lowerAddress)
+    const hasCountry = /\b(brasil|brazil)\b/.test(lowerAddress)
+    
+    // Build the final address
+    let finalAddress = processed
+    
+    // Smart context addition based on what's missing
+    if (!hasCity && !hasState) {
+      // Missing both city and state - add context
+      // Check if address ends with comma (might be incomplete)
+      const endsWithComma = finalAddress.trim().endsWith(",")
+      if (endsWithComma) {
+        finalAddress = `${finalAddress.trim().slice(0, -1)}, Florianópolis, SC, Brasil`
+      } else {
+        finalAddress = `${finalAddress}, Florianópolis, SC, Brasil`
+      }
+    } else if (hasCity && !hasState) {
+      // Has city but no state - add state and country
+      if (!hasCountry) {
+        finalAddress = `${finalAddress}, SC, Brasil`
+      } else {
+        // Insert state before country if missing
+        finalAddress = finalAddress.replace(/\b(Brasil|Brazil)\b/i, "SC, Brasil")
+      }
+    } else if (hasState && !hasCity) {
+      // Has state but no city - add city before state
+      const statePattern = /\b(SC|Santa Catarina)\b/i
+      if (statePattern.test(finalAddress)) {
+        finalAddress = finalAddress.replace(statePattern, "Florianópolis, $1")
+      }
+      if (!hasCountry) {
+        finalAddress = `${finalAddress}, Brasil`
+      }
+    } else if (!hasCountry && hasCity && hasState) {
+      // Has city and state but no country
+      finalAddress = `${finalAddress}, Brasil`
+    }
+    
+    return finalAddress.trim()
+  }
+
+  const buildGoogleMapsUrl = (endereco: string) => {
+    // Parse and normalize the address for better Google Maps results
+    const normalizedAddress = parseAddressForGoogleMaps(endereco)
+    // Encode the address for Google Maps
+    const encodedAddress = encodeURIComponent(normalizedAddress)
+    return `https://www.google.com/maps/search/?api=1&query=${encodedAddress}`
+  }
+
   // Calculate R$/m² dynamically using total area
   const calculatePrecoM2 = (preco: number | null, m2Totais: number | null) => {
     if (preco === null || m2Totais === null || m2Totais === 0) return null
@@ -455,7 +547,15 @@ export function ListingsTable({ listings, onListingsChange, refreshTrigger }: Li
                       {imovel.titulo}
                     </TableCell>
                     <TableCell className="text-muted-foreground max-w-[180px] truncate">
-                      {imovel.endereco}
+                      <a
+                        href={buildGoogleMapsUrl(imovel.endereco)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="hover:text-primary transition-colors underline decoration-dotted underline-offset-2"
+                        title={`Abrir ${imovel.endereco} no Google Maps`}
+                      >
+                        {imovel.endereco}
+                      </a>
                     </TableCell>
                     <TableCell className="text-right font-mono text-sm">
                       {formatNumber(imovel.m2Totais, "m²")}
