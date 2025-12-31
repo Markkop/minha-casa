@@ -8,6 +8,7 @@ const navLinks = [
   { href: "/", label: "Início", icon: "🏡" },
   { href: "/casa", label: "Simulador", icon: "📊" },
   { href: "/anuncios", label: "Anúncios", icon: "🏘️" },
+  { href: "/floodrisk", label: "Risco Enchente", icon: "🌊" },
 ]
 
 export function NavBar() {
