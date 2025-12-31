@@ -481,7 +481,7 @@ export function importToCollection(json: string, collectionId?: string): Imovel[
     if (Array.isArray(parsed)) {
       // Legacy format: array of Imovel[]
       listingsToImport = parsed.filter(
-        (item): item is Imovel =>
+        (item: any): item is Imovel =>
           typeof item === "object" &&
           item !== null &&
           typeof item.id === "string" &&
@@ -490,7 +490,7 @@ export function importToCollection(json: string, collectionId?: string): Imovel[
     } else if (parsed.listings && Array.isArray(parsed.listings)) {
       // CollectionExport format
       listingsToImport = parsed.listings.filter(
-        (item): item is Imovel =>
+        (item: any): item is Imovel =>
           typeof item === "object" &&
           item !== null &&
           typeof item.id === "string" &&

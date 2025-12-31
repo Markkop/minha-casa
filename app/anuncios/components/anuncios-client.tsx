@@ -99,7 +99,6 @@ export function AnunciosClient() {
   const handleSwitchToCollection = (collectionId: string) => {
     const collection = getCollection(collectionId)
     if (collection) {
-      setActiveCollection(collectionId)
       handleCollectionChange(collection)
       setCollectionRefreshTrigger((prev) => prev + 1)
     }
