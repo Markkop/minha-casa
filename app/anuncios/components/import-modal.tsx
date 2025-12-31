@@ -39,8 +39,9 @@ export function ImportModal({
     }
   }, [isOpen])
 
-  const handleProcessImport = () => {
-    if (!importText.trim()) {
+  const handleProcessImport = (jsonText?: string) => {
+    const textToProcess = jsonText || importText
+    if (!textToProcess.trim()) {
       setError("Por favor, cole o JSON para importar")
       return
     }
@@ -50,7 +51,7 @@ export function ImportModal({
 
     try {
       // ImportCollections handles all formats: FullExport, CollectionExport, and legacy array
-      const { data, lastImportedCollectionId } = importCollections(importText)
+      const { data, lastImportedCollectionId } = importCollections(textToProcess)
       
       // Switch to the imported collection if one was imported
       if (lastImportedCollectionId) {
@@ -77,6 +78,45 @@ export function ImportModal({
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erro ao importar dados")
     }
+  }
+
+  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    // Check if file is JSON
+    if (!file.name.toLowerCase().endsWith('.json')) {
+      setError("Por favor, selecione um arquivo JSON")
+      return
+    }
+
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      try {
+        const fileContent = e.target?.result as string
+        if (!fileContent) {
+          setError("Erro ao ler o arquivo")
+          return
+        }
+        
+        // Set the text in the textarea
+        setImportText(fileContent)
+        
+        // Auto-process the import
+        handleProcessImport(fileContent)
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Erro ao processar o arquivo")
+      }
+    }
+
+    reader.onerror = () => {
+      setError("Erro ao ler o arquivo")
+    }
+
+    reader.readAsText(file)
+    
+    // Reset the input so the same file can be selected again
+    event.target.value = ''
   }
 
   if (!isOpen) return null
@@ -109,9 +149,42 @@ export function ImportModal({
               Cole o JSON para importar
             </Label>
             <p className="text-xs text-muted-foreground">
-              Cole os dados JSON da coleção que deseja importar
+              Cole os dados JSON da coleção que deseja importar ou faça upload de um arquivo JSON
             </p>
           </div>
+          
+          {/* File Upload Button */}
+          <div className="flex items-center gap-2">
+            <input
+              type="file"
+              accept=".json"
+              onChange={handleFileUpload}
+              className="hidden"
+              id="json-file-input"
+            />
+            <label
+              htmlFor="json-file-input"
+              className={cn(
+                "flex-1 py-2.5 px-4 rounded-lg font-medium transition-all cursor-pointer",
+                "bg-eerieBlack border border-brightGrey",
+                "hover:border-white",
+                "flex items-center justify-center gap-2"
+              )}
+            >
+              <span>📁</span>
+              Upload JSON
+            </label>
+          </div>
+
+          <div className="relative flex items-center">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-brightGrey"></div>
+            </div>
+            <div className="relative px-2 text-xs text-muted-foreground">
+              ou
+            </div>
+          </div>
+
           <textarea
             id="import-textarea"
             value={importText}
@@ -129,7 +202,7 @@ export function ImportModal({
             )}
           />
           <button
-            onClick={handleProcessImport}
+            onClick={() => handleProcessImport()}
             disabled={!importText.trim()}
             className={cn(
               "w-full py-2.5 px-4 rounded-lg font-medium transition-all",
