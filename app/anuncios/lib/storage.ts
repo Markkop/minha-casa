@@ -279,6 +279,24 @@ export function updateCollection(id: string, updates: Partial<Pick<Collection, "
   return updated
 }
 
+export function setDefaultCollection(id: string): Collection | null {
+  const data = ensureCollectionsData()
+  const index = data.collections.findIndex((c) => c.id === id)
+  if (index === -1) return null
+
+  // Remove isDefault from all collections
+  data.collections.forEach((c) => {
+    c.isDefault = false
+  })
+
+  // Set new default
+  data.collections[index].isDefault = true
+  data.collections[index].updatedAt = new Date().toISOString()
+
+  saveCollectionsData(data)
+  return data.collections[index]
+}
+
 export function deleteCollection(id: string): boolean {
   const data = ensureCollectionsData()
   const collection = getCollection(id)

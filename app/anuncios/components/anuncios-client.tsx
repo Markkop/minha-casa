@@ -15,6 +15,7 @@ import {
   getActiveCollection,
   getCollection,
   setActiveCollection,
+  setDefaultCollection,
   hasApiKey as checkHasApiKey,
   decompressCollectionData,
   importToCollection,
@@ -120,6 +121,18 @@ export function AnunciosClient() {
     setShowCollectionModal(true)
   }
 
+  const handleSetDefaultCollection = (collection: Collection) => {
+    const updatedCollection = setDefaultCollection(collection.id)
+    if (updatedCollection) {
+      // Refresh collections and listings
+      setCollectionRefreshTrigger((prev) => prev + 1)
+      // Update active collection state if it's the one we just set as default
+      if (activeCollection?.id === collection.id) {
+        handleCollectionChange(updatedCollection)
+      }
+    }
+  }
+
   const handleCollectionModalClose = () => {
     setShowCollectionModal(false)
     setEditingCollection(null)
@@ -191,6 +204,7 @@ export function AnunciosClient() {
                 onCreateCollection={handleCreateCollection}
                 onEditCollection={handleEditCollection}
                 onDeleteCollection={handleDeleteCollection}
+                onSetDefault={handleSetDefaultCollection}
                 refreshTrigger={collectionRefreshTrigger}
               />
               <button

@@ -16,13 +16,14 @@ import {
   type Collection,
 } from "../lib/storage"
 import { cn } from "@/lib/utils"
-import { PlusIcon, PencilIcon, TrashIcon } from "lucide-react"
+import { PlusIcon, PencilIcon, TrashIcon, StarIcon } from "lucide-react"
 
 interface CollectionSelectorProps {
   onCollectionChange?: (collection: Collection | null) => void
   onCreateCollection?: () => void
   onEditCollection?: (collection: Collection) => void
   onDeleteCollection?: (collection: Collection) => void
+  onSetDefault?: (collection: Collection) => void
   refreshTrigger?: number
 }
 
@@ -31,6 +32,7 @@ export function CollectionSelector({
   onCreateCollection,
   onEditCollection,
   onDeleteCollection,
+  onSetDefault,
   refreshTrigger,
 }: CollectionSelectorProps) {
   const [collections, setCollections] = useState<Collection[]>([])
@@ -152,7 +154,24 @@ export function CollectionSelector({
           </button>
         )}
 
-        {activeCollection && onDeleteCollection && !activeCollection.isDefault && (
+        {activeCollection && onSetDefault && (
+          <button
+            onClick={() => onSetDefault(activeCollection)}
+            className={cn(
+              "px-2 py-2 rounded-lg text-sm transition-all",
+              "bg-eerieBlack border border-brightGrey",
+              activeCollection.isDefault
+                ? "fill-gray-400 text-gray-400"
+                : "hover:border-primary hover:text-primary",
+              "flex items-center gap-1"
+            )}
+            title={activeCollection.isDefault ? "Coleção Padrão" : "Definir como Padrão"}
+          >
+            <StarIcon className={cn("h-4 w-4", activeCollection.isDefault && "fill-current")} />
+          </button>
+        )}
+
+        {activeCollection && onDeleteCollection && (
           <button
             onClick={() => onDeleteCollection(activeCollection)}
             className={cn(
