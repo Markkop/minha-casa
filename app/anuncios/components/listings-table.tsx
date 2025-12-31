@@ -24,7 +24,7 @@ import {
   updateListing,
   getCollections,
   getActiveCollection,
-  moveListingToCollection,
+  copyListingToCollection,
   type Imovel,
   type Collection,
 } from "../lib/storage"
@@ -116,7 +116,7 @@ export function ListingsTable({ listings, onListingsChange, refreshTrigger }: Li
   const [sort, setSort] = useState<SortState>({ key: "preco", direction: "desc" })
   const [editingListing, setEditingListing] = useState<Imovel | null>(null)
   const [collections, setCollections] = useState<Collection[]>([])
-  const [movingListingId, setMovingListingId] = useState<string | null>(null)
+  const [copyingListingId, setCopyingListingId] = useState<string | null>(null)
 
   useEffect(() => {
     setCollections(getCollections())
@@ -132,16 +132,13 @@ export function ListingsTable({ listings, onListingsChange, refreshTrigger }: Li
     onListingsChange(updated)
   }
 
-  const handleMoveToCollection = (listingId: string, targetCollectionId: string) => {
+  const handleCopyToCollection = (listingId: string, targetCollectionId: string) => {
     const activeCollection = getActiveCollection()
     if (!activeCollection) return
 
-    moveListingToCollection(listingId, activeCollection.id, targetCollectionId)
+    copyListingToCollection(listingId, activeCollection.id, targetCollectionId)
     
-    // Reload listings from active collection
-    const updated = listings.filter((l) => l.id !== listingId)
-    onListingsChange(updated)
-    setMovingListingId(null)
+    setCopyingListingId(null)
   }
 
   const handleSort = (key: SortKey) => {
@@ -354,6 +351,12 @@ export function ListingsTable({ listings, onListingsChange, refreshTrigger }: Li
     if (preco === null || m2Privado === null || m2Privado === 0) return null
     return Math.round(preco / m2Privado)
   }
+
+  // Check if there are other collections available (excluding active)
+  const hasOtherCollections = useMemo(() => {
+    const activeCollection = getActiveCollection()
+    return collections.filter((c) => c.id !== activeCollection?.id).length > 0
+  }, [collections])
 
   // Filter and sort listings
   const filteredAndSortedListings = useMemo(() => {
@@ -642,46 +645,48 @@ export function ListingsTable({ listings, onListingsChange, refreshTrigger }: Li
                         >
                           <TrashIcon className="h-4 w-4" />
                         </button>
-                        {movingListingId === imovel.id ? (
-                          <Select
-                            value=""
-                            onValueChange={(value) => handleMoveToCollection(imovel.id, value)}
-                            onOpenChange={(open) => {
-                              if (!open) setMovingListingId(null)
-                            }}
-                          >
-                            <SelectTrigger
-                              className={cn(
-                                "h-6 w-[120px] text-xs",
-                                "bg-eerieBlack border-brightGrey",
-                                "hover:border-primary hover:text-primary",
-                                "text-white"
-                              )}
+                        {hasOtherCollections && (
+                          copyingListingId === imovel.id ? (
+                            <Select
+                              value=""
+                              onValueChange={(value) => handleCopyToCollection(imovel.id, value)}
+                              onOpenChange={(open) => {
+                                if (!open) setCopyingListingId(null)
+                              }}
                             >
-                              <SelectValue placeholder="Mover para..." />
-                            </SelectTrigger>
-                            <SelectContent className="bg-raisinBlack border-brightGrey">
-                              {collections
-                                .filter((c) => c.id !== getActiveCollection()?.id)
-                                .map((collection) => (
-                                  <SelectItem
-                                    key={collection.id}
-                                    value={collection.id}
-                                    className="text-white hover:bg-eerieBlack"
-                                  >
-                                    {collection.label}
-                                  </SelectItem>
-                                ))}
-                            </SelectContent>
-                          </Select>
-                        ) : (
-                          <button
-                            onClick={() => setMovingListingId(imovel.id)}
-                            className="text-muted-foreground hover:text-primary transition-colors p-1"
-                            title="Mover para outra coleção"
-                          >
-                            <FolderIcon className="h-4 w-4" />
-                          </button>
+                              <SelectTrigger
+                                className={cn(
+                                  "h-6 w-[120px] text-xs",
+                                  "bg-eerieBlack border-brightGrey",
+                                  "hover:border-primary hover:text-primary",
+                                  "text-white"
+                                )}
+                              >
+                                <SelectValue placeholder="Copiar para..." />
+                              </SelectTrigger>
+                              <SelectContent className="bg-raisinBlack border-brightGrey">
+                                {collections
+                                  .filter((c) => c.id !== getActiveCollection()?.id)
+                                  .map((collection) => (
+                                    <SelectItem
+                                      key={collection.id}
+                                      value={collection.id}
+                                      className="text-white hover:bg-eerieBlack"
+                                    >
+                                      {collection.label}
+                                    </SelectItem>
+                                  ))}
+                              </SelectContent>
+                            </Select>
+                          ) : (
+                            <button
+                              onClick={() => setCopyingListingId(imovel.id)}
+                              className="text-muted-foreground hover:text-primary transition-colors p-1"
+                              title="Copiar para outra coleção"
+                            >
+                              <FolderIcon className="h-4 w-4" />
+                            </button>
+                          )
                         )}
                         <a
                           href={buildGoogleSearchUrl(
