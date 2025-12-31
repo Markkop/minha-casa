@@ -235,7 +235,7 @@ const FloodRiskClient: React.FC = () => {
                   : 'text-slate-400 hover:text-white'
               }`}
             >
-              ChatGPT 1
+              ChatGPT
             </button>
             <button
               onClick={() => handleSourceChange('GEMINI')}
@@ -245,7 +245,7 @@ const FloodRiskClient: React.FC = () => {
                   : 'text-slate-400 hover:text-white'
               }`}
             >
-              Gemini 1
+              Gemini
             </button>
             <button
               onClick={() => handleSourceChange('CUSTOM')}
