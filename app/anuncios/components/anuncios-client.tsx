@@ -189,8 +189,8 @@ export function AnunciosClient() {
       {/* Header */}
       <header className="border-b border-brightGrey bg-raisinBlack">
         <div className="max-w-7xl mx-auto px-4 py-6">
-          <div className="flex items-start justify-between gap-4">
-            <div className="flex-1">
+          <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
+            <div className="flex-1 min-w-0">
               <h1 className="text-3xl font-bold text-primary mb-2">
                 🏘️ Anúncios de Imóveis
               </h1>
@@ -198,7 +198,7 @@ export function AnunciosClient() {
                 Cole anúncios de imóveis e deixe a IA extrair os dados automaticamente.
               </p>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-center gap-3 md:flex-nowrap">
               <CollectionSelector
                 onCollectionChange={handleCollectionChange}
                 onCreateCollection={handleCreateCollection}
@@ -213,7 +213,7 @@ export function AnunciosClient() {
                   "px-4 py-2 rounded-lg text-sm font-medium transition-all",
                   "bg-eerieBlack border border-brightGrey",
                   "hover:border-primary hover:text-primary",
-                  "flex items-center gap-2"
+                  "flex items-center gap-2 whitespace-nowrap"
                 )}
               >
                 <span>⚙️</span>

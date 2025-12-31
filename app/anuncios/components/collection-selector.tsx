@@ -69,7 +69,7 @@ export function CollectionSelector({
   }
 
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex flex-wrap items-center gap-2">
       <Select
         key={`collection-select-${countRefreshKey}`}
         value={activeCollection?.id || ""}
@@ -77,7 +77,7 @@ export function CollectionSelector({
       >
         <SelectTrigger
           className={cn(
-            "w-[200px] sm:w-[250px]",
+            "w-full min-w-[200px] sm:w-[200px] md:w-[250px]",
             "bg-eerieBlack border-brightGrey",
             "hover:border-primary hover:text-primary",
             "text-white"
