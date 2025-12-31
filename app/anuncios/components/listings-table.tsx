@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useMemo, useState, useEffect } from "react"
 import {
   Table,
   TableBody,
@@ -11,10 +11,25 @@ import {
 } from "@/components/ui/table"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
-import { removeListing, updateListing, type Imovel } from "../lib/storage"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import {
+  removeListing,
+  updateListing,
+  getCollections,
+  getActiveCollection,
+  moveListingToCollection,
+  type Imovel,
+  type Collection,
+} from "../lib/storage"
 import { cn } from "@/lib/utils"
 import { ArrowDownIcon, ArrowUpIcon, MagnifyingGlassIcon } from "@radix-ui/react-icons"
-import { PencilIcon, TrashIcon, LinkIcon, Star } from "lucide-react"
+import { PencilIcon, TrashIcon, LinkIcon, Star, FolderIcon } from "lucide-react"
 import { EditModal } from "./edit-modal"
 
 // ============================================================================
@@ -40,6 +55,7 @@ interface SortableHeaderProps {
 interface ListingsTableProps {
   listings: Imovel[]
   onListingsChange: (listings: Imovel[]) => void
+  refreshTrigger?: number
 }
 
 // ============================================================================
@@ -92,11 +108,17 @@ function SortableHeader({
 // MAIN COMPONENT
 // ============================================================================
 
-export function ListingsTable({ listings, onListingsChange }: ListingsTableProps) {
+export function ListingsTable({ listings, onListingsChange, refreshTrigger }: ListingsTableProps) {
   // State for search and sort
   const [searchQuery, setSearchQuery] = useState("")
   const [sort, setSort] = useState<SortState>({ key: "preco", direction: "desc" })
   const [editingListing, setEditingListing] = useState<Imovel | null>(null)
+  const [collections, setCollections] = useState<Collection[]>([])
+  const [movingListingId, setMovingListingId] = useState<string | null>(null)
+
+  useEffect(() => {
+    setCollections(getCollections())
+  }, [refreshTrigger])
 
   const handleDelete = (id: string) => {
     const updated = removeListing(id)
@@ -106,6 +128,18 @@ export function ListingsTable({ listings, onListingsChange }: ListingsTableProps
   const handleToggleStar = (id: string, currentStarred: boolean | undefined) => {
     const updated = updateListing(id, { starred: !currentStarred })
     onListingsChange(updated)
+  }
+
+  const handleMoveToCollection = (listingId: string, targetCollectionId: string) => {
+    const activeCollection = getActiveCollection()
+    if (!activeCollection) return
+
+    moveListingToCollection(listingId, activeCollection.id, targetCollectionId)
+    
+    // Reload listings from active collection
+    const updated = listings.filter((l) => l.id !== listingId)
+    onListingsChange(updated)
+    setMovingListingId(null)
   }
 
   const handleSort = (key: SortKey) => {
@@ -442,6 +476,47 @@ export function ListingsTable({ listings, onListingsChange }: ListingsTableProps
                         >
                           <TrashIcon className="h-4 w-4" />
                         </button>
+                        {movingListingId === imovel.id ? (
+                          <Select
+                            value=""
+                            onValueChange={(value) => handleMoveToCollection(imovel.id, value)}
+                            onOpenChange={(open) => {
+                              if (!open) setMovingListingId(null)
+                            }}
+                          >
+                            <SelectTrigger
+                              className={cn(
+                                "h-6 w-[120px] text-xs",
+                                "bg-eerieBlack border-brightGrey",
+                                "hover:border-primary hover:text-primary",
+                                "text-white"
+                              )}
+                            >
+                              <SelectValue placeholder="Mover para..." />
+                            </SelectTrigger>
+                            <SelectContent className="bg-raisinBlack border-brightGrey">
+                              {collections
+                                .filter((c) => c.id !== getActiveCollection()?.id)
+                                .map((collection) => (
+                                  <SelectItem
+                                    key={collection.id}
+                                    value={collection.id}
+                                    className="text-white hover:bg-eerieBlack"
+                                  >
+                                    {collection.label}
+                                  </SelectItem>
+                                ))}
+                            </SelectContent>
+                          </Select>
+                        ) : (
+                          <button
+                            onClick={() => setMovingListingId(imovel.id)}
+                            className="text-muted-foreground hover:text-primary transition-colors p-1"
+                            title="Mover para outra coleção"
+                          >
+                            <FolderIcon className="h-4 w-4" />
+                          </button>
+                        )}
                         <a
                           href={buildGoogleSearchUrl(
                             imovel.titulo,
