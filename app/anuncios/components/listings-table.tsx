@@ -185,6 +185,11 @@ export function ListingsTable({ listings, onListingsChange, refreshTrigger }: Li
     return value ? "✓" : "✕"
   }
 
+  const truncateTitle = (title: string, maxLength: number = 50) => {
+    if (title.length <= maxLength) return title
+    return title.slice(0, maxLength) + "..."
+  }
+
   const formatDate = (value: string | undefined) => {
     if (!value) return "31 dez 2025"
     try {
@@ -481,19 +486,11 @@ export function ListingsTable({ listings, onListingsChange, refreshTrigger }: Li
               <TableHeader>
                 <TableRow className="border-brightGrey hover:bg-transparent">
                   <SortableHeader
-                    label="Adicionado"
-                    sortKey="addedAt"
-                    currentSort={sort}
-                    onSort={handleSort}
-                    align="center"
-                  />
-                  <SortableHeader
-                    label="Título"
+                    label="Imóvel"
                     sortKey="titulo"
                     currentSort={sort}
                     onSort={handleSort}
                   />
-                  <TableHead className="text-primary">Endereço</TableHead>
                   <SortableHeader
                     label="m² total"
                     sortKey="m2Totais"
@@ -538,7 +535,13 @@ export function ListingsTable({ listings, onListingsChange, refreshTrigger }: Li
                     align="right"
                   />
                   <TableHead className="text-primary text-center">Piscina</TableHead>
-                  <TableHead className="text-primary text-center w-32">Ações</TableHead>
+                  <SortableHeader
+                    label="Adicionado"
+                    sortKey="addedAt"
+                    currentSort={sort}
+                    onSort={handleSort}
+                    align="center"
+                  />
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -549,49 +552,189 @@ export function ListingsTable({ listings, onListingsChange, refreshTrigger }: Li
                       "border-brightGrey",
                       imovel.starred
                         ? "bg-primary/20 hover:bg-primary/30"
+                        : imovel.visited
+                        ? "bg-yellow/20 hover:bg-yellow/30"
                         : "hover:bg-eerieBlack/50"
                     )}
                   >
-                    <TableCell 
-                      className={cn(
-                        "text-center text-sm text-muted-foreground",
-                        imovel.strikethrough && "line-through opacity-50"
-                      )}
-                      title={formatFullDateTime(imovel.createdAt)}
-                    >
-                      {formatDate(imovel.addedAt)}
-                    </TableCell>
-                    <TableCell className={cn(
-                      "font-medium max-w-[200px] truncate",
-                      imovel.strikethrough && "line-through opacity-50"
-                    )}>
-                      {imovel.link ? (
-                        <a
-                          href={imovel.link}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="hover:text-primary transition-colors cursor-pointer"
-                          title={`Abrir anúncio: ${imovel.titulo}`}
-                        >
-                          {imovel.titulo}
-                        </a>
-                      ) : (
-                        imovel.titulo
-                      )}
-                    </TableCell>
-                    <TableCell className={cn(
-                      "text-muted-foreground max-w-[180px] truncate",
-                      imovel.strikethrough && "line-through opacity-50"
-                    )}>
-                      <a
-                        href={buildGoogleMapsUrl(imovel.endereco)}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="hover:text-primary transition-colors underline decoration-dotted underline-offset-2"
-                        title={`Abrir ${imovel.endereco} no Google Maps`}
-                      >
-                        {imovel.endereco}
-                      </a>
+                    <TableCell className="min-w-[320px]">
+                      <div className="flex min-w-0 flex-col gap-2">
+                        <div className="min-w-0">
+                          {imovel.link ? (
+                            <a
+                              href={imovel.link}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className={cn(
+                                "block font-medium leading-snug truncate hover:text-primary transition-colors cursor-pointer",
+                                imovel.strikethrough && "line-through opacity-50"
+                              )}
+                              title={`Abrir anúncio: ${imovel.titulo}`}
+                            >
+                              {truncateTitle(imovel.titulo)}
+                            </a>
+                          ) : (
+                            <div
+                              className={cn(
+                                "block font-medium leading-snug truncate",
+                                imovel.strikethrough && "line-through opacity-50"
+                              )}
+                              title={imovel.titulo}
+                            >
+                              {truncateTitle(imovel.titulo)}
+                            </div>
+                          )}
+
+                          <a
+                            href={buildGoogleMapsUrl(imovel.endereco)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className={cn(
+                              "block text-xs text-muted-foreground truncate hover:text-primary transition-colors underline decoration-dotted underline-offset-2",
+                              imovel.strikethrough && "line-through opacity-50"
+                            )}
+                            title={`Abrir ${imovel.endereco} no Google Maps`}
+                          >
+                            {imovel.endereco}
+                          </a>
+                        </div>
+
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <button
+                            onClick={() => handleToggleStar(imovel.id, imovel.starred)}
+                            className={cn(
+                              "transition-colors p-1",
+                              imovel.starred
+                                ? "text-yellow hover:text-yellow/80"
+                                : "text-muted-foreground hover:text-yellow"
+                            )}
+                            title={imovel.starred ? "Remover dos favoritos" : "Adicionar aos favoritos"}
+                          >
+                            <Star
+                              className="h-4 w-4"
+                              fill={imovel.starred ? "currentColor" : "none"}
+                            />
+                          </button>
+                          <button
+                            onClick={() => handleToggleVisited(imovel.id, imovel.visited)}
+                            className={cn(
+                              "transition-colors p-1",
+                              imovel.visited
+                                ? "text-yellow hover:text-yellow/80 [&_svg_*]:!fill-none [&_svg_*]:!stroke-yellow"
+                                : "text-muted-foreground hover:text-yellow"
+                            )}
+                            title={imovel.visited ? "Marcar como não visitado" : "Marcar como visitado"}
+                          >
+                            <Eye
+                              className="h-4 w-4"
+                              fill="none"
+                              stroke="currentColor"
+                            />
+                          </button>
+                          <button
+                            onClick={() => handleToggleStrikethrough(imovel.id, imovel.strikethrough)}
+                            className={cn(
+                              "transition-colors p-1",
+                              imovel.strikethrough
+                                ? "text-destructive hover:text-destructive/80"
+                                : "text-muted-foreground hover:text-destructive"
+                            )}
+                            title={imovel.strikethrough ? "Remover riscado" : "Riscar imóvel"}
+                          >
+                            <Strikethrough className="h-4 w-4" />
+                          </button>
+                          <button
+                            onClick={() => setEditingListing(imovel)}
+                            className="text-muted-foreground hover:text-primary transition-colors p-1"
+                            title="Editar imóvel"
+                          >
+                            <PencilIcon className="h-4 w-4" />
+                          </button>
+                          <button
+                            onClick={() => handleDelete(imovel.id)}
+                            className="text-muted-foreground hover:text-destructive transition-colors p-1"
+                            title="Excluir imóvel"
+                          >
+                            <TrashIcon className="h-4 w-4" />
+                          </button>
+                          {hasOtherCollections && (
+                            copyingListingId === imovel.id ? (
+                              <Select
+                                value=""
+                                onValueChange={(value) => handleCopyToCollection(imovel.id, value)}
+                                onOpenChange={(open) => {
+                                  if (!open) setCopyingListingId(null)
+                                }}
+                              >
+                                <SelectTrigger
+                                  className={cn(
+                                    "h-6 w-[120px] text-xs",
+                                    "bg-eerieBlack border-brightGrey",
+                                    "hover:border-primary hover:text-primary",
+                                    "text-white"
+                                  )}
+                                >
+                                  <SelectValue placeholder="Copiar para..." />
+                                </SelectTrigger>
+                                <SelectContent className="bg-raisinBlack border-brightGrey">
+                                  {collections
+                                    .filter((c) => c.id !== getActiveCollection()?.id)
+                                    .map((collection) => (
+                                      <SelectItem
+                                        key={collection.id}
+                                        value={collection.id}
+                                        className="text-white hover:bg-eerieBlack"
+                                      >
+                                        {collection.label}
+                                      </SelectItem>
+                                    ))}
+                                </SelectContent>
+                              </Select>
+                            ) : (
+                              <button
+                                onClick={() => setCopyingListingId(imovel.id)}
+                                className="text-muted-foreground hover:text-primary transition-colors p-1"
+                                title="Copiar para outra coleção"
+                              >
+                                <FolderIcon className="h-4 w-4" />
+                              </button>
+                            )
+                          )}
+                          <a
+                            href={buildGoogleSearchUrl(
+                              imovel.titulo,
+                              imovel.endereco,
+                              imovel.m2Totais,
+                              imovel.quartos,
+                              imovel.banheiros
+                            )}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-muted-foreground hover:text-primary transition-colors p-1 inline-block"
+                            title="Buscar no Google"
+                          >
+                            <MagnifyingGlassIcon className="h-4 w-4" />
+                          </a>
+                          {imovel.link ? (
+                            <a
+                              href={imovel.link}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-muted-foreground hover:text-primary transition-colors p-1 inline-block"
+                              title="Abrir link do anúncio"
+                            >
+                              <LinkIcon className="h-4 w-4" />
+                            </a>
+                          ) : (
+                            <span
+                              className="text-muted-foreground opacity-50 p-1 inline-block cursor-not-allowed"
+                              title="Nenhum link disponível"
+                            >
+                              <LinkIcon className="h-4 w-4" />
+                            </span>
+                          )}
+                        </div>
+                      </div>
                     </TableCell>
                     <TableCell className={cn(
                       "text-right font-mono text-sm",
@@ -657,142 +800,14 @@ export function ListingsTable({ listings, onListingsChange, refreshTrigger }: Li
                         {formatBoolean(imovel.piscina)}
                       </span>
                     </TableCell>
-                    <TableCell className="text-center">
-                      <div className="flex items-center gap-2 justify-center">
-                        <button
-                          onClick={() => handleToggleStar(imovel.id, imovel.starred)}
-                          className={cn(
-                            "transition-colors p-1",
-                            imovel.starred
-                              ? "text-yellow hover:text-yellow/80"
-                              : "text-muted-foreground hover:text-yellow"
-                          )}
-                          title={imovel.starred ? "Remover dos favoritos" : "Adicionar aos favoritos"}
-                        >
-                          <Star
-                            className="h-4 w-4"
-                            fill={imovel.starred ? "currentColor" : "none"}
-                          />
-                        </button>
-                        <button
-                          onClick={() => handleToggleVisited(imovel.id, imovel.visited)}
-                          className={cn(
-                            "transition-colors p-1",
-                            imovel.visited
-                              ? "text-yellow hover:text-yellow/80 [&_svg_*]:!fill-yellow [&_svg_*]:!stroke-yellow"
-                              : "text-muted-foreground hover:text-yellow"
-                          )}
-                          title={imovel.visited ? "Marcar como não visitado" : "Marcar como visitado"}
-                        >
-                          <Eye
-                            className="h-4 w-4"
-                            fill={imovel.visited ? "currentColor" : "none"}
-                            stroke="currentColor"
-                          />
-                        </button>
-                        <button
-                          onClick={() => handleToggleStrikethrough(imovel.id, imovel.strikethrough)}
-                          className={cn(
-                            "transition-colors p-1",
-                            imovel.strikethrough
-                              ? "text-destructive hover:text-destructive/80"
-                              : "text-muted-foreground hover:text-destructive"
-                          )}
-                          title={imovel.strikethrough ? "Remover riscado" : "Riscar imóvel"}
-                        >
-                          <Strikethrough className="h-4 w-4" />
-                        </button>
-                        <button
-                          onClick={() => setEditingListing(imovel)}
-                          className="text-muted-foreground hover:text-primary transition-colors p-1"
-                          title="Editar imóvel"
-                        >
-                          <PencilIcon className="h-4 w-4" />
-                        </button>
-                        <button
-                          onClick={() => handleDelete(imovel.id)}
-                          className="text-muted-foreground hover:text-destructive transition-colors p-1"
-                          title="Excluir imóvel"
-                        >
-                          <TrashIcon className="h-4 w-4" />
-                        </button>
-                        {hasOtherCollections && (
-                          copyingListingId === imovel.id ? (
-                            <Select
-                              value=""
-                              onValueChange={(value) => handleCopyToCollection(imovel.id, value)}
-                              onOpenChange={(open) => {
-                                if (!open) setCopyingListingId(null)
-                              }}
-                            >
-                              <SelectTrigger
-                                className={cn(
-                                  "h-6 w-[120px] text-xs",
-                                  "bg-eerieBlack border-brightGrey",
-                                  "hover:border-primary hover:text-primary",
-                                  "text-white"
-                                )}
-                              >
-                                <SelectValue placeholder="Copiar para..." />
-                              </SelectTrigger>
-                              <SelectContent className="bg-raisinBlack border-brightGrey">
-                                {collections
-                                  .filter((c) => c.id !== getActiveCollection()?.id)
-                                  .map((collection) => (
-                                    <SelectItem
-                                      key={collection.id}
-                                      value={collection.id}
-                                      className="text-white hover:bg-eerieBlack"
-                                    >
-                                      {collection.label}
-                                    </SelectItem>
-                                  ))}
-                              </SelectContent>
-                            </Select>
-                          ) : (
-                            <button
-                              onClick={() => setCopyingListingId(imovel.id)}
-                              className="text-muted-foreground hover:text-primary transition-colors p-1"
-                              title="Copiar para outra coleção"
-                            >
-                              <FolderIcon className="h-4 w-4" />
-                            </button>
-                          )
-                        )}
-                        <a
-                          href={buildGoogleSearchUrl(
-                            imovel.titulo,
-                            imovel.endereco,
-                            imovel.m2Totais,
-                            imovel.quartos,
-                            imovel.banheiros
-                          )}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-muted-foreground hover:text-primary transition-colors p-1 inline-block"
-                          title="Buscar no Google"
-                        >
-                          <MagnifyingGlassIcon className="h-4 w-4" />
-                        </a>
-                        {imovel.link ? (
-                          <a
-                            href={imovel.link}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-muted-foreground hover:text-primary transition-colors p-1 inline-block"
-                            title="Abrir link do anúncio"
-                          >
-                            <LinkIcon className="h-4 w-4" />
-                          </a>
-                        ) : (
-                          <span
-                            className="text-muted-foreground opacity-50 p-1 inline-block cursor-not-allowed"
-                            title="Nenhum link disponível"
-                          >
-                            <LinkIcon className="h-4 w-4" />
-                          </span>
-                        )}
-                      </div>
+                    <TableCell 
+                      className={cn(
+                        "text-center text-sm text-muted-foreground",
+                        imovel.strikethrough && "line-through opacity-50"
+                      )}
+                      title={formatFullDateTime(imovel.createdAt)}
+                    >
+                      {formatDate(imovel.addedAt)}
                     </TableCell>
                   </TableRow>
                 ))}
