@@ -811,6 +811,209 @@ function isMinified(data: unknown): boolean {
   return false
 }
 
+// ============================================================================
+// COMPACT FORMAT UTILITIES (v2)
+// ============================================================================
+
+// Compact format version identifier
+const COMPACT_FORMAT_VERSION = 2
+
+// Ordered list of Imovel keys for array-of-arrays format
+const IMOVEL_KEYS_ORDER: (keyof Imovel)[] = [
+  "id",
+  "titulo",
+  "endereco",
+  "m2Totais",
+  "m2Privado",
+  "quartos",
+  "suites",
+  "banheiros",
+  "preco",
+  "precoM2",
+  "piscina",
+  "link",
+  "starred",
+  "visited",
+  "strikethrough",
+  "customLat",
+  "customLng",
+  "createdAt",
+  "addedAt",
+]
+
+// Minified keys in same order for compact export
+const IMOVEL_MINIFIED_KEYS_ORDER = IMOVEL_KEYS_ORDER.map(k => KEY_MAP[k] || k)
+
+/**
+ * Compacts a date string to YYMMDD format
+ * "2025-01-05T12:34:56.789Z" -> "250105"
+ * "2025-01-05" -> "250105"
+ */
+function compactDate(dateStr: string | undefined): string | undefined {
+  if (!dateStr) return undefined
+  try {
+    const date = new Date(dateStr)
+    if (isNaN(date.getTime())) return dateStr
+    const yy = String(date.getFullYear()).slice(2)
+    const mm = String(date.getMonth() + 1).padStart(2, "0")
+    const dd = String(date.getDate()).padStart(2, "0")
+    return `${yy}${mm}${dd}`
+  } catch {
+    return dateStr
+  }
+}
+
+/**
+ * Expands a compact date YYMMDD to ISO date string
+ * "250105" -> "2025-01-05"
+ */
+function expandDate(compactDate: string | undefined): string | undefined {
+  if (!compactDate) return undefined
+  // If already in ISO format, return as-is
+  if (compactDate.includes("-") || compactDate.includes("T")) return compactDate
+  // Parse YYMMDD format
+  if (compactDate.length === 6) {
+    const yy = compactDate.slice(0, 2)
+    const mm = compactDate.slice(2, 4)
+    const dd = compactDate.slice(4, 6)
+    const year = parseInt(yy) < 50 ? `20${yy}` : `19${yy}`
+    return `${year}-${mm}-${dd}`
+  }
+  return compactDate
+}
+
+/**
+ * Removes null, undefined, and false values from an object
+ * Converts true to 1 for booleans
+ */
+function omitDefaults(obj: Record<string, unknown>): Record<string, unknown> {
+  const result: Record<string, unknown> = {}
+  for (const [key, value] of Object.entries(obj)) {
+    if (value === null || value === undefined || value === false) {
+      continue
+    }
+    if (value === true) {
+      result[key] = 1
+    } else {
+      result[key] = value
+    }
+  }
+  return result
+}
+
+/**
+ * Restores defaults for omitted values and converts 1 back to true for booleans
+ */
+function restoreDefaults(obj: Record<string, unknown>, booleanKeys: string[]): Record<string, unknown> {
+  const result: Record<string, unknown> = { ...obj }
+  for (const key of booleanKeys) {
+    if (result[key] === 1) {
+      result[key] = true
+    } else if (!(key in result)) {
+      result[key] = false
+    }
+  }
+  return result
+}
+
+/**
+ * Converts an Imovel to a compact array format (values only, in order)
+ * Also compacts dates and omits trailing undefined values
+ */
+function imovelToCompactArray(imovel: Imovel): unknown[] {
+  const compacted: Record<string, unknown> = {
+    ...imovel,
+    createdAt: compactDate(imovel.createdAt),
+    addedAt: compactDate(imovel.addedAt),
+  }
+  
+  // Convert to array in key order, omitting defaults
+  const cleaned = omitDefaults(compacted)
+  const arr: unknown[] = IMOVEL_KEYS_ORDER.map(key => {
+    const minKey = KEY_MAP[key] || key
+    return cleaned[key] !== undefined ? cleaned[key] : (cleaned[minKey] !== undefined ? cleaned[minKey] : undefined)
+  })
+  
+  // Trim trailing undefined values
+  while (arr.length > 0 && arr[arr.length - 1] === undefined) {
+    arr.pop()
+  }
+  
+  return arr
+}
+
+/**
+ * Converts a compact array back to an Imovel object
+ */
+function compactArrayToImovel(arr: unknown[]): Imovel {
+  const obj: Record<string, unknown> = {}
+  const booleanKeys = ["piscina", "starred", "visited", "strikethrough"]
+  
+  IMOVEL_KEYS_ORDER.forEach((key, index) => {
+    if (index < arr.length && arr[index] !== undefined) {
+      obj[key] = arr[index]
+    }
+  })
+  
+  // Restore boolean defaults
+  const restored = restoreDefaults(obj, booleanKeys)
+  
+  // Expand dates
+  restored.createdAt = expandDate(restored.createdAt as string) || new Date().toISOString()
+  if (restored.addedAt) {
+    restored.addedAt = expandDate(restored.addedAt as string)
+  }
+  
+  // Generate ID if missing (for imports)
+  if (!restored.id) {
+    restored.id = generateId()
+  }
+  
+  // Ensure required fields have defaults
+  if (!restored.titulo) restored.titulo = ""
+  if (!restored.endereco) restored.endereco = ""
+  
+  return restored as unknown as Imovel
+}
+
+/**
+ * Compacts a Collection object (minimal fields + compact dates)
+ */
+function compactCollection(collection: Collection): Record<string, unknown> {
+  return omitDefaults({
+    [KEY_MAP.id]: collection.id,
+    [KEY_MAP.label]: collection.label,
+    [KEY_MAP.createdAt]: compactDate(collection.createdAt),
+    [KEY_MAP.updatedAt]: compactDate(collection.updatedAt),
+    [KEY_MAP.isDefault]: collection.isDefault,
+  })
+}
+
+/**
+ * Expands a compact collection back to full Collection object
+ */
+function expandCompactCollection(compact: Record<string, unknown>): Collection {
+  return {
+    id: (compact[KEY_MAP.id] || compact.id || generateCollectionId()) as string,
+    label: (compact[KEY_MAP.label] || compact.label || "Imported Collection") as string,
+    createdAt: expandDate(compact[KEY_MAP.createdAt] as string || compact.createdAt as string) || new Date().toISOString(),
+    updatedAt: expandDate(compact[KEY_MAP.updatedAt] as string || compact.updatedAt as string) || new Date().toISOString(),
+    isDefault: compact[KEY_MAP.isDefault] === 1 || compact.isDefault === true || false,
+  }
+}
+
+/**
+ * Compact export format structure
+ */
+interface CompactExport {
+  _v: number // version
+  c: Record<string, unknown> // collection (compact)
+  l: unknown[][] // listings as array of arrays
+}
+
+/**
+ * Original compression function (v1 format) - kept for backwards compatibility
+ */
 export function compressCollectionData(collectionId?: string): string {
   if (typeof window === "undefined") {
     throw new Error("Compression is only available in the browser")
@@ -837,6 +1040,58 @@ export function compressCollectionData(collectionId?: string): string {
   return compressed
 }
 
+/**
+ * Compact compression function (v2 format) - maximum compression for short URLs
+ * Uses array-of-arrays format, omits nulls/defaults, and compacts dates
+ */
+export function compressCollectionDataCompact(collectionId?: string): string {
+  if (typeof window === "undefined") {
+    throw new Error("Compression is only available in the browser")
+  }
+
+  // Dynamic import to avoid SSR issues
+  const LZString = require("lz-string")
+  const data = ensureCollectionsData()
+  const targetId = collectionId || data.activeCollectionId
+  if (!targetId) throw new Error("No collection to compress")
+
+  const collection = getCollection(targetId)
+  const listings = data.listings[targetId] || []
+
+  // Build compact export structure
+  const compactExport: CompactExport = {
+    _v: COMPACT_FORMAT_VERSION,
+    c: compactCollection(collection!),
+    l: listings.map(imovelToCompactArray),
+  }
+
+  const json = JSON.stringify(compactExport)
+  const compressed = LZString.compressToEncodedURIComponent(json)
+  return compressed
+}
+
+/**
+ * Checks if data is in compact v2 format
+ */
+function isCompactFormat(data: unknown): data is CompactExport {
+  return (
+    typeof data === "object" &&
+    data !== null &&
+    "_v" in data &&
+    (data as CompactExport)._v === COMPACT_FORMAT_VERSION &&
+    "c" in data &&
+    "l" in data &&
+    Array.isArray((data as CompactExport).l)
+  )
+}
+
+/**
+ * Decompresses collection data from URL-safe string
+ * Supports multiple formats for backwards compatibility:
+ * - v2 compact format (array-of-arrays with version header)
+ * - v1 minified format (object with minified keys)
+ * - Original format (object with full keys)
+ */
 export function decompressCollectionData(compressed: string): CollectionExport {
   if (typeof window === "undefined") {
     throw new Error("Decompression is only available in the browser")
@@ -851,7 +1106,16 @@ export function decompressCollectionData(compressed: string): CollectionExport {
     }
     const parsed = JSON.parse(json)
     
-    // Check if data uses minified keys (backwards compatibility)
+    // Check for v2 compact format first
+    if (isCompactFormat(parsed)) {
+      const compact = parsed as CompactExport
+      return {
+        collection: expandCompactCollection(compact.c),
+        listings: compact.l.map(compactArrayToImovel),
+      }
+    }
+    
+    // Check if data uses minified keys (v1 backwards compatibility)
     // If minified, expand keys; otherwise use as-is for old share links
     const expanded = isMinified(parsed) ? expandKeys(parsed) : parsed
     const result = expanded as CollectionExport

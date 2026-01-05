@@ -3,7 +3,7 @@
 import { useState } from "react"
 import {
   clearListings,
-  compressCollectionData,
+  compressCollectionDataCompact,
   type Imovel,
 } from "../lib/storage"
 import { ExportModal } from "./export-modal"
@@ -36,7 +36,8 @@ export function DataManagement({ onDataChange, listingsCount, onOpenParser, onIm
 
   const handleShare = async () => {
     try {
-      const compressed = compressCollectionData()
+      // Use compact compression (v2) for shorter URLs
+      const compressed = compressCollectionDataCompact()
       const currentUrl = window.location.origin + window.location.pathname
       const shareUrl = `${currentUrl}?share=${compressed}`
       

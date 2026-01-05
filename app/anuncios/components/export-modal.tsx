@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label"
 import {
   exportCollection,
   getActiveCollection,
+  compressCollectionDataCompact,
 } from "../lib/storage"
 import { cn } from "@/lib/utils"
 
@@ -21,12 +22,14 @@ export function ExportModal({
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
   const [copySuccess, setCopySuccess] = useState(false)
+  const [shareCopySuccess, setShareCopySuccess] = useState(false)
 
   useEffect(() => {
     if (isOpen) {
       setError(null)
       setSuccess(null)
       setCopySuccess(false)
+      setShareCopySuccess(false)
     }
   }, [isOpen])
 
@@ -66,6 +69,25 @@ export function ExportModal({
       }, 3000)
     } catch (err) {
       setError("Erro ao copiar para a área de transferência")
+    }
+  }
+
+  const handleCopyShareUrl = async () => {
+    try {
+      // Use compact compression (v2) for shortest possible URLs
+      const compressed = compressCollectionDataCompact()
+      const currentUrl = window.location.origin + window.location.pathname
+      const shareUrl = `${currentUrl}?share=${compressed}`
+      
+      await navigator.clipboard.writeText(shareUrl)
+      setShareCopySuccess(true)
+      setSuccess(`Link copiado! (${shareUrl.length} caracteres)`)
+      setTimeout(() => {
+        setShareCopySuccess(false)
+        setSuccess(null)
+      }, 3000)
+    } catch (err) {
+      setError("Erro ao copiar link de compartilhamento")
     }
   }
 
@@ -127,6 +149,29 @@ export function ExportModal({
             >
               <span>{copySuccess ? "✓" : "📋"}</span>
               {copySuccess ? "Copiado!" : "Copiar JSON"}
+            </button>
+          </div>
+
+          {/* Share URL Section */}
+          <div className="pt-4 border-t border-brightGrey space-y-2">
+            <Label className="text-sm text-ashGray">
+              Compartilhar via URL
+            </Label>
+            <p className="text-xs text-muted-foreground">
+              Gere um link compacto para compartilhar esta coleção
+            </p>
+            <button
+              onClick={handleCopyShareUrl}
+              className={cn(
+                "w-full py-2.5 px-4 rounded-lg font-medium transition-all",
+                "bg-eerieBlack border border-brightGrey",
+                "hover:border-primary hover:text-primary",
+                "flex items-center justify-center gap-2",
+                shareCopySuccess && "border-green text-green"
+              )}
+            >
+              <span>{shareCopySuccess ? "✓" : "🔗"}</span>
+              {shareCopySuccess ? "Link Copiado!" : "Copiar Link de Compartilhamento"}
             </button>
           </div>
 
