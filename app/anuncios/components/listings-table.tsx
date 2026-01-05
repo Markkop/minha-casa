@@ -30,7 +30,7 @@ import {
 } from "../lib/storage"
 import { cn } from "@/lib/utils"
 import { ArrowDownIcon, ArrowUpIcon, MagnifyingGlassIcon } from "@radix-ui/react-icons"
-import { PencilIcon, TrashIcon, LinkIcon, Star, FolderIcon } from "lucide-react"
+import { PencilIcon, TrashIcon, LinkIcon, Star, FolderIcon, Eye, Strikethrough } from "lucide-react"
 import { EditModal } from "./edit-modal"
 
 // ============================================================================
@@ -129,6 +129,16 @@ export function ListingsTable({ listings, onListingsChange, refreshTrigger }: Li
 
   const handleToggleStar = (id: string, currentStarred: boolean | undefined) => {
     const updated = updateListing(id, { starred: !currentStarred })
+    onListingsChange(updated)
+  }
+
+  const handleToggleVisited = (id: string, currentVisited: boolean | undefined) => {
+    const updated = updateListing(id, { visited: !currentVisited })
+    onListingsChange(updated)
+  }
+
+  const handleToggleStrikethrough = (id: string, currentStrikethrough: boolean | undefined) => {
+    const updated = updateListing(id, { strikethrough: !currentStrikethrough })
     onListingsChange(updated)
   }
 
@@ -543,12 +553,18 @@ export function ListingsTable({ listings, onListingsChange, refreshTrigger }: Li
                     )}
                   >
                     <TableCell 
-                      className="text-center text-sm text-muted-foreground"
+                      className={cn(
+                        "text-center text-sm text-muted-foreground",
+                        imovel.strikethrough && "line-through opacity-50"
+                      )}
                       title={formatFullDateTime(imovel.createdAt)}
                     >
                       {formatDate(imovel.addedAt)}
                     </TableCell>
-                    <TableCell className="font-medium max-w-[200px] truncate">
+                    <TableCell className={cn(
+                      "font-medium max-w-[200px] truncate",
+                      imovel.strikethrough && "line-through opacity-50"
+                    )}>
                       {imovel.link ? (
                         <a
                           href={imovel.link}
@@ -563,7 +579,10 @@ export function ListingsTable({ listings, onListingsChange, refreshTrigger }: Li
                         imovel.titulo
                       )}
                     </TableCell>
-                    <TableCell className="text-muted-foreground max-w-[180px] truncate">
+                    <TableCell className={cn(
+                      "text-muted-foreground max-w-[180px] truncate",
+                      imovel.strikethrough && "line-through opacity-50"
+                    )}>
                       <a
                         href={buildGoogleMapsUrl(imovel.endereco)}
                         target="_blank"
@@ -574,20 +593,35 @@ export function ListingsTable({ listings, onListingsChange, refreshTrigger }: Li
                         {imovel.endereco}
                       </a>
                     </TableCell>
-                    <TableCell className="text-right font-mono text-sm">
+                    <TableCell className={cn(
+                      "text-right font-mono text-sm",
+                      imovel.strikethrough && "line-through opacity-50"
+                    )}>
                       {formatNumber(imovel.m2Totais, "m²")}
                     </TableCell>
-                    <TableCell className="text-right font-mono text-sm">
+                    <TableCell className={cn(
+                      "text-right font-mono text-sm",
+                      imovel.strikethrough && "line-through opacity-50"
+                    )}>
                       {formatNumber(imovel.m2Privado, "m²")}
                     </TableCell>
-                    <TableCell className="text-center font-mono text-sm">
+                    <TableCell className={cn(
+                      "text-center font-mono text-sm",
+                      imovel.strikethrough && "line-through opacity-50"
+                    )}>
                       {formatQuartosSuites(imovel.quartos, imovel.suites)}
                     </TableCell>
-                    <TableCell className="text-center font-mono text-sm">
+                    <TableCell className={cn(
+                      "text-center font-mono text-sm",
+                      imovel.strikethrough && "line-through opacity-50"
+                    )}>
                       {formatNumber(imovel.banheiros)}
                     </TableCell>
                     <TableCell 
-                      className="text-right font-mono text-sm text-primary cursor-pointer hover:text-primary/80 transition-colors"
+                      className={cn(
+                        "text-right font-mono text-sm text-primary cursor-pointer hover:text-primary/80 transition-colors",
+                        imovel.strikethrough && "line-through opacity-50"
+                      )}
                       onClick={() => {
                         if (imovel.preco !== null) {
                           router.push(`/casa?valorImovel=${imovel.preco}`)
@@ -597,13 +631,22 @@ export function ListingsTable({ listings, onListingsChange, refreshTrigger }: Li
                     >
                       {formatCurrency(imovel.preco)}
                     </TableCell>
-                    <TableCell className="text-right font-mono text-sm text-muted-foreground">
+                    <TableCell className={cn(
+                      "text-right font-mono text-sm text-muted-foreground",
+                      imovel.strikethrough && "line-through opacity-50"
+                    )}>
                       {formatCurrency(calculatePrecoM2(imovel.preco, imovel.m2Totais))}
                     </TableCell>
-                    <TableCell className="text-right font-mono text-sm text-muted-foreground">
+                    <TableCell className={cn(
+                      "text-right font-mono text-sm text-muted-foreground",
+                      imovel.strikethrough && "line-through opacity-50"
+                    )}>
                       {formatCurrency(calculatePrecoM2Privado(imovel.preco, imovel.m2Privado))}
                     </TableCell>
-                    <TableCell className="text-center">
+                    <TableCell className={cn(
+                      "text-center",
+                      imovel.strikethrough && "line-through opacity-50"
+                    )}>
                       <span
                         className={cn(
                           imovel.piscina === true && "text-green",
@@ -630,6 +673,33 @@ export function ListingsTable({ listings, onListingsChange, refreshTrigger }: Li
                             className="h-4 w-4"
                             fill={imovel.starred ? "currentColor" : "none"}
                           />
+                        </button>
+                        <button
+                          onClick={() => handleToggleVisited(imovel.id, imovel.visited)}
+                          className={cn(
+                            "transition-colors p-1",
+                            imovel.visited
+                              ? "text-yellow hover:text-yellow/80"
+                              : "text-muted-foreground hover:text-yellow"
+                          )}
+                          title={imovel.visited ? "Marcar como não visitado" : "Marcar como visitado"}
+                        >
+                          <Eye
+                            className="h-4 w-4"
+                            fill={imovel.visited ? "currentColor" : "none"}
+                          />
+                        </button>
+                        <button
+                          onClick={() => handleToggleStrikethrough(imovel.id, imovel.strikethrough)}
+                          className={cn(
+                            "transition-colors p-1",
+                            imovel.strikethrough
+                              ? "text-destructive hover:text-destructive/80"
+                              : "text-muted-foreground hover:text-destructive"
+                          )}
+                          title={imovel.strikethrough ? "Remover riscado" : "Riscar imóvel"}
+                        >
+                          <Strikethrough className="h-4 w-4" />
                         </button>
                         <button
                           onClick={() => setEditingListing(imovel)}
