@@ -32,6 +32,7 @@ import { cn } from "@/lib/utils"
 import { ArrowDownIcon, ArrowUpIcon, MagnifyingGlassIcon } from "@radix-ui/react-icons"
 import { PencilIcon, TrashIcon, LinkIcon, Star, FolderIcon, Eye, Strikethrough } from "lucide-react"
 import { EditModal } from "./edit-modal"
+import { ImageModal } from "./image-modal"
 
 // ============================================================================
 // TYPES
@@ -116,6 +117,7 @@ export function ListingsTable({ listings, onListingsChange, refreshTrigger }: Li
   const [sort, setSort] = useState<SortState>({ key: "preco", direction: "desc" })
   const [editingListing, setEditingListing] = useState<Imovel | null>(null)
   const [focusImageUrl, setFocusImageUrl] = useState(false)
+  const [imageModalListing, setImageModalListing] = useState<Imovel | null>(null)
   const [collections, setCollections] = useState<Collection[]>([])
   const [copyingListingId, setCopyingListingId] = useState<string | null>(null)
 
@@ -564,11 +566,10 @@ export function ListingsTable({ listings, onListingsChange, refreshTrigger }: Li
                         <button
                           type="button"
                           onClick={() => {
-                            setFocusImageUrl(true)
-                            setEditingListing(imovel)
+                            setImageModalListing(imovel)
                           }}
                           className="flex-shrink-0 self-stretch cursor-pointer hover:opacity-80 transition-opacity"
-                          title="Clique para editar URL da imagem"
+                          title="Clique para ver/editar imagem"
                         >
                           {imovel.imageUrl ? (
                             <img
@@ -864,6 +865,19 @@ export function ListingsTable({ listings, onListingsChange, refreshTrigger }: Li
           onListingsChange(updated)
           setEditingListing(null)
           setFocusImageUrl(false)
+        }}
+      />
+
+      {/* Image Modal */}
+      <ImageModal
+        isOpen={imageModalListing !== null}
+        onClose={() => {
+          setImageModalListing(null)
+        }}
+        listing={imageModalListing}
+        onListingUpdated={(updated) => {
+          onListingsChange(updated)
+          setImageModalListing(null)
         }}
       />
     </Card>
