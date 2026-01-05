@@ -685,8 +685,12 @@ export function ListingsTable({ listings, onListingsChange, refreshTrigger }: Li
                           title={imovel.visited ? "Marcar como não visitado" : "Marcar como visitado"}
                         >
                           <Eye
-                            className="h-4 w-4"
+                            className={cn(
+                              "h-4 w-4",
+                              imovel.visited && "[&_*]:fill-current [&_*]:stroke-current"
+                            )}
                             fill={imovel.visited ? "currentColor" : "none"}
+                            stroke="currentColor"
                           />
                         </button>
                         <button
