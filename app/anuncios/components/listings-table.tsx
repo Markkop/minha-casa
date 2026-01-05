@@ -185,6 +185,11 @@ export function ListingsTable({ listings, onListingsChange, refreshTrigger }: Li
     return value ? "✓" : "✕"
   }
 
+  const truncateTitle = (title: string, maxLength: number = 50) => {
+    if (title.length <= maxLength) return title
+    return title.slice(0, maxLength) + "..."
+  }
+
   const formatDate = (value: string | undefined) => {
     if (!value) return "31 dez 2025"
     try {
@@ -481,13 +486,6 @@ export function ListingsTable({ listings, onListingsChange, refreshTrigger }: Li
               <TableHeader>
                 <TableRow className="border-brightGrey hover:bg-transparent">
                   <SortableHeader
-                    label="Adicionado"
-                    sortKey="addedAt"
-                    currentSort={sort}
-                    onSort={handleSort}
-                    align="center"
-                  />
-                  <SortableHeader
                     label="Imóvel"
                     sortKey="titulo"
                     currentSort={sort}
@@ -537,6 +535,13 @@ export function ListingsTable({ listings, onListingsChange, refreshTrigger }: Li
                     align="right"
                   />
                   <TableHead className="text-primary text-center">Piscina</TableHead>
+                  <SortableHeader
+                    label="Adicionado"
+                    sortKey="addedAt"
+                    currentSort={sort}
+                    onSort={handleSort}
+                    align="center"
+                  />
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -547,18 +552,11 @@ export function ListingsTable({ listings, onListingsChange, refreshTrigger }: Li
                       "border-brightGrey",
                       imovel.starred
                         ? "bg-primary/20 hover:bg-primary/30"
+                        : imovel.visited
+                        ? "bg-yellow/20 hover:bg-yellow/30"
                         : "hover:bg-eerieBlack/50"
                     )}
                   >
-                    <TableCell 
-                      className={cn(
-                        "text-center text-sm text-muted-foreground",
-                        imovel.strikethrough && "line-through opacity-50"
-                      )}
-                      title={formatFullDateTime(imovel.createdAt)}
-                    >
-                      {formatDate(imovel.addedAt)}
-                    </TableCell>
                     <TableCell className="min-w-[320px]">
                       <div className="flex min-w-0 flex-col gap-2">
                         <div className="min-w-0">
@@ -573,7 +571,7 @@ export function ListingsTable({ listings, onListingsChange, refreshTrigger }: Li
                               )}
                               title={`Abrir anúncio: ${imovel.titulo}`}
                             >
-                              {imovel.titulo}
+                              {truncateTitle(imovel.titulo)}
                             </a>
                           ) : (
                             <div
@@ -583,7 +581,7 @@ export function ListingsTable({ listings, onListingsChange, refreshTrigger }: Li
                               )}
                               title={imovel.titulo}
                             >
-                              {imovel.titulo}
+                              {truncateTitle(imovel.titulo)}
                             </div>
                           )}
 
@@ -622,14 +620,14 @@ export function ListingsTable({ listings, onListingsChange, refreshTrigger }: Li
                             className={cn(
                               "transition-colors p-1",
                               imovel.visited
-                                ? "text-yellow hover:text-yellow/80 [&_svg_*]:!fill-yellow [&_svg_*]:!stroke-yellow"
+                                ? "text-yellow hover:text-yellow/80 [&_svg_*]:!fill-none [&_svg_*]:!stroke-yellow"
                                 : "text-muted-foreground hover:text-yellow"
                             )}
                             title={imovel.visited ? "Marcar como não visitado" : "Marcar como visitado"}
                           >
                             <Eye
                               className="h-4 w-4"
-                              fill={imovel.visited ? "currentColor" : "none"}
+                              fill="none"
                               stroke="currentColor"
                             />
                           </button>
@@ -801,6 +799,15 @@ export function ListingsTable({ listings, onListingsChange, refreshTrigger }: Li
                       >
                         {formatBoolean(imovel.piscina)}
                       </span>
+                    </TableCell>
+                    <TableCell 
+                      className={cn(
+                        "text-center text-sm text-muted-foreground",
+                        imovel.strikethrough && "line-through opacity-50"
+                      )}
+                      title={formatFullDateTime(imovel.createdAt)}
+                    >
+                      {formatDate(imovel.addedAt)}
                     </TableCell>
                   </TableRow>
                 ))}
