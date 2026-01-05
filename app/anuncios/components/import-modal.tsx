@@ -8,6 +8,7 @@ import {
   getActiveCollection,
   getListingsForCollection,
   setActiveCollection,
+  setDefaultCollection,
   type Imovel,
 } from "../lib/storage"
 import { cn } from "@/lib/utils"
@@ -56,6 +57,7 @@ export function ImportModal({
       // Switch to the imported collection if one was imported
       if (lastImportedCollectionId) {
         setActiveCollection(lastImportedCollectionId)
+        setDefaultCollection(lastImportedCollectionId)
         onSwitchToCollection?.(lastImportedCollectionId)
         
         // Reload listings from the imported collection
@@ -74,7 +76,10 @@ export function ImportModal({
       onImportSuccess?.()
       
       setImportText("")
-      setTimeout(() => setSuccess(null), 3000)
+      setTimeout(() => {
+        setSuccess(null)
+        onClose()
+      }, 500)
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erro ao importar dados")
     }
