@@ -679,16 +679,13 @@ export function ListingsTable({ listings, onListingsChange, refreshTrigger }: Li
                           className={cn(
                             "transition-colors p-1",
                             imovel.visited
-                              ? "text-yellow hover:text-yellow/80"
+                              ? "text-yellow hover:text-yellow/80 [&_svg_*]:!fill-yellow [&_svg_*]:!stroke-yellow"
                               : "text-muted-foreground hover:text-yellow"
                           )}
                           title={imovel.visited ? "Marcar como não visitado" : "Marcar como visitado"}
                         >
                           <Eye
-                            className={cn(
-                              "h-4 w-4",
-                              imovel.visited && "[&_*]:fill-current [&_*]:stroke-current"
-                            )}
+                            className="h-4 w-4"
                             fill={imovel.visited ? "currentColor" : "none"}
                             stroke="currentColor"
                           />
