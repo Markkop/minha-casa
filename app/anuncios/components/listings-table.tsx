@@ -488,6 +488,9 @@ export function ListingsTable({ listings, onListingsChange, refreshTrigger }: Li
             <Table>
               <TableHeader>
                 <TableRow className="border-brightGrey hover:bg-transparent">
+                  <TableHead className="sticky left-0 z-20 bg-raisinBlack">
+                    <span className="text-primary">Imagem</span>
+                  </TableHead>
                   <SortableHeader
                     label="Imóvel"
                     sortKey="titulo"
@@ -552,7 +555,7 @@ export function ListingsTable({ listings, onListingsChange, refreshTrigger }: Li
                   <TableRow
                     key={imovel.id}
                     className={cn(
-                      "border-brightGrey",
+                      "border-brightGrey group",
                       imovel.starred
                         ? "bg-primary/20 hover:bg-primary/30"
                         : imovel.visited
@@ -560,36 +563,48 @@ export function ListingsTable({ listings, onListingsChange, refreshTrigger }: Li
                         : "hover:bg-eerieBlack/50"
                     )}
                   >
+                    {/* Sticky Image Column */}
+                    <TableCell
+                      className="sticky left-0 z-10 p-2 bg-raisinBlack relative"
+                    >
+                      <div
+                        className={cn(
+                          "absolute inset-0 pointer-events-none z-0",
+                          imovel.starred
+                            ? "bg-primary/20 group-hover:bg-primary/30"
+                            : imovel.visited
+                            ? "bg-yellow/20 group-hover:bg-yellow/30"
+                            : "group-hover:bg-eerieBlack/50"
+                        )}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setImageModalListing(imovel)
+                        }}
+                        className="relative z-10 flex-shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
+                        title="Clique para ver/editar imagem"
+                      >
+                        {imovel.imageUrl ? (
+                          <img
+                            src={imovel.imageUrl}
+                            alt={imovel.titulo}
+                            className="h-20 w-20 rounded object-cover border border-brightGrey"
+                            onError={(e) => {
+                              // Hide image on error
+                              e.currentTarget.style.display = 'none'
+                            }}
+                          />
+                        ) : (
+                          <div className="h-20 w-20 rounded bg-eerieBlack border border-brightGrey flex items-center justify-center">
+                            <span className="text-xs text-muted-foreground">🏠</span>
+                          </div>
+                        )}
+                      </button>
+                    </TableCell>
+                    {/* Title, Address, and Actions Column */}
                     <TableCell className="min-w-[320px]">
-                      <div className="flex min-w-0 gap-3">
-                        {/* Thumbnail Image */}
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setImageModalListing(imovel)
-                          }}
-                          className="flex-shrink-0 self-stretch cursor-pointer hover:opacity-80 transition-opacity"
-                          title="Clique para ver/editar imagem"
-                        >
-                          {imovel.imageUrl ? (
-                            <img
-                              src={imovel.imageUrl}
-                              alt={imovel.titulo}
-                              className="h-full w-20 rounded object-cover border border-brightGrey"
-                              onError={(e) => {
-                                // Hide image on error
-                                e.currentTarget.style.display = 'none'
-                              }}
-                            />
-                          ) : (
-                            <div className="h-full w-20 rounded bg-eerieBlack border border-brightGrey flex items-center justify-center">
-                              <span className="text-xs text-muted-foreground">🏠</span>
-                            </div>
-                          )}
-                        </button>
-
-                        {/* Title, Address, and Actions */}
-                        <div className="flex min-w-0 flex-col gap-2 flex-1">
+                      <div className="flex min-w-0 flex-col gap-2">
                           <div className="min-w-0">
                             {imovel.link ? (
                               <a
@@ -767,7 +782,6 @@ export function ListingsTable({ listings, onListingsChange, refreshTrigger }: Li
                               <LinkIcon className="h-4 w-4" />
                             </span>
                           )}
-                        </div>
                         </div>
                       </div>
                     </TableCell>
