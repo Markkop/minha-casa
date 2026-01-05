@@ -484,8 +484,7 @@ export function ListingsTable({ listings, onListingsChange, refreshTrigger }: Li
             </p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <Table>
+          <Table>
               <TableHeader>
                 <TableRow className="border-brightGrey hover:bg-transparent">
                   <TableHead className="sticky left-0 z-20 bg-raisinBlack">
@@ -565,7 +564,7 @@ export function ListingsTable({ listings, onListingsChange, refreshTrigger }: Li
                   >
                     {/* Sticky Image Column */}
                     <TableCell
-                      className="sticky left-0 z-10 p-2 bg-raisinBlack relative"
+                      className="sticky left-0 z-10 p-2 bg-raisinBlack"
                     >
                       <div
                         className={cn(
@@ -862,7 +861,6 @@ export function ListingsTable({ listings, onListingsChange, refreshTrigger }: Li
                 ))}
               </TableBody>
             </Table>
-          </div>
         )}
       </CardContent>
 
