@@ -131,6 +131,30 @@ export function generateCollectionId(): string {
   return `col-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
 }
 
+/**
+ * Generates a unique collection label by appending (2), (3), etc. if needed
+ */
+function getUniqueCollectionLabel(desiredLabel: string, existingCollections: Collection[]): string {
+  const existingLabels = new Set(existingCollections.map(c => c.label))
+  
+  if (!existingLabels.has(desiredLabel)) {
+    return desiredLabel
+  }
+  
+  // Extract base name (remove existing suffix like " (2)")
+  const baseMatch = desiredLabel.match(/^(.+?)(?: \((\d+)\))?$/)
+  const baseName = baseMatch ? baseMatch[1] : desiredLabel
+  
+  let counter = 2
+  let newLabel = `${baseName} (${counter})`
+  while (existingLabels.has(newLabel)) {
+    counter++
+    newLabel = `${baseName} (${counter})`
+  }
+  
+  return newLabel
+}
+
 // ============================================================================
 // COLLECTIONS STORAGE
 // ============================================================================
@@ -571,11 +595,19 @@ export function importCollections(json: string): { data: CollectionsData; lastIm
     // Handle different import formats
     if (Array.isArray(parsed)) {
       // Legacy format: array of Imovel[]
-      // Import listings to active collection
-      const targetId = data.activeCollectionId
-      if (!targetId) {
-        throw new Error("No active collection to import listings into")
+      // Always create a new collection for imported data
+      const newCollectionId = generateCollectionId()
+      const uniqueLabel = getUniqueCollectionLabel("Coleção Importada", data.collections)
+      
+      const newCollection: Collection = {
+        id: newCollectionId,
+        label: uniqueLabel,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        isDefault: false,
       }
+      
+      data.collections.push(newCollection)
 
       const validatedListings = parsed.filter(
         (item): item is Imovel =>
@@ -588,39 +620,32 @@ export function importCollections(json: string): { data: CollectionsData; lastIm
         addedAt: listing.addedAt || "2025-12-31",
       }))
 
-      const existing = data.listings[targetId] || []
-      const existingIds = new Set(existing.map((l) => l.id))
-      const newListings = validatedListings.filter((l) => !existingIds.has(l.id))
-      data.listings[targetId] = [...existing, ...newListings]
-      lastImportedCollectionId = targetId
+      data.listings[newCollectionId] = validatedListings
+      lastImportedCollectionId = newCollectionId
     } else if (parsed.collection && parsed.listings && Array.isArray(parsed.listings)) {
       // CollectionExport format: single collection with listings
       const collectionExport = parsed as CollectionExport
       const { collection, listings } = collectionExport
 
-      if (!collection || !collection.id || !collection.label) {
-        throw new Error("Invalid CollectionExport format: missing collection id or label")
+      if (!collection || !collection.label) {
+        throw new Error("Invalid CollectionExport format: missing collection label")
       }
 
-      // Check if collection already exists
-      const existingIndex = data.collections.findIndex((c) => c.id === collection.id)
-      if (existingIndex !== -1) {
-        // Update existing collection
-        data.collections[existingIndex] = {
-          ...collection,
-          updatedAt: new Date().toISOString(),
-        }
-      } else {
-        // Add new collection
-        data.collections.push({
-          ...collection,
-          updatedAt: new Date().toISOString(),
-        })
+      // Always create a new collection with unique ID and label
+      const newCollectionId = generateCollectionId()
+      const uniqueLabel = getUniqueCollectionLabel(collection.label, data.collections)
+      
+      const newCollection: Collection = {
+        ...collection,
+        id: newCollectionId,
+        label: uniqueLabel,
+        updatedAt: new Date().toISOString(),
+        isDefault: false, // Imported collections are never default
       }
+      
+      data.collections.push(newCollection)
 
-      // Import listings (merge with existing)
-      const existing = data.listings[collection.id] || []
-      const existingIds = new Set(existing.map((l) => l.id))
+      // Import all listings to the new collection
       const validatedListings = listings.filter(
         (item): item is Imovel =>
           typeof item === "object" &&
@@ -631,9 +656,9 @@ export function importCollections(json: string): { data: CollectionsData; lastIm
         ...listing,
         addedAt: listing.addedAt || "2025-12-31",
       }))
-      const newListings = validatedListings.filter((l) => !existingIds.has(l.id))
-      data.listings[collection.id] = [...existing, ...newListings]
-      lastImportedCollectionId = collection.id
+      
+      data.listings[newCollectionId] = validatedListings
+      lastImportedCollectionId = newCollectionId
     } else if (parsed.collections && Array.isArray(parsed.collections)) {
       // FullExport format: multiple collections
       const fullExport = parsed as FullExport
@@ -642,30 +667,26 @@ export function importCollections(json: string): { data: CollectionsData; lastIm
       fullExport.collections.forEach((collectionExport) => {
         const { collection, listings } = collectionExport
 
-        if (!collection || !collection.id || !collection.label) {
+        if (!collection || !collection.label) {
           console.warn("Skipping invalid collection in import")
           return
         }
 
-        // Check if collection already exists
-        const existingIndex = data.collections.findIndex((c) => c.id === collection.id)
-        if (existingIndex !== -1) {
-          // Update existing collection
-          data.collections[existingIndex] = {
-            ...collection,
-            updatedAt: new Date().toISOString(),
-          }
-        } else {
-          // Add new collection
-          data.collections.push({
-            ...collection,
-            updatedAt: new Date().toISOString(),
-          })
+        // Always create a new collection with unique ID and label
+        const newCollectionId = generateCollectionId()
+        const uniqueLabel = getUniqueCollectionLabel(collection.label, data.collections)
+        
+        const newCollection: Collection = {
+          ...collection,
+          id: newCollectionId,
+          label: uniqueLabel,
+          updatedAt: new Date().toISOString(),
+          isDefault: false, // Imported collections are never default
         }
+        
+        data.collections.push(newCollection)
 
-        // Import listings (merge with existing)
-        const existing = data.listings[collection.id] || []
-        const existingIds = new Set(existing.map((l) => l.id))
+        // Import all listings to the new collection
         const validatedListings = listings.filter(
           (item): item is Imovel =>
             typeof item === "object" &&
@@ -676,10 +697,10 @@ export function importCollections(json: string): { data: CollectionsData; lastIm
           ...listing,
           addedAt: listing.addedAt || "2025-12-31",
         }))
-        const newListings = validatedListings.filter((l) => !existingIds.has(l.id))
-        data.listings[collection.id] = [...existing, ...newListings]
+        
+        data.listings[newCollectionId] = validatedListings
         // Track the last collection processed (for FullExport, use the last one)
-        lastImportedCollectionId = collection.id
+        lastImportedCollectionId = newCollectionId
       })
     } else {
       throw new Error("Invalid format: expected FullExport, CollectionExport, or array of Imovel")
