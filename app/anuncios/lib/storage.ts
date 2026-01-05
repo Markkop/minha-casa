@@ -490,7 +490,17 @@ export function exportAllCollections(): string {
 
 export function importToCollection(json: string, collectionId?: string): Imovel[] {
   try {
-    const parsed = JSON.parse(json)
+    let parsed = JSON.parse(json)
+    
+    // Handle minified format (backwards compatibility)
+    if (isMinified(parsed)) {
+      // Root level is minified (CollectionExport format)
+      parsed = expandKeys(parsed)
+    } else if (Array.isArray(parsed) && parsed.length > 0 && isMinified(parsed[0])) {
+      // Array of minified Imovel objects
+      parsed = parsed.map((item) => expandKeys(item))
+    }
+    
     const data = ensureCollectionsData()
     const targetId = collectionId || data.activeCollectionId
     if (!targetId) throw new Error("No target collection")
@@ -543,7 +553,17 @@ export function importToCollection(json: string, collectionId?: string): Imovel[
 
 export function importCollections(json: string): { data: CollectionsData; lastImportedCollectionId: string | null } {
   try {
-    const parsed = JSON.parse(json)
+    let parsed = JSON.parse(json)
+    
+    // Handle minified format (backwards compatibility)
+    if (isMinified(parsed)) {
+      // Root level is minified (CollectionExport format)
+      parsed = expandKeys(parsed)
+    } else if (Array.isArray(parsed) && parsed.length > 0 && isMinified(parsed[0])) {
+      // Array of minified Imovel objects
+      parsed = parsed.map((item) => expandKeys(item))
+    }
+    
     const data = ensureCollectionsData()
     let lastImportedCollectionId: string | null = null
 
@@ -693,6 +713,104 @@ export function importCollections(json: string): { data: CollectionsData; lastIm
 // COMPRESSION UTILITIES FOR URL SHARING
 // ============================================================================
 
+// Key mapping for minification: verbose keys -> short keys
+const KEY_MAP: Record<string, string> = {
+  collection: "c",
+  listings: "l",
+  id: "i",
+  titulo: "t",
+  endereco: "e",
+  m2Totais: "mt",
+  m2Privado: "mp",
+  quartos: "q",
+  suites: "s",
+  banheiros: "b",
+  preco: "p",
+  precoM2: "pm",
+  piscina: "pi",
+  link: "lk",
+  starred: "st",
+  visited: "v",
+  strikethrough: "x",
+  customLat: "la",
+  customLng: "lg",
+  createdAt: "ca",
+  addedAt: "aa",
+  updatedAt: "ua",
+  isDefault: "d",
+  label: "lb",
+}
+
+// Reverse mapping: short keys -> verbose keys
+const REVERSE_KEY_MAP: Record<string, string> = Object.fromEntries(
+  Object.entries(KEY_MAP).map(([k, v]) => [v, k])
+)
+
+/**
+ * Recursively minifies object keys using KEY_MAP
+ */
+function minifyKeys(obj: unknown): unknown {
+  if (obj === null || obj === undefined) {
+    return obj
+  }
+
+  if (Array.isArray(obj)) {
+    return obj.map((item) => minifyKeys(item))
+  }
+
+  if (typeof obj === "object") {
+    const result: Record<string, unknown> = {}
+    for (const [key, value] of Object.entries(obj)) {
+      const minifiedKey = KEY_MAP[key] || key
+      result[minifiedKey] = minifyKeys(value)
+    }
+    return result
+  }
+
+  return obj
+}
+
+/**
+ * Recursively expands object keys using REVERSE_KEY_MAP
+ */
+function expandKeys(obj: unknown): unknown {
+  if (obj === null || obj === undefined) {
+    return obj
+  }
+
+  if (Array.isArray(obj)) {
+    return obj.map((item) => expandKeys(item))
+  }
+
+  if (typeof obj === "object") {
+    const result: Record<string, unknown> = {}
+    for (const [key, value] of Object.entries(obj)) {
+      const expandedKey = REVERSE_KEY_MAP[key] || key
+      result[expandedKey] = expandKeys(value)
+    }
+    return result
+  }
+
+  return obj
+}
+
+/**
+ * Checks if data uses minified keys (backwards compatibility check)
+ */
+function isMinified(data: unknown): boolean {
+  if (typeof data === "object" && data !== null && !Array.isArray(data)) {
+    // Check if root level has "c" (minified "collection") instead of "collection"
+    if ("c" in data && !("collection" in data)) {
+      return true
+    }
+    // Check if object has minified Imovel keys (e.g., "t" instead of "titulo")
+    if ("t" in data && !("titulo" in data)) {
+      return true
+    }
+  }
+  return false
+}
+
 export function compressCollectionData(collectionId?: string): string {
   if (typeof window === "undefined") {
     throw new Error("Compression is only available in the browser")
@@ -712,7 +830,9 @@ export function compressCollectionData(collectionId?: string): string {
     listings,
   }
 
-  const json = JSON.stringify(exportData)
+  // Minify keys before stringifying to reduce JSON size
+  const minified = minifyKeys(exportData)
+  const json = JSON.stringify(minified)
   const compressed = LZString.compressToEncodedURIComponent(json)
   return compressed
 }
@@ -729,14 +849,19 @@ export function decompressCollectionData(compressed: string): CollectionExport {
     if (!json) {
       throw new Error("Failed to decompress data")
     }
-    const parsed = JSON.parse(json) as CollectionExport
+    const parsed = JSON.parse(json)
+    
+    // Check if data uses minified keys (backwards compatibility)
+    // If minified, expand keys; otherwise use as-is for old share links
+    const expanded = isMinified(parsed) ? expandKeys(parsed) : parsed
+    const result = expanded as CollectionExport
     
     // Validate structure
-    if (!parsed.collection || !parsed.listings || !Array.isArray(parsed.listings)) {
+    if (!result.collection || !result.listings || !Array.isArray(result.listings)) {
       throw new Error("Invalid data format")
     }
     
-    return parsed
+    return result
   } catch (error) {
     console.error("Failed to decompress collection data:", error)
     throw error
