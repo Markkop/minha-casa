@@ -560,8 +560,8 @@ export function ListingsTable({ listings, onListingsChange, refreshTrigger }: Li
                       {formatDate(imovel.addedAt)}
                     </TableCell>
                     <TableCell className="min-w-[320px]">
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0 flex-1">
+                      <div className="flex min-w-0 flex-col gap-2">
+                        <div className="min-w-0">
                           {imovel.link ? (
                             <a
                               href={imovel.link}
@@ -601,7 +601,7 @@ export function ListingsTable({ listings, onListingsChange, refreshTrigger }: Li
                           </a>
                         </div>
 
-                        <div className="flex items-center gap-2 justify-end flex-wrap">
+                        <div className="flex items-center gap-2 flex-wrap">
                           <button
                             onClick={() => handleToggleStar(imovel.id, imovel.starred)}
                             className={cn(
