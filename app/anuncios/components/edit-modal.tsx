@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -19,6 +19,7 @@ interface EditModalProps {
   isOpen: boolean
   onClose: () => void
   listing: Imovel | null
+  focusImageUrl?: boolean
   onListingUpdated: (listings: Imovel[]) => void
 }
 
@@ -26,6 +27,7 @@ export function EditModal({
   isOpen,
   onClose,
   listing,
+  focusImageUrl = false,
   onListingUpdated,
 }: EditModalProps) {
   const [formData, setFormData] = useState<Partial<Imovel>>({
@@ -39,9 +41,11 @@ export function EditModal({
     preco: null,
     piscina: null,
     link: null,
+    imageUrl: null,
     addedAt: undefined,
   })
   const [error, setError] = useState<string | null>(null)
+  const imageUrlInputRef = useRef<HTMLInputElement>(null)
 
   // Pre-populate form when modal opens or listing changes
   useEffect(() => {
@@ -57,11 +61,19 @@ export function EditModal({
         preco: listing.preco,
         piscina: listing.piscina,
         link: listing.link,
+        imageUrl: listing.imageUrl,
         addedAt: listing.addedAt || "2025-12-31",
       })
       setError(null)
+      
+      // Focus on imageUrl field only if opened via image click
+      if (focusImageUrl) {
+        setTimeout(() => {
+          imageUrlInputRef.current?.focus()
+        }, 100)
+      }
     }
-  }, [isOpen, listing])
+  }, [isOpen, listing, focusImageUrl])
 
   const handleInputChange = (
     field: keyof Imovel,
@@ -312,6 +324,22 @@ export function EditModal({
                 value={formData.link || ""}
                 onChange={(e) => handleInputChange("link", e.target.value)}
                 placeholder="Ex: https://www.zapimoveis.com.br/imovel/..."
+                className="bg-eerieBlack border-brightGrey text-white placeholder:text-muted-foreground"
+              />
+            </div>
+
+            {/* Image URL */}
+            <div className="md:col-span-2 space-y-2">
+              <Label htmlFor="imageUrl" className="text-sm text-ashGray">
+                Image URL
+              </Label>
+              <Input
+                ref={imageUrlInputRef}
+                id="imageUrl"
+                type="url"
+                value={formData.imageUrl || ""}
+                onChange={(e) => handleInputChange("imageUrl", e.target.value)}
+                placeholder="Ex: https://example.com/image.jpg"
                 className="bg-eerieBlack border-brightGrey text-white placeholder:text-muted-foreground"
               />
             </div>

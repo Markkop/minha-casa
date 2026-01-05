@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -28,6 +28,9 @@ export function ParserModal({
   const [error, setError] = useState<string | null>(null)
   const [lastParsed, setLastParsed] = useState<Imovel | null>(null)
   const [linkValue, setLinkValue] = useState("")
+  const [imageValue, setImageValue] = useState("")
+  const [addressValue, setAddressValue] = useState("")
+  const linkInputRef = useRef<HTMLInputElement>(null)
 
   // Reset state when modal opens
   useEffect(() => {
@@ -36,8 +39,24 @@ export function ParserModal({
       setError(null)
       setLastParsed(null)
       setLinkValue("")
+      setImageValue("")
+      setAddressValue("")
     }
   }, [isOpen])
+
+  // Initialize address value when parsed
+  useEffect(() => {
+    if (lastParsed) {
+      setAddressValue(lastParsed.endereco || "")
+    }
+  }, [lastParsed])
+
+  // Auto-focus link input after parsing
+  useEffect(() => {
+    if (lastParsed && linkInputRef.current) {
+      linkInputRef.current.focus()
+    }
+  }, [lastParsed])
 
   const handleParse = async () => {
     if (!rawText.trim()) {
@@ -86,8 +105,19 @@ export function ParserModal({
   const handleSaveAndClose = () => {
     if (!lastParsed) return
 
+    const updates: Partial<Imovel> = {}
+    if (addressValue.trim()) {
+      updates.endereco = addressValue.trim()
+    }
     if (linkValue.trim()) {
-      const updated = updateListing(lastParsed.id, { link: linkValue.trim() })
+      updates.link = linkValue.trim()
+    }
+    if (imageValue.trim()) {
+      updates.imageUrl = imageValue.trim()
+    }
+
+    if (Object.keys(updates).length > 0) {
+      const updated = updateListing(lastParsed.id, updates)
       onListingAdded(updated)
     }
     onClose()
@@ -137,7 +167,7 @@ export function ParserModal({
         </CardHeader>
         <CardContent className="flex-1 flex flex-col gap-4 overflow-y-auto">
           {/* API Key Warning */}
-          {!hasApiKey && (
+          {!lastParsed && !hasApiKey && (
             <div className="bg-destructive/10 border border-destructive/30 rounded-lg p-3">
               <p className="text-sm text-destructive">
                 Configure sua chave API OpenAI para usar o parser.{" "}
@@ -152,24 +182,26 @@ export function ParserModal({
           )}
 
           {/* Textarea for raw text */}
-          <div className="flex flex-col gap-2">
-            <label className="text-sm text-ashGray">
-              Cole o texto do anúncio aqui:
-            </label>
-            <textarea
-              value={rawText}
-              onChange={(e) => setRawText(e.target.value)}
-              placeholder="Cole aqui o texto completo do anúncio de imóvel (de sites como ZAP, OLX, VivaReal, etc.)..."
-              className={cn(
-                "min-h-[200px] w-full rounded-lg border bg-input/30 px-4 py-3 text-sm resize-none",
-                "placeholder:text-muted-foreground",
-                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                "disabled:cursor-not-allowed disabled:opacity-50",
-                "border-brightGrey"
-              )}
-              disabled={isLoading}
-            />
-          </div>
+          {!lastParsed && (
+            <div className="flex flex-col gap-2">
+              <label className="text-sm text-ashGray">
+                Cole o texto do anúncio aqui:
+              </label>
+              <textarea
+                value={rawText}
+                onChange={(e) => setRawText(e.target.value)}
+                placeholder="Cole aqui o texto completo do anúncio de imóvel (de sites como ZAP, OLX, VivaReal, etc.)..."
+                className={cn(
+                  "min-h-[200px] w-full rounded-lg border bg-input/30 px-4 py-3 text-sm resize-none",
+                  "placeholder:text-muted-foreground",
+                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                  "disabled:cursor-not-allowed disabled:opacity-50",
+                  "border-brightGrey"
+                )}
+                disabled={isLoading}
+              />
+            </div>
+          )}
 
           {/* Error message */}
           {error && (
@@ -179,29 +211,31 @@ export function ParserModal({
           )}
 
           {/* Parse button */}
-          <button
-            onClick={handleParse}
-            disabled={isLoading || !hasApiKey || !rawText.trim()}
-            className={cn(
-              "w-full py-3 px-4 rounded-lg font-medium transition-all",
-              "bg-primary text-primary-foreground",
-              "hover:bg-primary/90",
-              "disabled:opacity-50 disabled:cursor-not-allowed",
-              "flex items-center justify-center gap-2"
-            )}
-          >
-            {isLoading ? (
-              <>
-                <span className="animate-spin">⏳</span>
-                Processando...
-              </>
-            ) : (
-              <>
-                <span>✨</span>
-                Extrair Dados com IA
-              </>
-            )}
-          </button>
+          {!lastParsed && (
+            <button
+              onClick={handleParse}
+              disabled={isLoading || !hasApiKey || !rawText.trim()}
+              className={cn(
+                "w-full py-3 px-4 rounded-lg font-medium transition-all",
+                "bg-primary text-primary-foreground",
+                "hover:bg-primary/90",
+                "disabled:opacity-50 disabled:cursor-not-allowed",
+                "flex items-center justify-center gap-2"
+              )}
+            >
+              {isLoading ? (
+                <>
+                  <span className="animate-spin">⏳</span>
+                  Processando...
+                </>
+              ) : (
+                <>
+                  <span>✨</span>
+                  Extrair Dados com IA
+                </>
+              )}
+            </button>
+          )}
 
           {/* Last parsed result */}
           {lastParsed && (
@@ -240,11 +274,42 @@ export function ParserModal({
                   Link (opcional)
                 </Label>
                 <Input
+                  ref={linkInputRef}
                   id="link-input"
                   type="url"
                   value={linkValue}
                   onChange={(e) => setLinkValue(e.target.value)}
                   placeholder="Ex: https://www.zapimoveis.com.br/imovel/..."
+                  className="bg-eerieBlack border-brightGrey text-white placeholder:text-muted-foreground"
+                />
+              </div>
+
+              {/* Image URL input field */}
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="image-input" className="text-sm text-ashGray">
+                  Imagem (opcional)
+                </Label>
+                <Input
+                  id="image-input"
+                  type="url"
+                  value={imageValue}
+                  onChange={(e) => setImageValue(e.target.value)}
+                  placeholder="Ex: https://example.com/image.jpg"
+                  className="bg-eerieBlack border-brightGrey text-white placeholder:text-muted-foreground"
+                />
+              </div>
+
+              {/* Address input field */}
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="address-input" className="text-sm text-ashGray">
+                  Endereço
+                </Label>
+                <Input
+                  id="address-input"
+                  type="text"
+                  value={addressValue}
+                  onChange={(e) => setAddressValue(e.target.value)}
+                  placeholder="Ex: Rua das Flores, 123 - Bairro, Cidade - Estado"
                   className="bg-eerieBlack border-brightGrey text-white placeholder:text-muted-foreground"
                 />
               </div>
@@ -266,14 +331,16 @@ export function ParserModal({
           )}
 
           {/* Instructions */}
-          <div className="text-xs text-muted-foreground space-y-1">
-            <p className="font-medium text-ashGray">Dicas:</p>
-            <ul className="list-disc list-inside space-y-0.5">
-              <li>Copie todo o texto do anúncio, incluindo descrição</li>
-              <li>Funciona com anúncios de ZAP, OLX, VivaReal, QuintoAndar</li>
-              <li>A IA extrai automaticamente os dados estruturados</li>
-            </ul>
-          </div>
+          {!lastParsed && (
+            <div className="text-xs text-muted-foreground space-y-1">
+              <p className="font-medium text-ashGray">Dicas:</p>
+              <ul className="list-disc list-inside space-y-0.5">
+                <li>Copie todo o texto do anúncio, incluindo descrição</li>
+                <li>Funciona com anúncios de ZAP, OLX, VivaReal, QuintoAndar</li>
+                <li>A IA extrai automaticamente os dados estruturados</li>
+              </ul>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

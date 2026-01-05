@@ -115,6 +115,7 @@ export function ListingsTable({ listings, onListingsChange, refreshTrigger }: Li
   const [searchQuery, setSearchQuery] = useState("")
   const [sort, setSort] = useState<SortState>({ key: "preco", direction: "desc" })
   const [editingListing, setEditingListing] = useState<Imovel | null>(null)
+  const [focusImageUrl, setFocusImageUrl] = useState(false)
   const [collections, setCollections] = useState<Collection[]>([])
   const [copyingListingId, setCopyingListingId] = useState<string | null>(null)
 
@@ -558,46 +559,75 @@ export function ListingsTable({ listings, onListingsChange, refreshTrigger }: Li
                     )}
                   >
                     <TableCell className="min-w-[320px]">
-                      <div className="flex min-w-0 flex-col gap-2">
-                        <div className="min-w-0">
-                          {imovel.link ? (
+                      <div className="flex min-w-0 gap-3">
+                        {/* Thumbnail Image */}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setFocusImageUrl(true)
+                            setEditingListing(imovel)
+                          }}
+                          className="flex-shrink-0 self-stretch cursor-pointer hover:opacity-80 transition-opacity"
+                          title="Clique para editar URL da imagem"
+                        >
+                          {imovel.imageUrl ? (
+                            <img
+                              src={imovel.imageUrl}
+                              alt={imovel.titulo}
+                              className="h-full w-20 rounded object-cover border border-brightGrey"
+                              onError={(e) => {
+                                // Hide image on error
+                                e.currentTarget.style.display = 'none'
+                              }}
+                            />
+                          ) : (
+                            <div className="h-full w-20 rounded bg-eerieBlack border border-brightGrey flex items-center justify-center">
+                              <span className="text-xs text-muted-foreground">🏠</span>
+                            </div>
+                          )}
+                        </button>
+
+                        {/* Title, Address, and Actions */}
+                        <div className="flex min-w-0 flex-col gap-2 flex-1">
+                          <div className="min-w-0">
+                            {imovel.link ? (
+                              <a
+                                href={imovel.link}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className={cn(
+                                  "block font-medium leading-snug truncate hover:text-primary transition-colors cursor-pointer",
+                                  imovel.strikethrough && "line-through opacity-50"
+                                )}
+                                title={`Abrir anúncio: ${imovel.titulo}`}
+                              >
+                                {truncateTitle(imovel.titulo)}
+                              </a>
+                            ) : (
+                              <div
+                                className={cn(
+                                  "block font-medium leading-snug truncate",
+                                  imovel.strikethrough && "line-through opacity-50"
+                                )}
+                                title={imovel.titulo}
+                              >
+                                {truncateTitle(imovel.titulo)}
+                              </div>
+                            )}
+
                             <a
-                              href={imovel.link}
+                              href={buildGoogleMapsUrl(imovel.endereco)}
                               target="_blank"
                               rel="noopener noreferrer"
                               className={cn(
-                                "block font-medium leading-snug truncate hover:text-primary transition-colors cursor-pointer",
+                                "block text-xs text-muted-foreground truncate hover:text-primary transition-colors underline decoration-dotted underline-offset-2",
                                 imovel.strikethrough && "line-through opacity-50"
                               )}
-                              title={`Abrir anúncio: ${imovel.titulo}`}
+                              title={`Abrir ${imovel.endereco} no Google Maps`}
                             >
-                              {truncateTitle(imovel.titulo)}
+                              {imovel.endereco}
                             </a>
-                          ) : (
-                            <div
-                              className={cn(
-                                "block font-medium leading-snug truncate",
-                                imovel.strikethrough && "line-through opacity-50"
-                              )}
-                              title={imovel.titulo}
-                            >
-                              {truncateTitle(imovel.titulo)}
-                            </div>
-                          )}
-
-                          <a
-                            href={buildGoogleMapsUrl(imovel.endereco)}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className={cn(
-                              "block text-xs text-muted-foreground truncate hover:text-primary transition-colors underline decoration-dotted underline-offset-2",
-                              imovel.strikethrough && "line-through opacity-50"
-                            )}
-                            title={`Abrir ${imovel.endereco} no Google Maps`}
-                          >
-                            {imovel.endereco}
-                          </a>
-                        </div>
+                          </div>
 
                         <div className="flex items-center gap-2 flex-wrap">
                           <button
@@ -644,7 +674,10 @@ export function ListingsTable({ listings, onListingsChange, refreshTrigger }: Li
                             <Strikethrough className="h-4 w-4" />
                           </button>
                           <button
-                            onClick={() => setEditingListing(imovel)}
+                            onClick={() => {
+                              setFocusImageUrl(false)
+                              setEditingListing(imovel)
+                            }}
                             className="text-muted-foreground hover:text-primary transition-colors p-1"
                             title="Editar imóvel"
                           >
@@ -734,6 +767,7 @@ export function ListingsTable({ listings, onListingsChange, refreshTrigger }: Li
                             </span>
                           )}
                         </div>
+                        </div>
                       </div>
                     </TableCell>
                     <TableCell className={cn(
@@ -820,11 +854,16 @@ export function ListingsTable({ listings, onListingsChange, refreshTrigger }: Li
       {/* Edit Modal */}
       <EditModal
         isOpen={editingListing !== null}
-        onClose={() => setEditingListing(null)}
+        onClose={() => {
+          setEditingListing(null)
+          setFocusImageUrl(false)
+        }}
         listing={editingListing}
+        focusImageUrl={focusImageUrl}
         onListingUpdated={(updated) => {
           onListingsChange(updated)
           setEditingListing(null)
+          setFocusImageUrl(false)
         }}
       />
     </Card>

@@ -20,6 +20,7 @@ export interface Imovel {
   precoM2: number | null
   piscina: boolean | null
   link: string | null
+  imageUrl?: string | null
   starred?: boolean
   visited?: boolean
   strikethrough?: boolean
@@ -729,6 +730,7 @@ const KEY_MAP: Record<string, string> = {
   precoM2: "pm",
   piscina: "pi",
   link: "lk",
+  imageUrl: "iu",
   starred: "st",
   visited: "v",
   strikethrough: "x",
@@ -832,6 +834,7 @@ const IMOVEL_KEYS_ORDER: (keyof Imovel)[] = [
   "precoM2",
   "piscina",
   "link",
+  "imageUrl",
   "starred",
   "visited",
   "strikethrough",
