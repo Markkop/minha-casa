@@ -557,8 +557,6 @@ export function ListingsTable({ listings, onListingsChange, refreshTrigger }: Li
                       "border-brightGrey group",
                       imovel.starred
                         ? "bg-primary/20 hover:bg-primary/30"
-                        : imovel.visited
-                        ? "bg-yellow/20 hover:bg-yellow/30"
                         : "hover:bg-eerieBlack/50"
                     )}
                   >
@@ -571,8 +569,6 @@ export function ListingsTable({ listings, onListingsChange, refreshTrigger }: Li
                           "absolute inset-0 pointer-events-none z-0",
                           imovel.starred
                             ? "bg-primary/20 group-hover:bg-primary/30"
-                            : imovel.visited
-                            ? "bg-yellow/20 group-hover:bg-yellow/30"
                             : "group-hover:bg-eerieBlack/50"
                         )}
                       />
