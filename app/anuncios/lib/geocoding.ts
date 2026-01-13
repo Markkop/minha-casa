@@ -1,18 +1,18 @@
 // ============================================================================
 // GEOCODING SERVICE
-// Uses Nominatim (OpenStreetMap) for free geocoding without API keys
+// Primary: Google Maps Geocoding API (better accuracy for Brazil)
+// Fallback: Nominatim (OpenStreetMap) for when Google fails
 // ============================================================================
 
-const GEOCODE_CACHE_KEY = "geocode-cache"
-const NOMINATIM_BASE_URL = "https://nominatim.openstreetmap.org/search"
+import { geocodeWithNominatim, geocodeBatchWithNominatim } from "./geocoding-nominatim"
 
-// Rate limiting: Nominatim allows 1 request per second
-const RATE_LIMIT_MS = 1100
+const GEOCODE_CACHE_KEY = "geocode-cache-v2" // Bumped version for new provider
 
 export interface GeocodedLocation {
   lat: number
   lng: number
   displayName: string
+  provider?: "google" | "nominatim"
 }
 
 interface GeocodeCache {
@@ -51,12 +51,153 @@ function setCachedLocation(address: string, location: GeocodedLocation | null): 
 }
 
 // ============================================================================
-// GEOCODING
+// ADDRESS TYPE DETECTION
 // ============================================================================
 
 /**
- * Geocode a single address using Nominatim
- * Returns null if the address cannot be geocoded
+ * Detect if address looks like a condominium or named place
+ * These benefit from Find Place API instead of regular geocoding
+ */
+export function isCondominiumAddress(address: string): boolean {
+  const condoPatterns = [
+    /condom[íi]nio/i,
+    /residencial/i,
+    /village/i,
+    /ed[íi]f[íi]cio/i,
+    /torre\s/i,
+    /bloco\s/i,
+    /loteamento/i,
+    /parque\s/i,
+  ]
+  return condoPatterns.some(pattern => pattern.test(address))
+}
+
+// ============================================================================
+// GOOGLE MAPS GEOCODING
+// ============================================================================
+
+/**
+ * Check if Google Maps API is available
+ */
+function isGoogleMapsAvailable(): boolean {
+  return typeof window !== "undefined" && 
+         typeof google !== "undefined" && 
+         typeof google.maps !== "undefined" &&
+         typeof google.maps.Geocoder !== "undefined"
+}
+
+/**
+ * Check if Google Places API is available
+ */
+function isGooglePlacesAvailable(): boolean {
+  return typeof window !== "undefined" && 
+         typeof google !== "undefined" && 
+         typeof google.maps !== "undefined" &&
+         typeof google.maps.places !== "undefined"
+}
+
+/**
+ * Geocode address using Google Maps Geocoding API
+ */
+async function geocodeWithGoogle(address: string): Promise<GeocodedLocation | null> {
+  if (!isGoogleMapsAvailable()) {
+    console.warn("[Google] Geocoding API not available")
+    return null
+  }
+
+  try {
+    const geocoder = new google.maps.Geocoder()
+    
+    // Add Florianópolis context for better results
+    const searchAddress = address.toLowerCase().includes("florianópolis") || 
+                          address.toLowerCase().includes("florianopolis")
+      ? address
+      : `${address}, Florianópolis, SC, Brasil`
+
+    const request: google.maps.GeocoderRequest = {
+      address: searchAddress,
+      componentRestrictions: { country: "BR" },
+      region: "BR",
+    }
+
+    return new Promise((resolve) => {
+      geocoder.geocode(request, (results, status) => {
+        if (status === "OK" && results && results[0]) {
+          const location = results[0].geometry.location
+          resolve({
+            lat: location.lat(),
+            lng: location.lng(),
+            displayName: results[0].formatted_address,
+            provider: "google",
+          })
+        } else {
+          console.warn(`[Google] Geocoding status: ${status} for "${address}"`)
+          resolve(null)
+        }
+      })
+    })
+  } catch (error) {
+    console.error(`[Google] Geocoding error for "${address}":`, error)
+    return null
+  }
+}
+
+/**
+ * Find place by name using Google Places API (better for condominiums)
+ */
+async function findPlaceWithGoogle(placeName: string): Promise<GeocodedLocation | null> {
+  if (!isGooglePlacesAvailable()) {
+    console.warn("[Google] Places API not available")
+    return null
+  }
+
+  try {
+    // PlacesService requires a DOM element or map
+    const service = new google.maps.places.PlacesService(document.createElement("div"))
+    
+    const searchQuery = placeName.toLowerCase().includes("florianópolis") || 
+                        placeName.toLowerCase().includes("florianopolis")
+      ? placeName
+      : `${placeName}, Florianópolis, SC`
+
+    const request: google.maps.places.FindPlaceFromQueryRequest = {
+      query: searchQuery,
+      fields: ["geometry", "name", "formatted_address"],
+    }
+
+    return new Promise((resolve) => {
+      service.findPlaceFromQuery(request, (results, status) => {
+        if (status === "OK" && results && results[0]?.geometry?.location) {
+          const loc = results[0].geometry.location
+          resolve({
+            lat: loc.lat(),
+            lng: loc.lng(),
+            displayName: results[0].formatted_address || results[0].name || placeName,
+            provider: "google",
+          })
+        } else {
+          console.warn(`[Google Places] Status: ${status} for "${placeName}"`)
+          resolve(null)
+        }
+      })
+    })
+  } catch (error) {
+    console.error(`[Google Places] Error for "${placeName}":`, error)
+    return null
+  }
+}
+
+// ============================================================================
+// MAIN GEOCODING FUNCTIONS
+// ============================================================================
+
+/**
+ * Geocode a single address
+ * Strategy:
+ * 1. Check cache first
+ * 2. If condominium-like address, try Google Places API
+ * 3. Try Google Geocoding API
+ * 4. Fallback to Nominatim
  */
 export async function geocodeAddress(address: string): Promise<GeocodedLocation | null> {
   // Check cache first
@@ -65,55 +206,33 @@ export async function geocodeAddress(address: string): Promise<GeocodedLocation 
     return cached
   }
 
-  try {
-    // Add Florianópolis context for better results
-    const searchQuery = address.toLowerCase().includes("florianópolis") || 
-                        address.toLowerCase().includes("florianopolis")
-      ? address
-      : `${address}, Florianópolis, Santa Catarina, Brasil`
+  let location: GeocodedLocation | null = null
 
-    const params = new URLSearchParams({
-      q: searchQuery,
-      format: "json",
-      limit: "1",
-      addressdetails: "1",
-    })
-
-    const response = await fetch(`${NOMINATIM_BASE_URL}?${params}`, {
-      headers: {
-        // Nominatim requires a valid User-Agent
-        "User-Agent": "MinhaCasa/1.0 (Real Estate Listing App)",
-      },
-    })
-
-    if (!response.ok) {
-      console.warn(`Geocoding failed for "${address}": ${response.status}`)
-      setCachedLocation(address, null)
-      return null
+  // Try Google APIs if available
+  if (isGoogleMapsAvailable()) {
+    // For condominium-like addresses, try Places API first
+    if (isCondominiumAddress(address)) {
+      location = await findPlaceWithGoogle(address)
     }
-
-    const data = await response.json()
-
-    if (!data || data.length === 0) {
-      console.warn(`No geocoding results for "${address}"`)
-      setCachedLocation(address, null)
-      return null
+    
+    // If no result from Places, try regular geocoding
+    if (!location) {
+      location = await geocodeWithGoogle(address)
     }
-
-    const result = data[0]
-    const location: GeocodedLocation = {
-      lat: parseFloat(result.lat),
-      lng: parseFloat(result.lon),
-      displayName: result.display_name,
-    }
-
-    setCachedLocation(address, location)
-    return location
-  } catch (error) {
-    console.error(`Geocoding error for "${address}":`, error)
-    setCachedLocation(address, null)
-    return null
   }
+
+  // Fallback to Nominatim
+  if (!location) {
+    console.log(`[Geocoding] Falling back to Nominatim for "${address}"`)
+    const nominatimResult = await geocodeWithNominatim(address)
+    if (nominatimResult) {
+      location = { ...nominatimResult, provider: "nominatim" }
+    }
+  }
+
+  // Cache the result (even if null)
+  setCachedLocation(address, location)
+  return location
 }
 
 /**
@@ -124,8 +243,8 @@ function sleep(ms: number): Promise<void> {
 }
 
 /**
- * Geocode multiple addresses with rate limiting
- * Returns a map of address -> location (or null if not found)
+ * Geocode multiple addresses
+ * Uses parallel requests for Google (faster), sequential for Nominatim (rate limited)
  */
 export async function geocodeAddresses(
   addresses: string[],
@@ -144,19 +263,60 @@ export async function geocodeAddresses(
     }
   }
 
-  // Geocode uncached addresses with rate limiting
-  for (let i = 0; i < uncached.length; i++) {
-    const address = uncached[i]
-    const location = await geocodeAddress(address)
-    results.set(address, location)
+  // Report initial progress (cached items)
+  if (onProgress && uncached.length < addresses.length) {
+    onProgress(addresses.length - uncached.length, addresses.length)
+  }
 
-    if (onProgress) {
-      onProgress(addresses.length - uncached.length + i + 1, addresses.length)
+  if (uncached.length === 0) {
+    return results
+  }
+
+  // If Google is available, geocode in parallel (much faster)
+  if (isGoogleMapsAvailable()) {
+    // Process in batches to avoid overwhelming the API
+    const BATCH_SIZE = 5
+    let completed = addresses.length - uncached.length
+
+    for (let i = 0; i < uncached.length; i += BATCH_SIZE) {
+      const batch = uncached.slice(i, i + BATCH_SIZE)
+      const batchResults = await Promise.all(
+        batch.map(async (address) => {
+          const location = await geocodeAddress(address)
+          return { address, location }
+        })
+      )
+
+      for (const { address, location } of batchResults) {
+        results.set(address, location)
+      }
+
+      completed += batch.length
+      if (onProgress) {
+        onProgress(completed, addresses.length)
+      }
+
+      // Small delay between batches
+      if (i + BATCH_SIZE < uncached.length) {
+        await sleep(100)
+      }
     }
+  } else {
+    // Fallback to Nominatim (sequential, rate limited)
+    console.log("[Geocoding] Google not available, using Nominatim")
+    const nominatimResults = await geocodeBatchWithNominatim(
+      uncached,
+      (completed, total) => {
+        if (onProgress) {
+          onProgress(addresses.length - uncached.length + completed, addresses.length)
+        }
+      }
+    )
 
-    // Rate limiting: wait between requests (except for last one)
-    if (i < uncached.length - 1) {
-      await sleep(RATE_LIMIT_MS)
+    for (const [address, location] of nominatimResults) {
+      const result = location ? { ...location, provider: "nominatim" as const } : null
+      results.set(address, result)
+      setCachedLocation(address, result)
     }
   }
 
@@ -187,4 +347,3 @@ export function clearCacheForAddresses(addresses: string[]): void {
   }
   saveCache(cache)
 }
-
