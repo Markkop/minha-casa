@@ -51,11 +51,12 @@ export function AnunciosClient() {
     setApiKeyConfigured(checkHasApiKey())
     setIsLoaded(true)
 
-    // Check for share parameter in URL
+    // Check for share parameters in URL
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search)
-      const shareParam = params.get("share")
       
+      // Handle URL-based share (compressed in URL)
+      const shareParam = params.get("share")
       if (shareParam) {
         try {
           const decompressed = decompressCollectionData(shareParam)
@@ -68,6 +69,37 @@ export function AnunciosClient() {
         } catch (error) {
           console.error("Failed to process share link:", error)
         }
+        return // Don't process dbshare if share is present
+      }
+      
+      // Handle database-based share (token in URL)
+      const dbShareParam = params.get("dbshare")
+      if (dbShareParam) {
+        // Fetch from API
+        fetch(`/api/share/${dbShareParam}`)
+          .then((response) => {
+            if (!response.ok) {
+              throw new Error("Share not found")
+            }
+            return response.json()
+          })
+          .then((data) => {
+            if (data.collection && data.listings) {
+              setShareData({
+                collection: data.collection,
+                listings: data.listings,
+              })
+              setShowShareConfirm(true)
+            }
+          })
+          .catch((error) => {
+            console.error("Failed to fetch database share:", error)
+          })
+          .finally(() => {
+            // Clean URL without reloading
+            const newUrl = window.location.pathname
+            window.history.replaceState({}, "", newUrl)
+          })
       }
     }
   }, [])

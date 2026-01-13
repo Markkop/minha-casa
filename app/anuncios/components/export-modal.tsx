@@ -7,6 +7,7 @@ import {
   exportCollection,
   getActiveCollection,
   compressCollectionDataCompact,
+  getListingsForCollection,
 } from "../lib/storage"
 import { cn } from "@/lib/utils"
 
@@ -23,6 +24,12 @@ export function ExportModal({
   const [success, setSuccess] = useState<string | null>(null)
   const [copySuccess, setCopySuccess] = useState(false)
   const [shareCopySuccess, setShareCopySuccess] = useState(false)
+  
+  // Database share state
+  const [dbPassword, setDbPassword] = useState("")
+  const [dbShareLoading, setDbShareLoading] = useState(false)
+  const [dbShareUrl, setDbShareUrl] = useState<string | null>(null)
+  const [dbShareCopySuccess, setDbShareCopySuccess] = useState(false)
 
   useEffect(() => {
     if (isOpen) {
@@ -30,6 +37,9 @@ export function ExportModal({
       setSuccess(null)
       setCopySuccess(false)
       setShareCopySuccess(false)
+      setDbPassword("")
+      setDbShareUrl(null)
+      setDbShareCopySuccess(false)
     }
   }, [isOpen])
 
@@ -91,6 +101,71 @@ export function ExportModal({
     }
   }
 
+  const handleCreateDbShare = async () => {
+    if (!dbPassword.trim()) {
+      setError("Digite a senha mestre para criar o link")
+      return
+    }
+
+    setDbShareLoading(true)
+    setError(null)
+    setDbShareUrl(null)
+
+    try {
+      const activeCollection = getActiveCollection()
+      if (!activeCollection) {
+        throw new Error("Nenhuma coleção ativa")
+      }
+
+      const listings = getListingsForCollection(activeCollection.id)
+      const collectionData = {
+        collection: activeCollection,
+        listings,
+      }
+
+      const response = await fetch("/api/share", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          password: dbPassword,
+          collectionData,
+        }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || "Erro ao criar link")
+      }
+
+      setDbShareUrl(data.shareUrl)
+      setSuccess("Link criado com sucesso!")
+      setDbPassword("")
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erro ao criar link")
+    } finally {
+      setDbShareLoading(false)
+    }
+  }
+
+  const handleCopyDbShareUrl = async () => {
+    if (!dbShareUrl) return
+
+    try {
+      await navigator.clipboard.writeText(dbShareUrl)
+      setDbShareCopySuccess(true)
+      setSuccess("Link do banco de dados copiado!")
+      setTimeout(() => {
+        setDbShareCopySuccess(false)
+        setSuccess(null)
+      }, 3000)
+    } catch (err) {
+      setError("Erro ao copiar link")
+    }
+  }
+
   if (!isOpen) return null
 
   return (
@@ -102,7 +177,7 @@ export function ExportModal({
       />
 
       {/* Modal */}
-      <Card className="relative z-10 w-full max-w-md mx-4 bg-raisinBlack border-brightGrey">
+      <Card className="relative z-10 w-full max-w-md mx-4 bg-raisinBlack border-brightGrey max-h-[90vh] overflow-y-auto">
         <CardHeader className="flex flex-row items-center justify-between pb-2">
           <CardTitle className="text-lg flex items-center gap-2">
             <span>📤</span>
@@ -175,6 +250,83 @@ export function ExportModal({
             </button>
           </div>
 
+          {/* Database Share Section */}
+          <div className="pt-4 border-t border-brightGrey space-y-3">
+            <Label className="text-sm text-ashGray">
+              Compartilhar via Banco de Dados
+            </Label>
+            <p className="text-xs text-muted-foreground">
+              Gere um link curto armazenado no banco de dados (requer senha mestre)
+            </p>
+            
+            {!dbShareUrl ? (
+              <>
+                <div className="flex gap-2">
+                  <input
+                    type="password"
+                    value={dbPassword}
+                    onChange={(e) => setDbPassword(e.target.value)}
+                    placeholder="Senha mestre"
+                    className={cn(
+                      "flex-1 px-3 py-2 rounded-lg text-sm",
+                      "bg-eerieBlack border border-brightGrey",
+                      "focus:outline-none focus:border-primary",
+                      "placeholder:text-muted-foreground"
+                    )}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        handleCreateDbShare()
+                      }
+                    }}
+                  />
+                  <button
+                    onClick={handleCreateDbShare}
+                    disabled={dbShareLoading}
+                    className={cn(
+                      "py-2 px-4 rounded-lg font-medium transition-all",
+                      "bg-primary text-primary-foreground",
+                      "hover:bg-primary/90",
+                      "flex items-center justify-center gap-2",
+                      "disabled:opacity-50 disabled:cursor-not-allowed"
+                    )}
+                  >
+                    {dbShareLoading ? (
+                      <>
+                        <span className="animate-spin">⏳</span>
+                        <span>Criando...</span>
+                      </>
+                    ) : (
+                      <>
+                        <span>🗄️</span>
+                        <span>Gerar Link</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </>
+            ) : (
+              <div className="space-y-2">
+                <div className="p-3 rounded-lg bg-eerieBlack border border-brightGrey">
+                  <p className="text-xs text-muted-foreground mb-1">Link gerado:</p>
+                  <p className="text-sm text-white break-all font-mono">{dbShareUrl}</p>
+                </div>
+                <button
+                  onClick={handleCopyDbShareUrl}
+                  className={cn(
+                    "w-full py-2.5 px-4 rounded-lg font-medium transition-all",
+                    "bg-eerieBlack border border-brightGrey",
+                    "hover:border-primary hover:text-primary",
+                    "flex items-center justify-center gap-2",
+                    dbShareCopySuccess && "border-green text-green"
+                  )}
+                >
+                  <span>{dbShareCopySuccess ? "✓" : "📋"}</span>
+                  {dbShareCopySuccess ? "Copiado!" : "Copiar Link do Banco"}
+                </button>
+              </div>
+            )}
+          </div>
+
           {/* Status messages */}
           {error && (
             <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/30">
@@ -205,4 +357,3 @@ export function ExportModal({
     </div>
   )
 }
-
