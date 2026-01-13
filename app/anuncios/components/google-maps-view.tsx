@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useCallback } from "react"
+import { useState, useCallback, useEffect, useRef } from "react"
 import { 
   APIProvider, 
   Map, 
@@ -338,6 +338,176 @@ function MarkerInfoContent({
 }
 
 // ============================================================================
+// ERROR BOUNDARY WRAPPER COMPONENT
+// ============================================================================
+
+interface GoogleMapsContentProps extends MapViewProps {
+  apiKey: string
+  onError: (error: Error) => void
+}
+
+function GoogleMapsContent({ 
+  geocodedListings,
+  onListingsChange,
+  minPreco,
+  maxPreco,
+  apiKey,
+  onError,
+}: GoogleMapsContentProps) {
+  const [hasError, setHasError] = useState(false)
+  const [isMounted, setIsMounted] = useState(false)
+  const errorHandlerRef = useRef<((error: Error) => void) | null>(null)
+
+  // Set up error handler
+  useEffect(() => {
+    setIsMounted(true)
+    errorHandlerRef.current = onError
+
+    // Listen for Google Maps API errors
+    const handleError = (event: ErrorEvent) => {
+      const errorMessage = event.message?.toLowerCase() || ""
+      const errorSource = event.filename || ""
+      
+      // Check for Google Maps related errors
+      if (
+        errorMessage.includes("referernotallowedmaperror") ||
+        errorMessage.includes("google maps") ||
+        errorMessage.includes("maps.googleapis.com") ||
+        errorSource.includes("maps.googleapis.com") ||
+        errorMessage.includes("getrootnode") ||
+        errorMessage.includes("cannot read properties") ||
+        errorMessage.includes("undefined") && errorMessage.includes("read")
+      ) {
+        console.error("[Google Maps] API Error detected:", event.message, event.filename)
+        setHasError(true)
+        if (errorHandlerRef.current) {
+          let errorMsg = "Erro ao carregar Google Maps"
+          if (errorMessage.includes("referernotallowedmaperror")) {
+            errorMsg = "RefererNotAllowedMapError: O domínio não está autorizado para usar esta chave da API do Google Maps. Verifique as restrições de referrer na Google Cloud Console."
+          } else if (errorMessage.includes("getrootnode") || errorMessage.includes("cannot read properties")) {
+            errorMsg = "Erro ao inicializar Google Maps. Verifique se a API está configurada corretamente."
+          } else {
+            errorMsg = `Erro ao carregar Google Maps: ${event.message || "Erro desconhecido"}`
+          }
+          errorHandlerRef.current(new Error(errorMsg))
+        }
+        event.preventDefault() // Prevent error from breaking the page
+        return false // Prevent default error handling
+      }
+    }
+
+    // Listen for unhandled promise rejections (common with Google Maps)
+    const handleRejection = (event: PromiseRejectionEvent) => {
+      const reason = event.reason?.toString() || ""
+      const errorObj = event.reason
+      
+      if (
+        reason.includes("RefererNotAllowedMapError") ||
+        reason.includes("Google Maps") ||
+        reason.includes("maps.googleapis.com") ||
+        (errorObj && typeof errorObj === "object" && "name" in errorObj && 
+         (errorObj.name === "RefererNotAllowedMapError" || 
+          String(errorObj.name).includes("Google")))
+      ) {
+        console.error("[Google Maps] Promise rejection:", reason, errorObj)
+        setHasError(true)
+        if (errorHandlerRef.current) {
+          let errorMsg = "Erro ao carregar Google Maps"
+          if (reason.includes("RefererNotAllowedMapError") || 
+              (errorObj && typeof errorObj === "object" && "name" in errorObj && 
+               errorObj.name === "RefererNotAllowedMapError")) {
+            errorMsg = "RefererNotAllowedMapError: O domínio não está autorizado para usar esta chave da API do Google Maps."
+          } else {
+            errorMsg = `Erro ao carregar Google Maps: ${reason}`
+          }
+          errorHandlerRef.current(new Error(errorMsg))
+        }
+        event.preventDefault()
+      }
+    }
+
+    window.addEventListener("error", handleError, true) // Use capture phase
+    window.addEventListener("unhandledrejection", handleRejection)
+
+    // Check for Google Maps script errors after a delay
+    const checkTimeout = setTimeout(() => {
+      if (typeof window !== "undefined") {
+        // Check if Google Maps loaded
+        const scripts = Array.from(document.querySelectorAll("script"))
+        const hasGoogleMapsScript = scripts.some(
+          script => script.src.includes("maps.googleapis.com")
+        )
+        
+        if (hasGoogleMapsScript && (typeof google === "undefined" || typeof google.maps === "undefined")) {
+          // Google Maps script loaded but API not available
+          console.warn("[Google Maps] Google Maps API not available after script load")
+          setHasError(true)
+          if (errorHandlerRef.current) {
+            errorHandlerRef.current(
+              new Error("Google Maps API não está disponível. Verifique as configurações da API e as restrições de referrer.")
+            )
+          }
+        }
+      }
+    }, 3000)
+
+    return () => {
+      window.removeEventListener("error", handleError, true)
+      window.removeEventListener("unhandledrejection", handleRejection)
+      clearTimeout(checkTimeout)
+    }
+  }, [onError])
+
+  // Don't render if there's an error or not mounted
+  if (hasError || !isMounted) {
+    return null
+  }
+
+  // Safely render Google Maps
+  try {
+    return (
+      <APIProvider apiKey={apiKey} region="BR" language="pt-BR">
+        <Map
+          defaultCenter={FLORIANOPOLIS_CENTER}
+          defaultZoom={DEFAULT_ZOOM}
+          mapId="minha-casa-map"
+          className="h-[400px] rounded-lg"
+          gestureHandling="cooperative"
+          disableDefaultUI={false}
+          mapTypeControl={true}
+          streetViewControl={true}
+          fullscreenControl={true}
+        >
+          {geocodedListings.map((gl) => {
+            const precoM2 = calculatePrecoM2(gl.listing.preco, gl.listing.m2Totais)
+            const color = getMarkerColor(precoM2, minPreco, maxPreco)
+
+            return (
+              <CustomMarker
+                key={gl.listing.id}
+                geocodedListing={gl}
+                color={color}
+                minPreco={minPreco}
+                maxPreco={maxPreco}
+                onListingsChange={onListingsChange}
+              />
+            )
+          })}
+        </Map>
+      </APIProvider>
+    )
+  } catch (error) {
+    // This catch will handle React rendering errors
+    console.error("[Google Maps] React rendering error:", error)
+    setHasError(true)
+    if (errorHandlerRef.current && error instanceof Error) {
+      errorHandlerRef.current(error)
+    }
+    return null // Return null to prevent rendering
+  }
+}
+
+// ============================================================================
 // GOOGLE MAPS VIEW COMPONENT
 // ============================================================================
 
@@ -348,6 +518,7 @@ export function GoogleMapsView({
   maxPreco,
 }: MapViewProps) {
   const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
+  const [error, setError] = useState<Error | null>(null)
 
   if (!apiKey || apiKey === "YOUR_API_KEY_HERE") {
     return (
@@ -362,35 +533,58 @@ export function GoogleMapsView({
     )
   }
 
-  return (
-    <APIProvider apiKey={apiKey} region="BR" language="pt-BR">
-      <Map
-        defaultCenter={FLORIANOPOLIS_CENTER}
-        defaultZoom={DEFAULT_ZOOM}
-        mapId="minha-casa-map"
-        className="h-[400px] rounded-lg"
-        gestureHandling="cooperative"
-        disableDefaultUI={false}
-        mapTypeControl={true}
-        streetViewControl={true}
-        fullscreenControl={true}
-      >
-        {geocodedListings.map((gl) => {
-          const precoM2 = calculatePrecoM2(gl.listing.preco, gl.listing.m2Totais)
-          const color = getMarkerColor(precoM2, minPreco, maxPreco)
-
-          return (
-            <CustomMarker
-              key={gl.listing.id}
-              geocodedListing={gl}
-              color={color}
-              minPreco={minPreco}
-              maxPreco={maxPreco}
-              onListingsChange={onListingsChange}
+  // Show error UI if there's an error
+  if (error) {
+    return (
+      <div className="h-[400px] flex flex-col items-center justify-center bg-eerieBlack rounded-lg text-center p-4">
+        <div className="mb-4">
+          <svg
+            className="w-12 h-12 mx-auto text-yellow-500 mb-2"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
             />
-          )
-        })}
-      </Map>
-    </APIProvider>
+          </svg>
+        </div>
+        <p className="text-ashGray mb-2 font-semibold">
+          Erro ao carregar Google Maps
+        </p>
+        <p className="text-xs text-muted-foreground mb-4 max-w-md">
+          {error.message}
+        </p>
+        {error.message.includes("RefererNotAllowedMapError") && (
+          <div className="text-xs text-muted-foreground bg-brightGrey/20 p-3 rounded mb-4 max-w-md">
+            <p className="font-semibold mb-1">Como resolver:</p>
+            <ol className="list-decimal list-inside space-y-1 text-left">
+              <li>Acesse Google Cloud Console</li>
+              <li>Vá em "APIs e serviços" → "Credenciais"</li>
+              <li>Edite sua chave da API</li>
+              <li>Em "Restrições de aplicativo", adicione seu domínio</li>
+              <li>Ou remova as restrições temporariamente para testes</li>
+            </ol>
+          </div>
+        )}
+        <p className="text-xs text-muted-foreground">
+          Use o botão acima para alternar para OpenStreetMap (OSM) como alternativa.
+        </p>
+      </div>
+    )
+  }
+
+  return (
+    <GoogleMapsContent
+      geocodedListings={geocodedListings}
+      onListingsChange={onListingsChange}
+      minPreco={minPreco}
+      maxPreco={maxPreco}
+      apiKey={apiKey}
+      onError={setError}
+    />
   )
 }
