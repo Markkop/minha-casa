@@ -24,6 +24,7 @@ export interface Imovel {
   starred?: boolean
   visited?: boolean
   strikethrough?: boolean
+  discardedReason?: string | null
   customLat?: number | null
   customLng?: number | null
   createdAt: string
@@ -755,6 +756,7 @@ const KEY_MAP: Record<string, string> = {
   starred: "st",
   visited: "v",
   strikethrough: "x",
+  discardedReason: "dr",
   customLat: "la",
   customLng: "lg",
   createdAt: "ca",
@@ -859,6 +861,7 @@ const IMOVEL_KEYS_ORDER: (keyof Imovel)[] = [
   "starred",
   "visited",
   "strikethrough",
+  "discardedReason",
   "customLat",
   "customLng",
   "createdAt",

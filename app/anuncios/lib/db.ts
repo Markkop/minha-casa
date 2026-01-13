@@ -35,6 +35,7 @@ export interface CollectionExportData {
     starred?: boolean
     visited?: boolean
     strikethrough?: boolean
+    discardedReason?: string | null
     customLat?: number | null
     customLng?: number | null
     createdAt: string

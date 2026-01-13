@@ -43,6 +43,7 @@ export function EditModal({
     link: null,
     imageUrl: null,
     addedAt: undefined,
+    discardedReason: null,
   })
   const [error, setError] = useState<string | null>(null)
   const imageUrlInputRef = useRef<HTMLInputElement>(null)
@@ -63,6 +64,7 @@ export function EditModal({
         link: listing.link,
         imageUrl: listing.imageUrl,
         addedAt: listing.addedAt || "2025-12-31",
+        discardedReason: listing.discardedReason,
       })
       setError(null)
       
@@ -354,6 +356,21 @@ export function EditModal({
                 type="date"
                 value={formData.addedAt || "2025-12-31"}
                 onChange={(e) => handleInputChange("addedAt", e.target.value)}
+                className="bg-eerieBlack border-brightGrey text-white placeholder:text-muted-foreground"
+              />
+            </div>
+
+            {/* Motivo de descarte */}
+            <div className="md:col-span-2 space-y-2">
+              <Label htmlFor="discardedReason" className="text-sm text-ashGray">
+                Motivo de descarte
+              </Label>
+              <Input
+                id="discardedReason"
+                type="text"
+                value={formData.discardedReason || ""}
+                onChange={(e) => handleInputChange("discardedReason", e.target.value)}
+                placeholder="Ex: Preço muito alto, localização ruim..."
                 className="bg-eerieBlack border-brightGrey text-white placeholder:text-muted-foreground"
               />
             </div>

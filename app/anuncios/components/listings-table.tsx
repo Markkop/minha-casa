@@ -20,6 +20,16 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
+import {
   removeListing,
   updateListing,
   getCollections,
@@ -120,6 +130,8 @@ export function ListingsTable({ listings, onListingsChange, refreshTrigger }: Li
   const [imageModalListing, setImageModalListing] = useState<Imovel | null>(null)
   const [collections, setCollections] = useState<Collection[]>([])
   const [copyingListingId, setCopyingListingId] = useState<string | null>(null)
+  const [discardPopoverOpen, setDiscardPopoverOpen] = useState<string | null>(null)
+  const [discardReasonInput, setDiscardReasonInput] = useState("")
 
   useEffect(() => {
     setCollections(getCollections())
@@ -140,9 +152,26 @@ export function ListingsTable({ listings, onListingsChange, refreshTrigger }: Li
     onListingsChange(updated)
   }
 
-  const handleToggleStrikethrough = (id: string, currentStrikethrough: boolean | undefined) => {
-    const updated = updateListing(id, { strikethrough: !currentStrikethrough })
+  const handleToggleStrikethrough = (id: string, currentStrikethrough: boolean | undefined, currentReason?: string | null) => {
+    if (currentStrikethrough) {
+      // Toggling OFF - just set strikethrough to false, keep reason, no popover
+      const updated = updateListing(id, { strikethrough: false })
+      onListingsChange(updated)
+    } else {
+      // Toggling ON - open popover with existing reason (if any)
+      setDiscardReasonInput(currentReason || "")
+      setDiscardPopoverOpen(id)
+    }
+  }
+
+  const handleSaveDiscardReason = (id: string) => {
+    const updated = updateListing(id, { 
+      strikethrough: true, 
+      discardedReason: discardReasonInput.trim() || null 
+    })
     onListingsChange(updated)
+    setDiscardPopoverOpen(null)
+    setDiscardReasonInput("")
   }
 
   const handleCopyToCollection = (listingId: string, targetCollectionId: string) => {
@@ -643,66 +672,170 @@ export function ListingsTable({ listings, onListingsChange, refreshTrigger }: Li
                           </div>
 
                         <div className="flex items-center gap-2 flex-wrap">
-                          <button
-                            onClick={() => handleToggleStar(imovel.id, imovel.starred)}
-                            className={cn(
-                              "transition-colors p-1",
-                              imovel.starred
-                                ? "text-yellow hover:text-yellow/80"
-                                : "text-muted-foreground hover:text-yellow"
-                            )}
-                            title={imovel.starred ? "Remover dos favoritos" : "Adicionar aos favoritos"}
-                          >
-                            <Star
-                              className="h-4 w-4"
-                              fill={imovel.starred ? "currentColor" : "none"}
-                            />
-                          </button>
-                          <button
-                            onClick={() => handleToggleVisited(imovel.id, imovel.visited)}
-                            className={cn(
-                              "transition-colors p-1",
-                              imovel.visited
-                                ? "text-yellow hover:text-yellow/80 [&_svg_*]:!fill-none [&_svg_*]:!stroke-yellow"
-                                : "text-muted-foreground hover:text-yellow"
-                            )}
-                            title={imovel.visited ? "Marcar como não visitado" : "Marcar como visitado"}
-                          >
-                            <Eye
-                              className="h-4 w-4"
-                              fill="none"
-                              stroke="currentColor"
-                            />
-                          </button>
-                          <button
-                            onClick={() => handleToggleStrikethrough(imovel.id, imovel.strikethrough)}
-                            className={cn(
-                              "transition-colors p-1",
-                              imovel.strikethrough
-                                ? "text-destructive hover:text-destructive/80"
-                                : "text-muted-foreground hover:text-destructive"
-                            )}
-                            title={imovel.strikethrough ? "Remover riscado" : "Riscar imóvel"}
-                          >
-                            <Strikethrough className="h-4 w-4" />
-                          </button>
-                          <button
-                            onClick={() => {
-                              setFocusImageUrl(false)
-                              setEditingListing(imovel)
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <button
+                                onClick={() => handleToggleStar(imovel.id, imovel.starred)}
+                                className={cn(
+                                  "transition-colors p-1",
+                                  imovel.starred
+                                    ? "text-yellow hover:text-yellow/80"
+                                    : "text-muted-foreground hover:text-yellow"
+                                )}
+                              >
+                                <Star
+                                  className="h-4 w-4"
+                                  fill={imovel.starred ? "currentColor" : "none"}
+                                />
+                              </button>
+                            </TooltipTrigger>
+                              <TooltipContent 
+                                side="bottom" 
+                                sideOffset={4}
+                                className="bg-raisinBlack border border-brightGrey text-white"
+                              >
+                                {imovel.starred ? "Remover dos favoritos" : "Adicionar aos favoritos"}
+                              </TooltipContent>
+                          </Tooltip>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <button
+                                onClick={() => handleToggleVisited(imovel.id, imovel.visited)}
+                                className={cn(
+                                  "transition-colors p-1",
+                                  imovel.visited
+                                    ? "text-yellow hover:text-yellow/80 [&_svg_*]:!fill-none [&_svg_*]:!stroke-yellow"
+                                    : "text-muted-foreground hover:text-yellow"
+                                )}
+                              >
+                                <Eye
+                                  className="h-4 w-4"
+                                  fill="none"
+                                  stroke="currentColor"
+                                />
+                              </button>
+                            </TooltipTrigger>
+                            <TooltipContent 
+                              side="bottom" 
+                              sideOffset={4}
+                              className="bg-raisinBlack border border-brightGrey text-white"
+                            >
+                              {imovel.visited ? "Marcar como não visitado" : "Marcar como visitado"}
+                            </TooltipContent>
+                          </Tooltip>
+                          <Popover 
+                            open={discardPopoverOpen === imovel.id} 
+                            onOpenChange={(open) => {
+                              if (!open) {
+                                setDiscardPopoverOpen(null)
+                                setDiscardReasonInput("")
+                              }
                             }}
-                            className="text-muted-foreground hover:text-primary transition-colors p-1"
-                            title="Editar imóvel"
                           >
-                            <PencilIcon className="h-4 w-4" />
-                          </button>
-                          <button
-                            onClick={() => handleDelete(imovel.id)}
-                            className="text-muted-foreground hover:text-destructive transition-colors p-1"
-                            title="Excluir imóvel"
-                          >
-                            <TrashIcon className="h-4 w-4" />
-                          </button>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <PopoverTrigger asChild>
+                                  <button
+                                    onClick={() => handleToggleStrikethrough(imovel.id, imovel.strikethrough, imovel.discardedReason)}
+                                    className={cn(
+                                      "transition-colors p-1",
+                                      imovel.strikethrough
+                                        ? "text-destructive hover:text-destructive/80"
+                                        : "text-muted-foreground hover:text-destructive"
+                                    )}
+                                  >
+                                    <Strikethrough className="h-4 w-4" />
+                                  </button>
+                                </PopoverTrigger>
+                              </TooltipTrigger>
+                              <TooltipContent 
+                                side="bottom" 
+                                sideOffset={4}
+                                className="bg-raisinBlack border border-brightGrey text-white max-w-[200px]"
+                              >
+                                {imovel.strikethrough ? (
+                                  imovel.discardedReason ? (
+                                    <span><span className="font-medium text-destructive">Motivo: </span>{imovel.discardedReason}</span>
+                                  ) : (
+                                    <span>Remover riscado</span>
+                                  )
+                                ) : (
+                                  <span>Riscar imóvel</span>
+                                )}
+                              </TooltipContent>
+                            </Tooltip>
+                            <PopoverContent className="w-64 p-3" align="start">
+                              <div className="space-y-3">
+                                <p className="text-sm font-medium text-ashGray">Motivo do descarte</p>
+                                <Input
+                                  value={discardReasonInput}
+                                  onChange={(e) => setDiscardReasonInput(e.target.value)}
+                                  placeholder="Ex: Preço muito alto"
+                                  className="bg-eerieBlack border-brightGrey text-white placeholder:text-muted-foreground text-sm"
+                                  onKeyDown={(e) => {
+                                    if (e.key === "Enter") {
+                                      handleSaveDiscardReason(imovel.id)
+                                    }
+                                  }}
+                                  autoFocus
+                                />
+                                <div className="flex gap-2">
+                                  <button
+                                    onClick={() => {
+                                      setDiscardPopoverOpen(null)
+                                      setDiscardReasonInput("")
+                                    }}
+                                    className="flex-1 py-1.5 px-3 rounded text-sm bg-eerieBlack border border-brightGrey text-white hover:border-primary hover:text-primary transition-colors"
+                                  >
+                                    Cancelar
+                                  </button>
+                                  <button
+                                    onClick={() => handleSaveDiscardReason(imovel.id)}
+                                    className="flex-1 py-1.5 px-3 rounded text-sm bg-destructive text-white hover:bg-destructive/90 transition-colors"
+                                  >
+                                    Descartar
+                                  </button>
+                                </div>
+                              </div>
+                            </PopoverContent>
+                          </Popover>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <button
+                                onClick={() => {
+                                  setFocusImageUrl(false)
+                                  setEditingListing(imovel)
+                                }}
+                                className="text-muted-foreground hover:text-primary transition-colors p-1"
+                              >
+                                <PencilIcon className="h-4 w-4" />
+                              </button>
+                            </TooltipTrigger>
+                            <TooltipContent 
+                              side="bottom" 
+                              sideOffset={4}
+                              className="bg-raisinBlack border border-brightGrey text-white"
+                            >
+                              Editar imóvel
+                            </TooltipContent>
+                          </Tooltip>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <button
+                                onClick={() => handleDelete(imovel.id)}
+                                className="text-muted-foreground hover:text-destructive transition-colors p-1"
+                              >
+                                <TrashIcon className="h-4 w-4" />
+                              </button>
+                            </TooltipTrigger>
+                            <TooltipContent 
+                              side="bottom" 
+                              sideOffset={4}
+                              className="bg-raisinBlack border border-brightGrey text-white"
+                            >
+                              Excluir imóvel
+                            </TooltipContent>
+                          </Tooltip>
                           {hasOtherCollections && (
                             copyingListingId === imovel.id ? (
                               <Select
@@ -737,47 +870,87 @@ export function ListingsTable({ listings, onListingsChange, refreshTrigger }: Li
                                 </SelectContent>
                               </Select>
                             ) : (
-                              <button
-                                onClick={() => setCopyingListingId(imovel.id)}
-                                className="text-muted-foreground hover:text-primary transition-colors p-1"
-                                title="Copiar para outra coleção"
-                              >
-                                <FolderIcon className="h-4 w-4" />
-                              </button>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <button
+                                    onClick={() => setCopyingListingId(imovel.id)}
+                                    className="text-muted-foreground hover:text-primary transition-colors p-1"
+                                  >
+                                    <FolderIcon className="h-4 w-4" />
+                                  </button>
+                                </TooltipTrigger>
+                                <TooltipContent 
+                                  side="bottom" 
+                                  sideOffset={4}
+                                  className="bg-raisinBlack border border-brightGrey text-white"
+                                >
+                                  Copiar para outra coleção
+                                </TooltipContent>
+                              </Tooltip>
                             )
                           )}
-                          <a
-                            href={buildGoogleSearchUrl(
-                              imovel.titulo,
-                              imovel.endereco,
-                              imovel.m2Totais,
-                              imovel.quartos,
-                              imovel.banheiros
-                            )}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-muted-foreground hover:text-primary transition-colors p-1 inline-block"
-                            title="Buscar no Google"
-                          >
-                            <MagnifyingGlassIcon className="h-4 w-4" />
-                          </a>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <a
+                                href={buildGoogleSearchUrl(
+                                  imovel.titulo,
+                                  imovel.endereco,
+                                  imovel.m2Totais,
+                                  imovel.quartos,
+                                  imovel.banheiros
+                                )}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-muted-foreground hover:text-primary transition-colors p-1 inline-block"
+                              >
+                                <MagnifyingGlassIcon className="h-4 w-4" />
+                              </a>
+                            </TooltipTrigger>
+                            <TooltipContent 
+                              side="bottom" 
+                              sideOffset={4}
+                              className="bg-raisinBlack border border-brightGrey text-white"
+                            >
+                              Buscar no Google
+                            </TooltipContent>
+                          </Tooltip>
                           {imovel.link ? (
-                            <a
-                              href={imovel.link}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-muted-foreground hover:text-primary transition-colors p-1 inline-block"
-                              title="Abrir link do anúncio"
-                            >
-                              <LinkIcon className="h-4 w-4" />
-                            </a>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <a
+                                  href={imovel.link}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-muted-foreground hover:text-primary transition-colors p-1 inline-block"
+                                >
+                                  <LinkIcon className="h-4 w-4" />
+                                </a>
+                              </TooltipTrigger>
+                              <TooltipContent 
+                                side="bottom" 
+                                sideOffset={4}
+                                className="bg-raisinBlack border border-brightGrey text-white"
+                              >
+                                Abrir link do anúncio
+                              </TooltipContent>
+                            </Tooltip>
                           ) : (
-                            <span
-                              className="text-muted-foreground opacity-50 p-1 inline-block cursor-not-allowed"
-                              title="Nenhum link disponível"
-                            >
-                              <LinkIcon className="h-4 w-4" />
-                            </span>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <span
+                                  className="text-muted-foreground opacity-50 p-1 inline-block cursor-not-allowed"
+                                >
+                                  <LinkIcon className="h-4 w-4" />
+                                </span>
+                              </TooltipTrigger>
+                              <TooltipContent 
+                                side="bottom" 
+                                sideOffset={4}
+                                className="bg-raisinBlack border border-brightGrey text-white"
+                              >
+                                Nenhum link disponível
+                              </TooltipContent>
+                            </Tooltip>
                           )}
                         </div>
                       </div>
@@ -816,9 +989,19 @@ export function ListingsTable({ listings, onListingsChange, refreshTrigger }: Li
                           router.push(`/casa?valorImovel=${imovel.preco}`)
                         }
                       }}
-                      title="Clique para usar este valor no simulador"
                     >
-                      {formatCurrency(imovel.preco)}
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <span>{formatCurrency(imovel.preco)}</span>
+                        </TooltipTrigger>
+                        <TooltipContent 
+                          side="bottom" 
+                          sideOffset={4}
+                          className="bg-raisinBlack border border-brightGrey text-white"
+                        >
+                          Abrir na calculadora de financiamento
+                        </TooltipContent>
+                      </Tooltip>
                     </TableCell>
                     <TableCell className={cn(
                       "text-right font-mono text-sm text-muted-foreground",
