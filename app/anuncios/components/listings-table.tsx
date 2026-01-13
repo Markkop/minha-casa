@@ -581,17 +581,19 @@ export function ListingsTable({ listings, onListingsChange, refreshTrigger }: Li
                         title="Clique para ver/editar imagem"
                       >
                         {imovel.imageUrl ? (
-                          <img
-                            src={imovel.imageUrl}
-                            alt={imovel.titulo}
-                            className="h-20 w-20 rounded object-cover border border-brightGrey"
-                            onError={(e) => {
-                              // Hide image on error
-                              e.currentTarget.style.display = 'none'
-                            }}
-                          />
+                          <div className="h-20 w-20 rounded border border-brightGrey overflow-hidden aspect-square">
+                            <img
+                              src={imovel.imageUrl}
+                              alt={imovel.titulo}
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                // Hide image on error
+                                e.currentTarget.style.display = 'none'
+                              }}
+                            />
+                          </div>
                         ) : (
-                          <div className="h-20 w-20 rounded bg-eerieBlack border border-brightGrey flex items-center justify-center">
+                          <div className="h-20 w-20 rounded bg-eerieBlack border border-brightGrey flex items-center justify-center aspect-square">
                             <span className="text-xs text-muted-foreground">🏠</span>
                           </div>
                         )}
