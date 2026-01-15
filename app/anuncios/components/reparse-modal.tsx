@@ -210,20 +210,8 @@ export function ReparseModal({
     onClose()
   }
 
-  const applyAllAndClose = () => {
-    selectAll()
-    // Apply all changes
-    const updates: Partial<Imovel> = {}
-    for (const change of changes) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (updates as any)[change.field] = change.newValue
-    }
-
-    onApplyChanges(updates)
-    onClose()
-  }
-
   const selectedCount = changes.filter((c) => c.selected).length
+  const allSelected = selectedCount === changes.length && changes.length > 0
 
   if (!isOpen) return null
 
@@ -429,23 +417,14 @@ export function ReparseModal({
                   disabled={selectedCount === 0}
                   className={cn(
                     "flex-1 py-2.5 px-4 rounded-lg font-medium transition-all",
-                    "bg-eerieBlack border border-brightGrey text-white",
-                    "hover:border-primary hover:text-primary",
-                    "disabled:opacity-50 disabled:cursor-not-allowed"
-                  )}
-                >
-                  Aplicar ({selectedCount})
-                </button>
-                <button
-                  onClick={applyAllAndClose}
-                  className={cn(
-                    "flex-1 py-2.5 px-4 rounded-lg font-medium transition-all",
-                    "bg-primary text-primary-foreground",
-                    "hover:bg-primary/90",
+                    allSelected
+                      ? "bg-primary text-primary-foreground hover:bg-primary/90"
+                      : "bg-eerieBlack border border-brightGrey text-white hover:border-primary hover:text-primary",
+                    "disabled:opacity-50 disabled:cursor-not-allowed",
                     "flex items-center justify-center gap-2"
                   )}
                 >
-                  Aplicar Todos
+                  {allSelected ? "Aplicar Todos" : `Aplicar (${selectedCount})`}
                 </button>
               </div>
             </>
