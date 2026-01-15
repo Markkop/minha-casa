@@ -842,7 +842,6 @@ export function ListingsTable({ listings, onListingsChange, refreshTrigger, hasA
                     align="center"
                   />
                   <TableHead className="text-primary text-center">WC</TableHead>
-                  <TableHead className="text-primary text-center">Garagem</TableHead>
                   <SortableHeader
                     label="Adicionado"
                     sortKey="addedAt"
@@ -1718,12 +1717,6 @@ export function ListingsTable({ listings, onListingsChange, refreshTrigger, hasA
                       imovel.strikethrough && "line-through opacity-50"
                     )}>
                       {formatNumber(imovel.banheiros)}
-                    </TableCell>
-                    <TableCell className={cn(
-                      "text-center font-mono text-sm",
-                      imovel.strikethrough && "line-through opacity-50"
-                    )}>
-                      {formatGaragem(imovel.garagem)}
                     </TableCell>
                     <TableCell 
                       className={cn(
