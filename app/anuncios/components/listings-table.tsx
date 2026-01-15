@@ -40,10 +40,12 @@ import {
 } from "../lib/storage"
 import { cn } from "@/lib/utils"
 import { ArrowDownIcon, ArrowUpIcon, MagnifyingGlassIcon } from "@radix-ui/react-icons"
-import { PencilIcon, TrashIcon, LinkIcon, Star, FolderIcon, Eye, Strikethrough, Waves, Shield, Dumbbell, Mountain, ThermometerSun, Flag, Home, Building } from "lucide-react"
+import { PencilIcon, TrashIcon, LinkIcon, Star, FolderIcon, Eye, Strikethrough, Waves, Shield, Dumbbell, Mountain, ThermometerSun, Flag, Home, Building, RefreshCw } from "lucide-react"
 import { FaWhatsapp } from "react-icons/fa"
 import { EditModal } from "./edit-modal"
 import { ImageModal } from "./image-modal"
+import { QuickReparseModal, type FieldChange } from "./quick-reparse-modal"
+import { parseListingWithAI } from "../lib/openai"
 
 // ============================================================================
 // TYPES
@@ -70,6 +72,57 @@ interface ListingsTableProps {
   onListingsChange: (listings: Imovel[]) => void
   refreshTrigger?: number
   hasApiKey?: boolean
+}
+
+// ============================================================================
+// QUICK REPARSE CONSTANTS
+// ============================================================================
+
+const FIELD_LABELS: Record<string, string> = {
+  titulo: "Título",
+  endereco: "Endereço",
+  m2Totais: "m² Totais",
+  m2Privado: "m² Privado",
+  quartos: "Quartos",
+  suites: "Suítes",
+  banheiros: "Banheiros",
+  garagem: "Garagem",
+  preco: "Preço",
+  piscina: "Piscina",
+  porteiro24h: "Porteiro 24h",
+  academia: "Academia",
+  vistaLivre: "Vista Livre",
+  piscinaTermica: "Piscina Térmica",
+  tipoImovel: "Tipo de Imóvel",
+}
+
+const COMPARABLE_FIELDS: (keyof Imovel)[] = [
+  "titulo",
+  "endereco",
+  "m2Totais",
+  "m2Privado",
+  "quartos",
+  "suites",
+  "banheiros",
+  "garagem",
+  "preco",
+  "piscina",
+  "porteiro24h",
+  "academia",
+  "vistaLivre",
+  "piscinaTermica",
+  "tipoImovel",
+]
+
+function valuesAreDifferent(
+  current: string | number | boolean | null | undefined,
+  newVal: string | number | boolean | null | undefined
+): boolean {
+  // Treat null and undefined as equal
+  if ((current === null || current === undefined) && (newVal === null || newVal === undefined)) {
+    return false
+  }
+  return current !== newVal
 }
 
 // ============================================================================
@@ -140,6 +193,12 @@ export function ListingsTable({ listings, onListingsChange, refreshTrigger, hasA
   const [contactPopoverOpen, setContactPopoverOpen] = useState<string | null>(null)
   const [contactNameInput, setContactNameInput] = useState("")
   const [contactNumberInput, setContactNumberInput] = useState("")
+  const [quickReparsePopoverOpen, setQuickReparsePopoverOpen] = useState<string | null>(null)
+  const [quickReparseInput, setQuickReparseInput] = useState("")
+  const [quickReparseLoading, setQuickReparseLoading] = useState<string | null>(null)
+  const [quickReparseError, setQuickReparseError] = useState<string | null>(null)
+  const [quickReparseChanges, setQuickReparseChanges] = useState<FieldChange[] | null>(null)
+  const [quickReparseListing, setQuickReparseListing] = useState<Imovel | null>(null)
 
   useEffect(() => {
     setCollections(getCollections())
@@ -257,6 +316,74 @@ export function ListingsTable({ listings, onListingsChange, refreshTrigger, hasA
     setContactNameInput(currentContactName || "")
     setContactNumberInput(currentContactNumber || "")
     setContactPopoverOpen(id)
+  }
+
+  const handleQuickReparse = async (listing: Imovel) => {
+    if (!quickReparseInput.trim()) {
+      return
+    }
+
+    if (!hasApiKey) {
+      return
+    }
+
+    setQuickReparseLoading(listing.id)
+    setQuickReparseError(null)
+    
+    try {
+      const parsed = await parseListingWithAI(quickReparseInput)
+      
+      // Compare parsed values with current listing data and build changes list
+      const detectedChanges: FieldChange[] = []
+      
+      for (const field of COMPARABLE_FIELDS) {
+        const currentValue = listing[field]
+        const newValue = parsed[field]
+        
+        if (valuesAreDifferent(currentValue, newValue)) {
+          detectedChanges.push({
+            field,
+            label: FIELD_LABELS[field] || field,
+            currentValue,
+            newValue,
+            selected: true, // All selected by default
+          })
+        }
+      }
+      
+      if (detectedChanges.length === 0) {
+        // No changes detected - close popover
+        setQuickReparsePopoverOpen(null)
+        setQuickReparseInput("")
+        setQuickReparseLoading(null)
+        return
+      }
+      
+      setQuickReparseChanges(detectedChanges)
+      setQuickReparseListing(listing)
+      setQuickReparsePopoverOpen(null)
+      setQuickReparseInput("")
+    } catch (err) {
+      setQuickReparseError(err instanceof Error ? err.message : "Erro ao processar anúncio")
+      console.error("Error parsing listing:", err)
+    } finally {
+      setQuickReparseLoading(null)
+    }
+  }
+
+  const handleQuickReparseApply = (changes: Partial<Imovel>) => {
+    if (!quickReparseListing) return
+    
+    const updated = updateListing(quickReparseListing.id, changes)
+    onListingsChange(updated)
+    setQuickReparseChanges(null)
+    setQuickReparseListing(null)
+  }
+
+  const handleOpenQuickReparsePopover = (listing: Imovel) => {
+    setQuickReparseInput("")
+    setQuickReparseError(null)
+    setQuickReparsePopoverOpen(listing.id)
   }
 
   const handleCopyToCollection = (listingId: string, targetCollectionId: string) => {
@@ -988,6 +1115,96 @@ export function ListingsTable({ listings, onListingsChange, refreshTrigger, hasA
                               Editar imóvel
                             </TooltipContent>
                           </Tooltip>
+                          <Popover 
+                            open={quickReparsePopoverOpen === imovel.id} 
+                            onOpenChange={(open) => {
+                              if (!open) {
+                                setQuickReparsePopoverOpen(null)
+                                setQuickReparseInput("")
+                                setQuickReparseLoading(null)
+                                setQuickReparseError(null)
+                              }
+                            }}
+                          >
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <PopoverTrigger asChild>
+                                  <button
+                                    onClick={() => handleOpenQuickReparsePopover(imovel)}
+                                    disabled={!hasApiKey}
+                                    className={cn(
+                                      "transition-colors p-1 flex-shrink-0",
+                                      !hasApiKey 
+                                        ? "text-muted-foreground opacity-50 cursor-not-allowed"
+                                        : "text-muted-foreground hover:text-primary"
+                                    )}
+                                  >
+                                    <RefreshCw className="h-4 w-4" />
+                                  </button>
+                                </PopoverTrigger>
+                              </TooltipTrigger>
+                              <TooltipContent 
+                                side="bottom" 
+                                sideOffset={4}
+                                className="bg-raisinBlack border border-brightGrey text-white"
+                              >
+                                {hasApiKey ? "Reparse rápido com IA" : "Configure a API key nas configurações"}
+                              </TooltipContent>
+                            </Tooltip>
+                            <PopoverContent className="w-64 p-3" align="start">
+                              <div className="space-y-3">
+                                <p className="text-sm font-medium text-ashGray">Cole o texto do anúncio</p>
+                                <Input
+                                  value={quickReparseInput}
+                                  onChange={(e) => {
+                                    setQuickReparseInput(e.target.value)
+                                    setQuickReparseError(null)
+                                  }}
+                                  placeholder="Cole aqui o texto completo..."
+                                  className="bg-eerieBlack border-brightGrey text-white placeholder:text-muted-foreground text-sm"
+                                  disabled={quickReparseLoading === imovel.id}
+                                  onKeyDown={(e) => {
+                                    if (e.key === "Enter" && quickReparseInput.trim() && !quickReparseLoading) {
+                                      handleQuickReparse(imovel)
+                                    }
+                                  }}
+                                  autoFocus
+                                />
+                                {quickReparseError && (
+                                  <p className="text-xs text-destructive">
+                                    {quickReparseError}
+                                  </p>
+                                )}
+                                {quickReparseLoading === imovel.id && (
+                                  <p className="text-xs text-muted-foreground flex items-center gap-2">
+                                    <span className="animate-spin">⏳</span>
+                                    Processando...
+                                  </p>
+                                )}
+                                <div className="flex gap-2">
+                                  <button
+                                    onClick={() => {
+                                      setQuickReparsePopoverOpen(null)
+                                      setQuickReparseInput("")
+                                      setQuickReparseLoading(null)
+                                      setQuickReparseError(null)
+                                    }}
+                                    disabled={quickReparseLoading === imovel.id}
+                                    className="flex-1 py-1.5 px-3 rounded text-sm bg-eerieBlack border border-brightGrey text-white hover:border-primary hover:text-primary transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                  >
+                                    Cancelar
+                                  </button>
+                                  <button
+                                    onClick={() => handleQuickReparse(imovel)}
+                                    disabled={!quickReparseInput.trim() || quickReparseLoading === imovel.id || !hasApiKey}
+                                    className="flex-1 py-1.5 px-3 rounded text-sm bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                  >
+                                    {quickReparseLoading === imovel.id ? "Processando..." : "Processar"}
+                                  </button>
+                                </div>
+                              </div>
+                            </PopoverContent>
+                          </Popover>
                           <Tooltip>
                             <TooltipTrigger asChild>
                               <button
@@ -1518,6 +1735,17 @@ export function ListingsTable({ listings, onListingsChange, refreshTrigger, hasA
           onListingsChange(updated)
           setImageModalListing(null)
         }}
+      />
+
+      {/* Quick Reparse Modal */}
+      <QuickReparseModal
+        isOpen={quickReparseChanges !== null && quickReparseListing !== null}
+        onClose={() => {
+          setQuickReparseChanges(null)
+          setQuickReparseListing(null)
+        }}
+        changes={quickReparseChanges || []}
+        onApplyChanges={handleQuickReparseApply}
       />
     </Card>
   )
