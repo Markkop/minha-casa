@@ -194,6 +194,7 @@ export function ListingsTable({ listings, onListingsChange, refreshTrigger, hasA
   const [contactPopoverOpen, setContactPopoverOpen] = useState<string | null>(null)
   const [contactNameInput, setContactNameInput] = useState("")
   const [contactNumberInput, setContactNumberInput] = useState("")
+  const [contactSelectorOpen, setContactSelectorOpen] = useState(false)
   const [quickReparsePopoverOpen, setQuickReparsePopoverOpen] = useState<string | null>(null)
   const [quickReparseInput, setQuickReparseInput] = useState("")
   const [quickReparseLoading, setQuickReparseLoading] = useState<string | null>(null)
@@ -338,6 +339,36 @@ export function ListingsTable({ listings, onListingsChange, refreshTrigger, hasA
     setContactNameInput(currentContactName || "")
     setContactNumberInput(currentContactNumber || "")
     setContactPopoverOpen(id)
+    setContactSelectorOpen(false)
+  }
+
+  // Extract unique contacts from all listings
+  const uniqueContacts = useMemo(() => {
+    const contactMap = new Map<string, { name: string | null; number: string }>()
+    
+    listings.forEach((listing) => {
+      if (listing.contactNumber) {
+        const normalized = listing.contactNumber.replace(/\D/g, "")
+        if (normalized && !contactMap.has(normalized)) {
+          contactMap.set(normalized, {
+            name: listing.contactName || null,
+            number: listing.contactNumber,
+          })
+        }
+      }
+    })
+    
+    return Array.from(contactMap.values()).sort((a, b) => {
+      const nameA = a.name || a.number
+      const nameB = b.name || b.number
+      return nameA.localeCompare(nameB)
+    })
+  }, [listings])
+
+  const handleSelectExistingContact = (contact: { name: string | null; number: string }) => {
+    setContactNameInput(contact.name || "")
+    setContactNumberInput(contact.number)
+    setContactSelectorOpen(false)
   }
 
   const handleQuickReparse = async (listing: Imovel) => {
@@ -1671,6 +1702,42 @@ export function ListingsTable({ listings, onListingsChange, refreshTrigger, hasA
                                   <PopoverContent className="w-64 p-3" align="start">
                                     <div className="space-y-3">
                                       <p className="text-sm font-medium text-ashGray">Contato WhatsApp</p>
+                                      {/* Existing contacts selector */}
+                                      {uniqueContacts.length > 0 && (
+                                        <Select
+                                          open={contactSelectorOpen}
+                                          onOpenChange={setContactSelectorOpen}
+                                          value=""
+                                          onValueChange={(value) => {
+                                            const contact = uniqueContacts.find(
+                                              (c) => c.number === value
+                                            )
+                                            if (contact) {
+                                              handleSelectExistingContact(contact)
+                                            }
+                                          }}
+                                        >
+                                          <SelectTrigger className="w-full bg-eerieBlack border-brightGrey text-white text-sm">
+                                            <SelectValue placeholder="Selecionar contato existente..." />
+                                          </SelectTrigger>
+                                          <SelectContent className="bg-raisinBlack border-brightGrey max-h-[200px]">
+                                            {uniqueContacts.map((contact) => (
+                                              <SelectItem
+                                                key={contact.number}
+                                                value={contact.number}
+                                                className="text-white hover:bg-eerieBlack text-sm"
+                                              >
+                                                {contact.name || contact.number}
+                                                {contact.name && (
+                                                  <span className="text-muted-foreground ml-1">
+                                                    ({contact.number})
+                                                  </span>
+                                                )}
+                                              </SelectItem>
+                                            ))}
+                                          </SelectContent>
+                                        </Select>
+                                      )}
                                       <div className="space-y-2">
                                         <Input
                                           value={contactNameInput}
@@ -1704,7 +1771,7 @@ export function ListingsTable({ listings, onListingsChange, refreshTrigger, hasA
                                         </button>
                                         <button
                                           onClick={() => handleSaveContact(imovel.id)}
-                                          className="flex-1 py-1.5 px-3 rounded text-sm bg-primary text-white hover:bg-primary/90 transition-colors"
+                                          className="flex-1 py-1.5 px-3 rounded text-sm bg-primary text-black hover:bg-primary/90 transition-colors"
                                         >
                                           Salvar
                                         </button>
@@ -1850,6 +1917,7 @@ export function ListingsTable({ listings, onListingsChange, refreshTrigger, hasA
           setFocusImageUrl(false)
         }}
         hasApiKey={hasApiKey}
+        uniqueContacts={uniqueContacts}
       />
 
       {/* Image Modal */}

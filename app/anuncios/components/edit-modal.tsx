@@ -16,6 +16,11 @@ import { cn } from "@/lib/utils"
 import { PencilIcon, SparklesIcon } from "lucide-react"
 import { ReparseModal } from "./reparse-modal"
 
+interface UniqueContact {
+  name: string | null
+  number: string
+}
+
 interface EditModalProps {
   isOpen: boolean
   onClose: () => void
@@ -23,6 +28,7 @@ interface EditModalProps {
   focusImageUrl?: boolean
   onListingUpdated: (listings: Imovel[]) => void
   hasApiKey?: boolean
+  uniqueContacts?: UniqueContact[]
 }
 
 export function EditModal({
@@ -32,8 +38,10 @@ export function EditModal({
   focusImageUrl = false,
   onListingUpdated,
   hasApiKey = false,
+  uniqueContacts = [],
 }: EditModalProps) {
   const [isReparseOpen, setIsReparseOpen] = useState(false)
+  const [contactSelectorOpen, setContactSelectorOpen] = useState(false)
   const [formData, setFormData] = useState<Partial<Imovel>>({
     titulo: "",
     endereco: "",
@@ -167,6 +175,15 @@ export function EditModal({
       ...prev,
       ...changes,
     }))
+  }
+
+  const handleSelectExistingContact = (contact: UniqueContact) => {
+    setFormData((prev) => ({
+      ...prev,
+      contactName: contact.name,
+      contactNumber: contact.number,
+    }))
+    setContactSelectorOpen(false)
   }
 
   if (!isOpen || !listing) return null
@@ -582,6 +599,46 @@ export function EditModal({
                 className="bg-eerieBlack border-brightGrey text-white placeholder:text-muted-foreground"
               />
             </div>
+
+            {/* Existing Contacts Selector */}
+            {uniqueContacts.length > 0 && (
+              <div className="md:col-span-2 space-y-2">
+                <Label className="text-sm text-ashGray">
+                  Selecionar Contato Existente
+                </Label>
+                <Select
+                  open={contactSelectorOpen}
+                  onOpenChange={setContactSelectorOpen}
+                  value=""
+                  onValueChange={(value) => {
+                    const contact = uniqueContacts.find((c) => c.number === value)
+                    if (contact) {
+                      handleSelectExistingContact(contact)
+                    }
+                  }}
+                >
+                  <SelectTrigger className="w-full bg-eerieBlack border-brightGrey text-white">
+                    <SelectValue placeholder="Selecionar contato existente..." />
+                  </SelectTrigger>
+                  <SelectContent className="bg-raisinBlack border-brightGrey max-h-[200px] z-[1002]">
+                    {uniqueContacts.map((contact) => (
+                      <SelectItem
+                        key={contact.number}
+                        value={contact.number}
+                        className="text-white hover:bg-eerieBlack"
+                      >
+                        {contact.name || contact.number}
+                        {contact.name && (
+                          <span className="text-muted-foreground ml-1">
+                            ({contact.number})
+                          </span>
+                        )}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
 
             {/* Contact Name */}
             <div className="md:col-span-2 space-y-2">
