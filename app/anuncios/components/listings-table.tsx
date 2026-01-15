@@ -1383,7 +1383,7 @@ export function ListingsTable({ listings, onListingsChange, refreshTrigger, hasA
                                       <PopoverTrigger asChild>
                                         <button
                                           onClick={() => handleOpenContactPopover(imovel.id, imovel.contactName, imovel.contactNumber)}
-                                          className="text-muted-foreground opacity-50 hover:text-primary transition-colors p-1 flex-shrink-0"
+                                          className="text-gray-400 hover:text-primary transition-colors p-1 flex-shrink-0"
                                         >
                                           <FaWhatsapp className="h-4 w-4" />
                                         </button>
