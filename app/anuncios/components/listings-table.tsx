@@ -40,7 +40,7 @@ import {
 } from "../lib/storage"
 import { cn } from "@/lib/utils"
 import { ArrowDownIcon, ArrowUpIcon, MagnifyingGlassIcon } from "@radix-ui/react-icons"
-import { PencilIcon, TrashIcon, LinkIcon, Star, FolderIcon, Eye, Strikethrough, Waves, Shield, Dumbbell, Mountain, ThermometerSun, Flag, Home, Building, RefreshCw } from "lucide-react"
+import { PencilIcon, TrashIcon, LinkIcon, Star, FolderIcon, Eye, Strikethrough, Waves, Shield, Dumbbell, Mountain, Flag, Home, Building, RefreshCw, Car, WavesLadder } from "lucide-react"
 import { FaWhatsapp } from "react-icons/fa"
 import { EditModal } from "./edit-modal"
 import { ImageModal } from "./image-modal"
@@ -248,6 +248,13 @@ export function ListingsTable({ listings, onListingsChange, refreshTrigger, hasA
     const current = currentAndar ?? 0
     const nextValue = current >= 10 ? 0 : current + 1
     const updated = updateListing(id, { andar: nextValue })
+    onListingsChange(updated)
+  }
+
+  const handleCycleGaragem = (id: string, currentGaragem: number | null | undefined) => {
+    const current = currentGaragem ?? 0
+    const nextValue = current >= 4 ? 0 : current + 1
+    const updated = updateListing(id, { garagem: nextValue })
     onListingsChange(updated)
   }
 
@@ -836,7 +843,6 @@ export function ListingsTable({ listings, onListingsChange, refreshTrigger, hasA
                   />
                   <TableHead className="text-primary text-center">WC</TableHead>
                   <TableHead className="text-primary text-center">Garagem</TableHead>
-                  <TableHead className="text-primary text-center">Comodidades</TableHead>
                   <SortableHeader
                     label="Adicionado"
                     sortKey="addedAt"
@@ -967,6 +973,175 @@ export function ListingsTable({ listings, onListingsChange, refreshTrigger, hasA
                             </a>
                           </div>
 
+                        {/* Comodidades row */}
+                        <div className={cn(
+                          "flex items-center gap-2 flex-nowrap",
+                          imovel.strikethrough && "opacity-50"
+                        )}>
+                          {/* Piscina - show for all */}
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <button
+                                onClick={() => handleTogglePiscina(imovel.id, imovel.piscina)}
+                                className={cn(
+                                  "transition-colors flex-shrink-0 p-1 hover:opacity-80",
+                                  imovel.piscina === true ? "text-blue-500" : "text-muted-foreground opacity-50"
+                                )}
+                              >
+                                <WavesLadder className="h-4 w-4" />
+                              </button>
+                            </TooltipTrigger>
+                            <TooltipContent 
+                              side="bottom" 
+                              sideOffset={4}
+                              className="bg-raisinBlack border border-brightGrey text-white"
+                            >
+                              {imovel.piscina === true ? "Remover piscina" : "Adicionar piscina"}
+                            </TooltipContent>
+                          </Tooltip>
+                          {/* Piscina Térmica - show only for apartamento */}
+                          {imovel.tipoImovel === "apartamento" && (
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <button
+                                  onClick={() => handleTogglePiscinaTermica(imovel.id, imovel.piscinaTermica)}
+                                  className={cn(
+                                    "transition-colors flex-shrink-0 p-1 hover:opacity-80",
+                                    imovel.piscinaTermica === true ? "text-blue-500" : "text-muted-foreground opacity-50"
+                                  )}
+                                >
+                                  <Waves className="h-4 w-4" />
+                                </button>
+                              </TooltipTrigger>
+                              <TooltipContent 
+                                side="bottom" 
+                                sideOffset={4}
+                                className="bg-raisinBlack border border-brightGrey text-white"
+                              >
+                                {imovel.piscinaTermica === true ? "Remover piscina térmica" : "Adicionar piscina térmica"}
+                              </TooltipContent>
+                            </Tooltip>
+                          )}
+                          {/* Porteiro 24h - show only for apartamento */}
+                          {imovel.tipoImovel === "apartamento" && (
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <button
+                                  onClick={() => handleTogglePorteiro24h(imovel.id, imovel.porteiro24h)}
+                                  className={cn(
+                                    "transition-colors flex-shrink-0 p-1 hover:opacity-80",
+                                    imovel.porteiro24h === true ? "text-red-500" : "text-muted-foreground opacity-50"
+                                  )}
+                                >
+                                  <Shield className="h-4 w-4" />
+                                </button>
+                              </TooltipTrigger>
+                              <TooltipContent 
+                                side="bottom" 
+                                sideOffset={4}
+                                className="bg-raisinBlack border border-brightGrey text-white"
+                              >
+                                {imovel.porteiro24h === true ? "Remover porteiro 24h" : "Adicionar porteiro 24h"}
+                              </TooltipContent>
+                            </Tooltip>
+                          )}
+                          {/* Academia - show only for apartamento */}
+                          {imovel.tipoImovel === "apartamento" && (
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <button
+                                  onClick={() => handleToggleAcademia(imovel.id, imovel.academia)}
+                                  className={cn(
+                                    "transition-colors flex-shrink-0 p-1 hover:opacity-80",
+                                    imovel.academia === true ? "text-yellow-500" : "text-muted-foreground opacity-50"
+                                  )}
+                                >
+                                  <Dumbbell className="h-4 w-4" />
+                                </button>
+                              </TooltipTrigger>
+                              <TooltipContent 
+                                side="bottom" 
+                                sideOffset={4}
+                                className="bg-raisinBlack border border-brightGrey text-white"
+                              >
+                                {imovel.academia === true ? "Remover academia" : "Adicionar academia"}
+                              </TooltipContent>
+                            </Tooltip>
+                          )}
+                          {/* Andar - show only for apartamento */}
+                          {imovel.tipoImovel === "apartamento" && (
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <button
+                                  onClick={() => handleCycleAndar(imovel.id, imovel.andar)}
+                                  className="transition-colors flex-shrink-0 p-1 hover:opacity-80 relative w-6 h-6 flex items-center justify-center"
+                                >
+                                  <Building className="h-4 w-4 absolute text-muted-foreground opacity-50" />
+                                  <span className={cn(
+                                    "relative z-10 font-bold text-[10px] drop-shadow-[0_0_2px_rgba(0,0,0,1)]",
+                                    (imovel.andar ?? 0) > 0 ? "text-white" : "text-muted-foreground opacity-50"
+                                  )}>
+                                    {imovel.andar === 10 ? "+" : (imovel.andar ?? 0)}
+                                  </span>
+                                </button>
+                              </TooltipTrigger>
+                              <TooltipContent 
+                                side="bottom" 
+                                sideOffset={4}
+                                className="bg-raisinBlack border border-brightGrey text-white"
+                              >
+                                Andar: {imovel.andar === 10 ? "10+" : (imovel.andar ?? 0)}
+                              </TooltipContent>
+                            </Tooltip>
+                          )}
+                          {/* Garagem - show for all */}
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <button
+                                onClick={() => handleCycleGaragem(imovel.id, imovel.garagem)}
+                                className="transition-colors flex-shrink-0 p-1 hover:opacity-80 relative w-6 h-6 flex items-center justify-center"
+                              >
+                                <Car className="h-4 w-4 absolute text-muted-foreground opacity-50" />
+                                <span className={cn(
+                                  "relative z-10 font-bold text-[10px] drop-shadow-[0_0_2px_rgba(0,0,0,1)]",
+                                  (imovel.garagem ?? 0) > 0 ? "text-white" : "text-muted-foreground opacity-50"
+                                )}>
+                                  {imovel.garagem ?? 0}
+                                </span>
+                              </button>
+                            </TooltipTrigger>
+                            <TooltipContent 
+                              side="bottom" 
+                              sideOffset={4}
+                              className="bg-raisinBlack border border-brightGrey text-white"
+                            >
+                              Vagas: {imovel.garagem ?? 0}
+                            </TooltipContent>
+                          </Tooltip>
+                          {/* Vista Livre - show for all */}
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <button
+                                onClick={() => handleToggleVistaLivre(imovel.id, imovel.vistaLivre)}
+                                className={cn(
+                                  "transition-colors flex-shrink-0 p-1 hover:opacity-80",
+                                  imovel.vistaLivre === true ? "text-green-500" : "text-muted-foreground opacity-50"
+                                )}
+                              >
+                                <Mountain className="h-4 w-4" />
+                              </button>
+                            </TooltipTrigger>
+                            <TooltipContent 
+                              side="bottom" 
+                              sideOffset={4}
+                              className="bg-raisinBlack border border-brightGrey text-white"
+                            >
+                              {imovel.vistaLivre === true ? "Remover vista livre" : "Adicionar vista livre"}
+                            </TooltipContent>
+                          </Tooltip>
+                        </div>
+
+                        {/* Actions row */}
                         <div className="flex items-center gap-2 flex-nowrap">
                           <Tooltip>
                             <TooltipTrigger asChild>
@@ -1549,147 +1724,6 @@ export function ListingsTable({ listings, onListingsChange, refreshTrigger, hasA
                       imovel.strikethrough && "line-through opacity-50"
                     )}>
                       {formatGaragem(imovel.garagem)}
-                    </TableCell>
-                    <TableCell className={cn(
-                      "text-center",
-                      imovel.strikethrough && "line-through opacity-50"
-                    )}>
-                      <div className="flex items-center justify-center gap-1.5 flex-nowrap">
-                        {/* Piscina - show for all */}
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <button
-                              onClick={() => handleTogglePiscina(imovel.id, imovel.piscina)}
-                              className={cn(
-                                "transition-colors flex-shrink-0 p-1 hover:opacity-80",
-                                imovel.piscina === true ? "text-blue-500" : "text-muted-foreground opacity-50"
-                              )}
-                            >
-                              <Waves className="h-4 w-4" />
-                            </button>
-                          </TooltipTrigger>
-                          <TooltipContent 
-                            side="bottom" 
-                            sideOffset={4}
-                            className="bg-raisinBlack border border-brightGrey text-white"
-                          >
-                            {imovel.piscina === true ? "Remover piscina" : "Adicionar piscina"}
-                          </TooltipContent>
-                        </Tooltip>
-                        {/* Piscina Térmica - show only for apartamento */}
-                        {imovel.tipoImovel === "apartamento" && (
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <button
-                                onClick={() => handleTogglePiscinaTermica(imovel.id, imovel.piscinaTermica)}
-                                className={cn(
-                                  "transition-colors flex-shrink-0 p-1 hover:opacity-80",
-                                  imovel.piscinaTermica === true ? "text-blue-500" : "text-muted-foreground opacity-50"
-                                )}
-                              >
-                                <ThermometerSun className="h-4 w-4" />
-                              </button>
-                            </TooltipTrigger>
-                            <TooltipContent 
-                              side="bottom" 
-                              sideOffset={4}
-                              className="bg-raisinBlack border border-brightGrey text-white"
-                            >
-                              {imovel.piscinaTermica === true ? "Remover piscina térmica" : "Adicionar piscina térmica"}
-                            </TooltipContent>
-                          </Tooltip>
-                        )}
-                        {/* Porteiro 24h - show only for apartamento */}
-                        {imovel.tipoImovel === "apartamento" && (
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <button
-                                onClick={() => handleTogglePorteiro24h(imovel.id, imovel.porteiro24h)}
-                                className={cn(
-                                  "transition-colors flex-shrink-0 p-1 hover:opacity-80",
-                                  imovel.porteiro24h === true ? "text-red-500" : "text-muted-foreground opacity-50"
-                                )}
-                              >
-                                <Shield className="h-4 w-4" />
-                              </button>
-                            </TooltipTrigger>
-                            <TooltipContent 
-                              side="bottom" 
-                              sideOffset={4}
-                              className="bg-raisinBlack border border-brightGrey text-white"
-                            >
-                              {imovel.porteiro24h === true ? "Remover porteiro 24h" : "Adicionar porteiro 24h"}
-                            </TooltipContent>
-                          </Tooltip>
-                        )}
-                        {/* Academia - show only for apartamento */}
-                        {imovel.tipoImovel === "apartamento" && (
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <button
-                                onClick={() => handleToggleAcademia(imovel.id, imovel.academia)}
-                                className={cn(
-                                  "transition-colors flex-shrink-0 p-1 hover:opacity-80",
-                                  imovel.academia === true ? "text-yellow-500" : "text-muted-foreground opacity-50"
-                                )}
-                              >
-                                <Dumbbell className="h-4 w-4" />
-                              </button>
-                            </TooltipTrigger>
-                            <TooltipContent 
-                              side="bottom" 
-                              sideOffset={4}
-                              className="bg-raisinBlack border border-brightGrey text-white"
-                            >
-                              {imovel.academia === true ? "Remover academia" : "Adicionar academia"}
-                            </TooltipContent>
-                          </Tooltip>
-                        )}
-                        {/* Andar - show only for apartamento */}
-                        {imovel.tipoImovel === "apartamento" && (
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <button
-                                onClick={() => handleCycleAndar(imovel.id, imovel.andar)}
-                                className={cn(
-                                  "transition-colors flex-shrink-0 p-1 hover:opacity-80 font-mono text-xs",
-                                  (imovel.andar ?? 0) > 0 ? "text-white" : "text-muted-foreground opacity-50"
-                                )}
-                              >
-                                {imovel.andar === 10 ? "10+" : (imovel.andar ?? 0)}
-                              </button>
-                            </TooltipTrigger>
-                            <TooltipContent 
-                              side="bottom" 
-                              sideOffset={4}
-                              className="bg-raisinBlack border border-brightGrey text-white"
-                            >
-                              Andar: {imovel.andar === 10 ? "10+" : (imovel.andar ?? 0)}
-                            </TooltipContent>
-                          </Tooltip>
-                        )}
-                        {/* Vista Livre - show for all */}
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <button
-                              onClick={() => handleToggleVistaLivre(imovel.id, imovel.vistaLivre)}
-                              className={cn(
-                                "transition-colors flex-shrink-0 p-1 hover:opacity-80",
-                                imovel.vistaLivre === true ? "text-green-500" : "text-muted-foreground opacity-50"
-                              )}
-                            >
-                              <Mountain className="h-4 w-4" />
-                            </button>
-                          </TooltipTrigger>
-                          <TooltipContent 
-                            side="bottom" 
-                            sideOffset={4}
-                            className="bg-raisinBlack border border-brightGrey text-white"
-                          >
-                            {imovel.vistaLivre === true ? "Remover vista livre" : "Adicionar vista livre"}
-                          </TooltipContent>
-                        </Tooltip>
-                      </div>
                     </TableCell>
                     <TableCell 
                       className={cn(
