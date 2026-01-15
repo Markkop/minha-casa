@@ -16,11 +16,20 @@ export interface Imovel {
   quartos: number | null
   suites: number | null
   banheiros: number | null
+  garagem: number | null
   preco: number | null
   precoM2: number | null
   piscina: boolean | null
+  porteiro24h: boolean | null
+  academia: boolean | null
+  vistaLivre: boolean | null
+  piscinaTermica: boolean | null
+  andar?: number | null
+  tipoImovel?: "casa" | "apartamento" | null
   link: string | null
   imageUrl?: string | null
+  contactName?: string | null
+  contactNumber?: string | null
   starred?: boolean
   visited?: boolean
   strikethrough?: boolean
@@ -748,11 +757,20 @@ const KEY_MAP: Record<string, string> = {
   quartos: "q",
   suites: "s",
   banheiros: "b",
+  garagem: "g",
   preco: "p",
   precoM2: "pm",
   piscina: "pi",
+  porteiro24h: "p24",
+  academia: "ac",
+  vistaLivre: "vl",
+  piscinaTermica: "pt",
+  andar: "an",
+  tipoImovel: "ti",
   link: "lk",
   imageUrl: "iu",
+  contactName: "cn",
+  contactNumber: "cnu",
   starred: "st",
   visited: "v",
   strikethrough: "x",
@@ -853,11 +871,20 @@ const IMOVEL_KEYS_ORDER: (keyof Imovel)[] = [
   "quartos",
   "suites",
   "banheiros",
+  "garagem",
   "preco",
   "precoM2",
   "piscina",
+  "porteiro24h",
+  "academia",
+  "vistaLivre",
+  "piscinaTermica",
+  "andar",
+  "tipoImovel",
   "link",
   "imageUrl",
+  "contactName",
+  "contactNumber",
   "starred",
   "visited",
   "strikethrough",
@@ -974,7 +1001,7 @@ function imovelToCompactArray(imovel: Imovel): unknown[] {
  */
 function compactArrayToImovel(arr: unknown[]): Imovel {
   const obj: Record<string, unknown> = {}
-  const booleanKeys = ["piscina", "starred", "visited", "strikethrough"]
+  const booleanKeys = ["piscina", "porteiro24h", "academia", "vistaLivre", "piscinaTermica", "starred", "visited", "strikethrough"]
   
   IMOVEL_KEYS_ORDER.forEach((key, index) => {
     if (index < arr.length && arr[index] !== undefined) {

@@ -13,7 +13,8 @@ import {
 } from "@/components/ui/select"
 import { updateListing, type Imovel } from "../lib/storage"
 import { cn } from "@/lib/utils"
-import { PencilIcon } from "lucide-react"
+import { PencilIcon, SparklesIcon } from "lucide-react"
+import { ReparseModal } from "./reparse-modal"
 
 interface EditModalProps {
   isOpen: boolean
@@ -21,6 +22,7 @@ interface EditModalProps {
   listing: Imovel | null
   focusImageUrl?: boolean
   onListingUpdated: (listings: Imovel[]) => void
+  hasApiKey?: boolean
 }
 
 export function EditModal({
@@ -29,7 +31,9 @@ export function EditModal({
   listing,
   focusImageUrl = false,
   onListingUpdated,
+  hasApiKey = false,
 }: EditModalProps) {
+  const [isReparseOpen, setIsReparseOpen] = useState(false)
   const [formData, setFormData] = useState<Partial<Imovel>>({
     titulo: "",
     endereco: "",
@@ -38,10 +42,19 @@ export function EditModal({
     quartos: null,
     suites: null,
     banheiros: null,
+    garagem: null,
     preco: null,
     piscina: null,
+    porteiro24h: null,
+    academia: null,
+    vistaLivre: null,
+    piscinaTermica: null,
+    andar: null,
+    tipoImovel: null,
     link: null,
     imageUrl: null,
+    contactName: null,
+    contactNumber: null,
     addedAt: undefined,
     discardedReason: null,
   })
@@ -59,10 +72,19 @@ export function EditModal({
         quartos: listing.quartos,
         suites: listing.suites,
         banheiros: listing.banheiros,
+        garagem: listing.garagem,
         preco: listing.preco,
         piscina: listing.piscina,
+        porteiro24h: listing.porteiro24h,
+        academia: listing.academia,
+        vistaLivre: listing.vistaLivre,
+        piscinaTermica: listing.piscinaTermica,
+        andar: listing.andar,
+        tipoImovel: listing.tipoImovel,
         link: listing.link,
         imageUrl: listing.imageUrl,
+        contactName: listing.contactName,
+        contactNumber: listing.contactNumber,
         addedAt: listing.addedAt || "2025-12-31",
         discardedReason: listing.discardedReason,
       })
@@ -101,11 +123,19 @@ export function EditModal({
     }
   }
 
-  const handlePiscinaChange = (value: string) => {
+  const handleBooleanChange = (field: keyof Imovel, value: string) => {
     if (value === "null") {
-      handleInputChange("piscina", null)
+      handleInputChange(field, null)
     } else {
-      handleInputChange("piscina", value === "true")
+      handleInputChange(field, value === "true")
+    }
+  }
+
+  const handleTipoImovelChange = (value: string) => {
+    if (value === "null") {
+      handleInputChange("tipoImovel", null)
+    } else {
+      handleInputChange("tipoImovel", value as "casa" | "apartamento")
     }
   }
 
@@ -130,6 +160,13 @@ export function EditModal({
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erro ao salvar alterações")
     }
+  }
+
+  const handleReparseApply = (changes: Partial<Imovel>) => {
+    setFormData((prev) => ({
+      ...prev,
+      ...changes,
+    }))
   }
 
   if (!isOpen || !listing) return null
@@ -271,6 +308,21 @@ export function EditModal({
               />
             </div>
 
+            {/* Garagem */}
+            <div className="space-y-2">
+              <Label htmlFor="garagem" className="text-sm text-ashGray">
+                Garagem
+              </Label>
+              <Input
+                id="garagem"
+                type="number"
+                value={formData.garagem ?? ""}
+                onChange={(e) => handleNumberInputChange("garagem", e.target.value)}
+                placeholder="Ex: 2"
+                className="bg-eerieBlack border-brightGrey text-white placeholder:text-muted-foreground"
+              />
+            </div>
+
             {/* Preço */}
             <div className="space-y-2">
               <Label htmlFor="preco" className="text-sm text-ashGray">
@@ -287,7 +339,7 @@ export function EditModal({
             </div>
 
             {/* Piscina */}
-            <div className="md:col-span-2 space-y-2">
+            <div className="space-y-2">
               <Label htmlFor="piscina" className="text-sm text-ashGray">
                 Piscina
               </Label>
@@ -299,7 +351,7 @@ export function EditModal({
                     ? "true"
                     : "false"
                 }
-                onValueChange={handlePiscinaChange}
+                onValueChange={(value) => handleBooleanChange("piscina", value)}
               >
                 <SelectTrigger
                   id="piscina"
@@ -307,10 +359,166 @@ export function EditModal({
                 >
                   <SelectValue placeholder="Selecione..." />
                 </SelectTrigger>
-                <SelectContent className="bg-raisinBlack border-brightGrey">
+                <SelectContent className="bg-raisinBlack border-brightGrey z-[1001]">
                   <SelectItem value="null">Não informado</SelectItem>
                   <SelectItem value="true">Sim</SelectItem>
                   <SelectItem value="false">Não</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Piscina Térmica */}
+            <div className="space-y-2">
+              <Label htmlFor="piscinaTermica" className="text-sm text-ashGray">
+                Piscina Térmica
+              </Label>
+              <Select
+                value={
+                  formData.piscinaTermica === null
+                    ? "null"
+                    : formData.piscinaTermica
+                    ? "true"
+                    : "false"
+                }
+                onValueChange={(value) => handleBooleanChange("piscinaTermica", value)}
+              >
+                <SelectTrigger
+                  id="piscinaTermica"
+                  className="w-full bg-eerieBlack border-brightGrey text-white"
+                >
+                  <SelectValue placeholder="Selecione..." />
+                </SelectTrigger>
+                <SelectContent className="bg-raisinBlack border-brightGrey z-[1001]">
+                  <SelectItem value="null">Não informado</SelectItem>
+                  <SelectItem value="true">Sim</SelectItem>
+                  <SelectItem value="false">Não</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Porteiro 24h */}
+            <div className="space-y-2">
+              <Label htmlFor="porteiro24h" className="text-sm text-ashGray">
+                Porteiro 24h
+              </Label>
+              <Select
+                value={
+                  formData.porteiro24h === null
+                    ? "null"
+                    : formData.porteiro24h
+                    ? "true"
+                    : "false"
+                }
+                onValueChange={(value) => handleBooleanChange("porteiro24h", value)}
+              >
+                <SelectTrigger
+                  id="porteiro24h"
+                  className="w-full bg-eerieBlack border-brightGrey text-white"
+                >
+                  <SelectValue placeholder="Selecione..." />
+                </SelectTrigger>
+                <SelectContent className="bg-raisinBlack border-brightGrey z-[1001]">
+                  <SelectItem value="null">Não informado</SelectItem>
+                  <SelectItem value="true">Sim</SelectItem>
+                  <SelectItem value="false">Não</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Academia */}
+            <div className="space-y-2">
+              <Label htmlFor="academia" className="text-sm text-ashGray">
+                Academia
+              </Label>
+              <Select
+                value={
+                  formData.academia === null
+                    ? "null"
+                    : formData.academia
+                    ? "true"
+                    : "false"
+                }
+                onValueChange={(value) => handleBooleanChange("academia", value)}
+              >
+                <SelectTrigger
+                  id="academia"
+                  className="w-full bg-eerieBlack border-brightGrey text-white"
+                >
+                  <SelectValue placeholder="Selecione..." />
+                </SelectTrigger>
+                <SelectContent className="bg-raisinBlack border-brightGrey z-[1001]">
+                  <SelectItem value="null">Não informado</SelectItem>
+                  <SelectItem value="true">Sim</SelectItem>
+                  <SelectItem value="false">Não</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Vista Livre */}
+            <div className="space-y-2">
+              <Label htmlFor="vistaLivre" className="text-sm text-ashGray">
+                Vista Livre
+              </Label>
+              <Select
+                value={
+                  formData.vistaLivre === null
+                    ? "null"
+                    : formData.vistaLivre
+                    ? "true"
+                    : "false"
+                }
+                onValueChange={(value) => handleBooleanChange("vistaLivre", value)}
+              >
+                <SelectTrigger
+                  id="vistaLivre"
+                  className="w-full bg-eerieBlack border-brightGrey text-white"
+                >
+                  <SelectValue placeholder="Selecione..." />
+                </SelectTrigger>
+                <SelectContent className="bg-raisinBlack border-brightGrey z-[1001]">
+                  <SelectItem value="null">Não informado</SelectItem>
+                  <SelectItem value="true">Sim</SelectItem>
+                  <SelectItem value="false">Não</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Andar */}
+            <div className="space-y-2">
+              <Label htmlFor="andar" className="text-sm text-ashGray">
+                Andar (0-10, onde 10 = 10+)
+              </Label>
+              <Input
+                id="andar"
+                type="number"
+                min="0"
+                max="10"
+                value={formData.andar ?? ""}
+                onChange={(e) => handleNumberInputChange("andar", e.target.value)}
+                placeholder="Ex: 5"
+                className="bg-eerieBlack border-brightGrey text-white placeholder:text-muted-foreground"
+              />
+            </div>
+
+            {/* Tipo de Imóvel */}
+            <div className="space-y-2">
+              <Label htmlFor="tipoImovel" className="text-sm text-ashGray">
+                Tipo de Imóvel
+              </Label>
+              <Select
+                value={formData.tipoImovel ?? "null"}
+                onValueChange={handleTipoImovelChange}
+              >
+                <SelectTrigger
+                  id="tipoImovel"
+                  className="w-full bg-eerieBlack border-brightGrey text-white"
+                >
+                  <SelectValue placeholder="Selecione..." />
+                </SelectTrigger>
+                <SelectContent className="bg-raisinBlack border-brightGrey z-[1001]">
+                  <SelectItem value="null">Não informado</SelectItem>
+                  <SelectItem value="casa">Casa</SelectItem>
+                  <SelectItem value="apartamento">Apartamento</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -374,10 +582,55 @@ export function EditModal({
                 className="bg-eerieBlack border-brightGrey text-white placeholder:text-muted-foreground"
               />
             </div>
+
+            {/* Contact Name */}
+            <div className="md:col-span-2 space-y-2">
+              <Label htmlFor="contactName" className="text-sm text-ashGray">
+                Nome do Contato
+              </Label>
+              <Input
+                id="contactName"
+                type="text"
+                value={formData.contactName || ""}
+                onChange={(e) => handleInputChange("contactName", e.target.value)}
+                placeholder="Ex: João Silva"
+                className="bg-eerieBlack border-brightGrey text-white placeholder:text-muted-foreground"
+              />
+            </div>
+
+            {/* Contact Number */}
+            <div className="md:col-span-2 space-y-2">
+              <Label htmlFor="contactNumber" className="text-sm text-ashGray">
+                Número WhatsApp
+              </Label>
+              <Input
+                id="contactNumber"
+                type="text"
+                value={formData.contactNumber || ""}
+                onChange={(e) => handleInputChange("contactNumber", e.target.value)}
+                placeholder="Ex: 48996792216"
+                className="bg-eerieBlack border-brightGrey text-white placeholder:text-muted-foreground"
+              />
+            </div>
           </div>
 
           {/* Action Buttons */}
           <div className="flex gap-3 pt-4 border-t border-brightGrey">
+            <button
+              onClick={() => setIsReparseOpen(true)}
+              disabled={!hasApiKey}
+              className={cn(
+                "flex-1 py-2.5 px-4 rounded-lg font-medium transition-all",
+                "bg-eerieBlack border border-brightGrey text-white",
+                "hover:border-primary hover:text-primary",
+                "flex items-center justify-center gap-2",
+                "disabled:opacity-50 disabled:cursor-not-allowed"
+              )}
+              title={hasApiKey ? "Reparse com IA" : "Configure a API key nas configurações"}
+            >
+              <SparklesIcon className="h-4 w-4" />
+              Reparse IA
+            </button>
             <button
               onClick={onClose}
               className={cn(
@@ -403,6 +656,15 @@ export function EditModal({
           </div>
         </CardContent>
       </Card>
+
+      {/* Reparse Modal */}
+      <ReparseModal
+        isOpen={isReparseOpen}
+        onClose={() => setIsReparseOpen(false)}
+        currentData={formData}
+        hasApiKey={hasApiKey}
+        onApplyChanges={handleReparseApply}
+      />
     </div>
   )
 }

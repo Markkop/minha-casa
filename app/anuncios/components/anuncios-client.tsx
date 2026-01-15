@@ -366,6 +366,7 @@ export function AnunciosClient() {
           listings={listings}
           onListingsChange={loadListings}
           refreshTrigger={collectionRefreshTrigger}
+          hasApiKey={apiKeyConfigured}
         />
 
         {/* Map View */}

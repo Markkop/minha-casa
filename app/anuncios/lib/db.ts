@@ -27,11 +27,19 @@ export interface CollectionExportData {
     quartos: number | null
     suites: number | null
     banheiros: number | null
+    garagem: number | null
     preco: number | null
     precoM2: number | null
     piscina: boolean | null
+    porteiro24h: boolean | null
+    academia: boolean | null
+    vistaLivre: boolean | null
+    piscinaTermica: boolean | null
+    andar?: number | null
     link: string | null
     imageUrl?: string | null
+    contactName?: string | null
+    contactNumber?: string | null
     starred?: boolean
     visited?: boolean
     strikethrough?: boolean

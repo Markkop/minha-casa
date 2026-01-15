@@ -30,6 +30,8 @@ export function ParserModal({
   const [linkValue, setLinkValue] = useState("")
   const [imageValue, setImageValue] = useState("")
   const [addressValue, setAddressValue] = useState("")
+  const [contactNameValue, setContactNameValue] = useState("")
+  const [contactNumberValue, setContactNumberValue] = useState("")
   const linkInputRef = useRef<HTMLInputElement>(null)
 
   // Reset state when modal opens
@@ -41,13 +43,17 @@ export function ParserModal({
       setLinkValue("")
       setImageValue("")
       setAddressValue("")
+      setContactNameValue("")
+      setContactNumberValue("")
     }
   }, [isOpen])
 
-  // Initialize address value when parsed
+  // Initialize address and contact values when parsed
   useEffect(() => {
     if (lastParsed) {
       setAddressValue(lastParsed.endereco || "")
+      setContactNameValue(lastParsed.contactName || "")
+      setContactNumberValue(lastParsed.contactNumber || "")
     }
   }, [lastParsed])
 
@@ -114,6 +120,12 @@ export function ParserModal({
     }
     if (imageValue.trim()) {
       updates.imageUrl = imageValue.trim()
+    }
+    if (contactNameValue.trim()) {
+      updates.contactName = contactNameValue.trim()
+    }
+    if (contactNumberValue.trim()) {
+      updates.contactNumber = contactNumberValue.trim()
     }
 
     if (Object.keys(updates).length > 0) {
@@ -266,6 +278,42 @@ export function ParserModal({
                     {formatValue(lastParsed.precoM2, "currency")}
                   </span>
                 </div>
+                <div>
+                  <span className="text-muted-foreground">Garagem:</span>{" "}
+                  <span className="text-white">
+                    {lastParsed.garagem !== null ? `${lastParsed.garagem} Vagas` : "—"}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Piscina:</span>{" "}
+                  <span className="text-white">
+                    {formatValue(lastParsed.piscina, "boolean")}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Piscina Térmica:</span>{" "}
+                  <span className="text-white">
+                    {formatValue(lastParsed.piscinaTermica, "boolean")}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Porteiro 24h:</span>{" "}
+                  <span className="text-white">
+                    {formatValue(lastParsed.porteiro24h, "boolean")}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Academia:</span>{" "}
+                  <span className="text-white">
+                    {formatValue(lastParsed.academia, "boolean")}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Vista Livre:</span>{" "}
+                  <span className="text-white">
+                    {formatValue(lastParsed.vistaLivre, "boolean")}
+                  </span>
+                </div>
               </div>
               
               {/* Link input field */}
@@ -310,6 +358,36 @@ export function ParserModal({
                   value={addressValue}
                   onChange={(e) => setAddressValue(e.target.value)}
                   placeholder="Ex: Rua das Flores, 123 - Bairro, Cidade - Estado"
+                  className="bg-eerieBlack border-brightGrey text-white placeholder:text-muted-foreground"
+                />
+              </div>
+
+              {/* Contact Name input field */}
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="contact-name-input" className="text-sm text-ashGray">
+                  Nome do Contato (opcional)
+                </Label>
+                <Input
+                  id="contact-name-input"
+                  type="text"
+                  value={contactNameValue}
+                  onChange={(e) => setContactNameValue(e.target.value)}
+                  placeholder="Ex: João Silva"
+                  className="bg-eerieBlack border-brightGrey text-white placeholder:text-muted-foreground"
+                />
+              </div>
+
+              {/* Contact Number input field */}
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="contact-number-input" className="text-sm text-ashGray">
+                  Número WhatsApp (opcional)
+                </Label>
+                <Input
+                  id="contact-number-input"
+                  type="text"
+                  value={contactNumberValue}
+                  onChange={(e) => setContactNumberValue(e.target.value)}
+                  placeholder="Ex: 48996792216"
                   className="bg-eerieBlack border-brightGrey text-white placeholder:text-muted-foreground"
                 />
               </div>

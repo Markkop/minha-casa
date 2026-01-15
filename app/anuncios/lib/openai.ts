@@ -13,8 +13,16 @@ interface ParsedImovelData {
   quartos: number | null
   suites: number | null
   banheiros: number | null
+  garagem: number | null
   preco: number | null
   piscina: boolean | null
+  porteiro24h: boolean | null
+  academia: boolean | null
+  vistaLivre: boolean | null
+  piscinaTermica: boolean | null
+  tipoImovel: "casa" | "apartamento" | null
+  contactName: string | null
+  contactNumber: string | null
 }
 
 // ============================================================================
@@ -32,8 +40,16 @@ Dado um texto de anúncio de imóvel (pode vir de sites como ZAP, OLX, VivaReal,
 5. **quartos**: Número de quartos/dormitórios
 6. **suites**: Número de suítes
 7. **banheiros**: Número de banheiros
-8. **preco**: Preço do imóvel em reais (apenas números, sem formatação)
-9. **piscina**: Se o imóvel possui piscina (true/false)
+8. **garagem**: Número de vagas de garagem
+9. **preco**: Preço do imóvel em reais (apenas números, sem formatação)
+10. **piscina**: Se o imóvel possui piscina (true/false)
+11. **porteiro24h**: Se o imóvel possui porteiro 24 horas (true/false)
+12. **academia**: Se o imóvel possui academia (true/false)
+13. **vistaLivre**: Se o imóvel possui vista livre (true/false)
+14. **piscinaTermica**: Se o imóvel possui piscina térmica (true/false)
+15. **tipoImovel**: Tipo do imóvel ("casa" ou "apartamento")
+16. **contactName**: Nome do contato/corretor (se mencionado no anúncio)
+17. **contactNumber**: Número de telefone/WhatsApp do contato (formato: apenas dígitos, ex: "48996792216" para (48) 99679-2216)
 
 Regras:
 - Retorne SEMPRE um JSON válido
@@ -43,7 +59,18 @@ Regras:
 - Para m², considere variações como "150m²", "150 metros", "150 m2"
 - Para quartos, considere "3 quartos", "3 dorms", "3 dormitórios"
 - Para suítes, diferencie de quartos quando possível
+- Para garagem, considere "X vagas", "garagem para X carros", "X vaga de garagem", "X vagas de garagem"
 - Piscina: procure por "piscina", "área de lazer com piscina", etc.
+- Porteiro 24h: procure por "porteiro 24h", "porteiro 24 horas", "portaria 24h", "portaria 24 horas", "vigilância 24h"
+- Academia: procure por "academia", "academia de ginástica", "sala de ginástica", "fitness"
+- Vista livre: procure por "vista livre", "vista desimpedida", "sem prédios na frente", "vista panorâmica"
+- Piscina térmica: procure por "piscina térmica", "piscina aquecida", "piscina com aquecimento"
+- tipoImovel: infira se é "casa" ou "apartamento" baseado em palavras-chave:
+  - "casa": casa, sobrado, residência, terreno com casa, chalé
+  - "apartamento": apartamento, apto, ap., flat, studio, kitnet, cobertura, loft
+  - Se não for possível determinar, use null
+- Contact Name: procure por nomes de corretores, imobiliárias, ou contatos mencionados (ex: "Fale com João", "Contato: Maria Silva")
+- Contact Number: procure por números de telefone ou WhatsApp mencionados no anúncio. Normalize removendo espaços, parênteses, hífens e outros caracteres não numéricos. Mantenha apenas os dígitos (ex: "(48) 99679-2216" vira "48996792216", "+55 48 99679-2216" vira "48996792216"). Se o número já começar com 55, remova esse prefixo pois será adicionado automaticamente na URL do WhatsApp.
 
 Responda APENAS com o JSON, sem explicações adicionais.
 
@@ -56,8 +83,16 @@ Exemplo de resposta:
   "quartos": 3,
   "suites": 1,
   "banheiros": 2,
+  "garagem": 2,
   "preco": 1500000,
-  "piscina": true
+  "piscina": true,
+  "porteiro24h": true,
+  "academia": false,
+  "vistaLivre": true,
+  "piscinaTermica": false,
+  "tipoImovel": "casa",
+  "contactName": "João Silva",
+  "contactNumber": "48996792216"
 }`
 
 // ============================================================================
@@ -110,9 +145,17 @@ export async function parseListingWithAI(rawText: string): Promise<Imovel> {
     quartos: parsed.quartos,
     suites: parsed.suites,
     banheiros: parsed.banheiros,
+    garagem: parsed.garagem,
     preco: parsed.preco,
     precoM2: null, // Calculated dynamically in UI
     piscina: parsed.piscina,
+    porteiro24h: parsed.porteiro24h,
+    academia: parsed.academia,
+    vistaLivre: parsed.vistaLivre,
+    piscinaTermica: parsed.piscinaTermica,
+    tipoImovel: parsed.tipoImovel,
+    contactName: parsed.contactName,
+    contactNumber: parsed.contactNumber,
     link: null, // User must add link manually via edit modal
     createdAt: new Date().toISOString(),
     addedAt: new Date().toISOString().split('T')[0], // "2025-12-31" format

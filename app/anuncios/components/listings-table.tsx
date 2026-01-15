@@ -40,7 +40,8 @@ import {
 } from "../lib/storage"
 import { cn } from "@/lib/utils"
 import { ArrowDownIcon, ArrowUpIcon, MagnifyingGlassIcon } from "@radix-ui/react-icons"
-import { PencilIcon, TrashIcon, LinkIcon, Star, FolderIcon, Eye, Strikethrough } from "lucide-react"
+import { PencilIcon, TrashIcon, LinkIcon, Star, FolderIcon, Eye, Strikethrough, Waves, Shield, Dumbbell, Mountain, ThermometerSun, Flag, Home, Building } from "lucide-react"
+import { FaWhatsapp } from "react-icons/fa"
 import { EditModal } from "./edit-modal"
 import { ImageModal } from "./image-modal"
 
@@ -68,6 +69,7 @@ interface ListingsTableProps {
   listings: Imovel[]
   onListingsChange: (listings: Imovel[]) => void
   refreshTrigger?: number
+  hasApiKey?: boolean
 }
 
 // ============================================================================
@@ -120,11 +122,14 @@ function SortableHeader({
 // MAIN COMPONENT
 // ============================================================================
 
-export function ListingsTable({ listings, onListingsChange, refreshTrigger }: ListingsTableProps) {
+type PropertyTypeFilter = "all" | "casa" | "apartamento"
+
+export function ListingsTable({ listings, onListingsChange, refreshTrigger, hasApiKey = false }: ListingsTableProps) {
   const router = useRouter()
-  // State for search and sort
+  // State for search, sort, and property type filter
   const [searchQuery, setSearchQuery] = useState("")
   const [sort, setSort] = useState<SortState>({ key: "preco", direction: "desc" })
+  const [propertyTypeFilter, setPropertyTypeFilter] = useState<PropertyTypeFilter>("all")
   const [editingListing, setEditingListing] = useState<Imovel | null>(null)
   const [focusImageUrl, setFocusImageUrl] = useState(false)
   const [imageModalListing, setImageModalListing] = useState<Imovel | null>(null)
@@ -132,6 +137,9 @@ export function ListingsTable({ listings, onListingsChange, refreshTrigger }: Li
   const [copyingListingId, setCopyingListingId] = useState<string | null>(null)
   const [discardPopoverOpen, setDiscardPopoverOpen] = useState<string | null>(null)
   const [discardReasonInput, setDiscardReasonInput] = useState("")
+  const [contactPopoverOpen, setContactPopoverOpen] = useState<string | null>(null)
+  const [contactNameInput, setContactNameInput] = useState("")
+  const [contactNumberInput, setContactNumberInput] = useState("")
 
   useEffect(() => {
     setCollections(getCollections())
@@ -149,6 +157,51 @@ export function ListingsTable({ listings, onListingsChange, refreshTrigger }: Li
 
   const handleToggleVisited = (id: string, currentVisited: boolean | undefined) => {
     const updated = updateListing(id, { visited: !currentVisited })
+    onListingsChange(updated)
+  }
+
+  const handleTogglePiscina = (id: string, currentPiscina: boolean | null | undefined) => {
+    const updated = updateListing(id, { piscina: currentPiscina === true ? false : true })
+    onListingsChange(updated)
+  }
+
+  const handleTogglePiscinaTermica = (id: string, currentPiscinaTermica: boolean | null | undefined) => {
+    const updated = updateListing(id, { piscinaTermica: currentPiscinaTermica === true ? false : true })
+    onListingsChange(updated)
+  }
+
+  const handleTogglePorteiro24h = (id: string, currentPorteiro24h: boolean | null | undefined) => {
+    const updated = updateListing(id, { porteiro24h: currentPorteiro24h === true ? false : true })
+    onListingsChange(updated)
+  }
+
+  const handleToggleAcademia = (id: string, currentAcademia: boolean | null | undefined) => {
+    const updated = updateListing(id, { academia: currentAcademia === true ? false : true })
+    onListingsChange(updated)
+  }
+
+  const handleToggleVistaLivre = (id: string, currentVistaLivre: boolean | null | undefined) => {
+    const updated = updateListing(id, { vistaLivre: currentVistaLivre === true ? false : true })
+    onListingsChange(updated)
+  }
+
+  const handleCycleAndar = (id: string, currentAndar: number | null | undefined) => {
+    const current = currentAndar ?? 0
+    const nextValue = current >= 10 ? 0 : current + 1
+    const updated = updateListing(id, { andar: nextValue })
+    onListingsChange(updated)
+  }
+
+  const handleToggleTipoImovel = (id: string, currentTipo: "casa" | "apartamento" | null | undefined) => {
+    let nextTipo: "casa" | "apartamento" | null
+    if (currentTipo === null || currentTipo === undefined) {
+      nextTipo = "casa"
+    } else if (currentTipo === "casa") {
+      nextTipo = "apartamento"
+    } else {
+      nextTipo = null
+    }
+    const updated = updateListing(id, { tipoImovel: nextTipo })
     onListingsChange(updated)
   }
 
@@ -172,6 +225,38 @@ export function ListingsTable({ listings, onListingsChange, refreshTrigger }: Li
     onListingsChange(updated)
     setDiscardPopoverOpen(null)
     setDiscardReasonInput("")
+  }
+
+  const normalizePhoneNumber = (phone: string | null | undefined): string | null => {
+    if (!phone) return null
+    // Remove all non-numeric characters
+    const digits = phone.replace(/\D/g, "")
+    // Return null if no digits
+    return digits.length > 0 ? digits : null
+  }
+
+  const buildWhatsAppUrl = (contactNumber: string | null | undefined): string | null => {
+    const normalized = normalizePhoneNumber(contactNumber)
+    if (!normalized) return null
+    return `https://wa.me/55${normalized}`
+  }
+
+  const handleSaveContact = (id: string) => {
+    const updates: Partial<Imovel> = {
+      contactName: contactNameInput.trim() || null,
+      contactNumber: contactNumberInput.trim() || null,
+    }
+    const updated = updateListing(id, updates)
+    onListingsChange(updated)
+    setContactPopoverOpen(null)
+    setContactNameInput("")
+    setContactNumberInput("")
+  }
+
+  const handleOpenContactPopover = (id: string, currentContactName?: string | null, currentContactNumber?: string | null) => {
+    setContactNameInput(currentContactName || "")
+    setContactNumberInput(currentContactNumber || "")
+    setContactPopoverOpen(id)
   }
 
   const handleCopyToCollection = (listingId: string, targetCollectionId: string) => {
@@ -215,6 +300,11 @@ export function ListingsTable({ listings, onListingsChange, refreshTrigger }: Li
   const formatBoolean = (value: boolean | null) => {
     if (value === null) return "—"
     return value ? "✓" : "✕"
+  }
+
+  const formatGaragem = (value: number | null | undefined) => {
+    if (value === null || value === undefined) return "0 Vagas"
+    return `${value} Vagas`
   }
 
   const truncateTitle = (title: string, maxLength: number = 50) => {
@@ -412,11 +502,16 @@ export function ListingsTable({ listings, onListingsChange, refreshTrigger }: Li
     let filtered = listings
 
     if (query) {
-      filtered = listings.filter((imovel) => {
+      filtered = filtered.filter((imovel) => {
         const titulo = imovel.titulo.toLowerCase()
         const endereco = imovel.endereco.toLowerCase()
         return titulo.includes(query) || endereco.includes(query)
       })
+    }
+
+    // Filter by property type
+    if (propertyTypeFilter !== "all") {
+      filtered = filtered.filter((imovel) => imovel.tipoImovel === propertyTypeFilter)
     }
 
     // Then, sort the filtered results
@@ -459,7 +554,7 @@ export function ListingsTable({ listings, onListingsChange, refreshTrigger }: Li
         ? (aVal as number) - (bVal as number)
         : (bVal as number) - (aVal as number)
     })
-  }, [listings, searchQuery, sort])
+  }, [listings, searchQuery, sort, propertyTypeFilter])
 
   if (listings.length === 0) {
     return (
@@ -503,6 +598,51 @@ export function ListingsTable({ listings, onListingsChange, refreshTrigger }: Li
             className="pl-9 bg-eerieBlack border-brightGrey text-white placeholder:text-muted-foreground"
           />
         </div>
+
+        {/* Property Type Filter Buttons */}
+        <div className="flex items-center gap-2 mt-3">
+          {(() => {
+            const casaCount = listings.filter((l) => l.tipoImovel === "casa").length
+            const aptoCount = listings.filter((l) => l.tipoImovel === "apartamento").length
+            return (
+              <>
+                <button
+                  onClick={() => setPropertyTypeFilter("all")}
+                  className={cn(
+                    "px-3 py-1.5 rounded-full text-sm font-medium transition-all border",
+                    propertyTypeFilter === "all"
+                      ? "bg-primary text-primary-foreground border-primary"
+                      : "bg-eerieBlack border-brightGrey text-muted-foreground hover:border-primary hover:text-primary"
+                  )}
+                >
+                  Todos ({listings.length})
+                </button>
+                <button
+                  onClick={() => setPropertyTypeFilter("casa")}
+                  className={cn(
+                    "px-3 py-1.5 rounded-full text-sm font-medium transition-all border",
+                    propertyTypeFilter === "casa"
+                      ? "bg-primary text-primary-foreground border-primary"
+                      : "bg-eerieBlack border-brightGrey text-muted-foreground hover:border-primary hover:text-primary"
+                  )}
+                >
+                  Casas ({casaCount})
+                </button>
+                <button
+                  onClick={() => setPropertyTypeFilter("apartamento")}
+                  className={cn(
+                    "px-3 py-1.5 rounded-full text-sm font-medium transition-all border",
+                    propertyTypeFilter === "apartamento"
+                      ? "bg-primary text-primary-foreground border-primary"
+                      : "bg-eerieBlack border-brightGrey text-muted-foreground hover:border-primary hover:text-primary"
+                  )}
+                >
+                  Aptos ({aptoCount})
+                </button>
+              </>
+            )
+          })()}
+        </div>
       </CardHeader>
 
       <CardContent className="p-0">
@@ -533,30 +673,15 @@ export function ListingsTable({ listings, onListingsChange, refreshTrigger }: Li
                     align="right"
                   />
                   <SortableHeader
+                    label="R$/m² total"
+                    sortKey="precoM2"
+                    currentSort={sort}
+                    onSort={handleSort}
+                    align="right"
+                  />
+                  <SortableHeader
                     label="m² priv."
                     sortKey="m2Privado"
-                    currentSort={sort}
-                    onSort={handleSort}
-                    align="right"
-                  />
-                  <SortableHeader
-                    label="Quartos"
-                    sortKey="quartos"
-                    currentSort={sort}
-                    onSort={handleSort}
-                    align="center"
-                  />
-                  <TableHead className="text-primary text-center">WCs</TableHead>
-                  <SortableHeader
-                    label="Preço"
-                    sortKey="preco"
-                    currentSort={sort}
-                    onSort={handleSort}
-                    align="right"
-                  />
-                  <SortableHeader
-                    label="R$/m²"
-                    sortKey="precoM2"
                     currentSort={sort}
                     onSort={handleSort}
                     align="right"
@@ -568,7 +693,23 @@ export function ListingsTable({ listings, onListingsChange, refreshTrigger }: Li
                     onSort={handleSort}
                     align="right"
                   />
-                  <TableHead className="text-primary text-center">Piscina</TableHead>
+                  <SortableHeader
+                    label="Preço"
+                    sortKey="preco"
+                    currentSort={sort}
+                    onSort={handleSort}
+                    align="right"
+                  />
+                  <SortableHeader
+                    label="Quartos"
+                    sortKey="quartos"
+                    currentSort={sort}
+                    onSort={handleSort}
+                    align="center"
+                  />
+                  <TableHead className="text-primary text-center">WC</TableHead>
+                  <TableHead className="text-primary text-center">Garagem</TableHead>
+                  <TableHead className="text-primary text-center">Comodidades</TableHead>
                   <SortableHeader
                     label="Adicionado"
                     sortKey="addedAt"
@@ -632,37 +773,65 @@ export function ListingsTable({ listings, onListingsChange, refreshTrigger }: Li
                     <TableCell className="min-w-[320px]">
                       <div className="flex min-w-0 flex-col gap-2">
                           <div className="min-w-0">
-                            {imovel.link ? (
-                              <a
-                                href={imovel.link}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className={cn(
-                                  "block font-medium leading-snug truncate hover:text-primary transition-colors cursor-pointer",
-                                  imovel.strikethrough && "line-through opacity-50"
-                                )}
-                                title={`Abrir anúncio: ${imovel.titulo}`}
-                              >
-                                {truncateTitle(imovel.titulo)}
-                              </a>
-                            ) : (
-                              <div
-                                className={cn(
-                                  "block font-medium leading-snug truncate",
-                                  imovel.strikethrough && "line-through opacity-50"
-                                )}
-                                title={imovel.titulo}
-                              >
-                                {truncateTitle(imovel.titulo)}
-                              </div>
-                            )}
-
+                            <div className="flex items-center gap-1 min-w-0">
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <button
+                                    onClick={() => handleToggleTipoImovel(imovel.id, imovel.tipoImovel)}
+                                    className="text-muted-foreground hover:text-primary transition-colors p-1 flex-shrink-0"
+                                  >
+                                    {imovel.tipoImovel === "casa" ? (
+                                      <Home className="h-4 w-4" />
+                                    ) : imovel.tipoImovel === "apartamento" ? (
+                                      <Building className="h-4 w-4" />
+                                    ) : (
+                                      <Flag className="h-4 w-4" />
+                                    )}
+                                  </button>
+                                </TooltipTrigger>
+                                <TooltipContent 
+                                  side="bottom" 
+                                  sideOffset={4}
+                                  className="bg-raisinBlack border border-brightGrey text-white"
+                                >
+                                  {imovel.tipoImovel === "casa"
+                                    ? "Marcar como apartamento"
+                                    : imovel.tipoImovel === "apartamento"
+                                    ? "Remover tipo"
+                                    : "Marcar como casa"}
+                                </TooltipContent>
+                              </Tooltip>
+                              {imovel.link ? (
+                                <a
+                                  href={imovel.link}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className={cn(
+                                    "font-medium leading-snug truncate hover:text-primary transition-colors cursor-pointer flex-1 min-w-0",
+                                    imovel.strikethrough && "line-through opacity-50"
+                                  )}
+                                  title={`Abrir anúncio: ${imovel.titulo}`}
+                                >
+                                  {truncateTitle(imovel.titulo)}
+                                </a>
+                              ) : (
+                                <div
+                                  className={cn(
+                                    "font-medium leading-snug truncate flex-1 min-w-0",
+                                    imovel.strikethrough && "line-through opacity-50"
+                                  )}
+                                  title={imovel.titulo}
+                                >
+                                  {truncateTitle(imovel.titulo)}
+                                </div>
+                              )}
+                            </div>
                             <a
                               href={buildGoogleMapsUrl(imovel.endereco)}
                               target="_blank"
                               rel="noopener noreferrer"
                               className={cn(
-                                "block text-xs text-muted-foreground truncate hover:text-primary transition-colors underline decoration-dotted underline-offset-2",
+                                "block text-xs text-muted-foreground truncate hover:text-primary transition-colors underline decoration-dotted underline-offset-2 mt-1",
                                 imovel.strikethrough && "line-through opacity-50"
                               )}
                               title={`Abrir ${imovel.endereco} no Google Maps`}
@@ -671,13 +840,13 @@ export function ListingsTable({ listings, onListingsChange, refreshTrigger }: Li
                             </a>
                           </div>
 
-                        <div className="flex items-center gap-2 flex-wrap">
+                        <div className="flex items-center gap-2 flex-nowrap">
                           <Tooltip>
                             <TooltipTrigger asChild>
                               <button
                                 onClick={() => handleToggleStar(imovel.id, imovel.starred)}
                                 className={cn(
-                                  "transition-colors p-1",
+                                  "transition-colors p-1 flex-shrink-0",
                                   imovel.starred
                                     ? "text-yellow hover:text-yellow/80"
                                     : "text-muted-foreground hover:text-yellow"
@@ -702,7 +871,7 @@ export function ListingsTable({ listings, onListingsChange, refreshTrigger }: Li
                               <button
                                 onClick={() => handleToggleVisited(imovel.id, imovel.visited)}
                                 className={cn(
-                                  "transition-colors p-1",
+                                  "transition-colors p-1 flex-shrink-0",
                                   imovel.visited
                                     ? "text-yellow hover:text-yellow/80 [&_svg_*]:!fill-none [&_svg_*]:!stroke-yellow"
                                     : "text-muted-foreground hover:text-yellow"
@@ -738,7 +907,7 @@ export function ListingsTable({ listings, onListingsChange, refreshTrigger }: Li
                                   <button
                                     onClick={() => handleToggleStrikethrough(imovel.id, imovel.strikethrough, imovel.discardedReason)}
                                     className={cn(
-                                      "transition-colors p-1",
+                                      "transition-colors p-1 flex-shrink-0",
                                       imovel.strikethrough
                                         ? "text-destructive hover:text-destructive/80"
                                         : "text-muted-foreground hover:text-destructive"
@@ -806,7 +975,7 @@ export function ListingsTable({ listings, onListingsChange, refreshTrigger }: Li
                                   setFocusImageUrl(false)
                                   setEditingListing(imovel)
                                 }}
-                                className="text-muted-foreground hover:text-primary transition-colors p-1"
+                                className="text-muted-foreground hover:text-primary transition-colors p-1 flex-shrink-0"
                               >
                                 <PencilIcon className="h-4 w-4" />
                               </button>
@@ -823,7 +992,7 @@ export function ListingsTable({ listings, onListingsChange, refreshTrigger }: Li
                             <TooltipTrigger asChild>
                               <button
                                 onClick={() => handleDelete(imovel.id)}
-                                className="text-muted-foreground hover:text-destructive transition-colors p-1"
+                                className="text-muted-foreground hover:text-destructive transition-colors p-1 flex-shrink-0"
                               >
                                 <TrashIcon className="h-4 w-4" />
                               </button>
@@ -874,7 +1043,7 @@ export function ListingsTable({ listings, onListingsChange, refreshTrigger }: Li
                                 <TooltipTrigger asChild>
                                   <button
                                     onClick={() => setCopyingListingId(imovel.id)}
-                                    className="text-muted-foreground hover:text-primary transition-colors p-1"
+                                    className="text-muted-foreground hover:text-primary transition-colors p-1 flex-shrink-0"
                                   >
                                     <FolderIcon className="h-4 w-4" />
                                   </button>
@@ -901,7 +1070,7 @@ export function ListingsTable({ listings, onListingsChange, refreshTrigger }: Li
                                 )}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="text-muted-foreground hover:text-primary transition-colors p-1 inline-block"
+                                className="text-muted-foreground hover:text-primary transition-colors p-1 inline-block flex-shrink-0"
                               >
                                 <MagnifyingGlassIcon className="h-4 w-4" />
                               </a>
@@ -921,7 +1090,7 @@ export function ListingsTable({ listings, onListingsChange, refreshTrigger }: Li
                                   href={imovel.link}
                                   target="_blank"
                                   rel="noopener noreferrer"
-                                  className="text-muted-foreground hover:text-primary transition-colors p-1 inline-block"
+                                  className="text-muted-foreground hover:text-primary transition-colors p-1 inline-block flex-shrink-0"
                                 >
                                   <LinkIcon className="h-4 w-4" />
                                 </a>
@@ -938,7 +1107,7 @@ export function ListingsTable({ listings, onListingsChange, refreshTrigger }: Li
                             <Tooltip>
                               <TooltipTrigger asChild>
                                 <span
-                                  className="text-muted-foreground opacity-50 p-1 inline-block cursor-not-allowed"
+                                  className="text-muted-foreground opacity-50 p-1 inline-block cursor-not-allowed flex-shrink-0"
                                 >
                                   <LinkIcon className="h-4 w-4" />
                                 </span>
@@ -952,6 +1121,112 @@ export function ListingsTable({ listings, onListingsChange, refreshTrigger }: Li
                               </TooltipContent>
                             </Tooltip>
                           )}
+                          {(() => {
+                            const whatsappUrl = buildWhatsAppUrl(imovel.contactNumber)
+                            const hasContact = !!imovel.contactNumber
+                            
+                            if (hasContact && whatsappUrl) {
+                              // Contact is set - show green icon, click opens WhatsApp
+                              return (
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <a
+                                      href={whatsappUrl}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="text-green-500 hover:text-green-400 transition-colors p-1 inline-block flex-shrink-0"
+                                    >
+                                      <FaWhatsapp className="h-4 w-4" />
+                                    </a>
+                                  </TooltipTrigger>
+                                  <TooltipContent 
+                                    side="bottom" 
+                                    sideOffset={4}
+                                    className="bg-raisinBlack border border-brightGrey text-white"
+                                  >
+                                    {imovel.contactName ? `Abrir WhatsApp - ${imovel.contactName}` : "Abrir WhatsApp"}
+                                  </TooltipContent>
+                                </Tooltip>
+                              )
+                            } else {
+                              // Contact not set - show gray icon, click opens popover
+                              return (
+                                <Popover 
+                                  open={contactPopoverOpen === imovel.id} 
+                                  onOpenChange={(open) => {
+                                    if (!open) {
+                                      setContactPopoverOpen(null)
+                                      setContactNameInput("")
+                                      setContactNumberInput("")
+                                    }
+                                  }}
+                                >
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <PopoverTrigger asChild>
+                                        <button
+                                          onClick={() => handleOpenContactPopover(imovel.id, imovel.contactName, imovel.contactNumber)}
+                                          className="text-muted-foreground opacity-50 hover:text-primary transition-colors p-1 flex-shrink-0"
+                                        >
+                                          <FaWhatsapp className="h-4 w-4" />
+                                        </button>
+                                      </PopoverTrigger>
+                                    </TooltipTrigger>
+                                    <TooltipContent 
+                                      side="bottom" 
+                                      sideOffset={4}
+                                      className="bg-raisinBlack border border-brightGrey text-white"
+                                    >
+                                      Adicionar contato WhatsApp
+                                    </TooltipContent>
+                                  </Tooltip>
+                                  <PopoverContent className="w-64 p-3" align="start">
+                                    <div className="space-y-3">
+                                      <p className="text-sm font-medium text-ashGray">Contato WhatsApp</p>
+                                      <div className="space-y-2">
+                                        <Input
+                                          value={contactNameInput}
+                                          onChange={(e) => setContactNameInput(e.target.value)}
+                                          placeholder="Nome do contato"
+                                          className="bg-eerieBlack border-brightGrey text-white placeholder:text-muted-foreground text-sm"
+                                        />
+                                        <Input
+                                          value={contactNumberInput}
+                                          onChange={(e) => setContactNumberInput(e.target.value)}
+                                          placeholder="Ex: 48996792216"
+                                          className="bg-eerieBlack border-brightGrey text-white placeholder:text-muted-foreground text-sm"
+                                          onKeyDown={(e) => {
+                                            if (e.key === "Enter") {
+                                              handleSaveContact(imovel.id)
+                                            }
+                                          }}
+                                          autoFocus
+                                        />
+                                      </div>
+                                      <div className="flex gap-2">
+                                        <button
+                                          onClick={() => {
+                                            setContactPopoverOpen(null)
+                                            setContactNameInput("")
+                                            setContactNumberInput("")
+                                          }}
+                                          className="flex-1 py-1.5 px-3 rounded text-sm bg-eerieBlack border border-brightGrey text-white hover:border-primary hover:text-primary transition-colors"
+                                        >
+                                          Cancelar
+                                        </button>
+                                        <button
+                                          onClick={() => handleSaveContact(imovel.id)}
+                                          className="flex-1 py-1.5 px-3 rounded text-sm bg-primary text-white hover:bg-primary/90 transition-colors"
+                                        >
+                                          Salvar
+                                        </button>
+                                      </div>
+                                    </div>
+                                  </PopoverContent>
+                                </Popover>
+                              )
+                            }
+                          })()}
                         </div>
                       </div>
                     </TableCell>
@@ -962,22 +1237,59 @@ export function ListingsTable({ listings, onListingsChange, refreshTrigger }: Li
                       {formatNumber(imovel.m2Totais, "m²")}
                     </TableCell>
                     <TableCell className={cn(
+                      "text-right font-mono text-sm text-muted-foreground",
+                      imovel.strikethrough && "line-through opacity-50"
+                    )}>
+                      {imovel.tipoImovel ? (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span className="cursor-help border-b border-dotted border-muted-foreground">
+                              {formatCurrency(calculatePrecoM2(imovel.preco, imovel.m2Totais))}
+                            </span>
+                          </TooltipTrigger>
+                          <TooltipContent 
+                            side="bottom" 
+                            sideOffset={4}
+                            className="bg-raisinBlack border border-brightGrey text-white max-w-[280px]"
+                          >
+                            {imovel.tipoImovel === "apartamento" 
+                              ? "Área total de um apartamento inclui área comum, então esse valor pode confundir"
+                              : "Valor do terreno/área total é melhor pra comprar, Média itacorubi: R$2.000-3.000"
+                            }
+                          </TooltipContent>
+                        </Tooltip>
+                      ) : (
+                        formatCurrency(calculatePrecoM2(imovel.preco, imovel.m2Totais))
+                      )}
+                    </TableCell>
+                    <TableCell className={cn(
                       "text-right font-mono text-sm",
                       imovel.strikethrough && "line-through opacity-50"
                     )}>
                       {formatNumber(imovel.m2Privado, "m²")}
                     </TableCell>
                     <TableCell className={cn(
-                      "text-center font-mono text-sm",
+                      "text-right font-mono text-sm text-muted-foreground",
                       imovel.strikethrough && "line-through opacity-50"
                     )}>
-                      {formatQuartosSuites(imovel.quartos, imovel.suites)}
-                    </TableCell>
-                    <TableCell className={cn(
-                      "text-center font-mono text-sm",
-                      imovel.strikethrough && "line-through opacity-50"
-                    )}>
-                      {formatNumber(imovel.banheiros)}
+                      {imovel.tipoImovel === "apartamento" ? (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span className="cursor-help border-b border-dotted border-muted-foreground">
+                              {formatCurrency(calculatePrecoM2Privado(imovel.preco, imovel.m2Privado))}
+                            </span>
+                          </TooltipTrigger>
+                          <TooltipContent 
+                            side="bottom" 
+                            sideOffset={4}
+                            className="bg-raisinBlack border border-brightGrey text-white"
+                          >
+                            Média Apto Itacorubi: R$12.000
+                          </TooltipContent>
+                        </Tooltip>
+                      ) : (
+                        formatCurrency(calculatePrecoM2Privado(imovel.preco, imovel.m2Privado))
+                      )}
                     </TableCell>
                     <TableCell 
                       className={cn(
@@ -1004,30 +1316,163 @@ export function ListingsTable({ listings, onListingsChange, refreshTrigger }: Li
                       </Tooltip>
                     </TableCell>
                     <TableCell className={cn(
-                      "text-right font-mono text-sm text-muted-foreground",
+                      "text-center font-mono text-sm",
                       imovel.strikethrough && "line-through opacity-50"
                     )}>
-                      {formatCurrency(calculatePrecoM2(imovel.preco, imovel.m2Totais))}
+                      {formatQuartosSuites(imovel.quartos, imovel.suites)}
                     </TableCell>
                     <TableCell className={cn(
-                      "text-right font-mono text-sm text-muted-foreground",
+                      "text-center font-mono text-sm",
                       imovel.strikethrough && "line-through opacity-50"
                     )}>
-                      {formatCurrency(calculatePrecoM2Privado(imovel.preco, imovel.m2Privado))}
+                      {formatNumber(imovel.banheiros)}
+                    </TableCell>
+                    <TableCell className={cn(
+                      "text-center font-mono text-sm",
+                      imovel.strikethrough && "line-through opacity-50"
+                    )}>
+                      {formatGaragem(imovel.garagem)}
                     </TableCell>
                     <TableCell className={cn(
                       "text-center",
                       imovel.strikethrough && "line-through opacity-50"
                     )}>
-                      <span
-                        className={cn(
-                          imovel.piscina === true && "text-green",
-                          imovel.piscina === false && "text-muted-foreground",
-                          imovel.piscina === null && "text-muted-foreground"
+                      <div className="flex items-center justify-center gap-1.5 flex-nowrap">
+                        {/* Piscina - show for all */}
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <button
+                              onClick={() => handleTogglePiscina(imovel.id, imovel.piscina)}
+                              className={cn(
+                                "transition-colors flex-shrink-0 p-1 hover:opacity-80",
+                                imovel.piscina === true ? "text-blue-500" : "text-muted-foreground opacity-50"
+                              )}
+                            >
+                              <Waves className="h-4 w-4" />
+                            </button>
+                          </TooltipTrigger>
+                          <TooltipContent 
+                            side="bottom" 
+                            sideOffset={4}
+                            className="bg-raisinBlack border border-brightGrey text-white"
+                          >
+                            {imovel.piscina === true ? "Remover piscina" : "Adicionar piscina"}
+                          </TooltipContent>
+                        </Tooltip>
+                        {/* Piscina Térmica - show only for apartamento */}
+                        {imovel.tipoImovel === "apartamento" && (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <button
+                                onClick={() => handleTogglePiscinaTermica(imovel.id, imovel.piscinaTermica)}
+                                className={cn(
+                                  "transition-colors flex-shrink-0 p-1 hover:opacity-80",
+                                  imovel.piscinaTermica === true ? "text-blue-500" : "text-muted-foreground opacity-50"
+                                )}
+                              >
+                                <ThermometerSun className="h-4 w-4" />
+                              </button>
+                            </TooltipTrigger>
+                            <TooltipContent 
+                              side="bottom" 
+                              sideOffset={4}
+                              className="bg-raisinBlack border border-brightGrey text-white"
+                            >
+                              {imovel.piscinaTermica === true ? "Remover piscina térmica" : "Adicionar piscina térmica"}
+                            </TooltipContent>
+                          </Tooltip>
                         )}
-                      >
-                        {formatBoolean(imovel.piscina)}
-                      </span>
+                        {/* Porteiro 24h - show only for apartamento */}
+                        {imovel.tipoImovel === "apartamento" && (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <button
+                                onClick={() => handleTogglePorteiro24h(imovel.id, imovel.porteiro24h)}
+                                className={cn(
+                                  "transition-colors flex-shrink-0 p-1 hover:opacity-80",
+                                  imovel.porteiro24h === true ? "text-red-500" : "text-muted-foreground opacity-50"
+                                )}
+                              >
+                                <Shield className="h-4 w-4" />
+                              </button>
+                            </TooltipTrigger>
+                            <TooltipContent 
+                              side="bottom" 
+                              sideOffset={4}
+                              className="bg-raisinBlack border border-brightGrey text-white"
+                            >
+                              {imovel.porteiro24h === true ? "Remover porteiro 24h" : "Adicionar porteiro 24h"}
+                            </TooltipContent>
+                          </Tooltip>
+                        )}
+                        {/* Academia - show only for apartamento */}
+                        {imovel.tipoImovel === "apartamento" && (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <button
+                                onClick={() => handleToggleAcademia(imovel.id, imovel.academia)}
+                                className={cn(
+                                  "transition-colors flex-shrink-0 p-1 hover:opacity-80",
+                                  imovel.academia === true ? "text-yellow-500" : "text-muted-foreground opacity-50"
+                                )}
+                              >
+                                <Dumbbell className="h-4 w-4" />
+                              </button>
+                            </TooltipTrigger>
+                            <TooltipContent 
+                              side="bottom" 
+                              sideOffset={4}
+                              className="bg-raisinBlack border border-brightGrey text-white"
+                            >
+                              {imovel.academia === true ? "Remover academia" : "Adicionar academia"}
+                            </TooltipContent>
+                          </Tooltip>
+                        )}
+                        {/* Andar - show only for apartamento */}
+                        {imovel.tipoImovel === "apartamento" && (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <button
+                                onClick={() => handleCycleAndar(imovel.id, imovel.andar)}
+                                className={cn(
+                                  "transition-colors flex-shrink-0 p-1 hover:opacity-80 font-mono text-xs",
+                                  (imovel.andar ?? 0) > 0 ? "text-white" : "text-muted-foreground opacity-50"
+                                )}
+                              >
+                                {imovel.andar === 10 ? "10+" : (imovel.andar ?? 0)}
+                              </button>
+                            </TooltipTrigger>
+                            <TooltipContent 
+                              side="bottom" 
+                              sideOffset={4}
+                              className="bg-raisinBlack border border-brightGrey text-white"
+                            >
+                              Andar: {imovel.andar === 10 ? "10+" : (imovel.andar ?? 0)}
+                            </TooltipContent>
+                          </Tooltip>
+                        )}
+                        {/* Vista Livre - show for all */}
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <button
+                              onClick={() => handleToggleVistaLivre(imovel.id, imovel.vistaLivre)}
+                              className={cn(
+                                "transition-colors flex-shrink-0 p-1 hover:opacity-80",
+                                imovel.vistaLivre === true ? "text-green-500" : "text-muted-foreground opacity-50"
+                              )}
+                            >
+                              <Mountain className="h-4 w-4" />
+                            </button>
+                          </TooltipTrigger>
+                          <TooltipContent 
+                            side="bottom" 
+                            sideOffset={4}
+                            className="bg-raisinBlack border border-brightGrey text-white"
+                          >
+                            {imovel.vistaLivre === true ? "Remover vista livre" : "Adicionar vista livre"}
+                          </TooltipContent>
+                        </Tooltip>
+                      </div>
                     </TableCell>
                     <TableCell 
                       className={cn(
@@ -1059,6 +1504,7 @@ export function ListingsTable({ listings, onListingsChange, refreshTrigger }: Li
           setEditingListing(null)
           setFocusImageUrl(false)
         }}
+        hasApiKey={hasApiKey}
       />
 
       {/* Image Modal */}
