@@ -40,7 +40,7 @@ import {
 } from "../lib/storage"
 import { cn } from "@/lib/utils"
 import { ArrowDownIcon, ArrowUpIcon, MagnifyingGlassIcon } from "@radix-ui/react-icons"
-import { PencilIcon, TrashIcon, LinkIcon, Star, FolderIcon, Eye, Strikethrough, Waves, Shield, Dumbbell, Mountain, Flag, Home, Building, RefreshCw, Car, WavesLadder } from "lucide-react"
+import { PencilIcon, TrashIcon, LinkIcon, Star, FolderIcon, Eye, Strikethrough, Waves, Shield, Dumbbell, Mountain, Flag, Home, Building, RefreshCw, Car, WavesLadder, BedDouble, Bath } from "lucide-react"
 import { FaWhatsapp } from "react-icons/fa"
 import { EditModal } from "./edit-modal"
 import { ImageModal } from "./image-modal"
@@ -183,6 +183,7 @@ export function ListingsTable({ listings, onListingsChange, refreshTrigger, hasA
   const [searchQuery, setSearchQuery] = useState("")
   const [sort, setSort] = useState<SortState>({ key: "preco", direction: "desc" })
   const [propertyTypeFilter, setPropertyTypeFilter] = useState<PropertyTypeFilter>("all")
+  const [showStrikethrough, setShowStrikethrough] = useState(true)
   const [editingListing, setEditingListing] = useState<Imovel | null>(null)
   const [focusImageUrl, setFocusImageUrl] = useState(false)
   const [imageModalListing, setImageModalListing] = useState<Imovel | null>(null)
@@ -255,6 +256,20 @@ export function ListingsTable({ listings, onListingsChange, refreshTrigger, hasA
     const current = currentGaragem ?? 0
     const nextValue = current >= 4 ? 0 : current + 1
     const updated = updateListing(id, { garagem: nextValue })
+    onListingsChange(updated)
+  }
+
+  const handleCycleQuartos = (id: string, currentQuartos: number | null | undefined) => {
+    const current = currentQuartos ?? 0
+    const nextValue = current >= 6 ? 0 : current + 1
+    const updated = updateListing(id, { quartos: nextValue })
+    onListingsChange(updated)
+  }
+
+  const handleCycleBanheiros = (id: string, currentBanheiros: number | null | undefined) => {
+    const current = currentBanheiros ?? 0
+    const nextValue = current >= 6 ? 0 : current + 1
+    const updated = updateListing(id, { banheiros: nextValue })
     onListingsChange(updated)
   }
 
@@ -635,6 +650,11 @@ export function ListingsTable({ listings, onListingsChange, refreshTrigger, hasA
     const query = searchQuery.toLowerCase().trim()
     let filtered = listings
 
+    // Filter strikethrough items if hidden
+    if (!showStrikethrough) {
+      filtered = filtered.filter((imovel) => !imovel.strikethrough)
+    }
+
     if (query) {
       filtered = filtered.filter((imovel) => {
         const titulo = imovel.titulo.toLowerCase()
@@ -688,7 +708,7 @@ export function ListingsTable({ listings, onListingsChange, refreshTrigger, hasA
         ? (aVal as number) - (bVal as number)
         : (bVal as number) - (aVal as number)
     })
-  }, [listings, searchQuery, sort, propertyTypeFilter])
+  }, [listings, searchQuery, sort, propertyTypeFilter, showStrikethrough])
 
   if (listings.length === 0) {
     return (
@@ -721,16 +741,41 @@ export function ListingsTable({ listings, onListingsChange, refreshTrigger, hasA
           </span>
         </CardTitle>
 
-        {/* Search Input */}
-        <div className="relative mt-3">
-          <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            type="text"
-            placeholder="Buscar por título ou endereço..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-9 bg-eerieBlack border-brightGrey text-white placeholder:text-muted-foreground"
-          />
+        {/* Toggle Strikethrough and Search */}
+        <div className="flex items-center gap-3 mt-3">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                onClick={() => setShowStrikethrough(!showStrikethrough)}
+                className={cn(
+                  "flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all border flex-shrink-0",
+                  showStrikethrough
+                    ? "bg-eerieBlack border-brightGrey text-muted-foreground hover:border-primary hover:text-primary"
+                    : "bg-primary/20 border-primary text-primary"
+                )}
+              >
+                <Strikethrough className="h-4 w-4" />
+                <span className="hidden sm:inline">{showStrikethrough ? "Ocultar" : "Mostrar"}</span>
+              </button>
+            </TooltipTrigger>
+            <TooltipContent 
+              side="bottom" 
+              sideOffset={4}
+              className="bg-raisinBlack border border-brightGrey text-white"
+            >
+              {showStrikethrough ? "Ocultar itens riscados" : "Mostrar itens riscados"}
+            </TooltipContent>
+          </Tooltip>
+          <div className="relative flex-1">
+            <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              type="text"
+              placeholder="Buscar por título ou endereço..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9 bg-eerieBlack border-brightGrey text-white placeholder:text-muted-foreground"
+            />
+          </div>
         </div>
 
         {/* Property Type Filter Buttons */}
@@ -799,20 +844,24 @@ export function ListingsTable({ listings, onListingsChange, refreshTrigger, hasA
                     currentSort={sort}
                     onSort={handleSort}
                   />
-                  <SortableHeader
-                    label="m² total"
-                    sortKey="m2Totais"
-                    currentSort={sort}
-                    onSort={handleSort}
-                    align="right"
-                  />
-                  <SortableHeader
-                    label="R$/m² total"
-                    sortKey="precoM2"
-                    currentSort={sort}
-                    onSort={handleSort}
-                    align="right"
-                  />
+                  {propertyTypeFilter !== "apartamento" && (
+                    <SortableHeader
+                      label="m² total"
+                      sortKey="m2Totais"
+                      currentSort={sort}
+                      onSort={handleSort}
+                      align="right"
+                    />
+                  )}
+                  {propertyTypeFilter !== "apartamento" && (
+                    <SortableHeader
+                      label="R$/m² total"
+                      sortKey="precoM2"
+                      currentSort={sort}
+                      onSort={handleSort}
+                      align="right"
+                    />
+                  )}
                   <SortableHeader
                     label="m² priv."
                     sortKey="m2Privado"
@@ -1067,6 +1116,54 @@ export function ListingsTable({ listings, onListingsChange, refreshTrigger, hasA
                               </TooltipContent>
                             </Tooltip>
                           )}
+                          {/* Quartos - show for all */}
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <button
+                                onClick={() => handleCycleQuartos(imovel.id, imovel.quartos)}
+                                className="transition-colors flex-shrink-0 p-1 hover:opacity-80 relative w-6 h-6 flex items-center justify-center"
+                              >
+                                <BedDouble className="h-4 w-4 absolute text-muted-foreground opacity-50" />
+                                <span className={cn(
+                                  "relative z-10 font-bold text-[10px] drop-shadow-[0_0_2px_rgba(0,0,0,1)]",
+                                  (imovel.quartos ?? 0) > 0 ? "text-white" : "text-muted-foreground opacity-50"
+                                )}>
+                                  {imovel.quartos ?? 0}
+                                </span>
+                              </button>
+                            </TooltipTrigger>
+                            <TooltipContent 
+                              side="bottom" 
+                              sideOffset={4}
+                              className="bg-raisinBlack border border-brightGrey text-white"
+                            >
+                              Quartos: {imovel.quartos ?? 0}
+                            </TooltipContent>
+                          </Tooltip>
+                          {/* Banheiros (WC) - show for all */}
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <button
+                                onClick={() => handleCycleBanheiros(imovel.id, imovel.banheiros)}
+                                className="transition-colors flex-shrink-0 p-1 hover:opacity-80 relative w-6 h-6 flex items-center justify-center"
+                              >
+                                <Bath className="h-4 w-4 absolute text-muted-foreground opacity-50" />
+                                <span className={cn(
+                                  "relative z-10 font-bold text-[10px] drop-shadow-[0_0_2px_rgba(0,0,0,1)]",
+                                  (imovel.banheiros ?? 0) > 0 ? "text-white" : "text-muted-foreground opacity-50"
+                                )}>
+                                  {imovel.banheiros ?? 0}
+                                </span>
+                              </button>
+                            </TooltipTrigger>
+                            <TooltipContent 
+                              side="bottom" 
+                              sideOffset={4}
+                              className="bg-raisinBlack border border-brightGrey text-white"
+                            >
+                              Banheiros: {imovel.banheiros ?? 0}
+                            </TooltipContent>
+                          </Tooltip>
                           {/* Andar - show only for apartamento */}
                           {imovel.tipoImovel === "apartamento" && (
                             <Tooltip>
@@ -1621,38 +1718,42 @@ export function ListingsTable({ listings, onListingsChange, refreshTrigger, hasA
                         </div>
                       </div>
                     </TableCell>
-                    <TableCell className={cn(
-                      "text-right font-mono text-sm",
-                      imovel.strikethrough && "line-through opacity-50"
-                    )}>
-                      {formatNumber(imovel.m2Totais, "m²")}
-                    </TableCell>
-                    <TableCell className={cn(
-                      "text-right font-mono text-sm text-muted-foreground",
-                      imovel.strikethrough && "line-through opacity-50"
-                    )}>
-                      {imovel.tipoImovel ? (
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <span className="cursor-help border-b border-dotted border-muted-foreground">
-                              {formatCurrency(calculatePrecoM2(imovel.preco, imovel.m2Totais))}
-                            </span>
-                          </TooltipTrigger>
-                          <TooltipContent 
-                            side="bottom" 
-                            sideOffset={4}
-                            className="bg-raisinBlack border border-brightGrey text-white max-w-[280px]"
-                          >
-                            {imovel.tipoImovel === "apartamento" 
-                              ? "Área total de um apartamento inclui área comum, então esse valor pode confundir"
-                              : "Valor do terreno/área total é melhor pra comprar, Média itacorubi: R$2.000-3.000"
-                            }
-                          </TooltipContent>
-                        </Tooltip>
-                      ) : (
-                        formatCurrency(calculatePrecoM2(imovel.preco, imovel.m2Totais))
-                      )}
-                    </TableCell>
+                    {propertyTypeFilter !== "apartamento" && (
+                      <TableCell className={cn(
+                        "text-right font-mono text-sm",
+                        imovel.strikethrough && "line-through opacity-50"
+                      )}>
+                        {formatNumber(imovel.m2Totais, "m²")}
+                      </TableCell>
+                    )}
+                    {propertyTypeFilter !== "apartamento" && (
+                      <TableCell className={cn(
+                        "text-right font-mono text-sm text-muted-foreground",
+                        imovel.strikethrough && "line-through opacity-50"
+                      )}>
+                        {imovel.tipoImovel ? (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span className="cursor-help border-b border-dotted border-muted-foreground">
+                                {formatCurrency(calculatePrecoM2(imovel.preco, imovel.m2Totais))}
+                              </span>
+                            </TooltipTrigger>
+                            <TooltipContent 
+                              side="bottom" 
+                              sideOffset={4}
+                              className="bg-raisinBlack border border-brightGrey text-white max-w-[280px]"
+                            >
+                              {imovel.tipoImovel === "apartamento" 
+                                ? "Área total de um apartamento inclui área comum, então esse valor pode confundir"
+                                : "Valor do terreno/área total é melhor pra comprar, Média itacorubi: R$2.000-3.000"
+                              }
+                            </TooltipContent>
+                          </Tooltip>
+                        ) : (
+                          formatCurrency(calculatePrecoM2(imovel.preco, imovel.m2Totais))
+                        )}
+                      </TableCell>
+                    )}
                     <TableCell className={cn(
                       "text-right font-mono text-sm",
                       imovel.strikethrough && "line-through opacity-50"
