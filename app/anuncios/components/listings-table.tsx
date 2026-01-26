@@ -71,7 +71,7 @@ interface ListingsTableProps {
   listings: Imovel[]
   onListingsChange: (listings: Imovel[]) => void
   refreshTrigger?: number
-  hasApiKey?: boolean
+  hasApiKey?: boolean // Deprecated: API key is now managed server-side
 }
 
 // ============================================================================
@@ -177,7 +177,7 @@ function SortableHeader({
 
 type PropertyTypeFilter = "all" | "casa" | "apartamento"
 
-export function ListingsTable({ listings, onListingsChange, refreshTrigger, hasApiKey = false }: ListingsTableProps) {
+export function ListingsTable({ listings, onListingsChange, refreshTrigger, hasApiKey = true }: ListingsTableProps) {
   const router = useRouter()
   // State for search, sort, and property type filter
   const [searchQuery, setSearchQuery] = useState("")
@@ -373,10 +373,6 @@ export function ListingsTable({ listings, onListingsChange, refreshTrigger, hasA
 
   const handleQuickReparse = async (listing: Imovel) => {
     if (!quickReparseInput.trim()) {
-      return
-    }
-
-    if (!hasApiKey) {
       return
     }
 
@@ -1433,13 +1429,7 @@ export function ListingsTable({ listings, onListingsChange, refreshTrigger, hasA
                                 <PopoverTrigger asChild>
                                   <button
                                     onClick={() => handleOpenQuickReparsePopover(imovel)}
-                                    disabled={!hasApiKey}
-                                    className={cn(
-                                      "transition-colors p-1 flex-shrink-0",
-                                      !hasApiKey 
-                                        ? "text-muted-foreground opacity-50 cursor-not-allowed"
-                                        : "text-muted-foreground hover:text-primary"
-                                    )}
+                                    className="transition-colors p-1 flex-shrink-0 text-muted-foreground hover:text-primary"
                                   >
                                     <RefreshCw className="h-4 w-4" />
                                   </button>
@@ -1450,7 +1440,7 @@ export function ListingsTable({ listings, onListingsChange, refreshTrigger, hasA
                                 sideOffset={4}
                                 className="bg-raisinBlack border border-brightGrey text-white"
                               >
-                                {hasApiKey ? "Reparse rápido com IA" : "Configure a API key nas configurações"}
+                                Reparse rápido com IA
                               </TooltipContent>
                             </Tooltip>
                             <PopoverContent className="w-64 p-3" align="start">
@@ -1498,7 +1488,7 @@ export function ListingsTable({ listings, onListingsChange, refreshTrigger, hasA
                                   </button>
                                   <button
                                     onClick={() => handleQuickReparse(imovel)}
-                                    disabled={!quickReparseInput.trim() || quickReparseLoading === imovel.id || !hasApiKey}
+                                    disabled={!quickReparseInput.trim() || quickReparseLoading === imovel.id}
                                     className="flex-1 py-1.5 px-3 rounded text-sm bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                                   >
                                     {quickReparseLoading === imovel.id ? "Processando..." : "Processar"}

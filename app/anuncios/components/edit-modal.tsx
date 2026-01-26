@@ -37,7 +37,7 @@ export function EditModal({
   listing,
   focusImageUrl = false,
   onListingUpdated,
-  hasApiKey = false,
+  hasApiKey = true, // API key is now managed server-side, always allow parsing
   uniqueContacts = [],
 }: EditModalProps) {
   const [isReparseOpen, setIsReparseOpen] = useState(false)

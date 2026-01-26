@@ -16,7 +16,6 @@ import {
   getCollection,
   setActiveCollection,
   setDefaultCollection,
-  hasApiKey as checkHasApiKey,
   decompressCollectionData,
   importToCollection,
   importCollections,
@@ -28,7 +27,6 @@ import { cn } from "@/lib/utils"
 export function AnunciosClient() {
   const [listings, setListings] = useState<Imovel[]>([])
   const [activeCollection, setActiveCollection] = useState<Collection | null>(null)
-  const [apiKeyConfigured, setApiKeyConfigured] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
   const [showParser, setShowParser] = useState(false)
   const [showCollectionModal, setShowCollectionModal] = useState(false)
@@ -48,7 +46,6 @@ export function AnunciosClient() {
     setActiveCollection(collection)
     setListings(collection ? getListingsForCollection(collection.id) : [])
     
-    setApiKeyConfigured(checkHasApiKey())
     setIsLoaded(true)
 
     // Check for share parameters in URL
@@ -114,10 +111,6 @@ export function AnunciosClient() {
   const handleListingsChange = (newListings: Imovel[]) => {
     setListings(newListings)
     setCollectionRefreshTrigger((prev) => prev + 1)
-  }
-
-  const handleApiKeyChange = (hasKey: boolean) => {
-    setApiKeyConfigured(hasKey)
   }
 
   const handleCollectionChange = (collection: Collection | null) => {
@@ -260,7 +253,6 @@ export function AnunciosClient() {
       <SettingsModal
         isOpen={showSettings}
         onClose={() => setShowSettings(false)}
-        onApiKeyChange={handleApiKeyChange}
       />
 
       {/* Collection Modal */}
@@ -276,11 +268,6 @@ export function AnunciosClient() {
         isOpen={showParser}
         onClose={() => setShowParser(false)}
         onListingAdded={loadListings}
-        hasApiKey={apiKeyConfigured}
-        onOpenSettings={() => {
-          setShowParser(false)
-          setShowSettings(true)
-        }}
       />
 
       {/* Share Import Confirmation Modal */}
@@ -366,7 +353,6 @@ export function AnunciosClient() {
           listings={listings}
           onListingsChange={loadListings}
           refreshTrigger={collectionRefreshTrigger}
-          hasApiKey={apiKeyConfigured}
         />
 
         {/* Map View */}

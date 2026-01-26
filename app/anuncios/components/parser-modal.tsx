@@ -12,16 +12,14 @@ interface ParserModalProps {
   isOpen: boolean
   onClose: () => void
   onListingAdded: (listings: Imovel[]) => void
-  hasApiKey: boolean
-  onOpenSettings: () => void
+  hasApiKey?: boolean // Deprecated: API key is now managed server-side
+  onOpenSettings?: () => void // Deprecated: Settings no longer needed for API key
 }
 
 export function ParserModal({
   isOpen,
   onClose,
   onListingAdded,
-  hasApiKey,
-  onOpenSettings,
 }: ParserModalProps) {
   const [rawText, setRawText] = useState("")
   const [isLoading, setIsLoading] = useState(false)
@@ -67,11 +65,6 @@ export function ParserModal({
   const handleParse = async () => {
     if (!rawText.trim()) {
       setError("Cole o texto do anúncio para processar")
-      return
-    }
-
-    if (!hasApiKey) {
-      setError("Configure sua chave API nas configurações")
       return
     }
 
@@ -154,20 +147,10 @@ export function ParserModal({
               <span>Parser de Anúncios</span>
             </CardTitle>
             <div
-              className={cn(
-                "flex items-center gap-2 text-xs px-2 py-1 rounded-full",
-                hasApiKey
-                  ? "bg-green/20 text-green"
-                  : "bg-destructive/20 text-destructive"
-              )}
+              className="flex items-center gap-2 text-xs px-2 py-1 rounded-full bg-green/20 text-green"
             >
-              <span
-                className={cn(
-                  "w-2 h-2 rounded-full",
-                  hasApiKey ? "bg-green" : "bg-destructive"
-                )}
-              />
-              {hasApiKey ? "API OK" : "Sem API"}
+              <span className="w-2 h-2 rounded-full bg-green" />
+              IA
             </div>
           </div>
           <button
@@ -178,20 +161,6 @@ export function ParserModal({
           </button>
         </CardHeader>
         <CardContent className="flex-1 flex flex-col gap-4 overflow-y-auto">
-          {/* API Key Warning */}
-          {!lastParsed && !hasApiKey && (
-            <div className="bg-destructive/10 border border-destructive/30 rounded-lg p-3">
-              <p className="text-sm text-destructive">
-                Configure sua chave API OpenAI para usar o parser.{" "}
-                <button
-                  onClick={onOpenSettings}
-                  className="underline hover:text-primary transition-colors"
-                >
-                  Abrir configurações
-                </button>
-              </p>
-            </div>
-          )}
 
           {/* Textarea for raw text */}
           {!lastParsed && (
@@ -226,7 +195,7 @@ export function ParserModal({
           {!lastParsed && (
             <button
               onClick={handleParse}
-              disabled={isLoading || !hasApiKey || !rawText.trim()}
+              disabled={isLoading || !rawText.trim()}
               className={cn(
                 "w-full py-3 px-4 rounded-lg font-medium transition-all",
                 "bg-primary text-primary-foreground",
