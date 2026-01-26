@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { renderHook, act, waitFor } from "@testing-library/react";
 import { type ReactNode } from "react";
 import {
@@ -53,10 +53,11 @@ describe("useFeatureFlags", () => {
       });
 
       expect(result.current.flags).toEqual({
-        newDashboard: false,
+        financingSimulator: false,
+        floodForecast: false,
+        organizations: true,
+        publicCollections: true,
         mapProvider: "auto",
-        experimentalParser: false,
-        darkMode: true,
       });
     });
 
@@ -65,7 +66,7 @@ describe("useFeatureFlags", () => {
         wrapper: createWrapper(),
       });
 
-      expect(result.current.getFlag("newDashboard")).toBe(false);
+      expect(result.current.getFlag("financingSimulator")).toBe(false);
       expect(result.current.getFlag("mapProvider")).toBe("auto");
     });
 
@@ -74,8 +75,8 @@ describe("useFeatureFlags", () => {
         wrapper: createWrapper(),
       });
 
-      expect(result.current.isEnabled("darkMode")).toBe(true);
-      expect(result.current.isEnabled("newDashboard")).toBe(false);
+      expect(result.current.isEnabled("organizations")).toBe(true);
+      expect(result.current.isEnabled("financingSimulator")).toBe(false);
     });
 
     it("setOverrides updates flags", async () => {
@@ -84,27 +85,27 @@ describe("useFeatureFlags", () => {
       });
 
       act(() => {
-        result.current.setOverrides({ newDashboard: true });
+        result.current.setOverrides({ financingSimulator: true });
       });
 
       await waitFor(() => {
-        expect(result.current.flags.newDashboard).toBe(true);
+        expect(result.current.flags.financingSimulator).toBe(true);
       });
     });
 
     it("clearOverrides resets flags to defaults", async () => {
       const { result } = renderHook(() => useFeatureFlags(), {
-        wrapper: createWrapper({ newDashboard: true }),
+        wrapper: createWrapper({ financingSimulator: true }),
       });
 
-      expect(result.current.flags.newDashboard).toBe(true);
+      expect(result.current.flags.financingSimulator).toBe(true);
 
       act(() => {
         result.current.clearOverrides();
       });
 
       await waitFor(() => {
-        expect(result.current.flags.newDashboard).toBe(false);
+        expect(result.current.flags.financingSimulator).toBe(false);
       });
     });
   });
@@ -119,7 +120,7 @@ describe("useFeatureFlags", () => {
     });
 
     it("returns boolean flag value", () => {
-      const { result } = renderHook(() => useFlag("darkMode"), {
+      const { result } = renderHook(() => useFlag("organizations"), {
         wrapper: createWrapper(),
       });
 
@@ -127,8 +128,8 @@ describe("useFeatureFlags", () => {
     });
 
     it("reflects initial overrides", () => {
-      const { result } = renderHook(() => useFlag("newDashboard"), {
-        wrapper: createWrapper({ newDashboard: true }),
+      const { result } = renderHook(() => useFlag("financingSimulator"), {
+        wrapper: createWrapper({ financingSimulator: true }),
       });
 
       expect(result.current).toBe(true);
@@ -137,7 +138,7 @@ describe("useFeatureFlags", () => {
 
   describe("useFlagEnabled hook", () => {
     it("returns true for enabled flags", () => {
-      const { result } = renderHook(() => useFlagEnabled("darkMode"), {
+      const { result } = renderHook(() => useFlagEnabled("organizations"), {
         wrapper: createWrapper(),
       });
 
@@ -145,7 +146,7 @@ describe("useFeatureFlags", () => {
     });
 
     it("returns false for disabled flags", () => {
-      const { result } = renderHook(() => useFlagEnabled("newDashboard"), {
+      const { result } = renderHook(() => useFlagEnabled("financingSimulator"), {
         wrapper: createWrapper(),
       });
 
@@ -158,10 +159,11 @@ describe("useFeatureFlags", () => {
       const { result } = renderHook(() => useStandaloneFeatureFlags());
 
       expect(result.current).toEqual({
-        newDashboard: false,
+        financingSimulator: false,
+        floodForecast: false,
+        organizations: true,
+        publicCollections: true,
         mapProvider: "auto",
-        experimentalParser: false,
-        darkMode: true,
       });
     });
   });
@@ -177,10 +179,10 @@ describe("useFeatureFlags", () => {
   describe("FeatureFlagsProvider", () => {
     it("applies initial overrides", () => {
       const { result } = renderHook(() => useFeatureFlags(), {
-        wrapper: createWrapper({ newDashboard: true, mapProvider: "google" }),
+        wrapper: createWrapper({ financingSimulator: true, mapProvider: "google" }),
       });
 
-      expect(result.current.flags.newDashboard).toBe(true);
+      expect(result.current.flags.financingSimulator).toBe(true);
       expect(result.current.flags.mapProvider).toBe("google");
     });
   });

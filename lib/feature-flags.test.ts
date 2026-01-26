@@ -23,60 +23,61 @@ describe("feature-flags", () => {
 
   describe("getFlag", () => {
     it("returns default value when no override or env var is set", () => {
-      expect(getFlag("newDashboard")).toBe(false);
+      expect(getFlag("financingSimulator")).toBe(false);
+      expect(getFlag("floodForecast")).toBe(false);
+      expect(getFlag("organizations")).toBe(true);
+      expect(getFlag("publicCollections")).toBe(true);
       expect(getFlag("mapProvider")).toBe("auto");
-      expect(getFlag("experimentalParser")).toBe(false);
-      expect(getFlag("darkMode")).toBe(true);
     });
 
     it("returns runtime override when set", () => {
-      setFlagOverrides({ newDashboard: true });
-      expect(getFlag("newDashboard")).toBe(true);
+      setFlagOverrides({ financingSimulator: true });
+      expect(getFlag("financingSimulator")).toBe(true);
     });
 
     it("runtime override takes priority over environment variable", () => {
-      vi.stubEnv("NEXT_PUBLIC_FF_NEW_DASHBOARD", "false");
-      setFlagOverrides({ newDashboard: true });
-      expect(getFlag("newDashboard")).toBe(true);
+      vi.stubEnv("NEXT_PUBLIC_FF_FINANCING_SIMULATOR", "false");
+      setFlagOverrides({ financingSimulator: true });
+      expect(getFlag("financingSimulator")).toBe(true);
     });
 
     it("reads boolean flag from environment variable", () => {
-      vi.stubEnv("NEXT_PUBLIC_FF_DARK_MODE", "false");
-      expect(getFlag("darkMode")).toBe(false);
+      vi.stubEnv("NEXT_PUBLIC_FF_ORGANIZATIONS", "false");
+      expect(getFlag("organizations")).toBe(false);
     });
 
     it("parses boolean true values from env vars correctly", () => {
-      vi.stubEnv("NEXT_PUBLIC_FF_NEW_DASHBOARD", "true");
-      expect(getFlag("newDashboard")).toBe(true);
+      vi.stubEnv("NEXT_PUBLIC_FF_FINANCING_SIMULATOR", "true");
+      expect(getFlag("financingSimulator")).toBe(true);
 
       clearFlagOverrides();
-      vi.stubEnv("NEXT_PUBLIC_FF_NEW_DASHBOARD", "1");
-      expect(getFlag("newDashboard")).toBe(true);
+      vi.stubEnv("NEXT_PUBLIC_FF_FINANCING_SIMULATOR", "1");
+      expect(getFlag("financingSimulator")).toBe(true);
 
       clearFlagOverrides();
-      vi.stubEnv("NEXT_PUBLIC_FF_NEW_DASHBOARD", "yes");
-      expect(getFlag("newDashboard")).toBe(true);
+      vi.stubEnv("NEXT_PUBLIC_FF_FINANCING_SIMULATOR", "yes");
+      expect(getFlag("financingSimulator")).toBe(true);
 
       clearFlagOverrides();
-      vi.stubEnv("NEXT_PUBLIC_FF_NEW_DASHBOARD", "TRUE");
-      expect(getFlag("newDashboard")).toBe(true);
+      vi.stubEnv("NEXT_PUBLIC_FF_FINANCING_SIMULATOR", "TRUE");
+      expect(getFlag("financingSimulator")).toBe(true);
     });
 
     it("parses boolean false values from env vars correctly", () => {
-      vi.stubEnv("NEXT_PUBLIC_FF_DARK_MODE", "false");
-      expect(getFlag("darkMode")).toBe(false);
+      vi.stubEnv("NEXT_PUBLIC_FF_ORGANIZATIONS", "false");
+      expect(getFlag("organizations")).toBe(false);
 
       clearFlagOverrides();
-      vi.stubEnv("NEXT_PUBLIC_FF_DARK_MODE", "0");
-      expect(getFlag("darkMode")).toBe(false);
+      vi.stubEnv("NEXT_PUBLIC_FF_ORGANIZATIONS", "0");
+      expect(getFlag("organizations")).toBe(false);
 
       clearFlagOverrides();
-      vi.stubEnv("NEXT_PUBLIC_FF_DARK_MODE", "no");
-      expect(getFlag("darkMode")).toBe(false);
+      vi.stubEnv("NEXT_PUBLIC_FF_ORGANIZATIONS", "no");
+      expect(getFlag("organizations")).toBe(false);
 
       clearFlagOverrides();
-      vi.stubEnv("NEXT_PUBLIC_FF_DARK_MODE", "FALSE");
-      expect(getFlag("darkMode")).toBe(false);
+      vi.stubEnv("NEXT_PUBLIC_FF_ORGANIZATIONS", "FALSE");
+      expect(getFlag("organizations")).toBe(false);
     });
 
     it("reads variant flag from environment variable", () => {
@@ -85,8 +86,8 @@ describe("feature-flags", () => {
     });
 
     it("returns default when env var is empty string", () => {
-      vi.stubEnv("NEXT_PUBLIC_FF_NEW_DASHBOARD", "");
-      expect(getFlag("newDashboard")).toBe(false); // default
+      vi.stubEnv("NEXT_PUBLIC_FF_FINANCING_SIMULATOR", "");
+      expect(getFlag("financingSimulator")).toBe(false); // default
     });
   });
 
@@ -94,70 +95,71 @@ describe("feature-flags", () => {
     it("returns all flags with their current values", () => {
       const flags = getAllFlags();
       expect(flags).toEqual({
-        newDashboard: false,
+        financingSimulator: false,
+        floodForecast: false,
+        organizations: true,
+        publicCollections: true,
         mapProvider: "auto",
-        experimentalParser: false,
-        darkMode: true,
       });
     });
 
     it("reflects runtime overrides", () => {
-      setFlagOverrides({ newDashboard: true, mapProvider: "leaflet" });
+      setFlagOverrides({ financingSimulator: true, mapProvider: "leaflet" });
       const flags = getAllFlags();
-      expect(flags.newDashboard).toBe(true);
+      expect(flags.financingSimulator).toBe(true);
       expect(flags.mapProvider).toBe("leaflet");
     });
   });
 
   describe("setFlagOverrides", () => {
     it("sets runtime overrides", () => {
-      setFlagOverrides({ experimentalParser: true });
-      expect(getFlag("experimentalParser")).toBe(true);
+      setFlagOverrides({ floodForecast: true });
+      expect(getFlag("floodForecast")).toBe(true);
     });
 
     it("merges with existing overrides", () => {
-      setFlagOverrides({ experimentalParser: true });
-      setFlagOverrides({ newDashboard: true });
-      expect(getFlag("experimentalParser")).toBe(true);
-      expect(getFlag("newDashboard")).toBe(true);
+      setFlagOverrides({ floodForecast: true });
+      setFlagOverrides({ financingSimulator: true });
+      expect(getFlag("floodForecast")).toBe(true);
+      expect(getFlag("financingSimulator")).toBe(true);
     });
 
     it("can override multiple flags at once", () => {
       setFlagOverrides({
-        experimentalParser: true,
-        newDashboard: true,
+        floodForecast: true,
+        financingSimulator: true,
         mapProvider: "google",
       });
-      expect(getFlag("experimentalParser")).toBe(true);
-      expect(getFlag("newDashboard")).toBe(true);
+      expect(getFlag("floodForecast")).toBe(true);
+      expect(getFlag("financingSimulator")).toBe(true);
       expect(getFlag("mapProvider")).toBe("google");
     });
   });
 
   describe("clearFlagOverrides", () => {
     it("clears all runtime overrides", () => {
-      setFlagOverrides({ experimentalParser: true, newDashboard: true });
+      setFlagOverrides({ floodForecast: true, financingSimulator: true });
       clearFlagOverrides();
-      expect(getFlag("experimentalParser")).toBe(false);
-      expect(getFlag("newDashboard")).toBe(false);
+      expect(getFlag("floodForecast")).toBe(false);
+      expect(getFlag("financingSimulator")).toBe(false);
     });
 
     it("still respects environment variables after clearing", () => {
-      vi.stubEnv("NEXT_PUBLIC_FF_NEW_DASHBOARD", "true");
-      setFlagOverrides({ newDashboard: false });
-      expect(getFlag("newDashboard")).toBe(false); // override
+      vi.stubEnv("NEXT_PUBLIC_FF_FINANCING_SIMULATOR", "true");
+      setFlagOverrides({ financingSimulator: false });
+      expect(getFlag("financingSimulator")).toBe(false); // override
       clearFlagOverrides();
-      expect(getFlag("newDashboard")).toBe(true); // env var
+      expect(getFlag("financingSimulator")).toBe(true); // env var
     });
   });
 
   describe("isEnabled", () => {
     it("returns true for enabled boolean flags", () => {
-      expect(isEnabled("darkMode")).toBe(true); // default is true
+      expect(isEnabled("organizations")).toBe(true); // default is true
     });
 
     it("returns false for disabled boolean flags", () => {
-      expect(isEnabled("newDashboard")).toBe(false);
+      expect(isEnabled("financingSimulator")).toBe(false);
     });
 
     it("returns false for non-boolean flags", () => {
@@ -166,27 +168,28 @@ describe("feature-flags", () => {
     });
 
     it("respects overrides", () => {
-      setFlagOverrides({ newDashboard: true });
-      expect(isEnabled("newDashboard")).toBe(true);
+      setFlagOverrides({ financingSimulator: true });
+      expect(isEnabled("financingSimulator")).toBe(true);
     });
   });
 
   describe("getFlagNames", () => {
     it("returns all flag names", () => {
       const names = getFlagNames();
-      expect(names).toContain("newDashboard");
+      expect(names).toContain("financingSimulator");
+      expect(names).toContain("floodForecast");
+      expect(names).toContain("organizations");
+      expect(names).toContain("publicCollections");
       expect(names).toContain("mapProvider");
-      expect(names).toContain("experimentalParser");
-      expect(names).toContain("darkMode");
-      expect(names.length).toBe(4);
+      expect(names.length).toBe(5);
     });
   });
 
   describe("getDefaultValue", () => {
     it("returns the default value for a flag", () => {
-      expect(getDefaultValue("newDashboard")).toBe(false);
+      expect(getDefaultValue("financingSimulator")).toBe(false);
+      expect(getDefaultValue("organizations")).toBe(true);
       expect(getDefaultValue("mapProvider")).toBe("auto");
-      expect(getDefaultValue("darkMode")).toBe(true);
     });
   });
 });

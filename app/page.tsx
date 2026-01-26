@@ -1,25 +1,42 @@
 import Link from "next/link"
+import { getFlag } from "@/lib/feature-flags"
 
-const features = [
+interface Feature {
+  href: string
+  icon: string
+  title: string
+  description: string
+  highlights: string[]
+  featureFlag?: "financingSimulator" | "floodForecast" | "organizations"
+}
+
+const allFeatures: Feature[] = [
+  {
+    href: "/anuncios",
+    icon: "🏘️",
+    title: "Gerenciador de Anuncios",
+    description:
+      "Cole anuncios de imoveis e deixe a IA extrair automaticamente todos os dados relevantes: preco, area, quartos, localizacao e mais.",
+    highlights: ["Extracao com IA", "Colecoes organizadas", "Compartilhamento"],
+  },
   {
     href: "/casa",
     icon: "🏠",
     title: "Simulador de Financiamento",
     description:
-      "Simule financiamentos imobiliários com Sistema SAC, análise de cenários, estratégias de amortização e comparação permuta vs venda.",
-    highlights: ["Sistema SAC", "Análise de cenários", "Amortização acelerada"],
-  },
-  {
-    href: "/anuncios",
-    icon: "🏘️",
-    title: "Parser de Anúncios",
-    description:
-      "Cole anúncios de imóveis e deixe a IA extrair automaticamente todos os dados relevantes: preço, área, quartos, localização e mais.",
-    highlights: ["Extração com IA", "Dados estruturados", "Armazenamento local"],
+      "Simule financiamentos imobiliarios com Sistema SAC, analise de cenarios, estrategias de amortizacao e comparacao permuta vs venda.",
+    highlights: ["Sistema SAC", "Analise de cenarios", "Amortizacao acelerada"],
+    featureFlag: "financingSimulator",
   },
 ]
 
 export default function Home() {
+  // Filter features based on feature flags
+  const features = allFeatures.filter((feature) => {
+    if (!feature.featureFlag) return true
+    return getFlag(feature.featureFlag)
+  })
+
   return (
     <div className="min-h-[calc(100vh-56px)] bg-black text-white">
       <main className="max-w-5xl mx-auto px-4 py-16 sm:py-24">
@@ -30,12 +47,12 @@ export default function Home() {
           </h1>
           <p className="text-lg sm:text-xl text-ashGray max-w-2xl mx-auto">
             Ferramentas inteligentes para ajudar na sua jornada de compra do
-            imóvel dos sonhos.
+            imovel dos sonhos.
           </p>
         </div>
 
         {/* Feature Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className={`grid grid-cols-1 ${features.length > 1 ? "md:grid-cols-2" : "max-w-xl mx-auto"} gap-6`}>
           {features.map((feature) => (
             <Link
               key={feature.href}
@@ -75,7 +92,7 @@ export default function Home() {
         <div className="mt-20 text-center">
           <div className="inline-flex items-center gap-2 text-xs text-dimGray">
             <span className="w-8 h-px bg-brightGrey"></span>
-            <span>Dados salvos localmente no seu navegador</span>
+            <span>Seus dados sincronizados com seguranca</span>
             <span className="w-8 h-px bg-brightGrey"></span>
           </div>
         </div>

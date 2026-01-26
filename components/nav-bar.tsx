@@ -1,29 +1,56 @@
 "use client"
 
 import Link from "next/link"
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import { cn } from "@/lib/utils"
-import { useSession } from "@/lib/auth-client"
+import { useSession, signOut } from "@/lib/auth-client"
 import { OrganizationSwitcher } from "@/components/organization-switcher"
+import { getFlag } from "@/lib/feature-flags"
+import { Button } from "@/components/ui/button"
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover"
 
-const navLinks = [
+interface NavLink {
+  href: string
+  label: string
+  icon: string
+  featureFlag?: "financingSimulator" | "floodForecast" | "organizations"
+}
+
+const navLinks: NavLink[] = [
   { href: "/", label: "Inicio", icon: "🏡" },
-  { href: "/casa", label: "Simulador", icon: "📊" },
+  { href: "/casa", label: "Simulador", icon: "📊", featureFlag: "financingSimulator" },
   { href: "/anuncios", label: "Anuncios", icon: "🏘️" },
-  { href: "/organizacoes", label: "Organizacoes", icon: "👥" },
-  { href: "/floodrisk", label: "Risco Enchente", icon: "🌊" },
+  { href: "/organizacoes", label: "Organizacoes", icon: "👥", featureFlag: "organizations" },
+  { href: "/floodrisk", label: "Risco Enchente", icon: "🌊", featureFlag: "floodForecast" },
 ]
 
 export function NavBar() {
   const pathname = usePathname()
+  const router = useRouter()
   const { data: session } = useSession()
   const isAdmin = session?.user?.isAdmin === true
   const isLoggedIn = !!session?.user
 
+  // Filter nav links based on feature flags
+  const visibleLinks = navLinks.filter((link) => {
+    if (!link.featureFlag) return true
+    return getFlag(link.featureFlag)
+  })
+
   // Add admin link if user is admin
   const allLinks = isAdmin
-    ? [...navLinks, { href: "/admin", label: "Admin", icon: "⚙️" }]
-    : navLinks
+    ? [...visibleLinks, { href: "/admin", label: "Admin", icon: "⚙️" }]
+    : visibleLinks
+
+  const handleLogout = async () => {
+    await signOut()
+    router.push("/login")
+    router.refresh()
+  }
 
   return (
     <nav className="border-b border-brightGrey bg-raisinBlack">
@@ -38,7 +65,7 @@ export function NavBar() {
             <span>Minha Casa</span>
           </Link>
 
-          {/* Navigation Links and Organization Switcher */}
+          {/* Navigation Links, Organization Switcher, and User Menu */}
           <div className="flex items-center gap-4">
             {/* Organization Switcher - Only show when logged in */}
             {isLoggedIn && <OrganizationSwitcher />}
@@ -65,6 +92,65 @@ export function NavBar() {
                 )
               })}
             </div>
+
+            {/* User Menu */}
+            {isLoggedIn ? (
+              <Popover>
+                <PopoverTrigger asChild>
+                  <button
+                    className={cn(
+                      "flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all",
+                      "bg-eerieBlack border border-brightGrey",
+                      "hover:border-primary hover:text-primary",
+                      "text-ashGray"
+                    )}
+                    aria-label="Menu do usuario"
+                  >
+                    <span>👤</span>
+                    <span className="hidden sm:inline max-w-[100px] truncate">
+                      {session.user.name || session.user.email}
+                    </span>
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent
+                  className="w-56 p-2 bg-raisinBlack border-brightGrey"
+                  align="end"
+                >
+                  <div className="px-2 py-1.5 text-sm text-muted-foreground border-b border-brightGrey mb-2 pb-2">
+                    <div className="font-medium text-white truncate">
+                      {session.user.name}
+                    </div>
+                    <div className="text-xs truncate">{session.user.email}</div>
+                  </div>
+                  <Link
+                    href="/subscribe"
+                    className="flex items-center gap-2 px-2 py-1.5 text-sm text-ashGray hover:text-white hover:bg-eerieBlack rounded-md transition-colors"
+                  >
+                    <span>💳</span>
+                    <span>Assinatura</span>
+                  </Link>
+                  <Button
+                    variant="ghost"
+                    className="w-full justify-start gap-2 px-2 py-1.5 h-auto text-sm text-ashGray hover:text-white hover:bg-eerieBlack"
+                    onClick={handleLogout}
+                  >
+                    <span>🚪</span>
+                    <span>Sair</span>
+                  </Button>
+                </PopoverContent>
+              </Popover>
+            ) : (
+              <Link
+                href="/login"
+                className={cn(
+                  "px-4 py-2 rounded-lg text-sm font-medium transition-all",
+                  "bg-primary text-primary-foreground",
+                  "hover:bg-primary/90"
+                )}
+              >
+                Entrar
+              </Link>
+            )}
           </div>
         </div>
       </div>

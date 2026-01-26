@@ -12,19 +12,22 @@
 
 // Define available feature flags and their types
 export interface FeatureFlags {
-  // Example flags - add your own flags here
-  newDashboard: boolean;
+  // Route visibility flags
+  financingSimulator: boolean;
+  floodForecast: boolean;
+  organizations: boolean;
+  publicCollections: boolean;
+  // Map provider
   mapProvider: "google" | "leaflet" | "auto";
-  experimentalParser: boolean;
-  darkMode: boolean;
 }
 
 // Default values for all feature flags
 const defaultFlags: FeatureFlags = {
-  newDashboard: false,
+  financingSimulator: false, // Hide /casa route
+  floodForecast: false, // Hide /floodrisk route
+  organizations: true, // Enable organizations feature
+  publicCollections: true, // Enable public collection sharing
   mapProvider: "auto",
-  experimentalParser: false,
-  darkMode: true,
 };
 
 // Runtime overrides storage (useful for testing and development)
