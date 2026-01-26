@@ -10,6 +10,8 @@ import {
   updateApiListing,
   deleteListing,
   parseListingWithAI,
+  ApiError,
+  ErrorCode,
   type ApiCollection,
   type ApiListing,
   type Imovel,
@@ -153,14 +155,22 @@ describe("API Client", () => {
       expect(result[0].label).toBe("Collection 1")
     })
 
-    it("should throw error on failed fetch", async () => {
+    it("should throw ApiError on failed fetch", async () => {
       mockFetch.mockResolvedValueOnce({
         ok: false,
         status: 401,
-        json: async () => ({ error: "Unauthorized" }),
+        json: async () => ({ error: "Unauthorized", code: ErrorCode.UNAUTHORIZED }),
       })
 
-      await expect(fetchCollections()).rejects.toThrow("Unauthorized")
+      try {
+        await fetchCollections()
+        expect.fail("Should have thrown")
+      } catch (error) {
+        expect(error).toBeInstanceOf(ApiError)
+        expect((error as ApiError).message).toBe("Unauthorized")
+        expect((error as ApiError).status).toBe(401)
+        expect((error as ApiError).code).toBe(ErrorCode.UNAUTHORIZED)
+      }
     })
   })
 
@@ -377,28 +387,62 @@ describe("API Client", () => {
       expect(result.titulo).toBe("Parsed Title")
     })
 
-    it("should throw error for unauthorized user", async () => {
+    it("should throw ApiError for unauthorized user", async () => {
       mockFetch.mockResolvedValueOnce({
         ok: false,
         status: 401,
         json: async () => ({ error: "Unauthorized" }),
       })
 
-      await expect(parseListingWithAI("text")).rejects.toThrow(
-        "Você precisa estar logado para usar o parser de IA."
-      )
+      try {
+        await parseListingWithAI("text")
+        expect.fail("Should have thrown")
+      } catch (error) {
+        expect(error).toBeInstanceOf(ApiError)
+        expect((error as ApiError).message).toBe(
+          "Você precisa estar logado para usar o parser de IA."
+        )
+        expect((error as ApiError).status).toBe(401)
+        expect((error as ApiError).code).toBe(ErrorCode.UNAUTHORIZED)
+      }
     })
 
-    it("should throw error for service unavailable", async () => {
+    it("should throw ApiError for service unavailable", async () => {
       mockFetch.mockResolvedValueOnce({
         ok: false,
         status: 503,
         json: async () => ({ error: "Service unavailable" }),
       })
 
-      await expect(parseListingWithAI("text")).rejects.toThrow(
-        "Serviço de IA não está disponível no momento."
-      )
+      try {
+        await parseListingWithAI("text")
+        expect.fail("Should have thrown")
+      } catch (error) {
+        expect(error).toBeInstanceOf(ApiError)
+        expect((error as ApiError).message).toBe(
+          "Serviço de IA não está disponível no momento."
+        )
+        expect((error as ApiError).status).toBe(503)
+        expect((error as ApiError).code).toBe(ErrorCode.SERVICE_UNAVAILABLE)
+      }
+    })
+
+    it("should throw ApiError for rate limiting", async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 429,
+        json: async () => ({ error: "Rate limited" }),
+      })
+
+      try {
+        await parseListingWithAI("text")
+        expect.fail("Should have thrown")
+      } catch (error) {
+        expect(error).toBeInstanceOf(ApiError)
+        expect((error as ApiError).status).toBe(429)
+        expect((error as ApiError).code).toBe(ErrorCode.RATE_LIMITED)
+        expect((error as ApiError).isRetryable()).toBe(true)
+      }
     })
   })
 })

@@ -1,7 +1,14 @@
-import { NextRequest, NextResponse } from "next/server"
+import { NextRequest } from "next/server"
 import { getServerSession } from "@/lib/auth-server"
 import { getDb, collections, listings, type ListingData } from "@/lib/db"
 import { eq, and } from "drizzle-orm"
+import {
+  handleApiError,
+  successResponse,
+  requireAuth,
+  requireResource,
+  ValidationError,
+} from "@/lib/errors"
 
 interface RouteParams {
   params: Promise<{ id: string }>
@@ -14,12 +21,7 @@ interface RouteParams {
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
     const session = await getServerSession()
-    if (!session?.user) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      )
-    }
+    requireAuth(session)
 
     const { id } = await params
     const db = getDb()
@@ -30,12 +32,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       .from(listings)
       .where(eq(listings.id, id))
 
-    if (!listing) {
-      return NextResponse.json(
-        { error: "Listing not found" },
-        { status: 404 }
-      )
-    }
+    requireResource(listing, "Listing")
 
     // Verify the collection belongs to the user
     const [collection] = await db
@@ -48,20 +45,11 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
         )
       )
 
-    if (!collection) {
-      return NextResponse.json(
-        { error: "Listing not found" },
-        { status: 404 }
-      )
-    }
+    requireResource(collection, "Listing")
 
-    return NextResponse.json({ listing })
+    return successResponse({ listing })
   } catch (error) {
-    console.error("Error fetching listing:", error)
-    return NextResponse.json(
-      { error: "Failed to fetch listing" },
-      { status: 500 }
-    )
+    return handleApiError(error, "GET /api/listings/[id]")
   }
 }
 
@@ -72,22 +60,14 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 export async function PUT(request: NextRequest, { params }: RouteParams) {
   try {
     const session = await getServerSession()
-    if (!session?.user) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      )
-    }
+    requireAuth(session)
 
     const { id } = await params
     const body = await request.json()
     const { data } = body as { data: Partial<ListingData> }
 
     if (!data || Object.keys(data).length === 0) {
-      return NextResponse.json(
-        { error: "Update data is required" },
-        { status: 400 }
-      )
+      throw new ValidationError("Update data is required", { field: "data" })
     }
 
     const db = getDb()
@@ -98,12 +78,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       .from(listings)
       .where(eq(listings.id, id))
 
-    if (!existingListing) {
-      return NextResponse.json(
-        { error: "Listing not found" },
-        { status: 404 }
-      )
-    }
+    requireResource(existingListing, "Listing")
 
     // Verify the collection belongs to the user
     const [collection] = await db
@@ -116,12 +91,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
         )
       )
 
-    if (!collection) {
-      return NextResponse.json(
-        { error: "Listing not found" },
-        { status: 404 }
-      )
-    }
+    requireResource(collection, "Listing")
 
     // Merge existing data with updates
     const updatedData: ListingData = {
@@ -135,13 +105,9 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       .where(eq(listings.id, id))
       .returning()
 
-    return NextResponse.json({ listing: updatedListing })
+    return successResponse({ listing: updatedListing })
   } catch (error) {
-    console.error("Error updating listing:", error)
-    return NextResponse.json(
-      { error: "Failed to update listing" },
-      { status: 500 }
-    )
+    return handleApiError(error, "PUT /api/listings/[id]")
   }
 }
 
@@ -152,12 +118,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
   try {
     const session = await getServerSession()
-    if (!session?.user) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      )
-    }
+    requireAuth(session)
 
     const { id } = await params
     const db = getDb()
@@ -168,12 +129,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       .from(listings)
       .where(eq(listings.id, id))
 
-    if (!existingListing) {
-      return NextResponse.json(
-        { error: "Listing not found" },
-        { status: 404 }
-      )
-    }
+    requireResource(existingListing, "Listing")
 
     // Verify the collection belongs to the user
     const [collection] = await db
@@ -186,21 +142,12 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
         )
       )
 
-    if (!collection) {
-      return NextResponse.json(
-        { error: "Listing not found" },
-        { status: 404 }
-      )
-    }
+    requireResource(collection, "Listing")
 
     await db.delete(listings).where(eq(listings.id, id))
 
-    return NextResponse.json({ success: true })
+    return successResponse({ success: true })
   } catch (error) {
-    console.error("Error deleting listing:", error)
-    return NextResponse.json(
-      { error: "Failed to delete listing" },
-      { status: 500 }
-    )
+    return handleApiError(error, "DELETE /api/listings/[id]")
   }
 }

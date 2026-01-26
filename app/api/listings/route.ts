@@ -1,7 +1,15 @@
-import { NextRequest, NextResponse } from "next/server"
+import { NextRequest } from "next/server"
 import { getServerSession } from "@/lib/auth-server"
 import { getDb, collections, listings, type ListingData } from "@/lib/db"
 import { eq, and } from "drizzle-orm"
+import {
+  handleApiError,
+  successResponse,
+  requireAuth,
+  requireField,
+  requireString,
+  requireResource,
+} from "@/lib/errors"
 
 /**
  * POST /api/listings
@@ -10,12 +18,7 @@ import { eq, and } from "drizzle-orm"
 export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession()
-    if (!session?.user) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      )
-    }
+    requireAuth(session)
 
     const body = await request.json()
     const { collectionId, data } = body as {
@@ -23,33 +26,10 @@ export async function POST(request: NextRequest) {
       data: ListingData
     }
 
-    if (!collectionId || typeof collectionId !== "string") {
-      return NextResponse.json(
-        { error: "Collection ID is required" },
-        { status: 400 }
-      )
-    }
-
-    if (!data) {
-      return NextResponse.json(
-        { error: "Listing data is required" },
-        { status: 400 }
-      )
-    }
-
-    if (!data.titulo || typeof data.titulo !== "string") {
-      return NextResponse.json(
-        { error: "Listing title is required" },
-        { status: 400 }
-      )
-    }
-
-    if (!data.endereco || typeof data.endereco !== "string") {
-      return NextResponse.json(
-        { error: "Listing address is required" },
-        { status: 400 }
-      )
-    }
+    requireString(collectionId, "Collection ID")
+    requireField(data, "Listing data")
+    requireString(data.titulo, "Listing title")
+    requireString(data.endereco, "Listing address")
 
     const db = getDb()
 
@@ -64,12 +44,7 @@ export async function POST(request: NextRequest) {
         )
       )
 
-    if (!collection) {
-      return NextResponse.json(
-        { error: "Collection not found" },
-        { status: 404 }
-      )
-    }
+    requireResource(collection, "Collection")
 
     // Set addedAt if not provided
     const listingData: ListingData = {
@@ -85,15 +60,8 @@ export async function POST(request: NextRequest) {
       })
       .returning()
 
-    return NextResponse.json(
-      { listing: newListing },
-      { status: 201 }
-    )
+    return successResponse({ listing: newListing }, 201)
   } catch (error) {
-    console.error("Error creating listing:", error)
-    return NextResponse.json(
-      { error: "Failed to create listing" },
-      { status: 500 }
-    )
+    return handleApiError(error, "POST /api/listings")
   }
 }

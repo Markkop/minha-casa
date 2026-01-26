@@ -103,7 +103,8 @@ describe("Listings API - POST /api/listings", () => {
     const json = await response.json()
 
     expect(response.status).toBe(401)
-    expect(json.error).toBe("Unauthorized")
+    expect(json.error).toBe("Authentication required")
+    expect(json.code).toBe("UNAUTHORIZED")
   })
 
   it("returns 400 when collectionId is missing", async () => {
@@ -258,7 +259,8 @@ describe("Listings API - GET /api/listings/[id]", () => {
     const json = await response.json()
 
     expect(response.status).toBe(401)
-    expect(json.error).toBe("Unauthorized")
+    expect(json.error).toBe("Authentication required")
+    expect(json.code).toBe("UNAUTHORIZED")
   })
 
   it("returns 404 when listing not found", async () => {
@@ -362,7 +364,8 @@ describe("Listings API - PUT /api/listings/[id]", () => {
     const json = await response.json()
 
     expect(response.status).toBe(401)
-    expect(json.error).toBe("Unauthorized")
+    expect(json.error).toBe("Authentication required")
+    expect(json.code).toBe("UNAUTHORIZED")
   })
 
   it("returns 400 when no data provided", async () => {
@@ -551,7 +554,8 @@ describe("Listings API - DELETE /api/listings/[id]", () => {
     const json = await response.json()
 
     expect(response.status).toBe(401)
-    expect(json.error).toBe("Unauthorized")
+    expect(json.error).toBe("Authentication required")
+    expect(json.code).toBe("UNAUTHORIZED")
   })
 
   it("returns 404 when listing not found", async () => {

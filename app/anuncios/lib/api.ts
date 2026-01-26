@@ -6,6 +6,18 @@
  */
 
 import type { ListingData } from "@/lib/db/schema"
+import {
+  ApiError,
+  ErrorCode,
+  parseApiErrorResponse,
+  getUserFriendlyMessage,
+  type ErrorCodeType,
+  type ApiErrorResponse,
+} from "@/lib/errors"
+
+// Re-export error utilities for convenience
+export { ApiError, ErrorCode, getUserFriendlyMessage }
+export type { ErrorCodeType, ApiErrorResponse }
 
 // ============================================================================
 // TYPES
@@ -73,11 +85,6 @@ export interface Imovel {
   customLng?: number | null
   createdAt: string
   addedAt?: string
-}
-
-export interface ApiError {
-  error: string
-  status?: number
 }
 
 // ============================================================================
@@ -178,10 +185,7 @@ export function toListingData(imovel: Partial<Imovel>): Partial<ListingData> {
  */
 async function handleResponse<T>(response: Response): Promise<T> {
   if (!response.ok) {
-    const data = await response.json().catch(() => ({ error: "Unknown error" }))
-    const error = new Error(data.error || `HTTP error ${response.status}`) as Error & { status: number }
-    error.status = response.status
-    throw error
+    throw await parseApiErrorResponse(response)
   }
   return response.json()
 }
@@ -334,21 +338,38 @@ export async function parseListingWithAI(rawText: string): Promise<ListingData> 
   if (!response.ok) {
     const errorMessage = result.error || "Unknown error"
 
+    // Provide user-friendly messages for common error cases
     if (response.status === 401) {
-      throw new Error("Você precisa estar logado para usar o parser de IA.")
+      throw new ApiError(
+        "Você precisa estar logado para usar o parser de IA.",
+        401,
+        ErrorCode.UNAUTHORIZED
+      )
     }
     if (response.status === 503) {
-      throw new Error("Serviço de IA não está disponível no momento.")
+      throw new ApiError(
+        "Serviço de IA não está disponível no momento.",
+        503,
+        ErrorCode.SERVICE_UNAVAILABLE
+      )
     }
     if (response.status === 429) {
-      throw new Error("Limite de requisições excedido. Tente novamente mais tarde.")
+      throw new ApiError(
+        "Limite de requisições excedido. Tente novamente mais tarde.",
+        429,
+        ErrorCode.RATE_LIMITED
+      )
     }
 
-    throw new Error(errorMessage)
+    throw new ApiError(errorMessage, response.status, ErrorCode.UNKNOWN_ERROR)
   }
 
   if (!result.data) {
-    throw new Error("Resposta inválida do servidor")
+    throw new ApiError(
+      "Resposta inválida do servidor",
+      500,
+      ErrorCode.INTERNAL_ERROR
+    )
   }
 
   return result.data
