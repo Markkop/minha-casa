@@ -33,6 +33,7 @@ interface Plan {
   id: string
   name: string
   slug: string
+  priceInCents?: number
 }
 
 interface Subscription {
@@ -40,6 +41,21 @@ interface Subscription {
   status: string
   expiresAt: string
   plan: Plan | null
+}
+
+interface SubscriptionHistory {
+  id: string
+  userId: string
+  planId: string
+  status: string
+  startsAt: string
+  expiresAt: string
+  grantedBy: string | null
+  notes: string | null
+  createdAt: string
+  updatedAt: string
+  plan: Plan
+  grantedByUser: { id: string; name: string; email: string } | null
 }
 
 interface User {
@@ -81,6 +97,15 @@ export function AdminClient() {
   const [editName, setEditName] = useState("")
   const [savingUser, setSavingUser] = useState(false)
   const [deletingUser, setDeletingUser] = useState(false)
+  const [manageSubscriptionModalOpen, setManageSubscriptionModalOpen] = useState(false)
+  const [subscriptionHistory, setSubscriptionHistory] = useState<SubscriptionHistory[]>([])
+  const [loadingHistory, setLoadingHistory] = useState(false)
+  const [selectedSubscription, setSelectedSubscription] = useState<SubscriptionHistory | null>(null)
+  const [editSubscriptionModalOpen, setEditSubscriptionModalOpen] = useState(false)
+  const [editExpiresAt, setEditExpiresAt] = useState("")
+  const [editNotes, setEditNotes] = useState("")
+  const [savingSubscription, setSavingSubscription] = useState(false)
+  const [cancellingSubscription, setCancellingSubscription] = useState(false)
 
   const fetchData = useCallback(async () => {
     setLoading(true)
@@ -247,6 +272,162 @@ export function AdminClient() {
     } finally {
       setGrantingSubscription(false)
     }
+  }
+
+  async function fetchSubscriptionHistory(userId: string) {
+    setLoadingHistory(true)
+    try {
+      const res = await fetch(`/api/admin/subscriptions/user/${userId}`)
+      if (!res.ok) {
+        throw new Error("Failed to fetch subscription history")
+      }
+      const data = await res.json()
+      setSubscriptionHistory(data.subscriptions)
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Failed to fetch subscription history")
+      setSubscriptionHistory([])
+    } finally {
+      setLoadingHistory(false)
+    }
+  }
+
+  async function saveSubscriptionEdit() {
+    if (!selectedSubscription) return
+
+    setSavingSubscription(true)
+
+    try {
+      const body: { expiresAt?: string; notes?: string } = {}
+      
+      if (editExpiresAt) {
+        body.expiresAt = new Date(editExpiresAt).toISOString()
+      }
+      if (editNotes !== selectedSubscription.notes) {
+        body.notes = editNotes
+      }
+
+      if (Object.keys(body).length === 0) {
+        setEditSubscriptionModalOpen(false)
+        return
+      }
+
+      const res = await fetch(`/api/admin/subscriptions/${selectedSubscription.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      })
+
+      if (!res.ok) {
+        const data = await res.json()
+        throw new Error(data.error || "Failed to update subscription")
+      }
+
+      // Refresh subscription history
+      if (selectedUser) {
+        await fetchSubscriptionHistory(selectedUser.id)
+      }
+      
+      setEditSubscriptionModalOpen(false)
+      setSelectedSubscription(null)
+      setEditExpiresAt("")
+      setEditNotes("")
+      fetchData()
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Failed to update subscription")
+    } finally {
+      setSavingSubscription(false)
+    }
+  }
+
+  async function cancelSubscription(subscriptionId: string) {
+    if (!confirm("Tem certeza que deseja cancelar esta assinatura?")) return
+
+    setCancellingSubscription(true)
+
+    try {
+      const res = await fetch(`/api/admin/subscriptions/${subscriptionId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "cancelled" }),
+      })
+
+      if (!res.ok) {
+        const data = await res.json()
+        throw new Error(data.error || "Failed to cancel subscription")
+      }
+
+      // Refresh subscription history
+      if (selectedUser) {
+        await fetchSubscriptionHistory(selectedUser.id)
+      }
+      fetchData()
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Failed to cancel subscription")
+    } finally {
+      setCancellingSubscription(false)
+    }
+  }
+
+  async function reactivateSubscription(subscriptionId: string) {
+    setCancellingSubscription(true)
+
+    try {
+      const res = await fetch(`/api/admin/subscriptions/${subscriptionId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "active" }),
+      })
+
+      if (!res.ok) {
+        const data = await res.json()
+        throw new Error(data.error || "Failed to reactivate subscription")
+      }
+
+      // Refresh subscription history
+      if (selectedUser) {
+        await fetchSubscriptionHistory(selectedUser.id)
+      }
+      fetchData()
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Failed to reactivate subscription")
+    } finally {
+      setCancellingSubscription(false)
+    }
+  }
+
+  function openManageSubscriptionModal(user: User) {
+    setSelectedUser(user)
+    setManageSubscriptionModalOpen(true)
+    fetchSubscriptionHistory(user.id)
+  }
+
+  function openEditSubscriptionModal(subscription: SubscriptionHistory) {
+    setSelectedSubscription(subscription)
+    setEditExpiresAt(subscription.expiresAt.split("T")[0])
+    setEditNotes(subscription.notes || "")
+    setEditSubscriptionModalOpen(true)
+  }
+
+  function formatDateTime(dateString: string) {
+    return new Date(dateString).toLocaleDateString("pt-BR", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    })
+  }
+
+  function getStatusBadgeClass(status: string, expiresAt: string) {
+    if (status === "cancelled") return "bg-gray-200 text-gray-700"
+    if (status === "expired" || isExpired(expiresAt)) return "bg-destructive/20 text-destructive"
+    return "bg-green-100 text-green-700"
+  }
+
+  function getStatusLabel(status: string, expiresAt: string) {
+    if (status === "cancelled") return "Cancelada"
+    if (status === "expired" || isExpired(expiresAt)) return "Expirada"
+    return "Ativa"
   }
 
   function formatDate(dateString: string) {
@@ -468,10 +649,7 @@ export function AdminClient() {
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => {
-                            setSelectedUser(user)
-                            setGrantModalOpen(true)
-                          }}
+                          onClick={() => openManageSubscriptionModal(user)}
                         >
                           Assinatura
                         </Button>
@@ -642,6 +820,190 @@ export function AdminClient() {
                   disabled={deletingUser}
                 >
                   {deletingUser ? "Excluindo..." : "Excluir"}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Manage Subscription Modal */}
+      {manageSubscriptionModalOpen && selectedUser && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <Card className="w-full max-w-3xl mx-4 max-h-[90vh] overflow-y-auto">
+            <CardHeader>
+              <CardTitle>Gerenciar Assinaturas</CardTitle>
+              <CardDescription>
+                Assinaturas de {selectedUser.name} ({selectedUser.email})
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {/* Grant New Subscription Button */}
+              <div className="flex justify-between items-center">
+                <h3 className="text-lg font-medium">Histórico de Assinaturas</h3>
+                <Button
+                  onClick={() => {
+                    setManageSubscriptionModalOpen(false)
+                    setGrantModalOpen(true)
+                  }}
+                >
+                  Conceder Nova Assinatura
+                </Button>
+              </div>
+
+              {/* Subscription History */}
+              {loadingHistory ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  Carregando histórico...
+                </div>
+              ) : subscriptionHistory.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  Nenhuma assinatura encontrada para este usuário.
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {subscriptionHistory.map((subscription) => (
+                    <Card key={subscription.id} className="border">
+                      <CardContent className="pt-4">
+                        <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
+                          <div className="space-y-2">
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium">{subscription.plan.name}</span>
+                              <span
+                                className={`px-2 py-0.5 rounded text-xs ${getStatusBadgeClass(
+                                  subscription.status,
+                                  subscription.expiresAt
+                                )}`}
+                              >
+                                {getStatusLabel(subscription.status, subscription.expiresAt)}
+                              </span>
+                            </div>
+                            <div className="text-sm text-muted-foreground space-y-1">
+                              <p>
+                                <span className="font-medium">Início:</span>{" "}
+                                {formatDateTime(subscription.startsAt)}
+                              </p>
+                              <p>
+                                <span className="font-medium">Expira:</span>{" "}
+                                {formatDateTime(subscription.expiresAt)}
+                              </p>
+                              {subscription.grantedByUser && (
+                                <p>
+                                  <span className="font-medium">Concedida por:</span>{" "}
+                                  {subscription.grantedByUser.name}
+                                </p>
+                              )}
+                              {subscription.notes && (
+                                <p>
+                                  <span className="font-medium">Notas:</span>{" "}
+                                  {subscription.notes}
+                                </p>
+                              )}
+                              <p className="text-xs">
+                                Criada em: {formatDateTime(subscription.createdAt)}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => openEditSubscriptionModal(subscription)}
+                            >
+                              Editar
+                            </Button>
+                            {subscription.status === "active" && !isExpired(subscription.expiresAt) ? (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="text-destructive hover:text-destructive"
+                                onClick={() => cancelSubscription(subscription.id)}
+                                disabled={cancellingSubscription}
+                              >
+                                Cancelar
+                              </Button>
+                            ) : subscription.status === "cancelled" ? (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => reactivateSubscription(subscription.id)}
+                                disabled={cancellingSubscription}
+                              >
+                                Reativar
+                              </Button>
+                            ) : null}
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
+
+              <div className="flex justify-end pt-4">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setManageSubscriptionModalOpen(false)
+                    setSelectedUser(null)
+                    setSubscriptionHistory([])
+                  }}
+                >
+                  Fechar
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Edit Subscription Modal */}
+      {editSubscriptionModalOpen && selectedSubscription && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <Card className="w-full max-w-md mx-4">
+            <CardHeader>
+              <CardTitle>Editar Assinatura</CardTitle>
+              <CardDescription>
+                Plano: {selectedSubscription.plan.name}
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="edit-expires-at">Data de Expiração</Label>
+                <Input
+                  id="edit-expires-at"
+                  type="date"
+                  value={editExpiresAt}
+                  onChange={(e) => setEditExpiresAt(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-notes">Notas</Label>
+                <Input
+                  id="edit-notes"
+                  type="text"
+                  value={editNotes}
+                  onChange={(e) => setEditNotes(e.target.value)}
+                  placeholder="Ex: Referência de pagamento, observações..."
+                />
+              </div>
+              <div className="flex gap-2 justify-end pt-4">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setEditSubscriptionModalOpen(false)
+                    setSelectedSubscription(null)
+                    setEditExpiresAt("")
+                    setEditNotes("")
+                  }}
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  onClick={saveSubscriptionEdit}
+                  disabled={savingSubscription}
+                >
+                  {savingSubscription ? "Salvando..." : "Salvar"}
                 </Button>
               </div>
             </CardContent>
