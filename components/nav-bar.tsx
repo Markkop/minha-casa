@@ -6,9 +6,10 @@ import { cn } from "@/lib/utils"
 import { useSession } from "@/lib/auth-client"
 
 const navLinks = [
-  { href: "/", label: "Início", icon: "🏡" },
+  { href: "/", label: "Inicio", icon: "🏡" },
   { href: "/casa", label: "Simulador", icon: "📊" },
-  { href: "/anuncios", label: "Anúncios", icon: "🏘️" },
+  { href: "/anuncios", label: "Anuncios", icon: "🏘️" },
+  { href: "/organizacoes", label: "Organizacoes", icon: "👥" },
   { href: "/floodrisk", label: "Risco Enchente", icon: "🌊" },
 ]
 
