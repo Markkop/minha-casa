@@ -4,6 +4,7 @@ import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { useCollections } from "../lib/use-collections"
+import { createListing as apiCreateListing } from "../lib/api"
 import { cn } from "@/lib/utils"
 import type { ListingData } from "@/lib/db/schema"
 
@@ -15,18 +16,22 @@ interface ImportModalProps {
   onSwitchToCollection?: (collectionId: string) => void
 }
 
+interface ImportedListing {
+  titulo: string
+  endereco: string
+  [key: string]: unknown
+}
+
 interface ImportedCollection {
   collection: {
     id?: string
     label?: string
     name?: string
   }
-  listings: Array<{
-    titulo: string
-    endereco: string
-    [key: string]: unknown
-  }>
+  listings: ImportedListing[]
 }
+
+type ImportMode = "new" | "existing"
 
 export function ImportModal({
   isOpen,
@@ -35,20 +40,63 @@ export function ImportModal({
   onDataChange,
   onSwitchToCollection,
 }: ImportModalProps) {
-  const { createCollection, addListing, setActiveCollection, collections } = useCollections()
+  const { createCollection, addListing, setActiveCollection, collections, activeCollection, loadListings } = useCollections()
   
   const [importText, setImportText] = useState("")
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
   const [isImporting, setIsImporting] = useState(false)
+  const [importMode, setImportMode] = useState<ImportMode>("new")
+  const [selectedCollectionId, setSelectedCollectionId] = useState<string>("")
 
   useEffect(() => {
     if (isOpen) {
       setImportText("")
       setError(null)
       setSuccess(null)
+      setImportMode("new")
+      setSelectedCollectionId(activeCollection?.id || "")
     }
-  }, [isOpen])
+  }, [isOpen, activeCollection?.id])
+
+  const parseListingData = (listing: ImportedListing): ListingData => {
+    // Handle tipoImovel field with validation
+    let tipoImovel: "casa" | "apartamento" | null = null
+    if (listing.tipoImovel === "casa" || listing.tipoImovel === "apartamento") {
+      tipoImovel = listing.tipoImovel
+    }
+
+    return {
+      titulo: listing.titulo,
+      endereco: listing.endereco,
+      m2Totais: typeof listing.m2Totais === "number" ? listing.m2Totais : null,
+      m2Privado: typeof listing.m2Privado === "number" ? listing.m2Privado : null,
+      quartos: typeof listing.quartos === "number" ? listing.quartos : null,
+      suites: typeof listing.suites === "number" ? listing.suites : null,
+      banheiros: typeof listing.banheiros === "number" ? listing.banheiros : null,
+      garagem: typeof listing.garagem === "number" ? listing.garagem : null,
+      preco: typeof listing.preco === "number" ? listing.preco : null,
+      precoM2: typeof listing.precoM2 === "number" ? listing.precoM2 : null,
+      piscina: typeof listing.piscina === "boolean" ? listing.piscina : null,
+      porteiro24h: typeof listing.porteiro24h === "boolean" ? listing.porteiro24h : null,
+      academia: typeof listing.academia === "boolean" ? listing.academia : null,
+      vistaLivre: typeof listing.vistaLivre === "boolean" ? listing.vistaLivre : null,
+      piscinaTermica: typeof listing.piscinaTermica === "boolean" ? listing.piscinaTermica : null,
+      andar: typeof listing.andar === "number" ? listing.andar : null,
+      tipoImovel,
+      link: typeof listing.link === "string" ? listing.link : null,
+      imageUrl: typeof listing.imageUrl === "string" ? listing.imageUrl : null,
+      contactName: typeof listing.contactName === "string" ? listing.contactName : null,
+      contactNumber: typeof listing.contactNumber === "string" ? listing.contactNumber : null,
+      starred: typeof listing.starred === "boolean" ? listing.starred : false,
+      visited: typeof listing.visited === "boolean" ? listing.visited : false,
+      strikethrough: typeof listing.strikethrough === "boolean" ? listing.strikethrough : false,
+      discardedReason: typeof listing.discardedReason === "string" ? listing.discardedReason : null,
+      customLat: typeof listing.customLat === "number" ? listing.customLat : null,
+      customLng: typeof listing.customLng === "number" ? listing.customLng : null,
+      addedAt: typeof listing.addedAt === "string" ? listing.addedAt : new Date().toISOString().split("T")[0],
+    }
+  }
 
   const handleProcessImport = async (jsonText?: string) => {
     const textToProcess = jsonText || importText
@@ -64,97 +112,109 @@ export function ImportModal({
     try {
       const parsed = JSON.parse(textToProcess)
       
-      let importData: ImportedCollection
+      let collectionsToImport: ImportedCollection[] = []
       
       // Handle different import formats
       if (Array.isArray(parsed)) {
         // Legacy format: array of listings
-        importData = {
+        collectionsToImport = [{
           collection: { label: "Coleção Importada" },
           listings: parsed,
-        }
+        }]
       } else if (parsed.collection && parsed.listings) {
-        // CollectionExport format
-        importData = parsed
+        // Single CollectionExport format (v1.0 or legacy)
+        collectionsToImport = [parsed]
       } else if (parsed.collections && Array.isArray(parsed.collections)) {
-        // FullExport format - import first collection
+        // FullExport format (v1.0) - import all collections
         if (parsed.collections.length === 0) {
           throw new Error("Nenhuma coleção encontrada no arquivo")
         }
-        importData = parsed.collections[0]
+        collectionsToImport = parsed.collections
       } else {
         throw new Error("Formato de importação inválido")
       }
 
-      // Validate listings
-      const validListings = importData.listings.filter(
-        (item): item is ImportedCollection["listings"][0] =>
-          typeof item === "object" &&
-          item !== null &&
-          typeof item.titulo === "string" &&
-          typeof item.endereco === "string"
-      )
+      let totalImported = 0
+      let targetCollectionId: string | null = null
 
-      if (validListings.length === 0) {
+      for (const importData of collectionsToImport) {
+        // Validate listings
+        const validListings = importData.listings.filter(
+          (item): item is ImportedListing =>
+            typeof item === "object" &&
+            item !== null &&
+            typeof item.titulo === "string" &&
+            typeof item.endereco === "string"
+        )
+
+        if (validListings.length === 0) {
+          continue // Skip collections with no valid listings
+        }
+
+        let collectionId: string
+
+        if (importMode === "existing" && selectedCollectionId) {
+          // Import into existing collection
+          collectionId = selectedCollectionId
+        } else {
+          // Create new collection
+          const baseName = importData.collection.label || importData.collection.name || "Coleção Importada"
+          const existingNames = new Set(collections.map((c) => c.label))
+          let collectionName = baseName
+          let counter = 2
+          while (existingNames.has(collectionName)) {
+            collectionName = `${baseName} (${counter})`
+            counter++
+          }
+
+          const newCollection = await createCollection(collectionName)
+          collectionId = newCollection.id
+          
+          // Set first created collection as active
+          if (!targetCollectionId) {
+            setActiveCollection(newCollection)
+            targetCollectionId = newCollection.id
+          }
+        }
+
+        // Import all listings
+        for (const listing of validListings) {
+          const listingData = parseListingData(listing)
+          
+          if (importMode === "existing" && selectedCollectionId) {
+            // Use API directly for existing collection to avoid state issues
+            await apiCreateListing(collectionId, listingData)
+          } else {
+            await addListing(listingData)
+          }
+          totalImported++
+        }
+
+        // If importing to existing collection, set it as target
+        if (importMode === "existing" && !targetCollectionId) {
+          targetCollectionId = collectionId
+        }
+      }
+
+      if (totalImported === 0) {
         throw new Error("Nenhum imóvel válido encontrado no arquivo")
       }
 
-      // Generate unique collection name
-      const baseName = importData.collection.label || importData.collection.name || "Coleção Importada"
-      const existingNames = new Set(collections.map((c) => c.label))
-      let collectionName = baseName
-      let counter = 2
-      while (existingNames.has(collectionName)) {
-        collectionName = `${baseName} (${counter})`
-        counter++
+      // Refresh listings if importing to existing collection
+      if (importMode === "existing" && selectedCollectionId) {
+        await loadListings(selectedCollectionId)
       }
 
-      // Create new collection
-      const newCollection = await createCollection(collectionName)
-      
-      // Set it as active
-      setActiveCollection(newCollection)
-
-      // Import all listings
-      for (const listing of validListings) {
-        const listingData: ListingData = {
-          titulo: listing.titulo,
-          endereco: listing.endereco,
-          m2Totais: typeof listing.m2Totais === "number" ? listing.m2Totais : null,
-          m2Privado: typeof listing.m2Privado === "number" ? listing.m2Privado : null,
-          quartos: typeof listing.quartos === "number" ? listing.quartos : null,
-          suites: typeof listing.suites === "number" ? listing.suites : null,
-          banheiros: typeof listing.banheiros === "number" ? listing.banheiros : null,
-          garagem: typeof listing.garagem === "number" ? listing.garagem : null,
-          preco: typeof listing.preco === "number" ? listing.preco : null,
-          precoM2: typeof listing.precoM2 === "number" ? listing.precoM2 : null,
-          piscina: typeof listing.piscina === "boolean" ? listing.piscina : null,
-          porteiro24h: typeof listing.porteiro24h === "boolean" ? listing.porteiro24h : null,
-          academia: typeof listing.academia === "boolean" ? listing.academia : null,
-          vistaLivre: typeof listing.vistaLivre === "boolean" ? listing.vistaLivre : null,
-          piscinaTermica: typeof listing.piscinaTermica === "boolean" ? listing.piscinaTermica : null,
-          andar: typeof listing.andar === "number" ? listing.andar : null,
-          link: typeof listing.link === "string" ? listing.link : null,
-          imageUrl: typeof listing.imageUrl === "string" ? listing.imageUrl : null,
-          contactName: typeof listing.contactName === "string" ? listing.contactName : null,
-          contactNumber: typeof listing.contactNumber === "string" ? listing.contactNumber : null,
-          starred: typeof listing.starred === "boolean" ? listing.starred : false,
-          visited: typeof listing.visited === "boolean" ? listing.visited : false,
-          strikethrough: typeof listing.strikethrough === "boolean" ? listing.strikethrough : false,
-          discardedReason: typeof listing.discardedReason === "string" ? listing.discardedReason : null,
-          customLat: typeof listing.customLat === "number" ? listing.customLat : null,
-          customLng: typeof listing.customLng === "number" ? listing.customLng : null,
-          addedAt: typeof listing.addedAt === "string" ? listing.addedAt : new Date().toISOString().split("T")[0],
-        }
-        
-        await addListing(listingData)
+      if (targetCollectionId) {
+        onSwitchToCollection?.(targetCollectionId)
       }
-
-      onSwitchToCollection?.(newCollection.id)
       onDataChange?.()
       onImportSuccess?.()
       
-      setSuccess(`${validListings.length} imóvel(eis) importado(s) com sucesso!`)
+      const collectionMsg = collectionsToImport.length > 1 
+        ? ` em ${collectionsToImport.length} coleções`
+        : ""
+      setSuccess(`${totalImported} imóvel(eis) importado(s) com sucesso${collectionMsg}!`)
       setImportText("")
       
       setTimeout(() => {
@@ -214,7 +274,7 @@ export function ImportModal({
         <CardHeader className="flex flex-row items-center justify-between pb-2">
           <CardTitle className="text-lg flex items-center gap-2">
             <span>📥</span>
-            <span>Importar Coleção</span>
+            <span>Importar</span>
           </CardTitle>
           <button
             onClick={onClose}
@@ -224,12 +284,73 @@ export function ImportModal({
           </button>
         </CardHeader>
         <CardContent className="flex-1 overflow-hidden flex flex-col space-y-4">
+          {/* Import Mode Selection */}
+          <div className="space-y-2">
+            <Label className="text-sm text-ashGray">Destino da importação</Label>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setImportMode("new")}
+                disabled={isImporting}
+                className={cn(
+                  "flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all",
+                  "border",
+                  importMode === "new"
+                    ? "bg-primary/20 border-primary text-primary"
+                    : "bg-eerieBlack border-brightGrey hover:border-white"
+                )}
+              >
+                Nova coleção
+              </button>
+              <button
+                onClick={() => setImportMode("existing")}
+                disabled={isImporting || collections.length === 0}
+                className={cn(
+                  "flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all",
+                  "border",
+                  importMode === "existing"
+                    ? "bg-primary/20 border-primary text-primary"
+                    : "bg-eerieBlack border-brightGrey hover:border-white",
+                  "disabled:opacity-50 disabled:cursor-not-allowed"
+                )}
+              >
+                Coleção existente
+              </button>
+            </div>
+          </div>
+
+          {/* Collection Selector (for existing mode) */}
+          {importMode === "existing" && (
+            <div className="space-y-2">
+              <Label className="text-sm text-ashGray">Selecione a coleção</Label>
+              <select
+                value={selectedCollectionId}
+                onChange={(e) => setSelectedCollectionId(e.target.value)}
+                disabled={isImporting}
+                className={cn(
+                  "w-full py-2 px-3 rounded-lg text-sm",
+                  "bg-eerieBlack border border-brightGrey",
+                  "text-white",
+                  "focus:outline-none focus:border-primary",
+                  "disabled:opacity-50"
+                )}
+              >
+                <option value="">Selecione uma coleção...</option>
+                {collections.map((collection) => (
+                  <option key={collection.id} value={collection.id}>
+                    {collection.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
           <div className="space-y-2">
             <Label htmlFor="import-textarea" className="text-sm text-ashGray">
               Cole o JSON para importar
             </Label>
             <p className="text-xs text-muted-foreground">
-              Cole os dados JSON da coleção que deseja importar ou faça upload de um arquivo JSON
+              Cole os dados JSON da coleção que deseja importar ou faça upload de um arquivo JSON.
+              Suporta formato de coleção única ou backup completo com múltiplas coleções.
             </p>
           </div>
           
@@ -286,7 +407,7 @@ export function ImportModal({
           />
           <button
             onClick={() => handleProcessImport()}
-            disabled={!importText.trim() || isImporting}
+            disabled={!importText.trim() || isImporting || (importMode === "existing" && !selectedCollectionId)}
             className={cn(
               "w-full py-2.5 px-4 rounded-lg font-medium transition-all",
               "bg-primary text-primary-foreground",
