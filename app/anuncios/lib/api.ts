@@ -187,10 +187,11 @@ async function handleResponse<T>(response: Response): Promise<T> {
 // ============================================================================
 
 /**
- * Fetch all collections for the authenticated user
+ * Fetch all collections for the authenticated user or organization
  */
-export async function fetchCollections(): Promise<Collection[]> {
-  const response = await fetch("/api/collections")
+export async function fetchCollections(orgId?: string): Promise<Collection[]> {
+  const url = orgId ? `/api/collections?orgId=${orgId}` : "/api/collections"
+  const response = await fetch(url)
   const data = await handleResponse<{ collections: ApiCollection[] }>(response)
   return data.collections.map(toCollection)
 }
@@ -205,13 +206,13 @@ export async function fetchCollection(id: string): Promise<Collection> {
 }
 
 /**
- * Create a new collection
+ * Create a new collection for user or organization
  */
-export async function createCollection(name: string, isDefault?: boolean): Promise<Collection> {
+export async function createCollection(name: string, isDefault?: boolean, orgId?: string): Promise<Collection> {
   const response = await fetch("/api/collections", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ name, isDefault }),
+    body: JSON.stringify({ name, isDefault, orgId }),
   })
   const data = await handleResponse<{ collection: ApiCollection }>(response)
   return toCollection(data.collection)

@@ -66,6 +66,36 @@ vi.mock("@/lib/auth-server", () => ({
   getServerSession: vi.fn(),
 }))
 
+// Mock organization data
+const mockOrganization = {
+  id: "org-123",
+  name: "Test Organization",
+  slug: "test-org",
+  ownerId: mockUser.id,
+  createdAt: new Date(),
+  updatedAt: new Date(),
+}
+
+const mockOrgMembership = {
+  id: "member-123",
+  orgId: mockOrganization.id,
+  userId: mockUser.id,
+  role: "owner" as const,
+  joinedAt: new Date(),
+}
+
+const mockOrgCollection = {
+  id: "org-col-123",
+  userId: null,
+  orgId: mockOrganization.id,
+  name: "Org Collection",
+  isPublic: false,
+  shareToken: null,
+  isDefault: false,
+  createdAt: new Date(),
+  updatedAt: new Date(),
+}
+
 // Mock database
 const mockDbSelect = vi.fn()
 const mockDbInsert = vi.fn()
@@ -79,8 +109,9 @@ vi.mock("@/lib/db", () => ({
     update: mockDbUpdate,
     delete: mockDbDelete,
   })),
-  collections: { userId: "userId", id: "id" },
+  collections: { userId: "userId", id: "id", orgId: "orgId" },
   listings: { collectionId: "collectionId", id: "id" },
+  organizationMembers: { orgId: "orgId", userId: "userId" },
 }))
 
 describe("Collections API", () => {
@@ -95,14 +126,15 @@ describe("Collections API", () => {
       vi.mocked(getServerSession).mockResolvedValue(null)
 
       const { GET } = await import("./route")
-      const response = await GET()
+      const request = new NextRequest("http://localhost/api/collections")
+      const response = await GET(request)
       const json = await response.json()
 
       expect(response.status).toBe(401)
       expect(json.error).toBe("Unauthorized")
     })
 
-    it("returns user collections when authenticated", async () => {
+    it("returns user personal collections when authenticated", async () => {
       const { getServerSession } = await import("@/lib/auth-server")
       vi.mocked(getServerSession).mockResolvedValue(mockSession)
 
@@ -115,12 +147,62 @@ describe("Collections API", () => {
       })
 
       const { GET } = await import("./route")
-      const response = await GET()
+      const request = new NextRequest("http://localhost/api/collections")
+      const response = await GET(request)
       const json = await response.json()
 
       expect(response.status).toBe(200)
       expect(json.collections).toHaveLength(1)
       expect(json.collections[0].name).toBe("Test Collection")
+    })
+
+    it("returns organization collections when orgId provided", async () => {
+      const { getServerSession } = await import("@/lib/auth-server")
+      vi.mocked(getServerSession).mockResolvedValue(mockSession)
+
+      // First call: check membership
+      mockDbSelect.mockReturnValueOnce({
+        from: vi.fn().mockReturnValue({
+          where: vi.fn().mockResolvedValue([mockOrgMembership]),
+        }),
+      })
+      // Second call: fetch org collections
+      mockDbSelect.mockReturnValueOnce({
+        from: vi.fn().mockReturnValue({
+          where: vi.fn().mockReturnValue({
+            orderBy: vi.fn().mockResolvedValue([mockOrgCollection]),
+          }),
+        }),
+      })
+
+      const { GET } = await import("./route")
+      const request = new NextRequest(`http://localhost/api/collections?orgId=${mockOrganization.id}`)
+      const response = await GET(request)
+      const json = await response.json()
+
+      expect(response.status).toBe(200)
+      expect(json.collections).toHaveLength(1)
+      expect(json.collections[0].name).toBe("Org Collection")
+    })
+
+    it("returns 403 when user is not a member of organization", async () => {
+      const { getServerSession } = await import("@/lib/auth-server")
+      vi.mocked(getServerSession).mockResolvedValue(mockSession)
+
+      // No membership found
+      mockDbSelect.mockReturnValueOnce({
+        from: vi.fn().mockReturnValue({
+          where: vi.fn().mockResolvedValue([]),
+        }),
+      })
+
+      const { GET } = await import("./route")
+      const request = new NextRequest(`http://localhost/api/collections?orgId=${mockOrganization.id}`)
+      const response = await GET(request)
+      const json = await response.json()
+
+      expect(response.status).toBe(403)
+      expect(json.error).toBe("You are not a member of this organization")
     })
   })
 
@@ -213,6 +295,85 @@ describe("Collections API", () => {
 
       expect(response.status).toBe(201)
       expect(mockDbUpdate).toHaveBeenCalled()
+    })
+
+    it("creates organization collection when orgId provided and user is admin", async () => {
+      const { getServerSession } = await import("@/lib/auth-server")
+      vi.mocked(getServerSession).mockResolvedValue(mockSession)
+
+      // Check membership (user is owner)
+      mockDbSelect.mockReturnValueOnce({
+        from: vi.fn().mockReturnValue({
+          where: vi.fn().mockResolvedValue([mockOrgMembership]),
+        }),
+      })
+
+      mockDbInsert.mockReturnValue({
+        values: vi.fn().mockReturnValue({
+          returning: vi.fn().mockResolvedValue([mockOrgCollection]),
+        }),
+      })
+
+      const { POST } = await import("./route")
+      const request = new NextRequest("http://localhost/api/collections", {
+        method: "POST",
+        body: JSON.stringify({ name: "Org Collection", orgId: mockOrganization.id }),
+      })
+
+      const response = await POST(request)
+      const json = await response.json()
+
+      expect(response.status).toBe(201)
+      expect(json.collection.name).toBe("Org Collection")
+      expect(json.collection.orgId).toBe(mockOrganization.id)
+    })
+
+    it("returns 403 when creating org collection without membership", async () => {
+      const { getServerSession } = await import("@/lib/auth-server")
+      vi.mocked(getServerSession).mockResolvedValue(mockSession)
+
+      // No membership found
+      mockDbSelect.mockReturnValueOnce({
+        from: vi.fn().mockReturnValue({
+          where: vi.fn().mockResolvedValue([]),
+        }),
+      })
+
+      const { POST } = await import("./route")
+      const request = new NextRequest("http://localhost/api/collections", {
+        method: "POST",
+        body: JSON.stringify({ name: "Org Collection", orgId: mockOrganization.id }),
+      })
+
+      const response = await POST(request)
+      const json = await response.json()
+
+      expect(response.status).toBe(403)
+      expect(json.error).toBe("You are not a member of this organization")
+    })
+
+    it("returns 403 when creating org collection as regular member", async () => {
+      const { getServerSession } = await import("@/lib/auth-server")
+      vi.mocked(getServerSession).mockResolvedValue(mockSession)
+
+      // User is just a member, not admin or owner
+      mockDbSelect.mockReturnValueOnce({
+        from: vi.fn().mockReturnValue({
+          where: vi.fn().mockResolvedValue([{ ...mockOrgMembership, role: "member" }]),
+        }),
+      })
+
+      const { POST } = await import("./route")
+      const request = new NextRequest("http://localhost/api/collections", {
+        method: "POST",
+        body: JSON.stringify({ name: "Org Collection", orgId: mockOrganization.id }),
+      })
+
+      const response = await POST(request)
+      const json = await response.json()
+
+      expect(response.status).toBe(403)
+      expect(json.error).toBe("Only admins and owners can create collections")
     })
   })
 })

@@ -4,6 +4,7 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
 import { useSession } from "@/lib/auth-client"
+import { OrganizationSwitcher } from "@/components/organization-switcher"
 
 const navLinks = [
   { href: "/", label: "Inicio", icon: "🏡" },
@@ -17,6 +18,7 @@ export function NavBar() {
   const pathname = usePathname()
   const { data: session } = useSession()
   const isAdmin = session?.user?.isAdmin === true
+  const isLoggedIn = !!session?.user
 
   // Add admin link if user is admin
   const allLinks = isAdmin
@@ -36,27 +38,33 @@ export function NavBar() {
             <span>Minha Casa</span>
           </Link>
 
-          {/* Navigation Links */}
-          <div className="flex items-center gap-1">
-            {allLinks.map((link) => {
-              const isActive = pathname === link.href
-              return (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  className={cn(
-                    "px-4 py-2 rounded-lg text-sm font-medium transition-all",
-                    "flex items-center gap-2",
-                    isActive
-                      ? "bg-primary/10 text-primary"
-                      : "text-ashGray hover:text-white hover:bg-eerieBlack"
-                  )}
-                >
-                  <span>{link.icon}</span>
-                  <span className="hidden sm:inline">{link.label}</span>
-                </Link>
-              )
-            })}
+          {/* Navigation Links and Organization Switcher */}
+          <div className="flex items-center gap-4">
+            {/* Organization Switcher - Only show when logged in */}
+            {isLoggedIn && <OrganizationSwitcher />}
+
+            {/* Navigation Links */}
+            <div className="flex items-center gap-1">
+              {allLinks.map((link) => {
+                const isActive = pathname === link.href
+                return (
+                  <Link
+                    key={link.href}
+                    href={link.href}
+                    className={cn(
+                      "px-4 py-2 rounded-lg text-sm font-medium transition-all",
+                      "flex items-center gap-2",
+                      isActive
+                        ? "bg-primary/10 text-primary"
+                        : "text-ashGray hover:text-white hover:bg-eerieBlack"
+                    )}
+                  >
+                    <span>{link.icon}</span>
+                    <span className="hidden sm:inline">{link.label}</span>
+                  </Link>
+                )
+              })}
+            </div>
           </div>
         </div>
       </div>

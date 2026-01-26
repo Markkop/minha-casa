@@ -37,7 +37,10 @@ export function CollectionSelector({
     setActiveCollection,
     setDefaultCollection,
     loadCollections,
+    orgContext,
   } = useCollections()
+
+  const isOrgContext = orgContext.type === "organization"
 
   // Reload collections when refresh trigger changes
   useEffect(() => {
@@ -63,8 +66,16 @@ export function CollectionSelector({
 
   return (
     <div className="flex flex-wrap items-center gap-2">
+      {/* Organization Context Indicator */}
+      {isOrgContext && orgContext.organizationName && (
+        <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-primary/10 text-primary text-xs font-medium">
+          <span>👥</span>
+          <span className="truncate max-w-[120px]">{orgContext.organizationName}</span>
+        </div>
+      )}
+
       <Select
-        key={`collection-select-${refreshTrigger}`}
+        key={`collection-select-${refreshTrigger}-${orgContext.type}-${orgContext.organizationId || 'personal'}`}
         value={activeCollection?.id || ""}
         onValueChange={handleCollectionChange}
       >

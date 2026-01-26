@@ -27,12 +27,20 @@ import {
   type ShareInfo,
 } from "./api"
 import type { ListingData } from "@/lib/db/schema"
+import {
+  getStoredOrgContext,
+  type OrganizationContext,
+} from "@/components/organization-switcher"
 
 // ============================================================================
 // TYPES
 // ============================================================================
 
 interface CollectionsContextValue {
+  // Organization context
+  orgContext: OrganizationContext
+  setOrgContext: (context: OrganizationContext) => void
+
   // Collections state
   collections: Collection[]
   activeCollection: Collection | null
@@ -86,6 +94,9 @@ interface CollectionsProviderProps {
 }
 
 export function CollectionsProvider({ children }: CollectionsProviderProps) {
+  // Organization context
+  const [orgContext, setOrgContextState] = useState<OrganizationContext>({ type: "personal" })
+
   // Collections state
   const [collections, setCollections] = useState<Collection[]>([])
   const [activeCollection, setActiveCollectionState] = useState<Collection | null>(null)
@@ -103,6 +114,20 @@ export function CollectionsProvider({ children }: CollectionsProviderProps) {
     setRefreshTrigger((prev) => prev + 1)
   }, [])
 
+  // Initialize org context from storage on mount
+  useEffect(() => {
+    const storedContext = getStoredOrgContext()
+    setOrgContextState(storedContext)
+  }, [])
+
+  const setOrgContext = useCallback((context: OrganizationContext) => {
+    setOrgContextState(context)
+    // Reset collections when context changes
+    setCollections([])
+    setActiveCollectionState(null)
+    setListings([])
+  }, [])
+
   // ============================================================================
   // COLLECTION ACTIONS
   // ============================================================================
@@ -111,7 +136,8 @@ export function CollectionsProvider({ children }: CollectionsProviderProps) {
     setIsLoading(true)
     setError(null)
     try {
-      const fetchedCollections = await fetchCollections()
+      const orgId = orgContext.type === "organization" ? orgContext.organizationId : undefined
+      const fetchedCollections = await fetchCollections(orgId)
       setCollections(fetchedCollections)
 
       // If there's no active collection, set the default one
@@ -129,6 +155,8 @@ export function CollectionsProvider({ children }: CollectionsProviderProps) {
           const defaultCollection =
             fetchedCollections.find((c) => c.isDefault) || fetchedCollections[0]
           setActiveCollectionState(defaultCollection)
+        } else {
+          setActiveCollectionState(null)
         }
       }
     } catch (err) {
@@ -138,7 +166,7 @@ export function CollectionsProvider({ children }: CollectionsProviderProps) {
     } finally {
       setIsLoading(false)
     }
-  }, [activeCollection])
+  }, [activeCollection, orgContext])
 
   const setActiveCollection = useCallback(
     (collection: Collection | null) => {
@@ -149,7 +177,8 @@ export function CollectionsProvider({ children }: CollectionsProviderProps) {
 
   const createCollection = useCallback(
     async (name: string, isDefault?: boolean): Promise<Collection> => {
-      const newCollection = await apiCreateCollection(name, isDefault)
+      const orgId = orgContext.type === "organization" ? orgContext.organizationId : undefined
+      const newCollection = await apiCreateCollection(name, isDefault, orgId)
       setCollections((prev) => {
         // If this is the new default, unset others
         if (isDefault) {
@@ -160,7 +189,7 @@ export function CollectionsProvider({ children }: CollectionsProviderProps) {
       triggerRefresh()
       return newCollection
     },
-    [triggerRefresh]
+    [triggerRefresh, orgContext]
   )
 
   const updateCollection = useCallback(
@@ -358,10 +387,10 @@ export function CollectionsProvider({ children }: CollectionsProviderProps) {
   // EFFECTS
   // ============================================================================
 
-  // Load collections on mount
+  // Load collections on mount and when org context changes
   useEffect(() => {
     loadCollections()
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [orgContext]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Load listings when active collection changes
   useEffect(() => {
@@ -377,6 +406,10 @@ export function CollectionsProvider({ children }: CollectionsProviderProps) {
   // ============================================================================
 
   const value: CollectionsContextValue = {
+    // Organization context
+    orgContext,
+    setOrgContext,
+
     // Collections state
     collections,
     activeCollection,
