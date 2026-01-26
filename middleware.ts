@@ -7,6 +7,11 @@ import type { NextRequest } from "next/server"
 const PUBLIC_ROUTES = ["/", "/login", "/signup"]
 
 /**
+ * Routes that authenticated users should be redirected away from
+ */
+const AUTH_ROUTES = ["/login", "/signup"]
+
+/**
  * Routes that are always public (API routes, static files, etc.)
  */
 const PUBLIC_PREFIXES = ["/api/auth", "/_next", "/favicon.ico"]
@@ -25,6 +30,13 @@ function isPublicRoute(pathname: string): boolean {
 }
 
 /**
+ * Check if a path is an auth route (login/signup)
+ */
+function isAuthRoute(pathname: string): boolean {
+  return AUTH_ROUTES.includes(pathname)
+}
+
+/**
  * Auth middleware for Next.js
  *
  * Protects routes by checking for a valid session cookie.
@@ -33,16 +45,21 @@ function isPublicRoute(pathname: string): boolean {
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
-  // Allow public routes
-  if (isPublicRoute(pathname)) {
-    return NextResponse.next()
-  }
-
   // Check for session cookie from better-auth
   // better-auth uses "better-auth.session_token" as the default cookie name
   const sessionToken =
     request.cookies.get("better-auth.session_token")?.value ||
     request.cookies.get("__Secure-better-auth.session_token")?.value
+
+  // Redirect authenticated users away from auth routes (login/signup)
+  if (isAuthRoute(pathname) && sessionToken) {
+    return NextResponse.redirect(new URL("/", request.url))
+  }
+
+  // Allow public routes
+  if (isPublicRoute(pathname)) {
+    return NextResponse.next()
+  }
 
   // If no session token, redirect to login
   if (!sessionToken) {

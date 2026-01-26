@@ -5,11 +5,13 @@ import { LoginClient } from "./login-client"
 // Mock next/navigation
 const mockPush = vi.fn()
 const mockRefresh = vi.fn()
+const mockSearchParams = new URLSearchParams()
 vi.mock("next/navigation", () => ({
   useRouter: () => ({
     push: mockPush,
     refresh: mockRefresh,
   }),
+  useSearchParams: () => mockSearchParams,
 }))
 
 // Mock auth-client
@@ -80,8 +82,9 @@ describe("LoginClient", () => {
     })
   })
 
-  it("redirects to home page on successful login", async () => {
+  it("redirects to home page on successful login when no redirect param", async () => {
     mockSignInEmail.mockResolvedValue({ data: { user: {} } })
+    mockSearchParams.delete("redirect")
 
     render(<LoginClient />)
 
@@ -97,6 +100,29 @@ describe("LoginClient", () => {
       expect(mockPush).toHaveBeenCalledWith("/")
       expect(mockRefresh).toHaveBeenCalled()
     })
+  })
+
+  it("redirects to specified URL from redirect param on successful login", async () => {
+    mockSignInEmail.mockResolvedValue({ data: { user: {} } })
+    mockSearchParams.set("redirect", "/anuncios")
+
+    render(<LoginClient />)
+
+    fireEvent.change(screen.getByLabelText(/email/i), {
+      target: { value: "test@example.com" },
+    })
+    fireEvent.change(screen.getByLabelText(/senha/i), {
+      target: { value: "password123" },
+    })
+    fireEvent.click(screen.getByRole("button", { name: /entrar/i }))
+
+    await waitFor(() => {
+      expect(mockPush).toHaveBeenCalledWith("/anuncios")
+      expect(mockRefresh).toHaveBeenCalled()
+    })
+
+    // Clean up
+    mockSearchParams.delete("redirect")
   })
 
   it("displays error message when login fails", async () => {

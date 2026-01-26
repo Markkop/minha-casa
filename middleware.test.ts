@@ -206,4 +206,39 @@ describe("auth middleware", () => {
       expect(NextResponse.redirect).not.toHaveBeenCalled()
     })
   })
+
+  describe("authenticated users on auth routes", () => {
+    it("redirects authenticated users away from /login to home", () => {
+      const request = createMockRequest("/login", {
+        "better-auth.session_token": "valid-session-token",
+      })
+      middleware(request)
+
+      expect(NextResponse.redirect).toHaveBeenCalled()
+      const redirectCall = vi.mocked(NextResponse.redirect).mock.calls[0][0]
+      expect(redirectCall.toString()).toBe("http://localhost:3000/")
+    })
+
+    it("redirects authenticated users away from /signup to home", () => {
+      const request = createMockRequest("/signup", {
+        "better-auth.session_token": "valid-session-token",
+      })
+      middleware(request)
+
+      expect(NextResponse.redirect).toHaveBeenCalled()
+      const redirectCall = vi.mocked(NextResponse.redirect).mock.calls[0][0]
+      expect(redirectCall.toString()).toBe("http://localhost:3000/")
+    })
+
+    it("redirects authenticated users with secure cookie away from /login", () => {
+      const request = createMockRequest("/login", {
+        "__Secure-better-auth.session_token": "valid-session-token",
+      })
+      middleware(request)
+
+      expect(NextResponse.redirect).toHaveBeenCalled()
+      const redirectCall = vi.mocked(NextResponse.redirect).mock.calls[0][0]
+      expect(redirectCall.toString()).toBe("http://localhost:3000/")
+    })
+  })
 })

@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { signIn } from "@/lib/auth-client"
 import { Button } from "@/components/ui/button"
@@ -11,6 +11,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 
 export function LoginClient() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [error, setError] = useState("")
@@ -32,7 +33,9 @@ export function LoginClient() {
         return
       }
 
-      router.push("/")
+      // Redirect to the original URL if provided, otherwise go to home
+      const redirectTo = searchParams.get("redirect") || "/"
+      router.push(redirectTo)
       router.refresh()
     } catch {
       setError("Erro ao fazer login. Tente novamente.")
