@@ -1,5 +1,11 @@
 import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
+import {
+  SUBSCRIPTION_COOKIE_NAME,
+  SUBSCRIPTION_PAGE,
+  isSubscriptionValid,
+  requiresSubscription,
+} from "./lib/subscription"
 
 /**
  * Routes that don't require authentication
@@ -15,6 +21,11 @@ const AUTH_ROUTES = ["/login", "/signup"]
  * Routes that are always public (API routes, static files, etc.)
  */
 const PUBLIC_PREFIXES = ["/api/auth", "/_next", "/favicon.ico"]
+
+/**
+ * Routes that don't require a subscription (but may require auth)
+ */
+const NO_SUBSCRIPTION_REQUIRED = ["/subscribe", "/planos", "/api/"]
 
 /**
  * Check if a path is a public route
@@ -37,10 +48,20 @@ function isAuthRoute(pathname: string): boolean {
 }
 
 /**
+ * Check if a path is exempt from subscription requirements
+ */
+function isSubscriptionExempt(pathname: string): boolean {
+  return NO_SUBSCRIPTION_REQUIRED.some(
+    (route) => pathname === route || pathname.startsWith(route)
+  )
+}
+
+/**
  * Auth middleware for Next.js
  *
  * Protects routes by checking for a valid session cookie.
  * Redirects unauthenticated users to the login page.
+ * Redirects users without an active subscription to the subscribe page.
  */
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
@@ -69,7 +90,19 @@ export function middleware(request: NextRequest) {
     return NextResponse.redirect(loginUrl)
   }
 
-  // Session exists, allow the request
+  // Check subscription for protected routes
+  if (requiresSubscription(pathname) && !isSubscriptionExempt(pathname)) {
+    const subscriptionCookie = request.cookies.get(SUBSCRIPTION_COOKIE_NAME)?.value
+
+    if (!isSubscriptionValid(subscriptionCookie)) {
+      const subscribeUrl = new URL(SUBSCRIPTION_PAGE, request.url)
+      // Add the original URL as a redirect parameter
+      subscribeUrl.searchParams.set("redirect", pathname)
+      return NextResponse.redirect(subscribeUrl)
+    }
+  }
+
+  // Session exists and subscription is valid (or not required), allow the request
   return NextResponse.next()
 }
 

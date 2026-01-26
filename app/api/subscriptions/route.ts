@@ -2,10 +2,17 @@ import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "@/lib/auth-server"
 import { getDb, subscriptions, plans, users } from "@/lib/db"
 import { eq, and, desc } from "drizzle-orm"
+import {
+  SUBSCRIPTION_COOKIE_NAME,
+  SUBSCRIPTION_ACTIVE,
+  SUBSCRIPTION_INACTIVE,
+  createSubscriptionCookieValue,
+} from "@/lib/subscription"
 
 /**
  * GET /api/subscriptions
  * Get the current user's active subscription with plan details
+ * Also sets a subscription-status cookie for middleware checks
  */
 export async function GET() {
   try {
@@ -37,11 +44,40 @@ export async function GET() {
       .limit(1)
 
     if (userSubscriptions.length === 0) {
-      return NextResponse.json({ subscription: null, plan: null })
+      // No active subscription - set inactive cookie
+      const response = NextResponse.json({ subscription: null, plan: null })
+      response.cookies.set(SUBSCRIPTION_COOKIE_NAME, SUBSCRIPTION_INACTIVE, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
+        path: "/",
+        maxAge: 60 * 60, // 1 hour - short-lived to ensure freshness
+      })
+      return response
     }
 
     const { subscription, plan } = userSubscriptions[0]
-    return NextResponse.json({ subscription, plan })
+
+    // Check if subscription has expired
+    const now = new Date()
+    const expiresAt = new Date(subscription.expiresAt)
+    const isExpired = expiresAt < now
+
+    // Set subscription cookie for middleware checks
+    const response = NextResponse.json({ subscription, plan })
+    const cookieValue = isExpired
+      ? SUBSCRIPTION_INACTIVE
+      : createSubscriptionCookieValue(SUBSCRIPTION_ACTIVE, expiresAt)
+
+    response.cookies.set(SUBSCRIPTION_COOKIE_NAME, cookieValue, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      path: "/",
+      maxAge: 60 * 60, // 1 hour - short-lived to ensure freshness
+    })
+
+    return response
   } catch (error) {
     console.error("Error fetching subscription:", error)
     return NextResponse.json(
@@ -137,22 +173,40 @@ export async function POST(request: NextRequest) {
       )
 
     // Create the new subscription
+    const subscriptionExpiresAt = new Date(expiresAt)
     const [newSubscription] = await db
       .insert(subscriptions)
       .values({
         userId,
         planId,
         status: "active",
-        expiresAt: new Date(expiresAt),
+        expiresAt: subscriptionExpiresAt,
         grantedBy: session.user.id,
         notes: notes || null,
       })
       .returning()
 
-    return NextResponse.json(
+    const response = NextResponse.json(
       { subscription: newSubscription },
       { status: 201 }
     )
+
+    // If admin is granting subscription to themselves, set the cookie
+    if (userId === session.user.id) {
+      const cookieValue = createSubscriptionCookieValue(
+        SUBSCRIPTION_ACTIVE,
+        subscriptionExpiresAt
+      )
+      response.cookies.set(SUBSCRIPTION_COOKIE_NAME, cookieValue, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
+        path: "/",
+        maxAge: 60 * 60, // 1 hour
+      })
+    }
+
+    return response
   } catch (error) {
     console.error("Error creating subscription:", error)
     return NextResponse.json(
