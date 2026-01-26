@@ -25,7 +25,7 @@ const PUBLIC_PREFIXES = ["/api/auth", "/_next", "/favicon.ico"]
 /**
  * Routes that don't require a subscription (but may require auth)
  */
-const NO_SUBSCRIPTION_REQUIRED = ["/subscribe", "/planos", "/api/"]
+const NO_SUBSCRIPTION_REQUIRED = ["/subscribe", "/planos", "/api/", "/admin"]
 
 /**
  * Check if a path is a public route

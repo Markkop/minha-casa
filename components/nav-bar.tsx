@@ -3,6 +3,7 @@
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
+import { useSession } from "@/lib/auth-client"
 
 const navLinks = [
   { href: "/", label: "Início", icon: "🏡" },
@@ -13,6 +14,13 @@ const navLinks = [
 
 export function NavBar() {
   const pathname = usePathname()
+  const { data: session } = useSession()
+  const isAdmin = session?.user?.isAdmin === true
+
+  // Add admin link if user is admin
+  const allLinks = isAdmin
+    ? [...navLinks, { href: "/admin", label: "Admin", icon: "⚙️" }]
+    : navLinks
 
   return (
     <nav className="border-b border-brightGrey bg-raisinBlack">
@@ -29,7 +37,7 @@ export function NavBar() {
 
           {/* Navigation Links */}
           <div className="flex items-center gap-1">
-            {navLinks.map((link) => {
+            {allLinks.map((link) => {
               const isActive = pathname === link.href
               return (
                 <Link
