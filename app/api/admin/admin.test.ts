@@ -71,17 +71,23 @@ vi.mock("@/lib/auth-server", () => ({
 // Mock database
 const mockDbSelect = vi.fn()
 const mockDbUpdate = vi.fn()
+const mockDbDelete = vi.fn()
 
 vi.mock("@/lib/db", () => ({
   getDb: vi.fn(() => ({
     select: mockDbSelect,
     update: mockDbUpdate,
+    delete: mockDbDelete,
   })),
   users: { id: "id", email: "email", isAdmin: "isAdmin", createdAt: "createdAt" },
   subscriptions: { userId: "userId", status: "status", id: "id", planId: "planId" },
   plans: { id: "id", name: "name", slug: "slug", isActive: "isActive" },
   collections: { id: "id" },
   listings: { id: "id" },
+  sessions: { userId: "userId" },
+  accounts: { userId: "userId" },
+  organizationMembers: { userId: "userId" },
+  organizations: { ownerId: "ownerId" },
 }))
 
 describe("Admin Users API", () => {
@@ -207,6 +213,23 @@ describe("Admin Users API", () => {
       expect(json.error).toBe("Forbidden")
     })
 
+    it("returns 400 when no fields provided", async () => {
+      const { requireAdmin } = await import("@/lib/auth-server")
+      vi.mocked(requireAdmin).mockResolvedValue(mockAdminSession)
+
+      const { PATCH } = await import("./users/[id]/route")
+      const request = new NextRequest("http://localhost/api/admin/users/user-123", {
+        method: "PATCH",
+        body: JSON.stringify({}),
+      })
+
+      const response = await PATCH(request, { params: Promise.resolve({ id: "user-123" }) })
+      const json = await response.json()
+
+      expect(response.status).toBe(400)
+      expect(json.error).toBe("At least one field must be provided (isAdmin, name)")
+    })
+
     it("returns 400 when isAdmin is not a boolean", async () => {
       const { requireAdmin } = await import("@/lib/auth-server")
       vi.mocked(requireAdmin).mockResolvedValue(mockAdminSession)
@@ -222,6 +245,40 @@ describe("Admin Users API", () => {
 
       expect(response.status).toBe(400)
       expect(json.error).toBe("isAdmin must be a boolean")
+    })
+
+    it("returns 400 when name is empty", async () => {
+      const { requireAdmin } = await import("@/lib/auth-server")
+      vi.mocked(requireAdmin).mockResolvedValue(mockAdminSession)
+
+      const { PATCH } = await import("./users/[id]/route")
+      const request = new NextRequest("http://localhost/api/admin/users/user-123", {
+        method: "PATCH",
+        body: JSON.stringify({ name: "   " }),
+      })
+
+      const response = await PATCH(request, { params: Promise.resolve({ id: "user-123" }) })
+      const json = await response.json()
+
+      expect(response.status).toBe(400)
+      expect(json.error).toBe("name cannot be empty")
+    })
+
+    it("returns 400 when name exceeds 255 characters", async () => {
+      const { requireAdmin } = await import("@/lib/auth-server")
+      vi.mocked(requireAdmin).mockResolvedValue(mockAdminSession)
+
+      const { PATCH } = await import("./users/[id]/route")
+      const request = new NextRequest("http://localhost/api/admin/users/user-123", {
+        method: "PATCH",
+        body: JSON.stringify({ name: "a".repeat(256) }),
+      })
+
+      const response = await PATCH(request, { params: Promise.resolve({ id: "user-123" }) })
+      const json = await response.json()
+
+      expect(response.status).toBe(400)
+      expect(json.error).toBe("name cannot exceed 255 characters")
     })
 
     it("returns 400 when admin tries to remove own admin status", async () => {
@@ -294,6 +351,137 @@ describe("Admin Users API", () => {
 
       expect(response.status).toBe(200)
       expect(json.user.isAdmin).toBe(true)
+    })
+
+    it("updates user name successfully", async () => {
+      const { requireAdmin } = await import("@/lib/auth-server")
+      vi.mocked(requireAdmin).mockResolvedValue(mockAdminSession)
+
+      mockDbSelect.mockReturnValue({
+        from: vi.fn().mockReturnValue({
+          where: vi.fn().mockResolvedValue([mockUser]),
+        }),
+      })
+
+      const updatedUser = { ...mockUser, name: "New Name" }
+      mockDbUpdate.mockReturnValue({
+        set: vi.fn().mockReturnValue({
+          where: vi.fn().mockReturnValue({
+            returning: vi.fn().mockResolvedValue([updatedUser]),
+          }),
+        }),
+      })
+
+      const { PATCH } = await import("./users/[id]/route")
+      const request = new NextRequest(`http://localhost/api/admin/users/${mockUser.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ name: "New Name" }),
+      })
+
+      const response = await PATCH(request, { params: Promise.resolve({ id: mockUser.id }) })
+      const json = await response.json()
+
+      expect(response.status).toBe(200)
+      expect(json.user.name).toBe("New Name")
+    })
+  })
+
+  describe("DELETE /api/admin/users/[id]", () => {
+    it("returns 401 when not authenticated", async () => {
+      const { requireAdmin } = await import("@/lib/auth-server")
+      vi.mocked(requireAdmin).mockRejectedValue(new Error("Unauthorized"))
+
+      const { DELETE } = await import("./users/[id]/route")
+      const request = new NextRequest("http://localhost/api/admin/users/user-123", {
+        method: "DELETE",
+      })
+
+      const response = await DELETE(request, { params: Promise.resolve({ id: "user-123" }) })
+      const json = await response.json()
+
+      expect(response.status).toBe(401)
+      expect(json.error).toBe("Unauthorized")
+    })
+
+    it("returns 403 when non-admin tries to access", async () => {
+      const { requireAdmin } = await import("@/lib/auth-server")
+      vi.mocked(requireAdmin).mockRejectedValue(new Error("Forbidden: Admin access required"))
+
+      const { DELETE } = await import("./users/[id]/route")
+      const request = new NextRequest("http://localhost/api/admin/users/user-123", {
+        method: "DELETE",
+      })
+
+      const response = await DELETE(request, { params: Promise.resolve({ id: "user-123" }) })
+      const json = await response.json()
+
+      expect(response.status).toBe(403)
+      expect(json.error).toBe("Forbidden")
+    })
+
+    it("returns 400 when admin tries to delete themselves", async () => {
+      const { requireAdmin } = await import("@/lib/auth-server")
+      vi.mocked(requireAdmin).mockResolvedValue(mockAdminSession)
+
+      const { DELETE } = await import("./users/[id]/route")
+      const request = new NextRequest(`http://localhost/api/admin/users/${mockAdminUser.id}`, {
+        method: "DELETE",
+      })
+
+      const response = await DELETE(request, { params: Promise.resolve({ id: mockAdminUser.id }) })
+      const json = await response.json()
+
+      expect(response.status).toBe(400)
+      expect(json.error).toBe("Cannot delete your own account")
+    })
+
+    it("returns 404 when user not found", async () => {
+      const { requireAdmin } = await import("@/lib/auth-server")
+      vi.mocked(requireAdmin).mockResolvedValue(mockAdminSession)
+
+      mockDbSelect.mockReturnValue({
+        from: vi.fn().mockReturnValue({
+          where: vi.fn().mockResolvedValue([]),
+        }),
+      })
+
+      const { DELETE } = await import("./users/[id]/route")
+      const request = new NextRequest("http://localhost/api/admin/users/non-existent", {
+        method: "DELETE",
+      })
+
+      const response = await DELETE(request, { params: Promise.resolve({ id: "non-existent" }) })
+      const json = await response.json()
+
+      expect(response.status).toBe(404)
+      expect(json.error).toBe("User not found")
+    })
+
+    it("deletes user successfully", async () => {
+      const { requireAdmin } = await import("@/lib/auth-server")
+      vi.mocked(requireAdmin).mockResolvedValue(mockAdminSession)
+
+      mockDbSelect.mockReturnValue({
+        from: vi.fn().mockReturnValue({
+          where: vi.fn().mockResolvedValue([mockUser]),
+        }),
+      })
+
+      mockDbDelete.mockReturnValue({
+        where: vi.fn().mockResolvedValue([]),
+      })
+
+      const { DELETE } = await import("./users/[id]/route")
+      const request = new NextRequest(`http://localhost/api/admin/users/${mockUser.id}`, {
+        method: "DELETE",
+      })
+
+      const response = await DELETE(request, { params: Promise.resolve({ id: mockUser.id }) })
+      const json = await response.json()
+
+      expect(response.status).toBe(200)
+      expect(json.success).toBe(true)
+      expect(json.message).toBe("User deleted successfully")
     })
   })
 })

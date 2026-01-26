@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, useCallback } from "react"
+import { useEffect, useState, useCallback, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import {
@@ -70,11 +70,17 @@ export function AdminClient() {
   const [stats, setStats] = useState<Stats | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [searchQuery, setSearchQuery] = useState("")
   const [grantModalOpen, setGrantModalOpen] = useState(false)
+  const [editModalOpen, setEditModalOpen] = useState(false)
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false)
   const [selectedUser, setSelectedUser] = useState<User | null>(null)
   const [selectedPlanId, setSelectedPlanId] = useState<string>("")
   const [subscriptionDays, setSubscriptionDays] = useState<string>("30")
   const [grantingSubscription, setGrantingSubscription] = useState(false)
+  const [editName, setEditName] = useState("")
+  const [savingUser, setSavingUser] = useState(false)
+  const [deletingUser, setDeletingUser] = useState(false)
 
   const fetchData = useCallback(async () => {
     setLoading(true)
@@ -116,6 +122,17 @@ export function AdminClient() {
     fetchData()
   }, [fetchData])
 
+  // Filter users based on search query
+  const filteredUsers = useMemo(() => {
+    if (!searchQuery.trim()) return users
+    const query = searchQuery.toLowerCase()
+    return users.filter(
+      (user) =>
+        user.name.toLowerCase().includes(query) ||
+        user.email.toLowerCase().includes(query)
+    )
+  }, [users, searchQuery])
+
   async function toggleAdmin(userId: string, currentIsAdmin: boolean) {
     try {
       const res = await fetch(`/api/admin/users/${userId}`, {
@@ -136,6 +153,62 @@ export function AdminClient() {
       )
     } catch (err) {
       alert(err instanceof Error ? err.message : "Failed to update user")
+    }
+  }
+
+  async function saveUserEdit() {
+    if (!selectedUser || !editName.trim()) return
+
+    setSavingUser(true)
+
+    try {
+      const res = await fetch(`/api/admin/users/${selectedUser.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: editName.trim() }),
+      })
+
+      if (!res.ok) {
+        const data = await res.json()
+        throw new Error(data.error || "Failed to update user")
+      }
+
+      const data = await res.json()
+      setUsers(users.map((u) => (u.id === selectedUser.id ? { ...u, name: data.user.name } : u)))
+      setEditModalOpen(false)
+      setSelectedUser(null)
+      setEditName("")
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Failed to update user")
+    } finally {
+      setSavingUser(false)
+    }
+  }
+
+  async function deleteUser() {
+    if (!selectedUser) return
+
+    setDeletingUser(true)
+
+    try {
+      const res = await fetch(`/api/admin/users/${selectedUser.id}`, {
+        method: "DELETE",
+      })
+
+      if (!res.ok) {
+        const data = await res.json()
+        throw new Error(data.error || "Failed to delete user")
+      }
+
+      setUsers(users.filter((u) => u.id !== selectedUser.id))
+      setDeleteModalOpen(false)
+      setSelectedUser(null)
+      // Refresh stats after deletion
+      fetchData()
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Failed to delete user")
+    } finally {
+      setDeletingUser(false)
     }
   }
 
@@ -299,85 +372,127 @@ export function AdminClient() {
       {/* Users Table */}
       <Card>
         <CardHeader>
-          <CardTitle>Usuários ({users.length})</CardTitle>
-          <CardDescription>
-            Gerencie usuários e suas permissões de administrador.
-          </CardDescription>
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div>
+              <CardTitle>Usuários ({users.length})</CardTitle>
+              <CardDescription>
+                Gerencie usuários e suas permissões de administrador.
+              </CardDescription>
+            </div>
+            <div className="w-full md:w-72">
+              <Input
+                placeholder="Buscar por nome ou email..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                aria-label="Buscar usuários"
+              />
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Nome</TableHead>
-                <TableHead>Email</TableHead>
-                <TableHead>Assinatura</TableHead>
-                <TableHead>Expira em</TableHead>
-                <TableHead>Criado em</TableHead>
-                <TableHead>Admin</TableHead>
-                <TableHead>Ações</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {users.map((user) => (
-                <TableRow key={user.id}>
-                  <TableCell className="font-medium">{user.name}</TableCell>
-                  <TableCell>{user.email}</TableCell>
-                  <TableCell>
-                    {user.subscription?.plan ? (
-                      <span
-                        className={`px-2 py-1 rounded text-sm ${
-                          isExpired(user.subscription.expiresAt)
-                            ? "bg-destructive/20 text-destructive"
-                            : "bg-green/20 text-green"
-                        }`}
-                      >
-                        {user.subscription.plan.name}
-                      </span>
-                    ) : (
-                      <span className="text-muted-foreground">-</span>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    {user.subscription?.expiresAt ? (
-                      <span
-                        className={
-                          isExpired(user.subscription.expiresAt)
-                            ? "text-destructive"
-                            : ""
-                        }
-                      >
-                        {formatDate(user.subscription.expiresAt)}
-                      </span>
-                    ) : (
-                      <span className="text-muted-foreground">-</span>
-                    )}
-                  </TableCell>
-                  <TableCell>{formatDate(user.createdAt)}</TableCell>
-                  <TableCell>
-                    <Switch
-                      checked={user.isAdmin}
-                      onCheckedChange={() =>
-                        toggleAdmin(user.id, user.isAdmin)
-                      }
-                      aria-label={`Toggle admin for ${user.name}`}
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        setSelectedUser(user)
-                        setGrantModalOpen(true)
-                      }}
-                    >
-                      Conceder Assinatura
-                    </Button>
-                  </TableCell>
+          {filteredUsers.length === 0 && searchQuery ? (
+            <div className="text-center py-8 text-muted-foreground">
+              Nenhum usuário encontrado para &quot;{searchQuery}&quot;
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Nome</TableHead>
+                  <TableHead>Email</TableHead>
+                  <TableHead>Assinatura</TableHead>
+                  <TableHead>Expira em</TableHead>
+                  <TableHead>Criado em</TableHead>
+                  <TableHead>Admin</TableHead>
+                  <TableHead>Ações</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {filteredUsers.map((user) => (
+                  <TableRow key={user.id}>
+                    <TableCell className="font-medium">{user.name}</TableCell>
+                    <TableCell>{user.email}</TableCell>
+                    <TableCell>
+                      {user.subscription?.plan ? (
+                        <span
+                          className={`px-2 py-1 rounded text-sm ${
+                            isExpired(user.subscription.expiresAt)
+                              ? "bg-destructive/20 text-destructive"
+                              : "bg-green/20 text-green"
+                          }`}
+                        >
+                          {user.subscription.plan.name}
+                        </span>
+                      ) : (
+                        <span className="text-muted-foreground">-</span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {user.subscription?.expiresAt ? (
+                        <span
+                          className={
+                            isExpired(user.subscription.expiresAt)
+                              ? "text-destructive"
+                              : ""
+                          }
+                        >
+                          {formatDate(user.subscription.expiresAt)}
+                        </span>
+                      ) : (
+                        <span className="text-muted-foreground">-</span>
+                      )}
+                    </TableCell>
+                    <TableCell>{formatDate(user.createdAt)}</TableCell>
+                    <TableCell>
+                      <Switch
+                        checked={user.isAdmin}
+                        onCheckedChange={() =>
+                          toggleAdmin(user.id, user.isAdmin)
+                        }
+                        aria-label={`Toggle admin for ${user.name}`}
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setSelectedUser(user)
+                            setEditName(user.name)
+                            setEditModalOpen(true)
+                          }}
+                        >
+                          Editar
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setSelectedUser(user)
+                            setGrantModalOpen(true)
+                          }}
+                        >
+                          Assinatura
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="text-destructive hover:text-destructive"
+                          onClick={() => {
+                            setSelectedUser(user)
+                            setDeleteModalOpen(true)
+                          }}
+                        >
+                          Excluir
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
         </CardContent>
       </Card>
 
@@ -439,6 +554,94 @@ export function AdminClient() {
                   disabled={!selectedPlanId || grantingSubscription}
                 >
                   {grantingSubscription ? "Concedendo..." : "Conceder"}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Edit User Modal */}
+      {editModalOpen && selectedUser && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <Card className="w-full max-w-md mx-4">
+            <CardHeader>
+              <CardTitle>Editar Usuário</CardTitle>
+              <CardDescription>
+                Editar informações de {selectedUser.email}
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="edit-name">Nome</Label>
+                <Input
+                  id="edit-name"
+                  type="text"
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  placeholder="Nome do usuário"
+                />
+              </div>
+              <div className="flex gap-2 justify-end pt-4">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setEditModalOpen(false)
+                    setSelectedUser(null)
+                    setEditName("")
+                  }}
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  onClick={saveUserEdit}
+                  disabled={!editName.trim() || savingUser}
+                >
+                  {savingUser ? "Salvando..." : "Salvar"}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Delete User Confirmation Modal */}
+      {deleteModalOpen && selectedUser && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <Card className="w-full max-w-md mx-4">
+            <CardHeader>
+              <CardTitle className="text-destructive">Excluir Usuário</CardTitle>
+              <CardDescription>
+                Tem certeza que deseja excluir o usuário {selectedUser.name} ({selectedUser.email})?
+                Esta ação não pode ser desfeita.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                Todos os dados do usuário serão excluídos permanentemente, incluindo:
+              </p>
+              <ul className="text-sm text-muted-foreground list-disc list-inside space-y-1">
+                <li>Coleções e anúncios</li>
+                <li>Assinaturas</li>
+                <li>Organizações criadas</li>
+                <li>Sessões ativas</li>
+              </ul>
+              <div className="flex gap-2 justify-end pt-4">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setDeleteModalOpen(false)
+                    setSelectedUser(null)
+                  }}
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  variant="destructive"
+                  onClick={deleteUser}
+                  disabled={deletingUser}
+                >
+                  {deletingUser ? "Excluindo..." : "Excluir"}
                 </Button>
               </div>
             </CardContent>
