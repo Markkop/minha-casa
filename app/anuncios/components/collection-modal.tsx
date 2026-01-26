@@ -5,13 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
-import {
-  createCollection,
-  updateCollection,
-  deleteCollection,
-  getCollections,
-  type Collection,
-} from "../lib/storage"
+import { useCollections } from "../lib/use-collections"
+import type { Collection } from "../lib/api"
 import { cn } from "@/lib/utils"
 
 interface CollectionModalProps {
@@ -27,10 +22,19 @@ export function CollectionModal({
   collection,
   onCollectionChange,
 }: CollectionModalProps) {
+  const {
+    collections,
+    createCollection: apiCreateCollection,
+    updateCollection: apiUpdateCollection,
+    deleteCollection: apiDeleteCollection,
+    setDefaultCollection,
+  } = useCollections()
+
   const [label, setLabel] = useState("")
   const [isDefault, setIsDefault] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [isSaving, setIsSaving] = useState(false)
 
   const isEditing = !!collection
 
@@ -48,7 +52,7 @@ export function CollectionModal({
     }
   }, [isOpen, collection])
 
-  const handleSave = () => {
+  const handleSave = async () => {
     const trimmedLabel = label.trim()
     if (!trimmedLabel) {
       setError("O nome da coleção não pode estar vazio")
@@ -56,7 +60,6 @@ export function CollectionModal({
     }
 
     // Check for duplicate names (excluding current collection)
-    const collections = getCollections()
     const duplicate = collections.find(
       (c) => c.label === trimmedLabel && c.id !== collection?.id
     )
@@ -65,50 +68,46 @@ export function CollectionModal({
       return
     }
 
+    setIsSaving(true)
     try {
       if (isEditing && collection) {
-        updateCollection(collection.id, {
-          label: trimmedLabel,
+        await apiUpdateCollection(collection.id, {
+          name: trimmedLabel,
           isDefault: isDefault,
         })
       } else {
-        const newCollection = createCollection(trimmedLabel)
+        const newCollection = await apiCreateCollection(trimmedLabel, isDefault)
         if (isDefault) {
-          // If setting as default, update it
-          updateCollection(newCollection.id, { isDefault: true })
+          await setDefaultCollection(newCollection.id)
         }
       }
       onCollectionChange?.()
       onClose()
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erro ao salvar coleção")
+    } finally {
+      setIsSaving(false)
     }
   }
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (!collection) return
 
     // Prevent deleting default collection if it's the only one
-    const collections = getCollections()
     if (collection.isDefault && collections.length === 1) {
       setError("Não é possível excluir a única coleção padrão")
       return
     }
 
+    setIsSaving(true)
     try {
-      const deleted = deleteCollection(collection.id)
-      if (deleted) {
-        // Trigger refresh callback before closing to ensure UI updates
-        onCollectionChange?.()
-        // Use setTimeout to ensure the callback completes before closing
-        setTimeout(() => {
-          onClose()
-        }, 0)
-      } else {
-        setError("Não foi possível excluir a coleção")
-      }
+      await apiDeleteCollection(collection.id)
+      onCollectionChange?.()
+      onClose()
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erro ao excluir coleção")
+    } finally {
+      setIsSaving(false)
     }
   }
 
@@ -186,7 +185,7 @@ export function CollectionModal({
               {!showDeleteConfirm ? (
                 <button
                   onClick={() => setShowDeleteConfirm(true)}
-                  disabled={collection.isDefault && getCollections().length === 1}
+                  disabled={collection.isDefault && collections.length === 1}
                   className={cn(
                     "w-full py-2 px-4 rounded-lg font-medium transition-all",
                     "bg-destructive/10 border border-destructive/30 text-destructive",
@@ -245,17 +244,19 @@ export function CollectionModal({
             <div className="flex gap-2">
               <button
                 onClick={onClose}
+                disabled={isSaving}
                 className={cn(
                   "flex-1 py-2.5 px-4 rounded-lg font-medium transition-all",
                   "bg-eerieBlack border border-brightGrey",
-                  "hover:border-white"
+                  "hover:border-white",
+                  "disabled:opacity-50 disabled:cursor-not-allowed"
                 )}
               >
                 Cancelar
               </button>
               <button
                 onClick={handleSave}
-                disabled={!label.trim()}
+                disabled={!label.trim() || isSaving}
                 className={cn(
                   "flex-1 py-2.5 px-4 rounded-lg font-medium transition-all",
                   "bg-primary text-primary-foreground",
@@ -264,8 +265,17 @@ export function CollectionModal({
                   "flex items-center justify-center gap-2"
                 )}
               >
-                <span>💾</span>
-                {isEditing ? "Salvar" : "Criar"}
+                {isSaving ? (
+                  <>
+                    <span className="animate-spin">⏳</span>
+                    Salvando...
+                  </>
+                ) : (
+                  <>
+                    <span>💾</span>
+                    {isEditing ? "Salvar" : "Criar"}
+                  </>
+                )}
               </button>
             </div>
           )}

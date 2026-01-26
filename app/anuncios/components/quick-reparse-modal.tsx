@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { type Imovel } from "../lib/storage"
+import type { Imovel } from "../lib/api"
 import { cn } from "@/lib/utils"
 import { RefreshCw, CheckIcon } from "lucide-react"
 

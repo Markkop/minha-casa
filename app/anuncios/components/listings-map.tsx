@@ -4,7 +4,7 @@ import { useEffect, useState, useMemo } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Switch } from "@/components/ui/switch"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
-import { type Imovel } from "../lib/storage"
+import type { Imovel } from "../lib/api"
 import { geocodeAddresses, clearCacheForAddresses, type GeocodedLocation } from "../lib/geocoding"
 import { RotateCw } from "lucide-react"
 import { cn } from "@/lib/utils"
@@ -24,7 +24,7 @@ import { GoogleMapsView } from "./google-maps-view"
 
 interface ListingsMapProps {
   listings: Imovel[]
-  onListingsChange: (listings: Imovel[]) => void
+  onListingsChange: () => void
 }
 
 // ============================================================================

@@ -1,7 +1,8 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { type Imovel, updateListing } from "../lib/storage"
+import { useCollections } from "../lib/use-collections"
+import type { Imovel } from "../lib/api"
 import { geocodeAddress } from "../lib/geocoding"
 import dynamic from "next/dynamic"
 import {
@@ -184,6 +185,7 @@ export function LeafletMapView({
   minPreco,
   maxPreco,
 }: MapViewProps) {
+  const { updateListing: apiUpdateListing } = useCollections()
   const [leafletLoaded, setLeafletLoaded] = useState(false)
 
   useEffect(() => {
@@ -227,23 +229,31 @@ export function LeafletMapView({
         const handleDragEnd = async (e: L.DragEndEvent) => {
           const marker = e.target
           const position = marker.getLatLng()
-          const updatedListings = updateListing(gl.listing.id, {
-            customLat: position.lat,
-            customLng: position.lng,
-          })
-          onListingsChange(updatedListings)
+          try {
+            await apiUpdateListing(gl.listing.id, {
+              customLat: position.lat,
+              customLng: position.lng,
+            })
+            onListingsChange()
+          } catch (error) {
+            console.error("Failed to update location:", error)
+          }
         }
 
         const handleResetLocation = async () => {
-          // Clear custom coordinates
-          const updatedListings = updateListing(gl.listing.id, {
-            customLat: null,
-            customLng: null,
-          })
-          
-          // Re-geocode the address
-          await geocodeAddress(gl.listing.endereco)
-          onListingsChange(updatedListings)
+          try {
+            // Clear custom coordinates
+            await apiUpdateListing(gl.listing.id, {
+              customLat: null,
+              customLng: null,
+            })
+            
+            // Re-geocode the address
+            await geocodeAddress(gl.listing.endereco)
+            onListingsChange()
+          } catch (error) {
+            console.error("Failed to reset location:", error)
+          }
         }
 
         return (

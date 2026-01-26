@@ -11,7 +11,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { updateListing, type Imovel } from "../lib/storage"
+import { useCollections } from "../lib/use-collections"
+import type { Imovel } from "../lib/api"
 import { cn } from "@/lib/utils"
 import { PencilIcon, SparklesIcon } from "lucide-react"
 import { ReparseModal } from "./reparse-modal"
@@ -26,7 +27,7 @@ interface EditModalProps {
   onClose: () => void
   listing: Imovel | null
   focusImageUrl?: boolean
-  onListingUpdated: (listings: Imovel[]) => void
+  onListingUpdated: () => void
   hasApiKey?: boolean
   uniqueContacts?: UniqueContact[]
 }
@@ -40,6 +41,7 @@ export function EditModal({
   hasApiKey = true, // API key is now managed server-side, always allow parsing
   uniqueContacts = [],
 }: EditModalProps) {
+  const { updateListing: apiUpdateListing } = useCollections()
   const [isReparseOpen, setIsReparseOpen] = useState(false)
   const [contactSelectorOpen, setContactSelectorOpen] = useState(false)
   const [formData, setFormData] = useState<Partial<Imovel>>({
@@ -147,7 +149,7 @@ export function EditModal({
     }
   }
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!listing) return
 
     // Validate required fields
@@ -162,8 +164,8 @@ export function EditModal({
     }
 
     try {
-      const updated = updateListing(listing.id, formData)
-      onListingUpdated(updated)
+      await apiUpdateListing(listing.id, formData)
+      onListingUpdated()
       onClose()
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erro ao salvar alterações")

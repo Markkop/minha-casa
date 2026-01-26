@@ -8,7 +8,8 @@ import {
   InfoWindow,
   useAdvancedMarkerRef,
 } from "@vis.gl/react-google-maps"
-import { type Imovel, updateListing } from "../lib/storage"
+import { useCollections } from "../lib/use-collections"
+import type { Imovel } from "../lib/api"
 import { geocodeAddress } from "../lib/geocoding"
 import {
   type MapViewProps,
@@ -31,7 +32,7 @@ interface CustomMarkerProps {
   color: string
   minPreco: number
   maxPreco: number
-  onListingsChange: (listings: Imovel[]) => void
+  onListingsChange: () => void
 }
 
 function CustomMarker({ 
@@ -39,6 +40,7 @@ function CustomMarker({
   color,
   onListingsChange,
 }: CustomMarkerProps) {
+  const { updateListing: apiUpdateListing } = useCollections()
   const [markerRef, marker] = useAdvancedMarkerRef()
   const [showInfo, setShowInfo] = useState(false)
   
@@ -47,27 +49,35 @@ function CustomMarker({
   const precoM2 = calculatePrecoM2(listing.preco, listing.m2Totais)
   const priceLabel = formatCompactPrice(listing.preco)
 
-  const handleDragEnd = useCallback((e: google.maps.MapMouseEvent) => {
+  const handleDragEnd = useCallback(async (e: google.maps.MapMouseEvent) => {
     if (!e.latLng) return
-    const updatedListings = updateListing(listing.id, {
-      customLat: e.latLng.lat(),
-      customLng: e.latLng.lng(),
-    })
-    onListingsChange(updatedListings)
-  }, [listing.id, onListingsChange])
+    try {
+      await apiUpdateListing(listing.id, {
+        customLat: e.latLng.lat(),
+        customLng: e.latLng.lng(),
+      })
+      onListingsChange()
+    } catch (error) {
+      console.error("Failed to update location:", error)
+    }
+  }, [listing.id, apiUpdateListing, onListingsChange])
 
   const handleResetLocation = useCallback(async () => {
-    // Clear custom coordinates
-    const updatedListings = updateListing(listing.id, {
-      customLat: null,
-      customLng: null,
-    })
-    
-    // Re-geocode the address
-    await geocodeAddress(listing.endereco)
-    onListingsChange(updatedListings)
-    setShowInfo(false)
-  }, [listing.id, listing.endereco, onListingsChange])
+    try {
+      // Clear custom coordinates
+      await apiUpdateListing(listing.id, {
+        customLat: null,
+        customLng: null,
+      })
+      
+      // Re-geocode the address
+      await geocodeAddress(listing.endereco)
+      onListingsChange()
+      setShowInfo(false)
+    } catch (error) {
+      console.error("Failed to reset location:", error)
+    }
+  }, [listing.id, listing.endereco, apiUpdateListing, onListingsChange])
 
   // Render star marker for starred listings
   if (listing.starred) {

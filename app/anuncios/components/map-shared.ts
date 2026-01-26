@@ -3,7 +3,7 @@
 // Used by both Leaflet and Google Maps implementations
 // ============================================================================
 
-import { type Imovel } from "../lib/storage"
+import type { Imovel } from "../lib/api"
 import { type GeocodedLocation } from "../lib/geocoding"
 
 // ============================================================================

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useEffect } from "react"
 import {
   Select,
   SelectContent,
@@ -8,15 +8,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import {
-  getCollections,
-  getActiveCollection,
-  setActiveCollection,
-  getListingsForCollection,
-  type Collection,
-} from "../lib/storage"
+import { useCollections } from "../lib/use-collections"
 import { cn } from "@/lib/utils"
 import { PlusIcon, PencilIcon, TrashIcon, StarIcon } from "lucide-react"
+import type { Collection } from "../lib/api"
 
 interface CollectionSelectorProps {
   onCollectionChange?: (collection: Collection | null) => void
@@ -35,43 +30,41 @@ export function CollectionSelector({
   onSetDefault,
   refreshTrigger,
 }: CollectionSelectorProps) {
-  const [collections, setCollections] = useState<Collection[]>([])
-  const [activeCollection, setActiveCollectionState] = useState<Collection | null>(null)
-  const [countRefreshKey, setCountRefreshKey] = useState(0)
+  const {
+    collections,
+    activeCollection,
+    listings,
+    setActiveCollection,
+    setDefaultCollection,
+    loadCollections,
+  } = useCollections()
 
-  const loadCollections = () => {
-    const allCollections = getCollections()
-    const active = getActiveCollection()
-    setCollections(allCollections)
-    setActiveCollectionState(active)
-    setCountRefreshKey((prev) => prev + 1) // Force count refresh
-    // Call onCollectionChange with the latest active collection from storage
-    // This ensures we always use the most up-to-date value
-    onCollectionChange?.(active)
-  }
-
+  // Reload collections when refresh trigger changes
   useEffect(() => {
-    loadCollections()
-  }, [refreshTrigger])
+    if (refreshTrigger !== undefined && refreshTrigger > 0) {
+      loadCollections()
+    }
+  }, [refreshTrigger, loadCollections])
 
   const handleCollectionChange = (collectionId: string) => {
-    setActiveCollection(collectionId)
-    // Get fresh data from storage to avoid stale state
-    const allCollections = getCollections()
-    const collection = allCollections.find((c) => c.id === collectionId) || null
-    setActiveCollectionState(collection)
-    setCollections(allCollections) // Update local state to match storage
+    const collection = collections.find((c) => c.id === collectionId) || null
+    setActiveCollection(collection)
     onCollectionChange?.(collection)
   }
 
-  const getCollectionItemCount = (collectionId: string): number => {
-    return getListingsForCollection(collectionId).length
+  const handleSetDefault = async (collection: Collection) => {
+    try {
+      await setDefaultCollection(collection.id)
+      onSetDefault?.(collection)
+    } catch (error) {
+      console.error("Failed to set default collection:", error)
+    }
   }
 
   return (
     <div className="flex flex-wrap items-center gap-2">
       <Select
-        key={`collection-select-${countRefreshKey}`}
+        key={`collection-select-${refreshTrigger}`}
         value={activeCollection?.id || ""}
         onValueChange={handleCollectionChange}
       >
@@ -88,7 +81,7 @@ export function CollectionSelector({
               <div className="flex items-center justify-between w-full">
                 <span className="truncate">{activeCollection.label}</span>
                 <span className="text-xs text-muted-foreground ml-2">
-                  ({getCollectionItemCount(activeCollection.id)})
+                  ({listings.length})
                 </span>
               </div>
             ) : (
@@ -98,7 +91,6 @@ export function CollectionSelector({
         </SelectTrigger>
         <SelectContent className="bg-raisinBlack border-brightGrey">
           {collections.map((collection) => {
-            const count = getCollectionItemCount(collection.id)
             return (
               <SelectItem
                 key={collection.id}
@@ -112,9 +104,6 @@ export function CollectionSelector({
                     )}
                     <span className="truncate">{collection.label}</span>
                   </div>
-                  <span className="text-xs text-muted-foreground ml-2">
-                    ({count})
-                  </span>
                 </div>
               </SelectItem>
             )
@@ -154,9 +143,9 @@ export function CollectionSelector({
           </button>
         )}
 
-        {activeCollection && onSetDefault && (
+        {activeCollection && (
           <button
-            onClick={() => onSetDefault(activeCollection)}
+            onClick={() => handleSetDefault(activeCollection)}
             className={cn(
               "px-2 py-2 rounded-lg text-sm transition-all",
               "bg-eerieBlack border border-brightGrey",
@@ -189,4 +178,3 @@ export function CollectionSelector({
     </div>
   )
 }
-

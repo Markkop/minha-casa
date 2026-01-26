@@ -4,14 +4,15 @@ import { useState, useEffect, useRef } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { updateListing, type Imovel } from "../lib/storage"
+import { useCollections } from "../lib/use-collections"
+import type { Imovel } from "../lib/api"
 import { cn } from "@/lib/utils"
 
 interface ImageModalProps {
   isOpen: boolean
   onClose: () => void
   listing: Imovel | null
-  onListingUpdated: (listings: Imovel[]) => void
+  onListingUpdated: () => void
 }
 
 export function ImageModal({
@@ -20,6 +21,7 @@ export function ImageModal({
   listing,
   onListingUpdated,
 }: ImageModalProps) {
+  const { updateListing: apiUpdateListing } = useCollections()
   const [imageUrl, setImageUrl] = useState<string>("")
   const [error, setError] = useState<string | null>(null)
   const [imageError, setImageError] = useState<boolean>(false)
@@ -44,12 +46,12 @@ export function ImageModal({
     setImageError(false)
   }, [imageUrl])
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!listing) return
 
     try {
-      const updated = updateListing(listing.id, { imageUrl: imageUrl || null })
-      onListingUpdated(updated)
+      await apiUpdateListing(listing.id, { imageUrl: imageUrl || null })
+      onListingUpdated()
       onClose()
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erro ao salvar alterações")

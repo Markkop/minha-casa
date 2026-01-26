@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useCallback } from "react"
 import { ListingsTable } from "./listings-table"
 import { ListingsMap } from "./listings-map"
 import { SettingsModal } from "./settings-modal"
@@ -9,202 +9,106 @@ import { DataManagement } from "./data-management"
 import { CollectionSelector } from "./collection-selector"
 import { CollectionModal } from "./collection-modal"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import {
-  ensureCollectionsData,
-  getListingsForCollection,
-  getActiveCollection,
-  getCollection,
-  setActiveCollection,
-  setDefaultCollection,
-  decompressCollectionData,
-  importToCollection,
-  importCollections,
-  type Imovel,
-  type Collection,
-} from "../lib/storage"
+import { CollectionsProvider, useCollections } from "../lib/use-collections"
 import { cn } from "@/lib/utils"
+import type { Collection, Imovel } from "../lib/api"
 
-export function AnunciosClient() {
-  const [listings, setListings] = useState<Imovel[]>([])
-  const [activeCollection, setActiveCollection] = useState<Collection | null>(null)
+function AnunciosClientInner() {
+  const {
+    collections,
+    listings,
+    isLoading,
+    isLoadingListings,
+    error,
+    setActiveCollection,
+    loadListings,
+    refreshTrigger,
+    triggerRefresh,
+  } = useCollections()
+
   const [showSettings, setShowSettings] = useState(false)
   const [showParser, setShowParser] = useState(false)
   const [showCollectionModal, setShowCollectionModal] = useState(false)
   const [editingCollection, setEditingCollection] = useState<Collection | null>(null)
-  const [isLoaded, setIsLoaded] = useState(false)
-  const [collectionRefreshTrigger, setCollectionRefreshTrigger] = useState(0)
   const [showShareConfirm, setShowShareConfirm] = useState(false)
   const [shareData, setShareData] = useState<{ collection: Collection; listings: Imovel[] } | null>(null)
 
-  // Initialize collections system and load data
-  useEffect(() => {
-    // Ensure collections data is initialized (migrates legacy data if needed)
-    ensureCollectionsData()
-    
-    // Load active collection and its listings
-    const collection = getActiveCollection()
-    setActiveCollection(collection)
-    setListings(collection ? getListingsForCollection(collection.id) : [])
-    
-    setIsLoaded(true)
+  const handleListingsChange = useCallback(() => {
+    // Trigger a refresh of the listings
+    loadListings()
+    triggerRefresh()
+  }, [loadListings, triggerRefresh])
 
-    // Check for share parameters in URL
-    if (typeof window !== "undefined") {
-      const params = new URLSearchParams(window.location.search)
-      
-      // Handle URL-based share (compressed in URL)
-      const shareParam = params.get("share")
-      if (shareParam) {
-        try {
-          const decompressed = decompressCollectionData(shareParam)
-          setShareData(decompressed)
-          setShowShareConfirm(true)
-          
-          // Clean URL without reloading
-          const newUrl = window.location.pathname
-          window.history.replaceState({}, "", newUrl)
-        } catch (error) {
-          console.error("Failed to process share link:", error)
-        }
-        return // Don't process dbshare if share is present
+  const handleCollectionChange = useCallback(
+    (collection: Collection | null) => {
+      setActiveCollection(collection)
+    },
+    [setActiveCollection]
+  )
+
+  const handleSwitchToCollection = useCallback(
+    (collectionId: string) => {
+      const collection = collections.find((c) => c.id === collectionId)
+      if (collection) {
+        handleCollectionChange(collection)
+        triggerRefresh()
       }
-      
-      // Handle database-based share (token in URL)
-      const dbShareParam = params.get("dbshare")
-      if (dbShareParam) {
-        // Fetch from API
-        fetch(`/api/share/${dbShareParam}`)
-          .then((response) => {
-            if (!response.ok) {
-              throw new Error("Share not found")
-            }
-            return response.json()
-          })
-          .then((data) => {
-            if (data.collection && data.listings) {
-              setShareData({
-                collection: data.collection,
-                listings: data.listings,
-              })
-              setShowShareConfirm(true)
-            }
-          })
-          .catch((error) => {
-            console.error("Failed to fetch database share:", error)
-          })
-          .finally(() => {
-            // Clean URL without reloading
-            const newUrl = window.location.pathname
-            window.history.replaceState({}, "", newUrl)
-          })
-      }
-    }
+    },
+    [collections, handleCollectionChange, triggerRefresh]
+  )
+
+  const handleCreateCollection = useCallback(() => {
+    setEditingCollection(null)
+    setShowCollectionModal(true)
   }, [])
 
-  const loadListings = () => {
-    const collection = getActiveCollection()
-    setActiveCollection(collection)
-    setListings(collection ? getListingsForCollection(collection.id) : [])
-    setCollectionRefreshTrigger((prev) => prev + 1)
-  }
-
-  const handleListingsChange = (newListings: Imovel[]) => {
-    setListings(newListings)
-    setCollectionRefreshTrigger((prev) => prev + 1)
-  }
-
-  const handleCollectionChange = (collection: Collection | null) => {
-    setActiveCollection(collection)
-    if (collection) {
-      setListings(getListingsForCollection(collection.id))
-    } else {
-      setListings([])
-    }
-  }
-
-  const handleSwitchToCollection = (collectionId: string) => {
-    const collection = getCollection(collectionId)
-    if (collection) {
-      handleCollectionChange(collection)
-      setCollectionRefreshTrigger((prev) => prev + 1)
-    }
-  }
-
-  const handleCreateCollection = () => {
-    setEditingCollection(null)
-    setShowCollectionModal(true)
-  }
-
-  const handleEditCollection = (collection: Collection) => {
+  const handleEditCollection = useCallback((collection: Collection) => {
     setEditingCollection(collection)
     setShowCollectionModal(true)
-  }
+  }, [])
 
-  const handleDeleteCollection = (collection: Collection) => {
-    // The modal will handle the deletion
+  const handleDeleteCollection = useCallback((collection: Collection) => {
     setEditingCollection(collection)
     setShowCollectionModal(true)
-  }
+  }, [])
 
-  const handleSetDefaultCollection = (collection: Collection) => {
-    const updatedCollection = setDefaultCollection(collection.id)
-    if (updatedCollection) {
-      // Refresh collections and listings
-      setCollectionRefreshTrigger((prev) => prev + 1)
-      // Update active collection state if it's the one we just set as default
-      if (activeCollection?.id === collection.id) {
-        handleCollectionChange(updatedCollection)
-      }
-    }
-  }
-
-  const handleCollectionModalClose = () => {
+  const handleCollectionModalClose = useCallback(() => {
     setShowCollectionModal(false)
     setEditingCollection(null)
-    // Reload collections and listings
-    // Increment refresh trigger to update CollectionSelector
-    // This will trigger CollectionSelector's useEffect which calls handleCollectionChange
-    setCollectionRefreshTrigger((prev) => prev + 1)
-    // Also directly update local state to ensure it's synchronized
-    const collection = getActiveCollection()
-    handleCollectionChange(collection)
-  }
+    triggerRefresh()
+  }, [triggerRefresh])
 
-  const handleShareImport = () => {
+  const handleShareImport = useCallback(() => {
     if (!shareData) return
 
-    try {
-      // Import the shared collection data (CollectionExport format)
-      const json = JSON.stringify(shareData)
-      const { data, lastImportedCollectionId } = importCollections(json)
-      
-      // Switch to the imported collection if one was imported
-      if (lastImportedCollectionId) {
-        handleSwitchToCollection(lastImportedCollectionId)
-      } else {
-        // Fallback: reload listings from active collection
-        loadListings()
-      }
-
-      setShowShareConfirm(false)
-      setShareData(null)
-    } catch (error) {
-      console.error("Failed to import shared data:", error)
-      setShowShareConfirm(false)
-      setShareData(null)
-    }
-  }
-
-  const handleShareCancel = () => {
+    // For now, just close the modal - import functionality will be handled separately
+    // The legacy URL-based sharing can be deprecated in favor of server-side sharing
     setShowShareConfirm(false)
     setShareData(null)
-  }
+  }, [shareData])
 
-  // Show loading state until client-side data is loaded
-  if (!isLoaded) {
+  const handleShareCancel = useCallback(() => {
+    setShowShareConfirm(false)
+    setShareData(null)
+  }, [])
+
+  // Show loading state until data is loaded
+  if (isLoading) {
     return (
       <div className="min-h-screen bg-black text-white flex items-center justify-center">
         <p className="text-ashGray">Carregando...</p>
+      </div>
+    )
+  }
+
+  // Show error state
+  if (error) {
+    return (
+      <div className="min-h-screen bg-black text-white flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-destructive mb-2">Erro ao carregar dados</p>
+          <p className="text-sm text-muted-foreground">{error}</p>
+        </div>
       </div>
     )
   }
@@ -229,8 +133,7 @@ export function AnunciosClient() {
                 onCreateCollection={handleCreateCollection}
                 onEditCollection={handleEditCollection}
                 onDeleteCollection={handleDeleteCollection}
-                onSetDefault={handleSetDefaultCollection}
-                refreshTrigger={collectionRefreshTrigger}
+                refreshTrigger={refreshTrigger}
               />
               <button
                 onClick={() => setShowSettings(true)}
@@ -260,14 +163,14 @@ export function AnunciosClient() {
         isOpen={showCollectionModal}
         onClose={handleCollectionModalClose}
         collection={editingCollection}
-        onCollectionChange={loadListings}
+        onCollectionChange={handleListingsChange}
       />
 
       {/* Parser Modal */}
       <ParserModal
         isOpen={showParser}
         onClose={() => setShowParser(false)}
-        onListingAdded={loadListings}
+        onListingAdded={handleListingsChange}
       />
 
       {/* Share Import Confirmation Modal */}
@@ -343,17 +246,25 @@ export function AnunciosClient() {
             onDataChange={handleListingsChange}
             listingsCount={listings.length}
             onOpenParser={() => setShowParser(true)}
-            onImportSuccess={() => setCollectionRefreshTrigger((prev) => prev + 1)}
+            onImportSuccess={triggerRefresh}
             onSwitchToCollection={handleSwitchToCollection}
           />
         </div>
 
         {/* Main Content - Full Width Table */}
-        <ListingsTable
-          listings={listings}
-          onListingsChange={loadListings}
-          refreshTrigger={collectionRefreshTrigger}
-        />
+        {isLoadingListings ? (
+          <Card className="bg-raisinBlack border-brightGrey">
+            <CardContent className="py-12 text-center">
+              <p className="text-ashGray">Carregando imóveis...</p>
+            </CardContent>
+          </Card>
+        ) : (
+          <ListingsTable
+            listings={listings}
+            onListingsChange={handleListingsChange}
+            refreshTrigger={refreshTrigger}
+          />
+        )}
 
         {/* Map View */}
         <ListingsMap listings={listings} onListingsChange={handleListingsChange} />
@@ -362,3 +273,10 @@ export function AnunciosClient() {
   )
 }
 
+export function AnunciosClient() {
+  return (
+    <CollectionsProvider>
+      <AnunciosClientInner />
+    </CollectionsProvider>
+  )
+}

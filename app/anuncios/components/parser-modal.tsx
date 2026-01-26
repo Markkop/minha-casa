@@ -4,14 +4,15 @@ import { useState, useEffect, useRef } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { parseListingWithAI } from "../lib/openai"
-import { addListing, updateListing, type Imovel } from "../lib/storage"
+import { useCollections } from "../lib/use-collections"
 import { cn } from "@/lib/utils"
+import type { Imovel } from "../lib/api"
+import type { ListingData } from "@/lib/db/schema"
 
 interface ParserModalProps {
   isOpen: boolean
   onClose: () => void
-  onListingAdded: (listings: Imovel[]) => void
+  onListingAdded: () => void
   hasApiKey?: boolean // Deprecated: API key is now managed server-side
   onOpenSettings?: () => void // Deprecated: Settings no longer needed for API key
 }
@@ -21,10 +22,12 @@ export function ParserModal({
   onClose,
   onListingAdded,
 }: ParserModalProps) {
+  const { parseListing, addListing, updateListing } = useCollections()
+
   const [rawText, setRawText] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [lastParsed, setLastParsed] = useState<Imovel | null>(null)
+  const [lastParsed, setLastParsed] = useState<{ id: string; data: ListingData } | null>(null)
   const [linkValue, setLinkValue] = useState("")
   const [imageValue, setImageValue] = useState("")
   const [addressValue, setAddressValue] = useState("")
@@ -49,9 +52,9 @@ export function ParserModal({
   // Initialize address and contact values when parsed
   useEffect(() => {
     if (lastParsed) {
-      setAddressValue(lastParsed.endereco || "")
-      setContactNameValue(lastParsed.contactName || "")
-      setContactNumberValue(lastParsed.contactNumber || "")
+      setAddressValue(lastParsed.data.endereco || "")
+      setContactNameValue(lastParsed.data.contactName || "")
+      setContactNumberValue(lastParsed.data.contactNumber || "")
     }
   }, [lastParsed])
 
@@ -73,10 +76,14 @@ export function ParserModal({
     setLastParsed(null)
 
     try {
-      const parsed = await parseListingWithAI(rawText)
-      setLastParsed(parsed)
-      const updated = addListing(parsed)
-      onListingAdded(updated)
+      // Parse the listing using server-side AI
+      const parsedData = await parseListing(rawText)
+      
+      // Add the listing to the active collection
+      const newListing = await addListing(parsedData)
+      
+      setLastParsed({ id: newListing.id, data: parsedData })
+      onListingAdded()
       setRawText("")
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erro ao processar anúncio")
@@ -101,7 +108,7 @@ export function ParserModal({
     return value.toString()
   }
 
-  const handleSaveAndClose = () => {
+  const handleSaveAndClose = async () => {
     if (!lastParsed) return
 
     const updates: Partial<Imovel> = {}
@@ -121,11 +128,15 @@ export function ParserModal({
       updates.contactNumber = contactNumberValue.trim()
     }
 
-    if (Object.keys(updates).length > 0) {
-      const updated = updateListing(lastParsed.id, updates)
-      onListingAdded(updated)
+    try {
+      if (Object.keys(updates).length > 0) {
+        await updateListing(lastParsed.id, updates)
+        onListingAdded()
+      }
+      onClose()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erro ao salvar alterações")
     }
-    onClose()
   }
 
   if (!isOpen) return null
@@ -227,60 +238,60 @@ export function ParserModal({
               <div className="grid grid-cols-2 gap-2 text-xs text-ashGray">
                 <div>
                   <span className="text-muted-foreground">Título:</span>{" "}
-                  <span className="text-white">{lastParsed.titulo}</span>
+                  <span className="text-white">{lastParsed.data.titulo}</span>
                 </div>
                 <div>
                   <span className="text-muted-foreground">Preço:</span>{" "}
                   <span className="text-primary">
-                    {formatValue(lastParsed.preco, "currency")}
+                    {formatValue(lastParsed.data.preco, "currency")}
                   </span>
                 </div>
                 <div>
                   <span className="text-muted-foreground">m² privado:</span>{" "}
                   <span className="text-white">
-                    {formatValue(lastParsed.m2Privado)}m²
+                    {formatValue(lastParsed.data.m2Privado)}m²
                   </span>
                 </div>
                 <div>
                   <span className="text-muted-foreground">Preço/m²:</span>{" "}
                   <span className="text-white">
-                    {formatValue(lastParsed.precoM2, "currency")}
+                    {formatValue(lastParsed.data.precoM2, "currency")}
                   </span>
                 </div>
                 <div>
                   <span className="text-muted-foreground">Garagem:</span>{" "}
                   <span className="text-white">
-                    {lastParsed.garagem !== null ? `${lastParsed.garagem} Vagas` : "—"}
+                    {lastParsed.data.garagem !== null ? `${lastParsed.data.garagem} Vagas` : "—"}
                   </span>
                 </div>
                 <div>
                   <span className="text-muted-foreground">Piscina:</span>{" "}
                   <span className="text-white">
-                    {formatValue(lastParsed.piscina, "boolean")}
+                    {formatValue(lastParsed.data.piscina, "boolean")}
                   </span>
                 </div>
                 <div>
                   <span className="text-muted-foreground">Piscina Térmica:</span>{" "}
                   <span className="text-white">
-                    {formatValue(lastParsed.piscinaTermica, "boolean")}
+                    {formatValue(lastParsed.data.piscinaTermica, "boolean")}
                   </span>
                 </div>
                 <div>
                   <span className="text-muted-foreground">Porteiro 24h:</span>{" "}
                   <span className="text-white">
-                    {formatValue(lastParsed.porteiro24h, "boolean")}
+                    {formatValue(lastParsed.data.porteiro24h, "boolean")}
                   </span>
                 </div>
                 <div>
                   <span className="text-muted-foreground">Academia:</span>{" "}
                   <span className="text-white">
-                    {formatValue(lastParsed.academia, "boolean")}
+                    {formatValue(lastParsed.data.academia, "boolean")}
                   </span>
                 </div>
                 <div>
                   <span className="text-muted-foreground">Vista Livre:</span>{" "}
                   <span className="text-white">
-                    {formatValue(lastParsed.vistaLivre, "boolean")}
+                    {formatValue(lastParsed.data.vistaLivre, "boolean")}
                   </span>
                 </div>
               </div>
@@ -393,4 +404,3 @@ export function ParserModal({
     </div>
   )
 }
-

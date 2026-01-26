@@ -29,15 +29,8 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
-import {
-  removeListing,
-  updateListing,
-  getCollections,
-  getActiveCollection,
-  copyListingToCollection,
-  type Imovel,
-  type Collection,
-} from "../lib/storage"
+import { useCollections } from "../lib/use-collections"
+import type { Collection, Imovel } from "../lib/api"
 import { cn } from "@/lib/utils"
 import { ArrowDownIcon, ArrowUpIcon, MagnifyingGlassIcon } from "@radix-ui/react-icons"
 import { PencilIcon, TrashIcon, LinkIcon, Star, FolderIcon, Eye, Strikethrough, Waves, Shield, Dumbbell, Mountain, Flag, Home, Building, RefreshCw, Car, WavesLadder, BedDouble, Bath } from "lucide-react"
@@ -45,7 +38,7 @@ import { FaWhatsapp } from "react-icons/fa"
 import { EditModal } from "./edit-modal"
 import { ImageModal } from "./image-modal"
 import { QuickReparseModal, type FieldChange } from "./quick-reparse-modal"
-import { parseListingWithAI } from "../lib/openai"
+import { parseListingWithAI } from "../lib/api"
 
 // ============================================================================
 // TYPES
@@ -69,7 +62,7 @@ interface SortableHeaderProps {
 
 interface ListingsTableProps {
   listings: Imovel[]
-  onListingsChange: (listings: Imovel[]) => void
+  onListingsChange: () => void
   refreshTrigger?: number
   hasApiKey?: boolean // Deprecated: API key is now managed server-side
 }
@@ -179,6 +172,13 @@ type PropertyTypeFilter = "all" | "casa" | "apartamento"
 
 export function ListingsTable({ listings, onListingsChange, refreshTrigger, hasApiKey = true }: ListingsTableProps) {
   const router = useRouter()
+  const {
+    collections,
+    activeCollection,
+    updateListing: apiUpdateListing,
+    removeListing: apiRemoveListing,
+  } = useCollections()
+
   // State for search, sort, and property type filter
   const [searchQuery, setSearchQuery] = useState("")
   const [sort, setSort] = useState<SortState>({ key: "preco", direction: "desc" })
@@ -187,7 +187,6 @@ export function ListingsTable({ listings, onListingsChange, refreshTrigger, hasA
   const [editingListing, setEditingListing] = useState<Imovel | null>(null)
   const [focusImageUrl, setFocusImageUrl] = useState(false)
   const [imageModalListing, setImageModalListing] = useState<Imovel | null>(null)
-  const [collections, setCollections] = useState<Collection[]>([])
   const [copyingListingId, setCopyingListingId] = useState<string | null>(null)
   const [discardPopoverOpen, setDiscardPopoverOpen] = useState<string | null>(null)
   const [discardReasonInput, setDiscardReasonInput] = useState("")
@@ -202,96 +201,148 @@ export function ListingsTable({ listings, onListingsChange, refreshTrigger, hasA
   const [quickReparseChanges, setQuickReparseChanges] = useState<FieldChange[] | null>(null)
   const [quickReparseListing, setQuickReparseListing] = useState<Imovel | null>(null)
 
-  useEffect(() => {
-    setCollections(getCollections())
-  }, [refreshTrigger])
-
-  const handleDelete = (id: string) => {
-    const updated = removeListing(id)
-    onListingsChange(updated)
-  }
-
-  const handleToggleStar = (id: string, currentStarred: boolean | undefined) => {
-    const updated = updateListing(id, { starred: !currentStarred })
-    onListingsChange(updated)
-  }
-
-  const handleToggleVisited = (id: string, currentVisited: boolean | undefined) => {
-    const updated = updateListing(id, { visited: !currentVisited })
-    onListingsChange(updated)
-  }
-
-  const handleTogglePiscina = (id: string, currentPiscina: boolean | null | undefined) => {
-    const updated = updateListing(id, { piscina: currentPiscina === true ? false : true })
-    onListingsChange(updated)
-  }
-
-  const handleTogglePiscinaTermica = (id: string, currentPiscinaTermica: boolean | null | undefined) => {
-    const updated = updateListing(id, { piscinaTermica: currentPiscinaTermica === true ? false : true })
-    onListingsChange(updated)
-  }
-
-  const handleTogglePorteiro24h = (id: string, currentPorteiro24h: boolean | null | undefined) => {
-    const updated = updateListing(id, { porteiro24h: currentPorteiro24h === true ? false : true })
-    onListingsChange(updated)
-  }
-
-  const handleToggleAcademia = (id: string, currentAcademia: boolean | null | undefined) => {
-    const updated = updateListing(id, { academia: currentAcademia === true ? false : true })
-    onListingsChange(updated)
-  }
-
-  const handleToggleVistaLivre = (id: string, currentVistaLivre: boolean | null | undefined) => {
-    const updated = updateListing(id, { vistaLivre: currentVistaLivre === true ? false : true })
-    onListingsChange(updated)
-  }
-
-  const handleCycleAndar = (id: string, currentAndar: number | null | undefined) => {
-    const current = currentAndar ?? 0
-    const nextValue = current >= 10 ? 0 : current + 1
-    const updated = updateListing(id, { andar: nextValue })
-    onListingsChange(updated)
-  }
-
-  const handleCycleGaragem = (id: string, currentGaragem: number | null | undefined) => {
-    const current = currentGaragem ?? 0
-    const nextValue = current >= 4 ? 0 : current + 1
-    const updated = updateListing(id, { garagem: nextValue })
-    onListingsChange(updated)
-  }
-
-  const handleCycleQuartos = (id: string, currentQuartos: number | null | undefined) => {
-    const current = currentQuartos ?? 0
-    const nextValue = current >= 6 ? 0 : current + 1
-    const updated = updateListing(id, { quartos: nextValue })
-    onListingsChange(updated)
-  }
-
-  const handleCycleBanheiros = (id: string, currentBanheiros: number | null | undefined) => {
-    const current = currentBanheiros ?? 0
-    const nextValue = current >= 6 ? 0 : current + 1
-    const updated = updateListing(id, { banheiros: nextValue })
-    onListingsChange(updated)
-  }
-
-  const handleToggleTipoImovel = (id: string, currentTipo: "casa" | "apartamento" | null | undefined) => {
-    let nextTipo: "casa" | "apartamento" | null
-    if (currentTipo === null || currentTipo === undefined) {
-      nextTipo = "casa"
-    } else if (currentTipo === "casa") {
-      nextTipo = "apartamento"
-    } else {
-      nextTipo = null
+  const handleDelete = async (id: string) => {
+    try {
+      await apiRemoveListing(id)
+      onListingsChange()
+    } catch (error) {
+      console.error("Failed to delete listing:", error)
     }
-    const updated = updateListing(id, { tipoImovel: nextTipo })
-    onListingsChange(updated)
   }
 
-  const handleToggleStrikethrough = (id: string, currentStrikethrough: boolean | undefined, currentReason?: string | null) => {
+  const handleToggleStar = async (id: string, currentStarred: boolean | undefined) => {
+    try {
+      await apiUpdateListing(id, { starred: !currentStarred })
+      onListingsChange()
+    } catch (error) {
+      console.error("Failed to toggle star:", error)
+    }
+  }
+
+  const handleToggleVisited = async (id: string, currentVisited: boolean | undefined) => {
+    try {
+      await apiUpdateListing(id, { visited: !currentVisited })
+      onListingsChange()
+    } catch (error) {
+      console.error("Failed to toggle visited:", error)
+    }
+  }
+
+  const handleTogglePiscina = async (id: string, currentPiscina: boolean | null | undefined) => {
+    try {
+      await apiUpdateListing(id, { piscina: currentPiscina === true ? false : true })
+      onListingsChange()
+    } catch (error) {
+      console.error("Failed to toggle piscina:", error)
+    }
+  }
+
+  const handleTogglePiscinaTermica = async (id: string, currentPiscinaTermica: boolean | null | undefined) => {
+    try {
+      await apiUpdateListing(id, { piscinaTermica: currentPiscinaTermica === true ? false : true })
+      onListingsChange()
+    } catch (error) {
+      console.error("Failed to toggle piscina térmica:", error)
+    }
+  }
+
+  const handleTogglePorteiro24h = async (id: string, currentPorteiro24h: boolean | null | undefined) => {
+    try {
+      await apiUpdateListing(id, { porteiro24h: currentPorteiro24h === true ? false : true })
+      onListingsChange()
+    } catch (error) {
+      console.error("Failed to toggle porteiro 24h:", error)
+    }
+  }
+
+  const handleToggleAcademia = async (id: string, currentAcademia: boolean | null | undefined) => {
+    try {
+      await apiUpdateListing(id, { academia: currentAcademia === true ? false : true })
+      onListingsChange()
+    } catch (error) {
+      console.error("Failed to toggle academia:", error)
+    }
+  }
+
+  const handleToggleVistaLivre = async (id: string, currentVistaLivre: boolean | null | undefined) => {
+    try {
+      await apiUpdateListing(id, { vistaLivre: currentVistaLivre === true ? false : true })
+      onListingsChange()
+    } catch (error) {
+      console.error("Failed to toggle vista livre:", error)
+    }
+  }
+
+  const handleCycleAndar = async (id: string, currentAndar: number | null | undefined) => {
+    try {
+      const current = currentAndar ?? 0
+      const nextValue = current >= 10 ? 0 : current + 1
+      await apiUpdateListing(id, { andar: nextValue })
+      onListingsChange()
+    } catch (error) {
+      console.error("Failed to cycle andar:", error)
+    }
+  }
+
+  const handleCycleGaragem = async (id: string, currentGaragem: number | null | undefined) => {
+    try {
+      const current = currentGaragem ?? 0
+      const nextValue = current >= 4 ? 0 : current + 1
+      await apiUpdateListing(id, { garagem: nextValue })
+      onListingsChange()
+    } catch (error) {
+      console.error("Failed to cycle garagem:", error)
+    }
+  }
+
+  const handleCycleQuartos = async (id: string, currentQuartos: number | null | undefined) => {
+    try {
+      const current = currentQuartos ?? 0
+      const nextValue = current >= 6 ? 0 : current + 1
+      await apiUpdateListing(id, { quartos: nextValue })
+      onListingsChange()
+    } catch (error) {
+      console.error("Failed to cycle quartos:", error)
+    }
+  }
+
+  const handleCycleBanheiros = async (id: string, currentBanheiros: number | null | undefined) => {
+    try {
+      const current = currentBanheiros ?? 0
+      const nextValue = current >= 6 ? 0 : current + 1
+      await apiUpdateListing(id, { banheiros: nextValue })
+      onListingsChange()
+    } catch (error) {
+      console.error("Failed to cycle banheiros:", error)
+    }
+  }
+
+  const handleToggleTipoImovel = async (id: string, currentTipo: "casa" | "apartamento" | null | undefined) => {
+    try {
+      let nextTipo: "casa" | "apartamento" | null
+      if (currentTipo === null || currentTipo === undefined) {
+        nextTipo = "casa"
+      } else if (currentTipo === "casa") {
+        nextTipo = "apartamento"
+      } else {
+        nextTipo = null
+      }
+      await apiUpdateListing(id, { tipoImovel: nextTipo })
+      onListingsChange()
+    } catch (error) {
+      console.error("Failed to toggle tipo imóvel:", error)
+    }
+  }
+
+  const handleToggleStrikethrough = async (id: string, currentStrikethrough: boolean | undefined, currentReason?: string | null) => {
     if (currentStrikethrough) {
       // Toggling OFF - just set strikethrough to false, keep reason, no popover
-      const updated = updateListing(id, { strikethrough: false })
-      onListingsChange(updated)
+      try {
+        await apiUpdateListing(id, { strikethrough: false })
+        onListingsChange()
+      } catch (error) {
+        console.error("Failed to toggle strikethrough:", error)
+      }
     } else {
       // Toggling ON - open popover with existing reason (if any)
       setDiscardReasonInput(currentReason || "")
@@ -299,14 +350,18 @@ export function ListingsTable({ listings, onListingsChange, refreshTrigger, hasA
     }
   }
 
-  const handleSaveDiscardReason = (id: string) => {
-    const updated = updateListing(id, { 
-      strikethrough: true, 
-      discardedReason: discardReasonInput.trim() || null 
-    })
-    onListingsChange(updated)
-    setDiscardPopoverOpen(null)
-    setDiscardReasonInput("")
+  const handleSaveDiscardReason = async (id: string) => {
+    try {
+      await apiUpdateListing(id, { 
+        strikethrough: true, 
+        discardedReason: discardReasonInput.trim() || null 
+      })
+      onListingsChange()
+      setDiscardPopoverOpen(null)
+      setDiscardReasonInput("")
+    } catch (error) {
+      console.error("Failed to save discard reason:", error)
+    }
   }
 
   const normalizePhoneNumber = (phone: string | null | undefined): string | null => {
@@ -323,16 +378,20 @@ export function ListingsTable({ listings, onListingsChange, refreshTrigger, hasA
     return `https://wa.me/55${normalized}`
   }
 
-  const handleSaveContact = (id: string) => {
-    const updates: Partial<Imovel> = {
-      contactName: contactNameInput.trim() || null,
-      contactNumber: contactNumberInput.trim() || null,
+  const handleSaveContact = async (id: string) => {
+    try {
+      const updates: Partial<Imovel> = {
+        contactName: contactNameInput.trim() || null,
+        contactNumber: contactNumberInput.trim() || null,
+      }
+      await apiUpdateListing(id, updates)
+      onListingsChange()
+      setContactPopoverOpen(null)
+      setContactNameInput("")
+      setContactNumberInput("")
+    } catch (error) {
+      console.error("Failed to save contact:", error)
     }
-    const updated = updateListing(id, updates)
-    onListingsChange(updated)
-    setContactPopoverOpen(null)
-    setContactNameInput("")
-    setContactNumberInput("")
   }
 
   const handleOpenContactPopover = (id: string, currentContactName?: string | null, currentContactNumber?: string | null) => {
@@ -420,13 +479,17 @@ export function ListingsTable({ listings, onListingsChange, refreshTrigger, hasA
     }
   }
 
-  const handleQuickReparseApply = (changes: Partial<Imovel>) => {
+  const handleQuickReparseApply = async (changes: Partial<Imovel>) => {
     if (!quickReparseListing) return
     
-    const updated = updateListing(quickReparseListing.id, changes)
-    onListingsChange(updated)
-    setQuickReparseChanges(null)
-    setQuickReparseListing(null)
+    try {
+      await apiUpdateListing(quickReparseListing.id, changes)
+      onListingsChange()
+      setQuickReparseChanges(null)
+      setQuickReparseListing(null)
+    } catch (error) {
+      console.error("Failed to apply reparse changes:", error)
+    }
   }
 
   const handleOpenQuickReparsePopover = (listing: Imovel) => {
@@ -435,12 +498,10 @@ export function ListingsTable({ listings, onListingsChange, refreshTrigger, hasA
     setQuickReparsePopoverOpen(listing.id)
   }
 
-  const handleCopyToCollection = (listingId: string, targetCollectionId: string) => {
-    const activeCollection = getActiveCollection()
-    if (!activeCollection) return
-
-    copyListingToCollection(listingId, activeCollection.id, targetCollectionId)
-    
+  const handleCopyToCollection = async (listingId: string, targetCollectionId: string) => {
+    // Copy to collection feature is disabled until backend supports it
+    // TODO: Implement API endpoint for copying listings between collections
+    console.warn("Copy to collection feature is not yet implemented with server-side storage")
     setCopyingListingId(null)
   }
 
@@ -667,9 +728,8 @@ export function ListingsTable({ listings, onListingsChange, refreshTrigger, hasA
 
   // Check if there are other collections available (excluding active)
   const hasOtherCollections = useMemo(() => {
-    const activeCollection = getActiveCollection()
     return collections.filter((c) => c.id !== activeCollection?.id).length > 0
-  }, [collections])
+  }, [collections, activeCollection])
 
   // Filter and sort listings
   const filteredAndSortedListings = useMemo(() => {
@@ -1535,7 +1595,7 @@ export function ListingsTable({ listings, onListingsChange, refreshTrigger, hasA
                                 </SelectTrigger>
                                 <SelectContent className="bg-raisinBlack border-brightGrey">
                                   {collections
-                                    .filter((c) => c.id !== getActiveCollection()?.id)
+                                    .filter((c) => c.id !== activeCollection?.id)
                                     .map((collection) => (
                                       <SelectItem
                                         key={collection.id}
@@ -1901,8 +1961,8 @@ export function ListingsTable({ listings, onListingsChange, refreshTrigger, hasA
         }}
         listing={editingListing}
         focusImageUrl={focusImageUrl}
-        onListingUpdated={(updated) => {
-          onListingsChange(updated)
+        onListingUpdated={() => {
+          onListingsChange()
           setEditingListing(null)
           setFocusImageUrl(false)
         }}
@@ -1917,8 +1977,8 @@ export function ListingsTable({ listings, onListingsChange, refreshTrigger, hasA
           setImageModalListing(null)
         }}
         listing={imageModalListing}
-        onListingUpdated={(updated) => {
-          onListingsChange(updated)
+        onListingUpdated={() => {
+          onListingsChange()
           setImageModalListing(null)
         }}
       />
