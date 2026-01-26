@@ -32,6 +32,7 @@ export function CollectionModal({
 
   const [label, setLabel] = useState("")
   const [isDefault, setIsDefault] = useState(false)
+  const [isPublic, setIsPublic] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [isSaving, setIsSaving] = useState(false)
@@ -43,9 +44,11 @@ export function CollectionModal({
       if (collection) {
         setLabel(collection.label)
         setIsDefault(collection.isDefault)
+        setIsPublic(collection.isPublic)
       } else {
         setLabel("")
         setIsDefault(false)
+        setIsPublic(false)
       }
       setShowDeleteConfirm(false)
       setError(null)
@@ -74,11 +77,16 @@ export function CollectionModal({
         await apiUpdateCollection(collection.id, {
           name: trimmedLabel,
           isDefault: isDefault,
+          isPublic: isPublic,
         })
       } else {
         const newCollection = await apiCreateCollection(trimmedLabel, isDefault)
         if (isDefault) {
           await setDefaultCollection(newCollection.id)
+        }
+        // If creating as public, update to set isPublic
+        if (isPublic) {
+          await apiUpdateCollection(newCollection.id, { isPublic: true })
         }
       }
       onCollectionChange?.()
@@ -178,6 +186,25 @@ export function CollectionModal({
               />
             </div>
           )}
+
+          {/* Public/Private Toggle */}
+          <div className="flex items-center justify-between">
+            <div className="space-y-0.5">
+              <Label htmlFor="is-public" className="text-sm text-ashGray">
+                Coleção pública
+              </Label>
+              <p className="text-xs text-muted-foreground">
+                {isPublic
+                  ? "Qualquer pessoa pode ver esta coleção"
+                  : "Apenas você pode ver esta coleção"}
+              </p>
+            </div>
+            <Switch
+              id="is-public"
+              checked={isPublic}
+              onCheckedChange={setIsPublic}
+            />
+          </div>
 
           {/* Delete Section (only when editing) */}
           {isEditing && collection && (

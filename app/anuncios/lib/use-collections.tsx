@@ -22,6 +22,8 @@ import {
   createShareLink as apiCreateShareLink,
   revokeShareLink as apiRevokeShareLink,
   fetchSharedCollection as apiFetchSharedCollection,
+  fetchPublicCollections as apiFetchPublicCollections,
+  fetchPublicCollectionListings as apiFetchPublicCollectionListings,
   type Collection,
   type Imovel,
   type ShareInfo,
@@ -64,6 +66,11 @@ interface CollectionsContextValue {
   shareCollection: (collectionId: string) => Promise<string>
   unshareCollection: (collectionId: string) => Promise<void>
   loadSharedCollection: (token: string) => Promise<{ collection: { id: string; name: string }; listings: Imovel[] }>
+
+  // Public collections actions
+  loadPublicCollections: () => Promise<Collection[]>
+  loadPublicCollectionListings: (collectionId: string) => Promise<{ collection: Collection; listings: Imovel[] }>
+  toggleCollectionPublic: (collectionId: string, isPublic: boolean) => Promise<Collection>
 
   // Listing actions
   loadListings: (collectionId?: string) => Promise<void>
@@ -303,6 +310,36 @@ export function CollectionsProvider({ children }: CollectionsProviderProps) {
   )
 
   // ============================================================================
+  // PUBLIC COLLECTIONS ACTIONS
+  // ============================================================================
+
+  const loadPublicCollections = useCallback(async (): Promise<Collection[]> => {
+    return apiFetchPublicCollections()
+  }, [])
+
+  const loadPublicCollectionListings = useCallback(
+    async (collectionId: string): Promise<{ collection: Collection; listings: Imovel[] }> => {
+      return apiFetchPublicCollectionListings(collectionId)
+    },
+    []
+  )
+
+  const toggleCollectionPublic = useCallback(
+    async (collectionId: string, isPublic: boolean): Promise<Collection> => {
+      const updatedCollection = await apiUpdateCollection(collectionId, { isPublic })
+      setCollections((prev) =>
+        prev.map((c) => (c.id === collectionId ? updatedCollection : c))
+      )
+      if (activeCollection?.id === collectionId) {
+        setActiveCollectionState(updatedCollection)
+      }
+      triggerRefresh()
+      return updatedCollection
+    },
+    [activeCollection, triggerRefresh]
+  )
+
+  // ============================================================================
   // LISTING ACTIONS
   // ============================================================================
 
@@ -433,6 +470,11 @@ export function CollectionsProvider({ children }: CollectionsProviderProps) {
     shareCollection,
     unshareCollection,
     loadSharedCollection,
+
+    // Public collections actions
+    loadPublicCollections,
+    loadPublicCollectionListings,
+    toggleCollectionPublic,
 
     // Listing actions
     loadListings,

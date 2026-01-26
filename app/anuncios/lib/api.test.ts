@@ -50,6 +50,8 @@ describe("API Client", () => {
         createdAt: "2025-01-01T00:00:00Z",
         updatedAt: "2025-01-02T00:00:00Z",
         isDefault: true,
+        isPublic: false,
+        ownerName: undefined,
       })
     })
   })

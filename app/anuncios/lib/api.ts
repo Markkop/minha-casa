@@ -38,6 +38,8 @@ export interface Collection {
   createdAt: string
   updatedAt: string
   isDefault: boolean
+  isPublic: boolean
+  ownerName?: string
 }
 
 export interface Imovel {
@@ -85,13 +87,15 @@ export interface ApiError {
 /**
  * Convert API collection to frontend Collection format
  */
-export function toCollection(apiCollection: ApiCollection): Collection {
+export function toCollection(apiCollection: ApiCollection & { ownerName?: string }): Collection {
   return {
     id: apiCollection.id,
     label: apiCollection.name,
     createdAt: apiCollection.createdAt,
     updatedAt: apiCollection.updatedAt,
     isDefault: apiCollection.isDefault,
+    isPublic: apiCollection.isPublic,
+    ownerName: apiCollection.ownerName,
   }
 }
 
@@ -403,6 +407,37 @@ export async function fetchSharedCollection(token: string): Promise<{
 }> {
   const response = await fetch(`/api/shared/${token}`)
   return handleResponse(response)
+}
+
+// ============================================================================
+// PUBLIC COLLECTIONS API
+// ============================================================================
+
+/**
+ * Fetch all public collections
+ */
+export async function fetchPublicCollections(): Promise<Collection[]> {
+  const response = await fetch("/api/collections/public")
+  const data = await handleResponse<{ collections: (ApiCollection & { ownerName?: string })[] }>(response)
+  return data.collections.map(toCollection)
+}
+
+/**
+ * Fetch listings from a public collection
+ */
+export async function fetchPublicCollectionListings(collectionId: string): Promise<{
+  collection: Collection
+  listings: Imovel[]
+}> {
+  const response = await fetch(`/api/collections/public/${collectionId}`)
+  const data = await handleResponse<{
+    collection: ApiCollection & { ownerName?: string }
+    listings: ApiListing[]
+  }>(response)
+  return {
+    collection: toCollection(data.collection),
+    listings: data.listings.map(toImovel),
+  }
 }
 
 // ============================================================================
