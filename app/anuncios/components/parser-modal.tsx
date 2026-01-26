@@ -22,11 +22,22 @@ export function ParserModal({
   onClose,
   onListingAdded,
 }: ParserModalProps) {
-  const { parseListing, addListing, updateListing } = useCollections()
+  const { 
+    parseListing, 
+    addListing, 
+    updateListing,
+    activeCollection,
+    collections,
+    createCollection,
+    setActiveCollection,
+    isLoading: isLoadingCollections
+  } = useCollections()
 
   const [rawText, setRawText] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [isCreatingCollection, setIsCreatingCollection] = useState(false)
+  const [newCollectionName, setNewCollectionName] = useState("Meus Imóveis 2026")
   const [lastParsed, setLastParsed] = useState<{ id: string; data: ListingData } | null>(null)
   const [linkValue, setLinkValue] = useState("")
   const [imageValue, setImageValue] = useState("")
@@ -46,6 +57,8 @@ export function ParserModal({
       setAddressValue("")
       setContactNameValue("")
       setContactNumberValue("")
+      setNewCollectionName("Meus Imóveis 2026")
+      setIsCreatingCollection(false)
     }
   }, [isOpen])
 
@@ -108,6 +121,26 @@ export function ParserModal({
     return value.toString()
   }
 
+  const handleCreateCollection = async () => {
+    if (!newCollectionName.trim()) {
+      setError("Digite um nome para a coleção")
+      return
+    }
+
+    setIsCreatingCollection(true)
+    setError(null)
+
+    try {
+      const newCollection = await createCollection(newCollectionName.trim(), true)
+      setActiveCollection(newCollection)
+      setNewCollectionName("Meus Imóveis 2026")
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erro ao criar coleção")
+    } finally {
+      setIsCreatingCollection(false)
+    }
+  }
+
   const handleSaveAndClose = async () => {
     if (!lastParsed) return
 
@@ -141,6 +174,10 @@ export function ParserModal({
 
   if (!isOpen) return null
 
+  // Determine if we need to show collection creation/selection UI
+  const needsCollection = !activeCollection && !isLoadingCollections
+  const hasNoCollections = collections.length === 0
+
   return (
     <div className="fixed inset-0 z-[1000] flex items-center justify-center">
       {/* Backdrop */}
@@ -173,8 +210,91 @@ export function ParserModal({
         </CardHeader>
         <CardContent className="flex-1 flex flex-col gap-4 overflow-y-auto">
 
+          {/* No collection - show create collection UI */}
+          {needsCollection && hasNoCollections && !lastParsed && (
+            <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-4 space-y-4">
+              <div className="flex items-start gap-3">
+                <span className="text-2xl">📁</span>
+                <div className="space-y-1">
+                  <p className="text-sm font-medium text-amber-400">
+                    Crie sua primeira coleção
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Para salvar imóveis, você precisa de uma coleção. Crie uma agora para começar.
+                  </p>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <Input
+                  type="text"
+                  value={newCollectionName}
+                  onChange={(e) => {
+                    setNewCollectionName(e.target.value)
+                    setError(null)
+                  }}
+                  className="flex-1 bg-eerieBlack border-brightGrey text-white"
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      handleCreateCollection()
+                    }
+                  }}
+                  disabled={isCreatingCollection}
+                />
+                <button
+                  onClick={handleCreateCollection}
+                  disabled={isCreatingCollection || !newCollectionName.trim()}
+                  className={cn(
+                    "px-4 py-2 rounded-lg font-medium transition-all whitespace-nowrap",
+                    "bg-primary text-primary-foreground",
+                    "hover:bg-primary/90",
+                    "disabled:opacity-50 disabled:cursor-not-allowed",
+                    "flex items-center gap-2"
+                  )}
+                >
+                  {isCreatingCollection ? (
+                    <>
+                      <span className="animate-spin">⏳</span>
+                      Criando...
+                    </>
+                  ) : (
+                    <>
+                      <span>+</span>
+                      Criar
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Has collections but none selected */}
+          {needsCollection && !hasNoCollections && !lastParsed && (
+            <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-4">
+              <div className="flex items-start gap-3">
+                <span className="text-2xl">📁</span>
+                <div className="space-y-1">
+                  <p className="text-sm font-medium text-amber-400">
+                    Selecione uma coleção
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Escolha uma coleção no menu acima para salvar seus imóveis.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Collection indicator when active */}
+          {activeCollection && !lastParsed && (
+            <div className="flex items-center gap-2 text-xs text-muted-foreground bg-eerieBlack/50 rounded-lg px-3 py-2">
+              <span>📁</span>
+              <span>Salvando em:</span>
+              <span className="text-primary font-medium">{activeCollection.label}</span>
+            </div>
+          )}
+
           {/* Textarea for raw text */}
-          {!lastParsed && (
+          {!lastParsed && activeCollection && (
             <div className="flex flex-col gap-2">
               <label className="text-sm text-ashGray">
                 Cole o texto do anúncio aqui:
@@ -203,7 +323,7 @@ export function ParserModal({
           )}
 
           {/* Parse button */}
-          {!lastParsed && (
+          {!lastParsed && activeCollection && (
             <button
               onClick={handleParse}
               disabled={isLoading || !rawText.trim()}
@@ -389,7 +509,7 @@ export function ParserModal({
           )}
 
           {/* Instructions */}
-          {!lastParsed && (
+          {!lastParsed && activeCollection && (
             <div className="text-xs text-muted-foreground space-y-1">
               <p className="font-medium text-ashGray">Dicas:</p>
               <ul className="list-disc list-inside space-y-0.5">

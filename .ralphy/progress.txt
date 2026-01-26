@@ -1,0 +1,32 @@
+# Ralphy Progress Log
+
+- [✗] 2026-01-26 18:45 - Feature flags system
+- [✗] 2026-01-26 18:45 - Feature flags system
+- [✗] 2026-01-26 18:45 - Feature flags system
+- [✓] 2026-01-26 18:49 - Feature flags system
+- [✓] 2026-01-26 18:53 - Database schema & migrations
+- [✓] 2026-01-26 18:56 - BetterAuth setup
+- [✓] 2026-01-26 18:59 - Login/signup pages
+- [✓] 2026-01-26 19:01 - Auth middleware
+- [✓] 2026-01-26 19:03 - Route protection
+- [✓] 2026-01-26 19:07 - Collections API
+- [✓] 2026-01-26 19:10 - Listings API
+- [✓] 2026-01-26 19:18 - Server-side AI parsing
+- [✓] 2026-01-26 19:36 - Frontend integration
+- [✓] 2026-01-26 19:39 - Plans & subscriptions tables
+- [✓] 2026-01-26 19:43 - Subscribe page
+- [✓] 2026-01-26 19:47 - Subscription checks in middleware
+- [✓] 2026-01-26 19:54 - Admin dashboard
+- [✓] 2026-01-26 20:09 - User management
+- [✓] 2026-01-26 20:14 - Subscription management
+- [✓] 2026-01-26 20:19 - Organizations API
+- [✓] 2026-01-26 20:27 - Member management
+- [✓] 2026-01-26 20:31 - Shared collections
+- [✓] 2026-01-26 20:39 - Organization UI
+- [✓] 2026-01-26 20:43 - Public/private collections
+- [✓] 2026-01-26 20:52 - Share page
+- [✓] 2026-01-26 20:57 - Updated import/export
+- [✓] 2026-01-26 21:00 - Testing
+- [✓] 2026-01-26 21:05 - Error handling
+- [✓] 2026-01-26 21:11 - UI refinements
+- [✓] 2026-01-26 21:13 - Documentation

@@ -12,12 +12,12 @@ import {
 import { relations } from "drizzle-orm"
 
 // ============================================================================
-// Users (BetterAuth compatible)
+// Users (BetterAuth compatible - uses text IDs)
 // ============================================================================
 export const users = pgTable(
   "users",
   {
-    id: uuid("id").primaryKey().defaultRandom(),
+    id: text("id").primaryKey(),
     email: text("email").notNull().unique(),
     emailVerified: boolean("email_verified").default(false).notNull(),
     name: text("name").notNull(),
@@ -37,8 +37,8 @@ export const users = pgTable(
 export const accounts = pgTable(
   "accounts",
   {
-    id: uuid("id").primaryKey().defaultRandom(),
-    userId: uuid("user_id")
+    id: text("id").primaryKey(),
+    userId: text("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
     accountId: text("account_id").notNull(),
@@ -65,8 +65,8 @@ export const accounts = pgTable(
 export const sessions = pgTable(
   "sessions",
   {
-    id: uuid("id").primaryKey().defaultRandom(),
-    userId: uuid("user_id")
+    id: text("id").primaryKey(),
+    userId: text("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
     token: text("token").notNull().unique(),
@@ -88,7 +88,7 @@ export const sessions = pgTable(
 export const verifications = pgTable(
   "verifications",
   {
-    id: uuid("id").primaryKey().defaultRandom(),
+    id: text("id").primaryKey(),
     identifier: text("identifier").notNull(), // email address
     value: text("value").notNull(), // verification token
     expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
@@ -139,7 +139,7 @@ export const subscriptions = pgTable(
   "subscriptions",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    userId: uuid("user_id")
+    userId: text("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
     planId: uuid("plan_id")
@@ -148,7 +148,7 @@ export const subscriptions = pgTable(
     status: text("status").$type<SubscriptionStatus>().notNull().default("active"),
     startsAt: timestamp("starts_at", { withTimezone: true }).defaultNow().notNull(),
     expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
-    grantedBy: uuid("granted_by").references(() => users.id, { onDelete: "set null" }),
+    grantedBy: text("granted_by").references(() => users.id, { onDelete: "set null" }),
     notes: text("notes"),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
@@ -168,7 +168,7 @@ export const organizations = pgTable(
     id: uuid("id").primaryKey().defaultRandom(),
     name: text("name").notNull(),
     slug: text("slug").notNull().unique(),
-    ownerId: uuid("owner_id")
+    ownerId: text("owner_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
@@ -193,7 +193,7 @@ export const organizationMembers = pgTable(
     orgId: uuid("org_id")
       .notNull()
       .references(() => organizations.id, { onDelete: "cascade" }),
-    userId: uuid("user_id")
+    userId: text("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
     role: text("role").$type<OrgMemberRole>().notNull().default("member"),
@@ -212,7 +212,7 @@ export const collections = pgTable(
   "collections",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    userId: uuid("user_id").references(() => users.id, { onDelete: "cascade" }),
+    userId: text("user_id").references(() => users.id, { onDelete: "cascade" }),
     orgId: uuid("org_id").references(() => organizations.id, { onDelete: "cascade" }),
     name: text("name").notNull(),
     isPublic: boolean("is_public").default(false).notNull(),

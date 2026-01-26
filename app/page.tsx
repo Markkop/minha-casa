@@ -1,5 +1,6 @@
 import Link from "next/link"
 import { getFlag } from "@/lib/feature-flags"
+import { DemoListingsSection } from "./components/demo-listings-section"
 
 interface Feature {
   href: string
@@ -87,6 +88,11 @@ export default function Home() {
             </Link>
           ))}
         </div>
+
+        {/* Demo Section - Only shown for listings feature */}
+        {features.some((f) => f.href === "/anuncios") && (
+          <DemoListingsSection />
+        )}
 
         {/* Subtle decorative element */}
         <div className="mt-20 text-center">

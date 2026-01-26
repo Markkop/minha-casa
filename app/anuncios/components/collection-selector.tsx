@@ -1,6 +1,5 @@
 "use client"
 
-import { useEffect } from "react"
 import {
   Select,
   SelectContent,
@@ -36,18 +35,17 @@ export function CollectionSelector({
     listings,
     setActiveCollection,
     setDefaultCollection,
-    loadCollections,
     orgContext,
   } = useCollections()
 
   const isOrgContext = orgContext.type === "organization"
 
-  // Reload collections when refresh trigger changes
-  useEffect(() => {
-    if (refreshTrigger !== undefined && refreshTrigger > 0) {
-      loadCollections()
-    }
-  }, [refreshTrigger, loadCollections])
+  // Note: refreshTrigger is used only to force re-render the Select component via its key prop
+  // Collections are reloaded when:
+  // - Component mounts (handled by the provider)
+  // - Org context changes (handled by the provider)
+  // - A collection is created/deleted/updated (handled by the collection actions)
+  // Adding/removing listings does NOT require reloading collections
 
   const handleCollectionChange = (collectionId: string) => {
     const collection = collections.find((c) => c.id === collectionId) || null
