@@ -350,6 +350,61 @@ export async function parseListingWithAI(rawText: string): Promise<ListingData> 
 }
 
 // ============================================================================
+// SHARING API
+// ============================================================================
+
+export interface ShareInfo {
+  isShared: boolean
+  shareToken: string | null
+  shareUrl: string | null
+}
+
+export interface ShareResult {
+  collection: ApiCollection
+  shareUrl: string
+}
+
+/**
+ * Get share status for a collection
+ */
+export async function getShareStatus(collectionId: string): Promise<ShareInfo> {
+  const response = await fetch(`/api/collections/${collectionId}/share`)
+  return handleResponse<ShareInfo>(response)
+}
+
+/**
+ * Create a share link for a collection
+ */
+export async function createShareLink(collectionId: string): Promise<ShareResult> {
+  const response = await fetch(`/api/collections/${collectionId}/share`, {
+    method: "POST",
+  })
+  return handleResponse<ShareResult>(response)
+}
+
+/**
+ * Revoke sharing for a collection
+ */
+export async function revokeShareLink(collectionId: string): Promise<void> {
+  const response = await fetch(`/api/collections/${collectionId}/share`, {
+    method: "DELETE",
+  })
+  await handleResponse<{ success: boolean }>(response)
+}
+
+/**
+ * Fetch a shared collection by token (public, no auth required)
+ */
+export async function fetchSharedCollection(token: string): Promise<{
+  collection: { id: string; name: string; createdAt: string; updatedAt: string }
+  listings: ApiListing[]
+  metadata: { totalListings: number }
+}> {
+  const response = await fetch(`/api/shared/${token}`)
+  return handleResponse(response)
+}
+
+// ============================================================================
 // UTILITY FUNCTIONS
 // ============================================================================
 

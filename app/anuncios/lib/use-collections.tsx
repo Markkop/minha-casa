@@ -18,8 +18,13 @@ import {
   updateApiListing,
   deleteListing as apiDeleteListing,
   parseListingWithAI as apiParseListingWithAI,
+  getShareStatus as apiGetShareStatus,
+  createShareLink as apiCreateShareLink,
+  revokeShareLink as apiRevokeShareLink,
+  fetchSharedCollection as apiFetchSharedCollection,
   type Collection,
   type Imovel,
+  type ShareInfo,
 } from "./api"
 import type { ListingData } from "@/lib/db/schema"
 
@@ -45,6 +50,12 @@ interface CollectionsContextValue {
   updateCollection: (id: string, updates: { name?: string; isDefault?: boolean }) => Promise<Collection>
   deleteCollection: (id: string) => Promise<void>
   setDefaultCollection: (id: string) => Promise<Collection>
+
+  // Sharing actions
+  getShareStatus: (collectionId: string) => Promise<ShareInfo>
+  shareCollection: (collectionId: string) => Promise<string>
+  unshareCollection: (collectionId: string) => Promise<void>
+  loadSharedCollection: (token: string) => Promise<{ collection: { id: string; name: string }; listings: Imovel[] }>
 
   // Listing actions
   loadListings: (collectionId?: string) => Promise<void>
@@ -224,6 +235,45 @@ export function CollectionsProvider({ children }: CollectionsProviderProps) {
   )
 
   // ============================================================================
+  // SHARING ACTIONS
+  // ============================================================================
+
+  const getShareStatus = useCallback(async (collectionId: string): Promise<ShareInfo> => {
+    return apiGetShareStatus(collectionId)
+  }, [])
+
+  const shareCollection = useCallback(
+    async (collectionId: string): Promise<string> => {
+      const result = await apiCreateShareLink(collectionId)
+      triggerRefresh()
+      return result.shareUrl
+    },
+    [triggerRefresh]
+  )
+
+  const unshareCollection = useCallback(
+    async (collectionId: string): Promise<void> => {
+      await apiRevokeShareLink(collectionId)
+      triggerRefresh()
+    },
+    [triggerRefresh]
+  )
+
+  const loadSharedCollection = useCallback(
+    async (token: string): Promise<{ collection: { id: string; name: string }; listings: Imovel[] }> => {
+      const result = await apiFetchSharedCollection(token)
+      // Convert API listings to Imovel format
+      const { toImovel } = await import("./api")
+      const convertedListings = result.listings.map(toImovel)
+      return {
+        collection: result.collection,
+        listings: convertedListings,
+      }
+    },
+    []
+  )
+
+  // ============================================================================
   // LISTING ACTIONS
   // ============================================================================
 
@@ -344,6 +394,12 @@ export function CollectionsProvider({ children }: CollectionsProviderProps) {
     updateCollection,
     deleteCollection,
     setDefaultCollection,
+
+    // Sharing actions
+    getShareStatus,
+    shareCollection,
+    unshareCollection,
+    loadSharedCollection,
 
     // Listing actions
     loadListings,
