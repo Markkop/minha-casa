@@ -46,6 +46,11 @@ export function SignupClient() {
         return
       }
 
+      // Initialize subscription cookie after signup
+      // This sets the subscription-status cookie that the proxy checks
+      // New users will get an "inactive" status, which is expected
+      await fetch("/api/subscriptions", { credentials: "include" })
+
       router.push("/")
       router.refresh()
     } catch {

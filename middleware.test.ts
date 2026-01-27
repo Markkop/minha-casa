@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest"
 import { NextRequest } from "next/server"
-import { middleware } from "./middleware"
+import { proxy } from "./proxy"
 import {
   SUBSCRIPTION_COOKIE_NAME,
   createSubscriptionCookieValue,
@@ -23,7 +23,7 @@ function createMockRequest(
   return request
 }
 
-describe("middleware", () => {
+describe("proxy", () => {
   beforeEach(() => {
     vi.clearAllMocks()
   })
@@ -31,28 +31,28 @@ describe("middleware", () => {
   describe("public routes", () => {
     it("allows access to home page without authentication", () => {
       const request = createMockRequest("/")
-      const response = middleware(request)
+      const response = proxy(request)
 
       expect(response.status).toBe(200)
     })
 
     it("allows access to login page without authentication", () => {
       const request = createMockRequest("/login")
-      const response = middleware(request)
+      const response = proxy(request)
 
       expect(response.status).toBe(200)
     })
 
     it("allows access to signup page without authentication", () => {
       const request = createMockRequest("/signup")
-      const response = middleware(request)
+      const response = proxy(request)
 
       expect(response.status).toBe(200)
     })
 
     it("allows access to API auth routes without authentication", () => {
       const request = createMockRequest("/api/auth/login")
-      const response = middleware(request)
+      const response = proxy(request)
 
       expect(response.status).toBe(200)
     })
@@ -61,7 +61,7 @@ describe("middleware", () => {
   describe("authentication checks", () => {
     it("redirects unauthenticated users to login from protected routes", () => {
       const request = createMockRequest("/anuncios")
-      const response = middleware(request)
+      const response = proxy(request)
 
       expect(response.status).toBe(307)
       expect(response.headers.get("Location")).toContain("/login")
@@ -72,7 +72,7 @@ describe("middleware", () => {
       const request = createMockRequest("/login", {
         "better-auth.session_token": "valid-token",
       })
-      const response = middleware(request)
+      const response = proxy(request)
 
       expect(response.status).toBe(307)
       expect(response.headers.get("Location")).toBe("http://localhost:3000/")
@@ -82,7 +82,7 @@ describe("middleware", () => {
       const request = createMockRequest("/signup", {
         "better-auth.session_token": "valid-token",
       })
-      const response = middleware(request)
+      const response = proxy(request)
 
       expect(response.status).toBe(307)
       expect(response.headers.get("Location")).toBe("http://localhost:3000/")
@@ -92,7 +92,7 @@ describe("middleware", () => {
       const request = createMockRequest("/login", {
         "__Secure-better-auth.session_token": "valid-token",
       })
-      const response = middleware(request)
+      const response = proxy(request)
 
       expect(response.status).toBe(307)
       expect(response.headers.get("Location")).toBe("http://localhost:3000/")
@@ -108,7 +108,7 @@ describe("middleware", () => {
           const request = createMockRequest(route, {
             "better-auth.session_token": "valid-token",
           })
-          const response = middleware(request)
+          const response = proxy(request)
 
           expect(response.status).toBe(307)
           expect(response.headers.get("Location")).toContain("/subscribe")
@@ -128,7 +128,7 @@ describe("middleware", () => {
             "better-auth.session_token": "valid-token",
             [SUBSCRIPTION_COOKIE_NAME]: cookieValue,
           })
-          const response = middleware(request)
+          const response = proxy(request)
 
           expect(response.status).toBe(307)
           expect(response.headers.get("Location")).toContain("/subscribe")
@@ -145,7 +145,7 @@ describe("middleware", () => {
             "better-auth.session_token": "valid-token",
             [SUBSCRIPTION_COOKIE_NAME]: cookieValue,
           })
-          const response = middleware(request)
+          const response = proxy(request)
 
           expect(response.status).toBe(307)
           expect(response.headers.get("Location")).toContain("/subscribe")
@@ -162,7 +162,7 @@ describe("middleware", () => {
             "better-auth.session_token": "valid-token",
             [SUBSCRIPTION_COOKIE_NAME]: cookieValue,
           })
-          const response = middleware(request)
+          const response = proxy(request)
 
           expect(response.status).toBe(200)
         })
@@ -178,7 +178,7 @@ describe("middleware", () => {
             "better-auth.session_token": "valid-token",
             [SUBSCRIPTION_COOKIE_NAME]: cookieValue,
           })
-          const response = middleware(request)
+          const response = proxy(request)
 
           expect(response.status).toBe(200)
         })
@@ -191,7 +191,7 @@ describe("middleware", () => {
       const request = createMockRequest("/subscribe", {
         "better-auth.session_token": "valid-token",
       })
-      const response = middleware(request)
+      const response = proxy(request)
 
       expect(response.status).toBe(200)
     })
@@ -200,7 +200,7 @@ describe("middleware", () => {
       const request = createMockRequest("/planos", {
         "better-auth.session_token": "valid-token",
       })
-      const response = middleware(request)
+      const response = proxy(request)
 
       expect(response.status).toBe(200)
     })
@@ -209,7 +209,7 @@ describe("middleware", () => {
       const request = createMockRequest("/api/subscriptions", {
         "better-auth.session_token": "valid-token",
       })
-      const response = middleware(request)
+      const response = proxy(request)
 
       expect(response.status).toBe(200)
     })
@@ -218,7 +218,7 @@ describe("middleware", () => {
       const request = createMockRequest("/api/collections", {
         "better-auth.session_token": "valid-token",
       })
-      const response = middleware(request)
+      const response = proxy(request)
 
       expect(response.status).toBe(200)
     })
@@ -227,7 +227,7 @@ describe("middleware", () => {
   describe("redirect parameter handling", () => {
     it("includes redirect parameter when redirecting to login", () => {
       const request = createMockRequest("/anuncios/123")
-      const response = middleware(request)
+      const response = proxy(request)
 
       expect(response.status).toBe(307)
       const location = response.headers.get("Location")
@@ -239,7 +239,7 @@ describe("middleware", () => {
       const request = createMockRequest("/casa/settings", {
         "better-auth.session_token": "valid-token",
       })
-      const response = middleware(request)
+      const response = proxy(request)
 
       expect(response.status).toBe(307)
       const location = response.headers.get("Location")
@@ -254,7 +254,7 @@ describe("middleware", () => {
         "better-auth.session_token": "valid-token",
         [SUBSCRIPTION_COOKIE_NAME]: "invalid-format",
       })
-      const response = middleware(request)
+      const response = proxy(request)
 
       expect(response.status).toBe(307)
       expect(response.headers.get("Location")).toContain("/subscribe")
@@ -265,7 +265,7 @@ describe("middleware", () => {
         "better-auth.session_token": "valid-token",
         [SUBSCRIPTION_COOKIE_NAME]: "active|not-a-date",
       })
-      const response = middleware(request)
+      const response = proxy(request)
 
       expect(response.status).toBe(307)
       expect(response.headers.get("Location")).toContain("/subscribe")

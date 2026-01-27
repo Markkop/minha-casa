@@ -22,9 +22,15 @@ vi.mock("@/lib/auth-client", () => ({
   },
 }))
 
+// Mock global fetch for subscription cookie refresh
+const mockFetch = vi.fn()
+
 describe("LoginClient", () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    // Mock fetch to resolve successfully for subscription refresh
+    mockFetch.mockResolvedValue({ ok: true, json: () => Promise.resolve({}) })
+    global.fetch = mockFetch
   })
 
   it("renders login form with email and password fields", () => {
