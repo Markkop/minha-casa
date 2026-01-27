@@ -125,6 +125,7 @@ export const SettingsProvider = ({ children }: SettingsProviderProps) => {
   // Load settings from localStorage on mount
   useEffect(() => {
     const loaded = loadSettings()
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- localStorage hydration pattern
     setSettings(loaded)
     setIsLoaded(true)
   }, [])

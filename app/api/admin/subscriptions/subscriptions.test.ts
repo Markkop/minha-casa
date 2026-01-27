@@ -33,6 +33,8 @@ const mockAdminSession = {
     userId: mockAdminUser.id,
     token: "admin-token",
     expiresAt: new Date(Date.now() + 86400000),
+    createdAt: new Date(),
+    updatedAt: new Date(),
   },
 }
 

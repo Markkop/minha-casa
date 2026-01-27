@@ -72,13 +72,13 @@ export function OrganizacoesClient() {
   const [loadingMembers, setLoadingMembers] = useState(false)
 
   // Add member state
-  const [addMemberModalOpen, setAddMemberModalOpen] = useState(false)
+  const [, setAddMemberModalOpen] = useState(false)
   const [newMemberEmail, setNewMemberEmail] = useState("")
   const [newMemberRole, setNewMemberRole] = useState<"member" | "admin">("member")
   const [addingMember, setAddingMember] = useState(false)
 
   // Edit member state
-  const [editMemberModalOpen, setEditMemberModalOpen] = useState(false)
+  const [, setEditMemberModalOpen] = useState(false)
   const [selectedMember, setSelectedMember] = useState<Member | null>(null)
   const [editMemberRole, setEditMemberRole] = useState<"owner" | "admin" | "member">("member")
   const [updatingMember, setUpdatingMember] = useState(false)
@@ -249,6 +249,7 @@ export function OrganizacoesClient() {
     }
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   async function updateMemberRole() {
     if (!selectedOrg || !selectedMember) return
 
@@ -314,6 +315,7 @@ export function OrganizacoesClient() {
     fetchOrganizationDetails(org.id)
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   function openEditMemberModal(member: Member) {
     setSelectedMember(member)
     setEditMemberRole(member.role)

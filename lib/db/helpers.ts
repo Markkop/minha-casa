@@ -1,4 +1,6 @@
-import { getDb, collections, organizationMembers, type Collection } from "@/lib/db"
+import { getDb, collections, organizationMembers } from "@/lib/db"
+
+type Collection = typeof collections.$inferSelect
 import { eq, and } from "drizzle-orm"
 
 /**

@@ -230,6 +230,7 @@ export const SimulatorClient = () => {
     if (valorImovelParam) {
       const valorImovel = parseFloat(valorImovelParam)
       if (!isNaN(valorImovel) && valorImovel > 0) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- One-time URL parameter initialization
         setParams((prev) => ({
           ...prev,
           valorImovelBase: valorImovel,
@@ -312,30 +313,7 @@ export const SimulatorClient = () => {
         params.prazoMesesBase * params.prazoMesesMultiplier
       ),
     }
-  }, [
-    params.valorImovelBase,
-    params.valorImovelMultiplier,
-    params.capitalDisponivelBase,
-    params.capitalDisponivelMultiplier,
-    params.reservaEmergenciaBase,
-    params.reservaEmergenciaMultiplier,
-    params.valorApartamentoBase,
-    params.valorApartamentoMultiplier,
-    params.custoCondominioBase,
-    params.custoCondominioMultiplier,
-    params.segurosBase,
-    params.segurosMultiplier,
-    params.prazoMesesBase,
-    params.prazoMesesMultiplier,
-    params.taxaAnual,
-    params.trMensal,
-    params.haircut,
-    params.aporteExtra,
-    params.rendaMensal,
-    params.valoresImovelFiltroMultipliers,
-    params.valoresAptoFiltroMultipliers,
-    params.estrategiasFiltro,
-  ])
+  }, [params])
 
   // Estado da view
   const [activeTab, setActiveTab] = useState("table")

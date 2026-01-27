@@ -11,6 +11,9 @@ const mockUser = {
   email: "test@example.com",
   name: "Test User",
   isAdmin: false,
+  emailVerified: true,
+  createdAt: new Date(),
+  updatedAt: new Date(),
 }
 
 // Mock public collection data
@@ -257,6 +260,8 @@ describe("Collection isPublic Toggle", () => {
           userId: mockUser.id,
           token: "test-token",
           expiresAt: new Date(Date.now() + 86400000),
+          createdAt: new Date(),
+          updatedAt: new Date(),
         },
       })
 
@@ -306,6 +311,8 @@ describe("Collection isPublic Toggle", () => {
           userId: mockUser.id,
           token: "test-token",
           expiresAt: new Date(Date.now() + 86400000),
+          createdAt: new Date(),
+          updatedAt: new Date(),
         },
       })
 

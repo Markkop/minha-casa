@@ -11,6 +11,10 @@ const mockUser = {
   email: "test@example.com",
   name: "Test User",
   isAdmin: false,
+  emailVerified: true,
+  image: null,
+  createdAt: new Date(),
+  updatedAt: new Date(),
 }
 
 const mockUser2 = {
@@ -18,6 +22,10 @@ const mockUser2 = {
   email: "other@example.com",
   name: "Other User",
   isAdmin: false,
+  emailVerified: true,
+  image: null,
+  createdAt: new Date(),
+  updatedAt: new Date(),
 }
 
 const mockSession = {
@@ -27,6 +35,8 @@ const mockSession = {
     userId: mockUser.id,
     token: "test-token",
     expiresAt: new Date(Date.now() + 86400000),
+    createdAt: new Date(),
+    updatedAt: new Date(),
   },
 }
 
@@ -37,6 +47,8 @@ const mockSession2 = {
     userId: mockUser2.id,
     token: "test-token-2",
     expiresAt: new Date(Date.now() + 86400000),
+    createdAt: new Date(),
+    updatedAt: new Date(),
   },
 }
 

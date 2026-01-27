@@ -42,8 +42,8 @@ function setupFetchMock(organizations: typeof mockOrganizations = mockOrganizati
       ok: true,
       status: 200,
       json: () => Promise.resolve({ organizations }),
-    })
-  )
+    } as Response)
+  ) as typeof fetch
 }
 
 describe("OrganizationSwitcher", () => {

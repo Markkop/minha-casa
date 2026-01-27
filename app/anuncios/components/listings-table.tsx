@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useState, useEffect } from "react"
+import { useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 import {
   Table,
@@ -30,7 +30,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 import { useCollections } from "../lib/use-collections"
-import type { Collection, Imovel } from "../lib/api"
+import type { Imovel } from "../lib/api"
 import type { ListingData } from "@/lib/db/schema"
 import { cn } from "@/lib/utils"
 import { ArrowDownIcon, ArrowUpIcon, MagnifyingGlassIcon } from "@radix-ui/react-icons"
@@ -170,7 +170,7 @@ function SortableHeader({
 
 type PropertyTypeFilter = "all" | "casa" | "apartamento"
 
-export function ListingsTable({ listings, onListingsChange, refreshTrigger, hasApiKey = true }: ListingsTableProps) {
+export function ListingsTable({ listings, onListingsChange, hasApiKey = true }: ListingsTableProps) {
   const router = useRouter()
   const {
     collections,
@@ -498,6 +498,7 @@ export function ListingsTable({ listings, onListingsChange, refreshTrigger, hasA
     setQuickReparsePopoverOpen(listing.id)
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const handleCopyToCollection = async (listingId: string, targetCollectionId: string) => {
     // Copy to collection feature is disabled until backend supports it
     // TODO: Implement API endpoint for copying listings between collections
@@ -532,16 +533,6 @@ export function ListingsTable({ listings, onListingsChange, refreshTrigger, hasA
     const s = suites ?? 0
     if (s === 0) return `${q}`
     return `${q} (${s}s)`
-  }
-
-  const formatBoolean = (value: boolean | null) => {
-    if (value === null) return "—"
-    return value ? "✓" : "✕"
-  }
-
-  const formatGaragem = (value: number | null | undefined) => {
-    if (value === null || value === undefined) return "0 Vagas"
-    return `${value} Vagas`
   }
 
   const truncateTitle = (title: string, maxLength: number = 50) => {

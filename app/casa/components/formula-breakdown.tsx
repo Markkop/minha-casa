@@ -1,7 +1,6 @@
 "use client"
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { cn } from "@/lib/utils"
 import { ChevronDownIcon, ChevronUpIcon } from "@radix-ui/react-icons"
 import "katex/dist/katex.min.css"
 import { BlockMath, InlineMath } from "react-katex"

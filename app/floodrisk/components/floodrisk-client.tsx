@@ -98,6 +98,7 @@ const FloodRiskClient: React.FC = () => {
   // Ensure activeScenarioIdx is within bounds
   useEffect(() => {
     if (currentScenarios.length > 0 && activeScenarioIdx >= currentScenarios.length) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- Bounds check pattern
       setActiveScenarioIdx(0);
     }
   }, [currentScenarios.length, activeScenarioIdx]);
@@ -159,6 +160,7 @@ const FloodRiskClient: React.FC = () => {
       }
 
       // Validate scenarios structure
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const validScenarios = parsed.scenarios.filter((s: any) => 
         s.id && 
         typeof s.year === 'number' && 

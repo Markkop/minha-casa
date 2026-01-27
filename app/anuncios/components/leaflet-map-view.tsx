@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react"
 import { useCollections } from "../lib/use-collections"
-import type { Imovel } from "../lib/api"
 import { geocodeAddress } from "../lib/geocoding"
 import dynamic from "next/dynamic"
 import {
@@ -53,7 +52,8 @@ function createMarkerIcon(
 ): L.DivIcon | null {
   if (typeof window === "undefined") return null
   
-  // Import Leaflet dynamically
+  // Import Leaflet dynamically (require used for SSR compatibility)
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const L = require("leaflet")
   
   const priceLabel = formatCompactPrice(price)
@@ -197,6 +197,7 @@ export function LeafletMapView({
     link.crossOrigin = ""
     document.head.appendChild(link)
 
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- SSR hydration pattern
     setLeafletLoaded(true)
 
     return () => {

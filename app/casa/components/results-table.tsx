@@ -227,14 +227,14 @@ export const ResultsTable = ({ cenarios, onSelectCenario }: ResultsTableProps) =
     return sort.direction === "asc" ? aVal - bVal : bVal - aVal
   })
 
-  // Get best cenario for dynamic tooltip
-  const bestCenario = cenarios.find((c) => c.isBest) || cenarios[0]
-  const dynamicTooltips = bestCenario
-    ? generateTooltips({
-        aporteExtra: bestCenario.aporteExtra,
-        economiaJuros: bestCenario.economiaJuros,
-      })
-    : defaultTooltips
+  // Get best cenario for dynamic tooltip (currently using defaultTooltips)
+  // const bestCenario = cenarios.find((c) => c.isBest) || cenarios[0]
+  // const dynamicTooltips = bestCenario
+  //   ? generateTooltips({
+  //       aporteExtra: bestCenario.aporteExtra,
+  //       economiaJuros: bestCenario.economiaJuros,
+  //     })
+  //   : defaultTooltips
 
   return (
     <div className="overflow-x-auto">

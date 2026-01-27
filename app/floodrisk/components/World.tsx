@@ -3,7 +3,7 @@ import { useFrame, useThree, ThreeEvent } from '@react-three/fiber';
 import { Text } from '@react-three/drei';
 import * as THREE from 'three';
 import { ElementHeight, ConnectionType } from '../lib/types';
-import { LEVEL_BLOCKS, WATER_COLOR_SAFE } from '../lib/constants';
+import { LEVEL_BLOCKS } from '../lib/constants';
 import { 
   StreetSurface, 
   HouseSurface, 

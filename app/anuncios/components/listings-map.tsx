@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Switch } from "@/components/ui/switch"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import type { Imovel } from "../lib/api"
-import { geocodeAddresses, clearCacheForAddresses, type GeocodedLocation } from "../lib/geocoding"
+import { geocodeAddresses, clearCacheForAddresses } from "../lib/geocoding"
 import { RotateCw } from "lucide-react"
 import { cn } from "@/lib/utils"
 import {
@@ -41,6 +41,7 @@ export function ListingsMap({ listings, onListingsChange }: ListingsMapProps) {
 
   // Track if component is mounted (for SSR)
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- SSR hydration pattern
     setMounted(true)
     // Load stored preference
     setMapProvider(getStoredMapProvider())
@@ -56,6 +57,7 @@ export function ListingsMap({ listings, onListingsChange }: ListingsMapProps) {
   // Geocode all listings when they change or geocodeKey changes
   useEffect(() => {
     if (!mounted || listings.length === 0) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- Clear state when no listings
       setGeocodedListings([])
       return
     }
@@ -91,7 +93,7 @@ export function ListingsMap({ listings, onListingsChange }: ListingsMapProps) {
         setProgress({ completed: listingsWithCustom.length, total: listings.length })
         
         const addresses = listingsToGeocode.map((l) => l.endereco)
-        const results = await geocodeAddresses(addresses, (completed, total) => {
+        const results = await geocodeAddresses(addresses, (completed) => {
           setProgress({ completed: listingsWithCustom.length + completed, total: listings.length })
         })
 

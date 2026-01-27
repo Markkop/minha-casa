@@ -107,6 +107,7 @@ const CurrencyInput = ({ value, onChange, ...props }: CurrencyInputProps) => {
   // Sync inputValue with external value when not focused
   useEffect(() => {
     if (!isFocused) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- Controlled input sync pattern
       setInputValue(value.toString())
     }
   }, [value, isFocused])
@@ -185,6 +186,7 @@ const PercentInput = ({ value, onChange, ...props }: PercentInputProps) => {
   // Sync inputValue with external value when not focused
   useEffect(() => {
     if (!isFocused) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- Controlled input sync pattern
       setInputValue((value * 100).toFixed(2))
     }
   }, [value, isFocused])

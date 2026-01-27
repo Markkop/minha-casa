@@ -306,7 +306,7 @@ export async function geocodeAddresses(
     console.log("[Geocoding] Google not available, using Nominatim")
     const nominatimResults = await geocodeBatchWithNominatim(
       uncached,
-      (completed, total) => {
+      (completed) => {
         if (onProgress) {
           onProgress(addresses.length - uncached.length + completed, addresses.length)
         }

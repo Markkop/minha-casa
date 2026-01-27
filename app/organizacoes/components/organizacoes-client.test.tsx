@@ -80,7 +80,7 @@ function setupFetchMock(responses: Record<string, { data: unknown; ok?: boolean;
           ok: response.ok ?? true,
           status: response.status ?? 200,
           json: () => Promise.resolve(response.data),
-        })
+        } as Response)
       }
     }
     // Default fallback
@@ -88,8 +88,8 @@ function setupFetchMock(responses: Record<string, { data: unknown; ok?: boolean;
       ok: true,
       status: 200,
       json: () => Promise.resolve({ organizations: [] }),
-    })
-  })
+    } as Response)
+  }) as typeof fetch
 }
 
 describe("OrganizacoesClient", () => {

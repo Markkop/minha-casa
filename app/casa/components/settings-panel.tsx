@@ -195,10 +195,8 @@ export const SettingsPanel = ({ isOpen, onClose }: SettingsPanelProps) => {
   const { settings, updateSettings, resetSettings } = useSettings()
   const [localSettings, setLocalSettings] = useState<SimulatorSettings>(settings)
 
-  // Sync local settings when panel opens
-  const handleOpen = () => {
-    setLocalSettings(settings)
-  }
+  // Note: handleOpen callback was removed as unused. If panel needs to sync on open,
+  // consider using useEffect with isOpen dependency.
 
   if (!isOpen) return null
 

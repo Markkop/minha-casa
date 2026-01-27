@@ -14,7 +14,6 @@ const BaseSurface = ({ width, depth, color }: { width: number, depth: number, co
 
 export const StreetSurface = ({ data }: { data: ElementHeight }) => {
   const { width, depth } = data;
-  const laneWidth = width / 2;
   const stripLength = 1.0;
   const stripGap = 1.0;
   const stripCount = Math.floor(depth / (stripLength + stripGap));

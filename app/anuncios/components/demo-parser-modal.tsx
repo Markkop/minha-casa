@@ -48,7 +48,7 @@ export function DemoParserModal({
 }: DemoParserModalProps) {
   const [rawText, setRawText] = useState(SAMPLE_INPUT)
   const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [, setError] = useState<string | null>(null)
   const [lastParsed, setLastParsed] = useState<{ id: string; data: ListingData } | null>(null)
   const [linkValue, setLinkValue] = useState("")
   const [addressValue, setAddressValue] = useState("")
@@ -95,7 +95,7 @@ export function DemoParserModal({
       const demoId = `demo-${Math.random().toString(36).substr(2, 9)}`
       setLastParsed({ id: demoId, data: SAMPLE_OUTPUT })
       setRawText("")
-    } catch (err) {
+    } catch {
       setError("Erro ao processar anúncio")
     } finally {
       setIsLoading(false)

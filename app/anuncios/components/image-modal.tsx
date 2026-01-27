@@ -30,6 +30,7 @@ export function ImageModal({
   // Pre-populate image URL when modal opens or listing changes
   useEffect(() => {
     if (isOpen && listing) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- Sync state from props on modal open
       setImageUrl(listing.imageUrl || "")
       setError(null)
       setImageError(false)
@@ -43,6 +44,7 @@ export function ImageModal({
 
   // Reset image error when URL changes
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- Reset derived state on input change
     setImageError(false)
   }, [imageUrl])
 

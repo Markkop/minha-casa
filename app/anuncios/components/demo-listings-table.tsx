@@ -9,7 +9,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import {
   Select,
@@ -26,7 +26,7 @@ import {
 import type { Imovel } from "../lib/api"
 import { cn } from "@/lib/utils"
 import { ArrowDownIcon, ArrowUpIcon, MagnifyingGlassIcon } from "@radix-ui/react-icons"
-import { TrashIcon, LinkIcon, Star, Eye, Strikethrough, Car, BedDouble, Bath, Home, Building } from "lucide-react"
+import { TrashIcon, Star, Eye, Strikethrough, BedDouble, Home, Building } from "lucide-react"
 
 // ============================================================================
 // TYPES
@@ -143,8 +143,8 @@ export function DemoListingsTable({ listings, onUpdateListing, onDeleteListing }
         const { key, direction } = sort
         const multiplier = direction === "asc" ? 1 : -1
 
-        let valA: any = a[key as keyof Imovel]
-        let valB: any = b[key as keyof Imovel]
+        let valA: string | number | boolean | null | undefined = a[key as keyof Imovel] as string | number | boolean | null | undefined
+        let valB: string | number | boolean | null | undefined = b[key as keyof Imovel] as string | number | boolean | null | undefined
 
         // Special handling for calculated values
         if (key === "precoM2") {

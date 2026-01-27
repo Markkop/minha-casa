@@ -370,6 +370,7 @@ function GoogleMapsContent({
 
   // Set up error handler
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- SSR hydration pattern
     setIsMounted(true)
     errorHandlerRef.current = onError
 
@@ -473,48 +474,38 @@ function GoogleMapsContent({
     return null
   }
 
-  // Safely render Google Maps
-  try {
-    return (
-      <APIProvider apiKey={apiKey} region="BR" language="pt-BR">
-        <Map
-          defaultCenter={FLORIANOPOLIS_CENTER}
-          defaultZoom={DEFAULT_ZOOM}
-          mapId="minha-casa-map"
-          className="h-[400px] rounded-lg"
-          gestureHandling="cooperative"
-          disableDefaultUI={false}
-          mapTypeControl={true}
-          streetViewControl={true}
-          fullscreenControl={true}
-        >
-          {geocodedListings.map((gl) => {
-            const precoM2 = calculatePrecoM2(gl.listing.preco, gl.listing.m2Totais)
-            const color = getMarkerColor(precoM2, minPreco, maxPreco)
+  // Render Google Maps - error handling is done through event listeners above
+  return (
+    <APIProvider apiKey={apiKey} region="BR" language="pt-BR">
+      <Map
+        defaultCenter={FLORIANOPOLIS_CENTER}
+        defaultZoom={DEFAULT_ZOOM}
+        mapId="minha-casa-map"
+        className="h-[400px] rounded-lg"
+        gestureHandling="cooperative"
+        disableDefaultUI={false}
+        mapTypeControl={true}
+        streetViewControl={true}
+        fullscreenControl={true}
+      >
+        {geocodedListings.map((gl) => {
+          const precoM2 = calculatePrecoM2(gl.listing.preco, gl.listing.m2Totais)
+          const color = getMarkerColor(precoM2, minPreco, maxPreco)
 
-            return (
-              <CustomMarker
-                key={gl.listing.id}
-                geocodedListing={gl}
-                color={color}
-                minPreco={minPreco}
-                maxPreco={maxPreco}
-                onListingsChange={onListingsChange}
-              />
-            )
-          })}
-        </Map>
-      </APIProvider>
-    )
-  } catch (error) {
-    // This catch will handle React rendering errors
-    console.error("[Google Maps] React rendering error:", error)
-    setHasError(true)
-    if (errorHandlerRef.current && error instanceof Error) {
-      errorHandlerRef.current(error)
-    }
-    return null // Return null to prevent rendering
-  }
+          return (
+            <CustomMarker
+              key={gl.listing.id}
+              geocodedListing={gl}
+              color={color}
+              minPreco={minPreco}
+              maxPreco={maxPreco}
+              onListingsChange={onListingsChange}
+            />
+          )
+        })}
+      </Map>
+    </APIProvider>
+  )
 }
 
 // ============================================================================
@@ -573,9 +564,9 @@ export function GoogleMapsView({
             <p className="font-semibold mb-1">Como resolver:</p>
             <ol className="list-decimal list-inside space-y-1 text-left">
               <li>Acesse Google Cloud Console</li>
-              <li>Vá em "APIs e serviços" → "Credenciais"</li>
+              <li>Vá em &quot;APIs e serviços&quot; → &quot;Credenciais&quot;</li>
               <li>Edite sua chave da API</li>
-              <li>Em "Restrições de aplicativo", adicione seu domínio</li>
+              <li>Em &quot;Restrições de aplicativo&quot;, adicione seu domínio</li>
               <li>Ou remova as restrições temporariamente para testes</li>
             </ol>
           </div>

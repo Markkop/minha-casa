@@ -235,7 +235,7 @@ export default function PlanosPage() {
             </div>
             <div className="mt-8 text-center">
               <p className="text-ashGray text-sm">
-                O comprador paga quando você vira <span className="text-primary font-medium">"minha central de decisão imobiliária"</span>, não só uma lista.
+                O comprador paga quando você vira <span className="text-primary font-medium">&quot;minha central de decisão imobiliária&quot;</span>, não só uma lista.
               </p>
             </div>
           </TabsContent>
@@ -249,7 +249,7 @@ export default function PlanosPage() {
             </div>
             <div className="mt-8 text-center">
               <p className="text-ashGray text-sm">
-                O vendedor paga quando você resolve <span className="text-primary font-medium">"como criar um anúncio que vende e não perder interessados"</span>.
+                O vendedor paga quando você resolve <span className="text-primary font-medium">&quot;como criar um anúncio que vende e não perder interessados&quot;</span>.
               </p>
             </div>
           </TabsContent>

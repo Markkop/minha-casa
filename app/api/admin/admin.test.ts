@@ -34,6 +34,8 @@ const mockSession = {
     userId: mockUser.id,
     token: "test-token",
     expiresAt: new Date(Date.now() + 86400000),
+    createdAt: new Date(),
+    updatedAt: new Date(),
   },
 }
 
@@ -44,6 +46,8 @@ const mockAdminSession = {
     userId: mockAdminUser.id,
     token: "admin-token",
     expiresAt: new Date(Date.now() + 86400000),
+    createdAt: new Date(),
+    updatedAt: new Date(),
   },
 }
 

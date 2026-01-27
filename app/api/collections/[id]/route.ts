@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "@/lib/auth-server"
-import { getDb, collections, listings, organizationMembers, type OrgMemberRole } from "@/lib/db"
+import { getDb, collections, listings, organizationMembers } from "@/lib/db"
 import { eq, and, isNull } from "drizzle-orm"
 
 interface RouteParams {

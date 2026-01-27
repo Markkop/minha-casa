@@ -483,7 +483,6 @@ export const calcularComAmortizacaoExtra = ({
   while (saldoDevedor > 0 && mes < prazoMeses) {
     mes++
     const juros = saldoDevedor * taxaMensalEfetiva
-    const prestacaoBase = amortizacaoMensal + juros + seguros
 
     const amortizacaoTotal = Math.min(
       amortizacaoMensal + aporteExtra,
@@ -883,7 +882,6 @@ export const generateTooltips = (params: TooltipParams = {}) => {
     prazoOptions = [240, 300, 360, 420],
     aporteExtra = DEFAULTS.aporteExtra,
     economiaJuros,
-    aporteExtraRange = { min: 0, max: 30000 },
   } = params
 
   // Calculate TR annual impact range

@@ -546,20 +546,20 @@ export function importToCollection(json: string, collectionId?: string): Imovel[
     if (Array.isArray(parsed)) {
       // Legacy format: array of Imovel[]
       listingsToImport = parsed.filter(
-        (item: any): item is Imovel =>
+        (item: unknown): item is Imovel =>
           typeof item === "object" &&
           item !== null &&
-          typeof item.id === "string" &&
-          typeof item.titulo === "string"
+          typeof (item as Record<string, unknown>).id === "string" &&
+          typeof (item as Record<string, unknown>).titulo === "string"
       )
     } else if (parsed.listings && Array.isArray(parsed.listings)) {
       // CollectionExport format
       listingsToImport = parsed.listings.filter(
-        (item: any): item is Imovel =>
+        (item: unknown): item is Imovel =>
           typeof item === "object" &&
           item !== null &&
-          typeof item.id === "string" &&
-          typeof item.titulo === "string"
+          typeof (item as Record<string, unknown>).id === "string" &&
+          typeof (item as Record<string, unknown>).titulo === "string"
       )
     } else {
       throw new Error("Invalid format: expected array or CollectionExport object")
@@ -895,8 +895,8 @@ const IMOVEL_KEYS_ORDER: (keyof Imovel)[] = [
   "addedAt",
 ]
 
-// Minified keys in same order for compact export
-const IMOVEL_MINIFIED_KEYS_ORDER = IMOVEL_KEYS_ORDER.map(k => KEY_MAP[k] || k)
+// Note: IMOVEL_MINIFIED_KEYS_ORDER removed as unused; if needed, compute as:
+// IMOVEL_KEYS_ORDER.map(k => KEY_MAP[k] || k)
 
 /**
  * Compacts a date string to YYMMDD format
@@ -1074,6 +1074,7 @@ export function compressCollectionData(collectionId?: string): string {
   }
 
   // Dynamic import to avoid SSR issues
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const LZString = require("lz-string")
   const data = ensureCollectionsData()
   const targetId = collectionId || data.activeCollectionId
@@ -1104,6 +1105,7 @@ export function compressCollectionDataCompact(collectionId?: string): string {
   }
 
   // Dynamic import to avoid SSR issues
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const LZString = require("lz-string")
   const data = ensureCollectionsData()
   const targetId = collectionId || data.activeCollectionId
@@ -1152,6 +1154,7 @@ export function decompressCollectionData(compressed: string): CollectionExport {
   }
 
   // Dynamic import to avoid SSR issues
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const LZString = require("lz-string")
   try {
     const json = LZString.decompressFromEncodedURIComponent(compressed)

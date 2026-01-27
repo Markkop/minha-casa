@@ -322,7 +322,7 @@ describe("Validation Helpers", () => {
     })
 
     it("should throw UnauthorizedError for session without user", () => {
-      const session = { user: null } as { user: { id: string } | null }
+      const session = { user: null } as unknown as { user: { id: string } }
 
       expect(() => requireAuth(session)).toThrow(UnauthorizedError)
     })

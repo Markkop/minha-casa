@@ -214,7 +214,6 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     }
 
     const { id } = await params
-    const db = getDb()
 
     // Verify access using the helper (all members can view share status)
     const { collection: existingCollection } = await verifyCollectionAccess(id, session.user.id)

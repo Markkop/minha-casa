@@ -74,6 +74,7 @@ export function EditModal({
   // Pre-populate form when modal opens or listing changes
   useEffect(() => {
     if (isOpen && listing) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- Sync state from props on modal open
       setFormData({
         titulo: listing.titulo,
         endereco: listing.endereco,

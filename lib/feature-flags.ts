@@ -98,11 +98,13 @@ export function getFlag<K extends keyof FeatureFlags>(key: K): FeatureFlags[K] {
  * Get all feature flags with their current values
  */
 export function getAllFlags(): FeatureFlags {
-  const flags = {} as FeatureFlags;
-  for (const key of Object.keys(defaultFlags) as Array<keyof FeatureFlags>) {
-    (flags as any)[key] = getFlag(key);
-  }
-  return flags;
+  return {
+    financingSimulator: getFlag("financingSimulator"),
+    floodForecast: getFlag("floodForecast"),
+    organizations: getFlag("organizations"),
+    publicCollections: getFlag("publicCollections"),
+    mapProvider: getFlag("mapProvider"),
+  };
 }
 
 /**

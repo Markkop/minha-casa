@@ -31,7 +31,7 @@ export function NavBar() {
   const pathname = usePathname()
   const router = useRouter()
   const { data: session } = useSession()
-  const isAdmin = (session?.user as any)?.isAdmin === true
+  const isAdmin = (session?.user as { isAdmin?: boolean } | undefined)?.isAdmin === true
   const isLoggedIn = !!session?.user
 
   // Filter nav links based on feature flags and auth requirements
