@@ -31,6 +31,7 @@ import {
 } from "@/components/ui/tooltip"
 import { useCollections } from "../lib/use-collections"
 import type { Collection, Imovel } from "../lib/api"
+import type { ListingData } from "@/lib/db/schema"
 import { cn } from "@/lib/utils"
 import { ArrowDownIcon, ArrowUpIcon, MagnifyingGlassIcon } from "@radix-ui/react-icons"
 import { PencilIcon, TrashIcon, LinkIcon, Star, FolderIcon, Eye, Strikethrough, Waves, Shield, Dumbbell, Mountain, Flag, Home, Building, RefreshCw, Car, WavesLadder, BedDouble, Bath } from "lucide-react"
@@ -89,7 +90,7 @@ const FIELD_LABELS: Record<string, string> = {
   tipoImovel: "Tipo de Imóvel",
 }
 
-const COMPARABLE_FIELDS: (keyof Imovel)[] = [
+const COMPARABLE_FIELDS: (keyof Imovel & keyof ListingData)[] = [
   "titulo",
   "endereco",
   "m2Totais",
@@ -104,7 +105,6 @@ const COMPARABLE_FIELDS: (keyof Imovel)[] = [
   "academia",
   "vistaLivre",
   "piscinaTermica",
-  "tipoImovel",
 ]
 
 function valuesAreDifferent(

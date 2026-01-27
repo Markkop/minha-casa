@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import type { Imovel } from "../lib/api"
+import type { ListingData } from "@/lib/db/schema"
 import { cn } from "@/lib/utils"
 import { RefreshCw, CheckIcon } from "lucide-react"
 
@@ -11,7 +12,7 @@ import { RefreshCw, CheckIcon } from "lucide-react"
 // ============================================================================
 
 export interface FieldChange {
-  field: keyof Imovel
+  field: keyof Imovel & keyof ListingData
   label: string
   currentValue: string | number | boolean | null | undefined
   newValue: string | number | boolean | null | undefined

@@ -100,7 +100,7 @@ export function getFlag<K extends keyof FeatureFlags>(key: K): FeatureFlags[K] {
 export function getAllFlags(): FeatureFlags {
   const flags = {} as FeatureFlags;
   for (const key of Object.keys(defaultFlags) as Array<keyof FeatureFlags>) {
-    flags[key] = getFlag(key);
+    (flags as any)[key] = getFlag(key);
   }
   return flags;
 }

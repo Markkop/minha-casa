@@ -57,7 +57,7 @@ interface CollectionsContextValue {
   loadCollections: () => Promise<void>
   setActiveCollection: (collection: Collection | null) => void
   createCollection: (name: string, isDefault?: boolean) => Promise<Collection>
-  updateCollection: (id: string, updates: { name?: string; isDefault?: boolean }) => Promise<Collection>
+  updateCollection: (id: string, updates: { name?: string; isDefault?: boolean; isPublic?: boolean }) => Promise<Collection>
   deleteCollection: (id: string) => Promise<void>
   setDefaultCollection: (id: string) => Promise<Collection>
 

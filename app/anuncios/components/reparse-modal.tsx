@@ -4,6 +4,7 @@ import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { parseListingWithAI } from "../lib/api"
 import type { Imovel } from "../lib/api"
+import type { ListingData } from "@/lib/db/schema"
 import { cn } from "@/lib/utils"
 import { SparklesIcon, CheckIcon } from "lucide-react"
 
@@ -12,7 +13,7 @@ import { SparklesIcon, CheckIcon } from "lucide-react"
 // ============================================================================
 
 interface FieldChange {
-  field: keyof Imovel
+  field: keyof Imovel & keyof ListingData
   label: string
   currentValue: string | number | boolean | null | undefined
   newValue: string | number | boolean | null | undefined
@@ -46,11 +47,10 @@ const FIELD_LABELS: Record<string, string> = {
   academia: "Academia",
   vistaLivre: "Vista Livre",
   piscinaTermica: "Piscina Térmica",
-  tipoImovel: "Tipo de Imóvel",
 }
 
 // Fields to compare (excluding metadata fields)
-const COMPARABLE_FIELDS: (keyof Imovel)[] = [
+const COMPARABLE_FIELDS: (keyof Imovel & keyof ListingData)[] = [
   "titulo",
   "endereco",
   "m2Totais",
@@ -65,7 +65,6 @@ const COMPARABLE_FIELDS: (keyof Imovel)[] = [
   "academia",
   "vistaLivre",
   "piscinaTermica",
-  "tipoImovel",
 ]
 
 // ============================================================================

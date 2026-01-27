@@ -60,12 +60,6 @@ export function ImportModal({
   }, [isOpen, activeCollection?.id])
 
   const parseListingData = (listing: ImportedListing): ListingData => {
-    // Handle tipoImovel field with validation
-    let tipoImovel: "casa" | "apartamento" | null = null
-    if (listing.tipoImovel === "casa" || listing.tipoImovel === "apartamento") {
-      tipoImovel = listing.tipoImovel
-    }
-
     return {
       titulo: listing.titulo,
       endereco: listing.endereco,
@@ -83,7 +77,6 @@ export function ImportModal({
       vistaLivre: typeof listing.vistaLivre === "boolean" ? listing.vistaLivre : null,
       piscinaTermica: typeof listing.piscinaTermica === "boolean" ? listing.piscinaTermica : null,
       andar: typeof listing.andar === "number" ? listing.andar : null,
-      tipoImovel,
       link: typeof listing.link === "string" ? listing.link : null,
       imageUrl: typeof listing.imageUrl === "string" ? listing.imageUrl : null,
       contactName: typeof listing.contactName === "string" ? listing.contactName : null,

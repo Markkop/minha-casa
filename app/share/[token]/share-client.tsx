@@ -222,6 +222,7 @@ export function ShareClient({ token }: ShareClientProps) {
     return data.listings.map((listing) => ({
       id: listing.id,
       ...listing.data,
+      tipoImovel: (listing.data as any).tipoImovel || null,
       createdAt: listing.createdAt,
     }))
   }, [data])
@@ -243,7 +244,7 @@ export function ShareClient({ token }: ShareClientProps) {
     // Filter by property type
     if (propertyTypeFilter !== "all") {
       filtered = filtered.filter((imovel) => {
-        const tipoImovel = imovel.tipoImovel || null
+        const tipoImovel = (imovel as any).tipoImovel || null
         return tipoImovel === propertyTypeFilter
       })
     }
@@ -353,8 +354,8 @@ export function ShareClient({ token }: ShareClientProps) {
     )
   }
 
-  const casaCount = listings.filter((l) => l.tipoImovel === "casa").length
-  const aptoCount = listings.filter((l) => l.tipoImovel === "apartamento").length
+  const casaCount = listings.filter((l) => (l as any).tipoImovel === "casa").length
+  const aptoCount = listings.filter((l) => (l as any).tipoImovel === "apartamento").length
 
   return (
     <div className="min-h-screen bg-black text-white">
@@ -595,9 +596,9 @@ export function ShareClient({ token }: ShareClientProps) {
                               <div className="flex items-center gap-1 min-w-0">
                                 {/* Property Type Icon */}
                                 <span className="text-muted-foreground p-1 flex-shrink-0">
-                                  {imovel.tipoImovel === "casa" ? (
+                                  {(imovel as any).tipoImovel === "casa" ? (
                                     <Home className="h-4 w-4" />
-                                  ) : imovel.tipoImovel === "apartamento" ? (
+                                  ) : (imovel as any).tipoImovel === "apartamento" ? (
                                     <Building className="h-4 w-4" />
                                   ) : (
                                     <Flag className="h-4 w-4" />
@@ -645,7 +646,7 @@ export function ShareClient({ token }: ShareClientProps) {
                                 <WavesLadder className="h-4 w-4" />
                               </span>
                               {/* Piscina Térmica - show only for apartamento */}
-                              {imovel.tipoImovel === "apartamento" && (
+                              {(imovel as any).tipoImovel === "apartamento" && (
                                 <span
                                   className={cn(
                                     "flex-shrink-0 p-1",
@@ -656,7 +657,7 @@ export function ShareClient({ token }: ShareClientProps) {
                                 </span>
                               )}
                               {/* Porteiro 24h - show only for apartamento */}
-                              {imovel.tipoImovel === "apartamento" && (
+                              {(imovel as any).tipoImovel === "apartamento" && (
                                 <span
                                   className={cn(
                                     "flex-shrink-0 p-1",
@@ -667,7 +668,7 @@ export function ShareClient({ token }: ShareClientProps) {
                                 </span>
                               )}
                               {/* Academia - show only for apartamento */}
-                              {imovel.tipoImovel === "apartamento" && (
+                              {(imovel as any).tipoImovel === "apartamento" && (
                                 <span
                                   className={cn(
                                     "flex-shrink-0 p-1",
@@ -698,7 +699,7 @@ export function ShareClient({ token }: ShareClientProps) {
                                 </span>
                               </span>
                               {/* Andar - show only for apartamento */}
-                              {imovel.tipoImovel === "apartamento" && (
+                              {(imovel as any).tipoImovel === "apartamento" && (
                                 <span className="flex-shrink-0 p-1 relative w-6 h-6 flex items-center justify-center">
                                   <Building className="h-4 w-4 absolute text-muted-foreground opacity-50" />
                                   <span className={cn(

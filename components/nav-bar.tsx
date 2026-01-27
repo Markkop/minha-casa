@@ -32,7 +32,7 @@ export function NavBar() {
   const pathname = usePathname()
   const router = useRouter()
   const { data: session } = useSession()
-  const isAdmin = session?.user?.isAdmin === true
+  const isAdmin = (session?.user as any)?.isAdmin === true
   const isLoggedIn = !!session?.user
 
   // Filter nav links based on feature flags

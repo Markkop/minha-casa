@@ -33,7 +33,6 @@ const SAMPLE_OUTPUT: ListingData = {
   precoM2: 1450000 / 180,
   piscina: true,
   garagem: 2,
-  tipoImovel: "casa",
   porteiro24h: false,
   academia: false,
   vistaLivre: true,

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { requireAdmin } from "@/lib/auth-server"
 import { getDb, subscriptions, plans, users } from "@/lib/db"
 import { eq } from "drizzle-orm"
+import { alias } from "drizzle-orm/pg-core"
 import type { SubscriptionStatus } from "@/lib/db/schema"
 
 interface UpdateSubscriptionBody {
@@ -24,6 +25,9 @@ export async function GET(
 
     const db = getDb()
 
+    // Create alias for grantedBy user join
+    const grantedByUser = alias(users, "granted_by_user")
+
     // Get subscription with user and plan details
     const result = await db
       .select({
@@ -35,15 +39,15 @@ export async function GET(
           name: users.name,
         },
         grantedByUser: {
-          id: users.id,
-          email: users.email,
-          name: users.name,
+          id: grantedByUser.id,
+          email: grantedByUser.email,
+          name: grantedByUser.name,
         },
       })
       .from(subscriptions)
       .innerJoin(plans, eq(subscriptions.planId, plans.id))
       .innerJoin(users, eq(subscriptions.userId, users.id))
-      .leftJoin(users, eq(subscriptions.grantedBy, users.id))
+      .leftJoin(grantedByUser, eq(subscriptions.grantedBy, grantedByUser.id))
       .where(eq(subscriptions.id, id))
       .limit(1)
 

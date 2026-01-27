@@ -12,7 +12,7 @@ import { type GeocodedLocation } from "../lib/geocoding"
 
 export interface MapViewProps {
   geocodedListings: GeocodedListing[]
-  onListingsChange: (listings: Imovel[]) => void
+  onListingsChange: () => void
   minPreco: number
   maxPreco: number
 }
