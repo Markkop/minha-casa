@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useCallback } from "react"
+import { useState, useCallback, useEffect } from "react"
 import { ListingsTable } from "./listings-table"
 import { ListingsMap } from "./listings-map"
 import { SettingsModal } from "./settings-modal"
@@ -32,6 +32,19 @@ function AnunciosClientInner() {
   const [editingCollection, setEditingCollection] = useState<Collection | null>(null)
   const [showShareConfirm, setShowShareConfirm] = useState(false)
   const [shareData, setShareData] = useState<{ collection: Collection; listings: Imovel[] } | null>(null)
+
+  // Refresh subscription cookie on mount to ensure it's up-to-date
+  useEffect(() => {
+    // Call the subscriptions API to refresh the cookie
+    // This ensures the middleware has the correct subscription status
+    fetch("/api/subscriptions", {
+      method: "GET",
+      credentials: "include",
+    }).catch((error) => {
+      // Silently fail - if there's an error, the middleware will handle it
+      console.error("Failed to refresh subscription cookie:", error)
+    })
+  }, [])
 
   const handleListingsChange = useCallback(() => {
     // Trigger a refresh of the listings

@@ -44,9 +44,15 @@ export async function GET() {
       .limit(1)
 
     if (userSubscriptions.length === 0) {
-      // No active subscription - set inactive cookie
+      // No active subscription - set inactive cookie with proper format
       const response = NextResponse.json({ subscription: null, plan: null })
-      response.cookies.set(SUBSCRIPTION_COOKIE_NAME, SUBSCRIPTION_INACTIVE, {
+      // Use a date in the past to indicate inactive subscription
+      const pastDate = new Date(Date.now() - 86400000) // Yesterday
+      const cookieValue = createSubscriptionCookieValue(
+        SUBSCRIPTION_INACTIVE,
+        pastDate
+      )
+      response.cookies.set(SUBSCRIPTION_COOKIE_NAME, cookieValue, {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
         sameSite: "lax",
@@ -66,7 +72,7 @@ export async function GET() {
     // Set subscription cookie for middleware checks
     const response = NextResponse.json({ subscription, plan })
     const cookieValue = isExpired
-      ? SUBSCRIPTION_INACTIVE
+      ? createSubscriptionCookieValue(SUBSCRIPTION_INACTIVE, expiresAt)
       : createSubscriptionCookieValue(SUBSCRIPTION_ACTIVE, expiresAt)
 
     response.cookies.set(SUBSCRIPTION_COOKIE_NAME, cookieValue, {
