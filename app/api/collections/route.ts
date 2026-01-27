@@ -137,8 +137,18 @@ export async function POST(request: NextRequest) {
         )
       }
 
+      // Check if this is the first collection for the org
+      const existingOrgCollections = await db
+        .select()
+        .from(collections)
+        .where(eq(collections.orgId, orgId))
+        .limit(1)
+
+      const isFirstCollection = existingOrgCollections.length === 0
+      const shouldBeDefault = isDefault || isFirstCollection
+
       // If setting as default, unset other defaults for this org first
-      if (isDefault) {
+      if (shouldBeDefault && !isFirstCollection) {
         await db
           .update(collections)
           .set({ isDefault: false })
@@ -151,7 +161,7 @@ export async function POST(request: NextRequest) {
           orgId: orgId,
           userId: null,
           name: name.trim(),
-          isDefault: isDefault ?? false,
+          isDefault: shouldBeDefault,
         })
         .returning()
 
@@ -161,8 +171,23 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Check if this is the first personal collection for the user
+    const existingPersonalCollections = await db
+      .select()
+      .from(collections)
+      .where(
+        and(
+          eq(collections.userId, session.user.id),
+          isNull(collections.orgId)
+        )
+      )
+      .limit(1)
+
+    const isFirstCollection = existingPersonalCollections.length === 0
+    const shouldBeDefault = isDefault || isFirstCollection
+
     // If setting as default, unset other defaults first (for personal collections)
-    if (isDefault) {
+    if (shouldBeDefault && !isFirstCollection) {
       await db
         .update(collections)
         .set({ isDefault: false })
@@ -180,7 +205,7 @@ export async function POST(request: NextRequest) {
         userId: session.user.id,
         orgId: null,
         name: name.trim(),
-        isDefault: isDefault ?? false,
+        isDefault: shouldBeDefault,
       })
       .returning()
 

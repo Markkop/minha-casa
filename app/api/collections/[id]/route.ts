@@ -1,10 +1,60 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "@/lib/auth-server"
-import { getDb, collections, listings } from "@/lib/db"
-import { eq, and } from "drizzle-orm"
+import { getDb, collections, listings, organizationMembers, type OrgMemberRole } from "@/lib/db"
+import { eq, and, isNull } from "drizzle-orm"
 
 interface RouteParams {
   params: Promise<{ id: string }>
+}
+
+/**
+ * Helper to verify user has access to a collection
+ * Returns the collection and membership info if user has access
+ */
+async function verifyCollectionAccess(collectionId: string, userId: string) {
+  const db = getDb()
+  
+  // First, get the collection
+  const [collection] = await db
+    .select()
+    .from(collections)
+    .where(eq(collections.id, collectionId))
+  
+  if (!collection) {
+    return { collection: null, membership: null, canEdit: false }
+  }
+  
+  // Case 1: Personal collection - check if user owns it
+  if (collection.userId && !collection.orgId) {
+    if (collection.userId === userId) {
+      return { collection, membership: null, canEdit: true }
+    }
+    return { collection: null, membership: null, canEdit: false }
+  }
+  
+  // Case 2: Organization collection - check if user is a member
+  if (collection.orgId) {
+    const [membership] = await db
+      .select()
+      .from(organizationMembers)
+      .where(
+        and(
+          eq(organizationMembers.orgId, collection.orgId),
+          eq(organizationMembers.userId, userId)
+        )
+      )
+    
+    if (!membership) {
+      return { collection: null, membership: null, canEdit: false }
+    }
+    
+    // Only owners and admins can edit organization collections
+    const canEdit = membership.role === "owner" || membership.role === "admin"
+    return { collection, membership, canEdit }
+  }
+  
+  // Collection has neither userId nor orgId - shouldn't happen
+  return { collection: null, membership: null, canEdit: false }
 }
 
 /**
@@ -24,15 +74,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     const { id } = await params
     const db = getDb()
 
-    const [collection] = await db
-      .select()
-      .from(collections)
-      .where(
-        and(
-          eq(collections.id, id),
-          eq(collections.userId, session.user.id)
-        )
-      )
+    const { collection, membership } = await verifyCollectionAccess(id, session.user.id)
 
     if (!collection) {
       return NextResponse.json(
@@ -51,6 +93,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       collection: {
         ...collection,
         listingsCount: collectionListings.length,
+        userRole: membership?.role || null,
       },
     })
   } catch (error) {
@@ -86,21 +129,20 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
 
     const db = getDb()
 
-    // Verify the collection belongs to the user
-    const [existingCollection] = await db
-      .select()
-      .from(collections)
-      .where(
-        and(
-          eq(collections.id, id),
-          eq(collections.userId, session.user.id)
-        )
-      )
+    // Verify access using the helper
+    const { collection: existingCollection, canEdit } = await verifyCollectionAccess(id, session.user.id)
 
     if (!existingCollection) {
       return NextResponse.json(
         { error: "Collection not found" },
         { status: 404 }
+      )
+    }
+
+    if (!canEdit) {
+      return NextResponse.json(
+        { error: "You don't have permission to edit this collection" },
+        { status: 403 }
       )
     }
 
@@ -123,12 +165,26 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
 
     if (isDefault !== undefined) {
       updateData.isDefault = isDefault
-      // If setting as default, unset other defaults first
+      // If setting as default, unset other defaults first - SCOPED BY CONTEXT
       if (isDefault) {
-        await db
-          .update(collections)
-          .set({ isDefault: false })
-          .where(eq(collections.userId, session.user.id))
+        if (existingCollection.orgId) {
+          // Organization collection: only unset defaults for same org
+          await db
+            .update(collections)
+            .set({ isDefault: false })
+            .where(eq(collections.orgId, existingCollection.orgId))
+        } else {
+          // Personal collection: only unset defaults for user's personal collections
+          await db
+            .update(collections)
+            .set({ isDefault: false })
+            .where(
+              and(
+                eq(collections.userId, session.user.id),
+                isNull(collections.orgId)
+              )
+            )
+        }
       }
     }
 
@@ -172,16 +228,8 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     const { id } = await params
     const db = getDb()
 
-    // Verify the collection belongs to the user
-    const [existingCollection] = await db
-      .select()
-      .from(collections)
-      .where(
-        and(
-          eq(collections.id, id),
-          eq(collections.userId, session.user.id)
-        )
-      )
+    // Verify access using the helper
+    const { collection: existingCollection, canEdit } = await verifyCollectionAccess(id, session.user.id)
 
     if (!existingCollection) {
       return NextResponse.json(
@@ -190,14 +238,36 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       )
     }
 
-    // Check if it's the only collection and is default
-    if (existingCollection.isDefault) {
-      const userCollections = await db
-        .select()
-        .from(collections)
-        .where(eq(collections.userId, session.user.id))
+    if (!canEdit) {
+      return NextResponse.json(
+        { error: "You don't have permission to delete this collection" },
+        { status: 403 }
+      )
+    }
 
-      if (userCollections.length === 1) {
+    // Check if it's the only collection and is default - SCOPED BY CONTEXT
+    if (existingCollection.isDefault) {
+      let contextCollections
+      if (existingCollection.orgId) {
+        // Organization collection
+        contextCollections = await db
+          .select()
+          .from(collections)
+          .where(eq(collections.orgId, existingCollection.orgId))
+      } else {
+        // Personal collection
+        contextCollections = await db
+          .select()
+          .from(collections)
+          .where(
+            and(
+              eq(collections.userId, session.user.id),
+              isNull(collections.orgId)
+            )
+          )
+      }
+
+      if (contextCollections.length === 1) {
         return NextResponse.json(
           { error: "Cannot delete the only default collection" },
           { status: 400 }
@@ -208,19 +278,35 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     // Delete the collection (listings will be cascade deleted)
     await db.delete(collections).where(eq(collections.id, id))
 
-    // If it was the default, set another collection as default
+    // If it was the default, set another collection as default - SCOPED BY CONTEXT
     if (existingCollection.isDefault) {
-      const [firstCollection] = await db
-        .select()
-        .from(collections)
-        .where(eq(collections.userId, session.user.id))
-        .limit(1)
+      let remainingCollections
+      if (existingCollection.orgId) {
+        // Organization collection
+        remainingCollections = await db
+          .select()
+          .from(collections)
+          .where(eq(collections.orgId, existingCollection.orgId))
+          .limit(1)
+      } else {
+        // Personal collection
+        remainingCollections = await db
+          .select()
+          .from(collections)
+          .where(
+            and(
+              eq(collections.userId, session.user.id),
+              isNull(collections.orgId)
+            )
+          )
+          .limit(1)
+      }
 
-      if (firstCollection) {
+      if (remainingCollections.length > 0) {
         await db
           .update(collections)
           .set({ isDefault: true })
-          .where(eq(collections.id, firstCollection.id))
+          .where(eq(collections.id, remainingCollections[0].id))
       }
     }
 

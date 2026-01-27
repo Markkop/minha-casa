@@ -40,6 +40,7 @@ interface Organization {
   updatedAt: string
   memberCount?: number
   collectionsCount?: number
+  listingsCount?: number
   userRole?: string
 }
 
@@ -429,7 +430,7 @@ export function OrganizacoesClient() {
               className="cursor-pointer hover:border-primary/50 transition-colors"
               onClick={() => openOrgDetails(org)}
             >
-              <CardHeader>
+              <CardHeader className="pb-2">
                 <div className="flex items-start justify-between">
                   <div>
                     <CardTitle className="text-lg">{org.name}</CardTitle>
@@ -444,10 +445,37 @@ export function OrganizacoesClient() {
                   </span>
                 </div>
               </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground">
-                  Membro desde {formatDate(org.joinedAt)}
-                </p>
+              <CardContent className="space-y-3">
+                {/* Stats row */}
+                <div className="flex items-center gap-4 text-sm">
+                  <div className="flex items-center gap-1.5 text-muted-foreground">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
+                      <circle cx="9" cy="7" r="4"/>
+                      <path d="M22 21v-2a4 4 0 0 0-3-3.87"/>
+                      <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                    </svg>
+                    <span>{org.memberCount ?? 0}</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 text-muted-foreground">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/>
+                    </svg>
+                    <span>{org.collectionsCount ?? 0}</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 text-muted-foreground">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+                      <polyline points="9 22 9 12 15 12 15 22"/>
+                    </svg>
+                    <span>{org.listingsCount ?? 0}</span>
+                  </div>
+                </div>
+                {/* Date info */}
+                <div className="flex items-center justify-between text-xs text-muted-foreground pt-1 border-t">
+                  <span>Membro desde {formatDate(org.joinedAt)}</span>
+                  <span>Criada em {formatDate(org.createdAt)}</span>
+                </div>
               </CardContent>
             </Card>
           ))}
@@ -519,17 +547,51 @@ export function OrganizacoesClient() {
 
               {/* Members Section */}
               <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-lg font-semibold">Membros</h3>
-                  {canManageMembers(selectedOrg) && (
-                    <Button
-                      size="sm"
-                      onClick={() => setAddMemberModalOpen(true)}
-                    >
-                      Adicionar Membro
-                    </Button>
-                  )}
-                </div>
+                <h3 className="text-lg font-semibold">Membros</h3>
+
+                {/* Inline Add Member Form */}
+                {canManageMembers(selectedOrg) && (
+                  <div className="bg-muted/50 rounded-lg p-4 space-y-3">
+                    <p className="text-sm font-medium">Adicionar membro por email</p>
+                    <div className="flex gap-2 items-end">
+                      <div className="flex-1">
+                        <Input
+                          type="email"
+                          value={newMemberEmail}
+                          onChange={(e) => setNewMemberEmail(e.target.value)}
+                          placeholder="usuario@email.com"
+                          disabled={addingMember}
+                          className="bg-background"
+                        />
+                      </div>
+                      <Select
+                        value={newMemberRole}
+                        onValueChange={(value) =>
+                          setNewMemberRole(value as "member" | "admin")
+                        }
+                        disabled={addingMember}
+                      >
+                        <SelectTrigger className="w-32 bg-background">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="member">Membro</SelectItem>
+                          <SelectItem value="admin">Admin</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <Button
+                        onClick={addMember}
+                        disabled={!newMemberEmail.trim() || addingMember}
+                        size="default"
+                      >
+                        {addingMember ? "Adicionando..." : "Adicionar"}
+                      </Button>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      O usuario sera adicionado diretamente usando seu email. Ele deve ter uma conta no sistema.
+                    </p>
+                  </div>
+                )}
 
                 {loadingMembers ? (
                   <div className="text-center py-8 text-muted-foreground">
@@ -560,45 +622,111 @@ export function OrganizacoesClient() {
                           </TableCell>
                           <TableCell>{member.userEmail}</TableCell>
                           <TableCell>
-                            <span
-                              className={`px-2 py-1 rounded text-xs font-medium ${getRoleBadgeClass(
-                                member.role
-                              )}`}
-                            >
-                              {getRoleLabel(member.role)}
-                            </span>
+                            {/* Inline role editing for editable members */}
+                            {canManageMembers(selectedOrg) && canEditMember(member, selectedOrg.role) && selectedMember?.id !== member.id ? (
+                              <Select
+                                value={member.role}
+                                onValueChange={async (newRole) => {
+                                  if (newRole === member.role) return
+                                  setSelectedMember(member)
+                                  setEditMemberRole(newRole as "owner" | "admin" | "member")
+                                  setUpdatingMember(true)
+                                  try {
+                                    const res = await fetch(
+                                      `/api/organizations/${selectedOrg.id}/members/${member.userId}`,
+                                      {
+                                        method: "PUT",
+                                        headers: { "Content-Type": "application/json" },
+                                        body: JSON.stringify({ role: newRole }),
+                                      }
+                                    )
+                                    if (!res.ok) {
+                                      const data = await res.json()
+                                      throw new Error(data.error || "Failed to update role")
+                                    }
+                                    fetchMembers(selectedOrg.id)
+                                  } catch (err) {
+                                    alert(err instanceof Error ? err.message : "Falha ao atualizar papel")
+                                  } finally {
+                                    setUpdatingMember(false)
+                                    setSelectedMember(null)
+                                  }
+                                }}
+                                disabled={updatingMember && selectedMember?.id === member.id}
+                              >
+                                <SelectTrigger className={`w-28 h-7 text-xs ${getRoleBadgeClass(member.role)}`}>
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="member">Membro</SelectItem>
+                                  <SelectItem value="admin">Admin</SelectItem>
+                                  {selectedOrg.role === "owner" && (
+                                    <SelectItem value="owner">Dono</SelectItem>
+                                  )}
+                                </SelectContent>
+                              </Select>
+                            ) : (
+                              <span
+                                className={`px-2 py-1 rounded text-xs font-medium ${getRoleBadgeClass(
+                                  member.role
+                                )}`}
+                              >
+                                {getRoleLabel(member.role)}
+                              </span>
+                            )}
                           </TableCell>
                           <TableCell>{formatDate(member.joinedAt)}</TableCell>
                           {canManageMembers(selectedOrg) && (
                             <TableCell>
-                              {canEditMember(member, selectedOrg.role) && (
-                                <div className="flex gap-2">
+                              {/* Inline remove with confirmation */}
+                              {selectedMember?.id === member.id && removeMemberModalOpen ? (
+                                <div className="flex gap-1 items-center">
+                                  <span className="text-xs text-destructive mr-1">Remover?</span>
                                   <Button
-                                    variant="outline"
+                                    variant="destructive"
                                     size="sm"
-                                    onClick={() => openEditMemberModal(member)}
+                                    className="h-7 px-2 text-xs"
+                                    onClick={removeMember}
+                                    disabled={removingMember}
                                   >
-                                    Editar
+                                    {removingMember ? "..." : "Sim"}
                                   </Button>
                                   <Button
                                     variant="outline"
                                     size="sm"
-                                    className="text-destructive hover:text-destructive"
-                                    onClick={() => openRemoveMemberModal(member)}
+                                    className="h-7 px-2 text-xs"
+                                    onClick={() => {
+                                      setRemoveMemberModalOpen(false)
+                                      setSelectedMember(null)
+                                    }}
+                                    disabled={removingMember}
                                   >
-                                    Remover
+                                    Nao
                                   </Button>
                                 </div>
-                              )}
-                              {member.userId === session?.user?.id && member.role !== "owner" && (
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  className="text-destructive hover:text-destructive"
-                                  onClick={() => openRemoveMemberModal(member)}
-                                >
-                                  Sair
-                                </Button>
+                              ) : (
+                                <>
+                                  {canEditMember(member, selectedOrg.role) && (
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      className="text-destructive hover:text-destructive h-7 px-2 text-xs"
+                                      onClick={() => openRemoveMemberModal(member)}
+                                    >
+                                      Remover
+                                    </Button>
+                                  )}
+                                  {member.userId === session?.user?.id && member.role !== "owner" && !canEditMember(member, selectedOrg.role) && (
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      className="text-destructive hover:text-destructive h-7 px-2 text-xs"
+                                      onClick={() => openRemoveMemberModal(member)}
+                                    >
+                                      Sair
+                                    </Button>
+                                  )}
+                                </>
                               )}
                             </TableCell>
                           )}
@@ -658,177 +786,7 @@ export function OrganizacoesClient() {
         </div>
       )}
 
-      {/* Add Member Modal */}
-      {addMemberModalOpen && selectedOrg && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <Card className="w-full max-w-md mx-4">
-            <CardHeader>
-              <CardTitle>Adicionar Membro</CardTitle>
-              <CardDescription>
-                Adicione um novo membro a {selectedOrg.name}
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="member-email">Email do Usuario</Label>
-                <Input
-                  id="member-email"
-                  type="email"
-                  value={newMemberEmail}
-                  onChange={(e) => setNewMemberEmail(e.target.value)}
-                  placeholder="usuario@email.com"
-                  disabled={addingMember}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="member-role">Papel</Label>
-                <Select
-                  value={newMemberRole}
-                  onValueChange={(value) =>
-                    setNewMemberRole(value as "member" | "admin")
-                  }
-                  disabled={addingMember}
-                >
-                  <SelectTrigger id="member-role">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="member">Membro</SelectItem>
-                    <SelectItem value="admin">Admin</SelectItem>
-                  </SelectContent>
-                </Select>
-                <p className="text-xs text-muted-foreground">
-                  Admins podem adicionar e remover membros.
-                </p>
-              </div>
-              <div className="flex gap-2 justify-end pt-4">
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setAddMemberModalOpen(false)
-                    setNewMemberEmail("")
-                    setNewMemberRole("member")
-                  }}
-                  disabled={addingMember}
-                >
-                  Cancelar
-                </Button>
-                <Button
-                  onClick={addMember}
-                  disabled={!newMemberEmail.trim() || addingMember}
-                >
-                  {addingMember ? "Adicionando..." : "Adicionar"}
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
-
-      {/* Edit Member Modal */}
-      {editMemberModalOpen && selectedOrg && selectedMember && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <Card className="w-full max-w-md mx-4">
-            <CardHeader>
-              <CardTitle>Editar Membro</CardTitle>
-              <CardDescription>
-                Alterar papel de {selectedMember.userName}
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="edit-member-role">Papel</Label>
-                <Select
-                  value={editMemberRole}
-                  onValueChange={(value) =>
-                    setEditMemberRole(value as "owner" | "admin" | "member")
-                  }
-                  disabled={updatingMember}
-                >
-                  <SelectTrigger id="edit-member-role">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="member">Membro</SelectItem>
-                    <SelectItem value="admin">Admin</SelectItem>
-                    {selectedOrg.role === "owner" && (
-                      <SelectItem value="owner">Dono</SelectItem>
-                    )}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="flex gap-2 justify-end pt-4">
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setEditMemberModalOpen(false)
-                    setSelectedMember(null)
-                  }}
-                  disabled={updatingMember}
-                >
-                  Cancelar
-                </Button>
-                <Button
-                  onClick={updateMemberRole}
-                  disabled={updatingMember || editMemberRole === selectedMember.role}
-                >
-                  {updatingMember ? "Salvando..." : "Salvar"}
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
-
-      {/* Remove Member Confirmation Modal */}
-      {removeMemberModalOpen && selectedOrg && selectedMember && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <Card className="w-full max-w-md mx-4">
-            <CardHeader>
-              <CardTitle className="text-destructive">
-                {selectedMember.userId === session?.user?.id
-                  ? "Sair da Organizacao"
-                  : "Remover Membro"}
-              </CardTitle>
-              <CardDescription>
-                {selectedMember.userId === session?.user?.id
-                  ? `Tem certeza que deseja sair de ${selectedOrg.name}?`
-                  : `Tem certeza que deseja remover ${selectedMember.userName} de ${selectedOrg.name}?`}
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <p className="text-sm text-muted-foreground">
-                {selectedMember.userId === session?.user?.id
-                  ? "Voce perdera acesso a todas as colecoes desta organizacao."
-                  : "O usuario perdera acesso a todas as colecoes desta organizacao."}
-              </p>
-              <div className="flex gap-2 justify-end pt-4">
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setRemoveMemberModalOpen(false)
-                    setSelectedMember(null)
-                  }}
-                  disabled={removingMember}
-                >
-                  Cancelar
-                </Button>
-                <Button
-                  variant="destructive"
-                  onClick={removeMember}
-                  disabled={removingMember}
-                >
-                  {removingMember
-                    ? "Removendo..."
-                    : selectedMember.userId === session?.user?.id
-                    ? "Sair"
-                    : "Remover"}
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
+      {/* Member modals removed - using inline management instead */}
 
       {/* Delete Organization Confirmation Modal */}
       {deleteOrgModalOpen && selectedOrg && (

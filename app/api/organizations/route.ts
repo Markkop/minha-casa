@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "@/lib/auth-server"
-import { getDb, organizations, organizationMembers } from "@/lib/db"
-import { eq } from "drizzle-orm"
+import { getDb, organizations, organizationMembers, collections, listings } from "@/lib/db"
+import { eq, sql } from "drizzle-orm"
 
 /**
  * GET /api/organizations
- * List all organizations the user is a member of
+ * List all organizations the user is a member of with counts
  */
 export async function GET() {
   try {
@@ -30,11 +30,38 @@ export async function GET() {
       .innerJoin(organizations, eq(organizationMembers.orgId, organizations.id))
       .where(eq(organizationMembers.userId, session.user.id))
 
-    const userOrganizations = memberships.map((m) => ({
-      ...m.organization,
-      role: m.role,
-      joinedAt: m.joinedAt,
-    }))
+    // For each organization, get counts
+    const userOrganizations = await Promise.all(
+      memberships.map(async (m) => {
+        // Get member count
+        const memberCountResult = await db
+          .select({ count: sql<number>`count(*)::int` })
+          .from(organizationMembers)
+          .where(eq(organizationMembers.orgId, m.organization.id))
+        
+        // Get collections count
+        const collectionsCountResult = await db
+          .select({ count: sql<number>`count(*)::int` })
+          .from(collections)
+          .where(eq(collections.orgId, m.organization.id))
+        
+        // Get listings count (sum of all listings in org collections)
+        const listingsCountResult = await db
+          .select({ count: sql<number>`count(*)::int` })
+          .from(listings)
+          .innerJoin(collections, eq(listings.collectionId, collections.id))
+          .where(eq(collections.orgId, m.organization.id))
+
+        return {
+          ...m.organization,
+          role: m.role,
+          joinedAt: m.joinedAt,
+          memberCount: memberCountResult[0]?.count ?? 0,
+          collectionsCount: collectionsCountResult[0]?.count ?? 0,
+          listingsCount: listingsCountResult[0]?.count ?? 0,
+        }
+      })
+    )
 
     return NextResponse.json({ organizations: userOrganizations })
   } catch (error) {

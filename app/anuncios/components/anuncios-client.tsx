@@ -24,6 +24,7 @@ function AnunciosClientInner() {
     loadListings,
     refreshTrigger,
     triggerRefresh,
+    orgContext,
   } = useCollections()
 
   const [showSettings, setShowSettings] = useState(false)
@@ -122,6 +123,73 @@ function AnunciosClientInner() {
           <p className="text-destructive mb-2">Erro ao carregar dados</p>
           <p className="text-sm text-muted-foreground">{error}</p>
         </div>
+      </div>
+    )
+  }
+
+  // Show empty state when no collections exist
+  if (collections.length === 0) {
+    const isOrgContext = orgContext.type === "organization"
+    const contextName = isOrgContext ? orgContext.organizationName : "pessoal"
+
+    return (
+      <div className="min-h-screen bg-black text-white">
+        {/* Header */}
+        <header className="border-b border-brightGrey bg-raisinBlack">
+          <div className="max-w-7xl mx-auto px-4 py-6">
+            <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
+              <div className="flex-1 min-w-0">
+                <h1 className="text-3xl font-bold text-primary mb-2">
+                  🏘️ Anúncios de Imóveis
+                </h1>
+                <p className="text-ashGray">
+                  Cole anúncios de imóveis e deixe a IA extrair os dados automaticamente.
+                </p>
+              </div>
+            </div>
+          </div>
+        </header>
+
+        {/* Collection Modal for creating first collection */}
+        <CollectionModal
+          isOpen={showCollectionModal}
+          onClose={handleCollectionModalClose}
+          collection={null}
+          onCollectionChange={handleListingsChange}
+        />
+
+        {/* Empty State */}
+        <main className="max-w-7xl mx-auto px-4 py-12">
+          <Card className="bg-raisinBlack border-brightGrey max-w-lg mx-auto">
+            <CardContent className="py-12 text-center space-y-6">
+              <div className="text-6xl">📁</div>
+              <div className="space-y-2">
+                <h2 className="text-xl font-semibold text-white">
+                  {isOrgContext
+                    ? `Nenhuma coleção na organização "${contextName}"`
+                    : "Nenhuma coleção pessoal"}
+                </h2>
+                <p className="text-sm text-muted-foreground max-w-sm mx-auto">
+                  {isOrgContext
+                    ? "Esta organização ainda não possui coleções. Crie a primeira coleção para começar a salvar imóveis."
+                    : "Você ainda não possui coleções pessoais. Crie sua primeira coleção para começar a salvar imóveis."}
+                </p>
+              </div>
+              <button
+                onClick={handleCreateCollection}
+                className={cn(
+                  "px-6 py-3 rounded-lg text-sm font-medium transition-all",
+                  "bg-primary text-primary-foreground",
+                  "hover:bg-primary/90",
+                  "flex items-center gap-2 mx-auto"
+                )}
+              >
+                <span>+</span>
+                <span>Criar Primeira Coleção</span>
+              </button>
+            </CardContent>
+          </Card>
+        </main>
       </div>
     )
   }

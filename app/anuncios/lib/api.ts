@@ -252,6 +252,30 @@ export async function deleteCollection(id: string): Promise<void> {
   await handleResponse<{ success: boolean }>(response)
 }
 
+/**
+ * Copy a collection to another profile (personal or organization)
+ */
+export async function copyCollection(
+  id: string,
+  targetOrgId: string | null,
+  options?: { includeListings?: boolean; newName?: string }
+): Promise<{ collection: Collection; copiedListingsCount: number }> {
+  const response = await fetch(`/api/collections/${id}/copy`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      targetOrgId,
+      includeListings: options?.includeListings ?? true,
+      newName: options?.newName,
+    }),
+  })
+  const data = await handleResponse<{ collection: ApiCollection; copiedListingsCount: number }>(response)
+  return {
+    collection: toCollection(data.collection),
+    copiedListingsCount: data.copiedListingsCount,
+  }
+}
+
 // ============================================================================
 // LISTINGS API
 // ============================================================================

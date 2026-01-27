@@ -1,7 +1,6 @@
 "use client"
 
 import { useEffect, useState, useCallback } from "react"
-import { useRouter, usePathname } from "next/navigation"
 import {
   Select,
   SelectContent,
@@ -59,8 +58,6 @@ export function OrganizationSwitcher({
   onContextChange,
   className,
 }: OrganizationSwitcherProps) {
-  const router = useRouter()
-  const pathname = usePathname()
   const [organizations, setOrganizations] = useState<Organization[]>([])
   const [context, setContext] = useState<OrganizationContext>({ type: "personal" })
   const [loading, setLoading] = useState(true)
@@ -127,10 +124,8 @@ export function OrganizationSwitcher({
     setStoredOrgContext(newContext)
     onContextChange?.(newContext)
 
-    // Refresh the page to reload collections with new context
-    if (pathname === "/anuncios") {
-      router.refresh()
-    }
+    // Force full page reload to reset all state and reload collections with new context
+    window.location.reload()
   }
 
   const currentValue = context.type === "personal" ? "personal" : context.organizationId

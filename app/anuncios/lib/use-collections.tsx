@@ -14,6 +14,7 @@ import {
   createCollection as apiCreateCollection,
   updateCollection as apiUpdateCollection,
   deleteCollection as apiDeleteCollection,
+  copyCollection as apiCopyCollection,
   createListing as apiCreateListing,
   updateApiListing,
   deleteListing as apiDeleteListing,
@@ -57,9 +58,11 @@ interface CollectionsContextValue {
   loadCollections: () => Promise<void>
   setActiveCollection: (collection: Collection | null) => void
   createCollection: (name: string, isDefault?: boolean) => Promise<Collection>
+  createCollectionInProfile: (name: string, targetOrgId: string | null, isDefault?: boolean) => Promise<Collection>
   updateCollection: (id: string, updates: { name?: string; isDefault?: boolean; isPublic?: boolean }) => Promise<Collection>
   deleteCollection: (id: string) => Promise<void>
   setDefaultCollection: (id: string) => Promise<Collection>
+  copyCollectionToProfile: (collectionId: string, targetOrgId: string | null, options?: { includeListings?: boolean; newName?: string }) => Promise<{ collection: Collection; copiedListingsCount: number }>
 
   // Sharing actions
   getShareStatus: (collectionId: string) => Promise<ShareInfo>
@@ -103,6 +106,7 @@ interface CollectionsProviderProps {
 export function CollectionsProvider({ children }: CollectionsProviderProps) {
   // Organization context
   const [orgContext, setOrgContextState] = useState<OrganizationContext>({ type: "personal" })
+  const [orgContextInitialized, setOrgContextInitialized] = useState(false)
 
   // Collections state
   const [collections, setCollections] = useState<Collection[]>([])
@@ -125,6 +129,7 @@ export function CollectionsProvider({ children }: CollectionsProviderProps) {
   useEffect(() => {
     const storedContext = getStoredOrgContext()
     setOrgContextState(storedContext)
+    setOrgContextInitialized(true)
   }, [])
 
   const setOrgContext = useCallback((context: OrganizationContext) => {
@@ -193,6 +198,29 @@ export function CollectionsProvider({ children }: CollectionsProviderProps) {
         }
         return [...prev, newCollection]
       })
+      triggerRefresh()
+      return newCollection
+    },
+    [triggerRefresh, orgContext]
+  )
+
+  // Create a collection in a specific profile (personal or organization)
+  const createCollectionInProfile = useCallback(
+    async (name: string, targetOrgId: string | null, isDefault?: boolean): Promise<Collection> => {
+      // targetOrgId = null means personal, otherwise org
+      const newCollection = await apiCreateCollection(name, isDefault, targetOrgId ?? undefined)
+      
+      // Only update local state if we're creating in the current context
+      const currentOrgId = orgContext.type === "organization" ? orgContext.organizationId : null
+      if (targetOrgId === currentOrgId) {
+        setCollections((prev) => {
+          if (isDefault) {
+            return [...prev.map((c) => ({ ...c, isDefault: false })), newCollection]
+          }
+          return [...prev, newCollection]
+        })
+      }
+      
       triggerRefresh()
       return newCollection
     },
@@ -268,6 +296,27 @@ export function CollectionsProvider({ children }: CollectionsProviderProps) {
       return updatedCollection
     },
     [activeCollection, triggerRefresh]
+  )
+
+  // Copy a collection to another profile (personal or organization)
+  const copyCollectionToProfile = useCallback(
+    async (
+      collectionId: string,
+      targetOrgId: string | null,
+      options?: { includeListings?: boolean; newName?: string }
+    ): Promise<{ collection: Collection; copiedListingsCount: number }> => {
+      const result = await apiCopyCollection(collectionId, targetOrgId, options)
+      
+      // Only update local state if we're copying to the current context
+      const currentOrgId = orgContext.type === "organization" ? orgContext.organizationId : null
+      if (targetOrgId === currentOrgId) {
+        setCollections((prev) => [...prev, result.collection])
+      }
+      
+      triggerRefresh()
+      return result
+    },
+    [triggerRefresh, orgContext]
   )
 
   // ============================================================================
@@ -425,9 +474,12 @@ export function CollectionsProvider({ children }: CollectionsProviderProps) {
   // ============================================================================
 
   // Load collections on mount and when org context changes
+  // Only load after org context has been initialized from localStorage
   useEffect(() => {
-    loadCollections()
-  }, [orgContext]) // eslint-disable-line react-hooks/exhaustive-deps
+    if (orgContextInitialized) {
+      loadCollections()
+    }
+  }, [orgContext, orgContextInitialized]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Load listings when active collection changes
   useEffect(() => {
@@ -461,9 +513,11 @@ export function CollectionsProvider({ children }: CollectionsProviderProps) {
     loadCollections,
     setActiveCollection,
     createCollection,
+    createCollectionInProfile,
     updateCollection,
     deleteCollection,
     setDefaultCollection,
+    copyCollectionToProfile,
 
     // Sharing actions
     getShareStatus,

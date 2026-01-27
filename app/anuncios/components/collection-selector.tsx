@@ -47,6 +47,38 @@ export function CollectionSelector({
   // - A collection is created/deleted/updated (handled by the collection actions)
   // Adding/removing listings does NOT require reloading collections
 
+  // Handle empty collections state
+  if (collections.length === 0) {
+    return (
+      <div className="flex flex-wrap items-center gap-2">
+        {/* Organization Context Indicator */}
+        {isOrgContext && orgContext.organizationName && (
+          <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-primary/10 text-primary text-xs font-medium">
+            <span>👥</span>
+            <span className="truncate max-w-[120px]">{orgContext.organizationName}</span>
+          </div>
+        )}
+
+        <span className="text-sm text-muted-foreground">Nenhuma coleção</span>
+
+        {onCreateCollection && (
+          <button
+            onClick={onCreateCollection}
+            className={cn(
+              "px-3 py-1.5 rounded-lg text-sm transition-all",
+              "bg-primary text-primary-foreground",
+              "hover:bg-primary/90",
+              "flex items-center gap-1.5"
+            )}
+          >
+            <PlusIcon className="h-4 w-4" />
+            <span>Criar</span>
+          </button>
+        )}
+      </div>
+    )
+  }
+
   const handleCollectionChange = (collectionId: string) => {
     const collection = collections.find((c) => c.id === collectionId) || null
     setActiveCollection(collection)

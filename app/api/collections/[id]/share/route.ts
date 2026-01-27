@@ -1,10 +1,60 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "@/lib/auth-server"
-import { getDb, collections } from "@/lib/db"
+import { getDb, collections, organizationMembers } from "@/lib/db"
 import { eq, and } from "drizzle-orm"
 
 interface RouteParams {
   params: Promise<{ id: string }>
+}
+
+/**
+ * Helper to verify user has access to a collection
+ * Returns the collection and membership info if user has access
+ */
+async function verifyCollectionAccess(collectionId: string, userId: string) {
+  const db = getDb()
+  
+  // First, get the collection
+  const [collection] = await db
+    .select()
+    .from(collections)
+    .where(eq(collections.id, collectionId))
+  
+  if (!collection) {
+    return { collection: null, membership: null, canEdit: false }
+  }
+  
+  // Case 1: Personal collection - check if user owns it
+  if (collection.userId && !collection.orgId) {
+    if (collection.userId === userId) {
+      return { collection, membership: null, canEdit: true }
+    }
+    return { collection: null, membership: null, canEdit: false }
+  }
+  
+  // Case 2: Organization collection - check if user is a member
+  if (collection.orgId) {
+    const [membership] = await db
+      .select()
+      .from(organizationMembers)
+      .where(
+        and(
+          eq(organizationMembers.orgId, collection.orgId),
+          eq(organizationMembers.userId, userId)
+        )
+      )
+    
+    if (!membership) {
+      return { collection: null, membership: null, canEdit: false }
+    }
+    
+    // Only owners and admins can edit organization collections
+    const canEdit = membership.role === "owner" || membership.role === "admin"
+    return { collection, membership, canEdit }
+  }
+  
+  // Collection has neither userId nor orgId - shouldn't happen
+  return { collection: null, membership: null, canEdit: false }
 }
 
 /**
@@ -36,21 +86,20 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     const { id } = await params
     const db = getDb()
 
-    // Verify the collection belongs to the user
-    const [existingCollection] = await db
-      .select()
-      .from(collections)
-      .where(
-        and(
-          eq(collections.id, id),
-          eq(collections.userId, session.user.id)
-        )
-      )
+    // Verify access using the helper - need edit permission to share
+    const { collection: existingCollection, canEdit } = await verifyCollectionAccess(id, session.user.id)
 
     if (!existingCollection) {
       return NextResponse.json(
         { error: "Collection not found" },
         { status: 404 }
+      )
+    }
+
+    if (!canEdit) {
+      return NextResponse.json(
+        { error: "You don't have permission to share this collection" },
+        { status: 403 }
       )
     }
 
@@ -110,21 +159,20 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     const { id } = await params
     const db = getDb()
 
-    // Verify the collection belongs to the user
-    const [existingCollection] = await db
-      .select()
-      .from(collections)
-      .where(
-        and(
-          eq(collections.id, id),
-          eq(collections.userId, session.user.id)
-        )
-      )
+    // Verify access using the helper - need edit permission to revoke sharing
+    const { collection: existingCollection, canEdit } = await verifyCollectionAccess(id, session.user.id)
 
     if (!existingCollection) {
       return NextResponse.json(
         { error: "Collection not found" },
         { status: 404 }
+      )
+    }
+
+    if (!canEdit) {
+      return NextResponse.json(
+        { error: "You don't have permission to revoke sharing for this collection" },
+        { status: 403 }
       )
     }
 
@@ -168,16 +216,8 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     const { id } = await params
     const db = getDb()
 
-    // Verify the collection belongs to the user
-    const [existingCollection] = await db
-      .select()
-      .from(collections)
-      .where(
-        and(
-          eq(collections.id, id),
-          eq(collections.userId, session.user.id)
-        )
-      )
+    // Verify access using the helper (all members can view share status)
+    const { collection: existingCollection } = await verifyCollectionAccess(id, session.user.id)
 
     if (!existingCollection) {
       return NextResponse.json(
