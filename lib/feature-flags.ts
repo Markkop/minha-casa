@@ -23,8 +23,8 @@ export interface FeatureFlags {
 
 // Default values for all feature flags
 const defaultFlags: FeatureFlags = {
-  financingSimulator: false, // Hide /casa route
-  floodForecast: false, // Hide /floodrisk route
+  financingSimulator: true, // Hide /casa route - HARDCODED FOR TESTING
+  floodForecast: true, // Hide /floodrisk route - HARDCODED FOR TESTING
   organizations: true, // Enable organizations feature
   publicCollections: true, // Enable public collection sharing
   mapProvider: "auto",

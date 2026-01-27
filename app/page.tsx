@@ -1,6 +1,8 @@
 import Link from "next/link"
 import { getFlag } from "@/lib/feature-flags"
 import { DemoListingsSection } from "./components/demo-listings-section"
+import { DemoFinanciamentoSection } from "./components/demo-financiamento-section"
+import { DemoFloodSection } from "./components/demo-flood-section"
 
 interface Feature {
   href: string
@@ -11,17 +13,7 @@ interface Feature {
   featureFlag?: "financingSimulator" | "floodForecast" | "organizations"
 }
 
-const allFeatures: Feature[] = [
-  {
-    href: "/casa",
-    icon: "🏠",
-    title: "Simulador de Financiamento",
-    description:
-      "Simule financiamentos imobiliarios com Sistema SAC, analise de cenarios, estrategias de amortizacao e comparacao permuta vs venda.",
-    highlights: ["Sistema SAC", "Analise de cenarios", "Amortizacao acelerada"],
-    featureFlag: "financingSimulator",
-  },
-]
+const allFeatures: Feature[] = []
 
 export default function Home() {
   // Filter features based on feature flags
@@ -81,8 +73,10 @@ export default function Home() {
           ))}
         </div>
 
-        {/* Demo Section */}
+        {/* Demo Sections */}
         <DemoListingsSection />
+        <DemoFinanciamentoSection />
+        <DemoFloodSection />
 
         {/* Subtle decorative element */}
         <div className="mt-20 text-center">

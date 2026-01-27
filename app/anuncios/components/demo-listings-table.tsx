@@ -354,10 +354,6 @@ export function DemoListingsTable({ listings, onUpdateListing, onDeleteListing }
           </Table>
         </div>
       </Card>
-
-      <div className="text-[10px] text-ashGray/50 uppercase tracking-widest text-center mt-2">
-        Modo de Demonstração Interativo
-      </div>
     </div>
   )
 }

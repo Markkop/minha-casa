@@ -143,21 +143,6 @@ export function DemoListingsSection() {
         onClose={() => setIsParserOpen(false)}
         onListingAdded={handleListingAdded}
       />
-
-      <div className="bg-primary/5 border border-primary/20 rounded-2xl p-6 text-center space-y-4">
-        <h3 className="text-white font-bold">Salve seus anuncios</h3>
-        <p className="text-ashGray text-sm max-w-lg mx-auto">
-          Crie sua conta gratuitamente para salvar suas colecoes de imoveis, sincronizar entre dispositivos e compartilhar com facilidade.
-        </p>
-        <div className="flex flex-wrap justify-center gap-4 pt-2">
-          <a
-            href="/anuncios"
-            className="px-8 py-3 rounded-xl bg-white text-black font-bold hover:bg-ashGray transition-colors"
-          >
-            Comecar Agora
-          </a>
-        </div>
-      </div>
     </section>
   )
 }
