@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useMemo, useEffect } from "react"
+import React, { useState, useMemo, useEffect, startTransition } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -71,7 +71,9 @@ function CurrencyInput({ value, onChange }: { value: number; onChange: (v: numbe
   useEffect(() => {
     if (!isFocused && prevValueRef.current !== value) {
       prevValueRef.current = value
-      setInputValue(value.toString())
+      startTransition(() => {
+        setInputValue(value.toString())
+      })
     }
   }, [value, isFocused])
 
@@ -101,7 +103,9 @@ function PercentInput({ value, onChange }: { value: number; onChange: (v: number
   useEffect(() => {
     if (!isFocused && prevValueRef.current !== value) {
       prevValueRef.current = value
-      setInputValue((value * 100).toFixed(2))
+      startTransition(() => {
+        setInputValue((value * 100).toFixed(2))
+      })
     }
   }, [value, isFocused])
 
@@ -204,7 +208,7 @@ export function DemoFinanciamentoSection() {
       custoCondominioMensal: DEMO_DEFAULTS.custoCondominioMensal,
       seguros: DEMO_DEFAULTS.seguros,
     }).filter(c => estrategias.includes(c.estrategia))
-  }, [valorImovel, valorApartamento, capitalDisponivel, taxaAnual, trMensal, prazoMeses, aporteExtra, rendaMensal, imovelMultipliers, aptoMultipliers, estrategias])
+  }, [valorImovel, valorApartamento, capitalDisponivel, taxaAnual, trMensal, aporteExtra, imovelMultipliers, aptoMultipliers, estrategias])
 
   // Sorted scenarios
   const sortedCenarios = useMemo(() => {
