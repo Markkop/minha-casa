@@ -51,7 +51,7 @@ export function SignupClient() {
       // New users will get an "inactive" status, which is expected
       await fetch("/api/subscriptions", { credentials: "include" })
 
-      router.push("/")
+      router.push("/anuncios")
       router.refresh()
     } catch {
       setError("Erro ao criar conta. Tente novamente.")

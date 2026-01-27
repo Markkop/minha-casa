@@ -991,7 +991,7 @@ export function ListingsTable({ listings, onListingsChange, hasApiKey = true }: 
                   >
                     {/* Sticky Image Column */}
                     <TableCell
-                      className="sticky left-0 z-10 p-2 bg-raisinBlack"
+                      className="sticky left-0 z-20 p-2 bg-raisinBlack"
                     >
                       <div
                         className={cn(

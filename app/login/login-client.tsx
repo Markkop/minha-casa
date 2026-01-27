@@ -37,8 +37,8 @@ export function LoginClient() {
       // This sets the subscription-status cookie that the proxy checks
       await fetch("/api/subscriptions", { credentials: "include" })
 
-      // Redirect to the original URL if provided, otherwise go to home
-      const redirectTo = searchParams.get("redirect") || "/"
+      // Redirect to the original URL if provided, otherwise go to anuncios
+      const redirectTo = searchParams.get("redirect") || "/anuncios"
       router.push(redirectTo)
       router.refresh()
     } catch {
