@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo, useEffect } from "react"
+import React, { useState, useMemo, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -66,9 +66,13 @@ interface SortState {
 function CurrencyInput({ value, onChange }: { value: number; onChange: (v: number) => void }) {
   const [isFocused, setIsFocused] = useState(false)
   const [inputValue, setInputValue] = useState(value.toString())
+  const prevValueRef = React.useRef(value)
 
   useEffect(() => {
-    if (!isFocused) setInputValue(value.toString())
+    if (!isFocused && prevValueRef.current !== value) {
+      prevValueRef.current = value
+      setInputValue(value.toString())
+    }
   }, [value, isFocused])
 
   return (
@@ -92,9 +96,13 @@ function CurrencyInput({ value, onChange }: { value: number; onChange: (v: numbe
 function PercentInput({ value, onChange }: { value: number; onChange: (v: number) => void }) {
   const [isFocused, setIsFocused] = useState(false)
   const [inputValue, setInputValue] = useState((value * 100).toFixed(2))
+  const prevValueRef = React.useRef(value)
 
   useEffect(() => {
-    if (!isFocused) setInputValue((value * 100).toFixed(2))
+    if (!isFocused && prevValueRef.current !== value) {
+      prevValueRef.current = value
+      setInputValue((value * 100).toFixed(2))
+    }
   }, [value, isFocused])
 
   return (
@@ -158,11 +166,9 @@ export function DemoFinanciamentoSection() {
   const [valorImovel, setValorImovel] = useState(DEMO_DEFAULTS.valorImovel)
   const [taxaAnual, setTaxaAnual] = useState(DEMO_DEFAULTS.taxaAnual)
   const [trMensal, setTrMensal] = useState(DEMO_DEFAULTS.trMensal)
-  const [prazoMeses, setPrazoMeses] = useState(DEMO_DEFAULTS.prazoMeses)
   const [capitalDisponivel, setCapitalDisponivel] = useState(DEMO_DEFAULTS.capitalDisponivel)
   const [valorApartamento, setValorApartamento] = useState(DEMO_DEFAULTS.valorApartamento)
   const [aporteExtra, setAporteExtra] = useState(DEMO_DEFAULTS.aporteExtra)
-  const [rendaMensal, setRendaMensal] = useState(DEMO_DEFAULTS.rendaMensal)
 
   // Filter states
   const [imovelMultipliers, setImovelMultipliers] = useState<number[]>([1.0])
@@ -192,9 +198,9 @@ export function DemoFinanciamentoSection() {
       haircut: DEMO_DEFAULTS.haircut,
       taxaAnual,
       trMensal,
-      prazoMeses,
+      prazoMeses: DEMO_DEFAULTS.prazoMeses,
       aporteExtra,
-      rendaMensal,
+      rendaMensal: DEMO_DEFAULTS.rendaMensal,
       custoCondominioMensal: DEMO_DEFAULTS.custoCondominioMensal,
       seguros: DEMO_DEFAULTS.seguros,
     }).filter(c => estrategias.includes(c.estrategia))

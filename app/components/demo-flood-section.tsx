@@ -94,7 +94,7 @@ export function DemoFloodSection() {
             }>
               <Canvas
                 shadows
-                camera={{ position: [15, 8, 15] as [number, number, number], fov: 40 }}
+                camera={{ position: [5, 8, 12] as [number, number, number], fov: 40 }}
                 gl={{ preserveDrawingBuffer: true, antialias: true }}
                 style={{ width: '100%', height: '100%' }}
               >
@@ -110,8 +110,6 @@ export function DemoFloodSection() {
                   maxPolarAngle={Math.PI / 2.1}
                   enablePan={false}
                   enableZoom={false}
-                  autoRotate
-                  autoRotateSpeed={0.5}
                 />
               </Canvas>
             </Suspense>
