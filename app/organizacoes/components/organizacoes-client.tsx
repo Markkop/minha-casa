@@ -355,12 +355,18 @@ export function OrganizacoesClient() {
     }
   }
 
+  function getUserRole(org: Organization): string {
+    return org.userRole ?? org.role
+  }
+
   function canManageMembers(org: Organization) {
-    return org.role === "owner" || org.role === "admin"
+    const role = getUserRole(org)
+    return role === "owner" || role === "admin"
   }
 
   function canDeleteOrg(org: Organization) {
-    return org.role === "owner"
+    const role = getUserRole(org)
+    return role === "owner"
   }
 
   function canEditMember(member: Member, currentUserRole: string) {
@@ -623,7 +629,7 @@ export function OrganizacoesClient() {
                           <TableCell>{member.userEmail}</TableCell>
                           <TableCell>
                             {/* Inline role editing for editable members */}
-                            {canManageMembers(selectedOrg) && canEditMember(member, selectedOrg.role) && selectedMember?.id !== member.id ? (
+                            {canManageMembers(selectedOrg) && canEditMember(member, getUserRole(selectedOrg)) && selectedMember?.id !== member.id ? (
                               <Select
                                 value={member.role}
                                 onValueChange={async (newRole) => {
@@ -660,7 +666,7 @@ export function OrganizacoesClient() {
                                 <SelectContent>
                                   <SelectItem value="member">Membro</SelectItem>
                                   <SelectItem value="admin">Admin</SelectItem>
-                                  {selectedOrg.role === "owner" && (
+                                  {getUserRole(selectedOrg) === "owner" && (
                                     <SelectItem value="owner">Dono</SelectItem>
                                   )}
                                 </SelectContent>
@@ -706,7 +712,7 @@ export function OrganizacoesClient() {
                                 </div>
                               ) : (
                                 <>
-                                  {canEditMember(member, selectedOrg.role) && (
+                                  {canEditMember(member, getUserRole(selectedOrg)) && (
                                     <Button
                                       variant="outline"
                                       size="sm"
@@ -716,7 +722,7 @@ export function OrganizacoesClient() {
                                       Remover
                                     </Button>
                                   )}
-                                  {member.userId === session?.user?.id && member.role !== "owner" && !canEditMember(member, selectedOrg.role) && (
+                                  {member.userId === session?.user?.id && member.role !== "owner" && !canEditMember(member, getUserRole(selectedOrg)) && (
                                     <Button
                                       variant="outline"
                                       size="sm"
