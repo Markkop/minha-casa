@@ -13,14 +13,6 @@ interface Feature {
 
 const allFeatures: Feature[] = [
   {
-    href: "/anuncios",
-    icon: "🏘️",
-    title: "Gerenciador de Anuncios",
-    description:
-      "Cole anuncios de imoveis e deixe a IA extrair automaticamente todos os dados relevantes: preco, area, quartos, localizacao e mais.",
-    highlights: ["Extracao com IA", "Colecoes organizadas", "Compartilhamento"],
-  },
-  {
     href: "/casa",
     icon: "🏠",
     title: "Simulador de Financiamento",
@@ -89,10 +81,8 @@ export default function Home() {
           ))}
         </div>
 
-        {/* Demo Section - Only shown for listings feature */}
-        {features.some((f) => f.href === "/anuncios") && (
-          <DemoListingsSection />
-        )}
+        {/* Demo Section */}
+        <DemoListingsSection />
 
         {/* Subtle decorative element */}
         <div className="mt-20 text-center">

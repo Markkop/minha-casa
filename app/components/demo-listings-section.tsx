@@ -111,10 +111,10 @@ export function DemoListingsSection() {
         <div>
           <h2 className="text-2xl font-bold text-white flex items-center gap-2">
             <span>🏘️</span>
-            <span>Experimente o Gerenciador</span>
+            <span>Gerenciador de Anuncios</span>
           </h2>
           <p className="text-ashGray text-sm">
-            Teste as funcionalidades de organização e o parser com IA agora mesmo.
+            Cole anuncios de imoveis e deixe a IA extrair automaticamente todos os dados relevantes.
           </p>
         </div>
         
@@ -145,16 +145,16 @@ export function DemoListingsSection() {
       />
 
       <div className="bg-primary/5 border border-primary/20 rounded-2xl p-6 text-center space-y-4">
-        <h3 className="text-white font-bold">Gostou da experiência?</h3>
+        <h3 className="text-white font-bold">Salve seus anuncios</h3>
         <p className="text-ashGray text-sm max-w-lg mx-auto">
-          Crie sua conta gratuitamente para salvar suas coleções de imóveis, sincronizar entre dispositivos e gerenciar seus contatos com facilidade.
+          Crie sua conta gratuitamente para salvar suas colecoes de imoveis, sincronizar entre dispositivos e compartilhar com facilidade.
         </p>
         <div className="flex flex-wrap justify-center gap-4 pt-2">
           <a
             href="/anuncios"
             className="px-8 py-3 rounded-xl bg-white text-black font-bold hover:bg-ashGray transition-colors"
           >
-            Começar Agora
+            Comecar Agora
           </a>
         </div>
       </div>

@@ -18,13 +18,12 @@ interface NavLink {
   label: string
   icon: string
   featureFlag?: "financingSimulator" | "floodForecast" | "organizations"
+  requiresAuth?: boolean
 }
 
 const navLinks: NavLink[] = [
-  { href: "/", label: "Inicio", icon: "🏡" },
   { href: "/casa", label: "Simulador", icon: "📊", featureFlag: "financingSimulator" },
-  { href: "/anuncios", label: "Anuncios", icon: "🏘️" },
-  { href: "/organizacoes", label: "Organizacoes", icon: "👥", featureFlag: "organizations" },
+  { href: "/anuncios", label: "Anuncios", icon: "🏘️", requiresAuth: true },
   { href: "/floodrisk", label: "Risco Enchente", icon: "🌊", featureFlag: "floodForecast" },
 ]
 
@@ -35,16 +34,12 @@ export function NavBar() {
   const isAdmin = (session?.user as any)?.isAdmin === true
   const isLoggedIn = !!session?.user
 
-  // Filter nav links based on feature flags
+  // Filter nav links based on feature flags and auth requirements
   const visibleLinks = navLinks.filter((link) => {
+    if (link.requiresAuth && !isLoggedIn) return false
     if (!link.featureFlag) return true
     return getFlag(link.featureFlag)
   })
-
-  // Add admin link if user is admin
-  const allLinks = isAdmin
-    ? [...visibleLinks, { href: "/admin", label: "Admin", icon: "⚙️" }]
-    : visibleLinks
 
   const handleLogout = async () => {
     await signOut()
@@ -72,7 +67,7 @@ export function NavBar() {
 
             {/* Navigation Links */}
             <div className="flex items-center gap-1">
-              {allLinks.map((link) => {
+              {visibleLinks.map((link) => {
                 const isActive = pathname === link.href
                 return (
                   <Link
@@ -122,6 +117,24 @@ export function NavBar() {
                     </div>
                     <div className="text-xs truncate">{session.user.email}</div>
                   </div>
+                  {getFlag("organizations") && (
+                    <Link
+                      href="/organizacoes"
+                      className="flex items-center gap-2 px-2 py-1.5 text-sm text-ashGray hover:text-white hover:bg-eerieBlack rounded-md transition-colors"
+                    >
+                      <span>👥</span>
+                      <span>Organizacoes</span>
+                    </Link>
+                  )}
+                  {isAdmin && (
+                    <Link
+                      href="/admin"
+                      className="flex items-center gap-2 px-2 py-1.5 text-sm text-ashGray hover:text-white hover:bg-eerieBlack rounded-md transition-colors"
+                    >
+                      <span>⚙️</span>
+                      <span>Admin</span>
+                    </Link>
+                  )}
                   <Link
                     href="/subscribe"
                     className="flex items-center gap-2 px-2 py-1.5 text-sm text-ashGray hover:text-white hover:bg-eerieBlack rounded-md transition-colors"
