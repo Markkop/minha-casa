@@ -233,9 +233,9 @@ export function DemoListingsTable({ listings, onUpdateListing, onDeleteListing }
               <TableRow className="border-b border-brightGrey hover:bg-transparent">
                 <TableHead className="w-[50px]"></TableHead>
                 <SortableHeader label="Título" sortKey="titulo" currentSort={sort} onSort={handleSort} />
-                <SortableHeader label="m² Tot" sortKey="m2Totais" currentSort={sort} onSort={handleSort} align="center" />
-                <SortableHeader label="m² Priv" sortKey="m2Privado" currentSort={sort} onSort={handleSort} align="center" />
-                <SortableHeader label="Q" sortKey="quartos" currentSort={sort} onSort={handleSort} align="center" />
+                <SortableHeader label="Total" sortKey="m2Totais" currentSort={sort} onSort={handleSort} align="center" />
+                <SortableHeader label="Priv." sortKey="m2Privado" currentSort={sort} onSort={handleSort} align="center" />
+                <SortableHeader label="Quartos" sortKey="quartos" currentSort={sort} onSort={handleSort} align="center" />
                 <SortableHeader label="Preço" sortKey="preco" currentSort={sort} onSort={handleSort} align="right" />
                 <SortableHeader label="Preço/m²" sortKey="precoM2" currentSort={sort} onSort={handleSort} align="right" />
                 <TableHead className="w-[120px] text-right">Ações</TableHead>
@@ -277,16 +277,16 @@ export function DemoListingsTable({ listings, onUpdateListing, onDeleteListing }
                           {listing.tipoImovel === "casa" ? <Home className="h-3 w-3 text-ashGray" /> : <Building className="h-3 w-3 text-ashGray" />}
                           {listing.titulo}
                         </span>
-                        <span className="text-xs text-ashGray truncate max-w-[200px]">
+                        <span className="text-xs text-ashGray">
                           {listing.endereco}
                         </span>
                       </div>
                     </TableCell>
                     <TableCell className="text-center text-white">
-                      {formatNumber(listing.m2Totais)}
+                      {listing.m2Totais !== null ? `${formatNumber(listing.m2Totais)} m²` : "—"}
                     </TableCell>
                     <TableCell className="text-center text-white">
-                      {formatNumber(listing.m2Privado)}
+                      {listing.m2Privado !== null ? `${formatNumber(listing.m2Privado)} m²` : "—"}
                     </TableCell>
                     <TableCell className="text-center text-white">
                       <div className="flex items-center justify-center gap-1">
