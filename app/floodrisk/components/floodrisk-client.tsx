@@ -102,6 +102,19 @@ const FloodRiskClient: React.FC = () => {
     }
   }, [currentScenarios.length, activeScenarioIdx]);
 
+  // Refresh subscription cookie on mount to ensure it's up-to-date
+  useEffect(() => {
+    // Call the subscriptions API to refresh the cookie
+    // This ensures the middleware has the correct subscription status
+    fetch("/api/subscriptions", {
+      method: "GET",
+      credentials: "include",
+    }).catch((error) => {
+      // Silently fail - if there's an error, the middleware will handle it
+      console.error("Failed to refresh subscription cookie:", error)
+    })
+  }, []);
+
   const activeScenario = currentScenarios[activeScenarioIdx];
   
   // Water level: use scenario level for CHATGPT/GEMINI/CUSTOM, use default dry level for CONFIGURE
