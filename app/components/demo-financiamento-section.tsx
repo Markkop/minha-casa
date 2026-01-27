@@ -470,10 +470,10 @@ export function DemoFinanciamentoSection() {
                     <td className="w-8 px-2 py-2 text-center">
                       {c.isBest && <span className="text-primary">✓</span>}
                     </td>
-                    <td className="px-3 py-2 font-mono text-primary">
+                    <td className="px-3 py-2 font-mono text-primary whitespace-nowrap">
                       {formatCurrencyCompact(c.valorImovel)}
                     </td>
-                    <td className="px-3 py-2 font-mono text-salmon">
+                    <td className="px-3 py-2 font-mono text-salmon whitespace-nowrap">
                       {formatCurrencyCompact(
                         c.estrategia === "permuta"
                           ? c.financiamento.valorApartamentoUsado
@@ -487,13 +487,18 @@ export function DemoFinanciamentoSection() {
                           ? "bg-salmon/20 text-salmon border-salmon"
                           : "bg-green/20 text-green border-green"
                       )}>
-                        {c.estrategia === "permuta" ? "Permuta" : "Venda Posterior"}
+                        {c.estrategia === "permuta" ? "Permuta" : (
+                          <>
+                            <span className="md:hidden">Posterior</span>
+                            <span className="hidden md:inline">Venda Posterior</span>
+                          </>
+                        )}
                       </span>
                     </td>
-                    <td className="px-3 py-2 text-right font-mono">
+                    <td className="px-3 py-2 text-right font-mono whitespace-nowrap">
                       {formatCurrencyCompact(c.financiamento.valorFinanciado)}
                     </td>
-                    <td className="px-3 py-2 text-right font-mono text-sm text-primary font-bold">
+                    <td className="px-3 py-2 text-right font-mono text-sm text-primary font-bold whitespace-nowrap">
                       {formatCurrencyK(c.aporteExtra + c.tabelaPadrao.primeiraParcelar)}
                     </td>
                     <td className="px-3 py-2 text-right font-mono text-sm text-primary">
@@ -501,10 +506,10 @@ export function DemoFinanciamentoSection() {
                         ? `${Math.round(c.cenarioOtimizado.prazoReal / 12)}a`
                         : `${(c.cenarioOtimizado.prazoReal / 12).toFixed(1)}a`}
                     </td>
-                    <td className="px-3 py-2 text-right font-mono text-sm text-salmon font-bold">
+                    <td className="px-3 py-2 text-right font-mono text-sm text-salmon font-bold whitespace-nowrap">
                       {formatCurrencyK(c.cenarioOtimizado.totalJuros)}
                     </td>
-                    <td className="px-3 py-2 text-right font-mono">
+                    <td className="px-3 py-2 text-right font-mono whitespace-nowrap">
                       {formatCurrencyCompact(c.custoTotalOtimizado)}
                     </td>
                   </tr>

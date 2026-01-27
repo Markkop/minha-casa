@@ -84,9 +84,9 @@ export function DemoFloodSection() {
 
       {/* Main content: 3D view + projections */}
       <div className="bg-eerieBlack border border-brightGrey rounded-xl overflow-hidden">
-        <div className="flex">
+        <div className="flex flex-col md:flex-row">
           {/* 3D Canvas */}
-          <div className="flex-1 h-[280px] relative">
+          <div className="w-full h-[200px] md:h-[280px] md:flex-1 relative">
             <Suspense fallback={
               <div className="h-full w-full flex items-center justify-center bg-slate-900">
                 <div className="text-ashGray text-sm">Carregando 3D...</div>
@@ -131,9 +131,9 @@ export function DemoFloodSection() {
             </div>
           </div>
 
-          {/* Projections column */}
-          <div className="w-20 bg-black/30 border-l border-brightGrey flex flex-col items-center py-4 gap-2">
-            <span className="text-[10px] text-ashGray mb-2 text-center">Projeções</span>
+          {/* Projections - horizontal on mobile, vertical column on desktop */}
+          <div className="w-full md:w-20 bg-black/30 border-t md:border-t-0 md:border-l border-brightGrey flex md:flex-col items-center justify-center md:justify-start py-3 md:py-4 gap-3 md:gap-2">
+            <span className="text-[10px] text-ashGray md:mb-2 text-center hidden md:block">Projeções</span>
             {DEMO_PROJECTIONS.map((proj) => {
               const isActive = proj.id === activeProjectionId
               const hasFlood = proj.ruaFlooded || proj.calcadaFlooded || proj.casaFlooded
