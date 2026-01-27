@@ -57,13 +57,13 @@ function isSubscriptionExempt(pathname: string): boolean {
 }
 
 /**
- * Auth middleware for Next.js
+ * Proxy function for Next.js (formerly middleware)
  *
  * Protects routes by checking for a valid session cookie.
  * Redirects unauthenticated users to the login page.
  * Redirects users without an active subscription to the subscribe page.
  */
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
 
   // Check for session cookie from better-auth
@@ -107,7 +107,7 @@ export function middleware(request: NextRequest) {
 }
 
 /**
- * Configure which routes the middleware runs on
+ * Configure which routes the proxy runs on
  */
 export const config = {
   matcher: [

@@ -202,7 +202,7 @@ export function CollectionsProvider({ children }: CollectionsProviderProps) {
   const updateCollection = useCallback(
     async (
       id: string,
-      updates: { name?: string; isDefault?: boolean }
+      updates: { name?: string; isDefault?: boolean; isPublic?: boolean }
     ): Promise<Collection> => {
       const updatedCollection = await apiUpdateCollection(id, updates)
       setCollections((prev) => {
