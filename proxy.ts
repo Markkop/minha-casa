@@ -20,7 +20,7 @@ const AUTH_ROUTES = ["/login", "/signup"]
 /**
  * Routes that are always public (API routes, static files, etc.)
  */
-const PUBLIC_PREFIXES = ["/api/auth", "/_next", "/favicon.ico"]
+const PUBLIC_PREFIXES = ["/api/auth", "/api/webhooks", "/_next", "/favicon.ico"]
 
 /**
  * Routes that don't require a subscription (but may require auth)
