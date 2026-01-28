@@ -78,6 +78,8 @@ export async function GET() {
 
     for (const stripeSub of stripeSubscriptionsList.data) {
       const localSub = localSubsMap.get(stripeSub.id)
+      // Use type assertion to access snake_case properties from Stripe API response
+      const subData = stripeSub as unknown as { current_period_end: number }
 
       if (!localSub) {
         // Subscription exists in Stripe but not locally
@@ -85,7 +87,7 @@ export async function GET() {
           stripeSubscriptionId: stripeSub.id,
           stripeCustomerId: stripeSub.customer as string,
           stripeStatus: stripeSub.status,
-          currentPeriodEnd: new Date(stripeSub.current_period_end * 1000).toISOString(),
+          currentPeriodEnd: new Date(subData.current_period_end * 1000).toISOString(),
         })
       } else {
         matched++
