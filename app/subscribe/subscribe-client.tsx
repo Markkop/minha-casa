@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react"
 import Link from "next/link"
+import { useSearchParams } from "next/navigation"
 import { useSession } from "@/lib/auth-client"
 import { Button } from "@/components/ui/button"
 import {
@@ -12,7 +13,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import { Check, Loader2, Crown, Calendar, AlertCircle } from "lucide-react"
+import { Check, Loader2, Crown, Calendar, AlertCircle, CheckCircle } from "lucide-react"
 
 interface PlanLimits {
   collectionsLimit: number | null
@@ -29,6 +30,7 @@ interface Plan {
   description: string | null
   priceInCents: number
   isActive: boolean
+  stripePriceId: string | null
   limits: PlanLimits
   createdAt: string
   updatedAt: string
@@ -67,10 +69,40 @@ function getLimitDisplay(value: number | null): string {
 function PlanCard({
   plan,
   isCurrentPlan,
+  isLoggedIn,
+  onSubscribe,
+  isLoading,
 }: {
   plan: Plan
   isCurrentPlan: boolean
+  isLoggedIn: boolean
+  onSubscribe: (planId: string) => void
+  isLoading: boolean
 }) {
+  const canCheckout = plan.stripePriceId && plan.priceInCents > 0
+  const isFree = plan.priceInCents === 0
+
+  const handleClick = () => {
+    if (!isLoggedIn) {
+      window.location.href = `/login?redirect=/subscribe`
+      return
+    }
+    if (canCheckout) {
+      onSubscribe(plan.id)
+    }
+  }
+
+  const getButtonText = () => {
+    if (isCurrentPlan) return "Plano Atual"
+    if (isLoading) return "Processando..."
+    if (!isLoggedIn) return "Fazer Login"
+    if (isFree) return "Contatar Equipe"
+    if (!canCheckout) return "Em breve"
+    return "Assinar Agora"
+  }
+
+  const isDisabled = isCurrentPlan || isLoading || (isLoggedIn && !canCheckout && !isFree)
+
   return (
     <Card
       className={`relative flex flex-col ${
@@ -150,9 +182,17 @@ function PlanCard({
               ? "bg-middleGray text-white cursor-default"
               : "bg-primary text-black hover:bg-primary/90"
           }`}
-          disabled={isCurrentPlan}
+          disabled={isDisabled}
+          onClick={handleClick}
         >
-          {isCurrentPlan ? "Plano Atual" : "Solicitar Plano"}
+          {isLoading ? (
+            <>
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              {getButtonText()}
+            </>
+          ) : (
+            getButtonText()
+          )}
         </Button>
       </CardFooter>
     </Card>
@@ -238,12 +278,25 @@ function CurrentSubscriptionCard({
 
 export function SubscribeClient() {
   const { data: session, isPending: sessionLoading } = useSession()
+  const searchParams = useSearchParams()
   const [plans, setPlans] = useState<Plan[]>([])
   const [subscription, setSubscription] = useState<Subscription | null>(null)
   const [currentPlan, setCurrentPlan] = useState<Plan | null>(null)
   const [isExpiringSoon, setIsExpiringSoon] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [checkoutLoading, setCheckoutLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [successMessage, setSuccessMessage] = useState<string | null>(null)
+
+  // Check for success/cancelled query params
+  const isSuccess = searchParams.get("success") === "true"
+  const isCancelled = searchParams.get("cancelled") === "true"
+
+  useEffect(() => {
+    if (isSuccess) {
+      setSuccessMessage("Assinatura realizada com sucesso! Sua conta foi ativada.")
+    }
+  }, [isSuccess])
 
   useEffect(() => {
     async function fetchData() {
@@ -284,6 +337,37 @@ export function SubscribeClient() {
       fetchData()
     }
   }, [session, sessionLoading])
+
+  const handleSubscribe = async (planId: string) => {
+    try {
+      setCheckoutLoading(true)
+      setError(null)
+
+      const response = await fetch("/api/checkout/session", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ planId }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || "Erro ao criar sessao de checkout")
+      }
+
+      // Redirect to Stripe Checkout
+      if (data.checkoutUrl) {
+        window.location.href = data.checkoutUrl
+      } else {
+        throw new Error("URL de checkout nao retornada")
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erro ao processar pagamento")
+      setCheckoutLoading(false)
+    }
+  }
 
   if (sessionLoading || loading) {
     return (
@@ -341,6 +425,30 @@ export function SubscribeClient() {
           </p>
         </div>
 
+        {/* Success message */}
+        {successMessage && (
+          <Card className="bg-green-900/20 border-green-500 mb-8">
+            <CardContent className="py-4">
+              <p className="text-green-400 text-center flex items-center justify-center gap-2">
+                <CheckCircle className="w-5 h-5" />
+                {successMessage}
+              </p>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Cancelled message */}
+        {isCancelled && !successMessage && (
+          <Card className="bg-yellow-900/20 border-yellow-500 mb-8">
+            <CardContent className="py-4">
+              <p className="text-yellow-400 text-center flex items-center justify-center gap-2">
+                <AlertCircle className="w-5 h-5" />
+                Checkout cancelado. Voce pode tentar novamente quando quiser.
+              </p>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Login prompt for unauthenticated users */}
         {!session?.user && (
           <div className="mb-12 text-center">
@@ -379,7 +487,7 @@ export function SubscribeClient() {
         )}
 
         {/* No subscription message */}
-        {session?.user && !subscription && (
+        {session?.user && !subscription && !successMessage && (
           <Card className="bg-eerieBlack border-brightGrey mb-8">
             <CardContent className="py-6">
               <p className="text-ashGray text-center">
@@ -410,6 +518,9 @@ export function SubscribeClient() {
                   key={plan.id}
                   plan={plan}
                   isCurrentPlan={currentPlan?.id === plan.id}
+                  isLoggedIn={!!session?.user}
+                  onSubscribe={handleSubscribe}
+                  isLoading={checkoutLoading}
                 />
               ))}
             </div>
@@ -419,11 +530,10 @@ export function SubscribeClient() {
         {/* Contact section */}
         <div className="text-center mt-12">
           <p className="text-ashGray text-sm">
-            Para solicitar um plano ou tirar duvidas, entre em contato conosco.
+            Duvidas sobre os planos? Entre em contato conosco.
           </p>
           <p className="text-ashGray text-sm mt-2">
-            As assinaturas sao gerenciadas pela nossa equipe e ativadas
-            manualmente.
+            Planos gratuitos e promocionais sao ativados pela nossa equipe.
           </p>
         </div>
       </main>

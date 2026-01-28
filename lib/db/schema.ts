@@ -110,6 +110,7 @@ export const plans = pgTable("plans", {
   description: text("description"),
   priceInCents: integer("price_in_cents").notNull().default(0), // Price in BRL cents
   isActive: boolean("is_active").default(true).notNull(),
+  stripePriceId: text("stripe_price_id"), // Stripe Price ID for checkout
   limits: jsonb("limits").$type<PlanLimits>().default({
     collectionsLimit: null,
     listingsPerCollection: null,
@@ -150,12 +151,20 @@ export const subscriptions = pgTable(
     expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
     grantedBy: text("granted_by").references(() => users.id, { onDelete: "set null" }),
     notes: text("notes"),
+    // Stripe fields (nullable for manual grants)
+    stripeCustomerId: text("stripe_customer_id"),
+    stripeSubscriptionId: text("stripe_subscription_id"),
+    stripeStatus: text("stripe_status"), // Raw Stripe status for debugging
+    currentPeriodEnd: timestamp("current_period_end", { withTimezone: true }),
+    cancelAtPeriodEnd: boolean("cancel_at_period_end").default(false),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (table) => [
     index("subscriptions_user_id_idx").on(table.userId),
     index("subscriptions_status_idx").on(table.status),
+    index("subscriptions_stripe_sub_id_idx").on(table.stripeSubscriptionId),
+    index("subscriptions_stripe_customer_id_idx").on(table.stripeCustomerId),
   ]
 )
 

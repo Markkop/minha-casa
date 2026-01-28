@@ -8,6 +8,20 @@
       "when": 1737907200000,
       "tag": "0000_initial_schema",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1737993600000,
+      "tag": "0002_add_cpf_cnpj",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1738080000000,
+      "tag": "0003_add_stripe_fields",
+      "breakpoints": true
     }
   ]
 }
