@@ -289,7 +289,7 @@ export function ReparseModal({
                 ) : (
                   <>
                     <SparklesIcon className="h-4 w-4" />
-                    Extrair Dados com IA
+                    Extrair Dados
                   </>
                 )}
               </button>

@@ -149,7 +149,7 @@ export function DemoParserModal({
           <div className="flex items-center gap-3">
             <CardTitle className="text-lg flex items-center gap-2 text-white">
               <span>🤖</span>
-              <span>Demo: Parser de Anúncios</span>
+              <span>Demo: Extração de Dados</span>
             </CardTitle>
             <div className="flex items-center gap-2 text-[10px] px-2 py-0.5 rounded-full bg-primary/20 text-primary border border-primary/30 uppercase tracking-wider font-bold">
               Simulação
@@ -200,7 +200,7 @@ export function DemoParserModal({
                 ) : (
                   <>
                     <span>✨</span>
-                    Extrair Dados com IA (Demo)
+                    Extrair Dados (Demo)
                   </>
                 )}
               </button>

@@ -120,7 +120,7 @@ export function NavBar() {
                   {getFlag("organizations") && (
                     <Link
                       href="/organizacoes"
-                      className="flex items-center gap-2 px-2 py-1.5 text-sm text-ashGray hover:text-white hover:bg-eerieBlack rounded-md transition-colors"
+                      className="flex items-center gap-2 px-2 py-1.5 text-sm text-ashGray hover:text-white hover:bg-eerieBlack rounded-md transition-colors cursor-pointer"
                     >
                       <span>👥</span>
                       <span>Organizacoes</span>
@@ -129,7 +129,7 @@ export function NavBar() {
                   {isAdmin && (
                     <Link
                       href="/admin"
-                      className="flex items-center gap-2 px-2 py-1.5 text-sm text-ashGray hover:text-white hover:bg-eerieBlack rounded-md transition-colors"
+                      className="flex items-center gap-2 px-2 py-1.5 text-sm text-ashGray hover:text-white hover:bg-eerieBlack rounded-md transition-colors cursor-pointer"
                     >
                       <span>⚙️</span>
                       <span>Admin</span>
@@ -137,14 +137,14 @@ export function NavBar() {
                   )}
                   <Link
                     href="/subscribe"
-                    className="flex items-center gap-2 px-2 py-1.5 text-sm text-ashGray hover:text-white hover:bg-eerieBlack rounded-md transition-colors"
+                    className="flex items-center gap-2 px-2 py-1.5 text-sm text-ashGray hover:text-white hover:bg-eerieBlack rounded-md transition-colors cursor-pointer"
                   >
                     <span>💳</span>
                     <span>Assinatura</span>
                   </Link>
                   <Button
                     variant="ghost"
-                    className="w-full justify-start gap-2 px-2 py-1.5 h-auto text-sm text-ashGray hover:text-white hover:bg-eerieBlack"
+                    className="w-full justify-start gap-2 px-2 py-1.5 h-auto text-sm text-ashGray hover:text-white hover:bg-eerieBlack cursor-pointer"
                     onClick={handleLogout}
                   >
                     <span>🚪</span>

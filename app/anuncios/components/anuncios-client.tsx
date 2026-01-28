@@ -143,7 +143,7 @@ function AnunciosClientInner() {
                   🏘️ Anúncios de Imóveis
                 </h1>
                 <p className="text-ashGray">
-                  Cole anúncios de imóveis e deixe a IA extrair os dados automaticamente.
+                  Gerencie anúncios e extraia dados facilmente de fontes externas.
                 </p>
               </div>
             </div>

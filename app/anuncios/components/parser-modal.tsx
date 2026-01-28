@@ -44,6 +44,7 @@ export function ParserModal({
   const [addressValue, setAddressValue] = useState("")
   const [contactNameValue, setContactNameValue] = useState("")
   const [contactNumberValue, setContactNumberValue] = useState("")
+  const [showHelpModal, setShowHelpModal] = useState(false)
   const linkInputRef = useRef<HTMLInputElement>(null)
 
   // Reset state when modal opens
@@ -59,6 +60,7 @@ export function ParserModal({
       setContactNumberValue("")
       setNewCollectionName("Meus Imóveis 2026")
       setIsCreatingCollection(false)
+      setShowHelpModal(false)
     }
   }, [isOpen])
 
@@ -192,14 +194,8 @@ export function ParserModal({
           <div className="flex items-center gap-3">
             <CardTitle className="text-lg flex items-center gap-2">
               <span>🤖</span>
-              <span>Parser de Anúncios</span>
+              <span>Extração de Dados</span>
             </CardTitle>
-            <div
-              className="flex items-center gap-2 text-xs px-2 py-1 rounded-full bg-green/20 text-green"
-            >
-              <span className="w-2 h-2 rounded-full bg-green" />
-              IA
-            </div>
           </div>
           <button
             onClick={onClose}
@@ -322,31 +318,45 @@ export function ParserModal({
             </div>
           )}
 
-          {/* Parse button */}
+          {/* Parse button and help button */}
           {!lastParsed && activeCollection && (
-            <button
-              onClick={handleParse}
-              disabled={isLoading || !rawText.trim()}
-              className={cn(
-                "w-full py-3 px-4 rounded-lg font-medium transition-all",
-                "bg-primary text-primary-foreground",
-                "hover:bg-primary/90",
-                "disabled:opacity-50 disabled:cursor-not-allowed",
-                "flex items-center justify-center gap-2"
-              )}
-            >
-              {isLoading ? (
-                <>
-                  <span className="animate-spin">⏳</span>
-                  Processando...
-                </>
-              ) : (
-                <>
-                  <span>✨</span>
-                  Extrair Dados com IA
-                </>
-              )}
-            </button>
+            <div className="flex gap-2">
+              <button
+                onClick={handleParse}
+                disabled={isLoading || !rawText.trim()}
+                className={cn(
+                  "flex-1 py-3 px-4 rounded-lg font-medium transition-all",
+                  "bg-primary text-primary-foreground",
+                  "hover:bg-primary/90",
+                  "disabled:opacity-50 disabled:cursor-not-allowed",
+                  "flex items-center justify-center gap-2"
+                )}
+              >
+                {isLoading ? (
+                  <>
+                    <span className="animate-spin">⏳</span>
+                    Processando...
+                  </>
+                ) : (
+                  <>
+                    <span>✨</span>
+                    Extrair Dados
+                  </>
+                )}
+              </button>
+              <button
+                onClick={() => setShowHelpModal(true)}
+                className={cn(
+                  "px-4 py-3 rounded-lg font-medium transition-all",
+                  "bg-eerieBlack border border-brightGrey text-white",
+                  "hover:border-primary hover:text-primary",
+                  "flex items-center justify-center gap-2 whitespace-nowrap"
+                )}
+              >
+                <span>❓</span>
+                Como funciona?
+              </button>
+            </div>
           )}
 
           {/* Last parsed result */}
@@ -513,14 +523,80 @@ export function ParserModal({
             <div className="text-xs text-muted-foreground space-y-1">
               <p className="font-medium text-ashGray">Dicas:</p>
               <ul className="list-disc list-inside space-y-0.5">
-                <li>Copie todo o texto do anúncio, incluindo descrição</li>
                 <li>Funciona com anúncios de ZAP, OLX, VivaReal, QuintoAndar</li>
-                <li>A IA extrai automaticamente os dados estruturados</li>
+                <li>Os dados são extraídos automaticamente</li>
               </ul>
             </div>
           )}
         </CardContent>
       </Card>
+
+      {/* Help Modal */}
+      {showHelpModal && (
+        <div className="fixed inset-0 z-[1100] flex items-center justify-center">
+          {/* Backdrop */}
+          <div
+            className="absolute inset-0 bg-black/90 backdrop-blur-sm"
+            onClick={() => setShowHelpModal(false)}
+          />
+
+          {/* Modal */}
+          <Card className="relative z-10 w-full max-w-lg mx-4 bg-raisinBlack border-brightGrey max-h-[90vh] overflow-hidden flex flex-col">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <span>❓</span>
+                <span>Como funciona?</span>
+              </CardTitle>
+              <button
+                onClick={() => setShowHelpModal(false)}
+                className="text-muted-foreground hover:text-white transition-colors"
+              >
+                ✕
+              </button>
+            </CardHeader>
+            <CardContent className="flex-1 flex flex-col gap-4 overflow-y-auto">
+              <div className="space-y-6">
+                {/* Step 1 */}
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary text-primary-foreground font-bold text-sm">
+                      1
+                    </div>
+                    <h3 className="text-base font-semibold text-white">
+                      Visualize um anúncio em qualquer site
+                    </h3>
+                  </div>
+                  <p className="text-sm text-muted-foreground ml-10">
+                    Você pode visualizar um anúncio de imóvel em qualquer site de imóveis.
+                  </p>
+                </div>
+
+                {/* Step 2 */}
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary text-primary-foreground font-bold text-sm">
+                      2
+                    </div>
+                    <h3 className="text-base font-semibold text-white">
+                      Selecione e copie o texto
+                    </h3>
+                  </div>
+                  <p className="text-sm text-muted-foreground ml-10">
+                    Selecione todo o texto da página clicando e arrastando ou pressionando Ctrl+A (Cmd+A no Mac), depois copie e cole no campo acima.
+                  </p>
+                </div>
+
+                {/* Image placeholder */}
+                <div className="w-full h-48 bg-eerieBlack border border-brightGrey rounded-lg flex items-center justify-center">
+                  <p className="text-sm text-muted-foreground">
+                    [Espaço para imagem de exemplo]
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
     </div>
   )
 }
