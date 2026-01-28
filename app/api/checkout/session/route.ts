@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "@/lib/auth-server"
-import { getDb, plans } from "@/lib/db"
+import { getDb, plans, users } from "@/lib/db"
 import { eq } from "drizzle-orm"
 import { createCheckoutSession, isStripeConfigured } from "@/lib/stripe"
 
@@ -88,12 +88,19 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Check if user already has a Stripe customer ID
+    const [user] = await db
+      .select({ stripeCustomerId: users.stripeCustomerId })
+      .from(users)
+      .where(eq(users.id, session.user.id))
+
     // Create Stripe Checkout session
     const checkoutSession = await createCheckoutSession({
       userId: session.user.id,
       userEmail: session.user.email,
       planId: plan.id,
       stripePriceId: plan.stripePriceId,
+      existingStripeCustomerId: user?.stripeCustomerId || undefined,
       successUrl: successUrl || `${APP_URL}/subscribe?success=true&session_id={CHECKOUT_SESSION_ID}`,
       cancelUrl: cancelUrl || `${APP_URL}/subscribe?cancelled=true`,
       couponId,

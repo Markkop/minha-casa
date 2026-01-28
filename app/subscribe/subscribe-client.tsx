@@ -291,12 +291,56 @@ export function SubscribeClient() {
   // Check for success/cancelled query params
   const isSuccess = searchParams.get("success") === "true"
   const isCancelled = searchParams.get("cancelled") === "true"
+  const sessionId = searchParams.get("session_id")
 
+  // Verify payment status after redirect from Stripe
   useEffect(() => {
-    if (isSuccess) {
-      setSuccessMessage("Assinatura realizada com sucesso! Sua conta foi ativada.")
+    if (!isSuccess || !session?.user) return
+
+    let attempts = 0
+    const maxAttempts = 10
+    const pollInterval = 2000 // 2 seconds
+
+    // Show initial processing message
+    setSuccessMessage("Processando seu pagamento...")
+
+    const verifyPayment = async () => {
+      try {
+        const subscriptionResponse = await fetch("/api/subscriptions")
+        if (subscriptionResponse.ok) {
+          const data = await subscriptionResponse.json()
+          if (data.subscription?.status === "active") {
+            setSubscription(data.subscription)
+            setCurrentPlan(data.plan)
+            setSuccessMessage("Assinatura confirmada! Sua conta foi ativada.")
+            return true // Payment confirmed
+          }
+        }
+        return false // Not yet confirmed
+      } catch {
+        return false
+      }
     }
-  }, [isSuccess])
+
+    const pollForConfirmation = async () => {
+      const confirmed = await verifyPayment()
+      if (confirmed) return
+
+      attempts++
+      if (attempts < maxAttempts) {
+        setTimeout(pollForConfirmation, pollInterval)
+      } else {
+        // After max attempts, show a softer success message
+        // The webhook might still be processing
+        setSuccessMessage(
+          "Pagamento recebido! Sua assinatura será ativada em instantes. " +
+          "Se não aparecer em alguns minutos, entre em contato conosco."
+        )
+      }
+    }
+
+    pollForConfirmation()
+  }, [isSuccess, session?.user, sessionId])
 
   useEffect(() => {
     async function fetchData() {

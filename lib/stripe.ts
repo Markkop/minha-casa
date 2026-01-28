@@ -4,12 +4,32 @@ import Stripe from "stripe"
 // Stripe Client Initialization
 // ============================================================================
 
-if (!process.env.STRIPE_SECRET_KEY) {
+const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY
+const IS_PRODUCTION = process.env.NODE_ENV === "production"
+
+// Validate Stripe key configuration
+if (!STRIPE_SECRET_KEY) {
   console.warn("STRIPE_SECRET_KEY is not set. Stripe functionality will be disabled.")
+} else {
+  // Prevent test keys in production
+  if (IS_PRODUCTION && STRIPE_SECRET_KEY.startsWith("sk_test_")) {
+    throw new Error(
+      "CRITICAL: Cannot use Stripe test key (sk_test_) in production environment. " +
+      "Please configure STRIPE_SECRET_KEY with a live key (sk_live_)."
+    )
+  }
+  
+  // Warn about live keys in non-production
+  if (!IS_PRODUCTION && STRIPE_SECRET_KEY.startsWith("sk_live_")) {
+    console.warn(
+      "WARNING: Using Stripe live key (sk_live_) in non-production environment. " +
+      "This will process real payments. Consider using a test key (sk_test_) instead."
+    )
+  }
 }
 
-export const stripe = process.env.STRIPE_SECRET_KEY
-  ? new Stripe(process.env.STRIPE_SECRET_KEY, {
+export const stripe = STRIPE_SECRET_KEY
+  ? new Stripe(STRIPE_SECRET_KEY, {
       apiVersion: "2025-12-15.clover",
       typescript: true,
     })
@@ -26,6 +46,7 @@ export interface CreateCheckoutSessionParams {
   userEmail: string
   planId: string
   stripePriceId: string
+  existingStripeCustomerId?: string
   successUrl?: string
   cancelUrl?: string
   couponId?: string
@@ -47,6 +68,7 @@ export async function createCheckoutSession(
     userEmail,
     planId,
     stripePriceId,
+    existingStripeCustomerId,
     successUrl = `${APP_URL}/subscribe?success=true&session_id={CHECKOUT_SESSION_ID}`,
     cancelUrl = `${APP_URL}/subscribe?cancelled=true`,
     couponId,
@@ -55,7 +77,10 @@ export async function createCheckoutSession(
 
   const sessionParams: Stripe.Checkout.SessionCreateParams = {
     mode: "subscription",
-    customer_email: userEmail,
+    // Use existing customer if available, otherwise use email to create a new one
+    ...(existingStripeCustomerId
+      ? { customer: existingStripeCustomerId }
+      : { customer_email: userEmail }),
     line_items: [
       {
         price: stripePriceId,

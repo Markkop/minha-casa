@@ -23,6 +23,7 @@ export const users = pgTable(
     name: text("name").notNull(),
     image: text("image"),
     isAdmin: boolean("is_admin").default(false).notNull(),
+    stripeCustomerId: text("stripe_customer_id"), // Stripe customer ID for reuse across subscriptions
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
   },
@@ -157,6 +158,7 @@ export const subscriptions = pgTable(
     stripeStatus: text("stripe_status"), // Raw Stripe status for debugging
     currentPeriodEnd: timestamp("current_period_end", { withTimezone: true }),
     cancelAtPeriodEnd: boolean("cancel_at_period_end").default(false),
+    lastPaymentFailedAt: timestamp("last_payment_failed_at", { withTimezone: true }), // Track payment failures
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
   },
@@ -234,6 +236,22 @@ export const collections = pgTable(
     index("collections_user_id_idx").on(table.userId),
     index("collections_org_id_idx").on(table.orgId),
     uniqueIndex("collections_share_token_idx").on(table.shareToken),
+  ]
+)
+
+// ============================================================================
+// Processed Webhook Events (for idempotency)
+// ============================================================================
+export const processedWebhookEvents = pgTable(
+  "processed_webhook_events",
+  {
+    id: text("id").primaryKey(), // Stripe event ID (evt_...)
+    eventType: text("event_type").notNull(),
+    processedAt: timestamp("processed_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    index("processed_webhook_events_type_idx").on(table.eventType),
+    index("processed_webhook_events_processed_at_idx").on(table.processedAt),
   ]
 )
 

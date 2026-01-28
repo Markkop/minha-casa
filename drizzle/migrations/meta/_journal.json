@@ -22,6 +22,13 @@
       "when": 1738080000000,
       "tag": "0003_add_stripe_fields",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1738108800000,
+      "tag": "0004_add_processed_webhook_events",
+      "breakpoints": true
     }
   ]
 }
