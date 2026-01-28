@@ -13,7 +13,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import { Check, Loader2, Crown, Calendar, AlertCircle, CheckCircle } from "lucide-react"
+import { Check, Loader2, Crown, Calendar, AlertCircle, CheckCircle, FlaskConical } from "lucide-react"
 
 interface PlanLimits {
   collectionsLimit: number | null
@@ -287,6 +287,7 @@ export function SubscribeClient() {
   const [checkoutLoading, setCheckoutLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
+  const [stripeTestMode, setStripeTestMode] = useState(false)
 
   // Check for success/cancelled query params
   const isSuccess = searchParams.get("success") === "true"
@@ -355,6 +356,7 @@ export function SubscribeClient() {
         }
         const plansData = await plansResponse.json()
         setPlans(plansData.plans || [])
+        setStripeTestMode(plansData.stripeTestMode || false)
 
         // Fetch current subscription if user is logged in
         if (session?.user) {
@@ -468,6 +470,25 @@ export function SubscribeClient() {
               : "Faca login para gerenciar sua assinatura ou veja nossos planos disponiveis."}
           </p>
         </div>
+
+        {/* Stripe Test Mode Banner */}
+        {stripeTestMode && (
+          <Card className="bg-amber-900/20 border-amber-500 mb-8">
+            <CardContent className="py-4">
+              <div className="flex items-center justify-center gap-3">
+                <FlaskConical className="w-5 h-5 text-amber-400" />
+                <div className="text-center">
+                  <p className="text-amber-400 font-semibold">
+                    MODO DE TESTE ATIVO
+                  </p>
+                  <p className="text-amber-300/80 text-sm">
+                    Pagamentos nesta pagina estao em modo de teste do Stripe. Nenhuma cobranca real sera processada.
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Success message */}
         {successMessage && (

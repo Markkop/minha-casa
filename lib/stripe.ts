@@ -6,16 +6,17 @@ import Stripe from "stripe"
 
 const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY
 const IS_PRODUCTION = process.env.NODE_ENV === "production"
+const IS_STRIPE_TEST_MODE = STRIPE_SECRET_KEY?.startsWith("sk_test_") ?? false
 
 // Validate Stripe key configuration
 if (!STRIPE_SECRET_KEY) {
   console.warn("STRIPE_SECRET_KEY is not set. Stripe functionality will be disabled.")
 } else {
-  // Prevent test keys in production
-  if (IS_PRODUCTION && STRIPE_SECRET_KEY.startsWith("sk_test_")) {
-    throw new Error(
-      "CRITICAL: Cannot use Stripe test key (sk_test_) in production environment. " +
-      "Please configure STRIPE_SECRET_KEY with a live key (sk_live_)."
+  // Warn about test keys in production (but don't block)
+  if (IS_PRODUCTION && IS_STRIPE_TEST_MODE) {
+    console.warn(
+      "WARNING: Using Stripe test key (sk_test_) in production environment. " +
+      "Payments will be processed in test mode. No real charges will occur."
     )
   }
   
@@ -226,4 +227,12 @@ export function mapStripeStatus(
  */
 export function isStripeConfigured(): boolean {
   return stripe !== null
+}
+
+/**
+ * Check if Stripe is running in test mode
+ * Returns true if using a test key (sk_test_)
+ */
+export function isStripeTestMode(): boolean {
+  return IS_STRIPE_TEST_MODE
 }

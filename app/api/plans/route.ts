@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { getServerSession } from "@/lib/auth-server"
 import { getDb, plans } from "@/lib/db"
 import { eq, asc } from "drizzle-orm"
+import { isStripeTestMode } from "@/lib/stripe"
 
 /**
  * GET /api/plans
@@ -31,7 +32,7 @@ export async function GET(request: Request) {
         .from(plans)
         .orderBy(asc(plans.priceInCents))
 
-      return NextResponse.json({ plans: allPlans })
+      return NextResponse.json({ plans: allPlans, stripeTestMode: isStripeTestMode() })
     }
 
     // Return only active plans for regular users
@@ -41,7 +42,7 @@ export async function GET(request: Request) {
       .where(eq(plans.isActive, true))
       .orderBy(asc(plans.priceInCents))
 
-    return NextResponse.json({ plans: activePlans })
+    return NextResponse.json({ plans: activePlans, stripeTestMode: isStripeTestMode() })
   } catch (error) {
     console.error("Error fetching plans:", error)
     return NextResponse.json(
