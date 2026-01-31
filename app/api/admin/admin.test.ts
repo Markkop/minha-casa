@@ -583,3 +583,108 @@ describe("Admin Stats API", () => {
     })
   })
 })
+
+// Mock addons data
+const mockAddons = [
+  {
+    id: "addon-1",
+    name: "Risco de Enchente",
+    slug: "flood",
+    description: "Análise de risco de enchente com visualização 3D",
+    createdAt: new Date(),
+  },
+  {
+    id: "addon-2",
+    name: "Simulador de Financiamento",
+    slug: "financiamento",
+    description: "Simulador de financiamento imobiliário",
+    createdAt: new Date(),
+  },
+]
+
+// Mock addons module
+vi.mock("@/lib/addons", () => ({
+  getAvailableAddons: vi.fn(),
+}))
+
+describe("Admin Addons API", () => {
+  beforeEach(() => {
+    vi.resetModules()
+    vi.clearAllMocks()
+  })
+
+  describe("GET /api/admin/addons", () => {
+    it("returns 401 when not authenticated", async () => {
+      const { requireAdmin } = await import("@/lib/auth-server")
+      vi.mocked(requireAdmin).mockRejectedValue(new Error("Unauthorized"))
+
+      const { GET } = await import("./addons/route")
+      const response = await GET()
+      const json = await response.json()
+
+      expect(response.status).toBe(401)
+      expect(json.error).toBe("Unauthorized")
+    })
+
+    it("returns 403 when non-admin tries to access", async () => {
+      const { requireAdmin } = await import("@/lib/auth-server")
+      vi.mocked(requireAdmin).mockRejectedValue(new Error("Forbidden: Admin access required"))
+
+      const { GET } = await import("./addons/route")
+      const response = await GET()
+      const json = await response.json()
+
+      expect(response.status).toBe(403)
+      expect(json.error).toBe("Forbidden")
+    })
+
+    it("returns addons list for admin", async () => {
+      const { requireAdmin } = await import("@/lib/auth-server")
+      vi.mocked(requireAdmin).mockResolvedValue(mockAdminSession)
+
+      const { getAvailableAddons } = await import("@/lib/addons")
+      vi.mocked(getAvailableAddons).mockResolvedValue(mockAddons)
+
+      const { GET } = await import("./addons/route")
+      const response = await GET()
+      const json = await response.json()
+
+      expect(response.status).toBe(200)
+      expect(json.addons).toHaveLength(2)
+      expect(json.addons[0].slug).toBe("flood")
+      expect(json.addons[0].name).toBe("Risco de Enchente")
+      expect(json.addons[1].slug).toBe("financiamento")
+      expect(json.addons[1].name).toBe("Simulador de Financiamento")
+    })
+
+    it("returns empty array when no addons exist", async () => {
+      const { requireAdmin } = await import("@/lib/auth-server")
+      vi.mocked(requireAdmin).mockResolvedValue(mockAdminSession)
+
+      const { getAvailableAddons } = await import("@/lib/addons")
+      vi.mocked(getAvailableAddons).mockResolvedValue([])
+
+      const { GET } = await import("./addons/route")
+      const response = await GET()
+      const json = await response.json()
+
+      expect(response.status).toBe(200)
+      expect(json.addons).toHaveLength(0)
+    })
+
+    it("returns 500 when database error occurs", async () => {
+      const { requireAdmin } = await import("@/lib/auth-server")
+      vi.mocked(requireAdmin).mockResolvedValue(mockAdminSession)
+
+      const { getAvailableAddons } = await import("@/lib/addons")
+      vi.mocked(getAvailableAddons).mockRejectedValue(new Error("Database connection failed"))
+
+      const { GET } = await import("./addons/route")
+      const response = await GET()
+      const json = await response.json()
+
+      expect(response.status).toBe(500)
+      expect(json.error).toBe("Failed to fetch addons")
+    })
+  })
+})
