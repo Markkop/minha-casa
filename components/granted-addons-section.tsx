@@ -9,6 +9,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
+import { Switch } from "@/components/ui/switch"
 import { useAddons } from "@/lib/use-addons"
 
 function formatDate(date: Date | null): string {
@@ -38,11 +39,15 @@ export function GrantedAddonsSection() {
     orgContext,
     isLoading,
     isRevoking,
+    isToggling,
     revokeUserAddon,
     revokeOrgAddon,
+    toggleUserAddon,
+    toggleOrgAddon,
   } = useAddons()
 
   const [revokingSlug, setRevokingSlug] = useState<string | null>(null)
+  const [togglingSlug, setTogglingSlug] = useState<string | null>(null)
 
   async function handleRevokeUserAddon(slug: string) {
     if (!confirm("Tem certeza que deseja revogar este addon?")) return
@@ -65,6 +70,26 @@ export function GrantedAddonsSection() {
 
     if (!success) {
       alert("Falha ao revogar addon. Tente novamente.")
+    }
+  }
+
+  async function handleToggleUserAddon(slug: string, enabled: boolean) {
+    setTogglingSlug(slug)
+    const success = await toggleUserAddon(slug, enabled)
+    setTogglingSlug(null)
+
+    if (!success) {
+      alert("Falha ao alterar estado do addon. Tente novamente.")
+    }
+  }
+
+  async function handleToggleOrgAddon(slug: string, enabled: boolean) {
+    setTogglingSlug(slug)
+    const success = await toggleOrgAddon(slug, enabled)
+    setTogglingSlug(null)
+
+    if (!success) {
+      alert("Falha ao alterar estado do addon. Tente novamente.")
     }
   }
 
@@ -133,7 +158,28 @@ export function GrantedAddonsSection() {
                       )}
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2">
+                      <Switch
+                        checked={addon.enabled}
+                        onCheckedChange={(checked) =>
+                          handleToggleUserAddon(addon.addonSlug, checked)
+                        }
+                        disabled={
+                          isToggling ||
+                          togglingSlug === addon.addonSlug ||
+                          isExpired(addon.expiresAt)
+                        }
+                        aria-label={`${addon.enabled ? "Desabilitar" : "Habilitar"} ${addon.addonSlug}`}
+                      />
+                      <span className="text-sm text-muted-foreground">
+                        {togglingSlug === addon.addonSlug
+                          ? "Atualizando..."
+                          : addon.enabled
+                          ? "Ativado"
+                          : "Desativado"}
+                      </span>
+                    </div>
                     <Button
                       variant="outline"
                       size="sm"
@@ -203,7 +249,28 @@ export function GrantedAddonsSection() {
                         )}
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-2">
+                        <Switch
+                          checked={addon.enabled}
+                          onCheckedChange={(checked) =>
+                            handleToggleOrgAddon(addon.addonSlug, checked)
+                          }
+                          disabled={
+                            isToggling ||
+                            togglingSlug === addon.addonSlug ||
+                            isExpired(addon.expiresAt)
+                          }
+                          aria-label={`${addon.enabled ? "Desabilitar" : "Habilitar"} ${addon.addonSlug}`}
+                        />
+                        <span className="text-sm text-muted-foreground">
+                          {togglingSlug === addon.addonSlug
+                            ? "Atualizando..."
+                            : addon.enabled
+                            ? "Ativado"
+                            : "Desativado"}
+                        </span>
+                      </div>
                       <Button
                         variant="outline"
                         size="sm"

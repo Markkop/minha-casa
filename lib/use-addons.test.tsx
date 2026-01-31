@@ -631,4 +631,246 @@ describe("useAddons", () => {
       consoleSpy.mockRestore()
     })
   })
+
+  describe("toggleUserAddon", () => {
+    it("successfully toggles a user addon to disabled", async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ success: true, addon: { ...mockUserAddons[0], enabled: false } }),
+      })
+
+      const { result } = renderHook(() => useAddons(), {
+        wrapper: createWrapper({
+          initialUserAddons: mockUserAddons,
+        }),
+      })
+
+      let success: boolean = false
+      await act(async () => {
+        success = await result.current.toggleUserAddon("financiamento", false)
+      })
+
+      expect(success).toBe(true)
+      expect(mockFetch).toHaveBeenCalledWith("/api/user/addons/financiamento", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ enabled: false }),
+      })
+      // Addon should be updated in local state
+      const updatedAddon = result.current.userAddons.find(a => a.addonSlug === "financiamento")
+      expect(updatedAddon?.enabled).toBe(false)
+    })
+
+    it("successfully toggles a user addon to enabled", async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ success: true, addon: { ...mockUserAddons[1], enabled: true } }),
+      })
+
+      const { result } = renderHook(() => useAddons(), {
+        wrapper: createWrapper({
+          initialUserAddons: mockUserAddons,
+        }),
+      })
+
+      let success: boolean = false
+      await act(async () => {
+        success = await result.current.toggleUserAddon("disabled-addon", true)
+      })
+
+      expect(success).toBe(true)
+      expect(mockFetch).toHaveBeenCalledWith("/api/user/addons/disabled-addon", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ enabled: true }),
+      })
+      // Addon should be updated in local state
+      const updatedAddon = result.current.userAddons.find(a => a.addonSlug === "disabled-addon")
+      expect(updatedAddon?.enabled).toBe(true)
+    })
+
+    it("returns false when toggle fails", async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        json: async () => ({ error: "Failed to toggle" }),
+      })
+
+      const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {})
+
+      const { result } = renderHook(() => useAddons(), {
+        wrapper: createWrapper({
+          initialUserAddons: mockUserAddons,
+        }),
+      })
+
+      let success: boolean = true
+      await act(async () => {
+        success = await result.current.toggleUserAddon("financiamento", false)
+      })
+
+      expect(success).toBe(false)
+      // Addon should still have original state
+      const addon = result.current.userAddons.find(a => a.addonSlug === "financiamento")
+      expect(addon?.enabled).toBe(true)
+
+      consoleSpy.mockRestore()
+    })
+
+    it("sets isToggling during operation", async () => {
+      let resolvePromise: () => void
+      const fetchPromise = new Promise<void>((resolve) => {
+        resolvePromise = resolve
+      })
+
+      mockFetch.mockImplementationOnce(async () => {
+        await fetchPromise
+        return {
+          ok: true,
+          json: async () => ({ success: true, addon: { ...mockUserAddons[0], enabled: false } }),
+        }
+      })
+
+      const { result } = renderHook(() => useAddons(), {
+        wrapper: createWrapper({
+          initialUserAddons: mockUserAddons,
+        }),
+      })
+
+      expect(result.current.isToggling).toBe(false)
+
+      let togglePromise: Promise<boolean>
+      act(() => {
+        togglePromise = result.current.toggleUserAddon("financiamento", false)
+      })
+
+      await waitFor(() => {
+        expect(result.current.isToggling).toBe(true)
+      })
+
+      await act(async () => {
+        resolvePromise!()
+        await togglePromise
+      })
+
+      expect(result.current.isToggling).toBe(false)
+    })
+  })
+
+  describe("toggleOrgAddon", () => {
+    it("returns false when not in organization context", async () => {
+      const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {})
+
+      const { result } = renderHook(() => useAddons(), {
+        wrapper: createWrapper({
+          initialOrgAddons: mockOrgAddons,
+        }),
+      })
+
+      let success: boolean = true
+      await act(async () => {
+        success = await result.current.toggleOrgAddon("flood", false)
+      })
+
+      expect(success).toBe(false)
+      expect(mockFetch).not.toHaveBeenCalled()
+
+      consoleSpy.mockRestore()
+    })
+
+    it("successfully toggles an org addon when in organization context", async () => {
+      localStorageMock.getItem.mockReturnValue(
+        JSON.stringify({
+          type: "organization",
+          organizationId: "org-1",
+          organizationName: "Test Org",
+        })
+      )
+
+      mockFetch
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({ addons: mockUserAddons }),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({ addons: mockOrgAddons }),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({ success: true, addon: { ...mockOrgAddons[0], enabled: false } }),
+        })
+
+      const { result } = renderHook(() => useAddons(), {
+        wrapper: createWrapper(),
+      })
+
+      await waitFor(() => {
+        expect(result.current.isLoading).toBe(false)
+      })
+
+      let success: boolean = false
+      await act(async () => {
+        success = await result.current.toggleOrgAddon("flood", false)
+      })
+
+      expect(success).toBe(true)
+      expect(mockFetch).toHaveBeenCalledWith(
+        "/api/organizations/org-1/addons/flood",
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ enabled: false }),
+        }
+      )
+      // Addon should be updated in local state
+      const updatedAddon = result.current.orgAddons.find(a => a.addonSlug === "flood")
+      expect(updatedAddon?.enabled).toBe(false)
+    })
+
+    it("returns false when org toggle fails", async () => {
+      localStorageMock.getItem.mockReturnValue(
+        JSON.stringify({
+          type: "organization",
+          organizationId: "org-1",
+          organizationName: "Test Org",
+        })
+      )
+
+      mockFetch
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({ addons: [] }),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({ addons: mockOrgAddons }),
+        })
+        .mockResolvedValueOnce({
+          ok: false,
+          json: async () => ({ error: "Forbidden" }),
+        })
+
+      const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {})
+
+      const { result } = renderHook(() => useAddons(), {
+        wrapper: createWrapper(),
+      })
+
+      await waitFor(() => {
+        expect(result.current.isLoading).toBe(false)
+      })
+
+      let success: boolean = true
+      await act(async () => {
+        success = await result.current.toggleOrgAddon("flood", false)
+      })
+
+      expect(success).toBe(false)
+      // Addon should still have original state
+      const addon = result.current.orgAddons.find(a => a.addonSlug === "flood")
+      expect(addon?.enabled).toBe(true)
+
+      consoleSpy.mockRestore()
+    })
+  })
 })

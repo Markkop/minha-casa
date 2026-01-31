@@ -288,4 +288,153 @@ describe("GrantedAddonsSection", () => {
       expect(screen.getByText("Addons da Organização")).toBeInTheDocument()
     })
   })
+
+  describe("toggle functionality", () => {
+    it("displays toggle switches for user addons", () => {
+      renderWithProvider(mockUserAddons, [])
+
+      // Should have toggle switches for each addon
+      const switches = screen.getAllByRole("switch")
+      expect(switches).toHaveLength(2)
+    })
+
+    it("toggle switch is checked when addon is enabled", () => {
+      renderWithProvider(mockUserAddons, [])
+
+      const switches = screen.getAllByRole("switch")
+      // Both mock addons are enabled
+      expect(switches[0]).toBeChecked()
+      expect(switches[1]).toBeChecked()
+    })
+
+    it("toggle switch is unchecked when addon is disabled", () => {
+      const disabledAddon: UserAddon = {
+        ...mockUserAddons[0],
+        enabled: false,
+      }
+      renderWithProvider([disabledAddon], [])
+
+      const switches = screen.getAllByRole("switch")
+      expect(switches[0]).not.toBeChecked()
+    })
+
+    it("calls toggleUserAddon when switch is toggled off", async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ success: true, addon: { ...mockUserAddons[0], enabled: false } }),
+      })
+
+      renderWithProvider(mockUserAddons, [])
+
+      const switches = screen.getAllByRole("switch")
+      fireEvent.click(switches[0])
+
+      await waitFor(() => {
+        expect(mockFetch).toHaveBeenCalledWith("/api/user/addons/financiamento", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ enabled: false }),
+        })
+      })
+    })
+
+    it("calls toggleUserAddon when switch is toggled on", async () => {
+      const disabledAddon: UserAddon = {
+        ...mockUserAddons[0],
+        enabled: false,
+      }
+
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ success: true, addon: { ...disabledAddon, enabled: true } }),
+      })
+
+      renderWithProvider([disabledAddon], [])
+
+      const switches = screen.getAllByRole("switch")
+      fireEvent.click(switches[0])
+
+      await waitFor(() => {
+        expect(mockFetch).toHaveBeenCalledWith("/api/user/addons/financiamento", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ enabled: true }),
+        })
+      })
+    })
+
+    it("shows alert on toggle failure", async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        json: async () => ({ error: "Failed" }),
+      })
+
+      // Suppress console.error
+      const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {})
+
+      renderWithProvider(mockUserAddons, [])
+
+      const switches = screen.getAllByRole("switch")
+      fireEvent.click(switches[0])
+
+      await waitFor(() => {
+        expect(mockAlert).toHaveBeenCalledWith("Falha ao alterar estado do addon. Tente novamente.")
+      })
+
+      consoleSpy.mockRestore()
+    })
+
+    it("shows 'Atualizando...' text while toggling", async () => {
+      let resolvePromise: () => void
+      const fetchPromise = new Promise<void>((resolve) => {
+        resolvePromise = resolve
+      })
+
+      mockFetch.mockImplementationOnce(async () => {
+        await fetchPromise
+        return {
+          ok: true,
+          json: async () => ({ success: true, addon: { ...mockUserAddons[0], enabled: false } }),
+        }
+      })
+
+      renderWithProvider(mockUserAddons, [])
+
+      const switches = screen.getAllByRole("switch")
+      fireEvent.click(switches[0])
+
+      await waitFor(() => {
+        expect(screen.getByText("Atualizando...")).toBeInTheDocument()
+      })
+
+      // Clean up
+      resolvePromise!()
+    })
+
+    it("disables toggle switch for expired addons", () => {
+      const expiredAddon: UserAddon = {
+        ...mockUserAddons[0],
+        expiresAt: new Date("2020-01-01"),
+      }
+      renderWithProvider([expiredAddon], [])
+
+      const switches = screen.getAllByRole("switch")
+      expect(switches[0]).toBeDisabled()
+    })
+
+    it("displays toggle labels 'Ativado' and 'Desativado'", () => {
+      const enabledAddon: UserAddon = {
+        ...mockUserAddons[0],
+        enabled: true,
+      }
+      const disabledAddon: UserAddon = {
+        ...mockUserAddons[1],
+        enabled: false,
+      }
+      renderWithProvider([enabledAddon, disabledAddon], [])
+
+      expect(screen.getByText("Ativado")).toBeInTheDocument()
+      expect(screen.getByText("Desativado")).toBeInTheDocument()
+    })
+  })
 })

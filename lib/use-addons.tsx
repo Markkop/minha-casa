@@ -40,6 +40,12 @@ export interface AddonsContextValue {
   revokeOrgAddon: (slug: string) => Promise<boolean>
   /** Whether a revoke operation is in progress */
   isRevoking: boolean
+  /** Toggle a user addon's enabled state */
+  toggleUserAddon: (slug: string, enabled: boolean) => Promise<boolean>
+  /** Toggle an organization addon's enabled state (requires org context) */
+  toggleOrgAddon: (slug: string, enabled: boolean) => Promise<boolean>
+  /** Whether a toggle operation is in progress */
+  isToggling: boolean
 }
 
 // ============================================================================
@@ -88,6 +94,7 @@ export function AddonsProvider({
   const [initialized, setInitialized] = useState(false)
   const [shouldFetch, setShouldFetch] = useState(!hasInitialData)
   const [isRevoking, setIsRevoking] = useState(false)
+  const [isToggling, setIsToggling] = useState(false)
 
   // Initialize org context from storage on mount
   useEffect(() => {
@@ -241,6 +248,76 @@ export function AddonsProvider({
     [orgContext]
   )
 
+  // Toggle a user addon's enabled state
+  const toggleUserAddon = useCallback(
+    async (slug: string, enabled: boolean): Promise<boolean> => {
+      setIsToggling(true)
+      try {
+        const response = await fetch(`/api/user/addons/${slug}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ enabled }),
+        })
+        if (!response.ok) {
+          const data = await response.json()
+          throw new Error(data.error || "Failed to toggle addon")
+        }
+        // Update the addon in local state
+        setUserAddons((prev) =>
+          prev.map((addon) =>
+            addon.addonSlug === slug ? { ...addon, enabled } : addon
+          )
+        )
+        return true
+      } catch (err) {
+        console.error("Failed to toggle user addon:", err)
+        return false
+      } finally {
+        setIsToggling(false)
+      }
+    },
+    []
+  )
+
+  // Toggle an organization addon's enabled state
+  const toggleOrgAddon = useCallback(
+    async (slug: string, enabled: boolean): Promise<boolean> => {
+      if (orgContext.type !== "organization" || !orgContext.organizationId) {
+        console.error("Cannot toggle org addon: not in organization context")
+        return false
+      }
+
+      setIsToggling(true)
+      try {
+        const response = await fetch(
+          `/api/organizations/${orgContext.organizationId}/addons/${slug}`,
+          {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ enabled }),
+          }
+        )
+        if (!response.ok) {
+          const data = await response.json()
+          throw new Error(data.error || "Failed to toggle addon")
+        }
+        // Update the addon in local state
+        setOrgAddons((prev) =>
+          prev.map((addon) =>
+            addon.addonSlug === slug ? { ...addon, enabled } : addon
+          )
+        )
+        return true
+      } catch (err) {
+        console.error("Failed to toggle org addon:", err)
+        return false
+      } finally {
+        setIsToggling(false)
+      }
+    },
+    [orgContext]
+  )
+
   // Load addons when initialized or when org context changes
   // Skip initial fetch if we have initial data (SSR or test data)
   useEffect(() => {
@@ -275,8 +352,11 @@ export function AddonsProvider({
       revokeUserAddon,
       revokeOrgAddon,
       isRevoking,
+      toggleUserAddon,
+      toggleOrgAddon,
+      isToggling,
     }),
-    [userAddons, orgAddons, hasAddon, isLoading, error, orgContext, refresh, revokeUserAddon, revokeOrgAddon, isRevoking]
+    [userAddons, orgAddons, hasAddon, isLoading, error, orgContext, refresh, revokeUserAddon, revokeOrgAddon, isRevoking, toggleUserAddon, toggleOrgAddon, isToggling]
   )
 
   return (
