@@ -35,16 +35,38 @@ vi.mock("@/lib/feature-flags", () => ({
   getFlag: (flag: string) => mockGetFlag(flag),
 }))
 
+// Mock useAddons hook
+const mockHasAddon = vi.fn()
+vi.mock("@/lib/use-addons", () => ({
+  useAddons: () => ({
+    hasAddon: mockHasAddon,
+    userAddons: [],
+    orgAddons: [],
+    isLoading: false,
+    error: null,
+    orgContext: { type: "personal" },
+    refresh: vi.fn(),
+    revokeUserAddon: vi.fn(),
+    revokeOrgAddon: vi.fn(),
+    isRevoking: false,
+    toggleUserAddon: vi.fn(),
+    toggleOrgAddon: vi.fn(),
+    isToggling: false,
+  }),
+}))
+
 describe("NavBar", () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockPathname.mockReturnValue("/")
     mockUseSession.mockReturnValue({ data: null })
-    // Default: organizations enabled, others disabled (matching PRD defaults)
+    // Default: organizations enabled (for feature flag), addons disabled
     mockGetFlag.mockImplementation((flag: string) => {
       if (flag === "organizations") return true
       return false
     })
+    // Default: no addons enabled
+    mockHasAddon.mockReturnValue(false)
   })
 
   afterEach(() => {
@@ -60,24 +82,40 @@ describe("NavBar", () => {
       expect(logoLink).toHaveAttribute("href", "/")
     })
 
-    it("renders core navigation links (always visible)", () => {
+    it("renders anuncios link when user is logged in", () => {
+      mockUseSession.mockReturnValue({
+        data: { user: { id: "user-1", name: "Test User", isAdmin: false } },
+      })
       render(<NavBar />)
 
-      expect(screen.getByRole("link", { name: /inicio/i })).toBeInTheDocument()
       expect(screen.getByRole("link", { name: /anuncios/i })).toBeInTheDocument()
     })
 
-    it("renders organizacoes link when feature flag is enabled", () => {
-      mockGetFlag.mockImplementation((flag: string) => flag === "organizations")
+    it("hides anuncios link when user is not logged in", () => {
+      mockUseSession.mockReturnValue({ data: null })
       render(<NavBar />)
+
+      expect(screen.queryByRole("link", { name: /anuncios/i })).not.toBeInTheDocument()
+    })
+
+    it("renders organizacoes link in popover when feature flag is enabled and user is logged in", () => {
+      mockGetFlag.mockImplementation((flag: string) => flag === "organizations")
+      mockUseSession.mockReturnValue({
+        data: { user: { id: "user-1", name: "Test User", isAdmin: false } },
+      })
+      render(<NavBar />)
+
+      // Open the user menu popover
+      const userMenuButton = screen.getByRole("button", { name: /menu do usuario/i })
+      fireEvent.click(userMenuButton)
 
       expect(
         screen.getByRole("link", { name: /organizacoes/i })
       ).toBeInTheDocument()
     })
 
-    it("hides simulador link when financingSimulator flag is disabled", () => {
-      mockGetFlag.mockReturnValue(false)
+    it("hides simulador link when user/org does not have financiamento addon", () => {
+      mockHasAddon.mockReturnValue(false)
       render(<NavBar />)
 
       expect(
@@ -85,8 +123,8 @@ describe("NavBar", () => {
       ).not.toBeInTheDocument()
     })
 
-    it("shows simulador link when financingSimulator flag is enabled", () => {
-      mockGetFlag.mockImplementation((flag: string) => flag === "financingSimulator")
+    it("shows simulador link when user has financiamento addon", () => {
+      mockHasAddon.mockImplementation((slug: string) => slug === "financiamento")
       render(<NavBar />)
 
       const simuladorLink = screen.getByRole("link", { name: /simulador/i })
@@ -94,8 +132,18 @@ describe("NavBar", () => {
       expect(simuladorLink).toHaveAttribute("href", "/casa")
     })
 
-    it("hides risco enchente link when floodForecast flag is disabled", () => {
-      mockGetFlag.mockReturnValue(false)
+    it("shows simulador link when org has financiamento addon", () => {
+      // hasAddon checks both user AND org addons
+      mockHasAddon.mockImplementation((slug: string) => slug === "financiamento")
+      render(<NavBar />)
+
+      const simuladorLink = screen.getByRole("link", { name: /simulador/i })
+      expect(simuladorLink).toBeInTheDocument()
+      expect(simuladorLink).toHaveAttribute("href", "/casa")
+    })
+
+    it("hides risco enchente link when user/org does not have flood addon", () => {
+      mockHasAddon.mockReturnValue(false)
       render(<NavBar />)
 
       expect(
@@ -103,35 +151,64 @@ describe("NavBar", () => {
       ).not.toBeInTheDocument()
     })
 
-    it("shows risco enchente link when floodForecast flag is enabled", () => {
-      mockGetFlag.mockImplementation((flag: string) => flag === "floodForecast")
+    it("shows risco enchente link when user has flood addon", () => {
+      mockHasAddon.mockImplementation((slug: string) => slug === "flood")
       render(<NavBar />)
 
       const riscoLink = screen.getByRole("link", { name: /risco enchente/i })
       expect(riscoLink).toBeInTheDocument()
       expect(riscoLink).toHaveAttribute("href", "/floodrisk")
     })
+
+    it("shows risco enchente link when org has flood addon", () => {
+      // hasAddon checks both user AND org addons
+      mockHasAddon.mockImplementation((slug: string) => slug === "flood")
+      render(<NavBar />)
+
+      const riscoLink = screen.getByRole("link", { name: /risco enchente/i })
+      expect(riscoLink).toBeInTheDocument()
+      expect(riscoLink).toHaveAttribute("href", "/floodrisk")
+    })
+
+    it("shows both addon-gated links when user has both addons", () => {
+      mockHasAddon.mockReturnValue(true)
+      render(<NavBar />)
+
+      expect(screen.getByRole("link", { name: /simulador/i })).toBeInTheDocument()
+      expect(screen.getByRole("link", { name: /risco enchente/i })).toBeInTheDocument()
+    })
   })
 
   describe("active link highlighting", () => {
-    it("highlights home link when on home page", () => {
-      mockPathname.mockReturnValue("/")
-      render(<NavBar />)
-
-      const homeLink = screen.getByRole("link", { name: /inicio/i })
-      expect(homeLink).toHaveClass("bg-primary/10", "text-primary")
-    })
-
     it("highlights anuncios link when on anuncios page", () => {
       mockPathname.mockReturnValue("/anuncios")
+      mockUseSession.mockReturnValue({
+        data: { user: { id: "user-1", name: "Test User", isAdmin: false } },
+      })
       render(<NavBar />)
 
       const anunciosLink = screen.getByRole("link", { name: /anuncios/i })
       expect(anunciosLink).toHaveClass("bg-primary/10", "text-primary")
     })
 
+    it("highlights simulador link when on casa page", () => {
+      mockPathname.mockReturnValue("/casa")
+      mockHasAddon.mockImplementation((slug: string) => slug === "financiamento")
+      mockUseSession.mockReturnValue({
+        data: { user: { id: "user-1", name: "Test User", isAdmin: false } },
+      })
+      render(<NavBar />)
+
+      const simuladorLink = screen.getByRole("link", { name: /simulador/i })
+      expect(simuladorLink).toHaveClass("bg-primary/10", "text-primary")
+    })
+
     it("does not highlight inactive links", () => {
-      mockPathname.mockReturnValue("/")
+      mockPathname.mockReturnValue("/casa")
+      mockHasAddon.mockReturnValue(true)
+      mockUseSession.mockReturnValue({
+        data: { user: { id: "user-1", name: "Test User", isAdmin: false } },
+      })
       render(<NavBar />)
 
       const anunciosLink = screen.getByRole("link", { name: /anuncios/i })
@@ -160,12 +237,16 @@ describe("NavBar", () => {
     })
   })
 
-  describe("admin link", () => {
+  describe("admin link in popover", () => {
     it("does not show admin link for non-admin users", () => {
       mockUseSession.mockReturnValue({
         data: { user: { id: "user-1", name: "Test User", isAdmin: false } },
       })
       render(<NavBar />)
+
+      // Open the user menu popover
+      const userMenuButton = screen.getByRole("button", { name: /menu do usuario/i })
+      fireEvent.click(userMenuButton)
 
       expect(screen.queryByRole("link", { name: /admin/i })).not.toBeInTheDocument()
     })
@@ -174,29 +255,23 @@ describe("NavBar", () => {
       mockUseSession.mockReturnValue({ data: null })
       render(<NavBar />)
 
+      // No popover to open when not logged in
       expect(screen.queryByRole("link", { name: /admin/i })).not.toBeInTheDocument()
     })
 
-    it("shows admin link for admin users", () => {
+    it("shows admin link for admin users in popover", () => {
       mockUseSession.mockReturnValue({
         data: { user: { id: "admin-1", name: "Admin User", isAdmin: true } },
       })
       render(<NavBar />)
+
+      // Open the user menu popover
+      const userMenuButton = screen.getByRole("button", { name: /menu do usuario/i })
+      fireEvent.click(userMenuButton)
 
       const adminLink = screen.getByRole("link", { name: /admin/i })
       expect(adminLink).toBeInTheDocument()
       expect(adminLink).toHaveAttribute("href", "/admin")
-    })
-
-    it("highlights admin link when on admin page", () => {
-      mockPathname.mockReturnValue("/admin")
-      mockUseSession.mockReturnValue({
-        data: { user: { id: "admin-1", name: "Admin User", isAdmin: true } },
-      })
-      render(<NavBar />)
-
-      const adminLink = screen.getByRole("link", { name: /admin/i })
-      expect(adminLink).toHaveClass("bg-primary/10", "text-primary")
     })
   })
 
@@ -266,20 +341,44 @@ describe("NavBar", () => {
 
   describe("navigation icons", () => {
     it("renders navigation icons for visible links", () => {
+      mockUseSession.mockReturnValue({
+        data: { user: { id: "user-1", name: "Test User", isAdmin: false } },
+      })
       render(<NavBar />)
 
-      // Check for emoji icons (only for always-visible links)
-      expect(screen.getByText("🏡")).toBeInTheDocument() // Inicio
+      // Check for Anuncios icon (visible when logged in)
       expect(screen.getByText("🏘️")).toBeInTheDocument() // Anuncios
     })
 
-    it("renders admin icon for admin users", () => {
+    it("renders logo icon", () => {
+      render(<NavBar />)
+
+      // Logo uses house icon
+      expect(screen.getByText("🏠")).toBeInTheDocument()
+    })
+
+    it("renders admin icon for admin users in popover", () => {
       mockUseSession.mockReturnValue({
         data: { user: { id: "admin-1", name: "Admin User", isAdmin: true } },
       })
       render(<NavBar />)
 
+      // Open the user menu popover
+      const userMenuButton = screen.getByRole("button", { name: /menu do usuario/i })
+      fireEvent.click(userMenuButton)
+
       expect(screen.getByText("⚙️")).toBeInTheDocument()
+    })
+
+    it("renders addon-gated icons when addons are enabled", () => {
+      mockHasAddon.mockReturnValue(true)
+      mockUseSession.mockReturnValue({
+        data: { user: { id: "user-1", name: "Test User", isAdmin: false } },
+      })
+      render(<NavBar />)
+
+      expect(screen.getByText("📊")).toBeInTheDocument() // Simulador
+      expect(screen.getByText("🌊")).toBeInTheDocument() // Risco Enchente
     })
   })
 })

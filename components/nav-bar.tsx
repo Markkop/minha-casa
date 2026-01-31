@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils"
 import { useSession, signOut } from "@/lib/auth-client"
 import { OrganizationSwitcher } from "@/components/organization-switcher"
 import { getFlag } from "@/lib/feature-flags"
+import { useAddons } from "@/lib/use-addons"
 import { Button } from "@/components/ui/button"
 import {
   Popover,
@@ -17,28 +18,30 @@ interface NavLink {
   href: string
   label: string
   icon: string
-  featureFlag?: "financingSimulator" | "floodForecast" | "organizations"
+  /** Addon slug to check for access (user OR org) */
+  addonSlug?: "financiamento" | "flood"
   requiresAuth?: boolean
 }
 
 const navLinks: NavLink[] = [
-  { href: "/casa", label: "Simulador", icon: "📊", featureFlag: "financingSimulator" },
+  { href: "/casa", label: "Simulador", icon: "📊", addonSlug: "financiamento" },
   { href: "/anuncios", label: "Anuncios", icon: "🏘️", requiresAuth: true },
-  { href: "/floodrisk", label: "Risco Enchente", icon: "🌊", featureFlag: "floodForecast" },
+  { href: "/floodrisk", label: "Risco Enchente", icon: "🌊", addonSlug: "flood" },
 ]
 
 export function NavBar() {
   const pathname = usePathname()
   const router = useRouter()
   const { data: session } = useSession()
+  const { hasAddon } = useAddons()
   const isAdmin = (session?.user as { isAdmin?: boolean } | undefined)?.isAdmin === true
   const isLoggedIn = !!session?.user
 
-  // Filter nav links based on feature flags and auth requirements
+  // Filter nav links based on addon access and auth requirements
   const visibleLinks = navLinks.filter((link) => {
     if (link.requiresAuth && !isLoggedIn) return false
-    if (!link.featureFlag) return true
-    return getFlag(link.featureFlag)
+    if (!link.addonSlug) return true
+    return hasAddon(link.addonSlug)
   })
 
   const handleLogout = async () => {
