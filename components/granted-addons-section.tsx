@@ -12,6 +12,29 @@ import {
 import { Switch } from "@/components/ui/switch"
 import { useAddons } from "@/lib/use-addons"
 
+/**
+ * Addon display names and descriptions
+ * Maps addon slugs to user-friendly names and descriptions
+ */
+const ADDON_METADATA: Record<string, { name: string; description: string }> = {
+  financiamento: {
+    name: "Simulador de Financiamento",
+    description: "Simule financiamentos imobiliários e veja suas parcelas",
+  },
+  flood: {
+    name: "Risco de Enchente",
+    description: "Análise de risco de enchente com visualização 3D",
+  },
+}
+
+function getAddonDisplayName(slug: string): string {
+  return ADDON_METADATA[slug]?.name ?? slug
+}
+
+function getAddonDescription(slug: string): string {
+  return ADDON_METADATA[slug]?.description ?? ""
+}
+
 function formatDate(date: Date | null): string {
   if (!date) return "-"
   return new Date(date).toLocaleDateString("pt-BR", {
@@ -129,14 +152,14 @@ export function GrantedAddonsSection() {
                 >
                   <div className="flex-1 space-y-1">
                     <div className="flex items-center gap-2">
-                      <span className="font-medium">{addon.addonSlug}</span>
+                      <span className="font-medium">{getAddonDisplayName(addon.addonSlug)}</span>
                       <span
                         className={`px-2 py-0.5 rounded text-xs ${
                           !addon.enabled
-                            ? "bg-gray-200 text-gray-700"
+                            ? "bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-300"
                             : isExpired(addon.expiresAt)
                             ? "bg-destructive/20 text-destructive"
-                            : "bg-green-100 text-green-700"
+                            : "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
                         }`}
                       >
                         {!addon.enabled
@@ -146,6 +169,12 @@ export function GrantedAddonsSection() {
                           : "Ativo"}
                       </span>
                     </div>
+                    {/* Description */}
+                    {getAddonDescription(addon.addonSlug) && (
+                      <p className="text-sm text-muted-foreground">
+                        {getAddonDescription(addon.addonSlug)}
+                      </p>
+                    )}
                     <div className="text-xs text-muted-foreground space-y-0.5">
                       <p>Concedido em: {formatDate(addon.grantedAt)}</p>
                       {addon.expiresAt && (
@@ -170,7 +199,7 @@ export function GrantedAddonsSection() {
                           togglingSlug === addon.addonSlug ||
                           isExpired(addon.expiresAt)
                         }
-                        aria-label={`${addon.enabled ? "Desabilitar" : "Habilitar"} ${addon.addonSlug}`}
+                        aria-label={`${addon.enabled ? "Desativar" : "Ativar"} ${getAddonDisplayName(addon.addonSlug)}`}
                       />
                       <span className="text-sm text-muted-foreground">
                         {togglingSlug === addon.addonSlug
@@ -220,14 +249,14 @@ export function GrantedAddonsSection() {
                   >
                     <div className="flex-1 space-y-1">
                       <div className="flex items-center gap-2">
-                        <span className="font-medium">{addon.addonSlug}</span>
+                        <span className="font-medium">{getAddonDisplayName(addon.addonSlug)}</span>
                         <span
                           className={`px-2 py-0.5 rounded text-xs ${
                             !addon.enabled
-                              ? "bg-gray-200 text-gray-700"
+                              ? "bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-300"
                               : isExpired(addon.expiresAt)
                               ? "bg-destructive/20 text-destructive"
-                              : "bg-green-100 text-green-700"
+                              : "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
                           }`}
                         >
                           {!addon.enabled
@@ -237,6 +266,12 @@ export function GrantedAddonsSection() {
                             : "Ativo"}
                         </span>
                       </div>
+                      {/* Description */}
+                      {getAddonDescription(addon.addonSlug) && (
+                        <p className="text-sm text-muted-foreground">
+                          {getAddonDescription(addon.addonSlug)}
+                        </p>
+                      )}
                       <div className="text-xs text-muted-foreground space-y-0.5">
                         <p>Concedido em: {formatDate(addon.grantedAt)}</p>
                         {addon.expiresAt && (
@@ -261,7 +296,7 @@ export function GrantedAddonsSection() {
                             togglingSlug === addon.addonSlug ||
                             isExpired(addon.expiresAt)
                           }
-                          aria-label={`${addon.enabled ? "Desabilitar" : "Habilitar"} ${addon.addonSlug}`}
+                          aria-label={`${addon.enabled ? "Desativar" : "Ativar"} ${getAddonDisplayName(addon.addonSlug)}`}
                         />
                         <span className="text-sm text-muted-foreground">
                           {togglingSlug === addon.addonSlug

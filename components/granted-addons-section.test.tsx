@@ -108,9 +108,25 @@ describe("GrantedAddonsSection", () => {
     it("displays user addons with Revoke buttons", () => {
       renderWithProvider(mockUserAddons, [])
 
-      expect(screen.getByText("financiamento")).toBeInTheDocument()
-      expect(screen.getByText("analytics")).toBeInTheDocument()
+      expect(screen.getByText("Simulador de Financiamento")).toBeInTheDocument()
+      expect(screen.getByText("analytics")).toBeInTheDocument() // Unknown addon shows slug
       expect(screen.getAllByText("Revogar")).toHaveLength(2)
+    })
+
+    it("displays addon descriptions for known addons", () => {
+      renderWithProvider(mockUserAddons, [])
+
+      expect(
+        screen.getByText("Simule financiamentos imobiliários e veja suas parcelas")
+      ).toBeInTheDocument()
+    })
+
+    it("does not display description for unknown addons", () => {
+      renderWithProvider(mockUserAddons, [])
+
+      // "analytics" is unknown, so no description should be rendered for it
+      const descriptions = screen.queryAllByText(/Simule|Análise/)
+      expect(descriptions).toHaveLength(1) // Only one description for "financiamento"
     })
 
     it("shows org addons section only in org context", async () => {
@@ -282,10 +298,13 @@ describe("GrantedAddonsSection", () => {
       )
 
       await waitFor(() => {
-        expect(screen.getByText("flood")).toBeInTheDocument()
+        expect(screen.getByText("Risco de Enchente")).toBeInTheDocument()
       })
 
       expect(screen.getByText("Addons da Organização")).toBeInTheDocument()
+      expect(
+        screen.getByText("Análise de risco de enchente com visualização 3D")
+      ).toBeInTheDocument()
     })
   })
 
@@ -435,6 +454,60 @@ describe("GrantedAddonsSection", () => {
 
       expect(screen.getByText("Ativado")).toBeInTheDocument()
       expect(screen.getByText("Desativado")).toBeInTheDocument()
+    })
+  })
+
+  describe("accessibility", () => {
+    it("has accessible labels for toggle switches using display names", () => {
+      renderWithProvider(mockUserAddons, [])
+
+      expect(
+        screen.getByLabelText("Desativar Simulador de Financiamento")
+      ).toBeInTheDocument()
+    })
+
+    it("has correct aria-label for disabled addon toggle", () => {
+      const disabledAddon: UserAddon = {
+        ...mockUserAddons[0],
+        enabled: false,
+      }
+      renderWithProvider([disabledAddon], [])
+
+      expect(
+        screen.getByLabelText("Ativar Simulador de Financiamento")
+      ).toBeInTheDocument()
+    })
+
+    it("uses slug as aria-label for unknown addons", () => {
+      const unknownAddon: UserAddon = {
+        id: "ua-3",
+        userId: "user-1",
+        addonSlug: "custom-addon",
+        grantedAt: new Date("2024-01-01"),
+        grantedBy: "admin-1",
+        enabled: true,
+        expiresAt: null,
+      }
+      renderWithProvider([unknownAddon], [])
+
+      expect(screen.getByLabelText("Desativar custom-addon")).toBeInTheDocument()
+    })
+  })
+
+  describe("unknown addon slugs", () => {
+    it("displays slug as fallback name for unknown addons", () => {
+      const unknownAddon: UserAddon = {
+        id: "ua-3",
+        userId: "user-1",
+        addonSlug: "unknown-addon",
+        grantedAt: new Date("2024-01-01"),
+        grantedBy: "admin-1",
+        enabled: true,
+        expiresAt: null,
+      }
+      renderWithProvider([unknownAddon], [])
+
+      expect(screen.getByText("unknown-addon")).toBeInTheDocument()
     })
   })
 })
