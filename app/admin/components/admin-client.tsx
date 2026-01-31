@@ -28,6 +28,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Input } from "@/components/ui/input"
+import { UserDetailsModal } from "./user-details-modal"
 
 interface Plan {
   id: string
@@ -162,6 +163,7 @@ export function AdminClient() {
   const [loadingOrgAddons, setLoadingOrgAddons] = useState(false)
   const [grantOrgAddonModalOpen, setGrantOrgAddonModalOpen] = useState(false)
   const [grantingOrgAddon, setGrantingOrgAddon] = useState(false)
+  const [userDetailsModalOpen, setUserDetailsModalOpen] = useState(false)
 
   const fetchData = useCallback(async () => {
     setLoading(true)
@@ -493,12 +495,6 @@ export function AdminClient() {
     } finally {
       setLoadingUserAddons(false)
     }
-  }
-
-  function openManageUserAddonsModal(user: User) {
-    setSelectedUser(user)
-    setManageUserAddonsModalOpen(true)
-    fetchUserAddonGrants(user.id)
   }
 
   async function grantUserAddon() {
@@ -895,6 +891,16 @@ export function AdminClient() {
                           size="sm"
                           onClick={() => {
                             setSelectedUser(user)
+                            setUserDetailsModalOpen(true)
+                          }}
+                        >
+                          Detalhes
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setSelectedUser(user)
                             setEditName(user.name)
                             setEditModalOpen(true)
                           }}
@@ -907,13 +913,6 @@ export function AdminClient() {
                           onClick={() => openManageSubscriptionModal(user)}
                         >
                           Assinatura
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => openManageUserAddonsModal(user)}
-                        >
-                          Addons
                         </Button>
                         <Button
                           variant="outline"
@@ -1678,6 +1677,19 @@ export function AdminClient() {
             </CardContent>
           </Card>
         </div>
+      )}
+
+      {/* User Details Modal */}
+      {userDetailsModalOpen && selectedUser && (
+        <UserDetailsModal
+          user={selectedUser}
+          availableAddons={availableAddons}
+          onClose={() => {
+            setUserDetailsModalOpen(false)
+            setSelectedUser(null)
+          }}
+          onUserUpdated={fetchData}
+        />
       )}
     </div>
   )
