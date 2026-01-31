@@ -118,6 +118,8 @@ minha-casa/
 │   ├── signup/             # Registration page
 │   └── subscribe/          # Subscription page
 ├── components/              # Shared components
+│   ├── addon-guard.tsx    # Addon access control component
+│   ├── nav-bar.tsx        # Navigation with addon-aware links
 │   └── ui/                 # shadcn/ui components
 ├── drizzle/                 # Database migrations
 │   └── migrations/
@@ -125,11 +127,13 @@ minha-casa/
 │   ├── db/                 # Database schema and connection
 │   │   ├── index.ts       # DB connection
 │   │   └── schema.ts      # Drizzle schema definitions
+│   ├── addons.ts          # Server-side addon utilities
 │   ├── auth.ts            # BetterAuth configuration
 │   ├── auth-client.ts     # Client-side auth utilities
 │   ├── auth-server.ts     # Server-side auth utilities
 │   ├── feature-flags.ts   # Feature flags system
 │   ├── subscription.ts    # Subscription utilities
+│   ├── use-addons.tsx     # React hooks for addon access
 │   └── utils.ts           # General utilities
 ├── public/                  # Static assets
 ├── drizzle.config.ts       # Drizzle configuration
@@ -170,7 +174,83 @@ minha-casa/
 
 - User management
 - Subscription management
+- Addon management (grant/revoke addons to users and organizations)
 - Usage statistics
+
+## Addon System
+
+The platform features a flexible addon system that allows granular feature access control for users and organizations.
+
+### Overview
+
+- **Admins** can grant/revoke addon access to users or organizations
+- **Users** can have personal addon access (independent of any organization)
+- **Organizations** can have addon access shared by all members
+- **Organization owners/admins** can toggle organization-level addons on/off
+- Access is granted if user has addon OR their current org has addon
+
+### Available Addons
+
+| Addon | Slug | Description |
+|-------|------|-------------|
+| Simulador de Financiamento | `financiamento` | Access to `/casa` financing simulator with price integration from listings |
+| Risco de Enchente | `flood` | Access to `/floodrisk` flood risk analysis and 3D visualization |
+
+### Access Control Logic
+
+```
+hasAddonAccess(userId, addonSlug, orgId?) = 
+  user_addons.has(userId, addonSlug, enabled=true) OR
+  (orgId AND organization_addons.has(orgId, addonSlug, enabled=true))
+```
+
+### Addon API Routes
+
+**Admin endpoints:**
+- `GET /api/admin/addons` - List all available addons
+- `GET /api/admin/users/[userId]/addons` - Get user's addons
+- `POST /api/admin/users/[userId]/addons` - Grant addon to user
+- `DELETE /api/admin/users/[userId]/addons/[slug]` - Revoke addon from user
+- `GET /api/admin/organizations/[orgId]/addons` - Get org's addons
+- `POST /api/admin/organizations/[orgId]/addons` - Grant addon to org
+- `DELETE /api/admin/organizations/[orgId]/addons/[slug]` - Revoke addon from org
+
+**User endpoints:**
+- `GET /api/user/addons` - Get current user's personal addons
+- `PATCH /api/user/addons/[slug]` - Toggle personal addon enabled state
+
+**Organization endpoints:**
+- `GET /api/organizations/[orgId]/addons` - Get org's enabled addons
+- `PATCH /api/organizations/[orgId]/addons/[slug]` - Toggle org addon enabled state
+
+### React Hooks & Components
+
+**Hooks** (`lib/use-addons.tsx`):
+
+```tsx
+// Access addon context
+const { userAddons, orgAddons, hasAddon, isLoading } = useAddons()
+
+// Check specific addon access
+const hasFinancing = useHasAddon('financiamento')
+
+// Check loading state
+const isLoading = useAddonsLoading()
+```
+
+**Components** (`components/addon-guard.tsx`):
+
+```tsx
+// Guard content behind addon access
+<AddonGuard addonSlug="financiamento" addonName="Simulador de Financiamento">
+  <ProtectedContent />
+</AddonGuard>
+
+// Conditionally show content (no fallback UI)
+<AddonContent addonSlug="flood">
+  <FloodRiskWidget />
+</AddonContent>
+```
 
 ## Feature Flags
 
@@ -197,6 +277,9 @@ The application uses the following main tables:
 - **organization_members**: Org membership with roles
 - **collections**: Listing collections (user or org owned)
 - **listings**: Individual real estate listings
+- **addons**: Available addon definitions (slug, name, description)
+- **user_addons**: Addon grants for individual users
+- **organization_addons**: Addon grants for organizations
 
 ## Testing
 
