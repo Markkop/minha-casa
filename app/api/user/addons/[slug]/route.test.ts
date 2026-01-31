@@ -278,4 +278,93 @@ describe("User Addon Toggle API", () => {
       expect(json.addon.expiresAt).toBeDefined()
     })
   })
+
+  describe("DELETE /api/user/addons/[slug]", () => {
+    function createDeleteRequest(slug: string = "flood"): {
+      request: NextRequest
+      params: Promise<{ slug: string }>
+    } {
+      const request = new NextRequest("http://localhost:3000/api/user/addons/" + slug, {
+        method: "DELETE",
+      })
+      return {
+        request,
+        params: Promise.resolve({ slug }),
+      }
+    }
+
+    it("returns 401 when not authenticated", async () => {
+      const { getServerSession } = await import("@/lib/auth-server")
+      vi.mocked(getServerSession).mockResolvedValue(null)
+
+      const { DELETE } = await import("./route")
+      const { request, params } = createDeleteRequest()
+      const response = await DELETE(request, { params })
+      const json = await response.json()
+
+      expect(response.status).toBe(401)
+      expect(json.error).toBe("Unauthorized")
+    })
+
+    it("returns 404 when addon grant not found for user", async () => {
+      const { getServerSession } = await import("@/lib/auth-server")
+      vi.mocked(getServerSession).mockResolvedValue(mockSession)
+
+      // Return empty array - addon not found
+      mockLimit.mockResolvedValue([])
+
+      const { DELETE } = await import("./route")
+      const { request, params } = createDeleteRequest()
+      const response = await DELETE(request, { params })
+      const json = await response.json()
+
+      expect(response.status).toBe(404)
+      expect(json.error).toBe("Addon not found for user")
+    })
+
+    it("successfully revokes an addon", async () => {
+      const { getServerSession } = await import("@/lib/auth-server")
+      vi.mocked(getServerSession).mockResolvedValue(mockSession)
+
+      // Return existing addon grant
+      mockLimit.mockResolvedValue([mockUserAddon])
+
+      // Mock delete operation
+      const mockDelete = vi.fn().mockReturnValue({
+        where: vi.fn().mockResolvedValue(undefined),
+      })
+      const { getDb } = await import("@/lib/db")
+      vi.mocked(getDb).mockReturnValue({
+        select: mockSelect,
+        update: mockUpdate,
+        delete: mockDelete,
+      } as unknown as ReturnType<typeof getDb>)
+
+      const { DELETE } = await import("./route")
+      const { request, params } = createDeleteRequest()
+      const response = await DELETE(request, { params })
+      const json = await response.json()
+
+      expect(response.status).toBe(200)
+      expect(json.success).toBe(true)
+      expect(json.message).toBe("Addon 'flood' has been revoked")
+      expect(json.revokedGrant.addonSlug).toBe("flood")
+    })
+
+    it("returns 500 when database throws an error", async () => {
+      const { getServerSession } = await import("@/lib/auth-server")
+      vi.mocked(getServerSession).mockResolvedValue(mockSession)
+
+      // Simulate database error
+      mockLimit.mockRejectedValue(new Error("Database error"))
+
+      const { DELETE } = await import("./route")
+      const { request, params } = createDeleteRequest()
+      const response = await DELETE(request, { params })
+      const json = await response.json()
+
+      expect(response.status).toBe(500)
+      expect(json.error).toBe("Failed to revoke user addon")
+    })
+  })
 })

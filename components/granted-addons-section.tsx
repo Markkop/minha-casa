@@ -1,0 +1,237 @@
+"use client"
+
+import { useState } from "react"
+import { Button } from "@/components/ui/button"
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card"
+import { useAddons } from "@/lib/use-addons"
+
+function formatDate(date: Date | null): string {
+  if (!date) return "-"
+  return new Date(date).toLocaleDateString("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  })
+}
+
+function isExpired(expiresAt: Date | null): boolean {
+  if (!expiresAt) return false
+  return new Date(expiresAt) < new Date()
+}
+
+/**
+ * GrantedAddonsSection
+ *
+ * Displays user and organization granted addons with Revoke action buttons.
+ * Users can revoke their own personal addons, and org owners/admins can revoke org addons.
+ */
+export function GrantedAddonsSection() {
+  const {
+    userAddons,
+    orgAddons,
+    orgContext,
+    isLoading,
+    isRevoking,
+    revokeUserAddon,
+    revokeOrgAddon,
+  } = useAddons()
+
+  const [revokingSlug, setRevokingSlug] = useState<string | null>(null)
+
+  async function handleRevokeUserAddon(slug: string) {
+    if (!confirm("Tem certeza que deseja revogar este addon?")) return
+
+    setRevokingSlug(slug)
+    const success = await revokeUserAddon(slug)
+    setRevokingSlug(null)
+
+    if (!success) {
+      alert("Falha ao revogar addon. Tente novamente.")
+    }
+  }
+
+  async function handleRevokeOrgAddon(slug: string) {
+    if (!confirm("Tem certeza que deseja revogar este addon da organização?")) return
+
+    setRevokingSlug(slug)
+    const success = await revokeOrgAddon(slug)
+    setRevokingSlug(null)
+
+    if (!success) {
+      alert("Falha ao revogar addon. Tente novamente.")
+    }
+  }
+
+  if (isLoading) {
+    return (
+      <Card>
+        <CardContent className="pt-6">
+          <div className="text-center text-muted-foreground">Carregando addons...</div>
+        </CardContent>
+      </Card>
+    )
+  }
+
+  const hasNoAddons = userAddons.length === 0 && orgAddons.length === 0
+
+  return (
+    <div className="space-y-6">
+      {/* User Addons */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Meus Addons</CardTitle>
+          <CardDescription>
+            Addons concedidos diretamente para sua conta.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {userAddons.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              Nenhum addon pessoal ativo.
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {userAddons.map((addon) => (
+                <div
+                  key={addon.id}
+                  className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-4 border rounded-lg"
+                >
+                  <div className="flex-1 space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium">{addon.addonSlug}</span>
+                      <span
+                        className={`px-2 py-0.5 rounded text-xs ${
+                          !addon.enabled
+                            ? "bg-gray-200 text-gray-700"
+                            : isExpired(addon.expiresAt)
+                            ? "bg-destructive/20 text-destructive"
+                            : "bg-green-100 text-green-700"
+                        }`}
+                      >
+                        {!addon.enabled
+                          ? "Desabilitado"
+                          : isExpired(addon.expiresAt)
+                          ? "Expirado"
+                          : "Ativo"}
+                      </span>
+                    </div>
+                    <div className="text-xs text-muted-foreground space-y-0.5">
+                      <p>Concedido em: {formatDate(addon.grantedAt)}</p>
+                      {addon.expiresAt && (
+                        <p>
+                          Expira em: {formatDate(addon.expiresAt)}
+                          {isExpired(addon.expiresAt) && (
+                            <span className="text-destructive ml-1">(expirado)</span>
+                          )}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="text-destructive hover:text-destructive"
+                      onClick={() => handleRevokeUserAddon(addon.addonSlug)}
+                      disabled={isRevoking || revokingSlug === addon.addonSlug}
+                    >
+                      {revokingSlug === addon.addonSlug ? "Revogando..." : "Revogar"}
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Organization Addons - Only show if in org context */}
+      {orgContext.type === "organization" && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Addons da Organização</CardTitle>
+            <CardDescription>
+              Addons concedidos para a organização atual.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {orgAddons.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                Nenhum addon ativo para esta organização.
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {orgAddons.map((addon) => (
+                  <div
+                    key={addon.id}
+                    className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-4 border rounded-lg"
+                  >
+                    <div className="flex-1 space-y-1">
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium">{addon.addonSlug}</span>
+                        <span
+                          className={`px-2 py-0.5 rounded text-xs ${
+                            !addon.enabled
+                              ? "bg-gray-200 text-gray-700"
+                              : isExpired(addon.expiresAt)
+                              ? "bg-destructive/20 text-destructive"
+                              : "bg-green-100 text-green-700"
+                          }`}
+                        >
+                          {!addon.enabled
+                            ? "Desabilitado"
+                            : isExpired(addon.expiresAt)
+                            ? "Expirado"
+                            : "Ativo"}
+                        </span>
+                      </div>
+                      <div className="text-xs text-muted-foreground space-y-0.5">
+                        <p>Concedido em: {formatDate(addon.grantedAt)}</p>
+                        {addon.expiresAt && (
+                          <p>
+                            Expira em: {formatDate(addon.expiresAt)}
+                            {isExpired(addon.expiresAt) && (
+                              <span className="text-destructive ml-1">(expirado)</span>
+                            )}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="text-destructive hover:text-destructive"
+                        onClick={() => handleRevokeOrgAddon(addon.addonSlug)}
+                        disabled={isRevoking || revokingSlug === addon.addonSlug}
+                      >
+                        {revokingSlug === addon.addonSlug ? "Revogando..." : "Revogar"}
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Empty state when no addons at all */}
+      {hasNoAddons && orgContext.type !== "organization" && (
+        <Card>
+          <CardContent className="pt-6">
+            <div className="text-center py-8 text-muted-foreground">
+              Você não possui nenhum addon ativo no momento.
+            </div>
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  )
+}

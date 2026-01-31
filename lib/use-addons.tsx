@@ -34,6 +34,12 @@ export interface AddonsContextValue {
   orgContext: OrganizationContext
   /** Refresh addons from the server */
   refresh: () => Promise<void>
+  /** Revoke a user addon by slug */
+  revokeUserAddon: (slug: string) => Promise<boolean>
+  /** Revoke an organization addon by slug (requires org context) */
+  revokeOrgAddon: (slug: string) => Promise<boolean>
+  /** Whether a revoke operation is in progress */
+  isRevoking: boolean
 }
 
 // ============================================================================
@@ -81,6 +87,7 @@ export function AddonsProvider({
   const [orgContext, setOrgContext] = useState<OrganizationContext>({ type: "personal" })
   const [initialized, setInitialized] = useState(false)
   const [shouldFetch, setShouldFetch] = useState(!hasInitialData)
+  const [isRevoking, setIsRevoking] = useState(false)
 
   // Initialize org context from storage on mount
   useEffect(() => {
@@ -178,6 +185,62 @@ export function AddonsProvider({
     [userAddons, orgAddons]
   )
 
+  // Revoke a user addon
+  const revokeUserAddon = useCallback(
+    async (slug: string): Promise<boolean> => {
+      setIsRevoking(true)
+      try {
+        const response = await fetch(`/api/user/addons/${slug}`, {
+          method: "DELETE",
+        })
+        if (!response.ok) {
+          const data = await response.json()
+          throw new Error(data.error || "Failed to revoke addon")
+        }
+        // Remove the addon from local state
+        setUserAddons((prev) => prev.filter((addon) => addon.addonSlug !== slug))
+        return true
+      } catch (err) {
+        console.error("Failed to revoke user addon:", err)
+        return false
+      } finally {
+        setIsRevoking(false)
+      }
+    },
+    []
+  )
+
+  // Revoke an organization addon
+  const revokeOrgAddon = useCallback(
+    async (slug: string): Promise<boolean> => {
+      if (orgContext.type !== "organization" || !orgContext.organizationId) {
+        console.error("Cannot revoke org addon: not in organization context")
+        return false
+      }
+
+      setIsRevoking(true)
+      try {
+        const response = await fetch(
+          `/api/organizations/${orgContext.organizationId}/addons/${slug}`,
+          { method: "DELETE" }
+        )
+        if (!response.ok) {
+          const data = await response.json()
+          throw new Error(data.error || "Failed to revoke addon")
+        }
+        // Remove the addon from local state
+        setOrgAddons((prev) => prev.filter((addon) => addon.addonSlug !== slug))
+        return true
+      } catch (err) {
+        console.error("Failed to revoke org addon:", err)
+        return false
+      } finally {
+        setIsRevoking(false)
+      }
+    },
+    [orgContext]
+  )
+
   // Load addons when initialized or when org context changes
   // Skip initial fetch if we have initial data (SSR or test data)
   useEffect(() => {
@@ -209,8 +272,11 @@ export function AddonsProvider({
       error,
       orgContext,
       refresh,
+      revokeUserAddon,
+      revokeOrgAddon,
+      isRevoking,
     }),
-    [userAddons, orgAddons, hasAddon, isLoading, error, orgContext, refresh]
+    [userAddons, orgAddons, hasAddon, isLoading, error, orgContext, refresh, revokeUserAddon, revokeOrgAddon, isRevoking]
   )
 
   return (

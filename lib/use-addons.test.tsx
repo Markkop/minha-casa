@@ -427,4 +427,208 @@ describe("useAddons", () => {
       expect(result.current.orgContext).toEqual({ type: "personal" })
     })
   })
+
+  describe("revokeUserAddon", () => {
+    it("successfully revokes a user addon", async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ success: true }),
+      })
+
+      const { result } = renderHook(() => useAddons(), {
+        wrapper: createWrapper({
+          initialUserAddons: mockUserAddons,
+        }),
+      })
+
+      let success: boolean = false
+      await act(async () => {
+        success = await result.current.revokeUserAddon("financiamento")
+      })
+
+      expect(success).toBe(true)
+      expect(mockFetch).toHaveBeenCalledWith("/api/user/addons/financiamento", {
+        method: "DELETE",
+      })
+      // Addon should be removed from local state
+      expect(result.current.userAddons.find(a => a.addonSlug === "financiamento")).toBeUndefined()
+    })
+
+    it("returns false when revoke fails", async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        json: async () => ({ error: "Failed to revoke" }),
+      })
+
+      const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {})
+
+      const { result } = renderHook(() => useAddons(), {
+        wrapper: createWrapper({
+          initialUserAddons: mockUserAddons,
+        }),
+      })
+
+      let success: boolean = true
+      await act(async () => {
+        success = await result.current.revokeUserAddon("financiamento")
+      })
+
+      expect(success).toBe(false)
+      // Addon should still be in local state
+      expect(result.current.userAddons.find(a => a.addonSlug === "financiamento")).toBeDefined()
+
+      consoleSpy.mockRestore()
+    })
+
+    it("sets isRevoking during operation", async () => {
+      let resolvePromise: () => void
+      const fetchPromise = new Promise<void>((resolve) => {
+        resolvePromise = resolve
+      })
+
+      mockFetch.mockImplementationOnce(async () => {
+        await fetchPromise
+        return {
+          ok: true,
+          json: async () => ({ success: true }),
+        }
+      })
+
+      const { result } = renderHook(() => useAddons(), {
+        wrapper: createWrapper({
+          initialUserAddons: mockUserAddons,
+        }),
+      })
+
+      expect(result.current.isRevoking).toBe(false)
+
+      let revokePromise: Promise<boolean>
+      act(() => {
+        revokePromise = result.current.revokeUserAddon("financiamento")
+      })
+
+      await waitFor(() => {
+        expect(result.current.isRevoking).toBe(true)
+      })
+
+      await act(async () => {
+        resolvePromise!()
+        await revokePromise
+      })
+
+      expect(result.current.isRevoking).toBe(false)
+    })
+  })
+
+  describe("revokeOrgAddon", () => {
+    it("returns false when not in organization context", async () => {
+      const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {})
+
+      const { result } = renderHook(() => useAddons(), {
+        wrapper: createWrapper({
+          initialOrgAddons: mockOrgAddons,
+        }),
+      })
+
+      let success: boolean = true
+      await act(async () => {
+        success = await result.current.revokeOrgAddon("flood")
+      })
+
+      expect(success).toBe(false)
+      expect(mockFetch).not.toHaveBeenCalled()
+
+      consoleSpy.mockRestore()
+    })
+
+    it("successfully revokes an org addon when in organization context", async () => {
+      localStorageMock.getItem.mockReturnValue(
+        JSON.stringify({
+          type: "organization",
+          organizationId: "org-1",
+          organizationName: "Test Org",
+        })
+      )
+
+      mockFetch
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({ addons: mockUserAddons }),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({ addons: mockOrgAddons }),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({ success: true }),
+        })
+
+      const { result } = renderHook(() => useAddons(), {
+        wrapper: createWrapper(),
+      })
+
+      await waitFor(() => {
+        expect(result.current.isLoading).toBe(false)
+      })
+
+      let success: boolean = false
+      await act(async () => {
+        success = await result.current.revokeOrgAddon("flood")
+      })
+
+      expect(success).toBe(true)
+      expect(mockFetch).toHaveBeenCalledWith(
+        "/api/organizations/org-1/addons/flood",
+        { method: "DELETE" }
+      )
+      // Addon should be removed from local state
+      expect(result.current.orgAddons.find(a => a.addonSlug === "flood")).toBeUndefined()
+    })
+
+    it("returns false when org revoke fails", async () => {
+      localStorageMock.getItem.mockReturnValue(
+        JSON.stringify({
+          type: "organization",
+          organizationId: "org-1",
+          organizationName: "Test Org",
+        })
+      )
+
+      mockFetch
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({ addons: [] }),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({ addons: mockOrgAddons }),
+        })
+        .mockResolvedValueOnce({
+          ok: false,
+          json: async () => ({ error: "Forbidden" }),
+        })
+
+      const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {})
+
+      const { result } = renderHook(() => useAddons(), {
+        wrapper: createWrapper(),
+      })
+
+      await waitFor(() => {
+        expect(result.current.isLoading).toBe(false)
+      })
+
+      let success: boolean = true
+      await act(async () => {
+        success = await result.current.revokeOrgAddon("flood")
+      })
+
+      expect(success).toBe(false)
+      // Addon should still be in local state
+      expect(result.current.orgAddons.find(a => a.addonSlug === "flood")).toBeDefined()
+
+      consoleSpy.mockRestore()
+    })
+  })
 })

@@ -3,13 +3,17 @@ import { eq, and } from "drizzle-orm"
 import { getServerSession } from "@/lib/auth-server"
 import { getDb, userAddons } from "@/lib/db"
 
+interface RouteParams {
+  params: Promise<{ slug: string }>
+}
+
 /**
  * PATCH /api/user/addons/[slug]
  * Toggle the enabled state of a user's personal addon
  */
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: Promise<{ slug: string }> }
+  { params }: RouteParams
 ) {
   try {
     const session = await getServerSession()
@@ -100,6 +104,77 @@ export async function PATCH(
     console.error("Error updating user addon:", error)
     return NextResponse.json(
       { error: "Failed to update user addon" },
+      { status: 500 }
+    )
+  }
+}
+
+/**
+ * DELETE /api/user/addons/[slug]
+ * Revoke (delete) a user's personal addon grant
+ * Users can revoke their own addons
+ */
+export async function DELETE(
+  request: NextRequest,
+  { params }: RouteParams
+) {
+  try {
+    const session = await getServerSession()
+    if (!session?.user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+
+    const { slug } = await params
+
+    if (!slug) {
+      return NextResponse.json(
+        { error: "Addon slug is required" },
+        { status: 400 }
+      )
+    }
+
+    const db = getDb()
+
+    // Check if the user has this addon grant
+    const existingGrant = await db
+      .select()
+      .from(userAddons)
+      .where(
+        and(
+          eq(userAddons.userId, session.user.id),
+          eq(userAddons.addonSlug, slug)
+        )
+      )
+      .limit(1)
+
+    if (existingGrant.length === 0) {
+      return NextResponse.json(
+        { error: "Addon not found for user" },
+        { status: 404 }
+      )
+    }
+
+    const grantToRevoke = existingGrant[0]
+
+    // Delete the addon grant
+    await db
+      .delete(userAddons)
+      .where(eq(userAddons.id, grantToRevoke.id))
+
+    return NextResponse.json({
+      success: true,
+      message: `Addon '${slug}' has been revoked`,
+      revokedGrant: {
+        id: grantToRevoke.id,
+        addonSlug: grantToRevoke.addonSlug,
+        grantedAt: grantToRevoke.grantedAt,
+        expiresAt: grantToRevoke.expiresAt,
+      },
+    })
+  } catch (error) {
+    console.error("Error revoking user addon:", error)
+    return NextResponse.json(
+      { error: "Failed to revoke user addon" },
       { status: 500 }
     )
   }

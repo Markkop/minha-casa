@@ -469,4 +469,189 @@ describe("Organization Addon Toggle API", () => {
       expect(json.addon.expiresAt).toBeDefined()
     })
   })
+
+  describe("DELETE /api/organizations/[id]/addons/[slug]", () => {
+    function createDeleteRequest(
+      orgId: string = "org-123",
+      slug: string = "flood-risk"
+    ): {
+      request: NextRequest
+      params: Promise<{ id: string; slug: string }>
+    } {
+      const request = new NextRequest(
+        `http://localhost:3000/api/organizations/${orgId}/addons/${slug}`,
+        { method: "DELETE" }
+      )
+      return {
+        request,
+        params: Promise.resolve({ id: orgId, slug }),
+      }
+    }
+
+    it("returns 401 when not authenticated", async () => {
+      const { getServerSession } = await import("@/lib/auth-server")
+      vi.mocked(getServerSession).mockResolvedValue(null)
+
+      const { DELETE } = await import("./route")
+      const { request, params } = createDeleteRequest()
+      const response = await DELETE(request, { params })
+      const json = await response.json()
+
+      expect(response.status).toBe(401)
+      expect(json.error).toBe("Unauthorized")
+    })
+
+    it("returns 404 when organization not found", async () => {
+      const { getServerSession } = await import("@/lib/auth-server")
+      vi.mocked(getServerSession).mockResolvedValue(createSession(mockOwner))
+
+      // Organization not found
+      mockWhere.mockResolvedValueOnce([])
+
+      const { DELETE } = await import("./route")
+      const { request, params } = createDeleteRequest("org-not-found")
+      const response = await DELETE(request, { params })
+      const json = await response.json()
+
+      expect(response.status).toBe(404)
+      expect(json.error).toBe("Organization not found")
+    })
+
+    it("returns 403 when user is not a member", async () => {
+      const { getServerSession } = await import("@/lib/auth-server")
+      vi.mocked(getServerSession).mockResolvedValue(createSession(mockNonMember))
+
+      // Organization found
+      mockWhere.mockResolvedValueOnce([mockOrganization])
+      // No membership
+      mockWhere.mockResolvedValueOnce([])
+
+      const { DELETE } = await import("./route")
+      const { request, params } = createDeleteRequest()
+      const response = await DELETE(request, { params })
+      const json = await response.json()
+
+      expect(response.status).toBe(403)
+      expect(json.error).toBe("Only owners and admins can revoke organization addons")
+    })
+
+    it("returns 403 when user is a regular member (not owner/admin)", async () => {
+      const { getServerSession } = await import("@/lib/auth-server")
+      vi.mocked(getServerSession).mockResolvedValue(createSession(mockMember))
+
+      // Organization found
+      mockWhere.mockResolvedValueOnce([mockOrganization])
+      // Member role (not owner/admin)
+      mockWhere.mockResolvedValueOnce([mockMemberMembership])
+
+      const { DELETE } = await import("./route")
+      const { request, params } = createDeleteRequest()
+      const response = await DELETE(request, { params })
+      const json = await response.json()
+
+      expect(response.status).toBe(403)
+      expect(json.error).toBe("Only owners and admins can revoke organization addons")
+    })
+
+    it("returns 404 when addon grant not found for organization", async () => {
+      const { getServerSession } = await import("@/lib/auth-server")
+      vi.mocked(getServerSession).mockResolvedValue(createSession(mockOwner))
+
+      // Organization found
+      mockWhere.mockResolvedValueOnce([mockOrganization])
+      // Owner membership
+      mockWhere.mockResolvedValueOnce([mockOwnerMembership])
+      // Addon not found
+      mockLimit.mockResolvedValueOnce([])
+
+      const { DELETE } = await import("./route")
+      const { request, params } = createDeleteRequest("org-123", "nonexistent-addon")
+      const response = await DELETE(request, { params })
+      const json = await response.json()
+
+      expect(response.status).toBe(404)
+      expect(json.error).toBe("Addon not found for organization")
+    })
+
+    it("successfully revokes an addon as owner", async () => {
+      const { getServerSession } = await import("@/lib/auth-server")
+      vi.mocked(getServerSession).mockResolvedValue(createSession(mockOwner))
+
+      // Organization found
+      mockWhere.mockResolvedValueOnce([mockOrganization])
+      // Owner membership
+      mockWhere.mockResolvedValueOnce([mockOwnerMembership])
+      // Addon found
+      mockLimit.mockResolvedValueOnce([mockOrgAddon])
+
+      // Mock delete operation
+      const mockDelete = vi.fn().mockReturnValue({
+        where: vi.fn().mockResolvedValue(undefined),
+      })
+      const { getDb } = await import("@/lib/db")
+      vi.mocked(getDb).mockReturnValue({
+        select: mockSelect,
+        update: mockUpdate,
+        delete: mockDelete,
+      } as unknown as ReturnType<typeof getDb>)
+
+      const { DELETE } = await import("./route")
+      const { request, params } = createDeleteRequest()
+      const response = await DELETE(request, { params })
+      const json = await response.json()
+
+      expect(response.status).toBe(200)
+      expect(json.success).toBe(true)
+      expect(json.message).toBe("Addon 'flood-risk' has been revoked from organization")
+      expect(json.revokedGrant.addonSlug).toBe("flood-risk")
+    })
+
+    it("successfully revokes an addon as admin", async () => {
+      const { getServerSession } = await import("@/lib/auth-server")
+      vi.mocked(getServerSession).mockResolvedValue(createSession(mockAdmin))
+
+      // Organization found
+      mockWhere.mockResolvedValueOnce([mockOrganization])
+      // Admin membership
+      mockWhere.mockResolvedValueOnce([mockAdminMembership])
+      // Addon found
+      mockLimit.mockResolvedValueOnce([mockOrgAddon])
+
+      // Mock delete operation
+      const mockDelete = vi.fn().mockReturnValue({
+        where: vi.fn().mockResolvedValue(undefined),
+      })
+      const { getDb } = await import("@/lib/db")
+      vi.mocked(getDb).mockReturnValue({
+        select: mockSelect,
+        update: mockUpdate,
+        delete: mockDelete,
+      } as unknown as ReturnType<typeof getDb>)
+
+      const { DELETE } = await import("./route")
+      const { request, params } = createDeleteRequest()
+      const response = await DELETE(request, { params })
+      const json = await response.json()
+
+      expect(response.status).toBe(200)
+      expect(json.success).toBe(true)
+      expect(json.revokedGrant.organizationId).toBe("org-123")
+    })
+
+    it("returns 500 when database throws an error", async () => {
+      const { getServerSession } = await import("@/lib/auth-server")
+      vi.mocked(getServerSession).mockResolvedValue(createSession(mockOwner))
+
+      // Simulate database error
+      mockWhere.mockRejectedValueOnce(new Error("Database error"))
+
+      const { DELETE } = await import("./route")
+      const { request, params } = createDeleteRequest()
+      const response = await DELETE(request, { params })
+      const json = await response.json()
+
+      expect(response.status).toBe(500)
+      expect(json.error).toBe("Failed to revoke organization addon")
+    })
+  })
 })
