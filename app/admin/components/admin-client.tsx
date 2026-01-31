@@ -79,6 +79,44 @@ interface Stats {
   subscriptionsByPlan: { planName: string; planSlug: string; count: number }[]
 }
 
+interface Addon {
+  id: string
+  name: string
+  slug: string
+  description: string | null
+  createdAt: string
+}
+
+interface UserAddonGrant {
+  id: string
+  userId: string
+  addonSlug: string
+  grantedAt: string
+  grantedBy: string | null
+  enabled: boolean
+  expiresAt: string | null
+  addon: Addon | null
+  grantedByUser: { id: string; name: string; email: string } | null
+}
+
+interface Organization {
+  id: string
+  name: string
+  slug: string
+}
+
+interface OrgAddonGrant {
+  id: string
+  organizationId: string
+  addonSlug: string
+  grantedAt: string
+  grantedBy: string | null
+  enabled: boolean
+  expiresAt: string | null
+  addon: Addon | null
+  grantedByUser: { id: string; name: string; email: string } | null
+}
+
 export function AdminClient() {
   const router = useRouter()
   const [users, setUsers] = useState<User[]>([])
@@ -107,15 +145,35 @@ export function AdminClient() {
   const [savingSubscription, setSavingSubscription] = useState(false)
   const [cancellingSubscription, setCancellingSubscription] = useState(false)
 
+  // Addons state
+  const [availableAddons, setAvailableAddons] = useState<Addon[]>([])
+  const [organizations, setOrganizations] = useState<Organization[]>([])
+  const [manageUserAddonsModalOpen, setManageUserAddonsModalOpen] = useState(false)
+  const [userAddonGrants, setUserAddonGrants] = useState<UserAddonGrant[]>([])
+  const [loadingUserAddons, setLoadingUserAddons] = useState(false)
+  const [grantUserAddonModalOpen, setGrantUserAddonModalOpen] = useState(false)
+  const [selectedAddonSlug, setSelectedAddonSlug] = useState("")
+  const [addonExpiresAt, setAddonExpiresAt] = useState("")
+  const [grantingUserAddon, setGrantingUserAddon] = useState(false)
+  const [revokingAddon, setRevokingAddon] = useState(false)
+  const [manageOrgAddonsModalOpen, setManageOrgAddonsModalOpen] = useState(false)
+  const [selectedOrg, setSelectedOrg] = useState<Organization | null>(null)
+  const [orgAddonGrants, setOrgAddonGrants] = useState<OrgAddonGrant[]>([])
+  const [loadingOrgAddons, setLoadingOrgAddons] = useState(false)
+  const [grantOrgAddonModalOpen, setGrantOrgAddonModalOpen] = useState(false)
+  const [grantingOrgAddon, setGrantingOrgAddon] = useState(false)
+
   const fetchData = useCallback(async () => {
     setLoading(true)
     setError(null)
 
     try {
-      const [usersRes, plansRes, statsRes] = await Promise.all([
+      const [usersRes, plansRes, statsRes, addonsRes, orgsRes] = await Promise.all([
         fetch("/api/admin/users"),
         fetch("/api/plans?includeInactive=true"),
         fetch("/api/admin/stats"),
+        fetch("/api/admin/addons"),
+        fetch("/api/organizations"),
       ])
 
       if (usersRes.status === 401 || usersRes.status === 403) {
@@ -136,6 +194,16 @@ export function AdminClient() {
       setUsers(usersData.users)
       setPlans(plansData.plans)
       setStats(statsData.stats)
+
+      // Addons and orgs are optional - don't fail if they error
+      if (addonsRes.ok) {
+        const addonsData = await addonsRes.json()
+        setAvailableAddons(addonsData.addons || [])
+      }
+      if (orgsRes.ok) {
+        const orgsData = await orgsRes.json()
+        setOrganizations(orgsData.organizations || [])
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred")
     } finally {
@@ -408,6 +476,193 @@ export function AdminClient() {
     setEditSubscriptionModalOpen(true)
   }
 
+  // ==================== User Addons Functions ====================
+
+  async function fetchUserAddonGrants(userId: string) {
+    setLoadingUserAddons(true)
+    try {
+      const res = await fetch(`/api/admin/users/${userId}/addons`)
+      if (!res.ok) {
+        throw new Error("Failed to fetch user addons")
+      }
+      const data = await res.json()
+      setUserAddonGrants(data.addons || [])
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Failed to fetch user addons")
+      setUserAddonGrants([])
+    } finally {
+      setLoadingUserAddons(false)
+    }
+  }
+
+  function openManageUserAddonsModal(user: User) {
+    setSelectedUser(user)
+    setManageUserAddonsModalOpen(true)
+    fetchUserAddonGrants(user.id)
+  }
+
+  async function grantUserAddon() {
+    if (!selectedUser || !selectedAddonSlug) return
+
+    setGrantingUserAddon(true)
+
+    try {
+      const body: { addonSlug: string; expiresAt?: string; enabled: boolean } = {
+        addonSlug: selectedAddonSlug,
+        enabled: true,
+      }
+
+      if (addonExpiresAt) {
+        body.expiresAt = new Date(addonExpiresAt).toISOString()
+      }
+
+      const res = await fetch(`/api/admin/users/${selectedUser.id}/addons`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      })
+
+      if (!res.ok) {
+        const data = await res.json()
+        throw new Error(data.error || "Failed to grant addon")
+      }
+
+      setGrantUserAddonModalOpen(false)
+      setSelectedAddonSlug("")
+      setAddonExpiresAt("")
+      fetchUserAddonGrants(selectedUser.id)
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Failed to grant addon")
+    } finally {
+      setGrantingUserAddon(false)
+    }
+  }
+
+  async function revokeUserAddon(userId: string, addonSlug: string) {
+    if (!confirm("Tem certeza que deseja revogar este addon?")) return
+
+    setRevokingAddon(true)
+
+    try {
+      const res = await fetch(`/api/admin/users/${userId}/addons/${addonSlug}`, {
+        method: "DELETE",
+      })
+
+      if (!res.ok) {
+        const data = await res.json()
+        throw new Error(data.error || "Failed to revoke addon")
+      }
+
+      fetchUserAddonGrants(userId)
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Failed to revoke addon")
+    } finally {
+      setRevokingAddon(false)
+    }
+  }
+
+  // ==================== Organization Addons Functions ====================
+
+  async function fetchOrgAddonGrants(orgId: string) {
+    setLoadingOrgAddons(true)
+    try {
+      const res = await fetch(`/api/admin/organizations/${orgId}/addons`)
+      if (!res.ok) {
+        throw new Error("Failed to fetch organization addons")
+      }
+      const data = await res.json()
+      setOrgAddonGrants(data.addons || [])
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Failed to fetch organization addons")
+      setOrgAddonGrants([])
+    } finally {
+      setLoadingOrgAddons(false)
+    }
+  }
+
+  function openManageOrgAddonsModal(org: Organization) {
+    setSelectedOrg(org)
+    setManageOrgAddonsModalOpen(true)
+    fetchOrgAddonGrants(org.id)
+  }
+
+  async function grantOrgAddon() {
+    if (!selectedOrg || !selectedAddonSlug) return
+
+    setGrantingOrgAddon(true)
+
+    try {
+      const body: { addonSlug: string; expiresAt?: string; enabled: boolean } = {
+        addonSlug: selectedAddonSlug,
+        enabled: true,
+      }
+
+      if (addonExpiresAt) {
+        body.expiresAt = new Date(addonExpiresAt).toISOString()
+      }
+
+      const res = await fetch(`/api/admin/organizations/${selectedOrg.id}/addons`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      })
+
+      if (!res.ok) {
+        const data = await res.json()
+        throw new Error(data.error || "Failed to grant addon")
+      }
+
+      setGrantOrgAddonModalOpen(false)
+      setSelectedAddonSlug("")
+      setAddonExpiresAt("")
+      fetchOrgAddonGrants(selectedOrg.id)
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Failed to grant addon")
+    } finally {
+      setGrantingOrgAddon(false)
+    }
+  }
+
+  async function revokeOrgAddon(orgId: string, addonSlug: string) {
+    if (!confirm("Tem certeza que deseja revogar este addon?")) return
+
+    setRevokingAddon(true)
+
+    try {
+      const res = await fetch(`/api/admin/organizations/${orgId}/addons/${addonSlug}`, {
+        method: "DELETE",
+      })
+
+      if (!res.ok) {
+        const data = await res.json()
+        throw new Error(data.error || "Failed to revoke addon")
+      }
+
+      fetchOrgAddonGrants(orgId)
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Failed to revoke addon")
+    } finally {
+      setRevokingAddon(false)
+    }
+  }
+
+  function isAddonExpired(expiresAt: string | null) {
+    if (!expiresAt) return false
+    return new Date(expiresAt) < new Date()
+  }
+
+  function getAddonStatusBadgeClass(enabled: boolean, expiresAt: string | null) {
+    if (!enabled) return "bg-gray-200 text-gray-700"
+    if (isAddonExpired(expiresAt)) return "bg-destructive/20 text-destructive"
+    return "bg-green-100 text-green-700"
+  }
+
+  function getAddonStatusLabel(enabled: boolean, expiresAt: string | null) {
+    if (!enabled) return "Desabilitado"
+    if (isAddonExpired(expiresAt)) return "Expirado"
+    return "Ativo"
+  }
+
   function formatDateTime(dateString: string) {
     return new Date(dateString).toLocaleDateString("pt-BR", {
       day: "2-digit",
@@ -652,6 +907,13 @@ export function AdminClient() {
                           onClick={() => openManageSubscriptionModal(user)}
                         >
                           Assinatura
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => openManageUserAddonsModal(user)}
+                        >
+                          Addons
                         </Button>
                         <Button
                           variant="outline"
@@ -1004,6 +1266,413 @@ export function AdminClient() {
                   disabled={savingSubscription}
                 >
                   {savingSubscription ? "Salvando..." : "Salvar"}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Addons Section */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Addons</CardTitle>
+          <CardDescription>
+            Gerencie addons disponíveis e concessões para usuários e organizações.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          {/* Available Addons */}
+          <div>
+            <h3 className="text-lg font-medium mb-3">Addons Disponíveis</h3>
+            {availableAddons.length === 0 ? (
+              <p className="text-muted-foreground">Nenhum addon cadastrado no sistema.</p>
+            ) : (
+              <div className="flex flex-wrap gap-3">
+                {availableAddons.map((addon) => (
+                  <div
+                    key={addon.id}
+                    className="px-4 py-2 bg-muted rounded-lg"
+                  >
+                    <span className="font-medium">{addon.name}</span>
+                    <span className="text-muted-foreground ml-2">({addon.slug})</span>
+                    {addon.description && (
+                      <p className="text-sm text-muted-foreground mt-1">{addon.description}</p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Organizations with Addons */}
+          <div>
+            <h3 className="text-lg font-medium mb-3">Organizações</h3>
+            {organizations.length === 0 ? (
+              <p className="text-muted-foreground">Nenhuma organização encontrada.</p>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Nome</TableHead>
+                    <TableHead>Slug</TableHead>
+                    <TableHead>Ações</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {organizations.map((org) => (
+                    <TableRow key={org.id}>
+                      <TableCell className="font-medium">{org.name}</TableCell>
+                      <TableCell>{org.slug}</TableCell>
+                      <TableCell>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => openManageOrgAddonsModal(org)}
+                        >
+                          Gerenciar Addons
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Manage User Addons Modal */}
+      {manageUserAddonsModalOpen && selectedUser && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <Card className="w-full max-w-3xl mx-4 max-h-[90vh] overflow-y-auto">
+            <CardHeader>
+              <CardTitle>Gerenciar Addons do Usuário</CardTitle>
+              <CardDescription>
+                Addons de {selectedUser.name} ({selectedUser.email})
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {/* Grant New Addon Button */}
+              <div className="flex justify-between items-center">
+                <h3 className="text-lg font-medium">Addons Concedidos</h3>
+                <Button
+                  onClick={() => setGrantUserAddonModalOpen(true)}
+                  disabled={availableAddons.length === 0}
+                >
+                  Conceder Addon
+                </Button>
+              </div>
+
+              {/* User Addon Grants */}
+              {loadingUserAddons ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  Carregando addons...
+                </div>
+              ) : userAddonGrants.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  Nenhum addon concedido para este usuário.
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {userAddonGrants.map((grant) => (
+                    <Card key={grant.id} className="border">
+                      <CardContent className="pt-4">
+                        <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
+                          <div className="space-y-2">
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium">
+                                {grant.addon?.name || grant.addonSlug}
+                              </span>
+                              <span
+                                className={`px-2 py-0.5 rounded text-xs ${getAddonStatusBadgeClass(
+                                  grant.enabled,
+                                  grant.expiresAt
+                                )}`}
+                              >
+                                {getAddonStatusLabel(grant.enabled, grant.expiresAt)}
+                              </span>
+                            </div>
+                            <div className="text-sm text-muted-foreground space-y-1">
+                              <p>
+                                <span className="font-medium">Concedido em:</span>{" "}
+                                {formatDateTime(grant.grantedAt)}
+                              </p>
+                              {grant.expiresAt && (
+                                <p>
+                                  <span className="font-medium">Expira em:</span>{" "}
+                                  {formatDateTime(grant.expiresAt)}
+                                </p>
+                              )}
+                              {grant.grantedByUser && (
+                                <p>
+                                  <span className="font-medium">Concedido por:</span>{" "}
+                                  {grant.grantedByUser.name}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="text-destructive hover:text-destructive"
+                              onClick={() => revokeUserAddon(grant.userId, grant.addonSlug)}
+                              disabled={revokingAddon}
+                            >
+                              Revogar
+                            </Button>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
+
+              <div className="flex justify-end pt-4">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setManageUserAddonsModalOpen(false)
+                    setSelectedUser(null)
+                    setUserAddonGrants([])
+                  }}
+                >
+                  Fechar
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Grant User Addon Modal */}
+      {grantUserAddonModalOpen && selectedUser && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <Card className="w-full max-w-md mx-4">
+            <CardHeader>
+              <CardTitle>Conceder Addon</CardTitle>
+              <CardDescription>
+                Conceder addon para {selectedUser.name} ({selectedUser.email})
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="addon-select">Addon</Label>
+                <Select
+                  value={selectedAddonSlug}
+                  onValueChange={setSelectedAddonSlug}
+                >
+                  <SelectTrigger id="addon-select">
+                    <SelectValue placeholder="Selecione um addon" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableAddons.map((addon) => (
+                      <SelectItem key={addon.id} value={addon.slug}>
+                        {addon.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="addon-expires-at">Data de Expiração (opcional)</Label>
+                <Input
+                  id="addon-expires-at"
+                  type="date"
+                  value={addonExpiresAt}
+                  onChange={(e) => setAddonExpiresAt(e.target.value)}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Deixe vazio para concessão sem expiração.
+                </p>
+              </div>
+              <div className="flex gap-2 justify-end pt-4">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setGrantUserAddonModalOpen(false)
+                    setSelectedAddonSlug("")
+                    setAddonExpiresAt("")
+                  }}
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  onClick={grantUserAddon}
+                  disabled={!selectedAddonSlug || grantingUserAddon}
+                >
+                  {grantingUserAddon ? "Concedendo..." : "Conceder"}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Manage Organization Addons Modal */}
+      {manageOrgAddonsModalOpen && selectedOrg && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <Card className="w-full max-w-3xl mx-4 max-h-[90vh] overflow-y-auto">
+            <CardHeader>
+              <CardTitle>Gerenciar Addons da Organização</CardTitle>
+              <CardDescription>
+                Addons de {selectedOrg.name} ({selectedOrg.slug})
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {/* Grant New Addon Button */}
+              <div className="flex justify-between items-center">
+                <h3 className="text-lg font-medium">Addons Concedidos</h3>
+                <Button
+                  onClick={() => setGrantOrgAddonModalOpen(true)}
+                  disabled={availableAddons.length === 0}
+                >
+                  Conceder Addon
+                </Button>
+              </div>
+
+              {/* Organization Addon Grants */}
+              {loadingOrgAddons ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  Carregando addons...
+                </div>
+              ) : orgAddonGrants.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  Nenhum addon concedido para esta organização.
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {orgAddonGrants.map((grant) => (
+                    <Card key={grant.id} className="border">
+                      <CardContent className="pt-4">
+                        <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
+                          <div className="space-y-2">
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium">
+                                {grant.addon?.name || grant.addonSlug}
+                              </span>
+                              <span
+                                className={`px-2 py-0.5 rounded text-xs ${getAddonStatusBadgeClass(
+                                  grant.enabled,
+                                  grant.expiresAt
+                                )}`}
+                              >
+                                {getAddonStatusLabel(grant.enabled, grant.expiresAt)}
+                              </span>
+                            </div>
+                            <div className="text-sm text-muted-foreground space-y-1">
+                              <p>
+                                <span className="font-medium">Concedido em:</span>{" "}
+                                {formatDateTime(grant.grantedAt)}
+                              </p>
+                              {grant.expiresAt && (
+                                <p>
+                                  <span className="font-medium">Expira em:</span>{" "}
+                                  {formatDateTime(grant.expiresAt)}
+                                </p>
+                              )}
+                              {grant.grantedByUser && (
+                                <p>
+                                  <span className="font-medium">Concedido por:</span>{" "}
+                                  {grant.grantedByUser.name}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="text-destructive hover:text-destructive"
+                              onClick={() => revokeOrgAddon(grant.organizationId, grant.addonSlug)}
+                              disabled={revokingAddon}
+                            >
+                              Revogar
+                            </Button>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
+
+              <div className="flex justify-end pt-4">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setManageOrgAddonsModalOpen(false)
+                    setSelectedOrg(null)
+                    setOrgAddonGrants([])
+                  }}
+                >
+                  Fechar
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Grant Organization Addon Modal */}
+      {grantOrgAddonModalOpen && selectedOrg && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <Card className="w-full max-w-md mx-4">
+            <CardHeader>
+              <CardTitle>Conceder Addon</CardTitle>
+              <CardDescription>
+                Conceder addon para {selectedOrg.name} ({selectedOrg.slug})
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="org-addon-select">Addon</Label>
+                <Select
+                  value={selectedAddonSlug}
+                  onValueChange={setSelectedAddonSlug}
+                >
+                  <SelectTrigger id="org-addon-select">
+                    <SelectValue placeholder="Selecione um addon" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableAddons.map((addon) => (
+                      <SelectItem key={addon.id} value={addon.slug}>
+                        {addon.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="org-addon-expires-at">Data de Expiração (opcional)</Label>
+                <Input
+                  id="org-addon-expires-at"
+                  type="date"
+                  value={addonExpiresAt}
+                  onChange={(e) => setAddonExpiresAt(e.target.value)}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Deixe vazio para concessão sem expiração.
+                </p>
+              </div>
+              <div className="flex gap-2 justify-end pt-4">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setGrantOrgAddonModalOpen(false)
+                    setSelectedAddonSlug("")
+                    setAddonExpiresAt("")
+                  }}
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  onClick={grantOrgAddon}
+                  disabled={!selectedAddonSlug || grantingOrgAddon}
+                >
+                  {grantingOrgAddon ? "Concedendo..." : "Conceder"}
                 </Button>
               </div>
             </CardContent>
