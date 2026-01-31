@@ -2,6 +2,7 @@ import type { Metadata } from "next"
 import { Suspense } from "react"
 import { SimulatorClient } from "./components/simulator-client"
 import { SettingsProvider } from "./components/utils/settings"
+import { AddonAccessGuard } from "./components/addon-access-guard"
 
 export const metadata: Metadata = {
   title: "Simulador de Financiamento | Casa",
@@ -11,14 +12,16 @@ export const metadata: Metadata = {
 
 export default function CasaPage() {
   return (
-    <SettingsProvider>
-      <Suspense fallback={
-        <div className="min-h-screen bg-black text-white flex items-center justify-center">
-          <p className="text-ashGray">Carregando...</p>
-        </div>
-      }>
-        <SimulatorClient />
-      </Suspense>
-    </SettingsProvider>
+    <AddonAccessGuard addonSlug="financiamento" addonName="Simulador de Financiamento">
+      <SettingsProvider>
+        <Suspense fallback={
+          <div className="min-h-screen bg-black text-white flex items-center justify-center">
+            <p className="text-ashGray">Carregando...</p>
+          </div>
+        }>
+          <SimulatorClient />
+        </Suspense>
+      </SettingsProvider>
+    </AddonAccessGuard>
   )
 }
