@@ -29,6 +29,13 @@
       "when": 1738108800000,
       "tag": "0004_add_processed_webhook_events",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1738281600000,
+      "tag": "0005_add_addons",
+      "breakpoints": true
     }
   ]
 }
