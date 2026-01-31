@@ -143,7 +143,7 @@ describe("ClickablePrice", () => {
       const priceElement = screen.getByTestId("clickable-price")
       fireEvent.click(priceElement)
 
-      expect(mockPush).toHaveBeenCalledWith("/casa?valorImovel=500000")
+      expect(mockPush).toHaveBeenCalledWith("/casa?price=500000")
     })
 
     it("navigates with correct price value", () => {
@@ -152,7 +152,7 @@ describe("ClickablePrice", () => {
       const priceElement = screen.getByTestId("clickable-price")
       fireEvent.click(priceElement)
 
-      expect(mockPush).toHaveBeenCalledWith("/casa?valorImovel=1250000")
+      expect(mockPush).toHaveBeenCalledWith("/casa?price=1250000")
     })
 
     it("does not navigate when price is null", () => {
@@ -170,7 +170,7 @@ describe("ClickablePrice", () => {
       const priceElement = screen.getByTestId("clickable-price")
       fireEvent.keyDown(priceElement, { key: "Enter" })
 
-      expect(mockPush).toHaveBeenCalledWith("/casa?valorImovel=500000")
+      expect(mockPush).toHaveBeenCalledWith("/casa?price=500000")
     })
 
     it("supports keyboard navigation with Space key", () => {
@@ -179,7 +179,7 @@ describe("ClickablePrice", () => {
       const priceElement = screen.getByTestId("clickable-price")
       fireEvent.keyDown(priceElement, { key: " " })
 
-      expect(mockPush).toHaveBeenCalledWith("/casa?valorImovel=500000")
+      expect(mockPush).toHaveBeenCalledWith("/casa?price=500000")
     })
 
     it("has tabIndex for keyboard accessibility", () => {

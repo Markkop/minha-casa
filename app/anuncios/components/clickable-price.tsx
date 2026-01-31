@@ -64,7 +64,7 @@ export function ClickablePrice({
 
   const handleClick = () => {
     if (isClickable) {
-      router.push(`/casa?valorImovel=${price}`)
+      router.push(`/casa?price=${price}`)
     }
   }
 

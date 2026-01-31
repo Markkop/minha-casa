@@ -224,22 +224,22 @@ export const SimulatorClient = () => {
     prazoMesesMultiplier: 1.0,
   })
 
-  // Read valorImovel from URL parameter on mount
+  // Read price from URL parameter on mount
   useEffect(() => {
-    const valorImovelParam = searchParams.get("valorImovel")
-    if (valorImovelParam) {
-      const valorImovel = parseFloat(valorImovelParam)
-      if (!isNaN(valorImovel) && valorImovel > 0) {
+    const priceParam = searchParams.get("price")
+    if (priceParam) {
+      const price = parseFloat(priceParam)
+      if (!isNaN(price) && price > 0) {
         // eslint-disable-next-line react-hooks/set-state-in-effect -- One-time URL parameter initialization
         setParams((prev) => ({
           ...prev,
-          valorImovelBase: valorImovel,
+          valorImovelBase: price,
           valorImovelMultiplier: 1.0,
         }))
         // Clean up URL parameter after reading
         if (typeof window !== "undefined") {
           const url = new URL(window.location.href)
-          url.searchParams.delete("valorImovel")
+          url.searchParams.delete("price")
           window.history.replaceState({}, "", url.toString())
         }
       }
