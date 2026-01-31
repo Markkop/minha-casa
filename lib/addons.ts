@@ -199,3 +199,31 @@ export async function getOrgAddons(orgId: string): Promise<OrganizationAddon[]> 
     expiresAt: addon.expiresAt,
   }))
 }
+
+/**
+ * Get all addons granted to a specific organization (including disabled ones)
+ *
+ * Returns all addon grants regardless of enabled state, for management purposes.
+ * This allows org owners/admins to see and toggle disabled addons.
+ *
+ * @param orgId - The organization's ID
+ * @returns Array of all organization's addon grants
+ */
+export async function getAllOrgGrantedAddons(orgId: string): Promise<OrganizationAddon[]> {
+  const db = getDb()
+
+  const result = await db
+    .select()
+    .from(organizationAddons)
+    .where(eq(organizationAddons.organizationId, orgId))
+
+  return result.map((addon) => ({
+    id: addon.id,
+    organizationId: addon.organizationId,
+    addonSlug: addon.addonSlug,
+    grantedAt: addon.grantedAt,
+    grantedBy: addon.grantedBy,
+    enabled: addon.enabled,
+    expiresAt: addon.expiresAt,
+  }))
+}

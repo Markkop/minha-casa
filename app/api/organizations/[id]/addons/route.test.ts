@@ -97,9 +97,9 @@ vi.mock("@/lib/auth-server", () => ({
   getServerSession: vi.fn(),
 }))
 
-// Mock getOrgAddons
+// Mock getAllOrgGrantedAddons
 vi.mock("@/lib/addons", () => ({
-  getOrgAddons: vi.fn(),
+  getAllOrgGrantedAddons: vi.fn(),
 }))
 
 // Mock database
@@ -184,8 +184,8 @@ describe("Organization Addons API", () => {
       const { getServerSession } = await import("@/lib/auth-server")
       vi.mocked(getServerSession).mockResolvedValue(mockSession)
 
-      const { getOrgAddons } = await import("@/lib/addons")
-      vi.mocked(getOrgAddons).mockResolvedValue(mockOrgAddons)
+      const { getAllOrgGrantedAddons } = await import("@/lib/addons")
+      vi.mocked(getAllOrgGrantedAddons).mockResolvedValue(mockOrgAddons)
 
       mockDbSelect
         .mockReturnValueOnce({
@@ -215,8 +215,8 @@ describe("Organization Addons API", () => {
       const { getServerSession } = await import("@/lib/auth-server")
       vi.mocked(getServerSession).mockResolvedValue(mockSession)
 
-      const { getOrgAddons } = await import("@/lib/addons")
-      vi.mocked(getOrgAddons).mockResolvedValue([])
+      const { getAllOrgGrantedAddons } = await import("@/lib/addons")
+      vi.mocked(getAllOrgGrantedAddons).mockResolvedValue([])
 
       mockDbSelect
         .mockReturnValueOnce({
@@ -258,6 +258,52 @@ describe("Organization Addons API", () => {
 
       expect(response.status).toBe(500)
       expect(json.error).toBe("Failed to fetch organization addons")
+    })
+
+    it("returns all addons including disabled ones for management", async () => {
+      const { getServerSession } = await import("@/lib/auth-server")
+      vi.mocked(getServerSession).mockResolvedValue(mockSession)
+
+      const addonsWithDisabled = [
+        ...mockOrgAddons,
+        {
+          id: "addon-grant-3",
+          organizationId: mockOrganization.id,
+          addonSlug: "disabled-feature",
+          grantedAt: new Date(),
+          grantedBy: "admin-123",
+          enabled: false, // Disabled addon should be included
+          expiresAt: null,
+        },
+      ]
+
+      const { getAllOrgGrantedAddons } = await import("@/lib/addons")
+      vi.mocked(getAllOrgGrantedAddons).mockResolvedValue(addonsWithDisabled)
+
+      mockDbSelect
+        .mockReturnValueOnce({
+          from: vi.fn().mockReturnValue({
+            where: vi.fn().mockResolvedValue([mockOrganization]),
+          }),
+        })
+        .mockReturnValueOnce({
+          from: vi.fn().mockReturnValue({
+            where: vi.fn().mockResolvedValue([mockMembership]),
+          }),
+        })
+
+      const { GET } = await import("./route")
+      const request = new NextRequest("http://localhost/api/organizations/org-123/addons")
+
+      const response = await GET(request, { params: Promise.resolve({ id: "org-123" }) })
+      const json = await response.json()
+
+      expect(response.status).toBe(200)
+      expect(json.addons).toHaveLength(3)
+      
+      const disabledAddon = json.addons.find((a: { addonSlug: string }) => a.addonSlug === "disabled-feature")
+      expect(disabledAddon).toBeDefined()
+      expect(disabledAddon.enabled).toBe(false)
     })
   })
 })

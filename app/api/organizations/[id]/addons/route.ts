@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "@/lib/auth-server"
 import { getDb, organizations, organizationMembers } from "@/lib/db"
-import { getOrgAddons } from "@/lib/addons"
+import { getAllOrgGrantedAddons } from "@/lib/addons"
 import { eq, and } from "drizzle-orm"
 
 interface RouteParams {
@@ -64,8 +64,8 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       )
     }
 
-    // Get organization's enabled addons
-    const addons = await getOrgAddons(id)
+    // Get all organization's granted addons (including disabled ones for management)
+    const addons = await getAllOrgGrantedAddons(id)
 
     return NextResponse.json({ addons })
   } catch (error) {

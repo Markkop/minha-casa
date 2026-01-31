@@ -35,7 +35,7 @@ vi.mock("drizzle-orm", () => ({
 }))
 
 // Import after mocks are set up
-import { getAvailableAddons, hasAddonAccess, getUserAddons, getOrgAddons } from "./addons"
+import { getAvailableAddons, hasAddonAccess, getUserAddons, getOrgAddons, getAllOrgGrantedAddons } from "./addons"
 import { getDb } from "./db"
 
 describe("addons utilities", () => {
@@ -452,6 +452,111 @@ describe("addons utilities", () => {
 
       expect(result[0].grantedBy).toBeNull()
       expect(result[0].expiresAt).toBeNull()
+    })
+  })
+
+  describe("getAllOrgGrantedAddons", () => {
+    it("returns empty array when org has no addons", async () => {
+      mockDb.select.mockReturnValue({
+        from: vi.fn().mockReturnValue({
+          where: vi.fn().mockResolvedValue([]),
+        }),
+      })
+
+      const result = await getAllOrgGrantedAddons("org-1")
+
+      expect(result).toEqual([])
+    })
+
+    it("returns all granted addons including disabled ones", async () => {
+      const mockOrgAddons = [
+        {
+          id: "oa-1",
+          organizationId: "org-1",
+          addonSlug: "flood",
+          grantedAt: new Date("2025-01-01"),
+          grantedBy: "admin-1",
+          enabled: true,
+          expiresAt: null,
+        },
+        {
+          id: "oa-2",
+          organizationId: "org-1",
+          addonSlug: "financiamento",
+          grantedAt: new Date("2025-01-15"),
+          grantedBy: "admin-1",
+          enabled: false, // Disabled addon
+          expiresAt: new Date("2026-01-15"),
+        },
+      ]
+
+      mockDb.select.mockReturnValue({
+        from: vi.fn().mockReturnValue({
+          where: vi.fn().mockResolvedValue(mockOrgAddons),
+        }),
+      })
+
+      const result = await getAllOrgGrantedAddons("org-1")
+
+      expect(result).toHaveLength(2)
+      expect(result[0].addonSlug).toBe("flood")
+      expect(result[0].enabled).toBe(true)
+      expect(result[1].addonSlug).toBe("financiamento")
+      expect(result[1].enabled).toBe(false)
+    })
+
+    it("returns expired addons for management", async () => {
+      const mockOrgAddon = {
+        id: "oa-1",
+        organizationId: "org-1",
+        addonSlug: "flood",
+        grantedAt: new Date("2020-01-01"),
+        grantedBy: "admin-1",
+        enabled: true,
+        expiresAt: new Date("2020-12-31"), // Expired
+      }
+
+      mockDb.select.mockReturnValue({
+        from: vi.fn().mockReturnValue({
+          where: vi.fn().mockResolvedValue([mockOrgAddon]),
+        }),
+      })
+
+      const result = await getAllOrgGrantedAddons("org-1")
+
+      expect(result).toHaveLength(1)
+      expect(result[0].expiresAt).toEqual(new Date("2020-12-31"))
+    })
+
+    it("maps org addon properties correctly", async () => {
+      const mockOrgAddon = {
+        id: "oa-uuid",
+        organizationId: "org-123",
+        addonSlug: "flood",
+        grantedAt: new Date("2025-01-01T00:00:00Z"),
+        grantedBy: "admin-456",
+        enabled: false,
+        expiresAt: new Date("2026-01-01T00:00:00Z"),
+      }
+
+      mockDb.select.mockReturnValue({
+        from: vi.fn().mockReturnValue({
+          where: vi.fn().mockResolvedValue([mockOrgAddon]),
+        }),
+      })
+
+      const result = await getAllOrgGrantedAddons("org-123")
+
+      expect(result).toHaveLength(1)
+      expect(result[0]).toEqual<OrganizationAddon>({
+        id: "oa-uuid",
+        organizationId: "org-123",
+        addonSlug: "flood",
+        grantedAt: new Date("2025-01-01T00:00:00Z"),
+        grantedBy: "admin-456",
+        enabled: false,
+        expiresAt: new Date("2026-01-01T00:00:00Z"),
+      })
     })
   })
 })
