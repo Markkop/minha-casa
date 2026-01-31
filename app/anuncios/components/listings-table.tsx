@@ -1,7 +1,6 @@
 "use client"
 
 import { useMemo, useState } from "react"
-import { useRouter } from "next/navigation"
 import {
   Table,
   TableBody,
@@ -39,6 +38,7 @@ import { FaWhatsapp } from "react-icons/fa"
 import { EditModal } from "./edit-modal"
 import { ImageModal } from "./image-modal"
 import { QuickReparseModal, type FieldChange } from "./quick-reparse-modal"
+import { ClickablePrice } from "./clickable-price"
 import { parseListingWithAI } from "../lib/api"
 
 // ============================================================================
@@ -171,7 +171,6 @@ function SortableHeader({
 type PropertyTypeFilter = "all" | "casa" | "apartamento"
 
 export function ListingsTable({ listings, onListingsChange, hasApiKey = true }: ListingsTableProps) {
-  const router = useRouter()
   const {
     collections,
     activeCollection,
@@ -1891,29 +1890,11 @@ export function ListingsTable({ listings, onListingsChange, hasApiKey = true }: 
                         formatCurrency(calculatePrecoM2Privado(imovel.preco, imovel.m2Privado))
                       )}
                     </TableCell>
-                    <TableCell 
-                      className={cn(
-                        "text-right font-mono text-sm text-primary cursor-pointer hover:text-primary/80 transition-colors",
-                        imovel.strikethrough && "line-through opacity-50"
-                      )}
-                      onClick={() => {
-                        if (imovel.preco !== null) {
-                          router.push(`/casa?valorImovel=${imovel.preco}`)
-                        }
-                      }}
-                    >
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <span>{formatCurrency(imovel.preco)}</span>
-                        </TooltipTrigger>
-                        <TooltipContent 
-                          side="bottom" 
-                          sideOffset={4}
-                          className="bg-raisinBlack border border-brightGrey text-white"
-                        >
-                          Abrir na calculadora de financiamento
-                        </TooltipContent>
-                      </Tooltip>
+                    <TableCell className="text-right">
+                      <ClickablePrice
+                        price={imovel.preco}
+                        strikethrough={imovel.strikethrough}
+                      />
                     </TableCell>
                     <TableCell className={cn(
                       "text-center font-mono text-sm",
