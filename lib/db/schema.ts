@@ -296,6 +296,29 @@ export const userAddons = pgTable(
 )
 
 // ============================================================================
+// Organization Addons (tracks which addons are granted to organizations)
+// ============================================================================
+export const organizationAddons = pgTable(
+  "organization_addons",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    addonSlug: text("addon_slug").notNull(),
+    grantedAt: timestamp("granted_at", { withTimezone: true }).defaultNow().notNull(),
+    grantedBy: text("granted_by").references(() => users.id, { onDelete: "set null" }),
+    enabled: boolean("enabled").default(true).notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }),
+  },
+  (table) => [
+    index("organization_addons_org_id_idx").on(table.organizationId),
+    index("organization_addons_addon_slug_idx").on(table.addonSlug),
+    uniqueIndex("organization_addons_org_addon_idx").on(table.organizationId, table.addonSlug),
+  ]
+)
+
+// ============================================================================
 // Listings
 // ============================================================================
 export interface ListingData {
@@ -357,6 +380,7 @@ export const usersRelations = relations(users, ({ many }) => ({
   collections: many(collections),
   userAddons: many(userAddons),
   grantedUserAddons: many(userAddons, { relationName: "grantedBy" }),
+  grantedOrganizationAddons: many(organizationAddons, { relationName: "grantedBy" }),
 }))
 
 export const accountsRelations = relations(accounts, ({ one }) => ({
@@ -400,6 +424,7 @@ export const organizationsRelations = relations(organizations, ({ one, many }) =
   }),
   members: many(organizationMembers),
   collections: many(collections),
+  organizationAddons: many(organizationAddons),
 }))
 
 export const organizationMembersRelations = relations(organizationMembers, ({ one }) => ({
@@ -439,6 +464,18 @@ export const userAddonsRelations = relations(userAddons, ({ one }) => ({
   }),
   grantedByUser: one(users, {
     fields: [userAddons.grantedBy],
+    references: [users.id],
+    relationName: "grantedBy",
+  }),
+}))
+
+export const organizationAddonsRelations = relations(organizationAddons, ({ one }) => ({
+  organization: one(organizations, {
+    fields: [organizationAddons.organizationId],
+    references: [organizations.id],
+  }),
+  grantedByUser: one(users, {
+    fields: [organizationAddons.grantedBy],
     references: [users.id],
     relationName: "grantedBy",
   }),
