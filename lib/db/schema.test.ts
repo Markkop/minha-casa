@@ -10,6 +10,7 @@ import {
   organizationMembers,
   collections,
   addons,
+  userAddons,
   listings,
   subscriptionStatusEnum,
   orgMemberRoleEnum,
@@ -297,6 +298,54 @@ describe("Database Schema", () => {
     })
   })
 
+  describe("userAddons table", () => {
+    it("has correct table name", () => {
+      expect(getTableName(userAddons)).toBe("user_addons")
+    })
+
+    it("has all required columns", () => {
+      const columns = getTableColumns(userAddons)
+      const columnNames = Object.keys(columns)
+      
+      expect(columnNames).toContain("id")
+      expect(columnNames).toContain("userId")
+      expect(columnNames).toContain("addonSlug")
+      expect(columnNames).toContain("grantedAt")
+      expect(columnNames).toContain("grantedBy")
+      expect(columnNames).toContain("enabled")
+      expect(columnNames).toContain("expiresAt")
+    })
+
+    it("has correct column types", () => {
+      const columns = getTableColumns(userAddons)
+      
+      expect(columns.id.dataType).toBe("string")
+      expect(columns.userId.dataType).toBe("string")
+      expect(columns.addonSlug.dataType).toBe("string")
+      expect(columns.grantedAt.dataType).toBe("date")
+      expect(columns.grantedBy.dataType).toBe("string")
+      expect(columns.enabled.dataType).toBe("boolean")
+      expect(columns.expiresAt.dataType).toBe("date")
+    })
+
+    it("userId and addonSlug are required", () => {
+      const columns = getTableColumns(userAddons)
+      expect(columns.userId.notNull).toBe(true)
+      expect(columns.addonSlug.notNull).toBe(true)
+    })
+
+    it("enabled defaults to true", () => {
+      const columns = getTableColumns(userAddons)
+      expect(columns.enabled.notNull).toBe(true)
+    })
+
+    it("grantedBy and expiresAt are optional", () => {
+      const columns = getTableColumns(userAddons)
+      expect(columns.grantedBy.notNull).toBe(false)
+      expect(columns.expiresAt.notNull).toBe(false)
+    })
+  })
+
   describe("listings table", () => {
     it("has correct table name", () => {
       expect(getTableName(listings)).toBe("listings")
@@ -407,7 +456,7 @@ describe("Database Schema", () => {
   })
 
   describe("table count", () => {
-    it("has all 11 expected tables defined", () => {
+    it("has all 12 expected tables defined", () => {
       const tables = [
         users,
         accounts,
@@ -419,9 +468,10 @@ describe("Database Schema", () => {
         organizationMembers,
         collections,
         addons,
+        userAddons,
         listings,
       ]
-      expect(tables.length).toBe(11)
+      expect(tables.length).toBe(12)
       
       // Verify each is a valid table
       tables.forEach(table => {

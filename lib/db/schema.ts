@@ -273,6 +273,29 @@ export const addons = pgTable(
 )
 
 // ============================================================================
+// User Addons (tracks which addons are granted to users)
+// ============================================================================
+export const userAddons = pgTable(
+  "user_addons",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    addonSlug: text("addon_slug").notNull(),
+    grantedAt: timestamp("granted_at", { withTimezone: true }).defaultNow().notNull(),
+    grantedBy: text("granted_by").references(() => users.id, { onDelete: "set null" }),
+    enabled: boolean("enabled").default(true).notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }),
+  },
+  (table) => [
+    index("user_addons_user_id_idx").on(table.userId),
+    index("user_addons_addon_slug_idx").on(table.addonSlug),
+    uniqueIndex("user_addons_user_addon_idx").on(table.userId, table.addonSlug),
+  ]
+)
+
+// ============================================================================
 // Listings
 // ============================================================================
 export interface ListingData {
@@ -332,6 +355,8 @@ export const usersRelations = relations(users, ({ many }) => ({
   ownedOrganizations: many(organizations),
   organizationMemberships: many(organizationMembers),
   collections: many(collections),
+  userAddons: many(userAddons),
+  grantedUserAddons: many(userAddons, { relationName: "grantedBy" }),
 }))
 
 export const accountsRelations = relations(accounts, ({ one }) => ({
@@ -404,5 +429,17 @@ export const listingsRelations = relations(listings, ({ one }) => ({
   collection: one(collections, {
     fields: [listings.collectionId],
     references: [collections.id],
+  }),
+}))
+
+export const userAddonsRelations = relations(userAddons, ({ one }) => ({
+  user: one(users, {
+    fields: [userAddons.userId],
+    references: [users.id],
+  }),
+  grantedByUser: one(users, {
+    fields: [userAddons.grantedBy],
+    references: [users.id],
+    relationName: "grantedBy",
   }),
 }))
