@@ -30,6 +30,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { UserDetailsModal } from "./user-details-modal"
 import { OrgAddonsTable } from "./org-addons-table"
+import { GrantAddonModal } from "./grant-addon-modal"
 
 interface Plan {
   id: string
@@ -164,17 +165,20 @@ export function AdminClient() {
   const [grantOrgAddonModalOpen, setGrantOrgAddonModalOpen] = useState(false)
   const [grantingOrgAddon, setGrantingOrgAddon] = useState(false)
   const [userDetailsModalOpen, setUserDetailsModalOpen] = useState(false)
+  const [grantAddonModalOpen, setGrantAddonModalOpen] = useState(false)
+  const [allOrganizations, setAllOrganizations] = useState<Organization[]>([])
 
   const fetchData = useCallback(async () => {
     setLoading(true)
     setError(null)
 
     try {
-      const [usersRes, plansRes, statsRes, addonsRes] = await Promise.all([
+      const [usersRes, plansRes, statsRes, addonsRes, orgsRes] = await Promise.all([
         fetch("/api/admin/users"),
         fetch("/api/plans?includeInactive=true"),
         fetch("/api/admin/stats"),
         fetch("/api/admin/addons"),
+        fetch("/api/admin/organizations/addons"),
       ])
 
       if (usersRes.status === 401 || usersRes.status === 403) {
@@ -200,6 +204,18 @@ export function AdminClient() {
       if (addonsRes.ok) {
         const addonsData = await addonsRes.json()
         setAvailableAddons(addonsData.addons || [])
+      }
+
+      // Organizations are optional - don't fail if they error
+      if (orgsRes.ok) {
+        const orgsData = await orgsRes.json()
+        setAllOrganizations(
+          (orgsData.organizations || []).map((org: { id: string; name: string; slug: string }) => ({
+            id: org.id,
+            name: org.name,
+            slug: org.slug,
+          }))
+        )
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred")
@@ -1264,10 +1280,20 @@ export function AdminClient() {
       {/* Addons Section */}
       <Card>
         <CardHeader>
-          <CardTitle>Addons</CardTitle>
-          <CardDescription>
-            Gerencie addons disponíveis e concessões para usuários e organizações.
-          </CardDescription>
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div>
+              <CardTitle>Addons</CardTitle>
+              <CardDescription>
+                Gerencie addons disponíveis e concessões para usuários e organizações.
+              </CardDescription>
+            </div>
+            <Button
+              onClick={() => setGrantAddonModalOpen(true)}
+              disabled={availableAddons.length === 0}
+            >
+              Conceder Addon
+            </Button>
+          </div>
         </CardHeader>
         <CardContent className="space-y-6">
           {/* Available Addons */}
@@ -1648,6 +1674,16 @@ export function AdminClient() {
           onUserUpdated={fetchData}
         />
       )}
+
+      {/* Grant Addon Modal */}
+      <GrantAddonModal
+        users={users.map((u) => ({ id: u.id, name: u.name, email: u.email }))}
+        organizations={allOrganizations}
+        availableAddons={availableAddons}
+        isOpen={grantAddonModalOpen}
+        onClose={() => setGrantAddonModalOpen(false)}
+        onGranted={fetchData}
+      />
     </div>
   )
 }
