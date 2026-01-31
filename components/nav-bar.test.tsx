@@ -381,4 +381,174 @@ describe("NavBar", () => {
       expect(screen.getByText("🌊")).toBeInTheDocument() // Risco Enchente
     })
   })
+
+  // ===========================================================================
+  // Addon Access Control Edge Cases
+  // ===========================================================================
+
+  describe("addon access control edge cases", () => {
+    it("calls hasAddon with correct slug for each addon-gated link", () => {
+      mockHasAddon.mockReturnValue(true)
+      mockUseSession.mockReturnValue({
+        data: { user: { id: "user-1", name: "Test User", isAdmin: false } },
+      })
+      render(<NavBar />)
+
+      // Verify hasAddon was called with both addon slugs
+      expect(mockHasAddon).toHaveBeenCalledWith("financiamento")
+      expect(mockHasAddon).toHaveBeenCalledWith("flood")
+    })
+
+    it("shows only financiamento link when user has only financiamento addon", () => {
+      mockHasAddon.mockImplementation((slug: string) => slug === "financiamento")
+      mockUseSession.mockReturnValue({
+        data: { user: { id: "user-1", name: "Test User", isAdmin: false } },
+      })
+      render(<NavBar />)
+
+      expect(screen.getByRole("link", { name: /simulador/i })).toBeInTheDocument()
+      expect(screen.queryByRole("link", { name: /risco enchente/i })).not.toBeInTheDocument()
+    })
+
+    it("shows only flood link when user has only flood addon", () => {
+      mockHasAddon.mockImplementation((slug: string) => slug === "flood")
+      mockUseSession.mockReturnValue({
+        data: { user: { id: "user-1", name: "Test User", isAdmin: false } },
+      })
+      render(<NavBar />)
+
+      expect(screen.queryByRole("link", { name: /simulador/i })).not.toBeInTheDocument()
+      expect(screen.getByRole("link", { name: /risco enchente/i })).toBeInTheDocument()
+    })
+
+    it("hides all addon-gated links when user has no addons", () => {
+      mockHasAddon.mockReturnValue(false)
+      mockUseSession.mockReturnValue({
+        data: { user: { id: "user-1", name: "Test User", isAdmin: false } },
+      })
+      render(<NavBar />)
+
+      expect(screen.queryByRole("link", { name: /simulador/i })).not.toBeInTheDocument()
+      expect(screen.queryByRole("link", { name: /risco enchente/i })).not.toBeInTheDocument()
+    })
+
+    it("shows anuncios link regardless of addon status when logged in", () => {
+      mockHasAddon.mockReturnValue(false)
+      mockUseSession.mockReturnValue({
+        data: { user: { id: "user-1", name: "Test User", isAdmin: false } },
+      })
+      render(<NavBar />)
+
+      // Anuncios requires auth but not addons
+      expect(screen.getByRole("link", { name: /anuncios/i })).toBeInTheDocument()
+    })
+
+    it("hides anuncios link when user is not logged in even with addons", () => {
+      mockHasAddon.mockReturnValue(true)
+      mockUseSession.mockReturnValue({ data: null })
+      render(<NavBar />)
+
+      // Anuncios requires auth
+      expect(screen.queryByRole("link", { name: /anuncios/i })).not.toBeInTheDocument()
+    })
+  })
+
+  // ===========================================================================
+  // Combined Auth and Addon Access Tests
+  // ===========================================================================
+
+  describe("combined auth and addon access", () => {
+    it("shows all links when user is logged in with all addons", () => {
+      mockHasAddon.mockReturnValue(true)
+      mockUseSession.mockReturnValue({
+        data: { user: { id: "user-1", name: "Test User", isAdmin: false } },
+      })
+      render(<NavBar />)
+
+      expect(screen.getByRole("link", { name: /minha casa/i })).toBeInTheDocument() // Logo/home
+      expect(screen.getByRole("link", { name: /simulador/i })).toBeInTheDocument()
+      expect(screen.getByRole("link", { name: /anuncios/i })).toBeInTheDocument()
+      expect(screen.getByRole("link", { name: /risco enchente/i })).toBeInTheDocument()
+    })
+
+    it("shows only home link when user is not logged in and has no addons", () => {
+      mockHasAddon.mockReturnValue(false)
+      mockUseSession.mockReturnValue({ data: null })
+      render(<NavBar />)
+
+      expect(screen.getByRole("link", { name: /minha casa/i })).toBeInTheDocument() // Logo/home
+      expect(screen.queryByRole("link", { name: /simulador/i })).not.toBeInTheDocument()
+      expect(screen.queryByRole("link", { name: /anuncios/i })).not.toBeInTheDocument()
+      expect(screen.queryByRole("link", { name: /risco enchente/i })).not.toBeInTheDocument()
+    })
+
+    it("shows addon links but hides anuncios when user is not logged in but addons are available", () => {
+      // This tests the edge case where hasAddon returns true but user is not authenticated
+      mockHasAddon.mockReturnValue(true)
+      mockUseSession.mockReturnValue({ data: null })
+      render(<NavBar />)
+
+      // Addon links should be visible (addons don't require auth to show in nav)
+      expect(screen.getByRole("link", { name: /simulador/i })).toBeInTheDocument()
+      expect(screen.getByRole("link", { name: /risco enchente/i })).toBeInTheDocument()
+      // Anuncios requires auth
+      expect(screen.queryByRole("link", { name: /anuncios/i })).not.toBeInTheDocument()
+    })
+  })
+
+  // ===========================================================================
+  // Navigation Link Count Tests
+  // ===========================================================================
+
+  describe("navigation link count", () => {
+    it("renders correct number of nav links when all addons enabled and logged in", () => {
+      mockHasAddon.mockReturnValue(true)
+      mockUseSession.mockReturnValue({
+        data: { user: { id: "user-1", name: "Test User", isAdmin: false } },
+      })
+      render(<NavBar />)
+
+      // Count visible nav links (excluding logo and user menu)
+      // Should have: Simulador, Anuncios, Risco Enchente
+      const navLinks = screen.getAllByRole("link").filter(
+        (link) => 
+          link.getAttribute("href") === "/casa" ||
+          link.getAttribute("href") === "/anuncios" ||
+          link.getAttribute("href") === "/floodrisk"
+      )
+      expect(navLinks).toHaveLength(3)
+    })
+
+    it("renders correct number of nav links when no addons and logged in", () => {
+      mockHasAddon.mockReturnValue(false)
+      mockUseSession.mockReturnValue({
+        data: { user: { id: "user-1", name: "Test User", isAdmin: false } },
+      })
+      render(<NavBar />)
+
+      // Should only have Anuncios (no addon-gated links)
+      const navLinks = screen.getAllByRole("link").filter(
+        (link) => 
+          link.getAttribute("href") === "/casa" ||
+          link.getAttribute("href") === "/anuncios" ||
+          link.getAttribute("href") === "/floodrisk"
+      )
+      expect(navLinks).toHaveLength(1) // Only anuncios
+    })
+
+    it("renders zero nav links when no addons and not logged in", () => {
+      mockHasAddon.mockReturnValue(false)
+      mockUseSession.mockReturnValue({ data: null })
+      render(<NavBar />)
+
+      // Should have no nav links (Anuncios requires auth, addon links require addons)
+      const navLinks = screen.getAllByRole("link").filter(
+        (link) => 
+          link.getAttribute("href") === "/casa" ||
+          link.getAttribute("href") === "/anuncios" ||
+          link.getAttribute("href") === "/floodrisk"
+      )
+      expect(navLinks).toHaveLength(0)
+    })
+  })
 })
