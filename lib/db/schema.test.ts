@@ -9,6 +9,7 @@ import {
   organizations,
   organizationMembers,
   collections,
+  addons,
   listings,
   subscriptionStatusEnum,
   orgMemberRoleEnum,
@@ -254,6 +255,48 @@ describe("Database Schema", () => {
     })
   })
 
+  describe("addons table", () => {
+    it("has correct table name", () => {
+      expect(getTableName(addons)).toBe("addons")
+    })
+
+    it("has all required columns", () => {
+      const columns = getTableColumns(addons)
+      const columnNames = Object.keys(columns)
+      
+      expect(columnNames).toContain("id")
+      expect(columnNames).toContain("name")
+      expect(columnNames).toContain("slug")
+      expect(columnNames).toContain("description")
+      expect(columnNames).toContain("createdAt")
+    })
+
+    it("has correct column types", () => {
+      const columns = getTableColumns(addons)
+      
+      expect(columns.id.dataType).toBe("string")
+      expect(columns.name.dataType).toBe("string")
+      expect(columns.slug.dataType).toBe("string")
+      expect(columns.description.dataType).toBe("string")
+      expect(columns.createdAt.dataType).toBe("date")
+    })
+
+    it("slug is unique", () => {
+      const columns = getTableColumns(addons)
+      expect(columns.slug.isUnique).toBe(true)
+    })
+
+    it("name is required", () => {
+      const columns = getTableColumns(addons)
+      expect(columns.name.notNull).toBe(true)
+    })
+
+    it("description is optional", () => {
+      const columns = getTableColumns(addons)
+      expect(columns.description.notNull).toBe(false)
+    })
+  })
+
   describe("listings table", () => {
     it("has correct table name", () => {
       expect(getTableName(listings)).toBe("listings")
@@ -364,7 +407,7 @@ describe("Database Schema", () => {
   })
 
   describe("table count", () => {
-    it("has all 10 expected tables defined", () => {
+    it("has all 11 expected tables defined", () => {
       const tables = [
         users,
         accounts,
@@ -375,9 +418,10 @@ describe("Database Schema", () => {
         organizations,
         organizationMembers,
         collections,
+        addons,
         listings,
       ]
-      expect(tables.length).toBe(10)
+      expect(tables.length).toBe(11)
       
       // Verify each is a valid table
       tables.forEach(table => {

@@ -256,6 +256,23 @@ export const processedWebhookEvents = pgTable(
 )
 
 // ============================================================================
+// Addons
+// ============================================================================
+export const addons = pgTable(
+  "addons",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    name: text("name").notNull(),
+    slug: text("slug").notNull().unique(),
+    description: text("description"),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex("addons_slug_idx").on(table.slug),
+  ]
+)
+
+// ============================================================================
 // Listings
 // ============================================================================
 export interface ListingData {
