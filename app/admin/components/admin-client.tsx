@@ -29,6 +29,7 @@ import {
 } from "@/components/ui/select"
 import { Input } from "@/components/ui/input"
 import { UserDetailsModal } from "./user-details-modal"
+import { OrgAddonsTable } from "./org-addons-table"
 
 interface Plan {
   id: string
@@ -148,7 +149,6 @@ export function AdminClient() {
 
   // Addons state
   const [availableAddons, setAvailableAddons] = useState<Addon[]>([])
-  const [organizations, setOrganizations] = useState<Organization[]>([])
   const [manageUserAddonsModalOpen, setManageUserAddonsModalOpen] = useState(false)
   const [userAddonGrants, setUserAddonGrants] = useState<UserAddonGrant[]>([])
   const [loadingUserAddons, setLoadingUserAddons] = useState(false)
@@ -170,12 +170,11 @@ export function AdminClient() {
     setError(null)
 
     try {
-      const [usersRes, plansRes, statsRes, addonsRes, orgsRes] = await Promise.all([
+      const [usersRes, plansRes, statsRes, addonsRes] = await Promise.all([
         fetch("/api/admin/users"),
         fetch("/api/plans?includeInactive=true"),
         fetch("/api/admin/stats"),
         fetch("/api/admin/addons"),
-        fetch("/api/organizations"),
       ])
 
       if (usersRes.status === 401 || usersRes.status === 403) {
@@ -197,14 +196,10 @@ export function AdminClient() {
       setPlans(plansData.plans)
       setStats(statsData.stats)
 
-      // Addons and orgs are optional - don't fail if they error
+      // Addons are optional - don't fail if they error
       if (addonsRes.ok) {
         const addonsData = await addonsRes.json()
         setAvailableAddons(addonsData.addons || [])
-      }
-      if (orgsRes.ok) {
-        const orgsData = await orgsRes.json()
-        setOrganizations(orgsData.organizations || [])
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred")
@@ -574,12 +569,6 @@ export function AdminClient() {
     } finally {
       setLoadingOrgAddons(false)
     }
-  }
-
-  function openManageOrgAddonsModal(org: Organization) {
-    setSelectedOrg(org)
-    setManageOrgAddonsModalOpen(true)
-    fetchOrgAddonGrants(org.id)
   }
 
   async function grantOrgAddon() {
@@ -1303,43 +1292,11 @@ export function AdminClient() {
               </div>
             )}
           </div>
-
-          {/* Organizations with Addons */}
-          <div>
-            <h3 className="text-lg font-medium mb-3">Organizações</h3>
-            {organizations.length === 0 ? (
-              <p className="text-muted-foreground">Nenhuma organização encontrada.</p>
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Nome</TableHead>
-                    <TableHead>Slug</TableHead>
-                    <TableHead>Ações</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {organizations.map((org) => (
-                    <TableRow key={org.id}>
-                      <TableCell className="font-medium">{org.name}</TableCell>
-                      <TableCell>{org.slug}</TableCell>
-                      <TableCell>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => openManageOrgAddonsModal(org)}
-                        >
-                          Gerenciar Addons
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            )}
-          </div>
         </CardContent>
       </Card>
+
+      {/* Organization Addons Management Table */}
+      <OrgAddonsTable onDataChange={fetchData} />
 
       {/* Manage User Addons Modal */}
       {manageUserAddonsModalOpen && selectedUser && (
