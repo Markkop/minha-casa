@@ -23,22 +23,20 @@ describe("feature-flags", () => {
 
   describe("getFlag", () => {
     it("returns default value when no override or env var is set", () => {
-      expect(getFlag("financingSimulator")).toBe(false);
-      expect(getFlag("floodForecast")).toBe(false);
       expect(getFlag("organizations")).toBe(true);
       expect(getFlag("publicCollections")).toBe(true);
       expect(getFlag("mapProvider")).toBe("auto");
     });
 
     it("returns runtime override when set", () => {
-      setFlagOverrides({ financingSimulator: true });
-      expect(getFlag("financingSimulator")).toBe(true);
+      setFlagOverrides({ organizations: false });
+      expect(getFlag("organizations")).toBe(false);
     });
 
     it("runtime override takes priority over environment variable", () => {
-      vi.stubEnv("NEXT_PUBLIC_FF_FINANCING_SIMULATOR", "false");
-      setFlagOverrides({ financingSimulator: true });
-      expect(getFlag("financingSimulator")).toBe(true);
+      vi.stubEnv("NEXT_PUBLIC_FF_ORGANIZATIONS", "true");
+      setFlagOverrides({ organizations: false });
+      expect(getFlag("organizations")).toBe(false);
     });
 
     it("reads boolean flag from environment variable", () => {
@@ -47,20 +45,20 @@ describe("feature-flags", () => {
     });
 
     it("parses boolean true values from env vars correctly", () => {
-      vi.stubEnv("NEXT_PUBLIC_FF_FINANCING_SIMULATOR", "true");
-      expect(getFlag("financingSimulator")).toBe(true);
+      vi.stubEnv("NEXT_PUBLIC_FF_PUBLIC_COLLECTIONS", "true");
+      expect(getFlag("publicCollections")).toBe(true);
 
       clearFlagOverrides();
-      vi.stubEnv("NEXT_PUBLIC_FF_FINANCING_SIMULATOR", "1");
-      expect(getFlag("financingSimulator")).toBe(true);
+      vi.stubEnv("NEXT_PUBLIC_FF_PUBLIC_COLLECTIONS", "1");
+      expect(getFlag("publicCollections")).toBe(true);
 
       clearFlagOverrides();
-      vi.stubEnv("NEXT_PUBLIC_FF_FINANCING_SIMULATOR", "yes");
-      expect(getFlag("financingSimulator")).toBe(true);
+      vi.stubEnv("NEXT_PUBLIC_FF_PUBLIC_COLLECTIONS", "yes");
+      expect(getFlag("publicCollections")).toBe(true);
 
       clearFlagOverrides();
-      vi.stubEnv("NEXT_PUBLIC_FF_FINANCING_SIMULATOR", "TRUE");
-      expect(getFlag("financingSimulator")).toBe(true);
+      vi.stubEnv("NEXT_PUBLIC_FF_PUBLIC_COLLECTIONS", "TRUE");
+      expect(getFlag("publicCollections")).toBe(true);
     });
 
     it("parses boolean false values from env vars correctly", () => {
@@ -86,8 +84,8 @@ describe("feature-flags", () => {
     });
 
     it("returns default when env var is empty string", () => {
-      vi.stubEnv("NEXT_PUBLIC_FF_FINANCING_SIMULATOR", "");
-      expect(getFlag("financingSimulator")).toBe(false); // default
+      vi.stubEnv("NEXT_PUBLIC_FF_ORGANIZATIONS", "");
+      expect(getFlag("organizations")).toBe(true); // default
     });
   });
 
@@ -95,8 +93,6 @@ describe("feature-flags", () => {
     it("returns all flags with their current values", () => {
       const flags = getAllFlags();
       expect(flags).toEqual({
-        financingSimulator: false,
-        floodForecast: false,
         organizations: true,
         publicCollections: true,
         mapProvider: "auto",
@@ -104,52 +100,52 @@ describe("feature-flags", () => {
     });
 
     it("reflects runtime overrides", () => {
-      setFlagOverrides({ financingSimulator: true, mapProvider: "leaflet" });
+      setFlagOverrides({ organizations: false, mapProvider: "leaflet" });
       const flags = getAllFlags();
-      expect(flags.financingSimulator).toBe(true);
+      expect(flags.organizations).toBe(false);
       expect(flags.mapProvider).toBe("leaflet");
     });
   });
 
   describe("setFlagOverrides", () => {
     it("sets runtime overrides", () => {
-      setFlagOverrides({ floodForecast: true });
-      expect(getFlag("floodForecast")).toBe(true);
+      setFlagOverrides({ organizations: false });
+      expect(getFlag("organizations")).toBe(false);
     });
 
     it("merges with existing overrides", () => {
-      setFlagOverrides({ floodForecast: true });
-      setFlagOverrides({ financingSimulator: true });
-      expect(getFlag("floodForecast")).toBe(true);
-      expect(getFlag("financingSimulator")).toBe(true);
+      setFlagOverrides({ organizations: false });
+      setFlagOverrides({ publicCollections: false });
+      expect(getFlag("organizations")).toBe(false);
+      expect(getFlag("publicCollections")).toBe(false);
     });
 
     it("can override multiple flags at once", () => {
       setFlagOverrides({
-        floodForecast: true,
-        financingSimulator: true,
+        organizations: false,
+        publicCollections: false,
         mapProvider: "google",
       });
-      expect(getFlag("floodForecast")).toBe(true);
-      expect(getFlag("financingSimulator")).toBe(true);
+      expect(getFlag("organizations")).toBe(false);
+      expect(getFlag("publicCollections")).toBe(false);
       expect(getFlag("mapProvider")).toBe("google");
     });
   });
 
   describe("clearFlagOverrides", () => {
     it("clears all runtime overrides", () => {
-      setFlagOverrides({ floodForecast: true, financingSimulator: true });
+      setFlagOverrides({ organizations: false, publicCollections: false });
       clearFlagOverrides();
-      expect(getFlag("floodForecast")).toBe(false);
-      expect(getFlag("financingSimulator")).toBe(false);
+      expect(getFlag("organizations")).toBe(true);
+      expect(getFlag("publicCollections")).toBe(true);
     });
 
     it("still respects environment variables after clearing", () => {
-      vi.stubEnv("NEXT_PUBLIC_FF_FINANCING_SIMULATOR", "true");
-      setFlagOverrides({ financingSimulator: false });
-      expect(getFlag("financingSimulator")).toBe(false); // override
+      vi.stubEnv("NEXT_PUBLIC_FF_ORGANIZATIONS", "false");
+      setFlagOverrides({ organizations: true });
+      expect(getFlag("organizations")).toBe(true); // override
       clearFlagOverrides();
-      expect(getFlag("financingSimulator")).toBe(true); // env var
+      expect(getFlag("organizations")).toBe(false); // env var
     });
   });
 
@@ -159,7 +155,8 @@ describe("feature-flags", () => {
     });
 
     it("returns false for disabled boolean flags", () => {
-      expect(isEnabled("financingSimulator")).toBe(false);
+      setFlagOverrides({ organizations: false });
+      expect(isEnabled("organizations")).toBe(false);
     });
 
     it("returns false for non-boolean flags", () => {
@@ -168,27 +165,25 @@ describe("feature-flags", () => {
     });
 
     it("respects overrides", () => {
-      setFlagOverrides({ financingSimulator: true });
-      expect(isEnabled("financingSimulator")).toBe(true);
+      setFlagOverrides({ publicCollections: false });
+      expect(isEnabled("publicCollections")).toBe(false);
     });
   });
 
   describe("getFlagNames", () => {
     it("returns all flag names", () => {
       const names = getFlagNames();
-      expect(names).toContain("financingSimulator");
-      expect(names).toContain("floodForecast");
       expect(names).toContain("organizations");
       expect(names).toContain("publicCollections");
       expect(names).toContain("mapProvider");
-      expect(names.length).toBe(5);
+      expect(names.length).toBe(3);
     });
   });
 
   describe("getDefaultValue", () => {
     it("returns the default value for a flag", () => {
-      expect(getDefaultValue("financingSimulator")).toBe(false);
       expect(getDefaultValue("organizations")).toBe(true);
+      expect(getDefaultValue("publicCollections")).toBe(true);
       expect(getDefaultValue("mapProvider")).toBe("auto");
     });
   });

@@ -53,8 +53,6 @@ describe("useFeatureFlags", () => {
       });
 
       expect(result.current.flags).toEqual({
-        financingSimulator: false,
-        floodForecast: false,
         organizations: true,
         publicCollections: true,
         mapProvider: "auto",
@@ -66,7 +64,7 @@ describe("useFeatureFlags", () => {
         wrapper: createWrapper(),
       });
 
-      expect(result.current.getFlag("financingSimulator")).toBe(false);
+      expect(result.current.getFlag("organizations")).toBe(true);
       expect(result.current.getFlag("mapProvider")).toBe("auto");
     });
 
@@ -76,7 +74,7 @@ describe("useFeatureFlags", () => {
       });
 
       expect(result.current.isEnabled("organizations")).toBe(true);
-      expect(result.current.isEnabled("financingSimulator")).toBe(false);
+      expect(result.current.isEnabled("publicCollections")).toBe(true);
     });
 
     it("setOverrides updates flags", async () => {
@@ -85,27 +83,27 @@ describe("useFeatureFlags", () => {
       });
 
       act(() => {
-        result.current.setOverrides({ financingSimulator: true });
+        result.current.setOverrides({ organizations: false });
       });
 
       await waitFor(() => {
-        expect(result.current.flags.financingSimulator).toBe(true);
+        expect(result.current.flags.organizations).toBe(false);
       });
     });
 
     it("clearOverrides resets flags to defaults", async () => {
       const { result } = renderHook(() => useFeatureFlags(), {
-        wrapper: createWrapper({ financingSimulator: true }),
+        wrapper: createWrapper({ organizations: false }),
       });
 
-      expect(result.current.flags.financingSimulator).toBe(true);
+      expect(result.current.flags.organizations).toBe(false);
 
       act(() => {
         result.current.clearOverrides();
       });
 
       await waitFor(() => {
-        expect(result.current.flags.financingSimulator).toBe(false);
+        expect(result.current.flags.organizations).toBe(true);
       });
     });
   });
@@ -128,11 +126,11 @@ describe("useFeatureFlags", () => {
     });
 
     it("reflects initial overrides", () => {
-      const { result } = renderHook(() => useFlag("financingSimulator"), {
-        wrapper: createWrapper({ financingSimulator: true }),
+      const { result } = renderHook(() => useFlag("organizations"), {
+        wrapper: createWrapper({ organizations: false }),
       });
 
-      expect(result.current).toBe(true);
+      expect(result.current).toBe(false);
     });
   });
 
@@ -146,8 +144,8 @@ describe("useFeatureFlags", () => {
     });
 
     it("returns false for disabled flags", () => {
-      const { result } = renderHook(() => useFlagEnabled("financingSimulator"), {
-        wrapper: createWrapper(),
+      const { result } = renderHook(() => useFlagEnabled("organizations"), {
+        wrapper: createWrapper({ organizations: false }),
       });
 
       expect(result.current).toBe(false);
@@ -159,8 +157,6 @@ describe("useFeatureFlags", () => {
       const { result } = renderHook(() => useStandaloneFeatureFlags());
 
       expect(result.current).toEqual({
-        financingSimulator: false,
-        floodForecast: false,
         organizations: true,
         publicCollections: true,
         mapProvider: "auto",
@@ -179,10 +175,10 @@ describe("useFeatureFlags", () => {
   describe("FeatureFlagsProvider", () => {
     it("applies initial overrides", () => {
       const { result } = renderHook(() => useFeatureFlags(), {
-        wrapper: createWrapper({ financingSimulator: true, mapProvider: "google" }),
+        wrapper: createWrapper({ organizations: false, mapProvider: "google" }),
       });
 
-      expect(result.current.flags.financingSimulator).toBe(true);
+      expect(result.current.flags.organizations).toBe(false);
       expect(result.current.flags.mapProvider).toBe("google");
     });
   });

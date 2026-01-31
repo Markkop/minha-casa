@@ -11,10 +11,9 @@
  */
 
 // Define available feature flags and their types
+// Note: financingSimulator and floodForecast were deprecated in favor of the addon system.
+// See lib/addons.ts and the addon-based access control for /casa and /floodrisk routes.
 export interface FeatureFlags {
-  // Route visibility flags
-  financingSimulator: boolean;
-  floodForecast: boolean;
   organizations: boolean;
   publicCollections: boolean;
   // Map provider
@@ -23,8 +22,6 @@ export interface FeatureFlags {
 
 // Default values for all feature flags
 const defaultFlags: FeatureFlags = {
-  financingSimulator: false, // Hide /casa route
-  floodForecast: false, // Hide /floodrisk route
   organizations: true, // Enable organizations feature
   publicCollections: true, // Enable public collection sharing
   mapProvider: "auto",
@@ -99,8 +96,6 @@ export function getFlag<K extends keyof FeatureFlags>(key: K): FeatureFlags[K] {
  */
 export function getAllFlags(): FeatureFlags {
   return {
-    financingSimulator: getFlag("financingSimulator"),
-    floodForecast: getFlag("floodForecast"),
     organizations: getFlag("organizations"),
     publicCollections: getFlag("publicCollections"),
     mapProvider: getFlag("mapProvider"),

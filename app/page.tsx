@@ -10,7 +10,7 @@ interface Feature {
   title: string
   description: string
   highlights: string[]
-  featureFlag?: "financingSimulator" | "floodForecast" | "organizations"
+  featureFlag?: "organizations"
 }
 
 const allFeatures: Feature[] = []

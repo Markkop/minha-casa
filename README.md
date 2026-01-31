@@ -258,11 +258,11 @@ Feature flags control visibility of incomplete or optional features. Configure v
 
 | Flag | Env Variable | Default | Description |
 |------|-------------|---------|-------------|
-| `financingSimulator` | `NEXT_PUBLIC_FF_FINANCING_SIMULATOR` | `false` | Show `/casa` route |
-| `floodForecast` | `NEXT_PUBLIC_FF_FLOOD_FORECAST` | `false` | Show `/floodrisk` route |
 | `organizations` | `NEXT_PUBLIC_FF_ORGANIZATIONS` | `true` | Enable organizations |
 | `publicCollections` | `NEXT_PUBLIC_FF_PUBLIC_COLLECTIONS` | `true` | Enable public sharing |
 | `mapProvider` | `NEXT_PUBLIC_FF_MAP_PROVIDER` | `auto` | Map provider (`google`, `leaflet`, `auto`) |
+
+**Note**: Access to `/casa` (Financing Simulator) and `/floodrisk` (Flood Forecast) routes is now controlled by the addon system instead of feature flags. See the Addon System section above for details.
 
 ## Database Schema
 
