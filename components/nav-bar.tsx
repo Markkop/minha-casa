@@ -33,7 +33,7 @@ export function NavBar() {
   const pathname = usePathname()
   const router = useRouter()
   const { data: session } = useSession()
-  const { hasAddon } = useAddons()
+  const { hasAddon, userAddons, orgAddons } = useAddons()
   const isAdmin = (session?.user as { isAdmin?: boolean } | undefined)?.isAdmin === true
   const isLoggedIn = !!session?.user
 
@@ -42,6 +42,19 @@ export function NavBar() {
     if (link.requiresAuth && !isLoggedIn) return false
     if (!link.addonSlug) return true
     return hasAddon(link.addonSlug)
+  })
+
+  // Get addon shortcuts for the user menu - only enabled addons the user has access to
+  const addonShortcuts = navLinks.filter((link) => {
+    if (!link.addonSlug) return false
+    // Check if user has this addon enabled (from user or org addons)
+    const hasUserAddon = userAddons.some(
+      (addon) => addon.addonSlug === link.addonSlug && addon.enabled
+    )
+    const hasOrgAddon = orgAddons.some(
+      (addon) => addon.addonSlug === link.addonSlug && addon.enabled
+    )
+    return hasUserAddon || hasOrgAddon
   })
 
   const handleLogout = async () => {
@@ -120,6 +133,25 @@ export function NavBar() {
                     </div>
                     <div className="text-xs truncate">{session.user.email}</div>
                   </div>
+                  {/* Addon Shortcuts */}
+                  {addonShortcuts.length > 0 && (
+                    <>
+                      <div className="px-2 py-1 text-xs text-muted-foreground uppercase tracking-wide">
+                        Meus Addons
+                      </div>
+                      {addonShortcuts.map((link) => (
+                        <Link
+                          key={link.href}
+                          href={link.href}
+                          className="flex items-center gap-2 px-2 py-1.5 text-sm text-ashGray hover:text-white hover:bg-eerieBlack rounded-md transition-colors cursor-pointer"
+                        >
+                          <span>{link.icon}</span>
+                          <span>{link.label}</span>
+                        </Link>
+                      ))}
+                      <div className="border-b border-brightGrey my-2" />
+                    </>
+                  )}
                   {getFlag("organizations") && (
                     <Link
                       href="/organizacoes"

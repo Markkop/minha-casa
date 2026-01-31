@@ -25,8 +25,8 @@ vi.mock("next/navigation", () => ({
 }))
 
 // Mock fetch for subscription refresh
-const mockFetch = vi.fn(() => Promise.resolve({ ok: true }))
-global.fetch = mockFetch
+const mockFetch = vi.fn(() => Promise.resolve({ ok: true } as Response))
+global.fetch = mockFetch as typeof fetch
 
 // Mock window.history.replaceState
 const mockReplaceState = vi.fn()

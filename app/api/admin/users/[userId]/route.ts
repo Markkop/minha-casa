@@ -9,17 +9,17 @@ interface UpdateUserBody {
 }
 
 /**
- * PATCH /api/admin/users/[id]
+ * PATCH /api/admin/users/[userId]
  * Update a user's profile (admin only)
  * Supports updating: isAdmin, name
  */
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ userId: string }> }
 ) {
   try {
     const session = await requireAdmin()
-    const { id } = await params
+    const { userId } = await params
 
     const body = await request.json() as UpdateUserBody
     const { isAdmin, name } = body
@@ -63,7 +63,7 @@ export async function PATCH(
     }
 
     // Prevent admins from removing their own admin status
-    if (id === session.user.id && isAdmin === false) {
+    if (userId === session.user.id && isAdmin === false) {
       return NextResponse.json(
         { error: "Cannot remove your own admin status" },
         { status: 400 }
@@ -76,7 +76,7 @@ export async function PATCH(
     const [existingUser] = await db
       .select()
       .from(users)
-      .where(eq(users.id, id))
+      .where(eq(users.id, userId))
 
     if (!existingUser) {
       return NextResponse.json({ error: "User not found" }, { status: 404 })
@@ -97,7 +97,7 @@ export async function PATCH(
     const [updatedUser] = await db
       .update(users)
       .set(updateData)
-      .where(eq(users.id, id))
+      .where(eq(users.id, userId))
       .returning()
 
     return NextResponse.json({ user: updatedUser })
@@ -119,19 +119,19 @@ export async function PATCH(
 }
 
 /**
- * DELETE /api/admin/users/[id]
+ * DELETE /api/admin/users/[userId]
  * Delete a user and all their associated data (admin only)
  */
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ userId: string }> }
 ) {
   try {
     const session = await requireAdmin()
-    const { id } = await params
+    const { userId } = await params
 
     // Prevent admins from deleting themselves
-    if (id === session.user.id) {
+    if (userId === session.user.id) {
       return NextResponse.json(
         { error: "Cannot delete your own account" },
         { status: 400 }
@@ -144,7 +144,7 @@ export async function DELETE(
     const [existingUser] = await db
       .select()
       .from(users)
-      .where(eq(users.id, id))
+      .where(eq(users.id, userId))
 
     if (!existingUser) {
       return NextResponse.json({ error: "User not found" }, { status: 404 })
@@ -156,12 +156,12 @@ export async function DELETE(
     // First, delete organizations owned by this user (this will cascade to org members and org collections)
     await db
       .delete(organizations)
-      .where(eq(organizations.ownerId, id))
+      .where(eq(organizations.ownerId, userId))
 
     // Delete the user (cascade handles: accounts, sessions, subscriptions, collections, org memberships)
     await db
       .delete(users)
-      .where(eq(users.id, id))
+      .where(eq(users.id, userId))
 
     return NextResponse.json({ success: true, message: "User deleted successfully" })
   } catch (error) {

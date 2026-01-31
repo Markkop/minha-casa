@@ -182,18 +182,18 @@ describe("Admin Users API", () => {
     })
   })
 
-  describe("PATCH /api/admin/users/[id]", () => {
+  describe("PATCH /api/admin/users/[userId]", () => {
     it("returns 401 when not authenticated", async () => {
       const { requireAdmin } = await import("@/lib/auth-server")
       vi.mocked(requireAdmin).mockRejectedValue(new Error("Unauthorized"))
 
-      const { PATCH } = await import("./users/[id]/route")
+      const { PATCH } = await import("./users/[userId]/route")
       const request = new NextRequest("http://localhost/api/admin/users/user-123", {
         method: "PATCH",
         body: JSON.stringify({ isAdmin: true }),
       })
 
-      const response = await PATCH(request, { params: Promise.resolve({ id: "user-123" }) })
+      const response = await PATCH(request, { params: Promise.resolve({ userId: "user-123" }) })
       const json = await response.json()
 
       expect(response.status).toBe(401)
@@ -204,13 +204,13 @@ describe("Admin Users API", () => {
       const { requireAdmin } = await import("@/lib/auth-server")
       vi.mocked(requireAdmin).mockRejectedValue(new Error("Forbidden: Admin access required"))
 
-      const { PATCH } = await import("./users/[id]/route")
+      const { PATCH } = await import("./users/[userId]/route")
       const request = new NextRequest("http://localhost/api/admin/users/user-123", {
         method: "PATCH",
         body: JSON.stringify({ isAdmin: true }),
       })
 
-      const response = await PATCH(request, { params: Promise.resolve({ id: "user-123" }) })
+      const response = await PATCH(request, { params: Promise.resolve({ userId: "user-123" }) })
       const json = await response.json()
 
       expect(response.status).toBe(403)
@@ -221,13 +221,13 @@ describe("Admin Users API", () => {
       const { requireAdmin } = await import("@/lib/auth-server")
       vi.mocked(requireAdmin).mockResolvedValue(mockAdminSession)
 
-      const { PATCH } = await import("./users/[id]/route")
+      const { PATCH } = await import("./users/[userId]/route")
       const request = new NextRequest("http://localhost/api/admin/users/user-123", {
         method: "PATCH",
         body: JSON.stringify({}),
       })
 
-      const response = await PATCH(request, { params: Promise.resolve({ id: "user-123" }) })
+      const response = await PATCH(request, { params: Promise.resolve({ userId: "user-123" }) })
       const json = await response.json()
 
       expect(response.status).toBe(400)
@@ -238,13 +238,13 @@ describe("Admin Users API", () => {
       const { requireAdmin } = await import("@/lib/auth-server")
       vi.mocked(requireAdmin).mockResolvedValue(mockAdminSession)
 
-      const { PATCH } = await import("./users/[id]/route")
+      const { PATCH } = await import("./users/[userId]/route")
       const request = new NextRequest("http://localhost/api/admin/users/user-123", {
         method: "PATCH",
         body: JSON.stringify({ isAdmin: "yes" }),
       })
 
-      const response = await PATCH(request, { params: Promise.resolve({ id: "user-123" }) })
+      const response = await PATCH(request, { params: Promise.resolve({ userId: "user-123" }) })
       const json = await response.json()
 
       expect(response.status).toBe(400)
@@ -255,13 +255,13 @@ describe("Admin Users API", () => {
       const { requireAdmin } = await import("@/lib/auth-server")
       vi.mocked(requireAdmin).mockResolvedValue(mockAdminSession)
 
-      const { PATCH } = await import("./users/[id]/route")
+      const { PATCH } = await import("./users/[userId]/route")
       const request = new NextRequest("http://localhost/api/admin/users/user-123", {
         method: "PATCH",
         body: JSON.stringify({ name: "   " }),
       })
 
-      const response = await PATCH(request, { params: Promise.resolve({ id: "user-123" }) })
+      const response = await PATCH(request, { params: Promise.resolve({ userId: "user-123" }) })
       const json = await response.json()
 
       expect(response.status).toBe(400)
@@ -272,13 +272,13 @@ describe("Admin Users API", () => {
       const { requireAdmin } = await import("@/lib/auth-server")
       vi.mocked(requireAdmin).mockResolvedValue(mockAdminSession)
 
-      const { PATCH } = await import("./users/[id]/route")
+      const { PATCH } = await import("./users/[userId]/route")
       const request = new NextRequest("http://localhost/api/admin/users/user-123", {
         method: "PATCH",
         body: JSON.stringify({ name: "a".repeat(256) }),
       })
 
-      const response = await PATCH(request, { params: Promise.resolve({ id: "user-123" }) })
+      const response = await PATCH(request, { params: Promise.resolve({ userId: "user-123" }) })
       const json = await response.json()
 
       expect(response.status).toBe(400)
@@ -289,13 +289,13 @@ describe("Admin Users API", () => {
       const { requireAdmin } = await import("@/lib/auth-server")
       vi.mocked(requireAdmin).mockResolvedValue(mockAdminSession)
 
-      const { PATCH } = await import("./users/[id]/route")
+      const { PATCH } = await import("./users/[userId]/route")
       const request = new NextRequest(`http://localhost/api/admin/users/${mockAdminUser.id}`, {
         method: "PATCH",
         body: JSON.stringify({ isAdmin: false }),
       })
 
-      const response = await PATCH(request, { params: Promise.resolve({ id: mockAdminUser.id }) })
+      const response = await PATCH(request, { params: Promise.resolve({ userId: mockAdminUser.id }) })
       const json = await response.json()
 
       expect(response.status).toBe(400)
@@ -312,13 +312,13 @@ describe("Admin Users API", () => {
         }),
       })
 
-      const { PATCH } = await import("./users/[id]/route")
+      const { PATCH } = await import("./users/[userId]/route")
       const request = new NextRequest("http://localhost/api/admin/users/non-existent", {
         method: "PATCH",
         body: JSON.stringify({ isAdmin: true }),
       })
 
-      const response = await PATCH(request, { params: Promise.resolve({ id: "non-existent" }) })
+      const response = await PATCH(request, { params: Promise.resolve({ userId: "non-existent" }) })
       const json = await response.json()
 
       expect(response.status).toBe(404)
@@ -344,13 +344,13 @@ describe("Admin Users API", () => {
         }),
       })
 
-      const { PATCH } = await import("./users/[id]/route")
+      const { PATCH } = await import("./users/[userId]/route")
       const request = new NextRequest(`http://localhost/api/admin/users/${mockUser.id}`, {
         method: "PATCH",
         body: JSON.stringify({ isAdmin: true }),
       })
 
-      const response = await PATCH(request, { params: Promise.resolve({ id: mockUser.id }) })
+      const response = await PATCH(request, { params: Promise.resolve({ userId: mockUser.id }) })
       const json = await response.json()
 
       expect(response.status).toBe(200)
@@ -376,13 +376,13 @@ describe("Admin Users API", () => {
         }),
       })
 
-      const { PATCH } = await import("./users/[id]/route")
+      const { PATCH } = await import("./users/[userId]/route")
       const request = new NextRequest(`http://localhost/api/admin/users/${mockUser.id}`, {
         method: "PATCH",
         body: JSON.stringify({ name: "New Name" }),
       })
 
-      const response = await PATCH(request, { params: Promise.resolve({ id: mockUser.id }) })
+      const response = await PATCH(request, { params: Promise.resolve({ userId: mockUser.id }) })
       const json = await response.json()
 
       expect(response.status).toBe(200)
@@ -390,17 +390,17 @@ describe("Admin Users API", () => {
     })
   })
 
-  describe("DELETE /api/admin/users/[id]", () => {
+  describe("DELETE /api/admin/users/[userId]", () => {
     it("returns 401 when not authenticated", async () => {
       const { requireAdmin } = await import("@/lib/auth-server")
       vi.mocked(requireAdmin).mockRejectedValue(new Error("Unauthorized"))
 
-      const { DELETE } = await import("./users/[id]/route")
+      const { DELETE } = await import("./users/[userId]/route")
       const request = new NextRequest("http://localhost/api/admin/users/user-123", {
         method: "DELETE",
       })
 
-      const response = await DELETE(request, { params: Promise.resolve({ id: "user-123" }) })
+      const response = await DELETE(request, { params: Promise.resolve({ userId: "user-123" }) })
       const json = await response.json()
 
       expect(response.status).toBe(401)
@@ -411,12 +411,12 @@ describe("Admin Users API", () => {
       const { requireAdmin } = await import("@/lib/auth-server")
       vi.mocked(requireAdmin).mockRejectedValue(new Error("Forbidden: Admin access required"))
 
-      const { DELETE } = await import("./users/[id]/route")
+      const { DELETE } = await import("./users/[userId]/route")
       const request = new NextRequest("http://localhost/api/admin/users/user-123", {
         method: "DELETE",
       })
 
-      const response = await DELETE(request, { params: Promise.resolve({ id: "user-123" }) })
+      const response = await DELETE(request, { params: Promise.resolve({ userId: "user-123" }) })
       const json = await response.json()
 
       expect(response.status).toBe(403)
@@ -427,12 +427,12 @@ describe("Admin Users API", () => {
       const { requireAdmin } = await import("@/lib/auth-server")
       vi.mocked(requireAdmin).mockResolvedValue(mockAdminSession)
 
-      const { DELETE } = await import("./users/[id]/route")
+      const { DELETE } = await import("./users/[userId]/route")
       const request = new NextRequest(`http://localhost/api/admin/users/${mockAdminUser.id}`, {
         method: "DELETE",
       })
 
-      const response = await DELETE(request, { params: Promise.resolve({ id: mockAdminUser.id }) })
+      const response = await DELETE(request, { params: Promise.resolve({ userId: mockAdminUser.id }) })
       const json = await response.json()
 
       expect(response.status).toBe(400)
@@ -449,12 +449,12 @@ describe("Admin Users API", () => {
         }),
       })
 
-      const { DELETE } = await import("./users/[id]/route")
+      const { DELETE } = await import("./users/[userId]/route")
       const request = new NextRequest("http://localhost/api/admin/users/non-existent", {
         method: "DELETE",
       })
 
-      const response = await DELETE(request, { params: Promise.resolve({ id: "non-existent" }) })
+      const response = await DELETE(request, { params: Promise.resolve({ userId: "non-existent" }) })
       const json = await response.json()
 
       expect(response.status).toBe(404)
@@ -475,12 +475,12 @@ describe("Admin Users API", () => {
         where: vi.fn().mockResolvedValue([]),
       })
 
-      const { DELETE } = await import("./users/[id]/route")
+      const { DELETE } = await import("./users/[userId]/route")
       const request = new NextRequest(`http://localhost/api/admin/users/${mockUser.id}`, {
         method: "DELETE",
       })
 
-      const response = await DELETE(request, { params: Promise.resolve({ id: mockUser.id }) })
+      const response = await DELETE(request, { params: Promise.resolve({ userId: mockUser.id }) })
       const json = await response.json()
 
       expect(response.status).toBe(200)

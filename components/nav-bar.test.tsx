@@ -37,11 +37,13 @@ vi.mock("@/lib/feature-flags", () => ({
 
 // Mock useAddons hook
 const mockHasAddon = vi.fn()
+const mockUserAddons = vi.fn()
+const mockOrgAddons = vi.fn()
 vi.mock("@/lib/use-addons", () => ({
   useAddons: () => ({
     hasAddon: mockHasAddon,
-    userAddons: [],
-    orgAddons: [],
+    userAddons: mockUserAddons(),
+    orgAddons: mockOrgAddons(),
     isLoading: false,
     error: null,
     orgContext: { type: "personal" },
@@ -67,6 +69,8 @@ describe("NavBar", () => {
     })
     // Default: no addons enabled
     mockHasAddon.mockReturnValue(false)
+    mockUserAddons.mockReturnValue([])
+    mockOrgAddons.mockReturnValue([])
   })
 
   afterEach(() => {
@@ -549,6 +553,168 @@ describe("NavBar", () => {
           link.getAttribute("href") === "/floodrisk"
       )
       expect(navLinks).toHaveLength(0)
+    })
+  })
+
+  // ===========================================================================
+  // Addon Shortcuts in User Menu
+  // ===========================================================================
+
+  describe("addon shortcuts in user menu", () => {
+    it("does not show addon shortcuts section when user has no addons", () => {
+      mockUserAddons.mockReturnValue([])
+      mockOrgAddons.mockReturnValue([])
+      mockUseSession.mockReturnValue({
+        data: { user: { id: "user-1", name: "Test User", email: "test@example.com", isAdmin: false } },
+      })
+      render(<NavBar />)
+
+      // Open the user menu popover
+      const userMenuButton = screen.getByRole("button", { name: /menu do usuario/i })
+      fireEvent.click(userMenuButton)
+
+      expect(screen.queryByText("Meus Addons")).not.toBeInTheDocument()
+    })
+
+    it("shows addon shortcuts section when user has user addons", () => {
+      mockUserAddons.mockReturnValue([
+        { id: "1", userId: "user-1", addonSlug: "financiamento", enabled: true, grantedAt: new Date(), grantedBy: null, expiresAt: null },
+      ])
+      mockOrgAddons.mockReturnValue([])
+      mockHasAddon.mockImplementation((slug: string) => slug === "financiamento")
+      mockUseSession.mockReturnValue({
+        data: { user: { id: "user-1", name: "Test User", email: "test@example.com", isAdmin: false } },
+      })
+      render(<NavBar />)
+
+      // Open the user menu popover
+      const userMenuButton = screen.getByRole("button", { name: /menu do usuario/i })
+      fireEvent.click(userMenuButton)
+
+      expect(screen.getByText("Meus Addons")).toBeInTheDocument()
+    })
+
+    it("shows addon shortcuts section when user has org addons", () => {
+      mockUserAddons.mockReturnValue([])
+      mockOrgAddons.mockReturnValue([
+        { id: "1", organizationId: "org-1", addonSlug: "flood", enabled: true, grantedAt: new Date(), grantedBy: null, expiresAt: null },
+      ])
+      mockHasAddon.mockImplementation((slug: string) => slug === "flood")
+      mockUseSession.mockReturnValue({
+        data: { user: { id: "user-1", name: "Test User", email: "test@example.com", isAdmin: false } },
+      })
+      render(<NavBar />)
+
+      // Open the user menu popover
+      const userMenuButton = screen.getByRole("button", { name: /menu do usuario/i })
+      fireEvent.click(userMenuButton)
+
+      expect(screen.getByText("Meus Addons")).toBeInTheDocument()
+    })
+
+    it("shows simulador shortcut in user menu when user has financiamento addon", () => {
+      mockUserAddons.mockReturnValue([
+        { id: "1", userId: "user-1", addonSlug: "financiamento", enabled: true, grantedAt: new Date(), grantedBy: null, expiresAt: null },
+      ])
+      mockOrgAddons.mockReturnValue([])
+      mockHasAddon.mockImplementation((slug: string) => slug === "financiamento")
+      mockUseSession.mockReturnValue({
+        data: { user: { id: "user-1", name: "Test User", email: "test@example.com", isAdmin: false } },
+      })
+      render(<NavBar />)
+
+      // Open the user menu popover
+      const userMenuButton = screen.getByRole("button", { name: /menu do usuario/i })
+      fireEvent.click(userMenuButton)
+
+      // Should have simulador link in popover (there's also one in the nav bar)
+      const simuladorLinks = screen.getAllByRole("link", { name: /simulador/i })
+      expect(simuladorLinks.length).toBeGreaterThanOrEqual(1)
+      expect(simuladorLinks.some(link => link.getAttribute("href") === "/casa")).toBe(true)
+    })
+
+    it("shows risco enchente shortcut in user menu when user has flood addon", () => {
+      mockUserAddons.mockReturnValue([
+        { id: "1", userId: "user-1", addonSlug: "flood", enabled: true, grantedAt: new Date(), grantedBy: null, expiresAt: null },
+      ])
+      mockOrgAddons.mockReturnValue([])
+      mockHasAddon.mockImplementation((slug: string) => slug === "flood")
+      mockUseSession.mockReturnValue({
+        data: { user: { id: "user-1", name: "Test User", email: "test@example.com", isAdmin: false } },
+      })
+      render(<NavBar />)
+
+      // Open the user menu popover
+      const userMenuButton = screen.getByRole("button", { name: /menu do usuario/i })
+      fireEvent.click(userMenuButton)
+
+      // Should have risco enchente link in popover
+      const floodLinks = screen.getAllByRole("link", { name: /risco enchente/i })
+      expect(floodLinks.length).toBeGreaterThanOrEqual(1)
+      expect(floodLinks.some(link => link.getAttribute("href") === "/floodrisk")).toBe(true)
+    })
+
+    it("shows multiple addon shortcuts when user has multiple addons", () => {
+      mockUserAddons.mockReturnValue([
+        { id: "1", userId: "user-1", addonSlug: "financiamento", enabled: true, grantedAt: new Date(), grantedBy: null, expiresAt: null },
+        { id: "2", userId: "user-1", addonSlug: "flood", enabled: true, grantedAt: new Date(), grantedBy: null, expiresAt: null },
+      ])
+      mockOrgAddons.mockReturnValue([])
+      mockHasAddon.mockReturnValue(true)
+      mockUseSession.mockReturnValue({
+        data: { user: { id: "user-1", name: "Test User", email: "test@example.com", isAdmin: false } },
+      })
+      render(<NavBar />)
+
+      // Open the user menu popover
+      const userMenuButton = screen.getByRole("button", { name: /menu do usuario/i })
+      fireEvent.click(userMenuButton)
+
+      expect(screen.getByText("Meus Addons")).toBeInTheDocument()
+      // Both shortcuts should be visible
+      const simuladorLinks = screen.getAllByRole("link", { name: /simulador/i })
+      const floodLinks = screen.getAllByRole("link", { name: /risco enchente/i })
+      expect(simuladorLinks.length).toBeGreaterThanOrEqual(1)
+      expect(floodLinks.length).toBeGreaterThanOrEqual(1)
+    })
+
+    it("does not show disabled addons in shortcuts", () => {
+      mockUserAddons.mockReturnValue([
+        { id: "1", userId: "user-1", addonSlug: "financiamento", enabled: false, grantedAt: new Date(), grantedBy: null, expiresAt: null },
+      ])
+      mockOrgAddons.mockReturnValue([])
+      mockHasAddon.mockReturnValue(false)
+      mockUseSession.mockReturnValue({
+        data: { user: { id: "user-1", name: "Test User", email: "test@example.com", isAdmin: false } },
+      })
+      render(<NavBar />)
+
+      // Open the user menu popover
+      const userMenuButton = screen.getByRole("button", { name: /menu do usuario/i })
+      fireEvent.click(userMenuButton)
+
+      // Disabled addon should not show in shortcuts
+      expect(screen.queryByText("Meus Addons")).not.toBeInTheDocument()
+    })
+
+    it("shows addon shortcuts from org addons when user is in org context", () => {
+      mockUserAddons.mockReturnValue([])
+      mockOrgAddons.mockReturnValue([
+        { id: "1", organizationId: "org-1", addonSlug: "financiamento", enabled: true, grantedAt: new Date(), grantedBy: null, expiresAt: null },
+      ])
+      mockHasAddon.mockImplementation((slug: string) => slug === "financiamento")
+      mockUseSession.mockReturnValue({
+        data: { user: { id: "user-1", name: "Test User", email: "test@example.com", isAdmin: false } },
+      })
+      render(<NavBar />)
+
+      // Open the user menu popover
+      const userMenuButton = screen.getByRole("button", { name: /menu do usuario/i })
+      fireEvent.click(userMenuButton)
+
+      expect(screen.getByText("Meus Addons")).toBeInTheDocument()
+      const simuladorLinks = screen.getAllByRole("link", { name: /simulador/i })
+      expect(simuladorLinks.some(link => link.getAttribute("href") === "/casa")).toBe(true)
     })
   })
 })

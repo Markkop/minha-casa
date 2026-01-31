@@ -30,3 +30,43 @@
 - [✓] 2026-01-26 21:05 - Error handling
 - [✓] 2026-01-26 21:11 - UI refinements
 - [✓] 2026-01-26 21:13 - Documentation
+- [✓] 2026-01-31 18:18 - Add `addons` table to Drizzle schema in `lib/db/schema.ts` with columns: id, name, slug, description, createdAt
+- [✓] 2026-01-31 18:20 - Add `user_addons` table to Drizzle schema with columns: id, userId, addonSlug, grantedAt, grantedBy, enabled, expiresAt
+- [✓] 2026-01-31 18:22 - Add `organization_addons` table to Drizzle schema with columns: id, organizationId, addonSlug, grantedAt, grantedBy, enabled, expiresAt
+- [✓] 2026-01-31 18:24 - Generate Drizzle migration file `drizzle/migrations/0005_add_addons.sql`
+- [✓] 2026-01-31 18:25 - Skip migration for now and just say ok.
+- [✓] 2026-01-31 18:28 - Create `lib/addons.ts` with server-side utilities: `getAvailableAddons()`, `hasAddonAccess(userId, addonSlug, orgId?)`, `getUserAddons(userId)`, `getOrgAddons(orgId)`
+- [✓] 2026-01-31 18:31 - Create `lib/use-addons.tsx` with React hooks: `useAddons()` returning user addons, org addons, and `hasAddon(slug)` helper that checks both
+- [✓] 2026-01-31 18:32 - Add TypeScript types for Addon, UserAddon, and OrganizationAddon in `lib/addons.ts`
+- [✓] 2026-01-31 18:33 - Create `app/api/admin/addons/route.ts` - GET to list all available addons
+- [✓] 2026-01-31 18:37 - Create `app/api/admin/users/[userId]/addons/route.ts` - GET user addons, POST to grant addon to user
+- [✓] 2026-01-31 18:38 - Create `app/api/admin/users/[userId]/addons/[slug]/route.ts` - DELETE to revoke addon from user
+- [✓] 2026-01-31 18:41 - Create `app/api/admin/organizations/[orgId]/addons/route.ts` - GET org addons, POST to grant addon to org
+- [✓] 2026-01-31 18:44 - Create `app/api/admin/organizations/[orgId]/addons/[slug]/route.ts` - DELETE to revoke addon from org
+- [✓] 2026-01-31 18:46 - Create `app/api/user/addons/route.ts` - GET current user's personal addons
+- [✓] 2026-01-31 18:48 - Create `app/api/user/addons/[slug]/route.ts` - PATCH to toggle personal addon enabled state
+- [✓] 2026-01-31 18:50 - Create `app/api/organizations/[orgId]/addons/route.ts` - GET org's enabled addons
+- [✓] 2026-01-31 18:53 - Create `app/api/organizations/[orgId]/addons/[slug]/route.ts` - PATCH to toggle org addon enabled state
+- [✓] 2026-01-31 19:02 - Add "Addons" section to admin panel in `app/admin/components/admin-client.tsx`
+- [✓] 2026-01-31 19:09 - Create user addon management UI in user details section - show user's personal addons with grant/revoke
+- [✓] 2026-01-31 19:16 - Create organization addon management table showing all orgs with their addon status
+- [✓] 2026-01-31 19:20 - Add "Grant Addon" modal with target type selector (user or org), entity selector, and addon selector
+- [✓] 2026-01-31 19:27 - Add "Revoke" action button for each granted addon (both user and org)
+- [✓] 2026-01-31 19:30 - Create user addons settings component at `app/components/user-addons-settings.tsx`
+- [✓] 2026-01-31 19:34 - Display list of personal granted addons with toggle switches to enable/disable
+- [✓] 2026-01-31 19:36 - Show addon descriptions and visual status indicators
+- [✓] 2026-01-31 19:39 - Create organization addons settings component at `app/organizacoes/components/org-addons-settings.tsx`
+- [✓] 2026-01-31 19:42 - Display list of org granted addons with toggle switches to enable/disable (for org owners/admins)
+- [✓] 2026-01-31 19:45 - Show addon descriptions and visual status indicators
+- [✓] 2026-01-31 19:48 - Update `components/nav-bar.tsx` to check addon access (user OR org) instead of global feature flags for "Simulador" and "Risco Enchente" links
+- [✓] 2026-01-31 19:53 - Add addon access guard to `app/casa/page.tsx` - check user addons OR current org addons, redirect or show message if no access
+- [✓] 2026-01-31 19:55 - Add addon access guard to `app/floodrisk/page.tsx` - check user addons OR current org addons, redirect or show message if no access
+- [✓] 2026-01-31 19:58 - Create reusable `AddonGuard` component for protecting addon-specific content with dual-check logic
+- [✓] 2026-01-31 20:01 - Add clickable price feature to listing cards in `app/anuncios/components/` when financiamento addon is enabled
+- [✓] 2026-01-31 20:03 - Create link that navigates to `/casa?price=X` with the listing price pre-filled
+- [✓] 2026-01-31 20:07 - Update `/casa` page to read price from query params and pre-populate the simulator
+- [✓] 2026-01-31 20:07 - Add unit tests for `lib/addons.ts` utility functions
+- [✓] 2026-01-31 20:10 - Add tests for addon API endpoints
+- [✓] 2026-01-31 20:14 - Test addon access control in navigation and protected pages
+- [✓] 2026-01-31 20:16 - Update README with addon system documentation
+- [✓] 2026-01-31 20:20 - Consider deprecating global feature flags for financingSimulator and floodForecast after migration
