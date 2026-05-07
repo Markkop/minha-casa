@@ -33,7 +33,7 @@ import type { Imovel } from "../lib/api"
 import type { ListingData } from "@/lib/db/schema"
 import { cn } from "@/lib/utils"
 import { ArrowDownIcon, ArrowUpIcon, MagnifyingGlassIcon } from "@radix-ui/react-icons"
-import { PencilIcon, TrashIcon, LinkIcon, Star, FolderIcon, Eye, Strikethrough, Waves, Shield, Dumbbell, Mountain, Flag, Home, Building, RefreshCw, Car, WavesLadder, BedDouble, Bath } from "lucide-react"
+import { PencilIcon, TrashIcon, LinkIcon, Star, FolderIcon, Eye, Strikethrough, Waves, Shield, Dumbbell, Mountain, Flag, Home, Building, RefreshCw, Car, WavesLadder, BedDouble, Bath, Copy, Check } from "lucide-react"
 import { FaWhatsapp } from "react-icons/fa"
 import { EditModal } from "./edit-modal"
 import { ImageModal } from "./image-modal"
@@ -199,6 +199,8 @@ export function ListingsTable({ listings, onListingsChange, hasApiKey = true }: 
   const [quickReparseError, setQuickReparseError] = useState<string | null>(null)
   const [quickReparseChanges, setQuickReparseChanges] = useState<FieldChange[] | null>(null)
   const [quickReparseListing, setQuickReparseListing] = useState<Imovel | null>(null)
+  const [exportPopoverOpen, setExportPopoverOpen] = useState(false)
+  const [exportCopied, setExportCopied] = useState(false)
 
   const handleDelete = async (id: string) => {
     try {
@@ -716,6 +718,104 @@ export function ListingsTable({ listings, onListingsChange, hasApiKey = true }: 
     return Math.round(preco / m2Privado)
   }
 
+  const buildListingsMarkdown = (items: Imovel[]): string => {
+    const lines: string[] = []
+    const now = new Date().toLocaleString("pt-BR")
+    lines.push(`# Imóveis (${items.length})`)
+    lines.push("")
+    lines.push(`Exportado em ${now}`)
+    lines.push("")
+
+    for (let i = 0; i < items.length; i++) {
+      const imovel = items[i]
+      const plainTitle = imovel.titulo.replace(/^#+\s*/, "")
+      lines.push(`## ${plainTitle}`)
+      if (imovel.link) {
+        lines.push(imovel.link)
+      }
+      lines.push("")
+
+      lines.push(`Endereço: ${imovel.endereco}`)
+      lines.push(buildGoogleMapsUrl(imovel.endereco))
+      lines.push("")
+
+      if (imovel.tipoImovel === "casa") {
+        lines.push("- Tipo: Casa")
+      } else if (imovel.tipoImovel === "apartamento") {
+        lines.push("- Tipo: Apartamento")
+      }
+
+      if (imovel.preco !== null && imovel.preco !== undefined) {
+        lines.push(`- Preço: ${formatCurrency(imovel.preco)}`)
+      }
+
+      const pm2 = calculatePrecoM2(imovel.preco, imovel.m2Totais)
+      if (pm2 !== null) {
+        lines.push(`- Preço/m² (total): ${formatCurrency(pm2)}`)
+      }
+
+      const pm2Priv = calculatePrecoM2Privado(imovel.preco, imovel.m2Privado)
+      if (pm2Priv !== null) {
+        lines.push(`- Preço/m² (privado): ${formatCurrency(pm2Priv)}`)
+      }
+
+      if (imovel.m2Totais != null) lines.push(`- m² totais: ${imovel.m2Totais}`)
+      if (imovel.m2Privado != null) lines.push(`- m² privado: ${imovel.m2Privado}`)
+      if (imovel.quartos != null) lines.push(`- Quartos: ${imovel.quartos}`)
+      if (imovel.suites != null) lines.push(`- Suítes: ${imovel.suites}`)
+      if (imovel.banheiros != null) lines.push(`- Banheiros: ${imovel.banheiros}`)
+      if (imovel.garagem != null) lines.push(`- Vagas de garagem: ${imovel.garagem}`)
+      if (imovel.andar != null && imovel.andar !== undefined) {
+        lines.push(`- Andar: ${imovel.andar === 10 ? "10+" : imovel.andar}`)
+      }
+
+      const amenities: string[] = []
+      if (imovel.piscina === true) amenities.push("Piscina")
+      if (imovel.piscinaTermica === true) amenities.push("Piscina térmica")
+      if (imovel.porteiro24h === true) amenities.push("Porteiro 24h")
+      if (imovel.academia === true) amenities.push("Academia")
+      if (imovel.vistaLivre === true) amenities.push("Vista livre")
+      if (amenities.length > 0) {
+        lines.push("- Comodidades")
+        for (const a of amenities) {
+          lines.push(`  - ${a}`)
+        }
+      }
+
+      const contactParts = [imovel.contactName, imovel.contactNumber].filter(Boolean)
+      if (contactParts.length > 0) {
+        lines.push(`- Contato: ${contactParts.join(" — ")}`)
+      }
+
+      if (imovel.imageUrl) {
+        lines.push("- Imagem")
+        lines.push(imovel.imageUrl)
+      }
+
+      const statusBits: string[] = []
+      if (imovel.starred) statusBits.push("Estrelado")
+      if (imovel.visited) statusBits.push("Visitado")
+      if (imovel.strikethrough) {
+        statusBits.push(
+          imovel.discardedReason?.trim()
+            ? `Descartado (${imovel.discardedReason.trim()})`
+            : "Descartado"
+        )
+      }
+      if (statusBits.length > 0) {
+        lines.push(`- Status: ${statusBits.join(", ")}`)
+      }
+
+      if (i < items.length - 1) {
+        lines.push("")
+        lines.push("---")
+        lines.push("")
+      }
+    }
+
+    return lines.join("\n")
+  }
+
   // Check if there are other collections available (excluding active)
   const hasOtherCollections = useMemo(() => {
     return collections.filter((c) => c.id !== activeCollection?.id).length > 0
@@ -787,6 +887,22 @@ export function ListingsTable({ listings, onListingsChange, hasApiKey = true }: 
     })
   }, [listings, searchQuery, sort, propertyTypeFilter, showStrikethrough])
 
+  const showFilteredExportOption = filteredAndSortedListings.length !== listings.length
+
+  const handleCopyMarkdown = async (scope: "filtered" | "all") => {
+    const items = scope === "filtered" ? filteredAndSortedListings : listings
+    if (items.length === 0) return
+    const md = buildListingsMarkdown(items)
+    try {
+      await navigator.clipboard.writeText(md)
+      setExportCopied(true)
+      setExportPopoverOpen(false)
+      setTimeout(() => setExportCopied(false), 2000)
+    } catch (error) {
+      console.error("Failed to copy markdown to clipboard:", error)
+    }
+  }
+
   if (listings.length === 0) {
     return (
       <Card className="bg-raisinBlack border-brightGrey">
@@ -806,16 +922,104 @@ export function ListingsTable({ listings, onListingsChange, hasApiKey = true }: 
   return (
     <Card className="bg-raisinBlack border-brightGrey">
       <CardHeader className="pb-3">
-        <CardTitle className="text-lg flex items-center justify-between">
-          <div className="flex items-center gap-2">
+        <CardTitle className="text-lg flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2 min-w-0">
             <span>📋</span>
             <span>Imóveis Cadastrados</span>
           </div>
-          <span className="text-sm font-normal text-muted-foreground">
-            {filteredAndSortedListings.length === listings.length
-              ? `${listings.length} ${listings.length === 1 ? "imóvel" : "imóveis"}`
-              : `${filteredAndSortedListings.length} de ${listings.length} imóveis`}
-          </span>
+          <div className="flex items-center gap-2 shrink-0">
+            <span className="text-sm font-normal text-muted-foreground whitespace-nowrap">
+              {filteredAndSortedListings.length === listings.length
+                ? `${listings.length} ${listings.length === 1 ? "imóvel" : "imóveis"}`
+                : `${filteredAndSortedListings.length} de ${listings.length} imóveis`}
+            </span>
+            {showFilteredExportOption ? (
+              <Popover open={exportPopoverOpen} onOpenChange={setExportPopoverOpen}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <PopoverTrigger asChild>
+                      <button
+                        type="button"
+                        className={cn(
+                          "inline-flex items-center gap-1 rounded-md border px-2 py-1 text-sm transition-colors",
+                          "border-brightGrey hover:border-primary hover:text-primary text-muted-foreground",
+                          exportCopied && "border-green text-green"
+                        )}
+                      >
+                        {exportCopied ? (
+                          <Check className="h-4 w-4 text-green shrink-0" />
+                        ) : (
+                          <Copy className="h-4 w-4 shrink-0" />
+                        )}
+                        <span className="hidden sm:inline">{exportCopied ? "Copiado!" : "Copiar"}</span>
+                      </button>
+                    </PopoverTrigger>
+                  </TooltipTrigger>
+                  <TooltipContent
+                    side="bottom"
+                    sideOffset={4}
+                    className="bg-raisinBlack border border-brightGrey text-white"
+                  >
+                    Copiar como Markdown
+                  </TooltipContent>
+                </Tooltip>
+                <PopoverContent align="end" sideOffset={8} className="w-72 p-2 border-brightGrey bg-raisinBlack text-white">
+                  <div className="flex flex-col gap-1">
+                    <button
+                      type="button"
+                      onClick={() => void handleCopyMarkdown("filtered")}
+                      disabled={filteredAndSortedListings.length === 0}
+                      className={cn(
+                        "w-full rounded-md px-3 py-2 text-left text-sm transition-colors",
+                        "hover:bg-eerieBlack disabled:opacity-50 disabled:cursor-not-allowed"
+                      )}
+                    >
+                      Apenas filtrados ({filteredAndSortedListings.length})
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => void handleCopyMarkdown("all")}
+                      disabled={listings.length === 0}
+                      className={cn(
+                        "w-full rounded-md px-3 py-2 text-left text-sm transition-colors",
+                        "hover:bg-eerieBlack disabled:opacity-50 disabled:cursor-not-allowed"
+                      )}
+                    >
+                      Todos ({listings.length})
+                    </button>
+                  </div>
+                </PopoverContent>
+              </Popover>
+            ) : (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    type="button"
+                    onClick={() => void handleCopyMarkdown("all")}
+                    className={cn(
+                      "inline-flex items-center gap-1 rounded-md border px-2 py-1 text-sm transition-colors",
+                      "border-brightGrey hover:border-primary hover:text-primary text-muted-foreground",
+                      exportCopied && "border-green text-green"
+                    )}
+                  >
+                    {exportCopied ? (
+                      <Check className="h-4 w-4 text-green shrink-0" />
+                    ) : (
+                      <Copy className="h-4 w-4 shrink-0" />
+                    )}
+                    <span className="hidden sm:inline">{exportCopied ? "Copiado!" : "Copiar"}</span>
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent
+                  side="bottom"
+                  sideOffset={4}
+                  className="bg-raisinBlack border border-brightGrey text-white"
+                >
+                  Copiar como Markdown
+                </TooltipContent>
+              </Tooltip>
+            )}
+          </div>
         </CardTitle>
 
         {/* Toggle Strikethrough and Search */}
