@@ -106,6 +106,9 @@ export function proxy(request: NextRequest) {
   return NextResponse.next()
 }
 
+/** Next.js 16 uses `proxy.ts` as the edge entry; default export is required. */
+export default proxy
+
 /**
  * Configure which routes the proxy runs on
  */
