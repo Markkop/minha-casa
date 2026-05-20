@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useCollections } from "../lib/use-collections"
+import { getDefaultFirstCollectionName } from "../lib/default-first-collection-name"
 import { cn } from "@/lib/utils"
 import type { Imovel } from "../lib/api"
 import type { ListingData } from "@/lib/db/schema"
@@ -37,7 +38,6 @@ export function ParserModal({
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [isCreatingCollection, setIsCreatingCollection] = useState(false)
-  const [newCollectionName, setNewCollectionName] = useState("Meus Imóveis 2026")
   const [lastParsed, setLastParsed] = useState<{ id: string; data: ListingData } | null>(null)
   const [linkValue, setLinkValue] = useState("")
   const [imageValue, setImageValue] = useState("")
@@ -58,7 +58,6 @@ export function ParserModal({
       setAddressValue("")
       setContactNameValue("")
       setContactNumberValue("")
-      setNewCollectionName("Meus Imóveis 2026")
       setIsCreatingCollection(false)
       setShowHelpModal(false)
     }
@@ -124,18 +123,13 @@ export function ParserModal({
   }
 
   const handleCreateCollection = async () => {
-    if (!newCollectionName.trim()) {
-      setError("Digite um nome para a coleção")
-      return
-    }
-
     setIsCreatingCollection(true)
     setError(null)
 
     try {
-      const newCollection = await createCollection(newCollectionName.trim(), true)
+      const name = getDefaultFirstCollectionName()
+      const newCollection = await createCollection(name, true)
       setActiveCollection(newCollection)
-      setNewCollectionName("Meus Imóveis 2026")
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erro ao criar coleção")
     } finally {
@@ -179,6 +173,7 @@ export function ParserModal({
   // Determine if we need to show collection creation/selection UI
   const needsCollection = !activeCollection && !isLoadingCollections
   const hasNoCollections = collections.length === 0
+  const defaultCollectionName = getDefaultFirstCollectionName()
 
   return (
     <div className="fixed inset-0 z-[1000] flex items-center justify-center">
@@ -216,50 +211,33 @@ export function ParserModal({
                     Crie sua primeira coleção
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    Para salvar imóveis, você precisa de uma coleção. Crie uma agora para começar.
+                    Criaremos automaticamente a coleção &quot;{defaultCollectionName}&quot; para você começar.
                   </p>
                 </div>
               </div>
-              <div className="flex gap-2">
-                <Input
-                  type="text"
-                  value={newCollectionName}
-                  onChange={(e) => {
-                    setNewCollectionName(e.target.value)
-                    setError(null)
-                  }}
-                  className="flex-1 bg-eerieBlack border-brightGrey text-white"
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      handleCreateCollection()
-                    }
-                  }}
-                  disabled={isCreatingCollection}
-                />
-                <button
-                  onClick={handleCreateCollection}
-                  disabled={isCreatingCollection || !newCollectionName.trim()}
-                  className={cn(
-                    "px-4 py-2 rounded-lg font-medium transition-all whitespace-nowrap",
-                    "bg-primary text-primary-foreground",
-                    "hover:bg-primary/90",
-                    "disabled:opacity-50 disabled:cursor-not-allowed",
-                    "flex items-center gap-2"
-                  )}
-                >
-                  {isCreatingCollection ? (
-                    <>
-                      <span className="animate-spin">⏳</span>
-                      Criando...
-                    </>
-                  ) : (
-                    <>
-                      <span>+</span>
-                      Criar
-                    </>
-                  )}
-                </button>
-              </div>
+              <button
+                onClick={() => void handleCreateCollection()}
+                disabled={isCreatingCollection}
+                className={cn(
+                  "w-full px-4 py-2 rounded-lg font-medium transition-all",
+                  "bg-primary text-primary-foreground",
+                  "hover:bg-primary/90",
+                  "disabled:opacity-50 disabled:cursor-not-allowed",
+                  "flex items-center justify-center gap-2"
+                )}
+              >
+                {isCreatingCollection ? (
+                  <>
+                    <span className="animate-spin">⏳</span>
+                    Criando...
+                  </>
+                ) : (
+                  <>
+                    <span>+</span>
+                    Criar coleção
+                  </>
+                )}
+              </button>
             </div>
           )}
 

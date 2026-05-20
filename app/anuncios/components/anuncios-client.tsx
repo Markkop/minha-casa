@@ -10,6 +10,7 @@ import { CollectionSelector } from "./collection-selector"
 import { CollectionModal } from "./collection-modal"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { CollectionsProvider, useCollections } from "../lib/use-collections"
+import { getDefaultFirstCollectionName } from "../lib/default-first-collection-name"
 import { cn } from "@/lib/utils"
 import type { Collection, Imovel } from "../lib/api"
 import { syncSubscriptionCookie } from "@/lib/sync-subscription-cookie"
@@ -22,6 +23,7 @@ function AnunciosClientInner() {
     isLoadingListings,
     error,
     setActiveCollection,
+    createCollectionInProfile,
     loadListings,
     refreshTrigger,
     triggerRefresh,
@@ -34,6 +36,8 @@ function AnunciosClientInner() {
   const [editingCollection, setEditingCollection] = useState<Collection | null>(null)
   const [showShareConfirm, setShowShareConfirm] = useState(false)
   const [shareData, setShareData] = useState<{ collection: Collection; listings: Imovel[] } | null>(null)
+  const [isCreatingFirstCollection, setIsCreatingFirstCollection] = useState(false)
+  const [createCollectionError, setCreateCollectionError] = useState<string | null>(null)
 
   useEffect(() => {
     void syncSubscriptionCookie()
@@ -63,10 +67,38 @@ function AnunciosClientInner() {
     [collections, handleCollectionChange, triggerRefresh]
   )
 
-  const handleCreateCollection = useCallback(() => {
+  const handleCreateCollection = useCallback(async () => {
+    if (collections.length === 0) {
+      setIsCreatingFirstCollection(true)
+      setCreateCollectionError(null)
+      try {
+        const name = getDefaultFirstCollectionName()
+        const targetOrgId =
+          orgContext.type === "organization"
+            ? (orgContext.organizationId ?? null)
+            : null
+        const created = await createCollectionInProfile(name, targetOrgId, true)
+        setActiveCollection(created)
+        triggerRefresh()
+      } catch (err) {
+        setCreateCollectionError(
+          err instanceof Error ? err.message : "Erro ao criar coleção"
+        )
+      } finally {
+        setIsCreatingFirstCollection(false)
+      }
+      return
+    }
+
     setEditingCollection(null)
     setShowCollectionModal(true)
-  }, [])
+  }, [
+    collections.length,
+    createCollectionInProfile,
+    orgContext,
+    setActiveCollection,
+    triggerRefresh,
+  ])
 
   const handleEditCollection = useCallback((collection: Collection) => {
     setEditingCollection(collection)
@@ -123,6 +155,7 @@ function AnunciosClientInner() {
   if (collections.length === 0) {
     const isOrgContext = orgContext.type === "organization"
     const contextName = isOrgContext ? orgContext.organizationName : "pessoal"
+    const defaultCollectionName = getDefaultFirstCollectionName()
 
     return (
       <div className="min-h-screen bg-black text-white">
@@ -142,14 +175,6 @@ function AnunciosClientInner() {
           </div>
         </header>
 
-        {/* Collection Modal for creating first collection */}
-        <CollectionModal
-          isOpen={showCollectionModal}
-          onClose={handleCollectionModalClose}
-          collection={null}
-          onCollectionChange={handleListingsChange}
-        />
-
         {/* Empty State */}
         <main className="max-w-7xl mx-auto px-4 py-12">
           <Card className="bg-raisinBlack border-brightGrey max-w-lg mx-auto">
@@ -163,21 +188,35 @@ function AnunciosClientInner() {
                 </h2>
                 <p className="text-sm text-muted-foreground max-w-sm mx-auto">
                   {isOrgContext
-                    ? "Esta organização ainda não possui coleções. Crie a primeira coleção para começar a salvar imóveis."
-                    : "Você ainda não possui coleções pessoais. Crie sua primeira coleção para começar a salvar imóveis."}
+                    ? `Comece agora — criamos automaticamente a coleção "${defaultCollectionName}" nesta organização.`
+                    : `Comece agora — criamos automaticamente a coleção "${defaultCollectionName}" para você salvar imóveis.`}
                 </p>
               </div>
+              {createCollectionError && (
+                <p className="text-sm text-destructive">{createCollectionError}</p>
+              )}
               <button
-                onClick={handleCreateCollection}
+                onClick={() => void handleCreateCollection()}
+                disabled={isCreatingFirstCollection}
                 className={cn(
                   "px-6 py-3 rounded-lg text-sm font-medium transition-all",
                   "bg-primary text-primary-foreground",
                   "hover:bg-primary/90",
+                  "disabled:opacity-50 disabled:cursor-not-allowed",
                   "flex items-center gap-2 mx-auto"
                 )}
               >
-                <span>+</span>
-                <span>Criar Primeira Coleção</span>
+                {isCreatingFirstCollection ? (
+                  <>
+                    <span className="animate-spin">⏳</span>
+                    <span>Criando...</span>
+                  </>
+                ) : (
+                  <>
+                    <span>+</span>
+                    <span>Começar</span>
+                  </>
+                )}
               </button>
             </CardContent>
           </Card>
