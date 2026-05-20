@@ -39,6 +39,17 @@ GOOGLE_CLIENT_SECRET=<from Google Cloud Console>
 
 Also keep the existing production values for OpenAI, Google Maps, Stripe and share links.
 
+### Running `pnpm db:migrate` from your laptop (self-signed TLS)
+
+The app uses a self-signed certificate on the VPS. For **local migration**, use `DATABASE_SSL=true` and put **no** `sslmode` in the URL so Drizzle’s TLS config (`rejectUnauthorized: false`) applies:
+
+```env
+DATABASE_URL="postgresql://minhacasa:<password>@<VPS_HOST>:5433/minha_casa_prod"
+DATABASE_SSL="true"
+```
+
+For **Vercel**, keep `sslmode=require` on `DATABASE_URL` and set `DATABASE_SSL=true` (see `lib/db/pool.ts`).
+
 ## Google OAuth Console
 
 Use Web Application credentials:
