@@ -1,7 +1,16 @@
+import { randomUUID } from "node:crypto"
 import { betterAuth } from "better-auth"
 import { drizzleAdapter } from "better-auth/adapters/drizzle"
 import { getDb } from "./db"
 import * as schema from "./db/schema"
+
+function parseTrustedOrigins(raw: string | undefined): string[] {
+  if (!raw?.trim()) return []
+  return raw
+    .split(",")
+    .map((o) => o.trim())
+    .filter(Boolean)
+}
 
 /**
  * BetterAuth configuration
@@ -9,6 +18,13 @@ import * as schema from "./db/schema"
 export const auth = betterAuth({
   baseURL: process.env.BETTER_AUTH_URL || process.env.NEXT_PUBLIC_APP_URL,
   secret: process.env.BETTER_AUTH_SECRET,
+  // Drizzle schema uses PostgreSQL `uuid` for user/session/account ids; Better Auth's
+  // default IDs are alphanumeric and are rejected by the uuid type → 500 on OAuth signup.
+  advanced: {
+    database: {
+      generateId: () => randomUUID(),
+    },
+  },
   database: drizzleAdapter(getDb(), {
     provider: "pg",
     schema: {
@@ -45,7 +61,7 @@ export const auth = betterAuth({
       },
     },
   },
-  trustedOrigins: process.env.BETTER_AUTH_TRUSTED_ORIGINS?.split(",") || [],
+  trustedOrigins: parseTrustedOrigins(process.env.BETTER_AUTH_TRUSTED_ORIGINS),
 })
 
 export type Auth = typeof auth
