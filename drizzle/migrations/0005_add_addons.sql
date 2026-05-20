@@ -20,10 +20,10 @@ CREATE UNIQUE INDEX IF NOT EXISTS "addons_slug_idx" ON "addons" ("slug");
 -- ============================================================================
 CREATE TABLE IF NOT EXISTS "user_addons" (
   "id" uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
-  "user_id" text NOT NULL REFERENCES "users"("id") ON DELETE CASCADE,
+  "user_id" uuid NOT NULL REFERENCES "users"("id") ON DELETE CASCADE,
   "addon_slug" text NOT NULL,
   "granted_at" timestamptz NOT NULL DEFAULT now(),
-  "granted_by" text REFERENCES "users"("id") ON DELETE SET NULL,
+  "granted_by" uuid REFERENCES "users"("id") ON DELETE SET NULL,
   "enabled" boolean NOT NULL DEFAULT true,
   "expires_at" timestamptz
 );
@@ -40,7 +40,7 @@ CREATE TABLE IF NOT EXISTS "organization_addons" (
   "organization_id" uuid NOT NULL REFERENCES "organizations"("id") ON DELETE CASCADE,
   "addon_slug" text NOT NULL,
   "granted_at" timestamptz NOT NULL DEFAULT now(),
-  "granted_by" text REFERENCES "users"("id") ON DELETE SET NULL,
+  "granted_by" uuid REFERENCES "users"("id") ON DELETE SET NULL,
   "enabled" boolean NOT NULL DEFAULT true,
   "expires_at" timestamptz
 );
