@@ -1,9 +1,13 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import Link from "next/link"
-import { useSearchParams } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { useSession } from "@/lib/auth-client"
+import {
+  syncSubscriptionCookie,
+  isSafeRedirectPath,
+} from "@/lib/sync-subscription-cookie"
 import {
   PLAN_DISPLAY,
   SUBSCRIBE_TIER_ORDER,
@@ -320,8 +324,11 @@ function CurrentSubscriptionCard({
 }
 
 export function SubscribeClient() {
+  const router = useRouter()
   const { data: session, isPending: sessionLoading } = useSession()
   const searchParams = useSearchParams()
+  const postRedirect = searchParams.get("redirect")
+  const didPostRedirect = useRef(false)
   const [plans, setPlans] = useState<Plan[]>([])
   const [subscription, setSubscription] = useState<Subscription | null>(null)
   const [currentPlan, setCurrentPlan] = useState<Plan | null>(null)
@@ -351,17 +358,21 @@ export function SubscribeClient() {
 
     const verifyPayment = async () => {
       try {
-        const subscriptionResponse = await fetch("/api/subscriptions")
-        if (subscriptionResponse.ok) {
-          const data = await subscriptionResponse.json()
-          if (data.subscription?.status === "active") {
-            setSubscription(data.subscription)
-            setCurrentPlan(data.plan)
-            setSuccessMessage("Assinatura confirmada! Sua conta foi ativada.")
-            return true // Payment confirmed
+        const result = await syncSubscriptionCookie()
+        if (result.hasActiveSubscription && result.subscription) {
+          setSubscription(result.subscription as Subscription)
+          setCurrentPlan((result.plan as Plan) ?? null)
+          setSuccessMessage("Assinatura confirmada! Sua conta foi ativada.")
+          if (
+            !didPostRedirect.current &&
+            isSafeRedirectPath(postRedirect)
+          ) {
+            didPostRedirect.current = true
+            router.replace(postRedirect)
           }
+          return true
         }
-        return false // Not yet confirmed
+        return false
       } catch {
         return false
       }
@@ -385,7 +396,7 @@ export function SubscribeClient() {
     }
 
     pollForConfirmation()
-  }, [isSuccess, session?.user, sessionId])
+  }, [isSuccess, session?.user, sessionId, postRedirect, router])
 
   useEffect(() => {
     async function fetchData() {
@@ -402,18 +413,26 @@ export function SubscribeClient() {
         setPlans(plansData.plans || [])
         setStripeTestMode(plansData.stripeTestMode || false)
 
-        // Fetch current subscription if user is logged in
         if (session?.user) {
-          const subscriptionResponse = await fetch("/api/subscriptions")
-          if (subscriptionResponse.ok) {
-            const subscriptionData = await subscriptionResponse.json()
-            setSubscription(subscriptionData.subscription)
-            setCurrentPlan(subscriptionData.plan)
-            if (subscriptionData.subscription) {
-              setIsExpiringSoon(
-                checkIsExpiringSoon(subscriptionData.subscription.expiresAt)
-              )
-            }
+          const syncResult = await syncSubscriptionCookie()
+          if (syncResult.subscription) {
+            const sub = syncResult.subscription as Subscription
+            setSubscription(sub)
+            setCurrentPlan((syncResult.plan as Plan) ?? null)
+            setIsExpiringSoon(checkIsExpiringSoon(sub.expiresAt))
+          } else {
+            setSubscription(null)
+            setCurrentPlan(null)
+          }
+
+          if (
+            syncResult.hasActiveSubscription &&
+            isSafeRedirectPath(postRedirect) &&
+            !didPostRedirect.current
+          ) {
+            didPostRedirect.current = true
+            router.replace(postRedirect)
+            return
           }
         }
       } catch (err) {
@@ -426,7 +445,7 @@ export function SubscribeClient() {
     if (!sessionLoading) {
       fetchData()
     }
-  }, [session, sessionLoading])
+  }, [session, sessionLoading, postRedirect, router])
 
   const handleSubscribe = async (planId: string) => {
     try {

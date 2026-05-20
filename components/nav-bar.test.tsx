@@ -39,6 +39,17 @@ vi.mock("@/lib/feature-flags", () => ({
 const mockHasAddon = vi.fn()
 const mockUserAddons = vi.fn()
 const mockOrgAddons = vi.fn()
+const mockRefreshSubscription = vi.fn()
+let mockHasActiveSubscription = true
+let mockSubscriptionReady = true
+vi.mock("@/lib/subscription-context", () => ({
+  useSubscriptionAccess: () => ({
+    hasActiveSubscription: mockHasActiveSubscription,
+    subscriptionReady: mockSubscriptionReady,
+    refreshSubscription: mockRefreshSubscription,
+  }),
+}))
+
 vi.mock("@/lib/use-addons", () => ({
   useAddons: () => ({
     hasAddon: mockHasAddon,
@@ -71,6 +82,9 @@ describe("NavBar", () => {
     mockHasAddon.mockReturnValue(false)
     mockUserAddons.mockReturnValue([])
     mockOrgAddons.mockReturnValue([])
+    mockHasActiveSubscription = true
+    mockSubscriptionReady = true
+    mockRefreshSubscription.mockResolvedValue(true)
   })
 
   afterEach(() => {
@@ -445,6 +459,20 @@ describe("NavBar", () => {
 
       // Anuncios requires auth but not addons
       expect(screen.getByRole("link", { name: /anuncios/i })).toBeInTheDocument()
+    })
+
+    it("sends user to subscribe when clicking anuncios without active subscription", () => {
+      mockHasActiveSubscription = false
+      mockSubscriptionReady = true
+      mockHasAddon.mockReturnValue(false)
+      mockUseSession.mockReturnValue({
+        data: { user: { id: "user-1", name: "Test User", isAdmin: false } },
+      })
+      render(<NavBar />)
+
+      fireEvent.click(screen.getByRole("link", { name: /anuncios/i }))
+
+      expect(mockPush).toHaveBeenCalledWith("/subscribe?redirect=%2Fanuncios")
     })
 
     it("hides anuncios link when user is not logged in even with addons", () => {

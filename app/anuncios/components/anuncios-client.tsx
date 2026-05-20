@@ -12,6 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { CollectionsProvider, useCollections } from "../lib/use-collections"
 import { cn } from "@/lib/utils"
 import type { Collection, Imovel } from "../lib/api"
+import { syncSubscriptionCookie } from "@/lib/sync-subscription-cookie"
 
 function AnunciosClientInner() {
   const {
@@ -34,17 +35,8 @@ function AnunciosClientInner() {
   const [showShareConfirm, setShowShareConfirm] = useState(false)
   const [shareData, setShareData] = useState<{ collection: Collection; listings: Imovel[] } | null>(null)
 
-  // Refresh subscription cookie on mount to ensure it's up-to-date
   useEffect(() => {
-    // Call the subscriptions API to refresh the cookie
-    // This ensures the middleware has the correct subscription status
-    fetch("/api/subscriptions", {
-      method: "GET",
-      credentials: "include",
-    }).catch((error) => {
-      // Silently fail - if there's an error, the middleware will handle it
-      console.error("Failed to refresh subscription cookie:", error)
-    })
+    void syncSubscriptionCookie()
   }, [])
 
   const handleListingsChange = useCallback(() => {

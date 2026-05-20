@@ -4,6 +4,7 @@ import { useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { signUp, authClient } from "@/lib/auth-client"
+import { syncSubscriptionCookie } from "@/lib/sync-subscription-cookie"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -46,10 +47,7 @@ export function SignupClient() {
         return
       }
 
-      // Initialize subscription cookie after signup
-      // This sets the subscription-status cookie that the proxy checks
-      // New users will get an "inactive" status, which is expected
-      await fetch("/api/subscriptions", { credentials: "include" })
+      await syncSubscriptionCookie()
 
       router.push("/anuncios")
       router.refresh()

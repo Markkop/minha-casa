@@ -2,8 +2,16 @@ import { describe, it, expect, vi, beforeEach, beforeAll, afterAll } from "vites
 import { render, screen, waitFor, fireEvent } from "@testing-library/react"
 import { SubscribeClient } from "./subscribe-client"
 
+const mockReplace = vi.fn()
+const mockSearchParams = new URLSearchParams()
+
 vi.mock("next/navigation", () => ({
-  useSearchParams: () => new URLSearchParams(),
+  useSearchParams: () => mockSearchParams,
+  useRouter: () => ({
+    replace: mockReplace,
+    push: vi.fn(),
+    refresh: vi.fn(),
+  }),
 }))
 
 const mockUseSession = vi.fn()
@@ -55,6 +63,50 @@ vi.mock("./plan-display", () => ({
 
 const mockFetch = vi.fn()
 global.fetch = mockFetch
+
+function mockSubscribeFetches(options: {
+  plans?: Plan[]
+  stripeTestMode?: boolean
+  plansOk?: boolean
+  subscription?: typeof mockSubscription | null
+  plan?: typeof mockPlanPlus | null
+  checkoutUrl?: string
+}) {
+  const {
+    plans = [mockPlanPlus],
+    stripeTestMode = false,
+    plansOk = true,
+    subscription = null,
+    plan = null,
+    checkoutUrl,
+  } = options
+
+  mockFetch.mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
+    const url = String(input)
+    if (url.includes("/api/plans")) {
+      return Promise.resolve({
+        ok: plansOk,
+        status: plansOk ? 200 : 500,
+        json: async () => ({ plans, stripeTestMode }),
+      })
+    }
+    if (url.includes("/api/subscriptions")) {
+      return Promise.resolve({
+        ok: true,
+        json: async () => ({ subscription, plan }),
+      })
+    }
+    if (url.includes("/api/checkout/session") && init?.method === "POST") {
+      return Promise.resolve({
+        ok: true,
+        json: async () => ({ checkoutUrl: checkoutUrl ?? "" }),
+      })
+    }
+    return Promise.reject(new Error(`Unexpected fetch: ${url}`))
+  })
+}
+
+type Plan = typeof mockPlanPlus
 
 const mockPlanPlus = {
   id: "plan-plus",
@@ -136,6 +188,8 @@ describe("SubscribeClient", () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockFetch.mockReset()
+    mockReplace.mockReset()
+    mockSearchParams.forEach((_, key) => mockSearchParams.delete(key))
     window.location.href = ""
   })
 
@@ -156,12 +210,8 @@ describe("SubscribeClient", () => {
       isPending: false,
     })
 
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({
-        plans: [mockPlanTeste, mockPlanPlus],
-        stripeTestMode: false,
-      }),
+    mockSubscribeFetches({
+      plans: [mockPlanTeste, mockPlanPlus],
     })
 
     render(<SubscribeClient />)
@@ -188,12 +238,8 @@ describe("SubscribeClient", () => {
       isPending: false,
     })
 
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({
-        plans: [mockPlanTeste, mockPlanPlus],
-        stripeTestMode: false,
-      }),
+    mockSubscribeFetches({
+      plans: [mockPlanTeste, mockPlanPlus],
     })
 
     render(<SubscribeClient />)
@@ -215,10 +261,7 @@ describe("SubscribeClient", () => {
       isPending: false,
     })
 
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({ plans: [mockPlanPlus], stripeTestMode: false }),
-    })
+    mockSubscribeFetches({ plans: [mockPlanPlus] })
 
     render(<SubscribeClient />)
 
@@ -237,10 +280,7 @@ describe("SubscribeClient", () => {
       isPending: false,
     })
 
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({ plans: [mockPlanPlus], stripeTestMode: false }),
-    })
+    mockSubscribeFetches({ plans: [mockPlanPlus] })
 
     render(<SubscribeClient />)
 
@@ -252,24 +292,38 @@ describe("SubscribeClient", () => {
     })
   })
 
+  it("redirects to redirect param when user has active subscription", async () => {
+    mockSearchParams.set("redirect", "/anuncios")
+
+    mockUseSession.mockReturnValue({
+      data: { user: mockUser },
+      isPending: false,
+    })
+
+    mockSubscribeFetches({
+      plans: [mockPlanPlus],
+      subscription: mockSubscription,
+      plan: mockPlanPlus,
+    })
+
+    render(<SubscribeClient />)
+
+    await waitFor(() => {
+      expect(mockReplace).toHaveBeenCalledWith("/anuncios")
+    })
+  })
+
   it("shows current subscription when user has one", async () => {
     mockUseSession.mockReturnValue({
       data: { user: mockUser },
       isPending: false,
     })
 
-    mockFetch
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ plans: [mockPlanPlus], stripeTestMode: false }),
-      })
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          subscription: mockSubscription,
-          plan: mockPlanPlus,
-        }),
-      })
+    mockSubscribeFetches({
+      plans: [mockPlanPlus],
+      subscription: mockSubscription,
+      plan: mockPlanPlus,
+    })
 
     render(<SubscribeClient />)
 
@@ -286,18 +340,11 @@ describe("SubscribeClient", () => {
       isPending: false,
     })
 
-    mockFetch
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ plans: [mockPlanPlus], stripeTestMode: false }),
-      })
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          subscription: mockSubscription,
-          plan: mockPlanPlus,
-        }),
-      })
+    mockSubscribeFetches({
+      plans: [mockPlanPlus],
+      subscription: mockSubscription,
+      plan: mockPlanPlus,
+    })
 
     render(<SubscribeClient />)
 
@@ -314,18 +361,11 @@ describe("SubscribeClient", () => {
       isPending: false,
     })
 
-    mockFetch
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ plans: [mockPlanPlus], stripeTestMode: false }),
-      })
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          subscription: null,
-          plan: null,
-        }),
-      })
+    mockSubscribeFetches({
+      plans: [mockPlanPlus],
+      subscription: null,
+      plan: null,
+    })
 
     render(<SubscribeClient />)
 
@@ -342,10 +382,7 @@ describe("SubscribeClient", () => {
       isPending: false,
     })
 
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({ plans: [], stripeTestMode: false }),
-    })
+    mockSubscribeFetches({ plans: [] })
 
     render(<SubscribeClient />)
 
@@ -366,10 +403,7 @@ describe("SubscribeClient", () => {
       isPending: false,
     })
 
-    mockFetch.mockResolvedValueOnce({
-      ok: false,
-      status: 500,
-    })
+    mockSubscribeFetches({ plansOk: false })
 
     render(<SubscribeClient />)
 
@@ -388,10 +422,7 @@ describe("SubscribeClient", () => {
       isPending: false,
     })
 
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({ plans: [mockPlanPlus], stripeTestMode: false }),
-    })
+    mockSubscribeFetches({ plans: [mockPlanPlus] })
 
     render(<SubscribeClient />)
 
@@ -413,18 +444,11 @@ describe("SubscribeClient", () => {
       isPending: false,
     })
 
-    mockFetch
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ plans: [mockPlanPlus], stripeTestMode: false }),
-      })
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          subscription: expiredSubscription,
-          plan: mockPlanPlus,
-        }),
-      })
+    mockSubscribeFetches({
+      plans: [mockPlanPlus],
+      subscription: expiredSubscription,
+      plan: mockPlanPlus,
+    })
 
     render(<SubscribeClient />)
 
@@ -433,24 +457,17 @@ describe("SubscribeClient", () => {
     })
   })
 
-  it("shows Em breve on Pro and enables Partner mailto button when user is logged in", async () => {
+  it("shows Em breve on Pro when user is logged in with active subscription", async () => {
     mockUseSession.mockReturnValue({
       data: { user: mockUser },
       isPending: false,
     })
 
-    mockFetch
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ plans: [mockPlanPlus], stripeTestMode: false }),
-      })
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          subscription: mockSubscription,
-          plan: mockPlanPlus,
-        }),
-      })
+    mockSubscribeFetches({
+      plans: [mockPlanPlus],
+      subscription: mockSubscription,
+      plan: mockPlanPlus,
+    })
 
     render(<SubscribeClient />)
 
@@ -459,15 +476,7 @@ describe("SubscribeClient", () => {
       expect(screen.getByTestId("tier-card-pro-button")).toHaveTextContent(
         /em breve/i
       )
-      expect(screen.getByTestId("tier-card-partner-button")).not.toBeDisabled()
-      expect(screen.getByTestId("tier-card-partner-button")).toHaveTextContent(
-        /falar com a equipe/i
-      )
     })
-
-    fireEvent.click(screen.getByTestId("tier-card-partner-button"))
-
-    expect(window.location.href).toBe("mailto:?subject=test")
   })
 
   it("allows logged-in user without subscription to start Checkout on Plus", async () => {
@@ -476,24 +485,12 @@ describe("SubscribeClient", () => {
       isPending: false,
     })
 
-    mockFetch
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ plans: [mockPlanPlus], stripeTestMode: false }),
-      })
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          subscription: null,
-          plan: null,
-        }),
-      })
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          checkoutUrl: "https://checkout.stripe.com/test",
-        }),
-      })
+    mockSubscribeFetches({
+      plans: [mockPlanPlus],
+      subscription: null,
+      plan: null,
+      checkoutUrl: "https://checkout.stripe.com/test",
+    })
 
     render(<SubscribeClient />)
 

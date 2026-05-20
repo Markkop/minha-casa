@@ -3,6 +3,8 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { NavBar } from "@/components/nav-bar";
 import { AddonsProvider } from "@/lib/use-addons";
+import { SubscriptionProvider } from "@/lib/subscription-context";
+import { SubscriptionCookieSync } from "@/components/subscription-cookie-sync";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -30,8 +32,11 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <AddonsProvider>
-          <NavBar />
-          {children}
+          <SubscriptionProvider>
+            <SubscriptionCookieSync />
+            <NavBar />
+            {children}
+          </SubscriptionProvider>
         </AddonsProvider>
       </body>
     </html>

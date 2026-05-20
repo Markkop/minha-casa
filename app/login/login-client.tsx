@@ -4,6 +4,7 @@ import { useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { signIn, authClient } from "@/lib/auth-client"
+import { syncSubscriptionCookie } from "@/lib/sync-subscription-cookie"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -33,9 +34,7 @@ export function LoginClient() {
         return
       }
 
-      // Refresh subscription cookie before redirect to ensure protected routes work
-      // This sets the subscription-status cookie that the proxy checks
-      await fetch("/api/subscriptions", { credentials: "include" })
+      await syncSubscriptionCookie()
 
       // Redirect to the original URL if provided, otherwise go to anuncios
       const redirectTo = searchParams.get("redirect") || "/anuncios"

@@ -7,6 +7,8 @@ import { useSession, signOut } from "@/lib/auth-client"
 import { OrganizationSwitcher } from "@/components/organization-switcher"
 import { getFlag } from "@/lib/feature-flags"
 import { useAddons } from "@/lib/use-addons"
+import { useSubscriptionAccess } from "@/lib/subscription-context"
+import { requiresSubscription } from "@/lib/subscription"
 import { Button } from "@/components/ui/button"
 import {
   Popover,
@@ -34,8 +36,36 @@ export function NavBar() {
   const router = useRouter()
   const { data: session } = useSession()
   const { hasAddon, userAddons, orgAddons } = useAddons()
+  const {
+    hasActiveSubscription,
+    subscriptionReady,
+    refreshSubscription,
+  } = useSubscriptionAccess()
   const isAdmin = (session?.user as { isAdmin?: boolean } | undefined)?.isAdmin === true
   const isLoggedIn = !!session?.user
+
+  const handleSubscriptionGatedClick = async (
+    e: React.MouseEvent<HTMLAnchorElement>,
+    href: string
+  ) => {
+    if (!isLoggedIn || !requiresSubscription(href)) return
+
+    if (!subscriptionReady) {
+      e.preventDefault()
+      const active = await refreshSubscription()
+      if (active) {
+        router.push(href)
+      } else {
+        router.push(`/subscribe?redirect=${encodeURIComponent(href)}`)
+      }
+      return
+    }
+
+    if (!hasActiveSubscription) {
+      e.preventDefault()
+      router.push(`/subscribe?redirect=${encodeURIComponent(href)}`)
+    }
+  }
 
   // Filter nav links based on addon access and auth requirements
   const visibleLinks = navLinks.filter((link) => {
@@ -89,12 +119,26 @@ export function NavBar() {
                   <Link
                     key={link.href}
                     href={link.href}
+                    onClick={(e) => handleSubscriptionGatedClick(e, link.href)}
+                    title={
+                      isLoggedIn &&
+                      subscriptionReady &&
+                      !hasActiveSubscription &&
+                      requiresSubscription(link.href)
+                        ? "Assine o Plus para acessar"
+                        : undefined
+                    }
                     className={cn(
                       "px-4 py-2 rounded-lg text-sm font-medium transition-all",
                       "flex items-center gap-2",
                       isActive
                         ? "bg-primary/10 text-primary"
-                        : "text-ashGray hover:text-white hover:bg-eerieBlack"
+                        : "text-ashGray hover:text-white hover:bg-eerieBlack",
+                      isLoggedIn &&
+                        subscriptionReady &&
+                        !hasActiveSubscription &&
+                        requiresSubscription(link.href) &&
+                        "opacity-70"
                     )}
                   >
                     <span>{link.icon}</span>
