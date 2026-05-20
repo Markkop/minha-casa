@@ -4,6 +4,12 @@ import { useState, useEffect } from "react"
 import Link from "next/link"
 import { useSearchParams } from "next/navigation"
 import { useSession } from "@/lib/auth-client"
+import {
+  PLAN_DISPLAY,
+  SUBSCRIBE_TIER_ORDER,
+  type DisplayTierSlug,
+  type SubscribeTierDisplay,
+} from "./plan-display"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -47,6 +53,8 @@ interface Subscription {
   notes: string | null
   createdAt: string
   updatedAt: string
+  stripeSubscriptionId?: string | null
+  cancelAtPeriodEnd?: boolean | null
 }
 
 function formatPrice(priceInCents: number): string {
@@ -62,56 +70,91 @@ function formatDate(dateString: string): string {
   })
 }
 
-function getLimitDisplay(value: number | null): string {
-  return value === null ? "Ilimitado" : value.toString()
-}
-
-function PlanCard({
-  plan,
+function SubscribeTierCard({
+  tierSlug,
+  display,
+  apiPlan,
   isCurrentPlan,
   isLoggedIn,
   onSubscribe,
   isLoading,
 }: {
-  plan: Plan
+  tierSlug: DisplayTierSlug
+  display: SubscribeTierDisplay
+  apiPlan?: Plan | null
   isCurrentPlan: boolean
   isLoggedIn: boolean
   onSubscribe: (planId: string) => void
   isLoading: boolean
 }) {
-  const canCheckout = plan.stripePriceId && plan.priceInCents > 0
-  const isFree = plan.priceInCents === 0
+  const plusCanCheckout =
+    tierSlug === "plus" &&
+    Boolean(apiPlan?.stripePriceId) &&
+    (apiPlan?.priceInCents ?? 0) > 0
+
+  const pricePresentation = (): { main: string; suffix?: string } => {
+    if (tierSlug === "plus") {
+      if (apiPlan) {
+        const main = formatPrice(apiPlan.priceInCents)
+        const suffix =
+          apiPlan.priceInCents > 0 ? "/mês" : undefined
+        return { main, suffix }
+      }
+      return {
+        main: display.priceFallbackLabel,
+        suffix: display.priceSuffix,
+      }
+    }
+    return {
+      main: display.priceLabel ?? "",
+      suffix: display.priceSuffix,
+    }
+  }
+
+  const { main: priceMain, suffix: priceSuffix } = pricePresentation()
 
   const handleClick = () => {
-    if (!isLoggedIn) {
+    if (tierSlug === "plus" && !isLoggedIn) {
       window.location.href = `/login?redirect=/subscribe`
       return
     }
-    if (canCheckout) {
-      onSubscribe(plan.id)
+    if (plusCanCheckout && apiPlan) {
+      onSubscribe(apiPlan.id)
     }
   }
 
-  const getButtonText = () => {
-    if (isCurrentPlan) return "Plano Atual"
-    if (isLoading) return "Processando..."
-    if (!isLoggedIn) return "Fazer Login"
-    if (isFree) return "Contatar Equipe"
-    if (!canCheckout) return "Em breve"
-    return "Assinar Agora"
+  const getButtonText = (): string => {
+    if (tierSlug === "pro") return "Em breve"
+    if (tierSlug === "plus") {
+      if (isCurrentPlan) return "Plano Atual"
+      if (!isLoggedIn) return "Fazer Login"
+      if (isLoading) return "Processando..."
+      if (!plusCanCheckout) return "Em breve"
+      return "Assinar Agora"
+    }
+    return "Em breve"
   }
 
-  const isDisabled = isCurrentPlan || isLoading || (isLoggedIn && !canCheckout && !isFree)
+  const buttonDisabled =
+    tierSlug === "pro" ||
+    (tierSlug === "plus" &&
+      (isCurrentPlan || isLoading || (Boolean(isLoggedIn) && !plusCanCheckout)))
+
+  const primaryAppearance = tierSlug === "plus" && !buttonDisabled
+
+  const showSpinner = tierSlug === "plus" && isLoading
 
   return (
     <Card
+      data-tier={tierSlug}
+      data-testid={`tier-card-${tierSlug}`}
       className={`relative flex flex-col ${
-        isCurrentPlan
+        isCurrentPlan && tierSlug === "plus"
           ? "border-primary border-2 shadow-[0_0_30px_rgba(197,255,1,0.15)]"
           : "border-brightGrey"
       } bg-eerieBlack`}
     >
-      {isCurrentPlan && (
+      {isCurrentPlan && tierSlug === "plus" && (
         <div className="absolute -top-3 left-1/2 -translate-x-1/2">
           <span className="bg-primary text-black px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1">
             <Crown className="w-3 h-3" />
@@ -120,72 +163,46 @@ function PlanCard({
         </div>
       )}
       <CardHeader className="text-center pb-4">
-        <CardTitle className="text-2xl font-bold text-white">
-          {plan.name}
+        <CardTitle
+          data-testid={`tier-card-${tierSlug}-title`}
+          className="text-2xl font-bold text-white"
+        >
+          {display.name}
         </CardTitle>
-        {plan.description && (
-          <CardDescription className="text-ashGray mt-2">
-            {plan.description}
-          </CardDescription>
-        )}
-        <div className="mt-4">
-          <span className="text-4xl font-bold text-white">
-            {formatPrice(plan.priceInCents)}
-          </span>
-          {plan.priceInCents > 0 && (
-            <span className="text-ashGray text-sm ml-2">/mes</span>
-          )}
+        <CardDescription className="text-ashGray mt-2">
+          {display.description}
+        </CardDescription>
+        <div className="mt-4" data-testid={`tier-card-${tierSlug}-price`}>
+          <span className="text-4xl font-bold text-white">{priceMain}</span>
+          {priceSuffix ? (
+            <span className="text-ashGray text-sm ml-2">{priceSuffix}</span>
+          ) : null}
         </div>
       </CardHeader>
       <CardContent className="flex-1">
         <ul className="space-y-3">
-          <li className="flex items-start gap-2">
-            <Check className="w-5 h-5 text-primary shrink-0 mt-0.5" />
-            <span className="text-ashGray text-sm">
-              {getLimitDisplay(plan.limits.collectionsLimit)} colecoes
-            </span>
-          </li>
-          <li className="flex items-start gap-2">
-            <Check className="w-5 h-5 text-primary shrink-0 mt-0.5" />
-            <span className="text-ashGray text-sm">
-              {getLimitDisplay(plan.limits.listingsPerCollection)} anuncios por
-              colecao
-            </span>
-          </li>
-          <li className="flex items-start gap-2">
-            <Check className="w-5 h-5 text-primary shrink-0 mt-0.5" />
-            <span className="text-ashGray text-sm">
-              {getLimitDisplay(plan.limits.aiParsesPerMonth)} parses de IA por
-              mes
-            </span>
-          </li>
-          {plan.limits.canShare && (
-            <li className="flex items-start gap-2">
+          {display.features.map((feature, index) => (
+            <li key={index} className="flex items-start gap-2">
               <Check className="w-5 h-5 text-primary shrink-0 mt-0.5" />
-              <span className="text-ashGray text-sm">
-                Compartilhamento de colecoes
-              </span>
+              <span className="text-ashGray text-sm">{feature}</span>
             </li>
-          )}
-          {plan.limits.canCreateOrg && (
-            <li className="flex items-start gap-2">
-              <Check className="w-5 h-5 text-primary shrink-0 mt-0.5" />
-              <span className="text-ashGray text-sm">Criar organizacoes</span>
-            </li>
-          )}
+          ))}
         </ul>
       </CardContent>
       <CardFooter>
         <Button
-          className={`w-full ${
-            isCurrentPlan
-              ? "bg-middleGray text-white cursor-default"
-              : "bg-primary text-black hover:bg-primary/90"
-          }`}
-          disabled={isDisabled}
+          data-testid={`tier-card-${tierSlug}-button`}
+          className={
+            primaryAppearance
+              ? "w-full bg-primary text-black hover:bg-primary/90"
+              : tierSlug === "pro"
+                ? "w-full bg-middleGray text-ashGray cursor-not-allowed"
+                : "w-full bg-middleGray text-white cursor-default"
+          }
+          disabled={buttonDisabled}
           onClick={handleClick}
         >
-          {isLoading ? (
+          {showSpinner ? (
             <>
               <Loader2 className="w-4 h-4 mr-2 animate-spin" />
               {getButtonText()}
@@ -209,11 +226,17 @@ function CurrentSubscriptionCard({
   subscription,
   plan,
   isExpiringSoon,
+  billingPortalLoading,
+  onBillingPortal,
 }: {
   subscription: Subscription
   plan: Plan
   isExpiringSoon: boolean
+  billingPortalLoading: boolean
+  onBillingPortal: () => void
 }) {
+  const canStripePortal = Boolean(subscription.stripeSubscriptionId)
+
   return (
     <Card className="bg-eerieBlack border-brightGrey mb-8">
       <CardHeader>
@@ -265,13 +288,33 @@ function CurrentSubscriptionCard({
             {formatDate(subscription.expiresAt)}
           </span>
         </div>
-        {subscription.notes && (
-          <div className="pt-4 border-t border-brightGrey">
-            <span className="text-ashGray text-sm">Notas: </span>
-            <span className="text-white text-sm">{subscription.notes}</span>
-          </div>
-        )}
+        {subscription.cancelAtPeriodEnd === true &&
+          subscription.status === "active" && (
+            <div className="rounded-md bg-amber-900/25 border border-amber-700/80 px-3 py-2 text-amber-200 text-sm">
+              Sua renovacao esta desativada. O acesso continua ate a data em
+              &quot;Expira em&quot;.
+            </div>
+          )}
       </CardContent>
+      {canStripePortal ? (
+        <CardFooter className="flex-col gap-2 pt-0">
+          <Button
+            variant="outline"
+            className="w-full border-brightGrey text-white hover:bg-middleGray"
+            disabled={billingPortalLoading}
+            onClick={onBillingPortal}
+          >
+            {billingPortalLoading ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Abrindo portal...
+              </>
+            ) : (
+              "Gerenciar cobranca e cartao no Stripe"
+            )}
+          </Button>
+        </CardFooter>
+      ) : null}
     </Card>
   )
 }
@@ -288,6 +331,7 @@ export function SubscribeClient() {
   const [error, setError] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
   const [stripeTestMode, setStripeTestMode] = useState(false)
+  const [billingPortalLoading, setBillingPortalLoading] = useState(false)
 
   // Check for success/cancelled query params
   const isSuccess = searchParams.get("success") === "true"
@@ -415,6 +459,27 @@ export function SubscribeClient() {
     }
   }
 
+  const handleBillingPortal = async () => {
+    try {
+      setBillingPortalLoading(true)
+      setError(null)
+      const response = await fetch("/api/billing/portal", { method: "POST" })
+      const data = (await response.json()) as { url?: string; error?: string }
+      if (!response.ok) {
+        throw new Error(data.error || "Erro ao abrir portal de cobranca")
+      }
+      if (data.url) {
+        window.location.href = data.url
+        return
+      }
+      throw new Error("Portal nao retornou URL")
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erro ao abrir portal de cobranca")
+    } finally {
+      setBillingPortalLoading(false)
+    }
+  }
+
   if (sessionLoading || loading) {
     return (
       <div
@@ -426,6 +491,9 @@ export function SubscribeClient() {
       </div>
     )
   }
+
+  const plusPlan = plans.find((p) => p.slug === "plus") ?? null
+  const isPlusCurrentPlan = currentPlan?.slug === "plus"
 
   if (error) {
     return (
@@ -548,6 +616,8 @@ export function SubscribeClient() {
             subscription={subscription}
             plan={currentPlan}
             isExpiringSoon={isExpiringSoon}
+            billingPortalLoading={billingPortalLoading}
+            onBillingPortal={handleBillingPortal}
           />
         )}
 
@@ -563,42 +633,38 @@ export function SubscribeClient() {
           </Card>
         )}
 
-        {/* Available plans */}
+        {/* Available plans (Plus da API + Pro na vitrine) */}
         <div className="mb-8">
           <h2 className="text-2xl font-bold text-white mb-6 text-center">
             Planos Disponiveis
           </h2>
-          {plans.length === 0 ? (
-            <Card className="bg-eerieBlack border-brightGrey">
-              <CardContent className="py-6">
-                <p className="text-ashGray text-center">
-                  Nenhum plano disponivel no momento.
-                </p>
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {plans.map((plan) => (
-                <PlanCard
-                  key={plan.id}
-                  plan={plan}
-                  isCurrentPlan={currentPlan?.id === plan.id}
-                  isLoggedIn={!!session?.user}
-                  onSubscribe={handleSubscribe}
-                  isLoading={checkoutLoading}
-                />
-              ))}
-            </div>
-          )}
+          {!plusPlan ? (
+            <p className="text-center text-amber-400/95 text-sm mb-6 px-4">
+              O plano Plus nao foi carregado do servidor neste momento. O plano
+              Pro continua visivel como referencia — experimente atualizar ou
+              entre em contato.
+            </p>
+          ) : null}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
+            {SUBSCRIBE_TIER_ORDER.map((tierSlug) => (
+              <SubscribeTierCard
+                key={tierSlug}
+                tierSlug={tierSlug}
+                display={PLAN_DISPLAY[tierSlug]}
+                apiPlan={tierSlug === "plus" ? plusPlan : undefined}
+                isCurrentPlan={tierSlug === "plus" ? isPlusCurrentPlan : false}
+                isLoggedIn={!!session?.user}
+                onSubscribe={handleSubscribe}
+                isLoading={checkoutLoading}
+              />
+            ))}
+          </div>
         </div>
 
         {/* Contact section */}
         <div className="text-center mt-12">
           <p className="text-ashGray text-sm">
             Duvidas sobre os planos? Entre em contato conosco.
-          </p>
-          <p className="text-ashGray text-sm mt-2">
-            Planos gratuitos e promocionais sao ativados pela nossa equipe.
           </p>
         </div>
       </main>

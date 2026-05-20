@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "node scripts/sync-plus-stripe-live.mjs && next build",
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
@@ -12,7 +12,8 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",
-    "db:studio": "drizzle-kit studio"
+    "db:studio": "drizzle-kit studio",
+    "db:set-plus-stripe-live": "node scripts/sync-plus-stripe-live.mjs"
   },
   "dependencies": {
     "@radix-ui/react-icons": "^1.3.2",
@@ -48,6 +49,11 @@
     "stripe": "^20.2.0",
     "tailwind-merge": "^3.4.0",
     "three": "^0.182.0"
+  },
+  "pnpm": {
+    "peerDependencyRules": {
+      "ignoreDependencies": ["@neondatabase/serverless"]
+    }
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

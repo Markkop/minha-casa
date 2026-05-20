@@ -1,14 +1,16 @@
-import { describe, it, expect, vi, beforeEach } from "vitest"
-import { render, screen, waitFor } from "@testing-library/react"
+import { describe, it, expect, vi, beforeEach, beforeAll, afterAll } from "vitest"
+import { render, screen, waitFor, fireEvent } from "@testing-library/react"
 import { SubscribeClient } from "./subscribe-client"
 
-// Mock auth-client
+vi.mock("next/navigation", () => ({
+  useSearchParams: () => new URLSearchParams(),
+}))
+
 const mockUseSession = vi.fn()
 vi.mock("@/lib/auth-client", () => ({
   useSession: () => mockUseSession(),
 }))
 
-// Mock next/link
 vi.mock("next/link", () => ({
   default: ({
     children,
@@ -19,22 +21,53 @@ vi.mock("next/link", () => ({
   }) => <a href={href}>{children}</a>,
 }))
 
-// Mock fetch
+vi.mock("./plan-display", () => ({
+  PARTNER_CONTACT_HREF: "mailto:?subject=test",
+  SUBSCRIBE_TIER_ORDER: ["plus", "pro", "partner"],
+  PLAN_DISPLAY: {
+    plus: {
+      name: "Plus",
+      description: "Desc Plus",
+      priceFallbackLabel: "R$ 20,00",
+      priceSuffix: "/mês",
+      features: ["Feature Plus A", "Feature Plus B"],
+      cta: "checkout",
+    },
+    pro: {
+      name: "Pro",
+      description: "Desc Pro",
+      priceFallbackLabel: "",
+      priceLabel: "R$ 200,00",
+      priceSuffix: "/mês",
+      features: ["Feature Pro A", "Feature Pro B"],
+      cta: "coming_soon",
+    },
+    partner: {
+      name: "Partner",
+      description: "Desc Partner",
+      priceFallbackLabel: "",
+      priceLabel: "Sob consulta",
+      features: ["Feature Partner A"],
+      cta: "contact",
+    },
+  },
+}))
+
 const mockFetch = vi.fn()
 global.fetch = mockFetch
 
-// Mock plan data
-const mockPlan = {
+const mockPlanPlus = {
   id: "plan-plus",
   name: "Plus",
   slug: "plus",
-  description: "Premium plan for power users",
+  description: "Acesso Premium",
   priceInCents: 2000,
   isActive: true,
+  stripePriceId: "price_test_123",
   limits: {
-    collectionsLimit: 10,
-    listingsPerCollection: 200,
-    aiParsesPerMonth: 100,
+    collectionsLimit: 10 as number | null,
+    listingsPerCollection: 200 as number | null,
+    aiParsesPerMonth: 100 as number | null,
     canShare: true,
     canCreateOrg: true,
   },
@@ -42,19 +75,20 @@ const mockPlan = {
   updatedAt: "2024-01-01T00:00:00.000Z",
 }
 
-const mockFreePlan = {
-  id: "plan-free",
-  name: "Free",
-  slug: "free",
-  description: "Basic plan for getting started",
+const mockPlanTeste = {
+  id: "plan-teste",
+  name: "Teste",
+  slug: "teste",
+  description: "Interno",
   priceInCents: 0,
   isActive: true,
+  stripePriceId: null,
   limits: {
-    collectionsLimit: 3,
-    listingsPerCollection: 25,
-    aiParsesPerMonth: 5,
-    canShare: false,
-    canCreateOrg: false,
+    collectionsLimit: null as number | null,
+    listingsPerCollection: null as number | null,
+    aiParsesPerMonth: null as number | null,
+    canShare: true,
+    canCreateOrg: true,
   },
   createdAt: "2024-01-01T00:00:00.000Z",
   updatedAt: "2024-01-01T00:00:00.000Z",
@@ -80,9 +114,29 @@ const mockUser = {
 }
 
 describe("SubscribeClient", () => {
+  const originalLocationDescriptor = Object.getOwnPropertyDescriptor(
+    window,
+    "location"
+  )
+
+  beforeAll(() => {
+    Object.defineProperty(window, "location", {
+      configurable: true,
+      writable: true,
+      value: { href: "" },
+    })
+  })
+
+  afterAll(() => {
+    if (originalLocationDescriptor) {
+      Object.defineProperty(window, "location", originalLocationDescriptor)
+    }
+  })
+
   beforeEach(() => {
     vi.clearAllMocks()
     mockFetch.mockReset()
+    window.location.href = ""
   })
 
   it("renders loading state while fetching data", () => {
@@ -104,7 +158,10 @@ describe("SubscribeClient", () => {
 
     mockFetch.mockResolvedValueOnce({
       ok: true,
-      json: async () => ({ plans: [mockPlan, mockFreePlan] }),
+      json: async () => ({
+        plans: [mockPlanTeste, mockPlanPlus],
+        stripeTestMode: false,
+      }),
     })
 
     render(<SubscribeClient />)
@@ -125,7 +182,7 @@ describe("SubscribeClient", () => {
     )
   })
 
-  it("renders available plans", async () => {
+  it("renders three tiers and hides internal test plan from the grid", async () => {
     mockUseSession.mockReturnValue({
       data: null,
       isPending: false,
@@ -133,24 +190,26 @@ describe("SubscribeClient", () => {
 
     mockFetch.mockResolvedValueOnce({
       ok: true,
-      json: async () => ({ plans: [mockPlan, mockFreePlan] }),
+      json: async () => ({
+        plans: [mockPlanTeste, mockPlanPlus],
+        stripeTestMode: false,
+      }),
     })
 
     render(<SubscribeClient />)
 
     await waitFor(() => {
-      expect(screen.getByText("Plus")).toBeInTheDocument()
-      expect(screen.getByText("Free")).toBeInTheDocument()
+      expect(screen.getByTestId("tier-card-plus-title")).toHaveTextContent("Plus")
+      expect(screen.getByTestId("tier-card-pro-title")).toHaveTextContent("Pro")
+      expect(screen.getByTestId("tier-card-partner-title")).toHaveTextContent(
+        "Partner"
+      )
     })
 
-    // Check plan descriptions
-    expect(screen.getByText("Premium plan for power users")).toBeInTheDocument()
-    expect(
-      screen.getByText("Basic plan for getting started")
-    ).toBeInTheDocument()
+    expect(screen.queryByTestId("tier-card-teste")).not.toBeInTheDocument()
   })
 
-  it("renders plan prices correctly", async () => {
+  it("renders plan prices correctly for checkout and teaser tiers", async () => {
     mockUseSession.mockReturnValue({
       data: null,
       isPending: false,
@@ -158,18 +217,21 @@ describe("SubscribeClient", () => {
 
     mockFetch.mockResolvedValueOnce({
       ok: true,
-      json: async () => ({ plans: [mockPlan, mockFreePlan] }),
+      json: async () => ({ plans: [mockPlanPlus], stripeTestMode: false }),
     })
 
     render(<SubscribeClient />)
 
     await waitFor(() => {
-      expect(screen.getByText("R$ 20,00")).toBeInTheDocument()
-      expect(screen.getByText("Gratis")).toBeInTheDocument()
+      expect(screen.getByTestId("tier-card-plus-price")).toHaveTextContent(/R\$ 20/)
+      expect(screen.getByTestId("tier-card-pro-price")).toHaveTextContent(/R\$ 200/)
+      expect(screen.getByTestId("tier-card-partner-price")).toHaveTextContent(
+        /Sob consulta/i
+      )
     })
   })
 
-  it("renders plan limits correctly", async () => {
+  it("renders static tier feature bullets instead of limits JSON", async () => {
     mockUseSession.mockReturnValue({
       data: null,
       isPending: false,
@@ -177,19 +239,16 @@ describe("SubscribeClient", () => {
 
     mockFetch.mockResolvedValueOnce({
       ok: true,
-      json: async () => ({ plans: [mockPlan] }),
+      json: async () => ({ plans: [mockPlanPlus], stripeTestMode: false }),
     })
 
     render(<SubscribeClient />)
 
     await waitFor(() => {
-      expect(screen.getByText(/10 colecoes/i)).toBeInTheDocument()
-      expect(screen.getByText(/200 anuncios por colecao/i)).toBeInTheDocument()
-      expect(screen.getByText(/100 parses de ia por mes/i)).toBeInTheDocument()
-      expect(
-        screen.getByText(/compartilhamento de colecoes/i)
-      ).toBeInTheDocument()
-      expect(screen.getByText(/criar organizacoes/i)).toBeInTheDocument()
+      expect(screen.getByText("Feature Plus A")).toBeInTheDocument()
+      expect(screen.getByText("Feature Pro A")).toBeInTheDocument()
+      expect(screen.getByText("Feature Partner A")).toBeInTheDocument()
+      expect(screen.queryByText(/10 colecoes/i)).not.toBeInTheDocument()
     })
   })
 
@@ -202,13 +261,13 @@ describe("SubscribeClient", () => {
     mockFetch
       .mockResolvedValueOnce({
         ok: true,
-        json: async () => ({ plans: [mockPlan, mockFreePlan] }),
+        json: async () => ({ plans: [mockPlanPlus], stripeTestMode: false }),
       })
       .mockResolvedValueOnce({
         ok: true,
         json: async () => ({
           subscription: mockSubscription,
-          plan: mockPlan,
+          plan: mockPlanPlus,
         }),
       })
 
@@ -218,12 +277,10 @@ describe("SubscribeClient", () => {
       expect(screen.getByText("Sua Assinatura")).toBeInTheDocument()
     })
 
-    // Check subscription details
     expect(screen.getByText("Ativo")).toBeInTheDocument()
-    expect(screen.getByText("Test subscription")).toBeInTheDocument()
   })
 
-  it("shows 'Seu Plano' badge on current plan", async () => {
+  it("shows 'Seu Plano' badge on current Plus plan", async () => {
     mockUseSession.mockReturnValue({
       data: { user: mockUser },
       isPending: false,
@@ -232,13 +289,13 @@ describe("SubscribeClient", () => {
     mockFetch
       .mockResolvedValueOnce({
         ok: true,
-        json: async () => ({ plans: [mockPlan, mockFreePlan] }),
+        json: async () => ({ plans: [mockPlanPlus], stripeTestMode: false }),
       })
       .mockResolvedValueOnce({
         ok: true,
         json: async () => ({
           subscription: mockSubscription,
-          plan: mockPlan,
+          plan: mockPlanPlus,
         }),
       })
 
@@ -248,9 +305,7 @@ describe("SubscribeClient", () => {
       expect(screen.getByText("Seu Plano")).toBeInTheDocument()
     })
 
-    // The current plan button should be disabled
-    const currentPlanButton = screen.getByRole("button", { name: /plano atual/i })
-    expect(currentPlanButton).toBeDisabled()
+    expect(screen.getByRole("button", { name: /plano atual/i })).toBeDisabled()
   })
 
   it("shows message when user has no subscription", async () => {
@@ -262,7 +317,7 @@ describe("SubscribeClient", () => {
     mockFetch
       .mockResolvedValueOnce({
         ok: true,
-        json: async () => ({ plans: [mockPlan] }),
+        json: async () => ({ plans: [mockPlanPlus], stripeTestMode: false }),
       })
       .mockResolvedValueOnce({
         ok: true,
@@ -281,7 +336,7 @@ describe("SubscribeClient", () => {
     })
   })
 
-  it("shows empty plans message when no plans available", async () => {
+  it("shows Pro and Partner when API returns empty plans plus a Plus warning banner", async () => {
     mockUseSession.mockReturnValue({
       data: null,
       isPending: false,
@@ -289,16 +344,20 @@ describe("SubscribeClient", () => {
 
     mockFetch.mockResolvedValueOnce({
       ok: true,
-      json: async () => ({ plans: [] }),
+      json: async () => ({ plans: [], stripeTestMode: false }),
     })
 
     render(<SubscribeClient />)
 
     await waitFor(() => {
-      expect(
-        screen.getByText(/nenhum plano disponivel no momento/i)
-      ).toBeInTheDocument()
+      expect(screen.getByText(/plano plus nao foi carregado/i)).toBeInTheDocument()
     })
+
+    expect(screen.getByTestId("tier-card-plus-title")).toHaveTextContent("Plus")
+    expect(screen.getByTestId("tier-card-pro-title")).toHaveTextContent("Pro")
+    expect(screen.getByTestId("tier-card-partner-title")).toHaveTextContent(
+      "Partner"
+    )
   })
 
   it("shows error state when plans fetch fails", async () => {
@@ -315,9 +374,7 @@ describe("SubscribeClient", () => {
     render(<SubscribeClient />)
 
     await waitFor(() => {
-      expect(screen.getByRole("alert")).toHaveTextContent(
-        /erro ao carregar planos/i
-      )
+      expect(screen.getByRole("alert")).toHaveTextContent(/erro ao carregar planos/i)
     })
 
     expect(
@@ -333,7 +390,7 @@ describe("SubscribeClient", () => {
 
     mockFetch.mockResolvedValueOnce({
       ok: true,
-      json: async () => ({ plans: [mockPlan] }),
+      json: async () => ({ plans: [mockPlanPlus], stripeTestMode: false }),
     })
 
     render(<SubscribeClient />)
@@ -345,7 +402,7 @@ describe("SubscribeClient", () => {
     })
   })
 
-  it("renders subscription status correctly for different statuses", async () => {
+  it("renders subscription status correctly for expired", async () => {
     const expiredSubscription = {
       ...mockSubscription,
       status: "expired" as const,
@@ -359,13 +416,13 @@ describe("SubscribeClient", () => {
     mockFetch
       .mockResolvedValueOnce({
         ok: true,
-        json: async () => ({ plans: [mockPlan] }),
+        json: async () => ({ plans: [mockPlanPlus], stripeTestMode: false }),
       })
       .mockResolvedValueOnce({
         ok: true,
         json: async () => ({
           subscription: expiredSubscription,
-          plan: mockPlan,
+          plan: mockPlanPlus,
         }),
       })
 
@@ -376,7 +433,7 @@ describe("SubscribeClient", () => {
     })
   })
 
-  it("shows 'Solicitar Plano' button for non-current plans", async () => {
+  it("shows Em breve on Pro and enables Partner mailto button when user is logged in", async () => {
     mockUseSession.mockReturnValue({
       data: { user: mockUser },
       isPending: false,
@@ -385,22 +442,71 @@ describe("SubscribeClient", () => {
     mockFetch
       .mockResolvedValueOnce({
         ok: true,
-        json: async () => ({ plans: [mockPlan, mockFreePlan] }),
+        json: async () => ({ plans: [mockPlanPlus], stripeTestMode: false }),
       })
       .mockResolvedValueOnce({
         ok: true,
         json: async () => ({
           subscription: mockSubscription,
-          plan: mockPlan,
+          plan: mockPlanPlus,
         }),
       })
 
     render(<SubscribeClient />)
 
     await waitFor(() => {
-      expect(
-        screen.getByRole("button", { name: /solicitar plano/i })
-      ).toBeInTheDocument()
+      expect(screen.getByTestId("tier-card-pro-button")).toBeDisabled()
+      expect(screen.getByTestId("tier-card-pro-button")).toHaveTextContent(
+        /em breve/i
+      )
+      expect(screen.getByTestId("tier-card-partner-button")).not.toBeDisabled()
+      expect(screen.getByTestId("tier-card-partner-button")).toHaveTextContent(
+        /falar com a equipe/i
+      )
+    })
+
+    fireEvent.click(screen.getByTestId("tier-card-partner-button"))
+
+    expect(window.location.href).toBe("mailto:?subject=test")
+  })
+
+  it("allows logged-in user without subscription to start Checkout on Plus", async () => {
+    mockUseSession.mockReturnValue({
+      data: { user: mockUser },
+      isPending: false,
+    })
+
+    mockFetch
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ plans: [mockPlanPlus], stripeTestMode: false }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          subscription: null,
+          plan: null,
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          checkoutUrl: "https://checkout.stripe.com/test",
+        }),
+      })
+
+    render(<SubscribeClient />)
+
+    await waitFor(() => {
+      expect(screen.getByTestId("tier-card-plus-button")).toHaveTextContent(
+        /assinar agora/i
+      )
+    })
+
+    fireEvent.click(screen.getByTestId("tier-card-plus-button"))
+
+    await waitFor(() => {
+      expect(window.location.href).toBe("https://checkout.stripe.com/test")
     })
   })
 })

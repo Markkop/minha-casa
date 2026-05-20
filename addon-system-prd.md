@@ -34,7 +34,7 @@ Create a flexible addon system that allows:
    - Access to `/casa` page
    - Ability to click on listing prices and simulate financing
 
-## Database Schema (Neon DB)
+## Database Schema (PostgreSQL)
 
 ### `addons` table
 | Column | Type | Description |
@@ -76,7 +76,7 @@ hasAddonAccess(userId, addonSlug, orgId?) =
 
 ---
 
-## Database & Schema (Neon DB)
+## Database & Schema (PostgreSQL)
 
 - [x] Add `addons` table to Drizzle schema in `lib/db/schema.ts` with columns: id, name, slug, description, createdAt
 - [x] Add `user_addons` table to Drizzle schema with columns: id, userId, addonSlug, grantedAt, grantedBy, enabled, expiresAt
@@ -168,7 +168,7 @@ cd .ralphy && ralphy --prd addon-system-prd.md
 - Tasks are marked complete automatically when the AI agent finishes them
 - Completed tasks show as `- [x] Task description`
 - Tasks are executed in order from top to bottom
-- Database operations use Neon DB via Drizzle ORM
+- Database operations use PostgreSQL (VPS in production) via Drizzle ORM and `pg`
 - This addon system is designed to be extensible for future addons and paid tiers
 - Addons can be granted to users (personal) or organizations (shared by all members)
 - Access check: user has access if they have personal addon OR their current org has the addon

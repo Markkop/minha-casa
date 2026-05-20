@@ -429,7 +429,7 @@ export function AdminClient() {
       const res = await fetch(`/api/admin/subscriptions/${subscriptionId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: "cancelled" }),
+        body: JSON.stringify({ status: "cancelled", cancelImmediately: false }),
       })
 
       if (!res.ok) {

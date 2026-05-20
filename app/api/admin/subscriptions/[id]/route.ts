@@ -1,14 +1,22 @@
 import { NextRequest, NextResponse } from "next/server"
+import Stripe from "stripe"
 import { requireAdmin } from "@/lib/auth-server"
 import { getDb, subscriptions, plans, users } from "@/lib/db"
 import { eq } from "drizzle-orm"
 import { alias } from "drizzle-orm/pg-core"
 import type { SubscriptionStatus } from "@/lib/db/schema"
+import {
+  cancelSubscription,
+  isStripeConfigured,
+  resumeSubscription,
+} from "@/lib/stripe"
 
 interface UpdateSubscriptionBody {
   expiresAt?: string
   status?: SubscriptionStatus
   notes?: string
+  /** Stripe-backed only: omit or false → cancel at period end; true → immediate cancel */
+  cancelImmediately?: boolean
 }
 
 /**
@@ -83,7 +91,7 @@ export async function GET(
 /**
  * PATCH /api/admin/subscriptions/[id]
  * Update a subscription (admin only)
- * Supports updating: expiresAt, status, notes
+ * Supports updating: expiresAt, status, notes, cancelImmediately (Stripe-backed only).
  */
 export async function PATCH(
   request: NextRequest,
@@ -94,7 +102,7 @@ export async function PATCH(
     const { id } = await params
 
     const body = await request.json() as UpdateSubscriptionBody
-    const { expiresAt, status, notes } = body
+    const { expiresAt, status, notes, cancelImmediately } = body
 
     // Validate that at least one field is being updated
     if (expiresAt === undefined && status === undefined && notes === undefined) {
@@ -148,24 +156,64 @@ export async function PATCH(
       )
     }
 
-    // Build update object
-    const updateData: {
-      expiresAt?: Date
-      status?: SubscriptionStatus
-      notes?: string | null
-      updatedAt: Date
-    } = {
-      updatedAt: new Date(),
+    if (
+      cancelImmediately !== undefined &&
+      typeof cancelImmediately !== "boolean"
+    ) {
+      return NextResponse.json(
+        { error: "cancelImmediately must be a boolean" },
+        { status: 400 }
+      )
     }
 
-    if (expiresAtDate !== undefined) {
-      updateData.expiresAt = expiresAtDate
+    const stripeSubId = existingSubscription.stripeSubscriptionId
+
+    let stripeMirror: {
+      stripeStatus?: string | null
+      cancelAtPeriodEnd?: boolean | null
+      currentPeriodEnd?: Date
+    } = {}
+
+    if (stripeSubId && isStripeConfigured()) {
+      if (status === "cancelled") {
+        const immediate =
+          cancelImmediately !== undefined ? cancelImmediately : false
+
+        try {
+          const stripeSub = await cancelSubscription(stripeSubId, immediate)
+
+          stripeMirror = stripeFieldsFromStripeSubscription(stripeSub)
+        } catch (err) {
+          console.error("Stripe subscription cancel failed:", err)
+          return NextResponse.json(
+            { error: "Failed to cancel subscription in Stripe" },
+            { status: 502 }
+          )
+        }
+      } else if (status === "active") {
+        try {
+          const stripeSub = await resumeSubscription(stripeSubId)
+          stripeMirror = stripeFieldsFromStripeSubscription(stripeSub)
+        } catch (err) {
+          console.warn(
+            "Stripe resumeSubscription failed (subscription may already be finalized):",
+            err
+          )
+        }
+      }
     }
-    if (status !== undefined) {
-      updateData.status = status
-    }
-    if (notes !== undefined) {
-      updateData.notes = notes || null
+
+    const patchStatus =
+      stripeSubId && status === "cancelled"
+        ? (cancelImmediately === true ? ("cancelled" as const) : undefined)
+        : status
+
+    const updateData = {
+      updatedAt: new Date(),
+      ...(Object.keys(stripeMirror).length > 0 ? stripeMirror : {}),
+      ...(expiresAtDate !== undefined ? { expiresAt: expiresAtDate } : {}),
+      ...(patchStatus !== undefined ? { status: patchStatus } : {}),
+      ...(notes !== undefined ? { notes: notes || null } : {}),
     }
 
     // Update the subscription
@@ -196,6 +244,35 @@ export async function PATCH(
       { error: "Failed to update subscription" },
       { status: 500 }
     )
+  }
+}
+
+/**
+ * Map Stripe subscription fields into our subscription row shape.
+ */
+function stripeFieldsFromStripeSubscription(sub: Stripe.Subscription): {
+  stripeStatus: string | null
+  cancelAtPeriodEnd: boolean | null
+  currentPeriodEnd?: Date
+} {
+  const raw = sub as unknown as {
+    cancel_at_period_end?: boolean | null
+    current_period_end?: number | null
+    status?: string | null
+  }
+
+  let currentPeriodEnd: Date | undefined
+  if (typeof raw.current_period_end === "number") {
+    currentPeriodEnd = new Date(raw.current_period_end * 1000)
+  }
+
+  return {
+    stripeStatus: raw.status ?? null,
+    cancelAtPeriodEnd:
+      typeof raw.cancel_at_period_end === "boolean"
+        ? raw.cancel_at_period_end
+        : null,
+    ...(currentPeriodEnd !== undefined ? { currentPeriodEnd } : {}),
   }
 }
 

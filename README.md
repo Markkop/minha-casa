@@ -12,7 +12,7 @@ Minha Casa helps users manage and organize real estate listings with AI-powered 
 - **Language**: TypeScript 5
 - **Frontend**: React 19, Tailwind CSS v4
 - **UI Components**: shadcn/ui (Radix UI primitives)
-- **Database**: Neon Database (PostgreSQL serverless)
+- **Database**: PostgreSQL (`pg` pool) — production on VPS, local via Docker or VPS tunnel
 - **ORM**: Drizzle ORM
 - **Authentication**: BetterAuth
 - **AI**: OpenAI SDK (gpt-4o-mini)
@@ -23,7 +23,7 @@ Minha Casa helps users manage and organize real estate listings with AI-powered 
 
 - Node.js 20+
 - pnpm (recommended) or npm
-- PostgreSQL database (Neon Database recommended)
+- PostgreSQL (see [docs/vps-postgres.md](docs/vps-postgres.md) for production VPS setup)
 - OpenAI API key
 
 ## Getting Started
@@ -43,24 +43,14 @@ pnpm install
 
 ### 3. Set up environment variables
 
-Create a `.env.local` file in the project root:
+Copy `.env.example` to `.env.local` and fill in values. For local dev against the production VPS database:
 
 ```env
-# Database
-DATABASE_URL=postgresql://user:password@host:5432/database
-
-# Authentication
-BETTER_AUTH_SECRET=your-secret-key-here
-
-# OpenAI
-OPENAI_API_KEY=sk-your-openai-api-key
-
-# App URL
-NEXT_PUBLIC_APP_URL=http://localhost:3000
-
-# Optional: BetterAuth trusted origins (comma-separated)
-BETTER_AUTH_TRUSTED_ORIGINS=http://localhost:3000
+DATABASE_URL=postgresql://minhacasa:<password>@<VPS_HOST>:5433/minha_casa_prod
+DATABASE_SSL=true
 ```
+
+Do not put `sslmode=require` in the URL when `DATABASE_SSL=true` — the app strips it for self-signed VPS TLS. See [docs/vps-postgres.md](docs/vps-postgres.md).
 
 ### 4. Set up the database
 
