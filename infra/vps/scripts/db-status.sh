@@ -1,7 +1,7 @@
 #!/usr/bin/env sh
 set -eu
 
-ENV_FILE="${1:-.env.prod}"
+ENV_FILE="${1:-./.env.prod}"
 COMPOSE_FILE="infra/vps/docker-compose.db.yml"
 
 if [ ! -f "$ENV_FILE" ]; then
