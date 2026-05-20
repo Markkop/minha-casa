@@ -50,6 +50,11 @@ describe("proxy", () => {
       expect(response.status).toBe(200)
     })
 
+    it("allows access to privacy and terms pages without authentication", () => {
+      expect(proxy(createMockRequest("/privacy")).status).toBe(200)
+      expect(proxy(createMockRequest("/terms")).status).toBe(200)
+    })
+
     it("allows access to API auth routes without authentication", () => {
       const request = createMockRequest("/api/auth/login")
       const response = proxy(request)

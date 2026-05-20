@@ -1,18 +1,13 @@
-import { neon } from "@neondatabase/serverless"
-import { drizzle } from "drizzle-orm/neon-http"
+import { drizzle } from "drizzle-orm/node-postgres"
 import * as schema from "./schema"
+import { getPgPool } from "./pool"
 
 /**
- * Get the Neon database client
- * Uses the DATABASE_URL environment variable
+ * Get the PostgreSQL database client.
+ * Uses DATABASE_URL and a small shared pg Pool, suitable for Vercel + VPS Postgres.
  */
 export function getDb() {
-  const databaseUrl = process.env.DATABASE_URL
-  if (!databaseUrl) {
-    throw new Error("DATABASE_URL environment variable is not set")
-  }
-  const sql = neon(databaseUrl)
-  return drizzle(sql, { schema })
+  return drizzle(getPgPool(), { schema })
 }
 
 // Export schema and types for convenience

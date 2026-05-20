@@ -16,9 +16,15 @@ vi.mock("next/navigation", () => ({
 
 // Mock auth-client
 const mockSignInEmail = vi.fn()
+const mockSignInSocial = vi.fn()
 vi.mock("@/lib/auth-client", () => ({
   signIn: {
     email: (params: { email: string; password: string }) => mockSignInEmail(params),
+  },
+  authClient: {
+    signIn: {
+      social: (params: { provider: string; callbackURL: string }) => mockSignInSocial(params),
+    },
   },
 }))
 
@@ -88,7 +94,7 @@ describe("LoginClient", () => {
     })
   })
 
-  it("redirects to home page on successful login when no redirect param", async () => {
+  it("redirects to anuncios page on successful login when no redirect param", async () => {
     mockSignInEmail.mockResolvedValue({ data: { user: {} } })
     mockSearchParams.delete("redirect")
 
@@ -103,7 +109,7 @@ describe("LoginClient", () => {
     fireEvent.click(screen.getByRole("button", { name: /entrar/i }))
 
     await waitFor(() => {
-      expect(mockPush).toHaveBeenCalledWith("/")
+      expect(mockPush).toHaveBeenCalledWith("/anuncios")
       expect(mockRefresh).toHaveBeenCalled()
     })
   })

@@ -1,4 +1,4 @@
-import { neon } from "@neondatabase/serverless"
+import { getPgPool } from "@/lib/db/pool"
 
 // Types for shared collections
 export interface SharedCollection {
@@ -67,11 +67,7 @@ export function generateShareToken(): string {
  * Get database connection
  */
 function getDb() {
-  const databaseUrl = process.env.DATABASE_URL
-  if (!databaseUrl) {
-    throw new Error("DATABASE_URL environment variable is not set")
-  }
-  return neon(databaseUrl)
+  return getPgPool()
 }
 
 /**
@@ -84,19 +80,20 @@ export async function createShare(
   const sql = getDb()
   const token = generateShareToken()
 
-  const result = await sql`
-    INSERT INTO shared_collections (share_token, collection_name, collection_data)
-    VALUES (${token}, ${collectionName}, ${JSON.stringify(collectionData)})
-    RETURNING id, share_token
-  `
+  const result = await sql.query(
+    `INSERT INTO shared_collections (share_token, collection_name, collection_data)
+     VALUES ($1, $2, $3::jsonb)
+     RETURNING id, share_token`,
+    [token, collectionName, JSON.stringify(collectionData)]
+  )
 
-  if (!result || result.length === 0) {
+  if (!result.rows || result.rows.length === 0) {
     throw new Error("Failed to create share")
   }
 
   return {
-    token: result[0].share_token,
-    id: result[0].id,
+    token: result.rows[0].share_token,
+    id: result.rows[0].id,
   }
 }
 
@@ -107,18 +104,19 @@ export async function getShare(token: string): Promise<SharedCollection | null> 
   const sql = getDb()
 
   // Get the share and increment access count
-  const result = await sql`
-    UPDATE shared_collections
-    SET accessed_count = accessed_count + 1
-    WHERE share_token = ${token}
-    RETURNING id, share_token, collection_name, collection_data, created_at, accessed_count
-  `
+  const result = await sql.query(
+    `UPDATE shared_collections
+     SET accessed_count = accessed_count + 1
+     WHERE share_token = $1
+     RETURNING id, share_token, collection_name, collection_data, created_at, accessed_count`,
+    [token]
+  )
 
-  if (!result || result.length === 0) {
+  if (!result.rows || result.rows.length === 0) {
     return null
   }
 
-  const row = result[0]
+  const row = result.rows[0]
   return {
     id: row.id,
     share_token: row.share_token,

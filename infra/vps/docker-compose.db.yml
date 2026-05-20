@@ -1,0 +1,52 @@
+# Minha Casa production database stack for a shared VPS.
+#
+# Shape:
+#   - App/API routes run on Vercel.
+#   - This Compose file only exposes a dedicated Postgres instance for Minha Casa.
+#   - Do not reuse Todo Idle Quest containers, DBs, users, volumes, or ports.
+#
+# Prerequisites on VPS:
+#   cp infra/vps/.env.prod.example .env.prod
+#   openssl rand -base64 36   # set POSTGRES_PASSWORD in .env.prod
+#   ./infra/vps/scripts/generate-postgres-tls.sh
+#
+# Deploy:
+#   docker compose -f infra/vps/docker-compose.db.yml --env-file .env.prod up -d
+
+services:
+  minha-casa-db:
+    image: postgres:17-alpine
+    container_name: minha-casa-db-1
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?set POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:?set POSTGRES_DB}
+    command:
+      - "postgres"
+      - "-c"
+      - "ssl=on"
+      - "-c"
+      - "ssl_cert_file=/var/lib/postgresql/server.crt"
+      - "-c"
+      - "ssl_key_file=/var/lib/postgresql/server.key"
+    ports:
+      - "${POSTGRES_PUBLIC_PORT:-5433}:5432"
+    volumes:
+      - minha_casa_pgdata:/var/lib/postgresql/data
+      - ./certs/server.crt:/var/lib/postgresql/server.crt:ro
+      - ./certs/server.key:/var/lib/postgresql/server.key:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - minha_casa_internal
+
+networks:
+  minha_casa_internal:
+    driver: bridge
+
+volumes:
+  minha_casa_pgdata:

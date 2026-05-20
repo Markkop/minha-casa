@@ -3,7 +3,7 @@
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { signUp } from "@/lib/auth-client"
+import { signUp, authClient } from "@/lib/auth-client"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -56,6 +56,26 @@ export function SignupClient() {
     } catch {
       setError("Erro ao criar conta. Tente novamente.")
     } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleGoogleSignUp = async () => {
+    setError("")
+    setLoading(true)
+
+    try {
+      const result = await authClient.signIn.social({
+        provider: "google",
+        callbackURL: "/anuncios",
+      })
+
+      if (result.error) {
+        setError(result.error.message || "Erro ao criar conta com Google. Tente novamente.")
+        setLoading(false)
+      }
+    } catch {
+      setError("Erro ao criar conta com Google. Tente novamente.")
       setLoading(false)
     }
   }
@@ -132,6 +152,17 @@ export function SignupClient() {
           <CardFooter className="flex flex-col gap-4">
             <Button type="submit" className="w-full" disabled={loading}>
               {loading ? "Criando conta..." : "Criar conta"}
+            </Button>
+            <div className="relative w-full">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-background px-2 text-muted-foreground">ou</span>
+              </div>
+            </div>
+            <Button type="button" variant="outline" className="w-full" disabled={loading} onClick={handleGoogleSignUp}>
+              Continuar com Google
             </Button>
             <p className="text-sm text-muted-foreground text-center">
               Ja tem uma conta?{" "}

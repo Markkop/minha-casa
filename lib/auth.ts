@@ -1,26 +1,15 @@
 import { betterAuth } from "better-auth"
 import { drizzleAdapter } from "better-auth/adapters/drizzle"
-import { neon } from "@neondatabase/serverless"
-import { drizzle } from "drizzle-orm/neon-http"
+import { getDb } from "./db"
 import * as schema from "./db/schema"
-
-/**
- * Get database instance for auth
- */
-function getAuthDb() {
-  const databaseUrl = process.env.DATABASE_URL
-  if (!databaseUrl) {
-    throw new Error("DATABASE_URL environment variable is not set")
-  }
-  const sql = neon(databaseUrl)
-  return drizzle(sql, { schema })
-}
 
 /**
  * BetterAuth configuration
  */
 export const auth = betterAuth({
-  database: drizzleAdapter(getAuthDb(), {
+  baseURL: process.env.BETTER_AUTH_URL || process.env.NEXT_PUBLIC_APP_URL,
+  secret: process.env.BETTER_AUTH_SECRET,
+  database: drizzleAdapter(getDb(), {
     provider: "pg",
     schema: {
       user: schema.users,
@@ -32,6 +21,12 @@ export const auth = betterAuth({
   emailAndPassword: {
     enabled: true,
     requireEmailVerification: false, // Set to true in production with email provider
+  },
+  socialProviders: {
+    google: {
+      clientId: process.env.GOOGLE_CLIENT_ID as string,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET as string,
+    },
   },
   session: {
     expiresIn: 60 * 60 * 24 * 7, // 7 days

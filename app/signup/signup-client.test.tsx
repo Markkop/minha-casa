@@ -14,9 +14,15 @@ vi.mock("next/navigation", () => ({
 
 // Mock auth-client
 const mockSignUpEmail = vi.fn()
+const mockSignInSocial = vi.fn()
 vi.mock("@/lib/auth-client", () => ({
   signUp: {
     email: (params: { email: string; password: string; name: string }) => mockSignUpEmail(params),
+  },
+  authClient: {
+    signIn: {
+      social: (params: { provider: string; callbackURL: string }) => mockSignInSocial(params),
+    },
   },
 }))
 
@@ -147,7 +153,7 @@ describe("SignupClient", () => {
     })
   })
 
-  it("redirects to home page on successful signup", async () => {
+  it("redirects to anuncios page on successful signup", async () => {
     mockSignUpEmail.mockResolvedValue({ data: { user: {} } })
 
     render(<SignupClient />)
@@ -167,7 +173,7 @@ describe("SignupClient", () => {
     fireEvent.click(screen.getByRole("button", { name: /criar conta/i }))
 
     await waitFor(() => {
-      expect(mockPush).toHaveBeenCalledWith("/")
+      expect(mockPush).toHaveBeenCalledWith("/anuncios")
       expect(mockRefresh).toHaveBeenCalled()
     })
   })
