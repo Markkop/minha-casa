@@ -25,8 +25,7 @@ export const SUBSCRIBE_TIER_ORDER: DisplayTierSlug[] = ["plus", "pro"]
 export const PLAN_DISPLAY: Record<DisplayTierSlug, SubscribeTierDisplay> = {
   plus: {
     name: "Plus",
-    description:
-      "Acompanhe seus imóveis favoritos e compare com facilidade",
+    description: "Extraia dados dos seus imóveis favoritos",
     priceFallbackLabel: "R$ 20,00",
     priceSuffix: "/mês",
     features: [
