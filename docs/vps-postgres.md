@@ -27,7 +27,7 @@ docker compose -f infra/vps/docker-compose.db.yml --env-file .env.prod up -d
 Set these in Vercel production/preview as appropriate:
 
 ```env
-DATABASE_URL=postgresql://minhacasa:<POSTGRES_PASSWORD>@<VPS_HOST>:5433/minha_casa_prod?sslmode=require
+DATABASE_URL=postgresql://minhacasa:<POSTGRES_PASSWORD>@<VPS_HOST>:5433/minha_casa_prod
 DATABASE_SSL=true
 DATABASE_POOL_MAX=5
 BETTER_AUTH_URL=https://<minha-casa-domain>
@@ -50,7 +50,7 @@ DATABASE_URL="postgresql://minhacasa:<password>@<VPS_HOST>:5433/minha_casa_prod"
 DATABASE_SSL="true"
 ```
 
-For **Vercel**, keep `sslmode=require` on `DATABASE_URL` and set `DATABASE_SSL=true` (see `lib/db/pool.ts`).
+For **Vercel**, use the same pattern: **no** `sslmode` in `DATABASE_URL`, only `DATABASE_SSL=true`. Node `pg` treats `sslmode=require` as strict certificate verification, which breaks the VPS self-signed cert even when `rejectUnauthorized: false` is set in code.
 
 ## Google OAuth Console
 
