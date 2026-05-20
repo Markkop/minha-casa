@@ -23,7 +23,7 @@ function AnunciosClientInner() {
     isLoadingListings,
     error,
     setActiveCollection,
-    createCollectionInProfile,
+    createCollection,
     loadListings,
     refreshTrigger,
     triggerRefresh,
@@ -73,12 +73,7 @@ function AnunciosClientInner() {
       setCreateCollectionError(null)
       try {
         const name = getDefaultFirstCollectionName()
-        const targetOrgId =
-          orgContext.type === "organization"
-            ? (orgContext.organizationId ?? null)
-            : null
-        const created = await createCollectionInProfile(name, targetOrgId, true)
-        setActiveCollection(created)
+        await createCollection(name, true)
         triggerRefresh()
       } catch (err) {
         setCreateCollectionError(
@@ -94,9 +89,7 @@ function AnunciosClientInner() {
     setShowCollectionModal(true)
   }, [
     collections.length,
-    createCollectionInProfile,
-    orgContext,
-    setActiveCollection,
+    createCollection,
     triggerRefresh,
   ])
 
@@ -214,7 +207,7 @@ function AnunciosClientInner() {
                 ) : (
                   <>
                     <span>+</span>
-                    <span>Começar</span>
+                    <span>Criar Primeira Coleção</span>
                   </>
                 )}
               </button>

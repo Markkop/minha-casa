@@ -35,6 +35,20 @@ import {
   type OrganizationContext,
 } from "@/components/organization-switcher"
 
+/** Whether a collection target (personal vs org) matches the active org context. */
+export function isCollectionProfileMatch(
+  targetOrgId: string | null | undefined,
+  orgContext: OrganizationContext
+): boolean {
+  if (targetOrgId) {
+    return (
+      orgContext.type === "organization" &&
+      orgContext.organizationId === targetOrgId
+    )
+  }
+  return orgContext.type === "personal"
+}
+
 // ============================================================================
 // TYPES
 // ============================================================================
@@ -189,7 +203,13 @@ export function CollectionsProvider({ children }: CollectionsProviderProps) {
 
   const createCollection = useCallback(
     async (name: string, isDefault?: boolean): Promise<Collection> => {
-      const orgId = orgContext.type === "organization" ? orgContext.organizationId : undefined
+      const orgId =
+        orgContext.type === "organization"
+          ? orgContext.organizationId
+          : undefined
+      if (orgContext.type === "organization" && !orgId) {
+        throw new Error("Organização inválida. Selecione uma organização válida.")
+      }
       const newCollection = await apiCreateCollection(name, isDefault, orgId)
       setCollections((prev) => {
         // If this is the new default, unset others
@@ -198,6 +218,7 @@ export function CollectionsProvider({ children }: CollectionsProviderProps) {
         }
         return [...prev, newCollection]
       })
+      setActiveCollectionState((prev) => prev ?? newCollection)
       triggerRefresh()
       return newCollection
     },
@@ -209,18 +230,17 @@ export function CollectionsProvider({ children }: CollectionsProviderProps) {
     async (name: string, targetOrgId: string | null, isDefault?: boolean): Promise<Collection> => {
       // targetOrgId = null means personal, otherwise org
       const newCollection = await apiCreateCollection(name, isDefault, targetOrgId ?? undefined)
-      
-      // Only update local state if we're creating in the current context
-      const currentOrgId = orgContext.type === "organization" ? orgContext.organizationId : null
-      if (targetOrgId === currentOrgId) {
+
+      if (isCollectionProfileMatch(targetOrgId, orgContext)) {
         setCollections((prev) => {
           if (isDefault) {
             return [...prev.map((c) => ({ ...c, isDefault: false })), newCollection]
           }
           return [...prev, newCollection]
         })
+        setActiveCollectionState(newCollection)
       }
-      
+
       triggerRefresh()
       return newCollection
     },

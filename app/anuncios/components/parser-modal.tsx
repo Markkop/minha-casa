@@ -128,8 +128,7 @@ export function ParserModal({
 
     try {
       const name = getDefaultFirstCollectionName()
-      const newCollection = await createCollection(name, true)
-      setActiveCollection(newCollection)
+      await createCollection(name, true)
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erro ao criar coleção")
     } finally {
