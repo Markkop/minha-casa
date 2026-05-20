@@ -7,6 +7,8 @@ import { useSession } from "@/lib/auth-client"
 import {
   syncSubscriptionCookie,
   isSafeRedirectPath,
+  type SubscriptionSyncPlan as Plan,
+  type SubscriptionSyncSubscription as Subscription,
 } from "@/lib/sync-subscription-cookie"
 import {
   PLAN_DISPLAY,
@@ -24,42 +26,6 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { Check, Loader2, Crown, Calendar, AlertCircle, CheckCircle, FlaskConical } from "lucide-react"
-
-interface PlanLimits {
-  collectionsLimit: number | null
-  listingsPerCollection: number | null
-  aiParsesPerMonth: number | null
-  canShare: boolean
-  canCreateOrg: boolean
-}
-
-interface Plan {
-  id: string
-  name: string
-  slug: string
-  description: string | null
-  priceInCents: number
-  isActive: boolean
-  stripePriceId: string | null
-  limits: PlanLimits
-  createdAt: string
-  updatedAt: string
-}
-
-interface Subscription {
-  id: string
-  userId: string
-  planId: string
-  status: "active" | "expired" | "cancelled"
-  startsAt: string
-  expiresAt: string
-  grantedBy: string | null
-  notes: string | null
-  createdAt: string
-  updatedAt: string
-  stripeSubscriptionId?: string | null
-  cancelAtPeriodEnd?: boolean | null
-}
 
 function formatPrice(priceInCents: number): string {
   if (priceInCents === 0) return "Gratis"
@@ -360,8 +326,8 @@ export function SubscribeClient() {
       try {
         const result = await syncSubscriptionCookie()
         if (result.hasActiveSubscription && result.subscription) {
-          setSubscription(result.subscription as Subscription)
-          setCurrentPlan((result.plan as Plan) ?? null)
+          setSubscription(result.subscription)
+          setCurrentPlan(result.plan ?? null)
           setSuccessMessage("Assinatura confirmada! Sua conta foi ativada.")
           if (
             !didPostRedirect.current &&
@@ -416,10 +382,9 @@ export function SubscribeClient() {
         if (session?.user) {
           const syncResult = await syncSubscriptionCookie()
           if (syncResult.subscription) {
-            const sub = syncResult.subscription as Subscription
-            setSubscription(sub)
-            setCurrentPlan((syncResult.plan as Plan) ?? null)
-            setIsExpiringSoon(checkIsExpiringSoon(sub.expiresAt))
+            setSubscription(syncResult.subscription)
+            setCurrentPlan(syncResult.plan ?? null)
+            setIsExpiringSoon(checkIsExpiringSoon(syncResult.subscription.expiresAt))
           } else {
             setSubscription(null)
             setCurrentPlan(null)

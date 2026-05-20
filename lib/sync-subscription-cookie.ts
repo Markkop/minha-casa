@@ -1,7 +1,48 @@
+export interface SubscriptionPlanLimits {
+  collectionsLimit: number | null
+  listingsPerCollection: number | null
+  aiParsesPerMonth: number | null
+  canShare: boolean
+  canCreateOrg: boolean
+}
+
+export interface SubscriptionSyncPlan {
+  id: string
+  name: string
+  slug: string
+  description: string | null
+  priceInCents: number
+  isActive: boolean
+  stripePriceId: string | null
+  limits: SubscriptionPlanLimits
+  createdAt: string
+  updatedAt: string
+}
+
+export interface SubscriptionSyncSubscription {
+  id: string
+  userId: string
+  planId: string
+  status: "active" | "expired" | "cancelled"
+  startsAt: string
+  expiresAt: string
+  grantedBy: string | null
+  notes: string | null
+  createdAt: string
+  updatedAt: string
+  stripeSubscriptionId?: string | null
+  cancelAtPeriodEnd?: boolean | null
+}
+
 export interface SubscriptionSyncResult {
   hasActiveSubscription: boolean
-  subscription: Record<string, unknown> | null
-  plan: Record<string, unknown> | null
+  subscription: SubscriptionSyncSubscription | null
+  plan: SubscriptionSyncPlan | null
+}
+
+interface SubscriptionsApiResponse {
+  subscription?: SubscriptionSyncSubscription | null
+  plan?: SubscriptionSyncPlan | null
 }
 
 /**
@@ -14,7 +55,7 @@ export async function syncSubscriptionCookie(): Promise<SubscriptionSyncResult> 
     if (!res.ok) {
       return { hasActiveSubscription: false, subscription: null, plan: null }
     }
-    const data = await res.json()
+    const data = (await res.json()) as SubscriptionsApiResponse
     const hasActiveSubscription = data.subscription?.status === "active"
     return {
       hasActiveSubscription,
