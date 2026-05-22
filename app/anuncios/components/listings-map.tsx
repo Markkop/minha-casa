@@ -32,6 +32,7 @@ import { LeafletMapView } from "./leaflet-map-view"
 import { GoogleMapsView } from "./google-maps-view"
 import { MapLocationPicker } from "./map-location-picker"
 import {
+  LISTINGS_MAP_BOTTOM_BAR_CLASS,
   LISTINGS_MAP_CONTENT_CLASS,
   LISTINGS_PANEL_CARD_CLASS,
   LISTINGS_PANEL_TOOLBAR_CLASS,
@@ -44,6 +45,30 @@ import { mapPriceColors } from "@/lib/theme/colors"
 interface ListingsMapProps {
   listings: Imovel[]
   onListingsChange: () => void
+}
+
+function MapPriceM2Legend() {
+  return (
+    <>
+      <span className="whitespace-nowrap">Preço/m²:</span>
+      {(
+        [
+          ["Baixo", mapPriceColors.low],
+          ["Médio", mapPriceColors.medium],
+          ["Alto", mapPriceColors.high],
+          ["Muito Alto", mapPriceColors.veryHigh],
+        ] as const
+      ).map(([label, color]) => (
+        <div key={label} className="flex items-center gap-1">
+          <div
+            className="h-2.5 w-2.5 rounded-full"
+            style={{ backgroundColor: color }}
+          />
+          <span>{label}</span>
+        </div>
+      ))}
+    </>
+  )
 }
 
 export function ListingsMap({ listings, onListingsChange }: ListingsMapProps) {
@@ -249,16 +274,19 @@ export function ListingsMap({ listings, onListingsChange }: ListingsMapProps) {
           "relative z-20 overflow-visible"
         )}
       >
-        <div className="flex min-w-0 items-center gap-1.5 overflow-x-auto">
-          <MapLocationPicker
-            viewport={mapViewport}
-            onViewportChange={handleViewportChange}
-            onAutomaticView={handleAutomaticView}
-            automaticDisabled={isLoading || geocodedListings.length === 0}
-            isAutomaticActive={mapViewport.source === "listings-bounds"}
-            disabled={isLoading}
-          />
+        <div className="flex min-w-0 items-center justify-between gap-1.5">
+          <div className="flex shrink-0 items-center gap-1.5">
+            <MapLocationPicker
+              viewport={mapViewport}
+              onViewportChange={handleViewportChange}
+              onAutomaticView={handleAutomaticView}
+              automaticDisabled={isLoading || geocodedListings.length === 0}
+              isAutomaticActive={mapViewport.source === "listings-bounds"}
+              disabled={isLoading}
+            />
+          </div>
 
+          <div className="flex min-w-0 shrink-0 items-center gap-1.5 overflow-x-auto">
           <div className="flex shrink-0 items-center gap-1 text-xs">
             <span
               className={cn(
@@ -283,6 +311,12 @@ export function ListingsMap({ listings, onListingsChange }: ListingsMapProps) {
               Google
             </span>
           </div>
+
+          <div
+            role="separator"
+            aria-orientation="vertical"
+            className="mx-0.5 h-4 w-px shrink-0 bg-app-border"
+          />
 
           {isLoading ? (
             <span className="shrink-0 whitespace-nowrap text-xs text-muted-foreground">
@@ -347,25 +381,6 @@ export function ListingsMap({ listings, onListingsChange }: ListingsMapProps) {
               Re-geocodificar endereços
             </TooltipContent>
           </Tooltip>
-
-          <div className="hidden shrink-0 items-center gap-2 text-xs text-muted-foreground xl:flex">
-            <span className="whitespace-nowrap">Preço/m²:</span>
-            {(
-              [
-                ["Baixo", mapPriceColors.low],
-                ["Médio", mapPriceColors.medium],
-                ["Alto", mapPriceColors.high],
-                ["Muito Alto", mapPriceColors.veryHigh],
-              ] as const
-            ).map(([label, color]) => (
-              <div key={label} className="flex items-center gap-1">
-                <div
-                  className="h-2.5 w-2.5 rounded-full"
-                  style={{ backgroundColor: color }}
-                />
-                <span>{label}</span>
-              </div>
-            ))}
           </div>
         </div>
       </CardHeader>
@@ -391,6 +406,12 @@ export function ListingsMap({ listings, onListingsChange }: ListingsMapProps) {
           <GoogleMapsView {...mapViewProps} />
         ) : (
           <LeafletMapView {...mapViewProps} />
+        )}
+
+        {geocodedListings.length > 0 && (
+          <div className={LISTINGS_MAP_BOTTOM_BAR_CLASS}>
+            <MapPriceM2Legend />
+          </div>
         )}
       </CardContent>
     </Card>

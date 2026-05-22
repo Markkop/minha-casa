@@ -490,7 +490,7 @@ function GoogleMapsContent({
         defaultCenter={{ lat: mapViewport.lat, lng: mapViewport.lng }}
         defaultZoom={mapViewport.zoom}
         mapId="minha-casa-map"
-        className="h-[400px] rounded-lg"
+        className="h-[400px] rounded-lg pb-10"
         gestureHandling="cooperative"
         disableDefaultUI={false}
         mapTypeControl={true}

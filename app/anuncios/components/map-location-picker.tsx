@@ -135,12 +135,12 @@ export function MapLocationPicker({
     <>
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
-          <div className="relative min-w-0 flex-1">
+          <div className="relative w-64 shrink-0">
             <MagnifyingGlassIcon className="absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground pointer-events-none" />
             <Input
               ref={inputRef}
               type="text"
-              placeholder="Cidade ou estado..."
+              placeholder="Cidade..."
               value={displayValue}
               onChange={(e) => {
                 setQuery(e.target.value)
@@ -148,7 +148,7 @@ export function MapLocationPicker({
               }}
               onFocus={() => setOpen(true)}
               disabled={disabled || resolving}
-              className="h-7 border-app-border bg-app-surface py-0 pl-7 text-xs text-app-fg placeholder:text-app-subtle"
+              className="h-7 truncate border-app-border bg-app-surface py-0 pl-7 pr-6 text-xs text-app-fg placeholder:text-app-subtle"
             />
             {(resolving || loadingLocations) && (
               <Loader2 className="absolute right-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 animate-spin text-app-subtle" />

@@ -220,7 +220,7 @@ export function LeafletMapView({
       key={`${mapViewport.lat}-${mapViewport.lng}-${mapViewport.zoom}-${mapViewport.source}`}
       center={[mapViewport.lat, mapViewport.lng]}
       zoom={mapViewport.zoom}
-      className="h-[400px] rounded-lg"
+      className="h-[400px] rounded-lg pb-10"
       style={{ background: appColors.surfaceMuted }}
     >
       <TileLayer url={TILE_URL} attribution={TILE_ATTRIBUTION} />

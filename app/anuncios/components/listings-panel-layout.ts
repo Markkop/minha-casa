@@ -14,6 +14,10 @@ export const LISTINGS_MAP_TOOLBAR_CLASS = LISTINGS_PANEL_TOOLBAR_CLASS
 export const MAP_FLOATING_UI_Z_CLASS = "!z-[1100]"
 export const MAP_FLOATING_UI_Z_INDEX = 1100
 
+/** Bottom overlay on the map (Preço/m² legend); mirrors top toolbar spacing. */
+export const LISTINGS_MAP_BOTTOM_BAR_CLASS =
+  "absolute inset-x-0 bottom-0 z-20 flex flex-wrap items-center justify-end gap-x-2 gap-y-1 border-t border-app-border bg-app-surface px-3 py-2 text-xs text-muted-foreground"
+
 /** Keep map tiles below toolbar overlays; popovers/tooltips use MAP_FLOATING_UI_Z_CLASS. */
 export const LISTINGS_MAP_CONTENT_CLASS =
   "relative z-0 overflow-hidden rounded-b-lg p-0 [&_.leaflet-pane]:!z-[1] [&_.leaflet-top]:!z-[2] [&_.leaflet-bottom]:!z-[2] [&_.leaflet-control]:!z-[2]"

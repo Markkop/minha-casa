@@ -51,15 +51,15 @@ export function CollectionSelector({
   // Handle empty collections state
   if (collections.length === 0) {
     return (
-      <div className="flex flex-wrap items-center gap-1.5">
+      <div className="flex min-w-0 flex-nowrap items-center gap-1.5 md:flex-wrap">
         {isOrgContext && orgContext.organizationName && (
-          <div className="flex h-7 items-center gap-1 rounded-md bg-app-surface-muted px-2 text-xs font-medium text-app-fg">
+          <div className="flex h-7 shrink-0 items-center gap-1 rounded-md bg-app-surface-muted px-2 text-xs font-medium text-app-fg">
             <Users className="h-3.5 w-3.5 shrink-0" />
             <span className="max-w-[120px] truncate">{orgContext.organizationName}</span>
           </div>
         )}
 
-        <span className="text-xs text-muted-foreground">Nenhuma coleção</span>
+        <span className="shrink-0 text-xs text-muted-foreground">Nenhuma coleção</span>
 
         {onCreateCollection && (
           <PageToolbarButton variant="primary" onClick={onCreateCollection}>
@@ -87,27 +87,28 @@ export function CollectionSelector({
   }
 
   return (
-    <div className="flex flex-wrap items-center gap-1.5">
+    <div className="flex min-w-0 flex-1 flex-nowrap items-center gap-1.5 md:flex-wrap md:flex-none">
       {isOrgContext && orgContext.organizationName && (
-        <div className="flex h-7 items-center gap-1 rounded-md bg-app-surface-muted px-2 text-xs font-medium text-app-fg">
+        <div className="flex h-7 shrink-0 items-center gap-1 rounded-md bg-app-surface-muted px-2 text-xs font-medium text-app-fg">
           <Users className="h-3.5 w-3.5 shrink-0" />
           <span className="max-w-[120px] truncate">{orgContext.organizationName}</span>
         </div>
       )}
 
-      <Select
-        key={`collection-select-${refreshTrigger}-${orgContext.type}-${orgContext.organizationId || 'personal'}`}
-        value={activeCollection?.id || ""}
-        onValueChange={handleCollectionChange}
-      >
-        <SelectTrigger
-          size="sm"
-          className={cn(
-            "h-7 min-w-[160px] w-full text-xs sm:w-[180px] md:w-[220px]",
-            "border-app-border bg-app-surface text-app-fg",
-            "hover:border-app-border-strong hover:bg-app-bg hover:text-app-fg"
-          )}
+      <div className="min-w-0 flex-1">
+        <Select
+          key={`collection-select-${refreshTrigger}-${orgContext.type}-${orgContext.organizationId || 'personal'}`}
+          value={activeCollection?.id || ""}
+          onValueChange={handleCollectionChange}
         >
+          <SelectTrigger
+            size="sm"
+            className={cn(
+              "h-7 w-full min-w-0 text-xs md:w-[220px]",
+              "border-app-border bg-app-surface text-app-fg",
+              "hover:border-app-border-strong hover:bg-app-bg hover:text-app-fg"
+            )}
+          >
           <SelectValue placeholder="Selecionar coleção">
             {activeCollection ? (
               <div className="flex items-center justify-between w-full">
@@ -141,9 +142,10 @@ export function CollectionSelector({
             )
           })}
         </SelectContent>
-      </Select>
+        </Select>
+      </div>
 
-      <div className="flex items-center gap-1">
+      <div className="flex shrink-0 items-center gap-1">
         {onCreateCollection && (
           <PageToolbarIconButton onClick={onCreateCollection} title="Nova coleção">
             <PlusIcon />

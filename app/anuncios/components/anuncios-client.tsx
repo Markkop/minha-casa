@@ -3,7 +3,6 @@
 import { useState, useCallback, useEffect } from "react"
 import { ListingsTable } from "./listings-table"
 import { ListingsMap } from "./listings-map"
-import { SettingsModal } from "./settings-modal"
 import { ParserModal } from "./parser-modal"
 import { DataManagement } from "./data-management"
 import { CollectionSelector } from "./collection-selector"
@@ -14,13 +13,8 @@ import { getDefaultFirstCollectionName } from "../lib/default-first-collection-n
 import { cn } from "@/lib/utils"
 import type { Collection, Imovel } from "../lib/api"
 import { syncSubscriptionCookie } from "@/lib/sync-subscription-cookie"
-import {
-  PageToolbar,
-  PageToolbarEnd,
-  PageToolbarIconButton,
-  PageToolbarStart,
-} from "@/app/components/page-toolbar"
-import { Download, FolderOpen, Link2, Loader2, Plus, Settings } from "lucide-react"
+import { PageToolbar } from "@/app/components/page-toolbar"
+import { Download, FolderOpen, Link2, Loader2, Plus } from "lucide-react"
 import { ModalCloseButton } from "./modal-chrome"
 
 function AnunciosClientInner() {
@@ -38,7 +32,6 @@ function AnunciosClientInner() {
     orgContext,
   } = useCollections()
 
-  const [showSettings, setShowSettings] = useState(false)
   const [showParser, setShowParser] = useState(false)
   const [showCollectionModal, setShowCollectionModal] = useState(false)
   const [editingCollection, setEditingCollection] = useState<Collection | null>(null)
@@ -215,37 +208,27 @@ function AnunciosClientInner() {
   return (
     <div className="min-h-[calc(100vh-104px)] bg-app-bg text-app-fg">
       <PageToolbar>
-        <PageToolbarStart>
-          <DataManagement
-            onDataChange={handleListingsChange}
-            listingsCount={listings.length}
-            onOpenParser={() => setShowParser(true)}
-            onImportSuccess={triggerRefresh}
-            onSwitchToCollection={handleSwitchToCollection}
-          />
-        </PageToolbarStart>
-        <PageToolbarEnd>
-          <CollectionSelector
-            onCollectionChange={handleCollectionChange}
-            onCreateCollection={handleCreateCollection}
-            onEditCollection={handleEditCollection}
-            onDeleteCollection={handleDeleteCollection}
-            refreshTrigger={refreshTrigger}
-          />
-          <PageToolbarIconButton
-            onClick={() => setShowSettings(true)}
-            title="Configurações"
-          >
-            <Settings />
-          </PageToolbarIconButton>
-        </PageToolbarEnd>
+        <div className="flex w-full min-w-0 flex-col gap-1.5 md:flex-row md:items-center md:justify-between md:gap-x-4">
+          <div className="flex w-full min-w-0 flex-nowrap items-center gap-1.5 md:order-2 md:w-auto md:shrink-0">
+            <CollectionSelector
+              onCollectionChange={handleCollectionChange}
+              onCreateCollection={handleCreateCollection}
+              onEditCollection={handleEditCollection}
+              onDeleteCollection={handleDeleteCollection}
+              refreshTrigger={refreshTrigger}
+            />
+          </div>
+          <div className="flex w-full min-w-0 flex-nowrap items-center gap-2 md:order-1 md:min-w-0 md:flex-1">
+            <DataManagement
+              onDataChange={handleListingsChange}
+              listingsCount={listings.length}
+              onOpenParser={() => setShowParser(true)}
+              onImportSuccess={triggerRefresh}
+              onSwitchToCollection={handleSwitchToCollection}
+            />
+          </div>
+        </div>
       </PageToolbar>
-
-      {/* Settings Modal */}
-      <SettingsModal
-        isOpen={showSettings}
-        onClose={() => setShowSettings(false)}
-      />
 
       {/* Collection Modal */}
       <CollectionModal

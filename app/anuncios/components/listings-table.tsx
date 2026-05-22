@@ -395,6 +395,10 @@ function StackedSortHeader({
 
 type PropertyTypeFilter = "all" | "casa" | "apartamento"
 
+const STATUS_TRIGGER_WIDTH = "w-[128px]"
+const ROW_ACTION_BTN_CLASS = "flex-shrink-0 p-0.5 transition-colors"
+const ROW_ACTION_ICON_CLASS = "h-3.5 w-3.5"
+
 export function ListingsTable({ listings, onListingsChange, hasApiKey = true }: ListingsTableProps) {
   const {
     collections,
@@ -411,7 +415,7 @@ export function ListingsTable({ listings, onListingsChange, hasApiKey = true }: 
   const [editingListing, setEditingListing] = useState<Imovel | null>(null)
   const [focusImageUrl, setFocusImageUrl] = useState(false)
   const [imageModalListing, setImageModalListing] = useState<Imovel | null>(null)
-  const [copyingListingId, setCopyingListingId] = useState<string | null>(null)
+  const [copyToCollectionPopoverOpen, setCopyToCollectionPopoverOpen] = useState<string | null>(null)
   const [contactPopoverOpen, setContactPopoverOpen] = useState<string | null>(null)
   const [contactNameInput, setContactNameInput] = useState("")
   const [contactNumberInput, setContactNumberInput] = useState("")
@@ -728,7 +732,7 @@ export function ListingsTable({ listings, onListingsChange, hasApiKey = true }: 
     // Copy to collection feature is disabled until backend supports it
     // TODO: Implement API endpoint for copying listings between collections
     console.warn("Copy to collection feature is not yet implemented with server-side storage")
-    setCopyingListingId(null)
+    setCopyToCollectionPopoverOpen(null)
   }
 
   const handleSort = (key: SortKey) => {
@@ -1689,12 +1693,6 @@ export function ListingsTable({ listings, onListingsChange, hasApiKey = true }: 
                         privado={calculatePrecoM2Privado(imovel.preco, imovel.m2Privado)}
                         activeVariant={getMetricVariantForSortKey(sort.key)}
                         enabledVariants={enabledMetricVariants}
-                        totalTooltip={imovel.tipoImovel
-                          ? imovel.tipoImovel === "apartamento"
-                            ? "Área total de um apartamento inclui área comum, então esse valor pode confundir"
-                            : "Valor do terreno/área total é melhor pra comprar, Média itacorubi: R$2.000-3.000"
-                          : undefined}
-                        privadoTooltip={imovel.tipoImovel === "apartamento" ? "Média Apto Itacorubi: R$12.000" : undefined}
                       />
                     </TableCell>
                     )}
@@ -1747,15 +1745,17 @@ export function ListingsTable({ listings, onListingsChange, hasApiKey = true }: 
                       const option = getListingStatusOption(status)
 
                       return (
-                        <TableCell className="min-w-[132px] align-top">
-                          <div className="flex flex-col items-center gap-1.5">
+                        <TableCell className="min-w-[132px] align-middle">
+                          <div className="flex flex-col items-center justify-center gap-1">
                             <Select
                               value={status}
                               onValueChange={(value) => handleChangeListingStatus(imovel.id, value as ListingStatus)}
                             >
                               <SelectTrigger
+                                size="sm"
                                 className={cn(
-                                  "h-6 w-[128px] rounded-full border px-2 py-0 text-[11px] font-medium shadow-none [&_svg]:size-3",
+                                  STATUS_TRIGGER_WIDTH,
+                                  "!h-5 !min-h-5 rounded-full border px-2 !py-0 leading-none text-[11px] font-medium shadow-none gap-0.5 [&_svg]:size-3",
                                   option.className
                                 )}
                               >
@@ -1773,7 +1773,12 @@ export function ListingsTable({ listings, onListingsChange, hasApiKey = true }: 
                                 ))}
                               </SelectContent>
                             </Select>
-                            <div className="flex items-center justify-center gap-2 flex-nowrap">
+                            <div
+                              className={cn(
+                                "flex flex-nowrap items-center justify-between",
+                                STATUS_TRIGGER_WIDTH
+                              )}
+                            >
                               <Tooltip>
                                 <TooltipTrigger asChild>
                                   <a
@@ -1786,9 +1791,12 @@ export function ListingsTable({ listings, onListingsChange, hasApiKey = true }: 
                                     )}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="inline-block flex-shrink-0 p-1 text-muted-foreground transition-colors hover:text-app-accent"
+                                    className={cn(
+                                      ROW_ACTION_BTN_CLASS,
+                                      "inline-block text-muted-foreground hover:text-app-accent"
+                                    )}
                                   >
-                                    <MagnifyingGlassIcon className="h-4 w-4" />
+                                    <MagnifyingGlassIcon className={ROW_ACTION_ICON_CLASS} />
                                   </a>
                                 </TooltipTrigger>
                                 <TooltipContent
@@ -1811,9 +1819,12 @@ export function ListingsTable({ listings, onListingsChange, hasApiKey = true }: 
                                           href={whatsappUrl}
                                           target="_blank"
                                           rel="noopener noreferrer"
-                                          className="text-green-500 hover:text-green-400 transition-colors p-1 inline-block flex-shrink-0"
+                                          className={cn(
+                                            ROW_ACTION_BTN_CLASS,
+                                            "inline-block text-green-500 hover:text-green-400"
+                                          )}
                                         >
-                                          <FaWhatsapp className="h-4 w-4" />
+                                          <FaWhatsapp className={ROW_ACTION_ICON_CLASS} />
                                         </a>
                                       </TooltipTrigger>
                                       <TooltipContent
@@ -1843,9 +1854,12 @@ export function ListingsTable({ listings, onListingsChange, hasApiKey = true }: 
                                         <PopoverTrigger asChild>
                                           <button
                                             onClick={() => handleOpenContactPopover(imovel.id, imovel.contactName, imovel.contactNumber)}
-                                            className="text-gray-400 hover:text-app-accent transition-colors p-1 flex-shrink-0"
+                                            className={cn(
+                                              ROW_ACTION_BTN_CLASS,
+                                              "text-gray-400 hover:text-app-accent"
+                                            )}
                                           >
-                                            <FaWhatsapp className="h-4 w-4" />
+                                            <FaWhatsapp className={ROW_ACTION_ICON_CLASS} />
                                           </button>
                                         </PopoverTrigger>
                                       </TooltipTrigger>
@@ -1952,9 +1966,12 @@ export function ListingsTable({ listings, onListingsChange, hasApiKey = true }: 
                                     <PopoverTrigger asChild>
                                       <button
                                         onClick={() => handleOpenQuickReparsePopover(imovel)}
-                                        className="transition-colors p-1 flex-shrink-0 text-muted-foreground hover:text-app-accent"
+                                        className={cn(
+                                          ROW_ACTION_BTN_CLASS,
+                                          "text-muted-foreground hover:text-app-accent"
+                                        )}
                                       >
-                                        <RefreshCw className="h-4 w-4" />
+                                        <RefreshCw className={ROW_ACTION_ICON_CLASS} />
                                       </button>
                                     </PopoverTrigger>
                                   </TooltipTrigger>
@@ -2027,9 +2044,12 @@ export function ListingsTable({ listings, onListingsChange, hasApiKey = true }: 
                                       setFocusImageUrl(false)
                                       setEditingListing(imovel)
                                     }}
-                                    className="text-muted-foreground hover:text-app-accent transition-colors p-1 flex-shrink-0"
+                                    className={cn(
+                                      ROW_ACTION_BTN_CLASS,
+                                      "text-muted-foreground hover:text-app-accent"
+                                    )}
                                   >
-                                    <PencilIcon className="h-4 w-4" />
+                                    <PencilIcon className={ROW_ACTION_ICON_CLASS} />
                                   </button>
                                 </TooltipTrigger>
                                 <TooltipContent
@@ -2044,9 +2064,12 @@ export function ListingsTable({ listings, onListingsChange, hasApiKey = true }: 
                                 <TooltipTrigger asChild>
                                   <button
                                     onClick={() => handleDelete(imovel.id)}
-                                    className="text-muted-foreground hover:text-destructive transition-colors p-1 flex-shrink-0"
+                                    className={cn(
+                                      ROW_ACTION_BTN_CLASS,
+                                      "text-muted-foreground hover:text-destructive"
+                                    )}
                                   >
-                                    <TrashIcon className="h-4 w-4" />
+                                    <TrashIcon className={ROW_ACTION_ICON_CLASS} />
                                   </button>
                                 </TooltipTrigger>
                                 <TooltipContent
@@ -2058,47 +2081,25 @@ export function ListingsTable({ listings, onListingsChange, hasApiKey = true }: 
                                 </TooltipContent>
                               </Tooltip>
                               {hasOtherCollections && (
-                                copyingListingId === imovel.id ? (
-                                  <Select
-                                    value=""
-                                    onValueChange={(value) => handleCopyToCollection(imovel.id, value)}
-                                    onOpenChange={(open) => {
-                                      if (!open) setCopyingListingId(null)
-                                    }}
-                                  >
-                                    <SelectTrigger
-                                      className={cn(
-                                        "h-6 w-[120px] text-xs",
-                                        "bg-app-surface-muted border-app-border",
-                                        "hover:border-app-action hover:text-app-accent",
-                                        "text-app-fg"
-                                      )}
-                                    >
-                                      <SelectValue placeholder="Copiar para..." />
-                                    </SelectTrigger>
-                                    <SelectContent className="bg-app-surface border-app-border">
-                                      {collections
-                                        .filter((c) => c.id !== activeCollection?.id)
-                                        .map((collection) => (
-                                          <SelectItem
-                                            key={collection.id}
-                                            value={collection.id}
-                                            className="text-app-fg hover:bg-app-surface-muted"
-                                          >
-                                            {collection.label}
-                                          </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                  </Select>
-                                ) : (
+                                <Popover
+                                  open={copyToCollectionPopoverOpen === imovel.id}
+                                  onOpenChange={(open) => {
+                                    setCopyToCollectionPopoverOpen(open ? imovel.id : null)
+                                  }}
+                                >
                                   <Tooltip>
                                     <TooltipTrigger asChild>
-                                      <button
-                                        onClick={() => setCopyingListingId(imovel.id)}
-                                        className="text-muted-foreground hover:text-app-accent transition-colors p-1 flex-shrink-0"
-                                      >
-                                        <FolderIcon className="h-4 w-4" />
-                                      </button>
+                                      <PopoverTrigger asChild>
+                                        <button
+                                          type="button"
+                                          className={cn(
+                                            ROW_ACTION_BTN_CLASS,
+                                            "text-muted-foreground hover:text-app-accent"
+                                          )}
+                                        >
+                                          <FolderIcon className={ROW_ACTION_ICON_CLASS} />
+                                        </button>
+                                      </PopoverTrigger>
                                     </TooltipTrigger>
                                     <TooltipContent
                                       side="bottom"
@@ -2108,7 +2109,38 @@ export function ListingsTable({ listings, onListingsChange, hasApiKey = true }: 
                                       Copiar para outra coleção
                                     </TooltipContent>
                                   </Tooltip>
-                                )
+                                  <PopoverContent
+                                    align="end"
+                                    sideOffset={6}
+                                    className="w-52 border-app-border bg-app-surface p-1 text-app-fg"
+                                  >
+                                    <p className="px-2 py-1 text-xs font-medium text-app-muted">
+                                      Copiar para...
+                                    </p>
+                                    <div className="flex flex-col gap-0.5">
+                                      {collections
+                                        .filter((c) => c.id !== activeCollection?.id)
+                                        .map((collection) => (
+                                          <button
+                                            key={collection.id}
+                                            type="button"
+                                            onClick={() =>
+                                              void handleCopyToCollection(imovel.id, collection.id)
+                                            }
+                                            className={cn(
+                                              "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors",
+                                              "text-left hover:bg-app-surface-muted"
+                                            )}
+                                          >
+                                            <FolderIcon
+                                              className={cn(ROW_ACTION_ICON_CLASS, "shrink-0")}
+                                            />
+                                            <span className="flex-1 truncate">{collection.label}</span>
+                                          </button>
+                                        ))}
+                                    </div>
+                                  </PopoverContent>
+                                </Popover>
                               )}
                             </div>
                           </div>
