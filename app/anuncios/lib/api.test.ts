@@ -10,6 +10,8 @@ import {
   updateApiListing,
   deleteListing,
   parseListingWithAI,
+  parseListing,
+  parseParseApiResponseBody,
   ApiError,
   ErrorCode,
   type ApiCollection,
@@ -20,6 +22,22 @@ import {
 // Mock fetch globally
 const mockFetch = vi.fn()
 global.fetch = mockFetch
+
+function mockParseFetchResponse(options: {
+  ok: boolean
+  status?: number
+  body: Record<string, unknown>
+}) {
+  return {
+    ok: options.ok,
+    status: options.status ?? (options.ok ? 200 : 500),
+    headers: {
+      get: (name: string) =>
+        name.toLowerCase() === "content-type" ? "application/json" : null,
+    },
+    json: async () => options.body,
+  }
+}
 
 describe("API Client", () => {
   beforeEach(() => {
@@ -351,6 +369,54 @@ describe("API Client", () => {
     })
   })
 
+  describe("parseParseApiResponseBody", () => {
+    it("returns friendly error when response body is HTML", async () => {
+      const response = new Response("<html><body>Internal Server Error</body></html>", {
+        status: 500,
+        headers: { "Content-Type": "text/html" },
+      })
+
+      const result = await parseParseApiResponseBody(response)
+
+      expect(result.error).toBe(
+        "Erro no servidor ao processar o anúncio. Tente novamente ou cole o texto."
+      )
+    })
+
+    it("parses JSON when content-type is missing but body is JSON", async () => {
+      const response = new Response(
+        JSON.stringify({ listings: [{ titulo: "A", endereco: "B", preco: 1 }] }),
+        { status: 200, headers: { "Content-Type": "text/plain" } }
+      )
+
+      const result = await parseParseApiResponseBody(response)
+
+      expect(result.listings).toHaveLength(1)
+    })
+  })
+
+  describe("parseListing", () => {
+    it("throws friendly ApiError when server returns non-JSON 500", async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 500,
+        headers: {
+          get: (name: string) =>
+            name.toLowerCase() === "content-type" ? "text/html; charset=utf-8" : null,
+        },
+        text: async () => "<html>error</html>",
+      })
+
+      await expect(
+        parseListing({ kind: "url", url: "https://www.vivareal.com.br/imovel/x" })
+      ).rejects.toMatchObject({
+        message:
+          "Erro no servidor ao processar o anúncio. Tente novamente ou cole o texto.",
+        status: 500,
+      })
+    })
+  })
+
   describe("parseListingWithAI", () => {
     it("should parse listing successfully", async () => {
       const mockData = {
@@ -372,10 +438,9 @@ describe("API Client", () => {
         link: null,
       }
 
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ listings: [mockData] }),
-      })
+      mockFetch.mockResolvedValueOnce(
+        mockParseFetchResponse({ ok: true, body: { listings: [mockData] } })
+      )
 
       const result = await parseListingWithAI("Some raw listing text")
 
@@ -388,15 +453,17 @@ describe("API Client", () => {
     })
 
     it("should throw ApiError when multiple listings are detected", async () => {
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          listings: [
-            { titulo: "A", endereco: "X", preco: 100 },
-            { titulo: "B", endereco: "Y", preco: 200 },
-          ],
-        }),
-      })
+      mockFetch.mockResolvedValueOnce(
+        mockParseFetchResponse({
+          ok: true,
+          body: {
+            listings: [
+              { titulo: "A", endereco: "X", preco: 100 },
+              { titulo: "B", endereco: "Y", preco: 200 },
+            ],
+          },
+        })
+      )
 
       try {
         await parseListingWithAI("two ads")
@@ -408,11 +475,13 @@ describe("API Client", () => {
     })
 
     it("should throw ApiError for unauthorized user", async () => {
-      mockFetch.mockResolvedValueOnce({
-        ok: false,
-        status: 401,
-        json: async () => ({ error: "Unauthorized" }),
-      })
+      mockFetch.mockResolvedValueOnce(
+        mockParseFetchResponse({
+          ok: false,
+          status: 401,
+          body: { error: "Unauthorized" },
+        })
+      )
 
       try {
         await parseListingWithAI("text")
@@ -428,11 +497,13 @@ describe("API Client", () => {
     })
 
     it("should throw ApiError for service unavailable", async () => {
-      mockFetch.mockResolvedValueOnce({
-        ok: false,
-        status: 503,
-        json: async () => ({ error: "Service unavailable" }),
-      })
+      mockFetch.mockResolvedValueOnce(
+        mockParseFetchResponse({
+          ok: false,
+          status: 503,
+          body: { error: "Service unavailable" },
+        })
+      )
 
       try {
         await parseListingWithAI("text")
@@ -448,11 +519,13 @@ describe("API Client", () => {
     })
 
     it("should throw ApiError for rate limiting", async () => {
-      mockFetch.mockResolvedValueOnce({
-        ok: false,
-        status: 429,
-        json: async () => ({ error: "Rate limited" }),
-      })
+      mockFetch.mockResolvedValueOnce(
+        mockParseFetchResponse({
+          ok: false,
+          status: 429,
+          body: { error: "Rate limited" },
+        })
+      )
 
       try {
         await parseListingWithAI("text")

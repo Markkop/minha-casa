@@ -411,7 +411,11 @@ export function ParserModal({
           {phase === "input" && (
             <div className="space-y-2">
               <Input
-                type="url"
+                type="text"
+                inputMode="url"
+                autoCapitalize="off"
+                autoCorrect="off"
+                spellCheck={false}
                 value={urlValue}
                 onChange={(e) => {
                   setUrlValue(e.target.value)

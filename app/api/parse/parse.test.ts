@@ -85,11 +85,73 @@ vi.mock("openai", () => ({
   OpenAI: MockOpenAI,
 }))
 
+let pdfParseImportCount = 0
+
+vi.mock("pdf-parse", () => {
+  pdfParseImportCount += 1
+  return {
+    PDFParse: class MockPDFParse {
+      constructor(_opts: { data: Buffer }) {}
+      async getText() {
+        return { text: "Texto extraído do PDF com conteúdo suficiente para parsing." }
+      }
+    },
+  }
+})
+
+vi.mock("@/lib/scrapingant", () => ({
+  scrapeUrlToMarkdown: vi.fn(),
+  ScrapingAntError: class ScrapingAntError extends Error {
+    statusCode: number
+    constructor(message: string, statusCode = 502) {
+      super(message)
+      this.name = "ScrapingAntError"
+      this.statusCode = statusCode
+    }
+  },
+}))
+
 describe("Parse API - POST /api/parse", () => {
   beforeEach(() => {
     vi.resetModules()
     vi.clearAllMocks()
+    pdfParseImportCount = 0
     vi.stubEnv("OPENAI_API_KEY", "test-openai-api-key")
+  })
+
+  it("parses listing from URL without loading pdf-parse", async () => {
+    const { getServerSession } = await import("@/lib/auth-server")
+    const { scrapeUrlToMarkdown } = await import("@/lib/scrapingant")
+    vi.mocked(getServerSession).mockResolvedValue(mockSession)
+    vi.mocked(scrapeUrlToMarkdown).mockResolvedValue({
+      markdown:
+        "# Apartamento VivaReal\n\n3 quartos, 2 banheiros, 120m², R$ 850.000 em Florianópolis.",
+      sourceUrl: "https://www.vivareal.com.br/imovel/test",
+    })
+
+    mockCreate.mockResolvedValue({
+      choices: [{ message: { content: JSON.stringify(mockParsedResponse) } }],
+    })
+
+    const { POST } = await import("./route")
+    const request = new NextRequest("http://localhost/api/parse", {
+      method: "POST",
+      body: JSON.stringify({
+        kind: "url",
+        url: "https://www.vivareal.com.br/imovel/test",
+      }),
+    })
+
+    const response = await POST(request)
+    const json = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(json.listings).toHaveLength(1)
+    expect(json.listings[0].link).toBe("https://www.vivareal.com.br/imovel/test")
+    expect(scrapeUrlToMarkdown).toHaveBeenCalledWith(
+      "https://www.vivareal.com.br/imovel/test"
+    )
+    expect(pdfParseImportCount).toBe(0)
   })
 
   it("returns 401 when not authenticated", async () => {

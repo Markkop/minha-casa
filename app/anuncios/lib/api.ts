@@ -377,6 +377,36 @@ interface ParseApiResponse {
 const MULTI_LISTING_REPARSE_ERROR =
   "Foram detectados vários imóveis. Use Adicionar imóvel para importar em lote."
 
+const PARSE_SERVER_ERROR_MESSAGE =
+  "Erro no servidor ao processar o anúncio. Tente novamente ou cole o texto."
+
+/** Parses /api/parse body; avoids leaking raw JSON SyntaxError on HTML error pages. */
+export async function parseParseApiResponseBody(
+  response: Response
+): Promise<ParseApiResponse> {
+  const contentType = response.headers.get("content-type") ?? ""
+  if (!contentType.includes("application/json")) {
+    const text = await response.text().catch(() => "")
+    if (!response.ok) {
+      return { error: PARSE_SERVER_ERROR_MESSAGE }
+    }
+    if (text.trim().startsWith("{")) {
+      try {
+        return JSON.parse(text) as ParseApiResponse
+      } catch {
+        return { error: PARSE_SERVER_ERROR_MESSAGE }
+      }
+    }
+    return { error: PARSE_SERVER_ERROR_MESSAGE }
+  }
+
+  try {
+    return (await response.json()) as ParseApiResponse
+  } catch {
+    return { error: PARSE_SERVER_ERROR_MESSAGE }
+  }
+}
+
 async function handleParseApiResponse(
   response: Response,
   result: ParseApiResponse
@@ -430,7 +460,7 @@ export async function parseListing(input: ParseRequest): Promise<ListingData[]> 
     body: JSON.stringify(input),
   })
 
-  const result: ParseApiResponse = await response.json()
+  const result = await parseParseApiResponseBody(response)
   return handleParseApiResponse(response, result)
 }
 

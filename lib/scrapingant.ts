@@ -5,6 +5,15 @@ const FETCH_TIMEOUT_MS = 55_000
 export const MIN_SCRAPED_MARKDOWN_LENGTH = 50
 export const MAX_SCRAPED_MARKDOWN_LENGTH = 100_000
 
+const JS_HEAVY_PORTAL_HOST_SUFFIXES = [
+  "vivareal.com.br",
+  "zapimoveis.com.br",
+  "olx.com.br",
+  "quintoandar.com.br",
+  "imovelweb.com.br",
+  "chavesnamao.com.br",
+]
+
 export class ScrapingAntError extends Error {
   constructor(
     message: string,
@@ -67,18 +76,66 @@ function truncateMarkdown(markdown: string): string {
   return `${markdown.slice(0, MAX_SCRAPED_MARKDOWN_LENGTH)}\n\n[conteúdo truncado]`
 }
 
-/**
- * Fetches listing page content via ScrapingAnt markdown endpoint.
- * Uses browser=false per product configuration (faster, lower credit cost).
- */
-export async function scrapeUrlToMarkdown(rawUrl: string): Promise<ScrapeMarkdownResult> {
-  const parsed = validatePublicHttpUrl(rawUrl)
-  const apiKey = getApiKey()
+function extractMarkdown(body: unknown): string {
+  if (
+    body &&
+    typeof body === "object" &&
+    typeof (body as Record<string, unknown>).markdown === "string"
+  ) {
+    return (body as { markdown: string }).markdown.trim()
+  }
+  return ""
+}
 
+export function isJsHeavyListingPortal(hostname: string): boolean {
+  const lower = hostname.toLowerCase()
+  return JS_HEAVY_PORTAL_HOST_SUFFIXES.some(
+    (suffix) => lower === suffix || lower.endsWith(`.${suffix}`)
+  )
+}
+
+async function parseResponseBody(
+  response: Response,
+  contentType: string
+): Promise<{ body: unknown; rawPreview: string | null }> {
+  const rawText = await response.text()
+
+  if (!rawText) {
+    return { body: null, rawPreview: null }
+  }
+
+  const preview = rawText.slice(0, 200)
+  const shouldTryJson =
+    contentType.includes("application/json") ||
+    contentType.includes("+json") ||
+    (response.ok && rawText.trimStart().startsWith("{"))
+
+  if (!shouldTryJson) {
+    if (!response.ok) {
+      return { body: { detail: rawText.slice(0, 500) }, rawPreview: preview }
+    }
+    return { body: null, rawPreview: preview }
+  }
+
+  try {
+    return { body: JSON.parse(rawText) as unknown, rawPreview: preview }
+  } catch {
+    if (!response.ok) {
+      return { body: { detail: rawText.slice(0, 500) }, rawPreview: preview }
+    }
+    return { body: null, rawPreview: preview }
+  }
+}
+
+async function fetchMarkdownFromScrapingAnt(
+  sourceUrl: URL,
+  apiKey: string,
+  browser: boolean
+): Promise<{ markdown: string; httpStatus: number; contentType: string }> {
   const params = new URLSearchParams({
-    url: parsed.toString(),
+    url: sourceUrl.toString(),
     "x-api-key": apiKey,
-    browser: "false",
+    browser: browser ? "true" : "false",
   })
 
   const controller = new AbortController()
@@ -106,43 +163,71 @@ export async function scrapeUrlToMarkdown(rawUrl: string): Promise<ScrapeMarkdow
     clearTimeout(timeoutId)
   }
 
-  let body: unknown = null
   const contentType = response.headers.get("content-type") ?? ""
-  if (contentType.includes("application/json")) {
-    try {
-      body = await response.json()
-    } catch {
-      body = null
-    }
-  } else if (!response.ok) {
-    const text = await response.text().catch(() => "")
-    body = text ? { detail: text.slice(0, 500) } : null
-  }
+  const { body, rawPreview } = await parseResponseBody(response, contentType)
 
   if (!response.ok) {
     const detail = parseErrorDetail(body)
+    console.warn("[scrapingant] request failed", {
+      hostname: sourceUrl.hostname,
+      browser,
+      httpStatus: response.status,
+      contentType,
+      bodyPreview: rawPreview,
+    })
     throw new ScrapingAntError(
       mapHttpStatusToMessage(response.status, detail),
       response.status === 429 ? 429 : response.status >= 500 ? 502 : 400
     )
   }
 
-  const markdown =
-    body &&
-    typeof body === "object" &&
-    typeof (body as Record<string, unknown>).markdown === "string"
-      ? (body as { markdown: string }).markdown.trim()
-      : ""
-
-  if (markdown.length < MIN_SCRAPED_MARKDOWN_LENGTH) {
-    throw new ScrapingAntError(
-      "Não foi possível extrair conteúdo suficiente desta página. Cole o texto do anúncio ou tente outro link.",
-      400
-    )
+  const markdown = extractMarkdown(body)
+  if (markdown.length < MIN_SCRAPED_MARKDOWN_LENGTH && rawPreview) {
+    console.warn("[scrapingant] short or empty markdown", {
+      hostname: sourceUrl.hostname,
+      browser,
+      httpStatus: response.status,
+      contentType,
+      markdownLength: markdown.length,
+      bodyPreview: rawPreview,
+    })
   }
 
-  return {
-    markdown: truncateMarkdown(markdown),
-    sourceUrl: parsed.toString(),
+  return { markdown, httpStatus: response.status, contentType }
+}
+
+/**
+ * Fetches listing page content via ScrapingAnt markdown endpoint.
+ * Uses browser=false first; retries with browser=true on JS-heavy portals when content is too short.
+ */
+export async function scrapeUrlToMarkdown(rawUrl: string): Promise<ScrapeMarkdownResult> {
+  const parsed = validatePublicHttpUrl(rawUrl)
+  const apiKey = getApiKey()
+  const hostname = parsed.hostname
+  const useBrowserRetry = isJsHeavyListingPortal(hostname)
+
+  const first = await fetchMarkdownFromScrapingAnt(parsed, apiKey, false)
+
+  if (first.markdown.length >= MIN_SCRAPED_MARKDOWN_LENGTH) {
+    return {
+      markdown: truncateMarkdown(first.markdown),
+      sourceUrl: parsed.toString(),
+    }
   }
+
+  if (useBrowserRetry) {
+    console.info("[scrapingant] retrying with browser=true", { hostname })
+    const second = await fetchMarkdownFromScrapingAnt(parsed, apiKey, true)
+    if (second.markdown.length >= MIN_SCRAPED_MARKDOWN_LENGTH) {
+      return {
+        markdown: truncateMarkdown(second.markdown),
+        sourceUrl: parsed.toString(),
+      }
+    }
+  }
+
+  throw new ScrapingAntError(
+    "Não foi possível extrair conteúdo suficiente desta página. Cole o texto do anúncio ou tente outro link.",
+    400
+  )
 }

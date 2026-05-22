@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import {
   scrapeUrlToMarkdown,
   ScrapingAntError,
+  isJsHeavyListingPortal,
   MAX_SCRAPED_MARKDOWN_LENGTH,
   MIN_SCRAPED_MARKDOWN_LENGTH,
 } from "./scrapingant"
@@ -77,7 +78,7 @@ describe("scrapeUrlToMarkdown", () => {
     })
   })
 
-  it("throws when markdown is too short", async () => {
+  it("throws when markdown is too short on non-portal hosts", async () => {
     vi.mocked(fetch).mockResolvedValueOnce(
       new Response(
         JSON.stringify({ markdown: "x".repeat(MIN_SCRAPED_MARKDOWN_LENGTH - 1) }),
@@ -89,6 +90,55 @@ describe("scrapeUrlToMarkdown", () => {
       statusCode: 400,
       message: expect.stringContaining("conteúdo suficiente"),
     })
+    expect(vi.mocked(fetch)).toHaveBeenCalledTimes(1)
+  })
+
+  it("retries with browser=true on JS-heavy portals when first scrape is short", async () => {
+    const short = "x".repeat(MIN_SCRAPED_MARKDOWN_LENGTH - 1)
+    const long =
+      "# Apartamento\n\n" + "a".repeat(MIN_SCRAPED_MARKDOWN_LENGTH)
+
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ markdown: short }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        })
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ markdown: long }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        })
+      )
+
+    const result = await scrapeUrlToMarkdown(
+      "https://www.vivareal.com.br/imovel/apartamento-venda"
+    )
+
+    expect(result.markdown).toContain("Apartamento")
+    expect(vi.mocked(fetch)).toHaveBeenCalledTimes(2)
+    expect(String(vi.mocked(fetch).mock.calls[0][0])).toContain("browser=false")
+    expect(String(vi.mocked(fetch).mock.calls[1][0])).toContain("browser=true")
+  })
+
+  it("parses JSON body when content-type is not application/json", async () => {
+    const markdown =
+      "# Casa\n\n" + "Descrição longa do imóvel. ".repeat(10)
+    vi.mocked(fetch).mockResolvedValueOnce(
+      new Response(JSON.stringify({ markdown }), {
+        status: 200,
+        headers: { "Content-Type": "text/plain" },
+      })
+    )
+
+    const result = await scrapeUrlToMarkdown("https://example.com/listing")
+    expect(result.markdown).toContain("Casa")
+  })
+
+  it("detects JS-heavy listing portals", () => {
+    expect(isJsHeavyListingPortal("www.vivareal.com.br")).toBe(true)
+    expect(isJsHeavyListingPortal("example.com")).toBe(false)
   })
 
   it("truncates very long markdown", async () => {

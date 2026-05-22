@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "@/lib/auth-server"
 import OpenAI from "openai"
-import { PDFParse } from "pdf-parse"
 import { scrapeUrlToMarkdown, ScrapingAntError } from "@/lib/scrapingant"
 import type { ListingData } from "@/lib/db/schema"
 
@@ -197,9 +196,35 @@ function assertBase64Size(buffer: Buffer, maxBytes: number, label: string): void
 }
 
 async function extractTextFromPdf(buffer: Buffer): Promise<string> {
-  const parser = new PDFParse({ data: buffer })
-  const result = await parser.getText()
-  return (result.text || "").trim()
+  let PDFParse: typeof import("pdf-parse").PDFParse
+  try {
+    ;({ PDFParse } = await import("pdf-parse"))
+  } catch (error) {
+    console.error("[parse] pdf-parse module failed to load:", error)
+    throw new Error("PDF_MODULE_UNAVAILABLE")
+  }
+
+  try {
+    const parser = new PDFParse({ data: buffer })
+    const result = await parser.getText()
+    return (result.text || "").trim()
+  } catch (error) {
+    console.error("[parse] pdf-parse extraction failed:", error)
+    throw new Error("PDF_EXTRACT_FAILED")
+  }
+}
+
+function getParseKind(parseBody: ParseBody): string {
+  if ("rawText" in parseBody && !("kind" in parseBody)) return "legacy-text"
+  return parseBody.kind
+}
+
+function logParseStart(kind: string, extra?: Record<string, string | number>) {
+  console.info("[parse] start", { kind, ...extra })
+}
+
+function logParseSuccess(kind: string, listingCount: number, durationMs: number) {
+  console.info("[parse] success", { kind, listingCount, durationMs })
 }
 
 function isValidParsedListing(parsed: ParsedListingData): boolean {
@@ -356,6 +381,9 @@ async function parseWithVision(
  * Parse listing content from text, image, or PDF using AI
  */
 export async function POST(request: NextRequest) {
+  const startedAt = Date.now()
+  let parseKind = "unknown"
+
   try {
     const session = await getServerSession()
     if (!session?.user) {
@@ -381,6 +409,8 @@ export async function POST(request: NextRequest) {
     }
 
     const openai = new OpenAI({ apiKey })
+    parseKind = getParseKind(parseBody)
+    logParseStart(parseKind)
 
     let listings: ListingData[]
 
@@ -412,7 +442,16 @@ export async function POST(request: NextRequest) {
       let extracted: string
       try {
         extracted = await extractTextFromPdf(buffer)
-      } catch {
+      } catch (error) {
+        if (error instanceof Error && error.message === "PDF_MODULE_UNAVAILABLE") {
+          return NextResponse.json(
+            {
+              error:
+                "Leitura de PDF indisponível no servidor no momento. Cole o texto ou envie uma imagem do anúncio.",
+            },
+            { status: 503 }
+          )
+        }
         return NextResponse.json(
           { error: "Não foi possível ler o PDF. Verifique se o arquivo está íntegro." },
           { status: 400 }
@@ -436,15 +475,36 @@ export async function POST(request: NextRequest) {
           { status: 400 }
         )
       }
+      let listingHostname = "unknown"
+      try {
+        listingHostname = new URL(url).hostname
+      } catch {
+        listingHostname = "invalid"
+      }
+
+      const scrapeStartedAt = Date.now()
       let scraped: Awaited<ReturnType<typeof scrapeUrlToMarkdown>>
       try {
         scraped = await scrapeUrlToMarkdown(url)
+        console.info("[parse] scrape ok", {
+          hostname: listingHostname,
+          markdownLength: scraped.markdown.length,
+          durationMs: Date.now() - scrapeStartedAt,
+        })
       } catch (error) {
         if (error instanceof Error && error.message === "INVALID_URL") {
           return NextResponse.json(
             { error: "Informe uma URL válida (http ou https)." },
             { status: 400 }
           )
+        }
+        if (error instanceof ScrapingAntError) {
+          console.warn("[parse] scrape failed", {
+            hostname: listingHostname,
+            statusCode: error.statusCode,
+            message: error.message,
+            durationMs: Date.now() - scrapeStartedAt,
+          })
         }
         throw error
       }
@@ -459,9 +519,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Invalid request kind" }, { status: 400 })
     }
 
+    logParseSuccess(parseKind, listings.length, Date.now() - startedAt)
     return NextResponse.json({ listings }, { status: 200 })
   } catch (error) {
-    console.error("Error parsing listing:", error)
+    console.error("[parse] error", {
+      kind: parseKind,
+      durationMs: Date.now() - startedAt,
+      error,
+    })
 
     if (error instanceof ScrapingAntError) {
       return NextResponse.json({ error: error.message }, { status: error.statusCode })
