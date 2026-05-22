@@ -37,7 +37,11 @@ GOOGLE_CLIENT_ID=<from Google Cloud Console>
 GOOGLE_CLIENT_SECRET=<from Google Cloud Console>
 ```
 
-Also keep the existing production values for OpenAI, Google Maps, Stripe and share links.
+Also keep the existing production values for OpenAI, ScrapingAnt, Google Maps, Stripe and share links.
+
+```env
+SCRAPINGANT_API_KEY=<from ScrapingAnt dashboard>
+```
 
 **Production domain (example):** `https://casas.markkop.dev` — use your real hostname in Google OAuth and in `BETTER_AUTH_*` / `NEXT_PUBLIC_APP_URL`.
 

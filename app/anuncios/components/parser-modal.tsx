@@ -66,8 +66,10 @@ export function ParserModal({
   } = useCollections()
 
   const [phase, setPhase] = useState<ParserPhase>("input")
+  const [urlValue, setUrlValue] = useState("")
   const [rawText, setRawText] = useState("")
   const [attachedFile, setAttachedFile] = useState<File | null>(null)
+  const [loadingLabel, setLoadingLabel] = useState("Processando...")
   const [collectionValue, setCollectionValue] = useState("")
   const [newCollectionName, setNewCollectionName] = useState("")
   const [targetCollectionId, setTargetCollectionId] = useState<string | null>(null)
@@ -93,8 +95,10 @@ export function ParserModal({
 
   const resetModal = useCallback(() => {
     setPhase("input")
+    setUrlValue("")
     setRawText("")
     setAttachedFile(null)
+    setLoadingLabel("Processando...")
     setError(null)
     setPendingListings([])
     setLastParsed(null)
@@ -152,7 +156,17 @@ export function ParserModal({
     setActiveCollection,
   ])
 
-  const hasValidInput = attachedFile !== null || rawText.trim().length > 0
+  const hasValidInput =
+    urlValue.trim().length > 0 ||
+    attachedFile !== null ||
+    rawText.trim().length > 0
+
+  const normalizeUrlInput = (value: string): string => {
+    const trimmed = value.trim()
+    if (!trimmed) return ""
+    if (/^https?:\/\//i.test(trimmed)) return trimmed
+    return `https://${trimmed}`
+  }
 
   const clearFile = () => {
     setAttachedFile(null)
@@ -184,18 +198,22 @@ export function ParserModal({
   }
 
   const buildParseInput = async (): Promise<ParseRequest> => {
+    const url = normalizeUrlInput(urlValue)
+    if (url) return { kind: "url", url }
     if (attachedFile) return buildParseRequestFromFile(attachedFile)
     if (rawText.trim()) return { kind: "text", rawText: rawText.trim() }
-    throw new Error("Cole o anúncio ou envie um arquivo")
+    throw new Error("Informe a URL, cole o anúncio ou envie um arquivo")
   }
 
   const handleParse = async () => {
     if (!hasValidInput) {
-      setError("Cole o anúncio ou envie um arquivo")
+      setError("Informe a URL, cole o anúncio ou envie um arquivo")
       return
     }
 
+    const usingUrl = normalizeUrlInput(urlValue).length > 0
     setIsLoading(true)
+    setLoadingLabel(usingUrl ? "Buscando página..." : "Processando...")
     setError(null)
     setLastParsed(null)
     setPendingListings([])
@@ -204,6 +222,9 @@ export function ParserModal({
       const collectionId = await resolveTargetCollectionId()
       setTargetCollectionId(collectionId)
       const parseInput = await buildParseInput()
+      if (parseInput.kind === "url") {
+        setLoadingLabel("Extraindo dados...")
+      }
       const listings = await parseListingInput(parseInput)
 
       if (listings.length === 0) {
@@ -222,8 +243,14 @@ export function ParserModal({
 
         setLastParsed({ id: newListing.id, data: parsedData })
         setImportedCount(1)
+        setLinkValue(
+          parsedData.link?.trim() ||
+            (parseInput.kind === "url" ? parseInput.url : "") ||
+            ""
+        )
         setPhase("success")
         onListingAdded()
+        setUrlValue("")
         setRawText("")
         clearFile()
       } else {
@@ -385,10 +412,14 @@ export function ParserModal({
             <div className="space-y-2">
               <Input
                 type="url"
-                disabled
-                placeholder="URL do anúncio (em breve)"
-                className="h-8 text-sm bg-app-surface-muted border-app-border opacity-60 cursor-not-allowed"
-                title="Em breve: extração automática por link"
+                value={urlValue}
+                onChange={(e) => {
+                  setUrlValue(e.target.value)
+                  setError(null)
+                }}
+                placeholder="URL do anúncio (ZAP, OLX, VivaReal...)"
+                disabled={isLoading}
+                className="h-8 text-sm bg-input/30 border-app-border"
               />
 
               <textarea
@@ -501,7 +532,7 @@ export function ParserModal({
                 )}
               >
                 {isLoading ? (
-                  <LoadingLabel label="Processando..." />
+                  <LoadingLabel label={loadingLabel} />
                 ) : (
                   <>
                     <Sparkles className="h-4 w-4" />
@@ -664,9 +695,13 @@ export function ParserModal({
             </CardHeader>
             <CardContent className="px-4 pb-4 text-sm text-muted-foreground space-y-3 overflow-y-auto">
               <p>
-                Cole o texto do anúncio no campo acima (sites como ZAP, OLX, VivaReal,
-                ou mensagens do WhatsApp). Se colar uma imagem nesse campo, detectamos
-                automaticamente.
+                Cole a <strong>URL</strong> do anúncio no campo de link (ZAP, OLX,
+                VivaReal, QuintoAndar, etc.) e clique em Extrair Dados — buscamos a
+                página e a IA preenche os campos.
+              </p>
+              <p>
+                Ou cole o texto do anúncio no campo abaixo (ou mensagens do WhatsApp).
+                Se colar uma imagem nesse campo, detectamos automaticamente.
               </p>
               <p>
                 Ou use a área abaixo para arrastar ou selecionar um arquivo (imagem,
@@ -682,8 +717,8 @@ export function ParserModal({
               <p className="flex items-start gap-2">
                 <Link2 className="h-4 w-4 shrink-0 mt-0.5" />
                 <span>
-                  O campo de URL ficará disponível em breve para extrair dados direto
-                  do link do anúncio.
+                  Se a extração por URL falhar (site bloqueado ou página vazia), cole
+                  o texto ou envie uma captura de tela.
                 </span>
               </p>
               <p className="flex items-start gap-2">

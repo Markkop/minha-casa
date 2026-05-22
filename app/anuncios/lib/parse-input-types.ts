@@ -10,9 +10,10 @@ export const ACCEPTED_IMAGE_TYPES = [
 
 export type AcceptedImageMimeType = (typeof ACCEPTED_IMAGE_TYPES)[number]
 
-export type ParseInputKind = "text" | "image" | "pdf"
+export type ParseInputKind = "text" | "image" | "pdf" | "url"
 
 export type ParseRequest =
   | { kind: "text"; rawText: string }
   | { kind: "image"; base64: string; mimeType: AcceptedImageMimeType }
   | { kind: "pdf"; base64: string }
+  | { kind: "url"; url: string }

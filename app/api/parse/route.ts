@@ -2,7 +2,10 @@ import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "@/lib/auth-server"
 import OpenAI from "openai"
 import { PDFParse } from "pdf-parse"
+import { scrapeUrlToMarkdown, ScrapingAntError } from "@/lib/scrapingant"
 import type { ListingData } from "@/lib/db/schema"
+
+export const maxDuration = 60
 
 // ============================================================================
 // TYPES
@@ -37,6 +40,7 @@ type ParseBody =
   | { kind: "text"; rawText: string }
   | { kind: "image"; base64: string; mimeType: string }
   | { kind: "pdf"; base64: string }
+  | { kind: "url"; url: string }
   | { rawText: string }
 
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024
@@ -164,6 +168,9 @@ function normalizeParseBody(body: unknown): ParseBody | null {
   }
   if (b.kind === "pdf" && typeof b.base64 === "string") {
     return { kind: "pdf", base64: b.base64 }
+  }
+  if (b.kind === "url" && typeof b.url === "string") {
+    return { kind: "url", url: b.url }
   }
   if (typeof b.rawText === "string" && !b.kind) {
     return { rawText: b.rawText }
@@ -360,7 +367,7 @@ export async function POST(request: NextRequest) {
 
     if (!parseBody) {
       return NextResponse.json(
-        { error: "Invalid request. Provide kind: text|image|pdf or rawText." },
+        { error: "Invalid request. Provide kind: text|image|pdf|url or rawText." },
         { status: 400 }
       )
     }
@@ -421,6 +428,33 @@ export async function POST(request: NextRequest) {
         )
       }
       listings = await parseWithTextModel(openai, extracted)
+    } else if (parseBody.kind === "url") {
+      const url = parseBody.url.trim()
+      if (!url) {
+        return NextResponse.json(
+          { error: "Informe a URL do anúncio." },
+          { status: 400 }
+        )
+      }
+      let scraped: Awaited<ReturnType<typeof scrapeUrlToMarkdown>>
+      try {
+        scraped = await scrapeUrlToMarkdown(url)
+      } catch (error) {
+        if (error instanceof Error && error.message === "INVALID_URL") {
+          return NextResponse.json(
+            { error: "Informe uma URL válida (http ou https)." },
+            { status: 400 }
+          )
+        }
+        throw error
+      }
+      const textForAi = `URL do anúncio: ${scraped.sourceUrl}\n\n${scraped.markdown}`
+      listings = await parseWithTextModel(openai, textForAi)
+      for (const listing of listings) {
+        if (!listing.link) {
+          listing.link = scraped.sourceUrl
+        }
+      }
     } else {
       return NextResponse.json({ error: "Invalid request kind" }, { status: 400 })
     }
@@ -428,6 +462,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ listings }, { status: 200 })
   } catch (error) {
     console.error("Error parsing listing:", error)
+
+    if (error instanceof ScrapingAntError) {
+      return NextResponse.json({ error: error.message }, { status: error.statusCode })
+    }
 
     if (error instanceof Error) {
       if (error.message === "EMPTY_AI_RESPONSE") {
