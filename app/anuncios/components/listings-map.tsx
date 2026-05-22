@@ -275,7 +275,7 @@ export function ListingsMap({ listings, onListingsChange }: ListingsMapProps) {
         )}
       >
         <div className="flex min-w-0 items-center justify-between gap-1.5">
-          <div className="flex shrink-0 items-center gap-1.5">
+          <div className="flex min-w-0 flex-1 items-center gap-1.5">
             <MapLocationPicker
               viewport={mapViewport}
               onViewportChange={handleViewportChange}
@@ -286,7 +286,7 @@ export function ListingsMap({ listings, onListingsChange }: ListingsMapProps) {
             />
           </div>
 
-          <div className="flex min-w-0 shrink-0 items-center gap-1.5 overflow-x-auto">
+          <div className="flex shrink-0 items-center gap-1.5">
           <div className="flex shrink-0 items-center gap-1 text-xs">
             <span
               className={cn(
@@ -319,13 +319,13 @@ export function ListingsMap({ listings, onListingsChange }: ListingsMapProps) {
           />
 
           {isLoading ? (
-            <span className="shrink-0 whitespace-nowrap text-xs text-muted-foreground">
+            <span className="hidden shrink-0 whitespace-nowrap text-xs text-muted-foreground sm:inline">
               {countLabel}
             </span>
           ) : missingListings.length > 0 ? (
             <Tooltip>
               <TooltipTrigger asChild>
-                <span className="shrink-0 cursor-help whitespace-nowrap text-xs text-muted-foreground">
+                <span className="hidden shrink-0 cursor-help whitespace-nowrap text-xs text-muted-foreground sm:inline">
                   {countLabel}
                 </span>
               </TooltipTrigger>
@@ -353,7 +353,7 @@ export function ListingsMap({ listings, onListingsChange }: ListingsMapProps) {
               </TooltipContent>
             </Tooltip>
           ) : (
-            <span className="shrink-0 whitespace-nowrap text-xs text-muted-foreground">
+            <span className="hidden shrink-0 whitespace-nowrap text-xs text-muted-foreground sm:inline">
               {countLabel}
             </span>
           )}

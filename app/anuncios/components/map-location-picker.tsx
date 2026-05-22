@@ -135,7 +135,7 @@ export function MapLocationPicker({
     <>
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
-          <div className="relative w-64 shrink-0">
+          <div className="relative min-w-0 flex-1 sm:w-64 sm:flex-none">
             <MagnifyingGlassIcon className="absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground pointer-events-none" />
             <Input
               ref={inputRef}
