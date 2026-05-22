@@ -96,10 +96,9 @@ describe("Documentation", () => {
     })
 
     it("documents feature flags configuration", () => {
-      expect(readmeContent).toContain("NEXT_PUBLIC_FF_FINANCING_SIMULATOR")
-      expect(readmeContent).toContain("NEXT_PUBLIC_FF_FLOOD_FORECAST")
       expect(readmeContent).toContain("NEXT_PUBLIC_FF_ORGANIZATIONS")
       expect(readmeContent).toContain("NEXT_PUBLIC_FF_PUBLIC_COLLECTIONS")
+      expect(readmeContent).toContain("NEXT_PUBLIC_FF_MAP_PROVIDER")
     })
 
     it("documents the main database tables", () => {

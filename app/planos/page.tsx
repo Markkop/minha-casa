@@ -138,26 +138,26 @@ function PricingCard({ plano }: { plano: Plano }) {
     <Card
       className={`relative flex flex-col ${
         plano.destaque
-          ? "border-primary border-2 shadow-[0_0_30px_rgba(197,255,1,0.15)]"
-          : "border-brightGrey"
-      } bg-eerieBlack`}
+          ? "border-app-action border-2 shadow-sm"
+          : "border-app-border"
+      } bg-app-surface`}
     >
       {plano.destaque && (
         <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-          <span className="bg-primary text-black px-3 py-1 rounded-full text-xs font-bold">
+          <span className="rounded-full bg-app-action px-3 py-1 text-xs font-bold text-app-fg">
             Popular
           </span>
         </div>
       )}
       <CardHeader className="text-center pb-4">
-        <CardTitle className="text-2xl font-bold text-white">{plano.nome}</CardTitle>
-        <CardDescription className="text-ashGray mt-2">{plano.descricao}</CardDescription>
+        <CardTitle className="text-2xl font-bold text-app-fg">{plano.nome}</CardTitle>
+        <CardDescription className="mt-2 text-app-muted">{plano.descricao}</CardDescription>
         <div className="mt-4">
-          <span className="text-4xl font-bold text-white">
+          <span className="text-4xl font-bold text-app-fg">
             {plano.preco === 0 ? "Grátis" : `R$ ${plano.preco}`}
           </span>
           {plano.preco > 0 && (
-            <span className="text-ashGray text-sm ml-2">/mês</span>
+            <span className="ml-2 text-sm text-app-muted">/mês</span>
           )}
         </div>
       </CardHeader>
@@ -165,8 +165,8 @@ function PricingCard({ plano }: { plano: Plano }) {
         <ul className="space-y-3">
           {plano.features.map((feature, index) => (
             <li key={index} className="flex items-start gap-2">
-              <Check className="w-5 h-5 text-primary shrink-0 mt-0.5" />
-              <span className="text-ashGray text-sm">{feature}</span>
+              <Check className="mt-0.5 h-5 w-5 shrink-0 text-app-accent" />
+              <span className="text-sm text-app-muted">{feature}</span>
             </li>
           ))}
         </ul>
@@ -175,8 +175,8 @@ function PricingCard({ plano }: { plano: Plano }) {
         <button
           className={`w-full py-3 rounded-lg font-medium transition-all ${
             plano.destaque
-              ? "bg-primary text-black hover:bg-primary/90"
-              : "bg-middleGray text-white hover:bg-fadedGray border border-brightGrey"
+              ? "bg-app-action text-app-action-foreground hover:bg-app-action-hover"
+              : "border border-app-border bg-app-surface-muted text-app-muted"
           }`}
           disabled
         >
@@ -189,14 +189,14 @@ function PricingCard({ plano }: { plano: Plano }) {
 
 export default function PlanosPage() {
   return (
-    <div className="min-h-[calc(100vh-56px)] bg-black text-white">
+    <div className="min-h-[calc(100vh-104px)] bg-app-bg text-app-fg">
       <main className="max-w-7xl mx-auto px-4 py-16 sm:py-24">
         {/* Hero Section */}
         <div className="text-center mb-12">
-          <h1 className="text-4xl sm:text-5xl font-bold mb-4">
-            <span className="text-primary">Planos</span>
+          <h1 className="mb-4 text-4xl font-bold text-app-fg sm:text-5xl">
+            Planos
           </h1>
-          <p className="text-lg sm:text-xl text-ashGray max-w-3xl mx-auto">
+          <p className="mx-auto max-w-3xl text-lg text-app-muted sm:text-xl">
             Escolha o plano ideal para o seu perfil. De comprador iniciante a imobiliária completa.
           </p>
         </div>
@@ -204,22 +204,22 @@ export default function PlanosPage() {
         {/* Tabs */}
         <Tabs defaultValue="comprador" className="w-full">
           <div className="flex justify-center mb-8">
-            <TabsList className="bg-eerieBlack border border-brightGrey p-1">
+            <TabsList className="border border-app-border bg-app-surface p-1">
               <TabsTrigger
                 value="comprador"
-                className="data-[state=active]:bg-primary data-[state=active]:text-black data-[state=active]:border-primary"
+                className="data-[state=active]:bg-app-action data-[state=active]:text-app-action-foreground"
               >
                 Comprador
               </TabsTrigger>
               <TabsTrigger
                 value="vendedor"
-                className="data-[state=active]:bg-primary data-[state=active]:text-black data-[state=active]:border-primary"
+                className="data-[state=active]:bg-app-action data-[state=active]:text-app-action-foreground"
               >
                 Vendedor
               </TabsTrigger>
               <TabsTrigger
                 value="corretor"
-                className="data-[state=active]:bg-primary data-[state=active]:text-black data-[state=active]:border-primary"
+                className="data-[state=active]:bg-app-action data-[state=active]:text-app-action-foreground"
               >
                 Corretor
               </TabsTrigger>
@@ -234,8 +234,8 @@ export default function PlanosPage() {
               ))}
             </div>
             <div className="mt-8 text-center">
-              <p className="text-ashGray text-sm">
-                O comprador paga quando você vira <span className="text-primary font-medium">&quot;minha central de decisão imobiliária&quot;</span>, não só uma lista.
+              <p className="text-sm text-app-muted">
+                O comprador paga quando você vira <span className="font-medium text-app-fg">&quot;minha central de decisão imobiliária&quot;</span>, não só uma lista.
               </p>
             </div>
           </TabsContent>
@@ -248,8 +248,8 @@ export default function PlanosPage() {
               ))}
             </div>
             <div className="mt-8 text-center">
-              <p className="text-ashGray text-sm">
-                O vendedor paga quando você resolve <span className="text-primary font-medium">&quot;como criar um anúncio que vende e não perder interessados&quot;</span>.
+              <p className="text-sm text-app-muted">
+                O vendedor paga quando você resolve <span className="font-medium text-app-fg">&quot;como criar um anúncio que vende e não perder interessados&quot;</span>.
               </p>
             </div>
           </TabsContent>
@@ -262,8 +262,8 @@ export default function PlanosPage() {
               ))}
             </div>
             <div className="mt-8 text-center">
-              <p className="text-ashGray text-sm">
-                CRM completo com <span className="text-primary font-medium">integração com portais</span> e <span className="text-primary font-medium">gestão de leads</span> profissional.
+              <p className="text-sm text-app-muted">
+                CRM completo com <span className="font-medium text-app-fg">integração com portais</span> e <span className="font-medium text-app-fg">gestão de leads</span> profissional.
               </p>
             </div>
           </TabsContent>

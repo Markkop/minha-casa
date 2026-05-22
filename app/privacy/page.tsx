@@ -52,7 +52,7 @@ export default function PrivacyPage() {
       </section>
 
       <p className="text-sm text-muted-foreground">
-        Veja também nossos <Link className="text-primary hover:underline" href="/terms">Termos de Uso</Link>.
+        Veja também nossos <Link className="text-app-accent hover:underline" href="/terms">Termos de Uso</Link>.
       </p>
     </main>
   )

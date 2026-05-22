@@ -1,7 +1,9 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Check, ClipboardList, Download } from "lucide-react"
+import { Card, CardContent, CardHeader } from "@/components/ui/card"
+import { ModalCloseButton, ModalHeaderTitle, LoadingLabel } from "./modal-chrome"
 import { Label } from "@/components/ui/label"
 import { useCollections } from "../lib/use-collections"
 import { fetchListings, type Imovel } from "../lib/api"
@@ -194,27 +196,19 @@ export function ExportModal({
   return (
     <div className="fixed inset-0 z-[1000] flex items-center justify-center">
       <div
-        className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+        className="absolute inset-0 bg-app-fg/80 backdrop-blur-sm"
         onClick={onClose}
       />
 
-      <Card className="relative z-10 w-full max-w-md mx-4 bg-raisinBlack border-brightGrey max-h-[90vh] overflow-y-auto">
+      <Card className="relative z-10 w-full max-w-md mx-4 bg-app-surface border-app-border max-h-[90vh] overflow-y-auto">
         <CardHeader className="flex flex-row items-center justify-between pb-2">
-          <CardTitle className="text-lg flex items-center gap-2">
-            <span>📤</span>
-            <span>Exportar</span>
-          </CardTitle>
-          <button
-            onClick={onClose}
-            className="text-muted-foreground hover:text-white transition-colors"
-          >
-            ✕
-          </button>
+          <ModalHeaderTitle icon={Download} title="Exportar" />
+          <ModalCloseButton onClick={onClose} />
         </CardHeader>
         <CardContent className="space-y-4">
           {/* Export Mode Selection */}
           <div className="space-y-2">
-            <Label className="text-sm text-ashGray">O que exportar</Label>
+            <Label className="text-sm text-app-muted">O que exportar</Label>
             <div className="flex gap-2">
               <button
                 onClick={() => setExportMode("current")}
@@ -223,8 +217,8 @@ export function ExportModal({
                   "flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all",
                   "border",
                   exportMode === "current"
-                    ? "bg-primary/20 border-primary text-primary"
-                    : "bg-eerieBlack border-brightGrey hover:border-white"
+                    ? "bg-app-action/20 border-app-action text-app-accent"
+                    : "bg-app-surface-muted border-app-border hover:border-app-surface"
                 )}
               >
                 Coleção atual
@@ -236,8 +230,8 @@ export function ExportModal({
                   "flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all",
                   "border",
                   exportMode === "all"
-                    ? "bg-primary/20 border-primary text-primary"
-                    : "bg-eerieBlack border-brightGrey hover:border-white"
+                    ? "bg-app-action/20 border-app-action text-app-accent"
+                    : "bg-app-surface-muted border-app-border hover:border-app-surface"
                 )}
               >
                 Todas as coleções
@@ -253,7 +247,7 @@ export function ExportModal({
                   {activeCollection && (
                     <>
                       <br />
-                      Coleção: <span className="text-white">{activeCollection.label}</span> ({getTotalListings()} imóveis)
+                      Coleção: <span className="text-app-fg">{activeCollection.label}</span> ({getTotalListings()} imóveis)
                     </>
                   )}
                 </>
@@ -271,20 +265,17 @@ export function ExportModal({
               disabled={!canExport || isExporting}
               className={cn(
                 "flex-1 py-2.5 px-4 rounded-lg font-medium transition-all",
-                "bg-primary text-primary-foreground",
-                "hover:bg-primary/90",
+                "bg-app-action text-app-action-foreground",
+                "hover:bg-app-action-hover",
                 "disabled:opacity-50 disabled:cursor-not-allowed",
                 "flex items-center justify-center gap-2"
               )}
             >
               {isExporting ? (
-                <>
-                  <span className="animate-spin">⏳</span>
-                  Exportando...
-                </>
+                <LoadingLabel label="Exportando..." />
               ) : (
                 <>
-                  <span>💾</span>
+                  <Download className="h-4 w-4" />
                   Baixar JSON
                 </>
               )}
@@ -294,14 +285,18 @@ export function ExportModal({
               disabled={!canExport || isExporting}
               className={cn(
                 "flex-1 py-2.5 px-4 rounded-lg font-medium transition-all",
-                "bg-eerieBlack border border-brightGrey",
-                "hover:border-primary hover:text-primary",
+                "bg-app-surface-muted border border-app-border",
+                "hover:border-app-action hover:text-app-accent",
                 "disabled:opacity-50 disabled:cursor-not-allowed",
                 "flex items-center justify-center gap-2",
                 copySuccess && "border-green text-green"
               )}
             >
-              <span>{copySuccess ? "✓" : "📋"}</span>
+              {copySuccess ? (
+                <Check className="h-4 w-4" />
+              ) : (
+                <ClipboardList className="h-4 w-4" />
+              )}
               {copySuccess ? "Copiado!" : "Copiar JSON"}
             </button>
           </div>
@@ -317,14 +312,14 @@ export function ExportModal({
             </div>
           )}
 
-          <div className="pt-4 border-t border-brightGrey">
+          <div className="pt-4 border-t border-app-border">
             <button
               onClick={onClose}
               disabled={isExporting}
               className={cn(
                 "w-full py-2.5 px-4 rounded-lg font-medium transition-all",
-                "bg-eerieBlack border border-brightGrey",
-                "hover:border-white",
+                "bg-app-surface-muted border border-app-border",
+                "hover:border-app-surface",
                 "disabled:opacity-50"
               )}
             >

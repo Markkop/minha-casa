@@ -3,7 +3,7 @@ import Stripe from "stripe"
 import { getDb, subscriptions, plans, processedWebhookEvents, users } from "@/lib/db"
 import { eq, and } from "drizzle-orm"
 import { constructWebhookEvent, mapStripeStatus } from "@/lib/stripe"
-import { createLogger, logInfo, logWarn, logError } from "@/lib/logger"
+import { createLogger, logInfo, logError } from "@/lib/logger"
 
 const WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET
 

@@ -93,7 +93,7 @@ export function ClickablePrice({
         <span
           onClick={handleClick}
           className={cn(
-            "font-mono text-sm text-primary cursor-pointer hover:text-primary/80 transition-colors",
+            "font-mono text-sm text-app-accent cursor-pointer hover:text-app-accent/80 transition-colors",
             strikethrough && "line-through opacity-50",
             className
           )}
@@ -113,7 +113,7 @@ export function ClickablePrice({
       <TooltipContent
         side="bottom"
         sideOffset={4}
-        className="bg-raisinBlack border border-brightGrey text-white"
+        className="bg-app-surface border border-app-border text-app-fg"
       >
         Simular financiamento
       </TooltipContent>

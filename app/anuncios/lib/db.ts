@@ -48,6 +48,8 @@ export interface CollectionExportData {
     customLng?: number | null
     createdAt: string
     addedAt?: string
+    sitePublishedAt?: string | null
+    siteUpdatedAt?: string | null
   }>
 }
 

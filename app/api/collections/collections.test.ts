@@ -252,6 +252,14 @@ describe("Collections API", () => {
 
       const newCollection = { ...mockCollection, name: "New Collection" }
 
+      mockDbSelect.mockReturnValue({
+        from: vi.fn().mockReturnValue({
+          where: vi.fn().mockReturnValue({
+            limit: vi.fn().mockResolvedValue([mockCollection]),
+          }),
+        }),
+      })
+
       mockDbInsert.mockReturnValue({
         values: vi.fn().mockReturnValue({
           returning: vi.fn().mockResolvedValue([newCollection]),
@@ -276,6 +284,14 @@ describe("Collections API", () => {
       vi.mocked(getServerSession).mockResolvedValue(mockSession)
 
       const newCollection = { ...mockCollection, name: "Default Collection", isDefault: true }
+
+      mockDbSelect.mockReturnValue({
+        from: vi.fn().mockReturnValue({
+          where: vi.fn().mockReturnValue({
+            limit: vi.fn().mockResolvedValue([mockCollection]),
+          }),
+        }),
+      })
 
       mockDbUpdate.mockReturnValue({
         set: vi.fn().mockReturnValue({
@@ -310,6 +326,14 @@ describe("Collections API", () => {
       mockDbSelect.mockReturnValueOnce({
         from: vi.fn().mockReturnValue({
           where: vi.fn().mockResolvedValue([mockOrgMembership]),
+        }),
+      })
+      // Check whether this is the first org collection.
+      mockDbSelect.mockReturnValueOnce({
+        from: vi.fn().mockReturnValue({
+          where: vi.fn().mockReturnValue({
+            limit: vi.fn().mockResolvedValue([mockOrgCollection]),
+          }),
         }),
       })
 

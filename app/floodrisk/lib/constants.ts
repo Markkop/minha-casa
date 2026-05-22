@@ -1,15 +1,16 @@
 import { Scenario, ElementHeight } from './types';
+import { floodSceneColors } from '@/lib/theme/colors';
 
 // Tabela 1 Data - Geometria básica (Shared Geometry)
 // Heights are relative to creek bed (0.00) in Tabela 1.
 export const LEVEL_BLOCKS: ElementHeight[] = [
-  { id: 'leito', name: 'Leito Córrego', height_rel_creek: 0.10, x_pos: 0, width: 4, depth: 10, color: '#57534e' }, // Stone 700
-  { id: 'talude', name: 'Talude', height_rel_creek: 1.20, x_pos: 2.75, width: 1.5, depth: 10, color: '#3f6212' }, // Lime 800
-  { id: 'rua', name: 'Nível Rua', height_rel_creek: 2.00, x_pos: 5.5, width: 4, depth: 10, color: '#334155' }, // Slate 700
-  { id: 'calcada', name: 'Calçada', height_rel_creek: 2.15, x_pos: 9.0, width: 3, depth: 10, color: '#475569' }, // Slate 600
-  { id: 'garagem', name: 'Piso Garagem', height_rel_creek: 2.40, x_pos: 12.0, width: 3, depth: 10, color: '#94a3b8' }, // Slate 400
-  { id: 'casa', name: 'Piso Casa', height_rel_creek: 2.70, x_pos: 16.5, width: 6, depth: 10, color: '#166534' }, // Green 800
-  { id: 'quintal', name: 'Quintal', height_rel_creek: 2.50, x_pos: 21.5, width: 4, depth: 10, color: '#22c55e' }, // Green 500
+  { id: 'leito', name: 'Leito Córrego', height_rel_creek: 0.10, x_pos: 0, width: 4, depth: 10, color: floodSceneColors.creek },
+  { id: 'talude', name: 'Talude', height_rel_creek: 1.20, x_pos: 2.75, width: 1.5, depth: 10, color: floodSceneColors.slope },
+  { id: 'rua', name: 'Nível Rua', height_rel_creek: 2.00, x_pos: 5.5, width: 4, depth: 10, color: floodSceneColors.street },
+  { id: 'calcada', name: 'Calçada', height_rel_creek: 2.15, x_pos: 9.0, width: 3, depth: 10, color: floodSceneColors.sidewalk },
+  { id: 'garagem', name: 'Piso Garagem', height_rel_creek: 2.40, x_pos: 12.0, width: 3, depth: 10, color: floodSceneColors.garage },
+  { id: 'casa', name: 'Piso Casa', height_rel_creek: 2.70, x_pos: 16.5, width: 6, depth: 10, color: floodSceneColors.houseGround },
+  { id: 'quintal', name: 'Quintal', height_rel_creek: 2.50, x_pos: 21.5, width: 4, depth: 10, color: floodSceneColors.garden },
 ];
 
 // --- DATASET 1: "ChatGPT 1" ---
@@ -38,6 +39,5 @@ export const SCENARIOS_GEMINI: Scenario[] = [
   { id: 'G4_mar_2100', year: 2100, description: 'Projeção 2100 (Mar+)', rain_24h_mm: 260, level_rel_creek: 3.50, level_rel_street: 1.50, level_rel_house: 0.80 }
 ];
 
-export const WATER_COLOR_SAFE = '#3b82f6';
-export const WATER_COLOR_DANGER = '#ef4444';
-
+export const WATER_COLOR_SAFE = floodSceneColors.waterSafe;
+export const WATER_COLOR_DANGER = floodSceneColors.waterDanger;

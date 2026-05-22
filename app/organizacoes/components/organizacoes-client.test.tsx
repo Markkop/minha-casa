@@ -4,10 +4,9 @@ import { OrganizacoesClient } from "./organizacoes-client"
 
 // Mock next/navigation
 const mockPush = vi.fn()
+const mockRouter = { push: mockPush }
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({
-    push: mockPush,
-  }),
+  useRouter: () => mockRouter,
 }))
 
 // Mock auth-client

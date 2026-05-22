@@ -31,8 +31,8 @@ export interface AddonGuardProps {
 
 function DefaultLoadingComponent() {
   return (
-    <div className="min-h-screen bg-black text-white flex items-center justify-center">
-      <p className="text-ashGray">Verificando acesso...</p>
+    <div className="flex min-h-screen items-center justify-center bg-app-bg text-app-fg">
+      <p className="text-app-muted">Verificando acesso...</p>
     </div>
   )
 }
@@ -52,41 +52,41 @@ interface AccessDeniedProps {
 
 function DefaultAccessDeniedComponent({ addonName, orgContext }: AccessDeniedProps) {
   return (
-    <div className="min-h-screen bg-black text-white">
+    <div className="min-h-screen bg-app-bg text-app-fg">
       <div className="max-w-2xl mx-auto px-4 py-16">
-        <Card className="bg-raisinBlack border-brightGrey">
+        <Card className="border-app-border bg-app-surface">
           <CardHeader className="text-center">
             <div className="text-6xl mb-4">🔒</div>
-            <CardTitle className="text-2xl text-white">
+            <CardTitle className="text-2xl text-app-fg">
               Acesso Restrito
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-6">
-            <p className="text-center text-ashGray">
-              O acesso ao <span className="text-primary font-semibold">{addonName}</span> requer
+            <p className="text-center text-app-muted">
+              O acesso ao <span className="font-semibold text-app-fg">{addonName}</span> requer
               uma licença ativa. Você pode obter acesso de duas formas:
             </p>
 
             <div className="grid gap-4">
-              <div className="p-4 bg-eerieBlack rounded-lg border border-brightGrey">
-                <h3 className="font-semibold text-white mb-2 flex items-center gap-2">
+              <div className="rounded-lg border border-app-border bg-app-bg p-4">
+                <h3 className="mb-2 flex items-center gap-2 font-semibold text-app-fg">
                   <span>👤</span>
                   Licença Pessoal
                 </h3>
-                <p className="text-sm text-ashGray">
+                <p className="text-sm text-app-muted">
                   Solicite o addon para sua conta pessoal. Você terá acesso
                   independente de qual organização estiver usando.
                 </p>
               </div>
 
               {orgContext.type === "organization" && (
-                <div className="p-4 bg-eerieBlack rounded-lg border border-brightGrey">
-                  <h3 className="font-semibold text-white mb-2 flex items-center gap-2">
+                <div className="rounded-lg border border-app-border bg-app-bg p-4">
+                  <h3 className="mb-2 flex items-center gap-2 font-semibold text-app-fg">
                     <span>👥</span>
                     Licença da Organização
                   </h3>
-                  <p className="text-sm text-ashGray">
-                    Sua organização <span className="text-primary">{orgContext.organizationName}</span> não
+                  <p className="text-sm text-app-muted">
+                    Sua organização <span className="font-medium text-app-fg">{orgContext.organizationName}</span> não
                     possui este addon. Solicite ao administrador da organização
                     para ativar este recurso.
                   </p>
@@ -94,12 +94,12 @@ function DefaultAccessDeniedComponent({ addonName, orgContext }: AccessDeniedPro
               )}
 
               {orgContext.type === "personal" && (
-                <div className="p-4 bg-eerieBlack rounded-lg border border-brightGrey">
-                  <h3 className="font-semibold text-white mb-2 flex items-center gap-2">
+                <div className="rounded-lg border border-app-border bg-app-bg p-4">
+                  <h3 className="mb-2 flex items-center gap-2 font-semibold text-app-fg">
                     <span>👥</span>
                     Licença via Organização
                   </h3>
-                  <p className="text-sm text-ashGray">
+                  <p className="text-sm text-app-muted">
                     Se você faz parte de uma organização que possui este addon,
                     troque para o contexto da organização para ter acesso.
                   </p>
@@ -108,13 +108,13 @@ function DefaultAccessDeniedComponent({ addonName, orgContext }: AccessDeniedPro
             </div>
 
             <div className="flex flex-col sm:flex-row gap-3 justify-center pt-4">
-              <Button asChild variant="outline" className="border-brightGrey hover:bg-eerieBlack">
+              <Button asChild variant="outline" className="border-app-border text-app-fg hover:bg-app-bg hover:text-app-fg">
                 <Link href="/">
                   <span className="mr-2">🏠</span>
                   Voltar ao Início
                 </Link>
               </Button>
-              <Button asChild className="bg-primary hover:bg-primary/90">
+              <Button asChild className="bg-app-action text-app-action-foreground hover:bg-app-action-hover">
                 <Link href="/subscribe">
                   <span className="mr-2">💳</span>
                   Ver Planos

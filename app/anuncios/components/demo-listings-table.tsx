@@ -77,7 +77,7 @@ function SortableHeader({
   return (
     <TableHead
       className={cn(
-        "text-primary cursor-pointer hover:bg-middleGray/30 transition-colors select-none",
+        "cursor-pointer select-none text-app-muted transition-colors hover:bg-app-surface-muted",
         align === "right" && "text-right",
         align === "center" && "text-center"
       )}
@@ -87,9 +87,9 @@ function SortableHeader({
         <span>{label}</span>
         {isActive && (
           isAsc ? (
-            <ArrowUpIcon className="h-3 w-3 text-primary" />
+            <ArrowUpIcon className="h-3 w-3 text-app-fg" />
           ) : (
-            <ArrowDownIcon className="h-3 w-3 text-primary" />
+            <ArrowDownIcon className="h-3 w-3 text-app-fg" />
           )
         )}
       </div>
@@ -182,12 +182,12 @@ export function DemoListingsTable({ listings, onUpdateListing, onDeleteListing }
         <div className="flex flex-wrap gap-4 items-end flex-1">
           <div className="space-y-1.5 w-full md:max-w-xs">
             <div className="relative">
-              <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-ashGray" />
+              <MagnifyingGlassIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-app-subtle" />
               <Input
                 placeholder="Buscar por título ou endereço..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-9 bg-eerieBlack border-brightGrey text-white"
+                className="border-app-border bg-app-surface pl-9 text-app-fg"
               />
             </div>
           </div>
@@ -197,10 +197,10 @@ export function DemoListingsTable({ listings, onUpdateListing, onDeleteListing }
               value={propertyTypeFilter}
               onValueChange={(value) => setPropertyTypeFilter(value as PropertyTypeFilter)}
             >
-              <SelectTrigger className="w-[140px] bg-eerieBlack border-brightGrey text-white">
+              <SelectTrigger className="w-[140px] border-app-border bg-app-surface text-app-fg">
                 <SelectValue placeholder="Tipo" />
               </SelectTrigger>
-              <SelectContent className="bg-raisinBlack border-brightGrey text-white">
+              <SelectContent className="border-app-border bg-app-surface text-app-fg">
                 <SelectItem value="all">Todos tipos</SelectItem>
                 <SelectItem value="casa">Casas</SelectItem>
                 <SelectItem value="apartamento">Aptos</SelectItem>
@@ -215,8 +215,8 @@ export function DemoListingsTable({ listings, onUpdateListing, onDeleteListing }
             className={cn(
               "p-2 rounded-lg border transition-all flex items-center gap-2 text-sm",
               showStrikethrough 
-                ? "bg-primary/10 border-primary text-primary" 
-                : "bg-eerieBlack border-brightGrey text-ashGray"
+                ? "border-app-action bg-app-action text-app-action-foreground" 
+                : "border-app-border bg-app-surface text-app-muted"
             )}
           >
             <Strikethrough className="h-4 w-4" />
@@ -226,11 +226,11 @@ export function DemoListingsTable({ listings, onUpdateListing, onDeleteListing }
       </div>
 
       {/* Table */}
-      <Card className="bg-raisinBlack border-brightGrey overflow-hidden">
+      <Card className="overflow-hidden border-app-border bg-app-surface">
         <div className="overflow-x-auto">
           <Table>
             <TableHeader>
-              <TableRow className="border-b border-brightGrey hover:bg-transparent">
+              <TableRow className="border-b border-app-border hover:bg-transparent">
                 <TableHead className="w-[50px]"></TableHead>
                 <SortableHeader label="Título" sortKey="titulo" currentSort={sort} onSort={handleSort} />
                 <SortableHeader label="Total" sortKey="m2Totais" currentSort={sort} onSort={handleSort} align="center" />
@@ -244,7 +244,7 @@ export function DemoListingsTable({ listings, onUpdateListing, onDeleteListing }
             <TableBody>
               {filteredListings.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="h-24 text-center text-ashGray">
+                  <TableCell colSpan={8} className="h-24 text-center text-app-muted">
                     Nenhum imóvel encontrado.
                   </TableCell>
                 </TableRow>
@@ -253,8 +253,8 @@ export function DemoListingsTable({ listings, onUpdateListing, onDeleteListing }
                   <TableRow 
                     key={listing.id}
                     className={cn(
-                      "border-b border-brightGrey/50 group transition-colors",
-                      listing.strikethrough ? "opacity-40" : "hover:bg-white/5"
+                      "group border-b border-app-border transition-colors",
+                      listing.strikethrough ? "opacity-40" : "hover:bg-app-bg"
                     )}
                   >
                     <TableCell className="text-center">
@@ -262,7 +262,7 @@ export function DemoListingsTable({ listings, onUpdateListing, onDeleteListing }
                         onClick={() => onUpdateListing(listing.id, { starred: !listing.starred })}
                         className={cn(
                           "transition-colors",
-                          listing.starred ? "text-primary" : "text-ashGray hover:text-white"
+                          listing.starred ? "text-app-accent" : "text-app-subtle hover:text-app-fg"
                         )}
                       >
                         <Star className={cn("h-4 w-4", listing.starred && "fill-current")} />
@@ -271,33 +271,33 @@ export function DemoListingsTable({ listings, onUpdateListing, onDeleteListing }
                     <TableCell>
                       <div className="flex flex-col">
                         <span className={cn(
-                          "font-medium text-white flex items-center gap-2",
+                          "flex items-center gap-2 font-medium text-app-fg",
                           listing.strikethrough && "line-through"
                         )}>
-                          {listing.tipoImovel === "casa" ? <Home className="h-3 w-3 text-ashGray" /> : <Building className="h-3 w-3 text-ashGray" />}
+                          {listing.tipoImovel === "casa" ? <Home className="h-3 w-3 text-app-subtle" /> : <Building className="h-3 w-3 text-app-subtle" />}
                           {listing.titulo}
                         </span>
-                        <span className="text-xs text-ashGray">
+                        <span className="text-xs text-app-muted">
                           {listing.endereco}
                         </span>
                       </div>
                     </TableCell>
-                    <TableCell className="text-center text-white">
+                    <TableCell className="text-center text-app-fg">
                       {listing.m2Totais !== null ? `${formatNumber(listing.m2Totais)} m²` : "—"}
                     </TableCell>
-                    <TableCell className="text-center text-white">
+                    <TableCell className="text-center text-app-fg">
                       {listing.m2Privado !== null ? `${formatNumber(listing.m2Privado)} m²` : "—"}
                     </TableCell>
-                    <TableCell className="text-center text-white">
+                    <TableCell className="text-center text-app-fg">
                       <div className="flex items-center justify-center gap-1">
-                        <BedDouble className="h-3 w-3 text-ashGray" />
+                        <BedDouble className="h-3 w-3 text-app-subtle" />
                         {listing.quartos || "—"}
                       </div>
                     </TableCell>
-                    <TableCell className="text-right text-primary font-bold">
+                    <TableCell className="text-right font-bold text-app-fg">
                       {formatCurrency(listing.preco)}
                     </TableCell>
-                    <TableCell className="text-right text-ashGray">
+                    <TableCell className="text-right text-app-muted">
                       {listing.preco && listing.m2Privado 
                         ? formatCurrency(listing.preco / listing.m2Privado) 
                         : "—"}
@@ -309,8 +309,8 @@ export function DemoListingsTable({ listings, onUpdateListing, onDeleteListing }
                             <button
                               onClick={() => onUpdateListing(listing.id, { visited: !listing.visited })}
                               className={cn(
-                                "p-1.5 rounded hover:bg-white/10 transition-colors",
-                                listing.visited ? "text-green-400" : "text-ashGray"
+                                "rounded p-1.5 transition-colors hover:bg-app-surface-muted",
+                                listing.visited ? "text-emerald-600" : "text-app-subtle"
                               )}
                             >
                               <Eye className="h-4 w-4" />
@@ -324,8 +324,8 @@ export function DemoListingsTable({ listings, onUpdateListing, onDeleteListing }
                             <button
                               onClick={() => onUpdateListing(listing.id, { strikethrough: !listing.strikethrough })}
                               className={cn(
-                                "p-1.5 rounded hover:bg-white/10 transition-colors",
-                                listing.strikethrough ? "text-red-400" : "text-ashGray"
+                                "rounded p-1.5 transition-colors hover:bg-app-surface-muted",
+                                listing.strikethrough ? "text-red-600" : "text-app-subtle"
                               )}
                             >
                               <Strikethrough className="h-4 w-4" />
@@ -338,7 +338,7 @@ export function DemoListingsTable({ listings, onUpdateListing, onDeleteListing }
                           <TooltipTrigger asChild>
                             <button
                               onClick={() => onDeleteListing(listing.id)}
-                              className="p-1.5 rounded hover:bg-white/10 transition-colors text-ashGray hover:text-red-400"
+                              className="rounded p-1.5 text-app-subtle transition-colors hover:bg-app-surface-muted hover:text-red-600"
                             >
                               <TrashIcon className="h-4 w-4" />
                             </button>

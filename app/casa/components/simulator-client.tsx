@@ -30,6 +30,10 @@ import {
   ScenarioCardCompact,
 } from "./scenario-card"
 import { FormulaBreakdown } from "./formula-breakdown"
+import {
+  PageToolbar,
+  PageToolbarEnd,
+} from "@/app/components/page-toolbar"
 import { SettingsButton, SettingsPanel } from "./settings-panel"
 import {
   DEFAULTS,
@@ -118,8 +122,8 @@ const InfoCard = ({ title, value, subtitle, tooltip, icon, highlight }: InfoCard
   return (
     <Card
       className={cn(
-        "bg-eerieBlack border-brightGrey",
-        highlight && "border-primary bg-primary/5"
+        "bg-app-surface-muted border-app-border",
+        highlight && "border-app-action bg-app-action/5"
       )}
     >
       <CardContent className="p-4">
@@ -127,12 +131,12 @@ const InfoCard = ({ title, value, subtitle, tooltip, icon, highlight }: InfoCard
           <div>
             <div className="flex items-center gap-2 mb-1">
               {icon && <span className="text-lg">{icon}</span>}
-              <span className="text-xs text-ashGray">{title}</span>
+              <span className="text-xs text-app-muted">{title}</span>
               {tooltip && (
                 <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <InfoCircledIcon className="h-3 w-3 text-dimGray hover:text-primary cursor-help" />
+                      <InfoCircledIcon className="h-3 w-3 text-app-subtle hover:text-app-accent cursor-help" />
                     </TooltipTrigger>
                     <TooltipContent className="max-w-xs">
                       <p className="text-xs">{tooltip}</p>
@@ -144,13 +148,13 @@ const InfoCard = ({ title, value, subtitle, tooltip, icon, highlight }: InfoCard
             <p
               className={cn(
                 "text-xl font-bold font-mono",
-                highlight ? "text-primary" : "text-white"
+                highlight ? "text-app-accent" : "text-app-fg"
               )}
             >
               {value}
             </p>
             {subtitle && (
-              <p className="text-xs text-dimGray mt-1">{subtitle}</p>
+              <p className="text-xs text-app-subtle mt-1">{subtitle}</p>
             )}
           </div>
         </div>
@@ -409,36 +413,24 @@ export const SimulatorClient = () => {
   // Show loading state until settings are loaded
   if (!isLoaded) {
     return (
-      <div className="min-h-screen bg-black text-white flex items-center justify-center">
-        <p className="text-ashGray">Carregando...</p>
+      <div className="min-h-screen bg-app-bg text-app-fg flex items-center justify-center">
+        <p className="text-app-muted">Carregando...</p>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-black text-white">
-      {/* Header */}
-      <header className="border-b border-brightGrey bg-raisinBlack">
-        <div className="max-w-7xl mx-auto px-4 py-6">
-          <div className="flex items-start justify-between">
-            <div>
-              <h1 className="text-3xl font-bold text-primary mb-2">
-                🏠 Simulador de Financiamento Imobiliário
-              </h1>
-              <p className="text-ashGray">
-                Sistema SAC com análise completa de cenários, amortização acelerada
-                e estratégias de permuta vs venda posterior
-              </p>
-            </div>
-            <SettingsButton onClick={() => setShowSettings(true)} />
-          </div>
-        </div>
-      </header>
+    <div className="min-h-screen bg-app-bg text-app-fg">
+      <PageToolbar>
+        <PageToolbarEnd className="w-full">
+          <SettingsButton onClick={() => setShowSettings(true)} />
+        </PageToolbarEnd>
+      </PageToolbar>
 
       {/* Settings Panel */}
       <SettingsPanel isOpen={showSettings} onClose={() => setShowSettings(false)} />
 
-      <main className="max-w-7xl mx-auto px-4 py-6 space-y-6">
+      <main className="max-w-7xl mx-auto space-y-4 px-4 py-4">
         {/* Info cards rápidos */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <InfoCard
@@ -503,7 +495,7 @@ export const SimulatorClient = () => {
         </div>
 
         {/* Resumo comparativo */}
-        <Card className="bg-raisinBlack border-brightGrey">
+        <Card className="bg-app-surface border-app-border">
           <CardHeader className="pb-2">
             <CardTitle className="text-lg">📈 Resumo dos Cenários</CardTitle>
           </CardHeader>
@@ -525,7 +517,7 @@ export const SimulatorClient = () => {
 
           {/* Table View */}
           <TabsContent value="table">
-            <Card className="bg-raisinBlack border-brightGrey">
+            <Card className="bg-app-surface border-app-border">
               <CardContent className="p-0">
                 <ResultsTable
                   cenarios={filteredCenarios}
@@ -559,12 +551,12 @@ export const SimulatorClient = () => {
             {selectedCenario ? (
               <div className="space-y-6">
                 <div className="flex items-center justify-between">
-                  <h3 className="text-lg font-semibold text-primary">
+                  <h3 className="text-lg font-semibold text-app-accent">
                     Detalhes do Cenário Selecionado
                   </h3>
                   <button
                     onClick={() => setSelectedCenario(null)}
-                    className="text-xs text-ashGray hover:text-primary transition-colors"
+                    className="text-xs text-app-muted hover:text-app-accent transition-colors"
                   >
                     Limpar seleção
                   </button>
@@ -577,7 +569,7 @@ export const SimulatorClient = () => {
                   <FormulaBreakdown cenario={selectedCenario} />
 
                   {/* Tabela de amortização amostra */}
-                  <Card className="bg-eerieBlack border-brightGrey lg:col-span-2 xl:col-span-1">
+                  <Card className="bg-app-surface-muted border-app-border lg:col-span-2 xl:col-span-1">
                     <CardHeader>
                       <CardTitle className="text-base">
                         📅 Evolução das Parcelas (Amostra)
@@ -592,9 +584,9 @@ export const SimulatorClient = () => {
                 </div>
               </div>
             ) : (
-              <Card className="bg-eerieBlack border-brightGrey">
+              <Card className="bg-app-surface-muted border-app-border">
                 <CardContent className="py-12 text-center">
-                  <p className="text-ashGray">
+                  <p className="text-app-muted">
                     Selecione um cenário no Grid ou na Tabela para ver os
                     detalhes completos.
                   </p>
@@ -605,14 +597,14 @@ export const SimulatorClient = () => {
         </Tabs>
 
         {/* Informações educativas */}
-        <Card className="bg-raisinBlack border-brightGrey">
+        <Card className="bg-app-surface border-app-border">
           <CardHeader>
             <CardTitle className="text-lg">📚 Informações Importantes</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4 text-sm text-ashGray">
+          <CardContent className="space-y-4 text-sm text-app-muted">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <h4 className="text-primary font-semibold">Sistema SAC</h4>
+                <h4 className="text-app-accent font-semibold">Sistema SAC</h4>
                 <p>
                   No Sistema de Amortização Constante (SAC), a amortização é
                   fixa e os juros são calculados sobre o saldo devedor
@@ -621,7 +613,7 @@ export const SimulatorClient = () => {
                 </p>
               </div>
               <div className="space-y-2">
-                <h4 className="text-primary font-semibold">Amortização Extra</h4>
+                <h4 className="text-app-accent font-semibold">Amortização Extra</h4>
                 <p>
                   SEMPRE escolha &quot;Reduzir Prazo&quot; ao amortizar. Isso maximiza a
                   economia de juros. Com aportes de {formatCurrency(computedParams.aporteExtra)}/mês você pode
@@ -646,8 +638,8 @@ export const SimulatorClient = () => {
               </div>
             </div>
 
-            <div className="border-t border-brightGrey pt-4 mt-4">
-              <h4 className="text-primary font-semibold mb-2">
+            <div className="border-t border-app-border pt-4 mt-4">
+              <h4 className="text-app-accent font-semibold mb-2">
                 Documentação PJ (Lucro Presumido)
               </h4>
               <ul className="list-disc list-inside space-y-1 text-xs">
@@ -662,7 +654,7 @@ export const SimulatorClient = () => {
         </Card>
 
         {/* Footer */}
-        <footer className="text-center text-xs text-dimGray py-6 border-t border-brightGrey">
+        <footer className="text-center text-xs text-app-subtle py-6 border-t border-app-border">
           <p>
             Simulador de financiamento para fins educacionais. Consulte um
             profissional antes de tomar decisões financeiras.

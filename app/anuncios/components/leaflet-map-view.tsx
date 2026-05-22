@@ -1,19 +1,20 @@
 "use client"
 
+/* eslint-disable @next/next/no-img-element */
+
 import { useEffect, useState } from "react"
 import { useCollections } from "../lib/use-collections"
 import { geocodeAddress } from "../lib/geocoding"
 import dynamic from "next/dynamic"
 import {
   type MapViewProps,
-  FLORIANOPOLIS_CENTER,
-  DEFAULT_ZOOM,
   calculatePrecoM2,
   getMarkerColor,
   formatCurrency,
   formatCompactPrice,
   hasCustomLocation,
 } from "./map-shared"
+import { appColors, markerColors } from "@/lib/theme/colors"
 
 // Dynamically import Leaflet components to avoid SSR issues
 const MapContainer = dynamic(
@@ -79,8 +80,8 @@ function createMarkerIcon(
           ">
             <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" 
-                    fill="#fbbf24" 
-                    stroke="#f59e0b" 
+                    fill="${markerColors.favoriteFill}" 
+                    stroke="${markerColors.favoriteStroke}" 
                     stroke-width="1.5" 
                     stroke-linejoin="round"/>
             </svg>
@@ -91,8 +92,8 @@ function createMarkerIcon(
                 right: -2px;
                 width: 10px;
                 height: 10px;
-                background-color: #3b82f6;
-                border: 2px solid white;
+                background-color: ${markerColors.customLocation};
+                border: 2px solid ${markerColors.markerBorder};
                 border-radius: 50%;
                 box-shadow: 0 1px 2px rgba(0,0,0,0.3);
               "></div>
@@ -102,8 +103,8 @@ function createMarkerIcon(
             <div style="
               margin-top: 2px;
               padding: 3px 6px;
-              background-color: rgba(0, 0, 0, 0.75);
-              color: white;
+              background-color: ${markerColors.labelBg};
+              color: ${markerColors.labelFg};
               font-size: 13px;
               font-weight: bold;
               border-radius: 3px;
@@ -120,7 +121,7 @@ function createMarkerIcon(
   }
   
   // Regular colored circle for non-starred items
-  const borderColor = hasCustomLoc ? "#3b82f6" : "white"
+  const borderColor = hasCustomLoc ? markerColors.customLocation : markerColors.markerBorder
   const borderWidth = hasCustomLoc ? "3px" : "2px"
   
   return L.divIcon({
@@ -147,8 +148,8 @@ function createMarkerIcon(
               right: -4px;
               width: 8px;
               height: 8px;
-              background-color: #3b82f6;
-              border: 2px solid white;
+              background-color: ${markerColors.customLocation};
+              border: 2px solid ${markerColors.markerBorder};
               border-radius: 50%;
               box-shadow: 0 1px 2px rgba(0,0,0,0.3);
             "></div>
@@ -158,8 +159,8 @@ function createMarkerIcon(
           <div style="
             margin-top: 2px;
             padding: 3px 6px;
-            background-color: rgba(0, 0, 0, 0.75);
-            color: white;
+            background-color: ${markerColors.labelBg};
+            color: ${markerColors.labelFg};
             font-size: 13px;
             font-weight: bold;
             border-radius: 3px;
@@ -179,11 +180,12 @@ function createMarkerIcon(
 // LEAFLET MAP VIEW COMPONENT
 // ============================================================================
 
-export function LeafletMapView({ 
+export function LeafletMapView({
   geocodedListings,
   onListingsChange,
   minPreco,
   maxPreco,
+  mapViewport,
 }: MapViewProps) {
   const { updateListing: apiUpdateListing } = useCollections()
   const [leafletLoaded, setLeafletLoaded] = useState(false)
@@ -207,18 +209,19 @@ export function LeafletMapView({
 
   if (!leafletLoaded) {
     return (
-      <div className="h-[400px] flex items-center justify-center bg-eerieBlack rounded-lg">
-        <p className="text-ashGray">Carregando mapa...</p>
+      <div className="h-[400px] flex items-center justify-center bg-app-surface-muted rounded-lg">
+        <p className="text-app-muted">Carregando mapa...</p>
       </div>
     )
   }
 
   return (
     <MapContainer
-      center={[FLORIANOPOLIS_CENTER.lat, FLORIANOPOLIS_CENTER.lng]}
-      zoom={DEFAULT_ZOOM}
+      key={`${mapViewport.lat}-${mapViewport.lng}-${mapViewport.zoom}-${mapViewport.source}`}
+      center={[mapViewport.lat, mapViewport.lng]}
+      zoom={mapViewport.zoom}
       className="h-[400px] rounded-lg"
-      style={{ background: "#e5e7eb" }}
+      style={{ background: appColors.surfaceMuted }}
     >
       <TileLayer url={TILE_URL} attribution={TILE_ATTRIBUTION} />
       {geocodedListings.map((gl) => {
@@ -289,7 +292,7 @@ export function LeafletMapView({
                       href={gl.listing.link}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="hover:text-primary transition-colors cursor-pointer"
+                      className="hover:text-app-accent transition-colors cursor-pointer"
                       title={`Abrir anúncio: ${gl.listing.titulo}`}
                     >
                       {gl.listing.titulo}
@@ -301,7 +304,7 @@ export function LeafletMapView({
                 <p className="text-gray-600 text-xs mb-2">{gl.listing.endereco}</p>
                 {customLoc && (
                   <p className="text-xs text-blue-600 mb-2 font-medium">
-                    📍 Localização personalizada
+                    Localização personalizada
                   </p>
                 )}
                 <div className="space-y-1">
@@ -332,7 +335,7 @@ export function LeafletMapView({
                       onClick={handleResetLocation}
                       className="text-blue-600 hover:underline text-xs block w-full text-left mb-1"
                     >
-                      🔄 Restaurar localização original
+                      Restaurar localização original
                     </button>
                   )}
                   {gl.listing.link && (

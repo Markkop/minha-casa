@@ -5,6 +5,7 @@ import dynamic from "next/dynamic"
 import { cn } from "@/lib/utils"
 import { LEVEL_BLOCKS } from "@/app/floodrisk/lib/constants"
 import { ConnectionType } from "@/app/floodrisk/lib/types"
+import { floodSceneColors } from "@/lib/theme/colors"
 
 // Dynamically import Three.js components to avoid SSR issues
 const Canvas = dynamic(
@@ -66,30 +67,30 @@ export function DemoFloodSection() {
   return (
     <section className="mt-16 space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-1000">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-brightGrey pb-4">
+      <div className="flex flex-col justify-between gap-4 border-b border-app-border pb-4 md:flex-row md:items-center">
         <div>
-          <h2 className="text-2xl font-bold text-white flex items-center gap-2">
+          <h2 className="flex items-center gap-2 text-2xl font-bold text-app-fg">
             <span>🌊</span>
             <span>Visualizador de Alagamento</span>
-            <span className="px-2 py-1 text-xs rounded-md border inline-flex items-center gap-1 bg-amber-500/20 text-amber-400 border-amber-500">
+            <span className="inline-flex items-center gap-1 rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-xs text-amber-800">
               <span>🚀</span>
               Em Breve
             </span>
           </h2>
-          <p className="text-ashGray text-sm">
+          <p className="text-sm text-app-muted">
             Visualize projeções de alagamento em 3D baseadas em dados climáticos.
           </p>
         </div>
       </div>
 
       {/* Main content: 3D view + projections */}
-      <div className="bg-eerieBlack border border-brightGrey rounded-xl overflow-hidden">
+      <div className="overflow-hidden rounded-xl border border-app-border bg-app-surface">
         <div className="flex flex-col md:flex-row">
           {/* 3D Canvas */}
           <div className="w-full h-[200px] md:h-[280px] md:flex-1 relative">
             <Suspense fallback={
-              <div className="h-full w-full flex items-center justify-center bg-slate-900">
-                <div className="text-ashGray text-sm">Carregando 3D...</div>
+              <div className="h-full w-full flex items-center justify-center bg-app-fg">
+                <div className="text-sm text-app-surface-muted">Carregando 3D...</div>
               </div>
             }>
               <Canvas
@@ -116,24 +117,24 @@ export function DemoFloodSection() {
             
             {/* Legend overlay */}
             <div className="absolute bottom-3 left-3 flex gap-2 text-[10px]">
-              <div className="flex items-center gap-1 bg-black/60 px-2 py-1 rounded">
-                <div className="w-2 h-2 rounded-sm bg-[#334155]"></div>
-                <span className="text-white">Rua</span>
+              <div className="flex items-center gap-1 bg-app-fg/60 px-2 py-1 rounded">
+                <div className="w-2 h-2 rounded-sm" style={{ backgroundColor: floodSceneColors.street }}></div>
+                <span className="text-app-fg">Rua</span>
               </div>
-              <div className="flex items-center gap-1 bg-black/60 px-2 py-1 rounded">
-                <div className="w-2 h-2 rounded-sm bg-[#475569]"></div>
-                <span className="text-white">Calçada</span>
+              <div className="flex items-center gap-1 bg-app-fg/60 px-2 py-1 rounded">
+                <div className="w-2 h-2 rounded-sm" style={{ backgroundColor: floodSceneColors.sidewalk }}></div>
+                <span className="text-app-fg">Calçada</span>
               </div>
-              <div className="flex items-center gap-1 bg-black/60 px-2 py-1 rounded">
-                <div className="w-2 h-2 rounded-sm bg-[#166534]"></div>
-                <span className="text-white">Casa</span>
+              <div className="flex items-center gap-1 bg-app-fg/60 px-2 py-1 rounded">
+                <div className="w-2 h-2 rounded-sm" style={{ backgroundColor: floodSceneColors.houseGround }}></div>
+                <span className="text-app-fg">Casa</span>
               </div>
             </div>
           </div>
 
           {/* Projections - horizontal on mobile, vertical column on desktop */}
-          <div className="w-full md:w-20 bg-black/30 border-t md:border-t-0 md:border-l border-brightGrey flex md:flex-col items-center justify-center md:justify-start py-3 md:py-4 gap-3 md:gap-2">
-            <span className="text-[10px] text-ashGray md:mb-2 text-center hidden md:block">Projeções</span>
+          <div className="flex w-full items-center justify-center gap-3 border-t border-app-border bg-app-bg py-3 md:w-20 md:flex-col md:justify-start md:gap-2 md:border-l md:border-t-0 md:py-4">
+            <span className="hidden text-center text-[10px] text-app-muted md:mb-2 md:block">Projeções</span>
             {DEMO_PROJECTIONS.map((proj) => {
               const isActive = proj.id === activeProjectionId
               const hasFlood = proj.ruaFlooded || proj.calcadaFlooded || proj.casaFlooded
@@ -146,10 +147,10 @@ export function DemoFloodSection() {
                   title={proj.year}
                   className={cn(
                     "w-12 h-12 rounded-md border-2 transition-all duration-200 flex items-center justify-center text-xs font-bold",
-                    isActive && !hasFlood && "border-primary bg-primary/20 scale-110 text-primary",
-                    isActive && hasFlood && !isCritical && "border-amber-500 bg-amber-500/20 scale-110 text-amber-400",
-                    isActive && isCritical && "border-red-500 bg-red-500/20 scale-110 text-red-400",
-                    !isActive && "border-brightGrey bg-eerieBlack hover:border-dimGray hover:scale-105 text-ashGray"
+                    isActive && !hasFlood && "scale-110 border-app-action bg-app-action text-app-action-foreground",
+                    isActive && hasFlood && !isCritical && "scale-110 border-amber-500 bg-amber-50 text-amber-800",
+                    isActive && isCritical && "scale-110 border-red-500 bg-red-50 text-red-700",
+                    !isActive && "border-app-border bg-app-surface text-app-muted hover:border-app-border-strong hover:scale-105"
                   )}
                 >
                   {proj.year}

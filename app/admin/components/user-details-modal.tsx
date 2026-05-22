@@ -240,7 +240,7 @@ export function UserDetailsModal({
   )
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+    <div className="fixed inset-0 bg-app-fg/50 flex items-center justify-center z-50">
       <Card className="w-full max-w-4xl mx-4 max-h-[90vh] overflow-y-auto">
         <CardHeader>
           <CardTitle>Detalhes do Usuário</CardTitle>
@@ -419,7 +419,7 @@ export function UserDetailsModal({
 
       {/* Grant Addon Modal */}
       {grantModalOpen && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60]">
+        <div className="fixed inset-0 bg-app-fg/50 flex items-center justify-center z-[60]">
           <Card className="w-full max-w-md mx-4">
             <CardHeader>
               <CardTitle>Conceder Addon</CardTitle>

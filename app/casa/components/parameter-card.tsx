@@ -78,12 +78,12 @@ const FieldWithTooltip = ({ label, tooltip, children, className }: FieldWithTool
   return (
     <div className={cn("space-y-2", className)}>
       <div className="flex items-center gap-2">
-        <Label className="text-sm text-ashGray">{label}</Label>
+        <Label className="text-sm text-app-muted">{label}</Label>
         {tooltip && (
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
-                <InfoCircledIcon className="h-4 w-4 text-dimGray hover:text-primary cursor-help transition-colors" />
+                <InfoCircledIcon className="h-4 w-4 text-app-subtle hover:text-app-accent cursor-help transition-colors" />
               </TooltipTrigger>
               <TooltipContent className="max-w-xs">
                 <p className="text-xs">{tooltip}</p>
@@ -309,7 +309,7 @@ export const ImovelParameterCard = ({ params, onChange, onValueChange, onSliderC
   const prazoRange = calculateSliderRange(params.prazoMesesBase, false)
 
   return (
-    <Card className="bg-eerieBlack border-brightGrey">
+    <Card className="bg-app-surface-muted border-app-border">
       <CardHeader className="pb-4">
         <CardTitle className="text-lg flex items-center gap-2">
           <span className="text-2xl">🏠</span>
@@ -332,11 +332,11 @@ export const ImovelParameterCard = ({ params, onChange, onValueChange, onSliderC
                 className="py-2"
               />
             )}
-            <div className="flex justify-between text-xs text-dimGray">
+            <div className="flex justify-between text-xs text-app-subtle">
               {onSliderChange && (
                 <>
                   <span>{formatCurrency(valorImovelRange.min)}</span>
-                  <span className="text-ashGray font-mono">
+                  <span className="text-app-muted font-mono">
                     {formatPercentage(params.valorImovelMultiplier)}
                   </span>
                   <span>{formatCurrency(valorImovelRange.max)}</span>
@@ -416,9 +416,9 @@ export const ImovelParameterCard = ({ params, onChange, onValueChange, onSliderC
               />
             )}
             {onSliderChange && (
-              <div className="flex justify-between text-xs text-dimGray">
+              <div className="flex justify-between text-xs text-app-subtle">
                 <span>{Math.round(prazoRange.min)} meses</span>
-                <span className="text-ashGray font-mono">
+                <span className="text-app-muted font-mono">
                   {formatPercentage(params.prazoMesesMultiplier)}
                 </span>
                 <span>{Math.round(prazoRange.max)} meses</span>
@@ -438,8 +438,8 @@ export const ImovelParameterCard = ({ params, onChange, onValueChange, onSliderC
                   className={cn(
                     "px-3 py-1 text-xs rounded-md border transition-all",
                     params.prazoMeses === prazo
-                      ? "bg-primary text-black border-primary font-bold"
-                      : "bg-middleGray50 border-brightGrey text-ashGray hover:border-primary"
+                      ? "bg-app-action text-app-action-foreground border-app-action font-bold"
+                      : "bg-app-bg border-app-border text-app-muted hover:border-app-action"
                   )}
                 >
                   {prazo / 12} anos
@@ -481,7 +481,7 @@ export const RecursosParameterCard = ({ params, onChange, onValueChange, onSlide
   const reservaRange = calculateSliderRange(params.reservaEmergenciaBase, true)
 
   return (
-    <Card className="bg-eerieBlack border-brightGrey">
+    <Card className="bg-app-surface-muted border-app-border">
       <CardHeader className="pb-4">
         <CardTitle className="text-lg flex items-center gap-2">
           <span className="text-2xl">💰</span>
@@ -508,9 +508,9 @@ export const RecursosParameterCard = ({ params, onChange, onValueChange, onSlide
               />
             )}
             {onSliderChange && (
-              <div className="flex justify-between text-xs text-dimGray">
+              <div className="flex justify-between text-xs text-app-subtle">
                 <span>{formatCurrency(capitalRange.min)}</span>
-                <span className="text-ashGray font-mono">
+                <span className="text-app-muted font-mono">
                   {formatPercentage(params.capitalDisponivelMultiplier)}
                 </span>
                 <span>{formatCurrency(capitalRange.max)}</span>
@@ -548,9 +548,9 @@ export const RecursosParameterCard = ({ params, onChange, onValueChange, onSlide
               />
             )}
             {onSliderChange && (
-              <div className="flex justify-between text-xs text-dimGray">
+              <div className="flex justify-between text-xs text-app-subtle">
                 <span>{formatCurrency(reservaRange.min)}</span>
-                <span className="text-ashGray font-mono">
+                <span className="text-app-muted font-mono">
                   {formatPercentage(params.reservaEmergenciaMultiplier)}
                 </span>
                 <span>{formatCurrency(reservaRange.max)}</span>
@@ -569,10 +569,10 @@ export const RecursosParameterCard = ({ params, onChange, onValueChange, onSlide
           </div>
         </FieldWithTooltip>
 
-        <div className="pt-2 border-t border-brightGrey">
+        <div className="pt-2 border-t border-app-border">
           <div className="flex justify-between items-center">
-            <span className="text-sm text-ashGray">Entrada Disponível</span>
-            <span className="text-lg font-bold text-primary">
+            <span className="text-sm text-app-muted">Entrada Disponível</span>
+            <span className="text-lg font-bold text-app-accent">
               {formatCurrency(entrada)}
             </span>
           </div>
@@ -598,7 +598,7 @@ export const ImovelCompradorParameterCard = ({ params, onChange, onValueChange, 
   const custoCondominioRange = calculateSliderRange(params.custoCondominioBase, true)
 
   return (
-    <Card className="bg-eerieBlack border-brightGrey">
+    <Card className="bg-app-surface-muted border-app-border">
       <CardHeader className="pb-4">
         <CardTitle className="text-lg flex items-center gap-2">
           <span className="text-2xl">🏢</span>
@@ -625,9 +625,9 @@ export const ImovelCompradorParameterCard = ({ params, onChange, onValueChange, 
               />
             )}
             {onSliderChange && (
-              <div className="flex justify-between text-xs text-dimGray">
+              <div className="flex justify-between text-xs text-app-subtle">
                 <span>{formatCurrency(valorAptoRange.min)}</span>
-                <span className="text-ashGray font-mono">
+                <span className="text-app-muted font-mono">
                   {formatPercentage(params.valorApartamentoMultiplier)}
                 </span>
                 <span>{formatCurrency(valorAptoRange.max)}</span>
@@ -661,9 +661,9 @@ export const ImovelCompradorParameterCard = ({ params, onChange, onValueChange, 
               step={haircutRange.step}
               className="py-2"
             />
-            <div className="flex justify-between text-xs text-dimGray">
+            <div className="flex justify-between text-xs text-app-subtle">
               <span>{haircutRange.min}%</span>
-              <span className="text-ashGray font-mono">
+              <span className="text-app-muted font-mono">
                 {(params.haircut * 100).toFixed(0)}%
               </span>
               <span>{haircutRange.max}%</span>
@@ -690,9 +690,9 @@ export const ImovelCompradorParameterCard = ({ params, onChange, onValueChange, 
               />
             )}
             {onSliderChange && (
-              <div className="flex justify-between text-xs text-dimGray">
+              <div className="flex justify-between text-xs text-app-subtle">
                 <span>{formatCurrency(custoCondominioRange.min)}</span>
-                <span className="text-ashGray font-mono">
+                <span className="text-app-muted font-mono">
                   {formatPercentage(params.custoCondominioMultiplier)}
                 </span>
                 <span>{formatCurrency(custoCondominioRange.max)}</span>
@@ -733,7 +733,7 @@ export const AmortizacaoParameterCard = ({ params, onChange, onValueChange, onSl
   const segurosRange = calculateSliderRange(params.segurosBase, true)
 
   return (
-    <Card className="bg-eerieBlack border-brightGrey">
+    <Card className="bg-app-surface-muted border-app-border">
       <CardHeader className="pb-4">
         <CardTitle className="text-lg flex items-center gap-2">
           <span className="text-2xl">📈</span>
@@ -797,9 +797,9 @@ export const AmortizacaoParameterCard = ({ params, onChange, onValueChange, onSl
               />
             )}
             {onSliderChange && (
-              <div className="flex justify-between text-xs text-dimGray">
+              <div className="flex justify-between text-xs text-app-subtle">
                 <span>{formatCurrency(segurosRange.min)}</span>
-                <span className="text-ashGray font-mono">
+                <span className="text-app-muted font-mono">
                   {formatPercentage(params.segurosMultiplier)}
                 </span>
                 <span>{formatCurrency(segurosRange.max)}</span>
@@ -843,7 +843,7 @@ export const FiltrosCenarioCard = ({ params, onChange }: ParameterCardProps) => 
   }))
 
   return (
-    <Card className="bg-raisinBlack border-brightGrey">
+    <Card className="bg-app-surface border-app-border">
       <CardHeader className="pb-4">
         <CardTitle className="text-lg flex items-center gap-2">
           <span className="text-2xl">🎯</span>
@@ -869,8 +869,8 @@ export const FiltrosCenarioCard = ({ params, onChange }: ParameterCardProps) => 
                 className={cn(
                   "px-3 py-1.5 text-xs rounded-md border transition-all flex flex-col items-center gap-0.5",
                   params.valoresImovelFiltroMultipliers.includes(multiplier)
-                    ? "bg-primary/20 text-primary border-primary"
-                    : "bg-middleGray50 border-brightGrey text-dimGray"
+                    ? "bg-app-action/20 text-app-accent border-app-action"
+                    : "bg-app-bg border-app-border text-app-subtle"
                 )}
               >
                 <span className="font-semibold">{label}</span>
@@ -899,7 +899,7 @@ export const FiltrosCenarioCard = ({ params, onChange }: ParameterCardProps) => 
                   "px-3 py-1.5 text-xs rounded-md border transition-all flex flex-col items-center gap-0.5",
                   params.valoresAptoFiltroMultipliers.includes(multiplier)
                     ? "bg-salmon/20 text-salmon border-salmon"
-                    : "bg-middleGray50 border-brightGrey text-dimGray"
+                    : "bg-app-bg border-app-border text-app-subtle"
                 )}
               >
                 <span className="font-semibold">{label}</span>
@@ -931,7 +931,7 @@ export const FiltrosCenarioCard = ({ params, onChange }: ParameterCardProps) => 
                   "px-3 py-1 text-xs rounded-md border transition-all",
                   (params.estrategiasFiltro || ["permuta", "venda_posterior"]).includes(value)
                     ? "bg-green/20 text-green border-green"
-                    : "bg-middleGray50 border-brightGrey text-dimGray"
+                    : "bg-app-bg border-app-border text-app-subtle"
                 )}
               >
                 {label}

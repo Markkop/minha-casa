@@ -39,10 +39,10 @@ const BlockConfigItem: React.FC<BlockConfigItemProps> = ({ block, onHeightChange
   };
 
   return (
-    <div className="flex items-center justify-between p-3 rounded-lg border bg-slate-800 border-slate-700">
+    <div className="flex items-center justify-between p-3 rounded-lg border bg-app-surface-muted border-app-border-strong">
       <div className="flex items-center gap-2 flex-1">
         <div className="w-3 h-3 rounded-full" style={{backgroundColor: block.color}} />
-        <span className="text-slate-300 text-sm font-medium">{block.name}</span>
+        <span className="text-app-surface-muted text-sm font-medium">{block.name}</span>
       </div>
       <div className="flex items-center gap-2">
         <input
@@ -53,9 +53,9 @@ const BlockConfigItem: React.FC<BlockConfigItemProps> = ({ block, onHeightChange
           onChange={(e) => setInputValue(e.target.value)}
           onBlur={handleBlur}
           onKeyDown={handleKeyDown}
-          className="w-20 px-2 py-1 bg-slate-900 border border-slate-600 rounded text-slate-200 text-sm font-mono focus:outline-none focus:border-purple-500"
+          className="w-20 px-2 py-1 bg-app-fg border border-app-border-strong rounded text-app-muted text-sm font-mono focus:outline-none focus:border-purple-500"
         />
-        <span className="text-slate-500 text-xs">m</span>
+        <span className="text-app-muted text-xs">m</span>
       </div>
     </div>
   );
@@ -213,7 +213,7 @@ const FloodRiskClient: React.FC = () => {
   const isFlooded = (elementHeight: number) => activeScenario ? activeScenario.level_rel_creek > elementHeight : false;
 
   return (
-    <div className="relative w-full h-full flex flex-col md:flex-row bg-slate-900">
+    <div className="relative w-full h-full flex flex-col md:flex-row bg-app-fg">
       
       {/* 3D Canvas Area */}
       <div className="flex-1 h-[60vh] md:h-full relative order-2 md:order-1 min-h-0">
@@ -234,20 +234,20 @@ const FloodRiskClient: React.FC = () => {
       </div>
 
       {/* Dashboard / Sidebar */}
-      <div className="w-full md:w-[400px] h-[40vh] md:h-full overflow-y-auto bg-slate-900 border-l border-slate-800 p-6 flex flex-col gap-6 order-1 md:order-2 z-20 shadow-2xl">
+      <div className="w-full md:w-[400px] h-[40vh] md:h-full overflow-y-auto bg-app-fg border-l border-app-border-strong p-6 flex flex-col gap-6 order-1 md:order-2 z-20 shadow-2xl">
         
         {/* Data Source Selector */}
         <div>
-          <h2 className="text-sm uppercase tracking-wider text-slate-500 font-bold mb-3 flex items-center gap-2">
+          <h2 className="text-sm uppercase tracking-wider text-app-muted font-bold mb-3 flex items-center gap-2">
             <Database size={16} /> Fonte de Dados
           </h2>
-          <div className="grid grid-cols-4 gap-2 bg-slate-800 p-1 rounded-lg">
+          <div className="grid grid-cols-4 gap-2 bg-app-surface-muted p-1 rounded-lg">
             <button
               onClick={() => handleSourceChange('CHATGPT')}
               className={`py-2 px-4 rounded-md text-xs font-bold transition-all ${
                 dataSource === 'CHATGPT'
-                  ? 'bg-blue-600 text-white shadow-md'
-                  : 'text-slate-400 hover:text-white'
+                  ? 'bg-blue-600 text-app-fg shadow-md'
+                  : 'text-app-subtle hover:text-app-fg'
               }`}
             >
               ChatGPT
@@ -256,8 +256,8 @@ const FloodRiskClient: React.FC = () => {
               onClick={() => handleSourceChange('GEMINI')}
               className={`py-2 px-4 rounded-md text-xs font-bold transition-all ${
                 dataSource === 'GEMINI'
-                  ? 'bg-emerald-600 text-white shadow-md'
-                  : 'text-slate-400 hover:text-white'
+                  ? 'bg-emerald-600 text-app-fg shadow-md'
+                  : 'text-app-subtle hover:text-app-fg'
               }`}
             >
               Gemini
@@ -266,8 +266,8 @@ const FloodRiskClient: React.FC = () => {
               onClick={() => handleSourceChange('CUSTOM')}
               className={`py-2 px-4 rounded-md text-xs font-bold transition-all ${
                 dataSource === 'CUSTOM'
-                  ? 'bg-amber-600 text-white shadow-md'
-                  : 'text-slate-400 hover:text-white'
+                  ? 'bg-amber-600 text-app-fg shadow-md'
+                  : 'text-app-subtle hover:text-app-fg'
               }`}
             >
               Custom
@@ -276,8 +276,8 @@ const FloodRiskClient: React.FC = () => {
               onClick={() => handleSourceChange('CONFIGURE')}
               className={`py-2 px-4 rounded-md text-xs font-bold transition-all ${
                 dataSource === 'CONFIGURE'
-                  ? 'bg-purple-600 text-white shadow-md'
-                  : 'text-slate-400 hover:text-white'
+                  ? 'bg-purple-600 text-app-fg shadow-md'
+                  : 'text-app-subtle hover:text-app-fg'
               }`}
             >
               Configure
@@ -288,7 +288,7 @@ const FloodRiskClient: React.FC = () => {
         {/* Scenario Selector or Configuration Panel */}
         {dataSource === 'CONFIGURE' ? (
           <div>
-            <h2 className="text-sm uppercase tracking-wider text-slate-500 font-bold mb-3 flex items-center gap-2">
+            <h2 className="text-sm uppercase tracking-wider text-app-muted font-bold mb-3 flex items-center gap-2">
               <Settings size={16} /> Configure
             </h2>
             <div className="grid grid-cols-1 gap-2">
@@ -303,14 +303,14 @@ const FloodRiskClient: React.FC = () => {
           </div>
         ) : dataSource === 'CUSTOM' ? (
           <div>
-            <h2 className="text-sm uppercase tracking-wider text-slate-500 font-bold mb-3 flex items-center gap-2">
+            <h2 className="text-sm uppercase tracking-wider text-app-muted font-bold mb-3 flex items-center gap-2">
               <Database size={16} /> Custom JSON
             </h2>
             <div className="flex flex-col gap-2">
               <div className="flex gap-2">
                 <button
                   onClick={copyPrompt}
-                  className="flex items-center gap-2 px-3 py-2 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold rounded-md transition-all"
+                  className="flex items-center gap-2 px-3 py-2 bg-amber-600 hover:bg-amber-700 text-app-fg text-xs font-bold rounded-md transition-all"
                 >
                   <Copy size={14} />
                   Copy Prompt
@@ -320,7 +320,7 @@ const FloodRiskClient: React.FC = () => {
                 value={customJson}
                 onChange={(e) => handleJsonChange(e.target.value)}
                 placeholder='Paste JSON here...'
-                className="w-full h-48 px-3 py-2 bg-slate-900 border border-slate-600 rounded-md text-slate-200 text-xs font-mono focus:outline-none focus:border-amber-500 resize-none"
+                className="w-full h-48 px-3 py-2 bg-app-fg border border-app-border-strong rounded-md text-app-muted text-xs font-mono focus:outline-none focus:border-amber-500 resize-none"
               />
               {jsonError && (
                 <div className="text-red-400 text-xs bg-red-900/20 border border-red-800 rounded-md p-2">
@@ -335,7 +335,7 @@ const FloodRiskClient: React.FC = () => {
             </div>
             {customScenarios.length > 0 && (
               <div className="mt-4">
-                <h2 className="text-sm uppercase tracking-wider text-slate-500 font-bold mb-3 flex items-center gap-2">
+                <h2 className="text-sm uppercase tracking-wider text-app-muted font-bold mb-3 flex items-center gap-2">
                   <Calendar size={16} /> Cenários
                 </h2>
                 <div className="grid grid-cols-1 gap-2">
@@ -346,7 +346,7 @@ const FloodRiskClient: React.FC = () => {
                       className={`flex items-center justify-between p-3 rounded-lg border transition-all ${
                         idx === activeScenarioIdx 
                           ? 'bg-amber-600/20 border-amber-500 text-amber-100'
-                          : 'bg-slate-800 border-slate-700 text-slate-400 hover:bg-slate-750'
+                          : 'bg-app-surface-muted border-app-border-strong text-app-subtle hover:bg-app-surface-muted'
                       }`}
                     >
                       <div className="flex flex-col items-start text-left">
@@ -365,7 +365,7 @@ const FloodRiskClient: React.FC = () => {
           </div>
         ) : (
           <div>
-            <h2 className="text-sm uppercase tracking-wider text-slate-500 font-bold mb-3 flex items-center gap-2">
+            <h2 className="text-sm uppercase tracking-wider text-app-muted font-bold mb-3 flex items-center gap-2">
               <Calendar size={16} /> {dataSource === 'GEMINI' ? 'Cenários Climáticos' : 'Cenários de Chuva'}
             </h2>
             <div className="grid grid-cols-1 gap-2">
@@ -378,7 +378,7 @@ const FloodRiskClient: React.FC = () => {
                       ? dataSource === 'GEMINI' 
                          ? 'bg-emerald-600/20 border-emerald-500 text-emerald-100'
                          : 'bg-blue-600/20 border-blue-500 text-blue-100' 
-                      : 'bg-slate-800 border-slate-700 text-slate-400 hover:bg-slate-750'
+                      : 'bg-app-surface-muted border-app-border-strong text-app-subtle hover:bg-app-surface-muted'
                   }`}
                 >
                   <div className="flex flex-col items-start text-left">
@@ -397,29 +397,29 @@ const FloodRiskClient: React.FC = () => {
 
         {/* Active Scenario Details */}
         {dataSource !== 'CONFIGURE' && activeScenario && (
-          <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-700">
+          <div className="bg-app-surface-muted/50 rounded-xl p-4 border border-app-border-strong">
             <div className="flex items-start justify-between mb-4">
                <div>
-                 <h3 className="text-lg font-bold text-white">{activeScenario.description}</h3>
-                 <p className="text-sm text-slate-400">Nível Água (Rel. Leito): <span className={`${dataSource === 'GEMINI' ? 'text-emerald-400' : dataSource === 'CUSTOM' ? 'text-amber-400' : 'text-blue-400'} font-mono text-base`}>{activeScenario.level_rel_creek.toFixed(2)}m</span></p>
+                 <h3 className="text-lg font-bold text-app-fg">{activeScenario.description}</h3>
+                 <p className="text-sm text-app-subtle">Nível Água (Rel. Leito): <span className={`${dataSource === 'GEMINI' ? 'text-emerald-400' : dataSource === 'CUSTOM' ? 'text-amber-400' : 'text-blue-400'} font-mono text-base`}>{activeScenario.level_rel_creek.toFixed(2)}m</span></p>
                </div>
                {activeScenario.rain_24h_mm > 150 && (
                   <AlertTriangle className="text-red-500 animate-pulse" />
                )}
             </div>
 
-            <h4 className="text-xs uppercase text-slate-500 font-bold mb-2">Status dos Elementos</h4>
+            <h4 className="text-xs uppercase text-app-muted font-bold mb-2">Status dos Elementos</h4>
             <div className="space-y-2">
                {customBlocks.filter(b => ['rua', 'garagem', 'casa', 'quintal'].includes(b.id)).map(block => {
                   const flooded = isFlooded(block.height_rel_creek);
                   const diff = activeScenario.level_rel_creek - block.height_rel_creek;
                   
                   return (
-                    <div key={block.id} className={`flex items-center justify-between text-sm p-2 rounded border ${flooded ? 'bg-red-900/20 border-red-800' : 'bg-slate-900 border-slate-800'}`}>
+                    <div key={block.id} className={`flex items-center justify-between text-sm p-2 rounded border ${flooded ? 'bg-red-900/20 border-red-800' : 'bg-app-fg border-app-border-strong'}`}>
                       <div className="flex items-center gap-2">
                          {block.id === 'casa' ? <Home size={14} className="text-orange-400"/> : <div className="w-3 h-3 rounded-full" style={{backgroundColor: block.color}} />}
-                         <span className="text-slate-300">{block.name}</span>
-                         <span className="text-[10px] text-slate-500">({block.height_rel_creek.toFixed(2)}m)</span>
+                         <span className="text-app-surface-muted">{block.name}</span>
+                         <span className="text-[10px] text-app-muted">({block.height_rel_creek.toFixed(2)}m)</span>
                       </div>
                       <div className={`font-mono font-bold text-xs ${flooded ? 'text-red-400' : 'text-emerald-400'}`}>
                          {flooded ? `+${diff.toFixed(2)}m` : 'SECO'}
@@ -431,8 +431,8 @@ const FloodRiskClient: React.FC = () => {
           </div>
         )}
 
-        <div className="mt-auto pt-4 border-t border-slate-800">
-           <p className="text-xs text-slate-500 leading-relaxed">
+        <div className="mt-auto pt-4 border-t border-app-border-strong">
+           <p className="text-xs text-app-muted leading-relaxed">
              <Info size={12} className="inline mr-1" />
              {dataSource === 'CONFIGURE'
                ? 'Ajuste as alturas dos elementos e veja a atualização em tempo real na cena 3D. Carro e casa são ocultados quando as alturas ficam abaixo dos valores de referência.'

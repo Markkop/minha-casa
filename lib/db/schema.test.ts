@@ -13,6 +13,11 @@ import {
   userAddons,
   organizationAddons,
   listings,
+  savedLinks,
+  contacts,
+  regions,
+  condominiums,
+  listingComparisonNotes,
   subscriptionStatusEnum,
   orgMemberRoleEnum,
   type PlanLimits,
@@ -422,6 +427,64 @@ describe("Database Schema", () => {
     })
   })
 
+  describe("workspace decision tables", () => {
+    it("defines saved links table", () => {
+      expect(getTableName(savedLinks)).toBe("saved_links")
+      const columns = getTableColumns(savedLinks)
+      expect(Object.keys(columns)).toEqual(expect.arrayContaining([
+        "id",
+        "userId",
+        "orgId",
+        "title",
+        "url",
+        "description",
+        "createdAt",
+        "updatedAt",
+      ]))
+    })
+
+    it("defines contacts table", () => {
+      expect(getTableName(contacts)).toBe("contacts")
+      const columns = getTableColumns(contacts)
+      expect(Object.keys(columns)).toEqual(expect.arrayContaining([
+        "id",
+        "userId",
+        "orgId",
+        "name",
+        "phone",
+        "normalizedPhone",
+        "email",
+        "notes",
+        "source",
+      ]))
+    })
+
+    it("defines regions table", () => {
+      expect(getTableName(regions)).toBe("regions")
+      const columns = getTableColumns(regions)
+      expect(columns.city.notNull).toBe(true)
+      expect(columns.neighborhood.notNull).toBe(true)
+      expect(columns.propertyType.notNull).toBe(true)
+      expect(columns.pricePerM2.notNull).toBe(true)
+    })
+
+    it("defines condominiums table", () => {
+      expect(getTableName(condominiums)).toBe("condominiums")
+      const columns = getTableColumns(condominiums)
+      expect(columns.name.notNull).toBe(true)
+      expect(Object.keys(columns)).toContain("amenities")
+      expect(Object.keys(columns)).toContain("source")
+    })
+
+    it("defines listing comparison notes table", () => {
+      expect(getTableName(listingComparisonNotes)).toBe("listing_comparison_notes")
+      const columns = getTableColumns(listingComparisonNotes)
+      expect(columns.listingId.notNull).toBe(true)
+      expect(columns.pros.notNull).toBe(true)
+      expect(columns.cons.notNull).toBe(true)
+    })
+  })
+
   describe("type exports", () => {
     it("exports subscriptionStatusEnum with correct values", () => {
       expect(subscriptionStatusEnum).toEqual(["active", "expired", "cancelled"])
@@ -459,6 +522,8 @@ describe("Database Schema", () => {
       const listing: ListingData = {
         titulo: "Apartamento 3 quartos",
         endereco: "Rua das Flores, 123",
+        bairro: "Centro",
+        cidade: "Florianópolis",
         m2Totais: 120,
         m2Privado: 100,
         quartos: 3,
@@ -473,10 +538,14 @@ describe("Database Schema", () => {
         vistaLivre: false,
         piscinaTermica: null,
         andar: 5,
+        tipoImovel: "apartamento",
         link: "https://example.com/listing",
         imageUrl: "https://example.com/image.jpg",
         contactName: "João",
         contactNumber: "11999999999",
+        condominiumName: "Residencial Flores",
+        condominiumId: "cond-1",
+        regionId: "region-1",
         starred: true,
         visited: false,
         strikethrough: false,
@@ -487,6 +556,8 @@ describe("Database Schema", () => {
       }
       expect(listing.titulo).toBe("Apartamento 3 quartos")
       expect(listing.preco).toBe(500000)
+      expect(listing.tipoImovel).toBe("apartamento")
+      expect(listing.condominiumName).toBe("Residencial Flores")
     })
 
     it("SubscriptionStatus type matches enum", () => {

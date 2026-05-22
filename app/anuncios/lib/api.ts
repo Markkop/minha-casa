@@ -6,6 +6,7 @@
  */
 
 import type { ListingData } from "@/lib/db/schema"
+import type { ParseRequest } from "./parse-input"
 import {
   ApiError,
   ErrorCode,
@@ -58,6 +59,8 @@ export interface Imovel {
   id: string
   titulo: string
   endereco: string
+  bairro?: string | null
+  cidade?: string | null
   m2Totais: number | null
   m2Privado: number | null
   quartos: number | null
@@ -77,14 +80,20 @@ export interface Imovel {
   imageUrl?: string | null
   contactName?: string | null
   contactNumber?: string | null
+  condominiumName?: string | null
+  condominiumId?: string | null
+  regionId?: string | null
   starred?: boolean
   visited?: boolean
   strikethrough?: boolean
   discardedReason?: string | null
+  listingStatus?: string | null
   customLat?: number | null
   customLng?: number | null
   createdAt: string
   addedAt?: string
+  sitePublishedAt?: string | null
+  siteUpdatedAt?: string | null
 }
 
 // ============================================================================
@@ -114,6 +123,8 @@ export function toImovel(apiListing: ApiListing): Imovel {
     id: apiListing.id,
     titulo: apiListing.data.titulo,
     endereco: apiListing.data.endereco,
+    bairro: apiListing.data.bairro,
+    cidade: apiListing.data.cidade,
     m2Totais: apiListing.data.m2Totais,
     m2Privado: apiListing.data.m2Privado,
     quartos: apiListing.data.quartos,
@@ -128,18 +139,25 @@ export function toImovel(apiListing: ApiListing): Imovel {
     vistaLivre: apiListing.data.vistaLivre,
     piscinaTermica: apiListing.data.piscinaTermica,
     andar: apiListing.data.andar,
+    tipoImovel: apiListing.data.tipoImovel,
     link: apiListing.data.link,
     imageUrl: apiListing.data.imageUrl,
     contactName: apiListing.data.contactName,
     contactNumber: apiListing.data.contactNumber,
+    condominiumName: apiListing.data.condominiumName,
+    condominiumId: apiListing.data.condominiumId,
+    regionId: apiListing.data.regionId,
     starred: apiListing.data.starred,
     visited: apiListing.data.visited,
     strikethrough: apiListing.data.strikethrough,
     discardedReason: apiListing.data.discardedReason,
+    listingStatus: apiListing.data.listingStatus,
     customLat: apiListing.data.customLat,
     customLng: apiListing.data.customLng,
     createdAt: apiListing.createdAt,
     addedAt: apiListing.data.addedAt,
+    sitePublishedAt: apiListing.data.sitePublishedAt,
+    siteUpdatedAt: apiListing.data.siteUpdatedAt,
   }
 }
 
@@ -151,6 +169,8 @@ export function toListingData(imovel: Partial<Imovel>): Partial<ListingData> {
 
   if (imovel.titulo !== undefined) data.titulo = imovel.titulo
   if (imovel.endereco !== undefined) data.endereco = imovel.endereco
+  if (imovel.bairro !== undefined) data.bairro = imovel.bairro
+  if (imovel.cidade !== undefined) data.cidade = imovel.cidade
   if (imovel.m2Totais !== undefined) data.m2Totais = imovel.m2Totais
   if (imovel.m2Privado !== undefined) data.m2Privado = imovel.m2Privado
   if (imovel.quartos !== undefined) data.quartos = imovel.quartos
@@ -165,17 +185,24 @@ export function toListingData(imovel: Partial<Imovel>): Partial<ListingData> {
   if (imovel.vistaLivre !== undefined) data.vistaLivre = imovel.vistaLivre
   if (imovel.piscinaTermica !== undefined) data.piscinaTermica = imovel.piscinaTermica
   if (imovel.andar !== undefined) data.andar = imovel.andar
+  if (imovel.tipoImovel !== undefined) data.tipoImovel = imovel.tipoImovel
   if (imovel.link !== undefined) data.link = imovel.link
   if (imovel.imageUrl !== undefined) data.imageUrl = imovel.imageUrl
   if (imovel.contactName !== undefined) data.contactName = imovel.contactName
   if (imovel.contactNumber !== undefined) data.contactNumber = imovel.contactNumber
+  if (imovel.condominiumName !== undefined) data.condominiumName = imovel.condominiumName
+  if (imovel.condominiumId !== undefined) data.condominiumId = imovel.condominiumId
+  if (imovel.regionId !== undefined) data.regionId = imovel.regionId
   if (imovel.starred !== undefined) data.starred = imovel.starred
   if (imovel.visited !== undefined) data.visited = imovel.visited
   if (imovel.strikethrough !== undefined) data.strikethrough = imovel.strikethrough
   if (imovel.discardedReason !== undefined) data.discardedReason = imovel.discardedReason
+  if (imovel.listingStatus !== undefined) data.listingStatus = imovel.listingStatus
   if (imovel.customLat !== undefined) data.customLat = imovel.customLat
   if (imovel.customLng !== undefined) data.customLng = imovel.customLng
   if (imovel.addedAt !== undefined) data.addedAt = imovel.addedAt
+  if (imovel.sitePublishedAt !== undefined) data.sitePublishedAt = imovel.sitePublishedAt
+  if (imovel.siteUpdatedAt !== undefined) data.siteUpdatedAt = imovel.siteUpdatedAt
 
   return data
 }
@@ -343,26 +370,20 @@ export async function deleteListing(collectionId: string, listingId: string): Pr
 // ============================================================================
 
 interface ParseApiResponse {
-  data?: ListingData
+  listings?: ListingData[]
   error?: string
 }
 
-/**
- * Parse a listing using the server-side AI parsing API
- */
-export async function parseListingWithAI(rawText: string): Promise<ListingData> {
-  const response = await fetch("/api/parse", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ rawText }),
-  })
+const MULTI_LISTING_REPARSE_ERROR =
+  "Foram detectados vários imóveis. Use Adicionar imóvel para importar em lote."
 
-  const result: ParseApiResponse = await response.json()
-
+async function handleParseApiResponse(
+  response: Response,
+  result: ParseApiResponse
+): Promise<ListingData[]> {
   if (!response.ok) {
     const errorMessage = result.error || "Unknown error"
 
-    // Provide user-friendly messages for common error cases
     if (response.status === 401) {
       throw new ApiError(
         "Você precisa estar logado para usar o parser de IA.",
@@ -388,7 +409,7 @@ export async function parseListingWithAI(rawText: string): Promise<ListingData> 
     throw new ApiError(errorMessage, response.status, ErrorCode.UNKNOWN_ERROR)
   }
 
-  if (!result.data) {
+  if (!result.listings || result.listings.length === 0) {
     throw new ApiError(
       "Resposta inválida do servidor",
       500,
@@ -396,7 +417,39 @@ export async function parseListingWithAI(rawText: string): Promise<ListingData> 
     )
   }
 
-  return result.data
+  return result.listings
+}
+
+/**
+ * Parse listing(s) using text, image, or PDF input
+ */
+export async function parseListing(input: ParseRequest): Promise<ListingData[]> {
+  const response = await fetch("/api/parse", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  })
+
+  const result: ParseApiResponse = await response.json()
+  return handleParseApiResponse(response, result)
+}
+
+/**
+ * Parse exactly one listing (for reparse flows)
+ */
+export async function parseListingSingle(input: ParseRequest): Promise<ListingData> {
+  const listings = await parseListing(input)
+  if (listings.length !== 1) {
+    throw new ApiError(MULTI_LISTING_REPARSE_ERROR, 400, ErrorCode.UNKNOWN_ERROR)
+  }
+  return listings[0]
+}
+
+/**
+ * Parse a listing from raw text (for reparse — rejects multi-listing results)
+ */
+export async function parseListingWithAI(rawText: string): Promise<ListingData> {
+  return parseListingSingle({ kind: "text", rawText })
 }
 
 // ============================================================================

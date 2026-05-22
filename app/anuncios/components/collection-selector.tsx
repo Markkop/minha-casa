@@ -7,9 +7,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { PageToolbarButton, PageToolbarIconButton } from "@/app/components/page-toolbar"
 import { useCollections } from "../lib/use-collections"
 import { cn } from "@/lib/utils"
-import { PlusIcon, PencilIcon, TrashIcon, StarIcon } from "lucide-react"
+import { PlusIcon, PencilIcon, TrashIcon, StarIcon, Users } from "lucide-react"
 import type { Collection } from "../lib/api"
 
 interface CollectionSelectorProps {
@@ -50,30 +51,21 @@ export function CollectionSelector({
   // Handle empty collections state
   if (collections.length === 0) {
     return (
-      <div className="flex flex-wrap items-center gap-2">
-        {/* Organization Context Indicator */}
+      <div className="flex flex-wrap items-center gap-1.5">
         {isOrgContext && orgContext.organizationName && (
-          <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-primary/10 text-primary text-xs font-medium">
-            <span>👥</span>
-            <span className="truncate max-w-[120px]">{orgContext.organizationName}</span>
+          <div className="flex h-7 items-center gap-1 rounded-md bg-app-surface-muted px-2 text-xs font-medium text-app-fg">
+            <Users className="h-3.5 w-3.5 shrink-0" />
+            <span className="max-w-[120px] truncate">{orgContext.organizationName}</span>
           </div>
         )}
 
-        <span className="text-sm text-muted-foreground">Nenhuma coleção</span>
+        <span className="text-xs text-muted-foreground">Nenhuma coleção</span>
 
         {onCreateCollection && (
-          <button
-            onClick={onCreateCollection}
-            className={cn(
-              "px-3 py-1.5 rounded-lg text-sm transition-all",
-              "bg-primary text-primary-foreground",
-              "hover:bg-primary/90",
-              "flex items-center gap-1.5"
-            )}
-          >
-            <PlusIcon className="h-4 w-4" />
-            <span>Criar</span>
-          </button>
+          <PageToolbarButton variant="primary" onClick={onCreateCollection}>
+            <PlusIcon />
+            Criar
+          </PageToolbarButton>
         )}
       </div>
     )
@@ -95,12 +87,11 @@ export function CollectionSelector({
   }
 
   return (
-    <div className="flex flex-wrap items-center gap-2">
-      {/* Organization Context Indicator */}
+    <div className="flex flex-wrap items-center gap-1.5">
       {isOrgContext && orgContext.organizationName && (
-        <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-primary/10 text-primary text-xs font-medium">
-          <span>👥</span>
-          <span className="truncate max-w-[120px]">{orgContext.organizationName}</span>
+        <div className="flex h-7 items-center gap-1 rounded-md bg-app-surface-muted px-2 text-xs font-medium text-app-fg">
+          <Users className="h-3.5 w-3.5 shrink-0" />
+          <span className="max-w-[120px] truncate">{orgContext.organizationName}</span>
         </div>
       )}
 
@@ -110,11 +101,11 @@ export function CollectionSelector({
         onValueChange={handleCollectionChange}
       >
         <SelectTrigger
+          size="sm"
           className={cn(
-            "w-full min-w-[200px] sm:w-[200px] md:w-[250px]",
-            "bg-eerieBlack border-brightGrey",
-            "hover:border-primary hover:text-primary",
-            "text-white"
+            "h-7 min-w-[160px] w-full text-xs sm:w-[180px] md:w-[220px]",
+            "border-app-border bg-app-surface text-app-fg",
+            "hover:border-app-border-strong hover:bg-app-bg hover:text-app-fg"
           )}
         >
           <SelectValue placeholder="Selecionar coleção">
@@ -130,18 +121,18 @@ export function CollectionSelector({
             )}
           </SelectValue>
         </SelectTrigger>
-        <SelectContent className="bg-raisinBlack border-brightGrey">
+        <SelectContent className="border-app-border bg-app-surface text-app-fg">
           {collections.map((collection) => {
             return (
               <SelectItem
                 key={collection.id}
                 value={collection.id}
-                className="text-white hover:bg-eerieBlack focus:bg-eerieBlack"
+                className="text-app-fg hover:bg-app-surface-muted focus:bg-app-surface-muted"
               >
                 <div className="flex items-center justify-between w-full">
                   <div className="flex items-center gap-2">
                     {collection.isDefault && (
-                      <span className="text-xs text-muted-foreground">★</span>
+                      <StarIcon className="h-3 w-3 text-muted-foreground fill-current" />
                     )}
                     <span className="truncate">{collection.label}</span>
                   </div>
@@ -152,68 +143,43 @@ export function CollectionSelector({
         </SelectContent>
       </Select>
 
-      {/* Action Buttons */}
       <div className="flex items-center gap-1">
         {onCreateCollection && (
-          <button
-            onClick={onCreateCollection}
-            className={cn(
-              "px-2 py-2 rounded-lg text-sm transition-all",
-              "bg-eerieBlack border border-brightGrey",
-              "hover:border-primary hover:text-primary",
-              "flex items-center gap-1"
-            )}
-            title="Nova Coleção"
-          >
-            <PlusIcon className="h-4 w-4" />
-          </button>
+          <PageToolbarIconButton onClick={onCreateCollection} title="Nova coleção">
+            <PlusIcon />
+          </PageToolbarIconButton>
         )}
 
         {activeCollection && onEditCollection && (
-          <button
+          <PageToolbarIconButton
             onClick={() => onEditCollection(activeCollection)}
-            className={cn(
-              "px-2 py-2 rounded-lg text-sm transition-all",
-              "bg-eerieBlack border border-brightGrey",
-              "hover:border-primary hover:text-primary",
-              "flex items-center gap-1"
-            )}
-            title="Editar Coleção"
+            title="Editar coleção"
           >
-            <PencilIcon className="h-4 w-4" />
-          </button>
+            <PencilIcon />
+          </PageToolbarIconButton>
         )}
 
         {activeCollection && (
-          <button
-            onClick={() => handleSetDefault(activeCollection)}
+          <PageToolbarIconButton
+            onClick={() => void handleSetDefault(activeCollection)}
+            title={activeCollection.isDefault ? "Coleção padrão" : "Definir como padrão"}
             className={cn(
-              "px-2 py-2 rounded-lg text-sm transition-all",
-              "bg-eerieBlack border border-brightGrey",
-              activeCollection.isDefault
-                ? "fill-gray-400 text-gray-400"
-                : "hover:border-primary hover:text-primary",
-              "flex items-center gap-1"
+              activeCollection.isDefault &&
+                "text-muted-foreground [&_svg]:fill-current"
             )}
-            title={activeCollection.isDefault ? "Coleção Padrão" : "Definir como Padrão"}
           >
-            <StarIcon className={cn("h-4 w-4", activeCollection.isDefault && "fill-current")} />
-          </button>
+            <StarIcon />
+          </PageToolbarIconButton>
         )}
 
         {activeCollection && onDeleteCollection && (
-          <button
+          <PageToolbarIconButton
+            variant="destructive"
             onClick={() => onDeleteCollection(activeCollection)}
-            className={cn(
-              "px-2 py-2 rounded-lg text-sm transition-all",
-              "bg-eerieBlack border border-brightGrey",
-              "hover:border-destructive hover:text-destructive",
-              "flex items-center gap-1"
-            )}
-            title="Excluir Coleção"
+            title="Excluir coleção"
           >
-            <TrashIcon className="h-4 w-4" />
-          </button>
+            <TrashIcon />
+          </PageToolbarIconButton>
         )}
       </div>
     </div>

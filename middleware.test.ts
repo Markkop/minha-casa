@@ -105,7 +105,18 @@ describe("proxy", () => {
   })
 
   describe("subscription checks for protected routes", () => {
-    const protectedRoutes = ["/anuncios", "/casa", "/floodrisk"]
+    const protectedRoutes = [
+      "/visao-geral",
+      "/anuncios",
+      "/comparacao",
+      "/financiamento",
+      "/casa",
+      "/links",
+      "/contatos",
+      "/regioes",
+      "/condominios",
+      "/floodrisk",
+    ]
 
     protectedRoutes.forEach((route) => {
       describe(`${route}`, () => {

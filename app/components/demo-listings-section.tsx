@@ -107,13 +107,13 @@ export function DemoListingsSection() {
 
   return (
     <section className="mt-16 space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-1000">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-brightGrey pb-4">
+      <div className="flex flex-col justify-between gap-4 border-b border-app-border pb-4 md:flex-row md:items-center">
         <div>
-          <h2 className="text-2xl font-bold text-white flex items-center gap-2">
+          <h2 className="flex items-center gap-2 text-2xl font-bold text-app-fg">
             <span>🏘️</span>
             <span>Gerenciador de Anuncios</span>
           </h2>
-          <p className="text-ashGray text-sm">
+          <p className="text-sm text-app-muted">
             Cole anuncios de imoveis e deixe a IA extrair automaticamente todos os dados relevantes.
           </p>
         </div>
@@ -122,8 +122,7 @@ export function DemoListingsSection() {
           onClick={() => setIsParserOpen(true)}
           className={cn(
             "px-6 py-3 rounded-xl font-bold transition-all",
-            "bg-primary text-black hover:scale-105 active:scale-95",
-            "shadow-[0_0_20px_rgba(197,255,1,0.2)] hover:shadow-[0_0_30px_rgba(197,255,1,0.4)]",
+            "bg-app-action text-app-action-foreground hover:bg-app-action-hover active:scale-95",
             "flex items-center justify-center gap-2"
           )}
         >

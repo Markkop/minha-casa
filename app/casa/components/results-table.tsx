@@ -112,7 +112,7 @@ const SortableHeader = ({
 
   return (
     <TableHead
-      className="cursor-pointer hover:bg-middleGray/30 transition-colors"
+      className="cursor-pointer hover:bg-app-surface-muted/30 transition-colors"
       onClick={() => onSort(sortKey)}
     >
       <div className="flex items-center gap-1">
@@ -121,7 +121,7 @@ const SortableHeader = ({
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
-                <InfoCircledIcon className="h-3 w-3 text-dimGray" />
+                <InfoCircledIcon className="h-3 w-3 text-app-subtle" />
               </TooltipTrigger>
               <TooltipContent className="max-w-xs">
                 <p className="text-xs">{tooltip}</p>
@@ -131,9 +131,9 @@ const SortableHeader = ({
         )}
         {isActive && (
           isAsc ? (
-            <ArrowUpIcon className="h-3 w-3 text-primary" />
+            <ArrowUpIcon className="h-3 w-3 text-app-accent" />
           ) : (
-            <ArrowDownIcon className="h-3 w-3 text-primary" />
+            <ArrowDownIcon className="h-3 w-3 text-app-accent" />
           )
         )}
       </div>
@@ -240,7 +240,7 @@ export const ResultsTable = ({ cenarios, onSelectCenario }: ResultsTableProps) =
     <div className="overflow-x-auto">
       <Table>
         <TableHeader>
-          <TableRow className="border-brightGrey hover:bg-transparent">
+          <TableRow className="border-app-border hover:bg-transparent">
             <TableHead className="w-8"></TableHead>
             <SortableHeader
               label="Casa"
@@ -306,19 +306,19 @@ export const ResultsTable = ({ cenarios, onSelectCenario }: ResultsTableProps) =
             <TableRow
               key={cenario.id}
               className={cn(
-                "border-brightGrey cursor-pointer transition-colors",
+                "border-app-border cursor-pointer transition-colors",
                 cenario.isBest
-                  ? "bg-primary/10 hover:bg-primary/20"
-                  : "hover:bg-middleGray/30"
+                  ? "bg-app-action/10 hover:bg-app-action-hover/20"
+                  : "hover:bg-app-surface-muted/30"
               )}
               onClick={() => onSelectCenario?.(cenario)}
             >
               <TableCell className="w-8">
                 {cenario.isBest && (
-                  <CheckCircledIcon className="h-4 w-4 text-primary" />
+                  <CheckCircledIcon className="h-4 w-4 text-app-accent" />
                 )}
               </TableCell>
-              <TableCell className="font-mono text-sm text-primary">
+              <TableCell className="font-mono text-sm text-app-accent">
                 {formatCurrencyCompact(cenario.valorImovel)}
               </TableCell>
               <TableCell className="font-mono text-sm text-salmon">
@@ -334,7 +334,7 @@ export const ResultsTable = ({ cenarios, onSelectCenario }: ResultsTableProps) =
               <TableCell className="font-mono text-sm">
                 {formatCurrencyCompact(cenario.financiamento.valorFinanciado)}
               </TableCell>
-              <TableCell className="font-mono text-sm text-primary font-bold">
+              <TableCell className="font-mono text-sm text-app-accent font-bold">
                 {formatCurrencyCompact(
                   cenario.aporteExtra + cenario.tabelaPadrao.primeiraParcelar
                 )}
@@ -356,7 +356,7 @@ export const ResultsTable = ({ cenarios, onSelectCenario }: ResultsTableProps) =
                   </span>
                 </div>
               </TableCell>
-              <TableCell className="font-mono text-sm text-primary">
+              <TableCell className="font-mono text-sm text-app-accent">
                 {(cenario.cenarioOtimizado.prazoReal / 12).toFixed(1)}a
               </TableCell>
               <TableCell className="font-mono text-sm text-salmon font-bold">
@@ -383,7 +383,7 @@ export const AmortizationSampleTable = ({ parcelas }: AmortizationSampleTablePro
     <div className="overflow-x-auto">
       <Table>
         <TableHeader>
-          <TableRow className="border-brightGrey">
+          <TableRow className="border-app-border">
             <TableHead>Mês</TableHead>
             <TableHead>Saldo Devedor</TableHead>
             <TableHead>Amortização</TableHead>
@@ -393,14 +393,14 @@ export const AmortizationSampleTable = ({ parcelas }: AmortizationSampleTablePro
         </TableHeader>
         <TableBody>
           {parcelas.map((parcela) => (
-            <TableRow key={parcela.mes} className="border-brightGrey">
+            <TableRow key={parcela.mes} className="border-app-border">
               <TableCell className="font-mono text-sm">
                 {parcela.mes}
               </TableCell>
               <TableCell className="font-mono text-sm">
                 {formatCurrency(parcela.saldoDevedor)}
               </TableCell>
-              <TableCell className="font-mono text-sm text-primary">
+              <TableCell className="font-mono text-sm text-app-accent">
                 {formatCurrency(parcela.amortizacao)}
               </TableCell>
               <TableCell className="font-mono text-sm text-salmon">
@@ -496,7 +496,7 @@ export const SummaryComparison = ({ cenarios }: SummaryComparisonProps) => {
         <div
           key={label}
           className={cn(
-            "bg-eerieBlack border border-brightGrey rounded-lg p-3",
+            "bg-app-surface-muted border border-app-border rounded-lg p-3",
             highlight && "border-green bg-green/5",
             variant === "salmon" && "border-salmon bg-salmon/5"
           )}
@@ -505,7 +505,7 @@ export const SummaryComparison = ({ cenarios }: SummaryComparisonProps) => {
             {icon && <span className="text-lg">{icon}</span>}
             <span className={cn(
               "text-xs",
-              variant === "salmon" ? "text-salmon" : "text-ashGray"
+              variant === "salmon" ? "text-salmon" : "text-app-muted"
             )}>{label}</span>
           </div>
           <span
@@ -513,7 +513,7 @@ export const SummaryComparison = ({ cenarios }: SummaryComparisonProps) => {
               "text-sm font-mono font-bold",
               highlight && "text-green",
               variant === "salmon" && "text-salmon",
-              !highlight && variant !== "salmon" && "text-white"
+              !highlight && variant !== "salmon" && "text-app-fg"
             )}
           >
             {value}

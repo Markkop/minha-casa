@@ -48,6 +48,9 @@ Copy `.env.example` to `.env.local` and fill in values. For local dev against th
 ```env
 DATABASE_URL=postgresql://minhacasa:<password>@<VPS_HOST>:5433/minha_casa_prod
 DATABASE_SSL=true
+BETTER_AUTH_SECRET=<strong-random-secret>
+NEXT_PUBLIC_APP_URL=http://localhost:3000
+OPENAI_API_KEY=<openai-api-key>
 ```
 
 Do not put `sslmode=require` in the URL when `DATABASE_SSL=true` — the app strips it for self-signed VPS TLS. See [docs/vps-postgres.md](docs/vps-postgres.md).
@@ -100,7 +103,8 @@ minha-casa/
 │   │   ├── organizations/  # Organizations CRUD
 │   │   ├── parse/          # AI parsing endpoint
 │   │   └── ...
-│   ├── casa/               # Financing simulator (feature flagged)
+│   ├── casa/               # Legacy redirect to /financiamento
+│   ├── financiamento/      # Financing simulator
 │   ├── floodrisk/          # Flood risk visualization (feature flagged)
 │   ├── login/              # Login page
 │   ├── organizacoes/       # Organizations management
@@ -183,7 +187,7 @@ The platform features a flexible addon system that allows granular feature acces
 
 | Addon | Slug | Description |
 |-------|------|-------------|
-| Simulador de Financiamento | `financiamento` | Access to `/casa` financing simulator with price integration from listings |
+| Simulador de Financiamento | `financiamento` | Financing simulator access; `/casa` redirects to `/financiamento` |
 | Risco de Enchente | `flood` | Access to `/floodrisk` flood risk analysis and 3D visualization |
 
 ### Access Control Logic
@@ -252,7 +256,7 @@ Feature flags control visibility of incomplete or optional features. Configure v
 | `publicCollections` | `NEXT_PUBLIC_FF_PUBLIC_COLLECTIONS` | `true` | Enable public sharing |
 | `mapProvider` | `NEXT_PUBLIC_FF_MAP_PROVIDER` | `auto` | Map provider (`google`, `leaflet`, `auto`) |
 
-**Note**: Access to `/casa` (Financing Simulator) and `/floodrisk` (Flood Forecast) routes is now controlled by the addon system instead of feature flags. See the Addon System section above for details.
+**Note**: Access to `/floodrisk` (Flood Forecast) is controlled by the addon system instead of feature flags. Financing is available to Plus workspace users through `/financiamento`, with `/casa` kept as a compatibility redirect.
 
 ## Database Schema
 
@@ -267,6 +271,11 @@ The application uses the following main tables:
 - **organization_members**: Org membership with roles
 - **collections**: Listing collections (user or org owned)
 - **listings**: Individual real estate listings
+- **saved_links**: User/org saved search links and reference URLs
+- **contacts**: Manual and listing-derived contacts
+- **regions**: Manual neighborhood/city m2 benchmarks
+- **condominiums**: Reusable condominium context and amenities
+- **listing_comparison_notes**: Pros, cons, and notes for shortlist comparison
 - **addons**: Available addon definitions (slug, name, description)
 - **user_addons**: Addon grants for individual users
 - **organization_addons**: Addon grants for organizations

@@ -193,7 +193,7 @@ describe("ClickablePrice", () => {
       render(<ClickablePrice price={500000} />)
 
       const priceElement = screen.getByTestId("clickable-price")
-      expect(priceElement).toHaveClass("text-primary")
+      expect(priceElement).toHaveClass("text-app-accent")
     })
   })
 

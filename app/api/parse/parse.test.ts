@@ -33,6 +33,8 @@ const mockSession = {
 const mockParsedResponse = {
   titulo: "Casa 3 quartos no Campeche",
   endereco: "Campeche, Florianópolis - SC",
+  bairro: "Campeche",
+  cidade: "Florianópolis",
   m2Totais: 450,
   m2Privado: 180,
   quartos: 3,
@@ -46,6 +48,7 @@ const mockParsedResponse = {
   vistaLivre: true,
   piscinaTermica: false,
   tipoImovel: "casa",
+  condominiumName: "Residencial Campeche",
   contactName: "João Silva",
   contactNumber: "48996792216",
 }
@@ -120,7 +123,7 @@ describe("Parse API - POST /api/parse", () => {
     const json = await response.json()
 
     expect(response.status).toBe(400)
-    expect(json.error).toBe("Raw text is required")
+    expect(json.error).toContain("Invalid request")
   })
 
   it("returns 400 when rawText is empty", async () => {
@@ -193,22 +196,27 @@ describe("Parse API - POST /api/parse", () => {
     const json = await response.json()
 
     expect(response.status).toBe(200)
-    expect(json.data.titulo).toBe("Casa 3 quartos no Campeche")
-    expect(json.data.endereco).toBe("Campeche, Florianópolis - SC")
-    expect(json.data.m2Totais).toBe(450)
-    expect(json.data.m2Privado).toBe(180)
-    expect(json.data.quartos).toBe(3)
-    expect(json.data.suites).toBe(1)
-    expect(json.data.banheiros).toBe(2)
-    expect(json.data.garagem).toBe(2)
-    expect(json.data.preco).toBe(1500000)
-    expect(json.data.piscina).toBe(true)
-    expect(json.data.vistaLivre).toBe(true)
-    expect(json.data.contactName).toBe("João Silva")
-    expect(json.data.contactNumber).toBe("48996792216")
-    expect(json.data.addedAt).toBeDefined()
-    expect(json.data.precoM2).toBeNull() // Calculated in UI
-    expect(json.data.link).toBeNull() // Added manually
+    expect(json.listings).toHaveLength(1)
+    expect(json.listings[0].titulo).toBe("Casa 3 quartos no Campeche")
+    expect(json.listings[0].endereco).toBe("Campeche, Florianópolis - SC")
+    expect(json.listings[0].bairro).toBe("Campeche")
+    expect(json.listings[0].cidade).toBe("Florianópolis")
+    expect(json.listings[0].m2Totais).toBe(450)
+    expect(json.listings[0].m2Privado).toBe(180)
+    expect(json.listings[0].quartos).toBe(3)
+    expect(json.listings[0].suites).toBe(1)
+    expect(json.listings[0].banheiros).toBe(2)
+    expect(json.listings[0].garagem).toBe(2)
+    expect(json.listings[0].preco).toBe(1500000)
+    expect(json.listings[0].piscina).toBe(true)
+    expect(json.listings[0].vistaLivre).toBe(true)
+    expect(json.listings[0].tipoImovel).toBe("casa")
+    expect(json.listings[0].condominiumName).toBe("Residencial Campeche")
+    expect(json.listings[0].contactName).toBe("João Silva")
+    expect(json.listings[0].contactNumber).toBe("48996792216")
+    expect(json.listings[0].addedAt).toBeDefined()
+    expect(json.listings[0].precoM2).toBeNull() // Calculated in UI
+    expect(json.listings[0].link).toBeNull() // Added manually
   })
 
   it("returns 500 when AI returns empty response", async () => {
@@ -278,6 +286,7 @@ describe("Parse API - POST /api/parse", () => {
               titulo: null,
               endereco: null,
               quartos: 2,
+              preco: 300000,
             }),
           },
         },
@@ -294,9 +303,132 @@ describe("Parse API - POST /api/parse", () => {
     const json = await response.json()
 
     expect(response.status).toBe(200)
-    expect(json.data.titulo).toBe("Sem título")
-    expect(json.data.endereco).toBe("Endereço não informado")
-    expect(json.data.quartos).toBe(2)
+    expect(json.listings).toHaveLength(1)
+    expect(json.listings[0].titulo).toBe("Sem título")
+    expect(json.listings[0].endereco).toBe("Endereço não informado")
+    expect(json.listings[0].quartos).toBe(2)
+  })
+
+  it("returns 400 for invalid request body without kind or rawText", async () => {
+    const { getServerSession } = await import("@/lib/auth-server")
+    vi.mocked(getServerSession).mockResolvedValue(mockSession)
+
+    const { POST } = await import("./route")
+    const request = new NextRequest("http://localhost/api/parse", {
+      method: "POST",
+      body: JSON.stringify({ kind: "url" }),
+    })
+
+    const response = await POST(request)
+    const json = await response.json()
+
+    expect(response.status).toBe(400)
+    expect(json.error).toContain("Invalid request")
+  })
+
+  it("returns 400 for unsupported image mime type", async () => {
+    const { getServerSession } = await import("@/lib/auth-server")
+    vi.mocked(getServerSession).mockResolvedValue(mockSession)
+
+    const { POST } = await import("./route")
+    const request = new NextRequest("http://localhost/api/parse", {
+      method: "POST",
+      body: JSON.stringify({
+        kind: "image",
+        base64: Buffer.from("fake").toString("base64"),
+        mimeType: "image/gif",
+      }),
+    })
+
+    const response = await POST(request)
+    const json = await response.json()
+
+    expect(response.status).toBe(400)
+    expect(json.error).toContain("Unsupported image type")
+  })
+
+  it("parses listing with kind text", async () => {
+    const { getServerSession } = await import("@/lib/auth-server")
+    vi.mocked(getServerSession).mockResolvedValue(mockSession)
+
+    mockCreate.mockResolvedValue({
+      choices: [{ message: { content: JSON.stringify(mockParsedResponse) } }],
+    })
+
+    const { POST } = await import("./route")
+    const request = new NextRequest("http://localhost/api/parse", {
+      method: "POST",
+      body: JSON.stringify({ kind: "text", rawText: "Casa 3 quartos" }),
+    })
+
+    const response = await POST(request)
+    const json = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(json.listings).toHaveLength(1)
+    expect(json.listings[0].titulo).toBe("Casa 3 quartos no Campeche")
+  })
+
+  it("parses multiple listings when AI returns listings array", async () => {
+    const { getServerSession } = await import("@/lib/auth-server")
+    vi.mocked(getServerSession).mockResolvedValue(mockSession)
+
+    mockCreate.mockResolvedValue({
+      choices: [
+        {
+          message: {
+            content: JSON.stringify({
+              listings: [
+                mockParsedResponse,
+                {
+                  titulo: "Apartamento Centro",
+                  endereco: "Centro, Florianópolis - SC",
+                  preco: 650000,
+                  quartos: 2,
+                  tipoImovel: "apartamento",
+                },
+              ],
+            }),
+          },
+        },
+      ],
+    })
+
+    const { POST } = await import("./route")
+    const request = new NextRequest("http://localhost/api/parse", {
+      method: "POST",
+      body: JSON.stringify({ rawText: "Dois anúncios colados" }),
+    })
+
+    const response = await POST(request)
+    const json = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(json.listings).toHaveLength(2)
+    expect(json.listings[0].titulo).toBe("Casa 3 quartos no Campeche")
+    expect(json.listings[1].titulo).toBe("Apartamento Centro")
+    expect(json.listings[1].tipoImovel).toBe("apartamento")
+  })
+
+  it("returns 500 when AI returns empty listings array", async () => {
+    const { getServerSession } = await import("@/lib/auth-server")
+    vi.mocked(getServerSession).mockResolvedValue(mockSession)
+
+    mockCreate.mockResolvedValue({
+      choices: [{ message: { content: JSON.stringify({ listings: [] }) } }],
+    })
+
+    const { POST } = await import("./route")
+    const request = new NextRequest("http://localhost/api/parse", {
+      method: "POST",
+      body: JSON.stringify({ rawText: "Test" }),
+    })
+
+    const response = await POST(request)
+    const json = await response.json()
+
+    expect(response.status).toBe(500)
+    expect(json.error).toBe("Invalid JSON response from AI")
   })
 
   it("handles apartment type correctly", async () => {
@@ -329,6 +461,7 @@ describe("Parse API - POST /api/parse", () => {
     const json = await response.json()
 
     expect(response.status).toBe(200)
-    expect(json.data.titulo).toBe("Apartamento Centro")
+    expect(json.listings).toHaveLength(1)
+    expect(json.listings[0].titulo).toBe("Apartamento Centro")
   })
 })

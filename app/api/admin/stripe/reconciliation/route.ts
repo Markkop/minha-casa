@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 import { requireAdmin } from "@/lib/auth-server"
 import { getDb, subscriptions, users } from "@/lib/db"
-import { eq, isNotNull, and } from "drizzle-orm"
+import { eq, isNotNull } from "drizzle-orm"
 import { stripe, isStripeConfigured } from "@/lib/stripe"
 
 interface ReconciliationResult {

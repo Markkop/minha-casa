@@ -43,13 +43,17 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
     if (sessionLoading) return
 
     if (!session?.user) {
-      setHasActiveSubscription(false)
-      setSubscriptionReady(true)
+      queueMicrotask(() => {
+        setHasActiveSubscription(false)
+        setSubscriptionReady(true)
+      })
       return
     }
 
-    setSubscriptionReady(false)
-    void refreshSubscription()
+    queueMicrotask(() => {
+      setSubscriptionReady(false)
+      void refreshSubscription()
+    })
   }, [session?.user, sessionLoading, refreshSubscription])
 
   useEffect(() => {

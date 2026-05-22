@@ -371,7 +371,7 @@ export function OrgAddonsTable({ onDataChange }: OrgAddonsTableProps) {
 
       {/* Grant Addon Modal */}
       {grantModalOpen && selectedOrg && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-app-fg/50 flex items-center justify-center z-50">
           <Card className="w-full max-w-md mx-4">
             <CardHeader>
               <CardTitle>Conceder Addon</CardTitle>

@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { cn } from "@/lib/utils"
+import { PageToolbarIconButton } from "@/app/components/page-toolbar"
 import { Cross2Icon, GearIcon, ResetIcon } from "@radix-ui/react-icons"
 import { useState } from "react"
 
@@ -76,30 +77,30 @@ const SliderRangeInput = ({
 }: SliderRangeInputProps) => {
   return (
     <div className="space-y-2">
-      <Label className="text-sm text-ashGray">{label}</Label>
+      <Label className="text-sm text-app-muted">{label}</Label>
       <div className="flex items-center gap-2 flex-wrap">
         <div className="flex items-center gap-1">
-          <span className="text-xs text-dimGray w-8">Min:</span>
+          <span className="text-xs text-app-subtle w-8">Min:</span>
           <NumberInput
             value={range.min}
             onChange={(v) => onChange({ ...range, min: v })}
             step={range.step}
           />
-          {isPercent && <span className="text-xs text-dimGray">%</span>}
-          {isCurrency && <span className="text-xs text-dimGray">R$</span>}
+          {isPercent && <span className="text-xs text-app-subtle">%</span>}
+          {isCurrency && <span className="text-xs text-app-subtle">R$</span>}
         </div>
         <div className="flex items-center gap-1">
-          <span className="text-xs text-dimGray w-8">Max:</span>
+          <span className="text-xs text-app-subtle w-8">Max:</span>
           <NumberInput
             value={range.max}
             onChange={(v) => onChange({ ...range, max: v })}
             step={range.step}
           />
-          {isPercent && <span className="text-xs text-dimGray">%</span>}
-          {isCurrency && <span className="text-xs text-dimGray">R$</span>}
+          {isPercent && <span className="text-xs text-app-subtle">%</span>}
+          {isCurrency && <span className="text-xs text-app-subtle">R$</span>}
         </div>
         <div className="flex items-center gap-1">
-          <span className="text-xs text-dimGray w-8">Step:</span>
+          <span className="text-xs text-app-subtle w-8">Step:</span>
           <NumberInput
             value={range.step}
             onChange={(v) => onChange({ ...range, step: v })}
@@ -144,13 +145,13 @@ const ValueListInput = ({
 
   return (
     <div className="space-y-2">
-      <Label className="text-sm text-ashGray">{label}</Label>
+      <Label className="text-sm text-app-muted">{label}</Label>
       <div className="space-y-2">
         {values.map((value, index) => (
           <div key={index} className="flex items-center gap-2">
             {isCurrency ? (
               <div className="flex items-center gap-1">
-                <span className="text-xs text-dimGray">R$</span>
+                <span className="text-xs text-app-subtle">R$</span>
                 <CurrencyInput
                   value={value}
                   onChange={(v) => updateValue(index, v)}
@@ -167,13 +168,13 @@ const ValueListInput = ({
               disabled={values.length === 1}
               className="p-1 rounded hover:bg-brightGrey disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
             >
-              <Cross2Icon className="h-4 w-4 text-dimGray hover:text-salmon" />
+              <Cross2Icon className="h-4 w-4 text-app-subtle hover:text-salmon" />
             </button>
           </div>
         ))}
         <button
           onClick={addValue}
-          className="text-xs text-primary hover:text-primary/80 transition-colors"
+          className="text-xs text-app-accent hover:text-app-accent/80 transition-colors"
         >
           + Adicionar valor
         </button>
@@ -217,14 +218,14 @@ export const SettingsPanel = ({ isOpen, onClose }: SettingsPanelProps) => {
 
   return (
     <div
-      className="fixed inset-0 z-50 bg-black/80 flex items-start justify-center overflow-y-auto py-8"
+      className="fixed inset-0 z-50 bg-app-fg/80 flex items-start justify-center overflow-y-auto py-8"
       onClick={handleCancel}
     >
       <div
         className="w-full max-w-2xl mx-4"
         onClick={(e) => e.stopPropagation()}
       >
-        <Card className="bg-raisinBlack border-brightGrey">
+        <Card className="bg-app-surface border-app-border">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
             <CardTitle className="text-xl flex items-center gap-2">
               <GearIcon className="h-5 w-5" />
@@ -234,16 +235,16 @@ export const SettingsPanel = ({ isOpen, onClose }: SettingsPanelProps) => {
               onClick={handleCancel}
               className="p-2 rounded hover:bg-brightGrey transition-colors"
             >
-              <Cross2Icon className="h-5 w-5 text-ashGray" />
+              <Cross2Icon className="h-5 w-5 text-app-muted" />
             </button>
           </CardHeader>
           <CardContent className="space-y-6">
             {/* CET */}
             <div className="space-y-2">
-              <Label className="text-sm font-semibold text-primary">
+              <Label className="text-sm font-semibold text-app-accent">
                 CET - Custo Efetivo Total
               </Label>
-              <p className="text-xs text-dimGray mb-2">
+              <p className="text-xs text-app-subtle mb-2">
                 Custo adicional estimado (seguros, taxas) a ser adicionado ao cálculo do CET.
               </p>
               <div className="flex items-center gap-2">
@@ -256,16 +257,16 @@ export const SettingsPanel = ({ isOpen, onClose }: SettingsPanelProps) => {
                   min={0}
                   max={10}
                 />
-                <span className="text-sm text-dimGray">% a.a.</span>
+                <span className="text-sm text-app-subtle">% a.a.</span>
               </div>
             </div>
 
             {/* Prazos */}
             <div className="space-y-2">
-              <Label className="text-sm font-semibold text-primary">
+              <Label className="text-sm font-semibold text-app-accent">
                 Opções de Prazo (meses)
               </Label>
-              <p className="text-xs text-dimGray mb-2">
+              <p className="text-xs text-app-subtle mb-2">
                 Prazos disponíveis para seleção rápida no simulador.
               </p>
               <ValueListInput
@@ -279,10 +280,10 @@ export const SettingsPanel = ({ isOpen, onClose }: SettingsPanelProps) => {
 
             {/* Slider Ranges */}
             <div className="space-y-4">
-              <Label className="text-sm font-semibold text-primary">
+              <Label className="text-sm font-semibold text-app-accent">
                 Limites dos Sliders
               </Label>
-              <p className="text-xs text-dimGray mb-2">
+              <p className="text-xs text-app-subtle mb-2">
                 Configure os valores mínimos, máximos e incrementos de cada slider.
               </p>
 
@@ -348,7 +349,7 @@ export const SettingsPanel = ({ isOpen, onClose }: SettingsPanelProps) => {
             </div>
 
             {/* Actions */}
-            <div className="flex items-center justify-between pt-4 border-t border-brightGrey">
+            <div className="flex items-center justify-between pt-4 border-t border-app-border">
               <button
                 onClick={handleReset}
                 className="flex items-center gap-2 px-4 py-2 text-sm text-salmon hover:text-salmon/80 transition-colors"
@@ -359,13 +360,13 @@ export const SettingsPanel = ({ isOpen, onClose }: SettingsPanelProps) => {
               <div className="flex gap-2">
                 <button
                   onClick={handleCancel}
-                  className="px-4 py-2 text-sm text-ashGray hover:text-white border border-brightGrey rounded-md transition-colors"
+                  className="px-4 py-2 text-sm text-app-muted hover:text-app-fg border border-app-border rounded-md transition-colors"
                 >
                   Cancelar
                 </button>
                 <button
                   onClick={handleSave}
-                  className="px-4 py-2 text-sm bg-primary text-black font-semibold rounded-md hover:bg-primary/90 transition-colors"
+                  className="px-4 py-2 text-sm bg-app-action text-app-action-foreground font-semibold rounded-md hover:bg-app-action-hover transition-colors"
                 >
                   Salvar
                 </button>
@@ -388,13 +389,9 @@ interface SettingsButtonProps {
 
 export const SettingsButton = ({ onClick }: SettingsButtonProps) => {
   return (
-    <button
-      onClick={onClick}
-      className="p-2 rounded-md border border-brightGrey hover:border-primary hover:bg-primary/10 transition-all"
-      title="Configurações"
-    >
-      <GearIcon className="h-5 w-5 text-ashGray hover:text-primary" />
-    </button>
+    <PageToolbarIconButton onClick={onClick} title="Configurações">
+      <GearIcon className="text-app-muted" />
+    </PageToolbarIconButton>
   )
 }
 

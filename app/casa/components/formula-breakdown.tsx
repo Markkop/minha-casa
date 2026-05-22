@@ -44,10 +44,10 @@ interface FormulaSectionProps {
  */
 const FormulaStep = ({ formula, description }: FormulaStepProps) => (
   <div className="flex items-start gap-2 text-xs">
-    <span className="text-primary font-mono shrink-0">
+    <span className="text-app-accent font-mono shrink-0">
       <InlineMath math={formula} />
     </span>
-    <span className="text-dimGray">→ {description}</span>
+    <span className="text-app-subtle">→ {description}</span>
   </div>
 )
 
@@ -65,45 +65,45 @@ const FormulaSection = ({
   const [expanded, setExpanded] = useState(defaultExpanded)
 
   return (
-    <div className="border-b border-brightGrey last:border-b-0 pb-4 last:pb-0">
+    <div className="border-b border-app-border last:border-b-0 pb-4 last:pb-0">
       <button
         onClick={() => setExpanded(!expanded)}
-        className="w-full flex items-center justify-between text-left py-2 hover:text-primary transition-colors"
+        className="w-full flex items-center justify-between text-left py-2 hover:text-app-accent transition-colors"
       >
-        <span className="text-xs font-semibold text-ashGray uppercase tracking-wider">
+        <span className="text-xs font-semibold text-app-muted uppercase tracking-wider">
           {title}
         </span>
         {expanded ? (
-          <ChevronUpIcon className="h-4 w-4 text-dimGray" />
+          <ChevronUpIcon className="h-4 w-4 text-app-subtle" />
         ) : (
-          <ChevronDownIcon className="h-4 w-4 text-dimGray" />
+          <ChevronDownIcon className="h-4 w-4 text-app-subtle" />
         )}
       </button>
 
       {expanded && (
         <div className="space-y-3 pt-2">
           {/* LaTeX formula */}
-          <div className="bg-black/40 rounded-md p-3 overflow-x-auto">
+          <div className="bg-app-fg/40 rounded-md p-3 overflow-x-auto">
             <BlockMath math={latex} />
           </div>
 
           {/* With actual values */}
-          <div className="bg-primary/5 rounded-md p-3 overflow-x-auto border border-primary/20">
+          <div className="bg-app-action/5 rounded-md p-3 overflow-x-auto border border-app-action/20">
             <BlockMath math={withValues} />
           </div>
 
           {/* Result */}
           <div className="text-center">
-            <span className="text-sm text-ashGray">= </span>
-            <span className="text-lg font-bold text-primary font-mono">
+            <span className="text-sm text-app-muted">= </span>
+            <span className="text-lg font-bold text-app-accent font-mono">
               {result}
             </span>
           </div>
 
           {/* Step by step */}
           {steps.length > 0 && (
-            <div className="space-y-2 pt-2 border-t border-brightGrey/50">
-              <span className="text-xs text-dimGray font-semibold">
+            <div className="space-y-2 pt-2 border-t border-app-border/50">
+              <span className="text-xs text-app-subtle font-semibold">
                 Passo a passo:
               </span>
               <div className="space-y-1.5 pl-2">
@@ -284,25 +284,25 @@ export const FormulaBreakdown = ({ cenario }: FormulaBreakdownProps) => {
 
   if (isCollapsed) {
     return (
-      <Card className="bg-eerieBlack border-brightGrey">
+      <Card className="bg-app-surface-muted border-app-border">
         <button
           onClick={() => setIsCollapsed(false)}
-          className="w-full p-4 flex items-center justify-between hover:bg-primary/5 transition-colors rounded-lg"
+          className="w-full p-4 flex items-center justify-between hover:bg-app-action-hover/5 transition-colors rounded-lg"
         >
           <div className="flex items-center gap-2">
             <span className="text-lg">📐</span>
-            <span className="text-sm font-semibold text-ashGray">
+            <span className="text-sm font-semibold text-app-muted">
               Fórmulas e Cálculos
             </span>
           </div>
-          <ChevronDownIcon className="h-5 w-5 text-dimGray" />
+          <ChevronDownIcon className="h-5 w-5 text-app-subtle" />
         </button>
       </Card>
     )
   }
 
   return (
-    <Card className="bg-eerieBlack border-brightGrey">
+    <Card className="bg-app-surface-muted border-app-border">
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
           <CardTitle className="text-base flex items-center gap-2">
@@ -311,13 +311,13 @@ export const FormulaBreakdown = ({ cenario }: FormulaBreakdownProps) => {
           </CardTitle>
           <button
             onClick={() => setIsCollapsed(true)}
-            className="text-xs text-dimGray hover:text-primary transition-colors flex items-center gap-1"
+            className="text-xs text-app-subtle hover:text-app-accent transition-colors flex items-center gap-1"
           >
             Minimizar
             <ChevronUpIcon className="h-4 w-4" />
           </button>
         </div>
-        <p className="text-xs text-dimGray mt-1">
+        <p className="text-xs text-app-subtle mt-1">
           Matemática por trás do cenário selecionado
         </p>
       </CardHeader>
@@ -354,8 +354,8 @@ export const FormulaBreakdown = ({ cenario }: FormulaBreakdownProps) => {
         />
 
         {/* Legend */}
-        <div className="pt-4 border-t border-brightGrey text-xs text-dimGray space-y-1">
-          <p className="font-semibold text-ashGray">Legenda:</p>
+        <div className="pt-4 border-t border-app-border text-xs text-app-subtle space-y-1">
+          <p className="font-semibold text-app-muted">Legenda:</p>
           <div className="grid grid-cols-2 gap-x-4 gap-y-1">
             <span>
               <InlineMath math="V_f" /> = Valor Financiado

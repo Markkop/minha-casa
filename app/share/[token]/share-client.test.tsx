@@ -32,6 +32,7 @@ const mockListing = {
     academia: false,
     vistaLivre: true,
     piscinaTermica: false,
+    tipoImovel: "casa" as const,
     link: "https://example.com/listing-1",
     imageUrl: "https://example.com/image.jpg",
     starred: true,
@@ -192,7 +193,7 @@ describe("ShareClient", () => {
       expect(screen.getByText("Coleção Compartilhada")).toBeInTheDocument()
     })
 
-    it("displays listings count correctly", async () => {
+    it("shows compact toolbar with type filters", async () => {
       mockFetch.mockResolvedValue({
         ok: true,
         json: () => Promise.resolve(mockSharedData),
@@ -201,8 +202,9 @@ describe("ShareClient", () => {
       render(<ShareClient token="test-token" />)
 
       await waitFor(() => {
-        // The header shows total count, and filtered count shows non-strikethrough
-        expect(screen.getByText("3 imóveis nesta coleção")).toBeInTheDocument()
+        expect(screen.getByText(mockSharedData.collection.name)).toBeInTheDocument()
+        expect(screen.getByRole("button", { name: /Todos \(3\)/ })).toBeInTheDocument()
+        expect(screen.getByLabelText("Exibição do imóvel")).toBeInTheDocument()
       })
     })
 

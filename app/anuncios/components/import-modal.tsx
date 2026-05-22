@@ -1,10 +1,13 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Download, FolderOpen, Upload } from "lucide-react"
+import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { useCollections } from "../lib/use-collections"
 import { createListing as apiCreateListing } from "../lib/api"
+import { CollectionDestinationPicker } from "./collection-destination-picker"
+import { ModalCloseButton, ModalHeaderTitle, LoadingLabel } from "./modal-chrome"
 import { cn } from "@/lib/utils"
 import type { ListingData } from "@/lib/db/schema"
 
@@ -48,6 +51,7 @@ export function ImportModal({
   const [isImporting, setIsImporting] = useState(false)
   const [importMode, setImportMode] = useState<ImportMode>("new")
   const [selectedCollectionId, setSelectedCollectionId] = useState<string>("")
+  const [newCollectionName, setNewCollectionName] = useState("")
 
   useEffect(() => {
     if (isOpen) {
@@ -63,6 +67,8 @@ export function ImportModal({
     return {
       titulo: listing.titulo,
       endereco: listing.endereco,
+      bairro: typeof listing.bairro === "string" ? listing.bairro : null,
+      cidade: typeof listing.cidade === "string" ? listing.cidade : null,
       m2Totais: typeof listing.m2Totais === "number" ? listing.m2Totais : null,
       m2Privado: typeof listing.m2Privado === "number" ? listing.m2Privado : null,
       quartos: typeof listing.quartos === "number" ? listing.quartos : null,
@@ -77,10 +83,18 @@ export function ImportModal({
       vistaLivre: typeof listing.vistaLivre === "boolean" ? listing.vistaLivre : null,
       piscinaTermica: typeof listing.piscinaTermica === "boolean" ? listing.piscinaTermica : null,
       andar: typeof listing.andar === "number" ? listing.andar : null,
+      tipoImovel:
+        listing.tipoImovel === "casa" || listing.tipoImovel === "apartamento"
+          ? listing.tipoImovel
+          : null,
       link: typeof listing.link === "string" ? listing.link : null,
       imageUrl: typeof listing.imageUrl === "string" ? listing.imageUrl : null,
       contactName: typeof listing.contactName === "string" ? listing.contactName : null,
       contactNumber: typeof listing.contactNumber === "string" ? listing.contactNumber : null,
+      condominiumName:
+        typeof listing.condominiumName === "string" ? listing.condominiumName : null,
+      condominiumId: typeof listing.condominiumId === "string" ? listing.condominiumId : null,
+      regionId: typeof listing.regionId === "string" ? listing.regionId : null,
       starred: typeof listing.starred === "boolean" ? listing.starred : false,
       visited: typeof listing.visited === "boolean" ? listing.visited : false,
       strikethrough: typeof listing.strikethrough === "boolean" ? listing.strikethrough : false,
@@ -259,86 +273,32 @@ export function ImportModal({
   return (
     <div className="fixed inset-0 z-[1000] flex items-center justify-center">
       <div
-        className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+        className="absolute inset-0 bg-app-fg/80 backdrop-blur-sm"
         onClick={onClose}
       />
 
-      <Card className="relative z-10 w-full max-w-2xl mx-4 bg-raisinBlack border-brightGrey max-h-[90vh] overflow-hidden flex flex-col">
+      <Card className="relative z-10 w-full max-w-2xl mx-4 bg-app-surface border-app-border max-h-[90vh] overflow-hidden flex flex-col">
         <CardHeader className="flex flex-row items-center justify-between pb-2">
-          <CardTitle className="text-lg flex items-center gap-2">
-            <span>📥</span>
-            <span>Importar</span>
-          </CardTitle>
-          <button
-            onClick={onClose}
-            className="text-muted-foreground hover:text-white transition-colors"
-          >
-            ✕
-          </button>
+          <ModalHeaderTitle icon={Download} title="Importar" />
+          <ModalCloseButton onClick={onClose} />
         </CardHeader>
         <CardContent className="flex-1 overflow-hidden flex flex-col space-y-4">
-          {/* Import Mode Selection */}
-          <div className="space-y-2">
-            <Label className="text-sm text-ashGray">Destino da importação</Label>
-            <div className="flex gap-2">
-              <button
-                onClick={() => setImportMode("new")}
-                disabled={isImporting}
-                className={cn(
-                  "flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all",
-                  "border",
-                  importMode === "new"
-                    ? "bg-primary/20 border-primary text-primary"
-                    : "bg-eerieBlack border-brightGrey hover:border-white"
-                )}
-              >
-                Nova coleção
-              </button>
-              <button
-                onClick={() => setImportMode("existing")}
-                disabled={isImporting || collections.length === 0}
-                className={cn(
-                  "flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all",
-                  "border",
-                  importMode === "existing"
-                    ? "bg-primary/20 border-primary text-primary"
-                    : "bg-eerieBlack border-brightGrey hover:border-white",
-                  "disabled:opacity-50 disabled:cursor-not-allowed"
-                )}
-              >
-                Coleção existente
-              </button>
-            </div>
-          </div>
-
-          {/* Collection Selector (for existing mode) */}
-          {importMode === "existing" && (
-            <div className="space-y-2">
-              <Label className="text-sm text-ashGray">Selecione a coleção</Label>
-              <select
-                value={selectedCollectionId}
-                onChange={(e) => setSelectedCollectionId(e.target.value)}
-                disabled={isImporting}
-                className={cn(
-                  "w-full py-2 px-3 rounded-lg text-sm",
-                  "bg-eerieBlack border border-brightGrey",
-                  "text-white",
-                  "focus:outline-none focus:border-primary",
-                  "disabled:opacity-50"
-                )}
-              >
-                <option value="">Selecione uma coleção...</option>
-                {collections.map((collection) => (
-                  <option key={collection.id} value={collection.id}>
-                    {collection.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
+          <CollectionDestinationPicker
+            collections={collections}
+            mode={importMode}
+            onModeChange={setImportMode}
+            selectedCollectionId={selectedCollectionId}
+            onSelectedCollectionIdChange={setSelectedCollectionId}
+            newCollectionName={newCollectionName}
+            onNewCollectionNameChange={setNewCollectionName}
+            disabled={isImporting}
+            destinationLabel="Destino da importação"
+            showNewCollectionNameField={false}
+            newCollectionHint="Será criada uma coleção por arquivo importado, usando o nome do JSON."
+          />
 
           <div className="space-y-2">
-            <Label htmlFor="import-textarea" className="text-sm text-ashGray">
+            <Label htmlFor="import-textarea" className="text-sm text-app-muted">
               Cole o JSON para importar
             </Label>
             <p className="text-xs text-muted-foreground">
@@ -360,20 +320,20 @@ export function ImportModal({
               htmlFor="json-file-input"
               className={cn(
                 "flex-1 py-2.5 px-4 rounded-lg font-medium transition-all cursor-pointer",
-                "bg-eerieBlack border border-brightGrey",
-                "hover:border-white",
+                "bg-app-surface-muted border border-app-border",
+                "hover:border-app-surface",
                 "flex items-center justify-center gap-2",
                 isImporting && "opacity-50 cursor-not-allowed"
               )}
             >
-              <span>📁</span>
+              <FolderOpen className="h-4 w-4" />
               Upload JSON
             </label>
           </div>
 
           <div className="relative flex items-center">
             <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-brightGrey"></div>
+              <div className="w-full border-t border-app-border"></div>
             </div>
             <div className="relative px-2 text-xs text-muted-foreground">
               ou
@@ -391,10 +351,10 @@ export function ImportModal({
             disabled={isImporting}
             className={cn(
               "flex-1 min-h-[200px] w-full rounded-lg p-3",
-              "bg-eerieBlack border border-brightGrey",
-              "text-white placeholder:text-muted-foreground",
+              "bg-app-surface-muted border border-app-border",
+              "text-app-fg placeholder:text-muted-foreground",
               "font-mono text-sm",
-              "resize-none focus:outline-none focus:border-primary",
+              "resize-none focus:outline-none focus:border-app-action",
               "disabled:opacity-50"
             )}
           />
@@ -403,20 +363,17 @@ export function ImportModal({
             disabled={!importText.trim() || isImporting || (importMode === "existing" && !selectedCollectionId)}
             className={cn(
               "w-full py-2.5 px-4 rounded-lg font-medium transition-all",
-              "bg-primary text-primary-foreground",
-              "hover:bg-primary/90",
+              "bg-app-action text-app-action-foreground",
+              "hover:bg-app-action-hover",
               "disabled:opacity-50 disabled:cursor-not-allowed",
               "flex items-center justify-center gap-2"
             )}
           >
             {isImporting ? (
-              <>
-                <span className="animate-spin">⏳</span>
-                Importando...
-              </>
+              <LoadingLabel label="Importando..." />
             ) : (
               <>
-                <span>📥</span>
+                <Upload className="h-4 w-4" />
                 Processar Importação
               </>
             )}
@@ -433,14 +390,14 @@ export function ImportModal({
             </div>
           )}
 
-          <div className="pt-4 border-t border-brightGrey">
+          <div className="pt-4 border-t border-app-border">
             <button
               onClick={onClose}
               disabled={isImporting}
               className={cn(
                 "w-full py-2.5 px-4 rounded-lg font-medium transition-all",
-                "bg-eerieBlack border border-brightGrey",
-                "hover:border-white",
+                "bg-app-surface-muted border border-app-border",
+                "hover:border-app-surface",
                 "disabled:opacity-50"
               )}
             >

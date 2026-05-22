@@ -73,10 +73,7 @@ describe("SimulatorClient", () => {
         expect(screen.queryByText("Carregando...")).not.toBeInTheDocument()
       })
 
-      // Should render the simulator header
-      expect(
-        screen.getByText("🏠 Simulador de Financiamento Imobiliário")
-      ).toBeInTheDocument()
+      expect(screen.getByText("Taxa Efetiva Mensal")).toBeInTheDocument()
     })
 
     it("pre-populates the simulator with price from query param", async () => {
@@ -91,10 +88,7 @@ describe("SimulatorClient", () => {
         expect(screen.queryByText("Carregando...")).not.toBeInTheDocument()
       })
 
-      // The simulator should have rendered
-      expect(
-        screen.getByText("🏠 Simulador de Financiamento Imobiliário")
-      ).toBeInTheDocument()
+      expect(screen.getByText("Taxa Efetiva Mensal")).toBeInTheDocument()
 
       // URL should have been cleaned after reading price
       await waitFor(() => {
@@ -130,10 +124,7 @@ describe("SimulatorClient", () => {
         expect(screen.queryByText("Carregando...")).not.toBeInTheDocument()
       })
 
-      // Should still render the simulator (using default values)
-      expect(
-        screen.getByText("🏠 Simulador de Financiamento Imobiliário")
-      ).toBeInTheDocument()
+      expect(screen.getByText("Taxa Efetiva Mensal")).toBeInTheDocument()
 
       // URL should not have been cleaned (no valid price was processed)
       expect(mockReplaceState).not.toHaveBeenCalled()
@@ -149,10 +140,7 @@ describe("SimulatorClient", () => {
         expect(screen.queryByText("Carregando...")).not.toBeInTheDocument()
       })
 
-      // Should still render with defaults
-      expect(
-        screen.getByText("🏠 Simulador de Financiamento Imobiliário")
-      ).toBeInTheDocument()
+      expect(screen.getByText("Taxa Efetiva Mensal")).toBeInTheDocument()
 
       // URL should not have been cleaned (no valid price was processed)
       expect(mockReplaceState).not.toHaveBeenCalled()
@@ -168,10 +156,7 @@ describe("SimulatorClient", () => {
         expect(screen.queryByText("Carregando...")).not.toBeInTheDocument()
       })
 
-      // Should still render with defaults
-      expect(
-        screen.getByText("🏠 Simulador de Financiamento Imobiliário")
-      ).toBeInTheDocument()
+      expect(screen.getByText("Taxa Efetiva Mensal")).toBeInTheDocument()
 
       // URL should not have been cleaned (no valid price was processed)
       expect(mockReplaceState).not.toHaveBeenCalled()
@@ -189,10 +174,7 @@ describe("SimulatorClient", () => {
         expect(screen.queryByText("Carregando...")).not.toBeInTheDocument()
       })
 
-      // Should render the simulator
-      expect(
-        screen.getByText("🏠 Simulador de Financiamento Imobiliário")
-      ).toBeInTheDocument()
+      expect(screen.getByText("Taxa Efetiva Mensal")).toBeInTheDocument()
 
       // URL should have been cleaned
       await waitFor(() => {
@@ -224,10 +206,8 @@ describe("SimulatorClient", () => {
       // This test ensures the component renders properly
       renderWithProviders(<SimulatorClient />)
 
-      // The component should eventually show the simulator
       expect(
-        screen.queryByText("🏠 Simulador de Financiamento Imobiliário") ||
-          screen.queryByText("Carregando...")
+        screen.queryByText("Taxa Efetiva Mensal") || screen.queryByText("Carregando...")
       ).toBeTruthy()
     })
   })

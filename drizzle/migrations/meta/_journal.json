@@ -36,6 +36,13 @@
       "when": 1738281600000,
       "tag": "0005_add_addons",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1779307200000,
+      "tag": "0006_workspace_decision_data",
+      "breakpoints": true
     }
   ]
 }

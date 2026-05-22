@@ -14,6 +14,8 @@ import {
 } from "@/components/ui/select"
 import { useCollections } from "../lib/use-collections"
 import type { Collection } from "../lib/api"
+import { ClipboardList, Loader2, Pencil, Plus, Save, Trash2 } from "lucide-react"
+import { ModalCloseButton, ModalHeaderTitle } from "./modal-chrome"
 import { cn } from "@/lib/utils"
 
 interface Organization {
@@ -236,39 +238,34 @@ export function CollectionModal({
     <div className="fixed inset-0 z-[1000] flex items-center justify-center">
       {/* Backdrop */}
       <div
-        className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+        className="absolute inset-0 bg-app-fg/80 backdrop-blur-sm"
         onClick={onClose}
       />
 
       {/* Modal */}
-      <Card className="relative z-10 w-full max-w-md mx-4 bg-raisinBlack border-brightGrey max-h-[90vh] overflow-y-auto">
+      <Card className="relative z-10 w-full max-w-md mx-4 bg-app-surface border-app-border max-h-[90vh] overflow-y-auto">
         <CardHeader className="flex flex-row items-center justify-between pb-2">
-          <CardTitle className="text-lg flex items-center gap-2">
-            <span>{showCopyMode ? "📋" : isEditing ? "✏️" : "➕"}</span>
-            <span>{showCopyMode ? "Copiar Coleção" : isEditing ? "Editar Coleção" : "Nova Coleção"}</span>
-          </CardTitle>
-          <button
-            onClick={onClose}
-            className="text-muted-foreground hover:text-white transition-colors"
-          >
-            ✕
-          </button>
+          <ModalHeaderTitle
+            icon={showCopyMode ? ClipboardList : isEditing ? Pencil : Plus}
+            title={showCopyMode ? "Copiar Coleção" : isEditing ? "Editar Coleção" : "Nova Coleção"}
+          />
+          <ModalCloseButton onClick={onClose} />
         </CardHeader>
         <CardContent className="space-y-6">
           {/* Copy Mode UI */}
           {showCopyMode && collection ? (
             <>
               <div className="space-y-2">
-                <Label className="text-sm text-ashGray">
+                <Label className="text-sm text-app-muted">
                   Coleção original
                 </Label>
-                <p className="text-sm text-white bg-eerieBlack px-3 py-2 rounded-lg border border-brightGrey">
+                <p className="text-sm text-app-fg bg-app-surface-muted px-3 py-2 rounded-lg border border-app-border">
                   {collection.label}
                 </p>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="copy-name" className="text-sm text-ashGray">
+                <Label htmlFor="copy-name" className="text-sm text-app-muted">
                   Nome da cópia
                 </Label>
                 <Input
@@ -277,12 +274,12 @@ export function CollectionModal({
                   value={copyNewName}
                   onChange={(e) => setCopyNewName(e.target.value)}
                   placeholder="Nome da nova coleção..."
-                  className="bg-eerieBlack border-brightGrey text-white placeholder:text-muted-foreground"
+                  className="bg-app-surface-muted border-app-border text-app-fg placeholder:text-muted-foreground"
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="copy-target" className="text-sm text-ashGray">
+                <Label htmlFor="copy-target" className="text-sm text-app-muted">
                   Copiar para
                 </Label>
                 <Select
@@ -292,12 +289,12 @@ export function CollectionModal({
                 >
                   <SelectTrigger 
                     id="copy-target"
-                    className="bg-eerieBlack border-brightGrey text-white"
+                    className="bg-app-surface-muted border-app-border text-app-fg"
                   >
                     <SelectValue placeholder="Selecione o destino..." />
                   </SelectTrigger>
-                  <SelectContent className="bg-eerieBlack border-brightGrey">
-                    <SelectItem value="personal" className="text-white hover:bg-brightGrey/20">
+                  <SelectContent className="bg-app-surface-muted border-app-border">
+                    <SelectItem value="personal" className="text-app-fg hover:bg-brightGrey/20">
                       <div className="flex items-center gap-2">
                         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                           <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/>
@@ -310,7 +307,7 @@ export function CollectionModal({
                       <SelectItem 
                         key={org.id} 
                         value={org.id}
-                        className="text-white hover:bg-brightGrey/20"
+                        className="text-app-fg hover:bg-brightGrey/20"
                       >
                         <div className="flex items-center gap-2">
                           <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -329,7 +326,7 @@ export function CollectionModal({
 
               <div className="flex items-center justify-between">
                 <div className="space-y-0.5">
-                  <Label htmlFor="copy-listings" className="text-sm text-ashGray">
+                  <Label htmlFor="copy-listings" className="text-sm text-app-muted">
                     Incluir anúncios
                   </Label>
                   <p className="text-xs text-muted-foreground">
@@ -354,8 +351,8 @@ export function CollectionModal({
                   disabled={isCopying}
                   className={cn(
                     "flex-1 py-2.5 px-4 rounded-lg font-medium transition-all",
-                    "bg-eerieBlack border border-brightGrey",
-                    "hover:border-white",
+                    "bg-app-surface-muted border border-app-border",
+                    "hover:border-app-surface",
                     "disabled:opacity-50 disabled:cursor-not-allowed"
                   )}
                 >
@@ -366,20 +363,20 @@ export function CollectionModal({
                   disabled={isCopying}
                   className={cn(
                     "flex-1 py-2.5 px-4 rounded-lg font-medium transition-all",
-                    "bg-primary text-primary-foreground",
-                    "hover:bg-primary/90",
+                    "bg-app-action text-app-action-foreground",
+                    "hover:bg-app-action-hover",
                     "disabled:opacity-50 disabled:cursor-not-allowed",
                     "flex items-center justify-center gap-2"
                   )}
                 >
                   {isCopying ? (
                     <>
-                      <span className="animate-spin">⏳</span>
+                      <Loader2 className="h-4 w-4 animate-spin" />
                       Copiando...
                     </>
                   ) : (
                     <>
-                      <span>📋</span>
+                      <ClipboardList className="h-4 w-4" />
                       Copiar
                     </>
                   )}
@@ -391,7 +388,7 @@ export function CollectionModal({
               {/* Profile Selector (only when creating) */}
               {!isEditing && (
                 <div className="space-y-2">
-                  <Label htmlFor="target-profile" className="text-sm text-ashGray">
+                  <Label htmlFor="target-profile" className="text-sm text-app-muted">
                     Criar em
                   </Label>
                   <Select
@@ -401,12 +398,12 @@ export function CollectionModal({
                   >
                     <SelectTrigger 
                       id="target-profile"
-                      className="bg-eerieBlack border-brightGrey text-white"
+                      className="bg-app-surface-muted border-app-border text-app-fg"
                     >
                       <SelectValue placeholder="Selecione onde criar..." />
                     </SelectTrigger>
-                    <SelectContent className="bg-eerieBlack border-brightGrey">
-                      <SelectItem value="personal" className="text-white hover:bg-brightGrey/20">
+                    <SelectContent className="bg-app-surface-muted border-app-border">
+                      <SelectItem value="personal" className="text-app-fg hover:bg-brightGrey/20">
                         <div className="flex items-center gap-2">
                           <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                             <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/>
@@ -419,7 +416,7 @@ export function CollectionModal({
                         <SelectItem 
                           key={org.id} 
                           value={org.id}
-                          className="text-white hover:bg-brightGrey/20"
+                          className="text-app-fg hover:bg-brightGrey/20"
                         >
                           <div className="flex items-center gap-2">
                             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -444,7 +441,7 @@ export function CollectionModal({
 
               {/* Label Input */}
               <div className="space-y-2">
-                <Label htmlFor="collection-label" className="text-sm text-ashGray">
+                <Label htmlFor="collection-label" className="text-sm text-app-muted">
                   Nome da Coleção
                 </Label>
                 <Input
@@ -456,7 +453,7 @@ export function CollectionModal({
                     setError(null)
                   }}
                   placeholder="Ex: Casas 2025, Apartamentos 2026..."
-                  className="bg-eerieBlack border-brightGrey text-white placeholder:text-muted-foreground"
+                  className="bg-app-surface-muted border-app-border text-app-fg placeholder:text-muted-foreground"
                   onKeyDown={(e) => {
                     if (e.key === "Enter") {
                       handleSave()
@@ -470,7 +467,7 @@ export function CollectionModal({
               {!isEditing && (
                 <div className="flex items-center justify-between">
                   <div className="space-y-0.5">
-                    <Label htmlFor="is-default" className="text-sm text-ashGray">
+                    <Label htmlFor="is-default" className="text-sm text-app-muted">
                       Definir como coleção padrão
                     </Label>
                     <p className="text-xs text-muted-foreground">
@@ -491,7 +488,7 @@ export function CollectionModal({
               {/* Public/Private Toggle */}
               <div className="flex items-center justify-between">
                 <div className="space-y-0.5">
-                  <Label htmlFor="is-public" className="text-sm text-ashGray">
+                  <Label htmlFor="is-public" className="text-sm text-app-muted">
                     Coleção pública
                   </Label>
                   <p className="text-xs text-muted-foreground">
@@ -509,7 +506,7 @@ export function CollectionModal({
 
               {/* Copy to another profile button (only when editing) */}
               {isEditing && collection && organizations.length > 0 && (
-                <div className="border-t border-brightGrey pt-4">
+                <div className="border-t border-app-border pt-4">
                   <button
                     onClick={() => setShowCopyMode(true)}
                     className={cn(
@@ -519,7 +516,7 @@ export function CollectionModal({
                       "flex items-center justify-center gap-2"
                     )}
                   >
-                    <span>📋</span>
+                    <ClipboardList className="h-4 w-4" />
                     Copiar para outro perfil
                   </button>
                 </div>
@@ -527,7 +524,7 @@ export function CollectionModal({
 
               {/* Delete Section (only when editing) */}
               {isEditing && collection && (
-                <div className="space-y-2 border-t border-brightGrey pt-4">
+                <div className="space-y-2 border-t border-app-border pt-4">
                   {!showDeleteConfirm ? (
                     <button
                       onClick={() => setShowDeleteConfirm(true)}
@@ -540,7 +537,7 @@ export function CollectionModal({
                         "flex items-center justify-center gap-2"
                       )}
                     >
-                      <span>🗑️</span>
+                      <Trash2 className="h-4 w-4" />
                       Excluir Coleção
                     </button>
                   ) : (
@@ -558,7 +555,7 @@ export function CollectionModal({
                           onClick={handleDelete}
                           className={cn(
                             "flex-1 py-2 px-4 rounded-lg font-medium transition-all",
-                            "bg-destructive text-white",
+                            "bg-destructive text-app-fg",
                             "hover:bg-destructive/80",
                             "flex items-center justify-center gap-2"
                           )}
@@ -572,8 +569,8 @@ export function CollectionModal({
                           }}
                           className={cn(
                             "flex-1 py-2 px-4 rounded-lg font-medium transition-all",
-                            "bg-eerieBlack border border-brightGrey",
-                            "hover:border-white",
+                            "bg-app-surface-muted border border-app-border",
+                            "hover:border-app-surface",
                             "flex items-center justify-center gap-2"
                           )}
                         >
@@ -593,8 +590,8 @@ export function CollectionModal({
                     disabled={isSaving}
                     className={cn(
                       "flex-1 py-2.5 px-4 rounded-lg font-medium transition-all",
-                      "bg-eerieBlack border border-brightGrey",
-                      "hover:border-white",
+                      "bg-app-surface-muted border border-app-border",
+                      "hover:border-app-surface",
                       "disabled:opacity-50 disabled:cursor-not-allowed"
                     )}
                   >
@@ -605,20 +602,20 @@ export function CollectionModal({
                     disabled={!label.trim() || isSaving}
                     className={cn(
                       "flex-1 py-2.5 px-4 rounded-lg font-medium transition-all",
-                      "bg-primary text-primary-foreground",
-                      "hover:bg-primary/90",
+                      "bg-app-action text-app-action-foreground",
+                      "hover:bg-app-action-hover",
                       "disabled:opacity-50 disabled:cursor-not-allowed",
                       "flex items-center justify-center gap-2"
                     )}
                   >
                     {isSaving ? (
                       <>
-                        <span className="animate-spin">⏳</span>
+                        <Loader2 className="h-4 w-4 animate-spin" />
                         Salvando...
                       </>
                     ) : (
                       <>
-                        <span>💾</span>
+                        <Save className="h-4 w-4" />
                         {isEditing ? "Salvar" : "Criar"}
                       </>
                     )}

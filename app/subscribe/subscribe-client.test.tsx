@@ -1,6 +1,10 @@
 import { describe, it, expect, vi, beforeEach, beforeAll, afterAll } from "vitest"
 import { render, screen, waitFor, fireEvent } from "@testing-library/react"
 import { SubscribeClient } from "./subscribe-client"
+import type {
+  SubscriptionSyncPlan,
+  SubscriptionSyncSubscription,
+} from "@/lib/sync-subscription-cookie"
 
 const mockReplace = vi.fn()
 const mockSearchParams = new URLSearchParams()
@@ -65,11 +69,11 @@ const mockFetch = vi.fn()
 global.fetch = mockFetch
 
 function mockSubscribeFetches(options: {
-  plans?: Plan[]
+  plans?: SubscriptionSyncPlan[]
   stripeTestMode?: boolean
   plansOk?: boolean
-  subscription?: typeof mockSubscription | null
-  plan?: typeof mockPlanPlus | null
+  subscription?: SubscriptionSyncSubscription | null
+  plan?: SubscriptionSyncPlan | null
   checkoutUrl?: string
 }) {
   const {
@@ -106,9 +110,7 @@ function mockSubscribeFetches(options: {
   })
 }
 
-type Plan = typeof mockPlanPlus
-
-const mockPlanPlus = {
+const mockPlanPlus: SubscriptionSyncPlan = {
   id: "plan-plus",
   name: "Plus",
   slug: "plus",
@@ -127,7 +129,7 @@ const mockPlanPlus = {
   updatedAt: "2024-01-01T00:00:00.000Z",
 }
 
-const mockPlanTeste = {
+const mockPlanTeste: SubscriptionSyncPlan = {
   id: "plan-teste",
   name: "Teste",
   slug: "teste",
@@ -146,7 +148,7 @@ const mockPlanTeste = {
   updatedAt: "2024-01-01T00:00:00.000Z",
 }
 
-const mockSubscription = {
+const mockSubscription: SubscriptionSyncSubscription = {
   id: "sub-123",
   userId: "user-123",
   planId: "plan-plus",

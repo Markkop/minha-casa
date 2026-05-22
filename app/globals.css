@@ -42,108 +42,106 @@
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
 
-  /* Custom colors from the-nexus project */
-  --color-salmon: #FF8A59;
-  --color-green: #00F773;
-  --color-ashGray: #c4cec4;
-  --color-brightGrey: #53545A;
-  --color-raisinBlack: #1A1C23;
-  --color-eerieBlack: #242424;
-  --color-dimGray: #636A70;
-  --color-middleGray: #323232;
-  --color-middleGray50: #161616;
-  --color-fadedGray: #4C4C4C;
-  --color-davysGray: #595C58;
-  --color-cadetGray: #9BA1A5;
-  --color-darkGrey: #1f1f1f;
-  --color-jetGray: #2C2C2C;
-  --color-jetBlack: #272827;
-  --color-charcoalGray: #454141;
-  --color-battleshipGrey: #979696;
-  --color-seasalt: #F8F8F8;
-  --color-silver: #AAAAAA;
-  --color-platinum: #D9D9D9;
-  --color-blue: #273058;
-  --color-white: #FFFFFF;
-  --color-black: #000000;
-  --color-notFound: #1D1F28;
-  --color-lightBlue: #94b0ff;
-  --color-greenLink: #84CD17;
-  --color-tooltipBg: #3d4451;
-  --color-tooltipText: #FFFFFF;
-  --color-other: #151822;
-  --color-footer: #BBBCBE;
-  --color-offWhite: #EDEDED;
-  --color-yellow: #f3cb53;
+  --color-app-bg: var(--app-bg);
+  --color-app-surface: var(--app-surface);
+  --color-app-surface-muted: var(--app-surface-muted);
+  --color-app-border: var(--app-border);
+  --color-app-border-strong: var(--app-border-strong);
+  --color-app-fg: var(--app-fg);
+  --color-app-muted: var(--app-muted);
+  --color-app-subtle: var(--app-subtle);
+  --color-app-action: var(--app-action);
+  --color-app-action-hover: var(--app-action-hover);
+  --color-app-action-foreground: var(--app-action-foreground);
+  --color-app-accent: var(--app-accent);
+  --color-app-success: var(--app-success);
+  --color-app-warning: var(--app-warning);
+  --color-app-danger: var(--app-danger);
+
+  /* Legacy aliases: keep old class names pointed at the app palette. */
+  --color-salmon: var(--app-warning);
+  --color-green: var(--app-success);
+  --color-ashGray: var(--app-muted);
+  --color-brightGrey: var(--app-border);
+  --color-raisinBlack: var(--app-surface);
+  --color-eerieBlack: var(--app-surface-muted);
+  --color-dimGray: var(--app-subtle);
+  --color-middleGray: var(--app-surface-muted);
+  --color-middleGray50: var(--app-bg);
+  --color-fadedGray: var(--app-border-strong);
+  --color-davysGray: var(--app-muted);
+  --color-cadetGray: var(--app-subtle);
+  --color-darkGrey: var(--app-fg);
+  --color-jetGray: var(--app-fg);
+  --color-jetBlack: var(--app-fg);
+  --color-charcoalGray: var(--app-muted);
+  --color-battleshipGrey: var(--app-subtle);
+  --color-seasalt: var(--app-bg);
+  --color-silver: var(--app-border-strong);
+  --color-platinum: var(--app-border);
+  --color-blue: var(--app-accent);
+  --color-white: var(--app-surface);
+  --color-black: var(--app-fg);
+  --color-notFound: var(--app-surface-muted);
+  --color-lightBlue: var(--app-accent);
+  --color-greenLink: var(--app-accent);
+  --color-tooltipBg: var(--app-surface);
+  --color-tooltipText: var(--app-fg);
+  --color-other: var(--app-surface-muted);
+  --color-footer: var(--app-muted);
+  --color-offWhite: var(--app-bg);
+  --color-yellow: var(--app-action);
 }
 
 :root {
   --radius: 0.625rem;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
+  --app-bg: #f4f7fb;
+  --app-surface: #fcfdff;
+  --app-surface-muted: #e8eef6;
+  --app-border: #d4dce8;
+  --app-border-strong: #b8c5d6;
+  --app-fg: #121a24;
+  --app-muted: #5a6578;
+  --app-subtle: #8491a3;
+  --app-action: #9dd4ff;
+  --app-action-hover: #7ec4f8;
+  --app-action-foreground: #121a24;
+  --app-accent: #1d5f9e;
+  --app-success: #16834f;
+  --app-warning: #bd5b2a;
+  --app-danger: #c4362e;
+
+  --background: var(--app-bg);
+  --foreground: var(--app-fg);
+  --card: var(--app-surface);
+  --card-foreground: var(--app-fg);
+  --popover: var(--app-surface);
+  --popover-foreground: var(--app-fg);
+  --primary: var(--app-action);
+  --primary-foreground: var(--app-action-foreground);
+  --secondary: var(--app-surface-muted);
+  --secondary-foreground: var(--app-fg);
+  --muted: var(--app-surface-muted);
+  --muted-foreground: var(--app-muted);
+  --accent: var(--app-surface-muted);
+  --accent-foreground: var(--app-fg);
+  --destructive: var(--app-danger);
+  --border: var(--app-border);
+  --input: var(--app-border);
+  --ring: var(--app-accent);
   --chart-1: oklch(0.646 0.222 41.116);
   --chart-2: oklch(0.6 0.118 184.704);
   --chart-3: oklch(0.398 0.07 227.392);
   --chart-4: oklch(0.828 0.189 84.429);
   --chart-5: oklch(0.769 0.188 70.08);
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
-}
-
-.dark {
-  --background: #000000;
-  --foreground: #FFFFFF;
-  --card: #242424;
-  --card-foreground: #FFFFFF;
-  --popover: #242424;
-  --popover-foreground: #FFFFFF;
-  --primary: #C5FF01;
-  --primary-foreground: #000000;
-  --secondary: #C6CEC5;
-  --secondary-foreground: #000000;
-  --muted: #323232;
-  --muted-foreground: #9BA1A5;
-  --accent: #323232;
-  --accent-foreground: #FFFFFF;
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: #53545A;
-  --input: #323232;
-  --ring: #C5FF01;
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: #1A1C23;
-  --sidebar-foreground: #FFFFFF;
-  --sidebar-primary: #C5FF01;
-  --sidebar-primary-foreground: #000000;
-  --sidebar-accent: #323232;
-  --sidebar-accent-foreground: #FFFFFF;
-  --sidebar-border: #53545A;
-  --sidebar-ring: #C5FF01;
+  --sidebar: var(--app-surface);
+  --sidebar-foreground: var(--app-fg);
+  --sidebar-primary: var(--app-action);
+  --sidebar-primary-foreground: var(--app-action-foreground);
+  --sidebar-accent: var(--app-surface-muted);
+  --sidebar-accent-foreground: var(--app-fg);
+  --sidebar-border: var(--app-border);
+  --sidebar-ring: var(--app-accent);
 }
 
 @layer base {
@@ -153,4 +151,14 @@
   body {
     @apply bg-background text-foreground;
   }
+}
+
+/* Leaflet defaults use z-index 400+; keep map tiles under toolbar popovers (1100). */
+.listings-map-panel [class*="leaflet-pane"] {
+  z-index: 1 !important;
+}
+.listings-map-panel [class*="leaflet-top"],
+.listings-map-panel [class*="leaflet-bottom"],
+.listings-map-panel [class*="leaflet-control"] {
+  z-index: 2 !important;
 }

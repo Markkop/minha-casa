@@ -1,35 +1,50 @@
 "use client"
 
-import { useEffect, useState, useMemo } from "react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { useEffect, useState, useMemo, useRef } from "react"
+import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Switch } from "@/components/ui/switch"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import type { Imovel } from "../lib/api"
 import { geocodeAddresses, clearCacheForAddresses } from "../lib/geocoding"
+import { buildListingGeocodeQuery } from "../lib/listing-location"
 import { RotateCw } from "lucide-react"
 import { cn } from "@/lib/utils"
 import {
   type GeocodedListing,
   type MapProvider,
+  type MapViewport,
   calculatePrecoM2,
-  getStoredMapProvider,
+  getEffectiveMapProvider,
   setStoredMapProvider,
 } from "./map-shared"
+import {
+  isGoogleMapsApiKeyConfigured,
+  subscribeToGoogleMapsErrors,
+} from "../lib/google-maps-config"
+import {
+  DEFAULT_MAP_VIEWPORT,
+  clearStoredMapViewport,
+  getStoredMapViewport,
+  hasUserMapViewportPreference,
+  viewportFromListingsBounds,
+} from "../lib/map-viewport"
 import { LeafletMapView } from "./leaflet-map-view"
 import { GoogleMapsView } from "./google-maps-view"
-
-// ============================================================================
-// TYPES
-// ============================================================================
+import { MapLocationPicker } from "./map-location-picker"
+import {
+  LISTINGS_MAP_CONTENT_CLASS,
+  LISTINGS_PANEL_CARD_CLASS,
+  LISTINGS_PANEL_TOOLBAR_CLASS,
+  MAP_FLOATING_UI_Z_CLASS,
+  MAP_FLOATING_UI_Z_INDEX,
+} from "./listings-panel-layout"
+import { PageToolbarIconButton } from "@/app/components/page-toolbar"
+import { mapPriceColors } from "@/lib/theme/colors"
 
 interface ListingsMapProps {
   listings: Imovel[]
   onListingsChange: () => void
 }
-
-// ============================================================================
-// MAIN COMPONENT
-// ============================================================================
 
 export function ListingsMap({ listings, onListingsChange }: ListingsMapProps) {
   const [geocodedListings, setGeocodedListings] = useState<GeocodedListing[]>([])
@@ -38,42 +53,58 @@ export function ListingsMap({ listings, onListingsChange }: ListingsMapProps) {
   const [mounted, setMounted] = useState(false)
   const [geocodeKey, setGeocodeKey] = useState(0)
   const [mapProvider, setMapProvider] = useState<MapProvider>("google")
+  const [mapViewport, setMapViewport] = useState<MapViewport>(DEFAULT_MAP_VIEWPORT)
+  const boundsAppliedRef = useRef(false)
 
-  // Track if component is mounted (for SSR)
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- SSR hydration pattern
     setMounted(true)
-    // Load stored preference
-    setMapProvider(getStoredMapProvider())
+    setMapProvider(getEffectiveMapProvider())
+
+    const stored = getStoredMapViewport()
+    if (stored && (stored.source === "city" || stored.source === "state")) {
+      setMapViewport(stored)
+      boundsAppliedRef.current = true
+    }
   }, [])
 
-  // Handle provider change
+  useEffect(() => {
+    if (!mounted) return
+    return subscribeToGoogleMapsErrors(() => {
+      setMapProvider("leaflet")
+      setStoredMapProvider("leaflet")
+    })
+  }, [mounted])
+
   const handleProviderChange = (checked: boolean) => {
     const newProvider: MapProvider = checked ? "google" : "leaflet"
+    if (newProvider === "google" && !isGoogleMapsApiKeyConfigured()) {
+      return
+    }
     setMapProvider(newProvider)
     setStoredMapProvider(newProvider)
   }
 
-  // Geocode all listings when they change or geocodeKey changes
+  const googleMapsAvailable = isGoogleMapsApiKeyConfigured()
+
   useEffect(() => {
     if (!mounted || listings.length === 0) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- Clear state when no listings
       setGeocodedListings([])
       return
     }
 
     const geocodeAll = async () => {
       setIsLoading(true)
-      
-      // Separate listings with custom locations from those needing geocoding
+
       const listingsWithCustom: GeocodedListing[] = []
       const listingsToGeocode: Imovel[] = []
-      
+
       for (const listing of listings) {
-        // Check if listing has custom coordinates
-        if (listing.customLat !== null && listing.customLat !== undefined &&
-            listing.customLng !== null && listing.customLng !== undefined) {
-          // Use custom coordinates
+        if (
+          listing.customLat !== null &&
+          listing.customLat !== undefined &&
+          listing.customLng !== null &&
+          listing.customLng !== undefined
+        ) {
           listingsWithCustom.push({
             listing,
             location: {
@@ -83,24 +114,33 @@ export function ListingsMap({ listings, onListingsChange }: ListingsMapProps) {
             },
           })
         } else {
-          // Needs geocoding
           listingsToGeocode.push(listing)
         }
       }
 
-      // Geocode only listings without custom coordinates
       if (listingsToGeocode.length > 0) {
         setProgress({ completed: listingsWithCustom.length, total: listings.length })
-        
-        const addresses = listingsToGeocode.map((l) => l.endereco)
-        const results = await geocodeAddresses(addresses, (completed) => {
-          setProgress({ completed: listingsWithCustom.length + completed, total: listings.length })
+
+        const addressInputs = listingsToGeocode
+          .map((l) => {
+            const query = buildListingGeocodeQuery(l)
+            return query ? { address: query, cidade: l.cidade } : null
+          })
+          .filter(
+            (input): input is { address: string; cidade: string | null | undefined } =>
+              input !== null
+          )
+        const results = await geocodeAddresses(addressInputs, (completed) => {
+          setProgress({
+            completed: listingsWithCustom.length + completed,
+            total: listings.length,
+          })
         })
 
-        // Match results back to listings
         const geocoded: GeocodedListing[] = [...listingsWithCustom]
         for (const listing of listingsToGeocode) {
-          const location = results.get(listing.endereco)
+          const query = buildListingGeocodeQuery(listing)
+          const location = query ? results.get(query) : null
           if (location) {
             geocoded.push({ listing, location })
           }
@@ -108,17 +148,33 @@ export function ListingsMap({ listings, onListingsChange }: ListingsMapProps) {
 
         setGeocodedListings(geocoded)
       } else {
-        // All listings have custom coordinates
         setGeocodedListings(listingsWithCustom)
       }
-      
+
       setIsLoading(false)
     }
 
     geocodeAll()
   }, [listings, mounted, geocodeKey])
 
-  // Calculate price range for color coding
+  useEffect(() => {
+    if (
+      !mounted ||
+      isLoading ||
+      geocodedListings.length === 0 ||
+      boundsAppliedRef.current ||
+      hasUserMapViewportPreference()
+    ) {
+      return
+    }
+
+    const boundsViewport = viewportFromListingsBounds(geocodedListings)
+    if (!boundsViewport) return
+
+    boundsAppliedRef.current = true
+    setMapViewport(boundsViewport)
+  }, [mounted, isLoading, geocodedListings])
+
   const { minPreco, maxPreco } = useMemo(() => {
     const prices = geocodedListings
       .map((gl) => calculatePrecoM2(gl.listing.preco, gl.listing.m2Totais))
@@ -132,7 +188,6 @@ export function ListingsMap({ listings, onListingsChange }: ListingsMapProps) {
     }
   }, [geocodedListings])
 
-  // Find listings that weren't geocoded
   const missingListings = useMemo(() => {
     if (isLoading) return []
     const geocodedIds = new Set(geocodedListings.map((gl) => gl.listing.id))
@@ -140,11 +195,25 @@ export function ListingsMap({ listings, onListingsChange }: ListingsMapProps) {
   }, [listings, geocodedListings, isLoading])
 
   const handleRedoGeocoding = () => {
-    // Clear cache for all listing addresses
-    const addresses = listings.map((listing) => listing.endereco)
+    const addresses = listings
+      .map((listing) => buildListingGeocodeQuery(listing))
+      .filter((query): query is string => Boolean(query))
     clearCacheForAddresses(addresses)
-    // Trigger re-geocoding by incrementing geocodeKey
+    boundsAppliedRef.current = false
     setGeocodeKey((prev) => prev + 1)
+  }
+
+  const handleViewportChange = (viewport: MapViewport) => {
+    boundsAppliedRef.current = true
+    setMapViewport(viewport)
+  }
+
+  const handleAutomaticView = () => {
+    const boundsViewport = viewportFromListingsBounds(geocodedListings)
+    if (!boundsViewport) return
+    clearStoredMapViewport()
+    boundsAppliedRef.current = true
+    setMapViewport(boundsViewport)
   }
 
   if (!mounted) {
@@ -155,141 +224,173 @@ export function ListingsMap({ listings, onListingsChange }: ListingsMapProps) {
     return null
   }
 
-  return (
-    <Card className="bg-raisinBlack border-brightGrey">
-      <CardHeader className="pb-3">
-        <CardTitle className="text-lg flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span>🗺️</span>
-            <span>Mapa de Imóveis</span>
-          </div>
-          <div className="flex items-center gap-4">
-            {/* Map Provider Toggle */}
-            <div className="flex items-center gap-2 text-sm">
-              <span className={cn(
-                "transition-colors",
-                mapProvider === "leaflet" ? "text-primary" : "text-muted-foreground"
-              )}>
-                OSM
-              </span>
-              <Switch 
-                checked={mapProvider === "google"}
-                onCheckedChange={handleProviderChange}
-                className="data-[state=checked]:bg-primary"
-              />
-              <span className={cn(
-                "transition-colors",
-                mapProvider === "google" ? "text-primary" : "text-muted-foreground"
-              )}>
-                Google
-              </span>
-            </div>
+  const mapViewProps = {
+    geocodedListings,
+    onListingsChange,
+    minPreco,
+    maxPreco,
+    mapViewport,
+  }
 
-            {/* Status and Redo Button */}
-            <div className="flex items-center gap-2">
-              <div className="text-sm font-normal text-muted-foreground">
-                {isLoading ? (
-                  <span>
-                    Geocodificando... {progress.completed}/{progress.total}
-                  </span>
-                ) : missingListings.length > 0 ? (
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <span className="cursor-help">
-                        {geocodedListings.length} de {listings.length} no mapa
-                      </span>
-                    </TooltipTrigger>
-                    <TooltipContent className="max-w-md">
-                      <div className="space-y-1">
-                        <p className="font-semibold mb-2">
-                          Endereços não adicionados ao mapa ({missingListings.length}):
-                        </p>
-                        <ul className="list-disc list-inside space-y-1 text-xs">
-                          {missingListings.map((listing) => (
-                            <li key={listing.id}>{listing.endereco || listing.titulo}</li>
-                          ))}
-                        </ul>
-                      </div>
-                    </TooltipContent>
-                  </Tooltip>
-                ) : (
-                  <span>
-                    {geocodedListings.length} de {listings.length} no mapa
-                  </span>
+  const countLabel = isLoading
+    ? `Geocodificando... ${progress.completed}/${progress.total}`
+    : `${geocodedListings.length} de ${listings.length} no mapa`
+
+  return (
+    <Card
+      className={cn(
+        LISTINGS_PANEL_CARD_CLASS,
+        "listings-map-panel overflow-visible"
+      )}
+    >
+      <CardHeader
+        className={cn(
+          LISTINGS_PANEL_TOOLBAR_CLASS,
+          "relative z-20 overflow-visible"
+        )}
+      >
+        <div className="flex min-w-0 items-center gap-1.5 overflow-x-auto">
+          <MapLocationPicker
+            viewport={mapViewport}
+            onViewportChange={handleViewportChange}
+            onAutomaticView={handleAutomaticView}
+            automaticDisabled={isLoading || geocodedListings.length === 0}
+            isAutomaticActive={mapViewport.source === "listings-bounds"}
+            disabled={isLoading}
+          />
+
+          <div className="flex shrink-0 items-center gap-1 text-xs">
+            <span
+              className={cn(
+                "whitespace-nowrap transition-colors",
+                mapProvider === "leaflet" ? "text-app-fg" : "text-app-muted"
+              )}
+            >
+              OSM
+            </span>
+            <Switch
+              checked={mapProvider === "google"}
+              onCheckedChange={handleProviderChange}
+              disabled={!googleMapsAvailable}
+              className="scale-75 data-[state=checked]:bg-app-action"
+            />
+            <span
+              className={cn(
+                "whitespace-nowrap transition-colors",
+                mapProvider === "google" ? "text-app-fg" : "text-app-muted"
+              )}
+            >
+              Google
+            </span>
+          </div>
+
+          {isLoading ? (
+            <span className="shrink-0 whitespace-nowrap text-xs text-muted-foreground">
+              {countLabel}
+            </span>
+          ) : missingListings.length > 0 ? (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="shrink-0 cursor-help whitespace-nowrap text-xs text-muted-foreground">
+                  {countLabel}
+                </span>
+              </TooltipTrigger>
+              <TooltipContent
+                side="bottom"
+                sideOffset={4}
+                style={{ zIndex: MAP_FLOATING_UI_Z_INDEX }}
+                className={cn(
+                  "max-w-md border border-app-border bg-app-surface text-app-fg",
+                  MAP_FLOATING_UI_Z_CLASS
                 )}
-              </div>
-              <button
+              >
+                <div className="space-y-1">
+                  <p className="mb-2 font-semibold">
+                    Endereços não adicionados ao mapa ({missingListings.length}):
+                  </p>
+                  <ul className="list-inside list-disc space-y-1 text-xs">
+                    {missingListings.map((listing) => (
+                      <li key={listing.id}>
+                        {listing.endereco || listing.titulo}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </TooltipContent>
+            </Tooltip>
+          ) : (
+            <span className="shrink-0 whitespace-nowrap text-xs text-muted-foreground">
+              {countLabel}
+            </span>
+          )}
+
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <PageToolbarIconButton
+                variant="secondary"
                 onClick={handleRedoGeocoding}
                 disabled={isLoading}
-                className={cn(
-                  "p-1.5 rounded hover:bg-eerieBlack transition-colors",
-                  "text-muted-foreground hover:text-primary",
-                  "disabled:opacity-50 disabled:cursor-not-allowed"
-                )}
-                title="Re-geocodificar todos os endereços"
+                aria-label="Re-geocodificar todos os endereços"
               >
-                <RotateCw className={cn("h-4 w-4", isLoading && "animate-spin")} />
-              </button>
-            </div>
-          </div>
-        </CardTitle>
+                <RotateCw className={cn(isLoading && "animate-spin")} />
+              </PageToolbarIconButton>
+            </TooltipTrigger>
+            <TooltipContent
+              side="bottom"
+              sideOffset={4}
+              style={{ zIndex: MAP_FLOATING_UI_Z_INDEX }}
+              className={cn(
+                "border border-app-border bg-app-surface text-app-fg",
+                MAP_FLOATING_UI_Z_CLASS
+              )}
+            >
+              Re-geocodificar endereços
+            </TooltipContent>
+          </Tooltip>
 
-        {/* Legend */}
-        <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
-          <span>Preço/m²:</span>
-          <div className="flex items-center gap-1">
-            <div className="w-3 h-3 rounded-full bg-[#22c55e]"></div>
-            <span>Baixo</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <div className="w-3 h-3 rounded-full bg-[#eab308]"></div>
-            <span>Médio</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <div className="w-3 h-3 rounded-full bg-[#f97316]"></div>
-            <span>Alto</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <div className="w-3 h-3 rounded-full bg-[#ef4444]"></div>
-            <span>Muito Alto</span>
+          <div className="hidden shrink-0 items-center gap-2 text-xs text-muted-foreground xl:flex">
+            <span className="whitespace-nowrap">Preço/m²:</span>
+            {(
+              [
+                ["Baixo", mapPriceColors.low],
+                ["Médio", mapPriceColors.medium],
+                ["Alto", mapPriceColors.high],
+                ["Muito Alto", mapPriceColors.veryHigh],
+              ] as const
+            ).map(([label, color]) => (
+              <div key={label} className="flex items-center gap-1">
+                <div
+                  className="h-2.5 w-2.5 rounded-full"
+                  style={{ backgroundColor: color }}
+                />
+                <span>{label}</span>
+              </div>
+            ))}
           </div>
         </div>
       </CardHeader>
 
-      <CardContent className="p-0 overflow-hidden rounded-b-lg">
+      <CardContent className={LISTINGS_MAP_CONTENT_CLASS}>
         {isLoading && geocodedListings.length === 0 ? (
-          <div className="h-[400px] flex flex-col items-center justify-center bg-eerieBlack">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-4"></div>
-            <p className="text-ashGray">
+          <div className="flex h-[400px] flex-col items-center justify-center bg-app-bg">
+            <div className="mb-4 h-8 w-8 animate-spin rounded-full border-b-2 border-app-action" />
+            <p className="text-app-muted">
               Geocodificando endereços... {progress.completed}/{progress.total}
             </p>
-            <p className="text-xs text-muted-foreground mt-1">
-              {mapProvider === "google" 
+            <p className="mt-1 text-xs text-muted-foreground">
+              {mapProvider === "google"
                 ? "(Usando Google Maps para maior precisão)"
-                : "(Usando OpenStreetMap)"
-              }
+                : "(Usando OpenStreetMap)"}
             </p>
           </div>
         ) : geocodedListings.length === 0 ? (
-          <div className="h-[400px] flex items-center justify-center bg-eerieBlack">
-            <p className="text-ashGray">
-              Nenhum endereço pôde ser localizado no mapa.
-            </p>
+          <div className="flex h-[400px] items-center justify-center bg-app-bg">
+            <p className="text-app-muted">Nenhum endereço pôde ser localizado no mapa.</p>
           </div>
         ) : mapProvider === "google" ? (
-          <GoogleMapsView 
-            geocodedListings={geocodedListings} 
-            onListingsChange={onListingsChange}
-            minPreco={minPreco}
-            maxPreco={maxPreco}
-          />
+          <GoogleMapsView {...mapViewProps} />
         ) : (
-          <LeafletMapView 
-            geocodedListings={geocodedListings} 
-            onListingsChange={onListingsChange}
-            minPreco={minPreco}
-            maxPreco={maxPreco}
-          />
+          <LeafletMapView {...mapViewProps} />
         )}
       </CardContent>
     </Card>

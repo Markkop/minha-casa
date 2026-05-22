@@ -374,7 +374,7 @@ describe("API Client", () => {
 
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: async () => ({ data: mockData }),
+        json: async () => ({ listings: [mockData] }),
       })
 
       const result = await parseListingWithAI("Some raw listing text")
@@ -382,9 +382,29 @@ describe("API Client", () => {
       expect(mockFetch).toHaveBeenCalledWith("/api/parse", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ rawText: "Some raw listing text" }),
+        body: JSON.stringify({ kind: "text", rawText: "Some raw listing text" }),
       })
       expect(result.titulo).toBe("Parsed Title")
+    })
+
+    it("should throw ApiError when multiple listings are detected", async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          listings: [
+            { titulo: "A", endereco: "X", preco: 100 },
+            { titulo: "B", endereco: "Y", preco: 200 },
+          ],
+        }),
+      })
+
+      try {
+        await parseListingWithAI("two ads")
+        expect.fail("Should have thrown")
+      } catch (error) {
+        expect(error).toBeInstanceOf(ApiError)
+        expect((error as ApiError).message).toContain("vários imóveis")
+      }
     })
 
     it("should throw ApiError for unauthorized user", async () => {

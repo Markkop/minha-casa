@@ -120,13 +120,13 @@ function SubscribeTierCard({
       data-testid={`tier-card-${tierSlug}`}
       className={`relative flex flex-col ${
         isCurrentPlan && tierSlug === "plus"
-          ? "border-primary border-2 shadow-[0_0_30px_rgba(197,255,1,0.15)]"
-          : "border-brightGrey"
-      } bg-eerieBlack`}
+          ? "border-app-action border-2 shadow-sm"
+          : "border-app-border"
+      } bg-app-surface`}
     >
       {isCurrentPlan && tierSlug === "plus" && (
         <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-          <span className="bg-primary text-black px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1">
+          <span className="flex items-center gap-1 rounded-full bg-app-action px-3 py-1 text-xs font-bold text-app-fg">
             <Crown className="w-3 h-3" />
             Seu Plano
           </span>
@@ -135,17 +135,17 @@ function SubscribeTierCard({
       <CardHeader className="text-center pb-4">
         <CardTitle
           data-testid={`tier-card-${tierSlug}-title`}
-          className="text-2xl font-bold text-white"
+          className="text-2xl font-bold text-app-fg"
         >
           {display.name}
         </CardTitle>
-        <CardDescription className="text-ashGray mt-2">
+        <CardDescription className="mt-2 text-app-muted">
           {display.description}
         </CardDescription>
         <div className="mt-4" data-testid={`tier-card-${tierSlug}-price`}>
-          <span className="text-4xl font-bold text-white">{priceMain}</span>
+          <span className="text-4xl font-bold text-app-fg">{priceMain}</span>
           {priceSuffix ? (
-            <span className="text-ashGray text-sm ml-2">{priceSuffix}</span>
+            <span className="ml-2 text-sm text-app-muted">{priceSuffix}</span>
           ) : null}
         </div>
       </CardHeader>
@@ -153,8 +153,8 @@ function SubscribeTierCard({
         <ul className="space-y-3">
           {display.features.map((feature, index) => (
             <li key={index} className="flex items-start gap-2">
-              <Check className="w-5 h-5 text-primary shrink-0 mt-0.5" />
-              <span className="text-ashGray text-sm">{feature}</span>
+              <Check className="mt-0.5 h-5 w-5 shrink-0 text-app-accent" />
+              <span className="text-sm text-app-muted">{feature}</span>
             </li>
           ))}
         </ul>
@@ -164,10 +164,10 @@ function SubscribeTierCard({
           data-testid={`tier-card-${tierSlug}-button`}
           className={
             primaryAppearance
-              ? "w-full bg-primary text-black hover:bg-primary/90"
+              ? "w-full bg-app-action text-app-action-foreground hover:bg-app-action-hover"
               : tierSlug === "pro"
-                ? "w-full bg-middleGray text-ashGray cursor-not-allowed"
-                : "w-full bg-middleGray text-white cursor-default"
+                ? "w-full cursor-not-allowed bg-app-surface-muted text-app-muted"
+                : "w-full cursor-default bg-app-surface-muted text-app-muted"
           }
           disabled={buttonDisabled}
           onClick={handleClick}
@@ -208,30 +208,30 @@ function CurrentSubscriptionCard({
   const canStripePortal = Boolean(subscription.stripeSubscriptionId)
 
   return (
-    <Card className="bg-eerieBlack border-brightGrey mb-8">
+    <Card className="mb-8 border-app-border bg-app-surface">
       <CardHeader>
-        <CardTitle className="text-white flex items-center gap-2">
-          <Crown className="w-5 h-5 text-primary" />
+        <CardTitle className="flex items-center gap-2 text-app-fg">
+          <Crown className="h-5 w-5 text-app-accent" />
           Sua Assinatura
         </CardTitle>
-        <CardDescription className="text-ashGray">
+        <CardDescription className="text-app-muted">
           Detalhes do seu plano atual
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="flex justify-between items-center">
-          <span className="text-ashGray">Plano:</span>
-          <span className="text-white font-medium">{plan.name}</span>
+          <span className="text-app-muted">Plano:</span>
+          <span className="font-medium text-app-fg">{plan.name}</span>
         </div>
         <div className="flex justify-between items-center">
-          <span className="text-ashGray">Status:</span>
+          <span className="text-app-muted">Status:</span>
           <span
             className={`font-medium ${
               subscription.status === "active"
-                ? "text-green-500"
+                ? "text-emerald-600"
                 : subscription.status === "expired"
-                  ? "text-red-500"
-                  : "text-yellow-500"
+                  ? "text-red-600"
+                  : "text-amber-600"
             }`}
           >
             {subscription.status === "active"
@@ -242,16 +242,16 @@ function CurrentSubscriptionCard({
           </span>
         </div>
         <div className="flex justify-between items-center">
-          <span className="text-ashGray">Inicio:</span>
-          <span className="text-white flex items-center gap-1">
+          <span className="text-app-muted">Inicio:</span>
+          <span className="flex items-center gap-1 text-app-fg">
             <Calendar className="w-4 h-4" />
             {formatDate(subscription.startsAt)}
           </span>
         </div>
         <div className="flex justify-between items-center">
-          <span className="text-ashGray">Expira em:</span>
+          <span className="text-app-muted">Expira em:</span>
           <span
-            className={`flex items-center gap-1 ${isExpiringSoon ? "text-yellow-500" : "text-white"}`}
+            className={`flex items-center gap-1 ${isExpiringSoon ? "text-amber-600" : "text-app-fg"}`}
           >
             {isExpiringSoon && <AlertCircle className="w-4 h-4" />}
             <Calendar className="w-4 h-4" />
@@ -260,7 +260,7 @@ function CurrentSubscriptionCard({
         </div>
         {subscription.cancelAtPeriodEnd === true &&
           subscription.status === "active" && (
-            <div className="rounded-md bg-amber-900/25 border border-amber-700/80 px-3 py-2 text-amber-200 text-sm">
+            <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
               Sua renovacao esta desativada. O acesso continua ate a data em
               &quot;Expira em&quot;.
             </div>
@@ -270,7 +270,7 @@ function CurrentSubscriptionCard({
         <CardFooter className="flex-col gap-2 pt-0">
           <Button
             variant="outline"
-            className="w-full border-brightGrey text-white hover:bg-middleGray"
+            className="w-full border-app-border text-app-fg hover:bg-app-bg hover:text-app-fg"
             disabled={billingPortalLoading}
             onClick={onBillingPortal}
           >
@@ -467,11 +467,11 @@ export function SubscribeClient() {
   if (sessionLoading || loading) {
     return (
       <div
-        className="min-h-[calc(100vh-56px)] flex items-center justify-center"
+        className="flex min-h-[calc(100vh-104px)] items-center justify-center bg-app-bg"
         role="status"
         aria-label="Carregando"
       >
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        <Loader2 className="h-8 w-8 animate-spin text-app-fg" />
       </div>
     )
   }
@@ -481,16 +481,16 @@ export function SubscribeClient() {
 
   if (error) {
     return (
-      <div className="min-h-[calc(100vh-56px)] flex items-center justify-center px-4">
-        <Card className="w-full max-w-md bg-eerieBlack border-brightGrey">
+      <div className="flex min-h-[calc(100vh-104px)] items-center justify-center bg-app-bg px-4">
+        <Card className="w-full max-w-md border-app-border bg-app-surface">
           <CardHeader className="text-center">
-            <CardTitle className="text-white flex items-center justify-center gap-2">
-              <AlertCircle className="w-5 h-5 text-red-500" />
+            <CardTitle className="flex items-center justify-center gap-2 text-app-fg">
+              <AlertCircle className="h-5 w-5 text-red-600" />
               Erro
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-ashGray text-center" role="alert">
+            <p className="text-center text-app-muted" role="alert">
               {error}
             </p>
           </CardContent>
@@ -498,7 +498,7 @@ export function SubscribeClient() {
             <Button
               onClick={() => window.location.reload()}
               variant="outline"
-              className="border-brightGrey text-white hover:bg-middleGray"
+              className="border-app-border text-app-fg hover:bg-app-bg hover:text-app-fg"
             >
               Tentar novamente
             </Button>
@@ -509,14 +509,14 @@ export function SubscribeClient() {
   }
 
   return (
-    <div className="min-h-[calc(100vh-56px)] bg-black text-white">
+    <div className="min-h-[calc(100vh-104px)] bg-app-bg text-app-fg">
       <main className="max-w-7xl mx-auto px-4 py-16 sm:py-24">
         {/* Hero Section */}
         <div className="text-center mb-12">
-          <h1 className="text-4xl sm:text-5xl font-bold mb-4">
-            <span className="text-primary">Assinatura</span>
+          <h1 className="mb-4 text-4xl font-bold text-app-fg sm:text-5xl">
+            Assinatura
           </h1>
-          <p className="text-lg sm:text-xl text-ashGray max-w-3xl mx-auto">
+          <p className="mx-auto max-w-3xl text-lg text-app-muted sm:text-xl">
             {session?.user
               ? "Gerencie sua assinatura e escolha o plano ideal para suas necessidades."
               : "Faca login para gerenciar sua assinatura ou veja nossos planos disponiveis."}
@@ -525,15 +525,15 @@ export function SubscribeClient() {
 
         {/* Stripe Test Mode Banner */}
         {stripeTestMode && (
-          <Card className="bg-amber-900/20 border-amber-500 mb-8">
+          <Card className="mb-8 border-amber-200 bg-amber-50">
             <CardContent className="py-4">
               <div className="flex items-center justify-center gap-3">
-                <FlaskConical className="w-5 h-5 text-amber-400" />
+                <FlaskConical className="h-5 w-5 text-amber-700" />
                 <div className="text-center">
-                  <p className="text-amber-400 font-semibold">
+                  <p className="font-semibold text-amber-900">
                     MODO DE TESTE ATIVO
                   </p>
-                  <p className="text-amber-300/80 text-sm">
+                  <p className="text-sm text-amber-800">
                     Pagamentos nesta pagina estao em modo de teste do Stripe. Nenhuma cobranca real sera processada.
                   </p>
                 </div>
@@ -544,9 +544,9 @@ export function SubscribeClient() {
 
         {/* Success message */}
         {successMessage && (
-          <Card className="bg-green-900/20 border-green-500 mb-8">
+          <Card className="mb-8 border-emerald-200 bg-emerald-50">
             <CardContent className="py-4">
-              <p className="text-green-400 text-center flex items-center justify-center gap-2">
+              <p className="flex items-center justify-center gap-2 text-center text-emerald-700">
                 <CheckCircle className="w-5 h-5" />
                 {successMessage}
               </p>
@@ -556,9 +556,9 @@ export function SubscribeClient() {
 
         {/* Cancelled message */}
         {isCancelled && !successMessage && (
-          <Card className="bg-yellow-900/20 border-yellow-500 mb-8">
+          <Card className="mb-8 border-amber-200 bg-amber-50">
             <CardContent className="py-4">
-              <p className="text-yellow-400 text-center flex items-center justify-center gap-2">
+              <p className="flex items-center justify-center gap-2 text-center text-amber-800">
                 <AlertCircle className="w-5 h-5" />
                 Checkout cancelado. Voce pode tentar novamente quando quiser.
               </p>
@@ -569,22 +569,22 @@ export function SubscribeClient() {
         {/* Login prompt for unauthenticated users */}
         {!session?.user && (
           <div className="mb-12 text-center">
-            <Card className="inline-block bg-eerieBlack border-brightGrey">
+            <Card className="inline-block border-app-border bg-app-surface">
               <CardContent className="py-6 px-8">
-                <p className="text-ashGray mb-4">
+                <p className="mb-4 text-app-muted">
                   Faca login para ver sua assinatura e solicitar planos.
                 </p>
                 <div className="flex gap-4 justify-center">
                   <Link href="/login?redirect=/subscribe">
                     <Button
                       variant="outline"
-                      className="border-brightGrey text-white hover:bg-middleGray"
+                      className="border-app-border text-app-fg hover:bg-app-bg hover:text-app-fg"
                     >
                       Entrar
                     </Button>
                   </Link>
                   <Link href="/signup?redirect=/subscribe">
-                    <Button className="bg-primary text-black hover:bg-primary/90">
+                    <Button className="bg-app-action text-app-action-foreground hover:bg-app-action-hover">
                       Criar conta
                     </Button>
                   </Link>
@@ -607,9 +607,9 @@ export function SubscribeClient() {
 
         {/* No subscription message */}
         {session?.user && !subscription && !successMessage && (
-          <Card className="bg-eerieBlack border-brightGrey mb-8">
+          <Card className="mb-8 border-app-border bg-app-surface">
             <CardContent className="py-6">
-              <p className="text-ashGray text-center">
+              <p className="text-center text-app-muted">
                 Voce ainda nao possui uma assinatura ativa. Escolha um plano
                 abaixo para comecar.
               </p>
@@ -619,11 +619,11 @@ export function SubscribeClient() {
 
         {/* Available plans (Plus da API + Pro na vitrine) */}
         <div className="mb-8">
-          <h2 className="text-2xl font-bold text-white mb-6 text-center">
+          <h2 className="mb-6 text-center text-2xl font-bold text-app-fg">
             Planos Disponiveis
           </h2>
           {!plusPlan ? (
-            <p className="text-center text-amber-400/95 text-sm mb-6 px-4">
+            <p className="mb-6 px-4 text-center text-sm text-amber-700">
               O plano Plus nao foi carregado do servidor neste momento. O plano
               Pro continua visivel como referencia — experimente atualizar ou
               entre em contato.
@@ -647,7 +647,7 @@ export function SubscribeClient() {
 
         {/* Contact section */}
         <div className="text-center mt-12">
-          <p className="text-ashGray text-sm">
+          <p className="text-sm text-app-muted">
             Duvidas sobre os planos? Entre em contato conosco.
           </p>
         </div>

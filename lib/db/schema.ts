@@ -324,6 +324,8 @@ export const organizationAddons = pgTable(
 export interface ListingData {
   titulo: string
   endereco: string
+  bairro?: string | null
+  cidade?: string | null
   m2Totais: number | null
   m2Privado: number | null
   quartos: number | null
@@ -338,17 +340,24 @@ export interface ListingData {
   vistaLivre: boolean | null
   piscinaTermica: boolean | null
   andar?: number | null
+  tipoImovel?: "casa" | "apartamento" | null
   link: string | null
   imageUrl?: string | null
   contactName?: string | null
   contactNumber?: string | null
+  condominiumName?: string | null
+  condominiumId?: string | null
+  regionId?: string | null
   starred?: boolean
   visited?: boolean
   strikethrough?: boolean
   discardedReason?: string | null
+  listingStatus?: string | null
   customLat?: number | null
   customLng?: number | null
   addedAt?: string
+  sitePublishedAt?: string | null
+  siteUpdatedAt?: string | null
 }
 
 export const listings = pgTable(
@@ -368,6 +377,118 @@ export const listings = pgTable(
 )
 
 // ============================================================================
+// Workspace Decision Data
+// ============================================================================
+export const profileSourceEnum = ["manual", "listing"] as const
+export type ProfileSource = (typeof profileSourceEnum)[number]
+
+export const propertyTypeEnum = ["casa", "apartamento"] as const
+export type PropertyType = (typeof propertyTypeEnum)[number]
+
+export const savedLinks = pgTable(
+  "saved_links",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id").references(() => users.id, { onDelete: "cascade" }),
+    orgId: uuid("org_id").references(() => organizations.id, { onDelete: "cascade" }),
+    title: text("title").notNull(),
+    url: text("url").notNull(),
+    description: text("description"),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    index("saved_links_user_id_idx").on(table.userId),
+    index("saved_links_org_id_idx").on(table.orgId),
+  ]
+)
+
+export const contacts = pgTable(
+  "contacts",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id").references(() => users.id, { onDelete: "cascade" }),
+    orgId: uuid("org_id").references(() => organizations.id, { onDelete: "cascade" }),
+    name: text("name"),
+    phone: text("phone"),
+    normalizedPhone: text("normalized_phone"),
+    email: text("email"),
+    notes: text("notes"),
+    source: text("source").$type<ProfileSource>().notNull().default("manual"),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    index("contacts_user_id_idx").on(table.userId),
+    index("contacts_org_id_idx").on(table.orgId),
+    index("contacts_normalized_phone_idx").on(table.normalizedPhone),
+  ]
+)
+
+export const regions = pgTable(
+  "regions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id").references(() => users.id, { onDelete: "cascade" }),
+    orgId: uuid("org_id").references(() => organizations.id, { onDelete: "cascade" }),
+    city: text("city").notNull(),
+    neighborhood: text("neighborhood").notNull(),
+    propertyType: text("property_type").$type<PropertyType>().notNull(),
+    pricePerM2: integer("price_per_m2").notNull(),
+    notes: text("notes"),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    index("regions_user_id_idx").on(table.userId),
+    index("regions_org_id_idx").on(table.orgId),
+    index("regions_lookup_idx").on(table.city, table.neighborhood, table.propertyType),
+  ]
+)
+
+export const condominiums = pgTable(
+  "condominiums",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id").references(() => users.id, { onDelete: "cascade" }),
+    orgId: uuid("org_id").references(() => organizations.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    city: text("city"),
+    neighborhood: text("neighborhood"),
+    address: text("address"),
+    propertyType: text("property_type").$type<PropertyType>(),
+    amenities: jsonb("amenities").$type<string[]>().default([]),
+    notes: text("notes"),
+    source: text("source").$type<ProfileSource>().notNull().default("manual"),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    index("condominiums_user_id_idx").on(table.userId),
+    index("condominiums_org_id_idx").on(table.orgId),
+    index("condominiums_name_idx").on(table.name),
+  ]
+)
+
+export const listingComparisonNotes = pgTable(
+  "listing_comparison_notes",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    listingId: uuid("listing_id")
+      .notNull()
+      .references(() => listings.id, { onDelete: "cascade" }),
+    pros: jsonb("pros").$type<string[]>().default([]).notNull(),
+    cons: jsonb("cons").$type<string[]>().default([]).notNull(),
+    notes: text("notes"),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex("listing_comparison_notes_listing_id_idx").on(table.listingId),
+  ]
+)
+
+// ============================================================================
 // Relations
 // ============================================================================
 export const usersRelations = relations(users, ({ many }) => ({
@@ -379,6 +500,10 @@ export const usersRelations = relations(users, ({ many }) => ({
   organizationMemberships: many(organizationMembers),
   collections: many(collections),
   userAddons: many(userAddons),
+  savedLinks: many(savedLinks),
+  contacts: many(contacts),
+  regions: many(regions),
+  condominiums: many(condominiums),
   grantedUserAddons: many(userAddons, { relationName: "grantedBy" }),
   grantedOrganizationAddons: many(organizationAddons, { relationName: "grantedBy" }),
 }))
@@ -425,6 +550,10 @@ export const organizationsRelations = relations(organizations, ({ one, many }) =
   members: many(organizationMembers),
   collections: many(collections),
   organizationAddons: many(organizationAddons),
+  savedLinks: many(savedLinks),
+  contacts: many(contacts),
+  regions: many(regions),
+  condominiums: many(condominiums),
 }))
 
 export const organizationMembersRelations = relations(organizationMembers, ({ one }) => ({
@@ -454,6 +583,61 @@ export const listingsRelations = relations(listings, ({ one }) => ({
   collection: one(collections, {
     fields: [listings.collectionId],
     references: [collections.id],
+  }),
+  comparisonNotes: one(listingComparisonNotes, {
+    fields: [listings.id],
+    references: [listingComparisonNotes.listingId],
+  }),
+}))
+
+export const savedLinksRelations = relations(savedLinks, ({ one }) => ({
+  user: one(users, {
+    fields: [savedLinks.userId],
+    references: [users.id],
+  }),
+  organization: one(organizations, {
+    fields: [savedLinks.orgId],
+    references: [organizations.id],
+  }),
+}))
+
+export const contactsRelations = relations(contacts, ({ one }) => ({
+  user: one(users, {
+    fields: [contacts.userId],
+    references: [users.id],
+  }),
+  organization: one(organizations, {
+    fields: [contacts.orgId],
+    references: [organizations.id],
+  }),
+}))
+
+export const regionsRelations = relations(regions, ({ one }) => ({
+  user: one(users, {
+    fields: [regions.userId],
+    references: [users.id],
+  }),
+  organization: one(organizations, {
+    fields: [regions.orgId],
+    references: [organizations.id],
+  }),
+}))
+
+export const condominiumsRelations = relations(condominiums, ({ one }) => ({
+  user: one(users, {
+    fields: [condominiums.userId],
+    references: [users.id],
+  }),
+  organization: one(organizations, {
+    fields: [condominiums.orgId],
+    references: [organizations.id],
+  }),
+}))
+
+export const listingComparisonNotesRelations = relations(listingComparisonNotes, ({ one }) => ({
+  listing: one(listings, {
+    fields: [listingComparisonNotes.listingId],
+    references: [listings.id],
   }),
 }))
 

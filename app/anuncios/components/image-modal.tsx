@@ -1,7 +1,12 @@
 "use client"
 
+/* eslint-disable @next/next/no-img-element */
+
 import { useState, useEffect, useRef } from "react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Home, ImageIcon, Save } from "lucide-react"
+import { ListingLocationMiniMap } from "./listing-location-mini-map"
+import { Card, CardContent, CardHeader } from "@/components/ui/card"
+import { ModalCloseButton, ModalHeaderTitle } from "./modal-chrome"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useCollections } from "../lib/use-collections"
@@ -77,26 +82,18 @@ export function ImageModal({
     <div className="fixed inset-0 z-[1000] flex items-center justify-center">
       {/* Backdrop */}
       <div
-        className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+        className="absolute inset-0 bg-app-fg/80 backdrop-blur-sm"
         onClick={onClose}
       />
 
       {/* Modal */}
       <Card 
-        className="relative z-10 w-full max-w-3xl mx-4 bg-raisinBlack border-brightGrey max-h-[90vh] overflow-hidden flex flex-col"
+        className="relative z-10 w-full max-w-3xl mx-4 bg-app-surface border-app-border max-h-[90vh] overflow-hidden flex flex-col"
         onKeyDown={handleKeyDown}
       >
         <CardHeader className="flex flex-row items-center justify-between pb-2">
-          <CardTitle className="text-lg flex items-center gap-2">
-            <span>🖼️</span>
-            <span>Imagem do Imóvel</span>
-          </CardTitle>
-          <button
-            onClick={onClose}
-            className="text-muted-foreground hover:text-white transition-colors"
-          >
-            ✕
-          </button>
+          <ModalHeaderTitle icon={ImageIcon} title="Imagem do Imóvel" />
+          <ModalCloseButton onClick={onClose} />
         </CardHeader>
         <CardContent className="flex-1 flex flex-col gap-4 overflow-y-auto">
           {/* Error message */}
@@ -107,7 +104,7 @@ export function ImageModal({
           )}
 
           {/* Image Preview */}
-          <div className="flex items-center justify-center min-h-[200px] max-h-[70vh] bg-eerieBlack rounded-lg border border-brightGrey overflow-hidden relative">
+          <div className="flex items-center justify-center min-h-[200px] max-h-[70vh] bg-app-surface-muted rounded-lg border border-app-border overflow-hidden relative">
             {displayImageUrl && !imageError ? (
               <img
                 key={displayImageUrl}
@@ -123,20 +120,27 @@ export function ImageModal({
               />
             ) : displayImageUrl && imageError ? (
               <div className="flex flex-col items-center justify-center h-full w-full text-muted-foreground">
-                <span className="text-4xl mb-2">🖼️</span>
+                <ImageIcon className="h-12 w-12 mb-2 text-muted-foreground" />
                 <span className="text-sm">Erro ao carregar imagem</span>
               </div>
             ) : (
-              <div className="flex flex-col items-center justify-center h-full w-full text-muted-foreground">
-                <span className="text-4xl mb-2">🏠</span>
-                <span className="text-sm">Nenhuma imagem</span>
-              </div>
+              <ListingLocationMiniMap
+                listing={listing}
+                variant="preview"
+                className="w-full min-h-[200px] max-h-[70vh] border-0"
+                fallback={
+                  <div className="flex flex-col items-center justify-center h-full w-full text-muted-foreground">
+                    <Home className="h-12 w-12 mb-2 text-muted-foreground" />
+                    <span className="text-sm">Nenhuma imagem</span>
+                  </div>
+                }
+              />
             )}
           </div>
 
           {/* Image URL Input */}
           <div className="space-y-2">
-            <Label htmlFor="imageUrl" className="text-sm text-ashGray">
+            <Label htmlFor="imageUrl" className="text-sm text-app-muted">
               URL da Imagem
             </Label>
             <Input
@@ -149,7 +153,7 @@ export function ImageModal({
                 setError(null)
               }}
               placeholder="Ex: https://example.com/image.jpg"
-              className="bg-eerieBlack border-brightGrey text-white placeholder:text-muted-foreground"
+              className="bg-app-surface-muted border-app-border text-app-fg placeholder:text-muted-foreground"
             />
             <p className="text-xs text-muted-foreground">
               Cole ou digite a URL da imagem e pressione Cmd/Ctrl + Enter para salvar
@@ -157,13 +161,13 @@ export function ImageModal({
           </div>
 
           {/* Action Buttons */}
-          <div className="flex gap-3 pt-4 border-t border-brightGrey">
+          <div className="flex gap-3 pt-4 border-t border-app-border">
             <button
               onClick={onClose}
               className={cn(
                 "flex-1 py-2.5 px-4 rounded-lg font-medium transition-all",
-                "bg-eerieBlack border border-brightGrey text-white",
-                "hover:border-primary hover:text-primary"
+                "bg-app-surface-muted border border-app-border text-app-fg",
+                "hover:border-app-action hover:text-app-accent"
               )}
             >
               Cancelar
@@ -172,12 +176,12 @@ export function ImageModal({
               onClick={handleSave}
               className={cn(
                 "flex-1 py-2.5 px-4 rounded-lg font-medium transition-all",
-                "bg-primary text-primary-foreground",
-                "hover:bg-primary/90",
+                "bg-app-action text-app-action-foreground",
+                "hover:bg-app-action-hover",
                 "flex items-center justify-center gap-2"
               )}
             >
-              <span>💾</span>
+              <Save className="h-4 w-4" />
               Salvar
             </button>
           </div>

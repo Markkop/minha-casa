@@ -5,14 +5,20 @@
 // ============================================================================
 
 import { geocodeWithNominatim, geocodeBatchWithNominatim } from "./geocoding-nominatim"
+import { buildGeocodeSearchQuery } from "./geocoding-query"
+import type { GeocodeQueryOptions } from "./geocoding-query"
 
-const GEOCODE_CACHE_KEY = "geocode-cache-v2" // Bumped version for new provider
+const GEOCODE_CACHE_KEY = "geocode-cache-v3"
+
+export type { GeocodeQueryOptions } from "./geocoding-query"
 
 export interface GeocodedLocation {
   lat: number
   lng: number
   displayName: string
   provider?: "google" | "nominatim"
+  /** Google GeocoderLocationType or Nominatim-derived precision hint */
+  locationType?: string
 }
 
 interface GeocodeCache {
@@ -99,7 +105,10 @@ function isGooglePlacesAvailable(): boolean {
 /**
  * Geocode address using Google Maps Geocoding API
  */
-async function geocodeWithGoogle(address: string): Promise<GeocodedLocation | null> {
+async function geocodeWithGoogle(
+  address: string,
+  options?: GeocodeQueryOptions
+): Promise<GeocodedLocation | null> {
   if (!isGoogleMapsAvailable()) {
     console.warn("[Google] Geocoding API not available")
     return null
@@ -107,12 +116,7 @@ async function geocodeWithGoogle(address: string): Promise<GeocodedLocation | nu
 
   try {
     const geocoder = new google.maps.Geocoder()
-    
-    // Add Florianópolis context for better results
-    const searchAddress = address.toLowerCase().includes("florianópolis") || 
-                          address.toLowerCase().includes("florianopolis")
-      ? address
-      : `${address}, Florianópolis, SC, Brasil`
+    const searchAddress = buildGeocodeSearchQuery(address, options)
 
     const request: google.maps.GeocoderRequest = {
       address: searchAddress,
@@ -129,6 +133,7 @@ async function geocodeWithGoogle(address: string): Promise<GeocodedLocation | nu
             lng: location.lng(),
             displayName: results[0].formatted_address,
             provider: "google",
+            locationType: results[0].geometry.location_type,
           })
         } else {
           console.warn(`[Google] Geocoding status: ${status} for "${address}"`)
@@ -145,7 +150,10 @@ async function geocodeWithGoogle(address: string): Promise<GeocodedLocation | nu
 /**
  * Find place by name using Google Places API (better for condominiums)
  */
-async function findPlaceWithGoogle(placeName: string): Promise<GeocodedLocation | null> {
+async function findPlaceWithGoogle(
+  placeName: string,
+  options?: GeocodeQueryOptions
+): Promise<GeocodedLocation | null> {
   if (!isGooglePlacesAvailable()) {
     console.warn("[Google] Places API not available")
     return null
@@ -154,11 +162,7 @@ async function findPlaceWithGoogle(placeName: string): Promise<GeocodedLocation 
   try {
     // PlacesService requires a DOM element or map
     const service = new google.maps.places.PlacesService(document.createElement("div"))
-    
-    const searchQuery = placeName.toLowerCase().includes("florianópolis") || 
-                        placeName.toLowerCase().includes("florianopolis")
-      ? placeName
-      : `${placeName}, Florianópolis, SC`
+    const searchQuery = buildGeocodeSearchQuery(placeName, options)
 
     const request: google.maps.places.FindPlaceFromQueryRequest = {
       query: searchQuery,
@@ -199,9 +203,16 @@ async function findPlaceWithGoogle(placeName: string): Promise<GeocodedLocation 
  * 3. Try Google Geocoding API
  * 4. Fallback to Nominatim
  */
-export async function geocodeAddress(address: string): Promise<GeocodedLocation | null> {
+export async function geocodeAddress(
+  address: string,
+  options?: GeocodeQueryOptions
+): Promise<GeocodedLocation | null> {
+  const cacheKey = options?.cidade
+    ? `${address}::${options.cidade.trim()}`
+    : address
+
   // Check cache first
-  const cached = getCachedLocation(address)
+  const cached = getCachedLocation(cacheKey)
   if (cached !== undefined) {
     return cached
   }
@@ -212,26 +223,26 @@ export async function geocodeAddress(address: string): Promise<GeocodedLocation 
   if (isGoogleMapsAvailable()) {
     // For condominium-like addresses, try Places API first
     if (isCondominiumAddress(address)) {
-      location = await findPlaceWithGoogle(address)
+      location = await findPlaceWithGoogle(address, options)
     }
     
     // If no result from Places, try regular geocoding
     if (!location) {
-      location = await geocodeWithGoogle(address)
+      location = await geocodeWithGoogle(address, options)
     }
   }
 
   // Fallback to Nominatim
   if (!location) {
     console.log(`[Geocoding] Falling back to Nominatim for "${address}"`)
-    const nominatimResult = await geocodeWithNominatim(address)
+    const nominatimResult = await geocodeWithNominatim(address, options)
     if (nominatimResult) {
       location = { ...nominatimResult, provider: "nominatim" }
     }
   }
 
   // Cache the result (even if null)
-  setCachedLocation(address, location)
+  setCachedLocation(cacheKey, location)
   return location
 }
 
@@ -246,26 +257,38 @@ function sleep(ms: number): Promise<void> {
  * Geocode multiple addresses
  * Uses parallel requests for Google (faster), sequential for Nominatim (rate limited)
  */
+export interface GeocodeAddressInput {
+  address: string
+  cidade?: string | null
+}
+
 export async function geocodeAddresses(
-  addresses: string[],
+  addresses: string[] | GeocodeAddressInput[],
   onProgress?: (completed: number, total: number) => void
 ): Promise<Map<string, GeocodedLocation | null>> {
+  const inputs: GeocodeAddressInput[] = addresses.map((item) =>
+    typeof item === "string" ? { address: item } : item
+  )
   const results = new Map<string, GeocodedLocation | null>()
   const cache = getCache()
 
+  const cacheKeyFor = (input: GeocodeAddressInput) =>
+    input.cidade ? `${input.address}::${input.cidade.trim()}` : input.address
+
   // Separate cached and uncached addresses
-  const uncached: string[] = []
-  for (const address of addresses) {
-    if (cache[address] !== undefined) {
-      results.set(address, cache[address])
+  const uncached: GeocodeAddressInput[] = []
+  for (const input of inputs) {
+    const key = cacheKeyFor(input)
+    if (cache[key] !== undefined) {
+      results.set(input.address, cache[key])
     } else {
-      uncached.push(address)
+      uncached.push(input)
     }
   }
 
   // Report initial progress (cached items)
-  if (onProgress && uncached.length < addresses.length) {
-    onProgress(addresses.length - uncached.length, addresses.length)
+  if (onProgress && uncached.length < inputs.length) {
+    onProgress(inputs.length - uncached.length, inputs.length)
   }
 
   if (uncached.length === 0) {
@@ -276,14 +299,16 @@ export async function geocodeAddresses(
   if (isGoogleMapsAvailable()) {
     // Process in batches to avoid overwhelming the API
     const BATCH_SIZE = 5
-    let completed = addresses.length - uncached.length
+    let completed = inputs.length - uncached.length
 
     for (let i = 0; i < uncached.length; i += BATCH_SIZE) {
       const batch = uncached.slice(i, i + BATCH_SIZE)
       const batchResults = await Promise.all(
-        batch.map(async (address) => {
-          const location = await geocodeAddress(address)
-          return { address, location }
+        batch.map(async (input) => {
+          const location = await geocodeAddress(input.address, {
+            cidade: input.cidade,
+          })
+          return { address: input.address, location }
         })
       )
 
@@ -293,7 +318,7 @@ export async function geocodeAddresses(
 
       completed += batch.length
       if (onProgress) {
-        onProgress(completed, addresses.length)
+        onProgress(completed, inputs.length)
       }
 
       // Small delay between batches
@@ -308,7 +333,7 @@ export async function geocodeAddresses(
       uncached,
       (completed) => {
         if (onProgress) {
-          onProgress(addresses.length - uncached.length + completed, addresses.length)
+          onProgress(inputs.length - uncached.length + completed, inputs.length)
         }
       }
     )
@@ -316,13 +341,15 @@ export async function geocodeAddresses(
     for (const [address, location] of nominatimResults) {
       const result = location ? { ...location, provider: "nominatim" as const } : null
       results.set(address, result)
-      setCachedLocation(address, result)
+      const input = uncached.find((item) => item.address === address)
+      const key = input ? cacheKeyFor(input) : address
+      setCachedLocation(key, result)
     }
   }
 
   // Report final progress
   if (onProgress) {
-    onProgress(addresses.length, addresses.length)
+    onProgress(inputs.length, inputs.length)
   }
 
   return results

@@ -23,14 +23,14 @@ export default function Home() {
   })
 
   return (
-    <div className="min-h-[calc(100vh-56px)] bg-black text-white">
+    <div className="min-h-[calc(100vh-104px)] bg-app-bg text-app-fg">
       <main className="max-w-5xl mx-auto px-4 py-16 sm:py-24">
         {/* Hero Section */}
         <div className="text-center mb-16">
-          <h1 className="text-4xl sm:text-5xl font-bold mb-4">
-            <span className="text-primary">Minha Casa</span>
+          <h1 className="text-4xl sm:text-5xl font-bold mb-4 text-app-fg">
+            <span>Minha Casa</span>
           </h1>
-          <p className="text-lg sm:text-xl text-ashGray max-w-2xl mx-auto">
+          <p className="text-lg sm:text-xl text-app-muted max-w-2xl mx-auto">
             Ferramentas inteligentes para ajudar na sua jornada de compra do
             imovel dos sonhos.
           </p>
@@ -42,22 +42,22 @@ export default function Home() {
             <Link
               key={feature.href}
               href={feature.href}
-              className="group block p-6 rounded-xl bg-eerieBlack border border-brightGrey hover:border-primary transition-all duration-300 hover:shadow-[0_0_30px_rgba(197,255,1,0.1)]"
+              className="group block rounded-xl border border-app-border bg-app-surface p-6 transition-all duration-300 hover:border-app-border-strong hover:shadow-sm"
             >
               <div className="flex items-start gap-4">
                 <span className="text-4xl">{feature.icon}</span>
                 <div className="flex-1">
-                  <h2 className="text-xl font-bold text-white group-hover:text-primary transition-colors mb-2">
+                  <h2 className="mb-2 text-xl font-bold text-app-fg transition-colors group-hover:text-app-fg">
                     {feature.title}
                   </h2>
-                  <p className="text-ashGray text-sm leading-relaxed mb-4">
+                  <p className="mb-4 text-sm leading-relaxed text-app-muted">
                     {feature.description}
                   </p>
                   <div className="flex flex-wrap gap-2">
                     {feature.highlights.map((highlight) => (
                       <span
                         key={highlight}
-                        className="px-2 py-1 text-xs rounded-full bg-middleGray text-cadetGray"
+                        className="rounded-full bg-app-surface-muted px-2 py-1 text-xs text-app-muted"
                       >
                         {highlight}
                       </span>
@@ -65,7 +65,7 @@ export default function Home() {
                   </div>
                 </div>
               </div>
-              <div className="mt-4 flex items-center text-sm text-primary opacity-0 group-hover:opacity-100 transition-opacity">
+              <div className="mt-4 flex items-center text-sm text-app-fg opacity-0 transition-opacity group-hover:opacity-100">
                 <span>Acessar</span>
                 <span className="ml-1">→</span>
               </div>
@@ -80,10 +80,10 @@ export default function Home() {
 
         {/* Subtle decorative element */}
         <div className="mt-20 text-center">
-          <div className="inline-flex items-center gap-2 text-xs text-dimGray">
-            <span className="w-8 h-px bg-brightGrey"></span>
+          <div className="inline-flex items-center gap-2 text-xs text-app-subtle">
+            <span className="w-8 h-px bg-app-border"></span>
             <span>Seus dados sincronizados com seguranca</span>
-            <span className="w-8 h-px bg-brightGrey"></span>
+            <span className="w-8 h-px bg-app-border"></span>
           </div>
         </div>
       </main>

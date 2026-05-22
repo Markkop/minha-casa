@@ -100,6 +100,7 @@ vi.mock("@/lib/db", () => ({
   organizationMembers: { orgId: "orgId", userId: "userId", role: "role" },
   users: { id: "id", email: "email" },
   collections: { orgId: "orgId" },
+  listings: { collectionId: "collectionId" },
 }))
 
 describe("Organizations API", () => {
@@ -125,7 +126,7 @@ describe("Organizations API", () => {
       const { getServerSession } = await import("@/lib/auth-server")
       vi.mocked(getServerSession).mockResolvedValue(mockSession)
 
-      mockDbSelect.mockReturnValue({
+      mockDbSelect.mockReturnValueOnce({
         from: vi.fn().mockReturnValue({
           innerJoin: vi.fn().mockReturnValue({
             where: vi.fn().mockResolvedValue([
@@ -138,6 +139,24 @@ describe("Organizations API", () => {
           }),
         }),
       })
+      mockDbSelect
+        .mockReturnValueOnce({
+          from: vi.fn().mockReturnValue({
+            where: vi.fn().mockResolvedValue([{ count: 2 }]),
+          }),
+        })
+        .mockReturnValueOnce({
+          from: vi.fn().mockReturnValue({
+            where: vi.fn().mockResolvedValue([{ count: 3 }]),
+          }),
+        })
+        .mockReturnValueOnce({
+          from: vi.fn().mockReturnValue({
+            innerJoin: vi.fn().mockReturnValue({
+              where: vi.fn().mockResolvedValue([{ count: 4 }]),
+            }),
+          }),
+        })
 
       const { GET } = await import("./route")
       const response = await GET()

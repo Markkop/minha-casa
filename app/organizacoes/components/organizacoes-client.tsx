@@ -338,7 +338,7 @@ export function OrganizacoesClient() {
   function getRoleBadgeClass(role: string) {
     switch (role) {
       case "owner":
-        return "bg-primary/20 text-primary"
+        return "bg-app-action/20 text-app-accent"
       case "admin":
         return "bg-blue-500/20 text-blue-500"
       default:
@@ -404,13 +404,7 @@ export function OrganizacoesClient() {
 
   return (
     <div className="container mx-auto py-8 px-4 space-y-8">
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold">Organizacoes</h1>
-          <p className="text-muted-foreground mt-2">
-            Gerencie suas organizacoes e seus membros.
-          </p>
-        </div>
+      <div className="flex flex-col md:flex-row md:items-center md:justify-end gap-4">
         <Button onClick={() => setCreateModalOpen(true)}>
           Criar Organizacao
         </Button>
@@ -435,7 +429,7 @@ export function OrganizacoesClient() {
           {organizations.map((org) => (
             <Card
               key={org.id}
-              className="cursor-pointer hover:border-primary/50 transition-colors"
+              className="cursor-pointer hover:border-app-action/50 transition-colors"
               onClick={() => openOrgDetails(org)}
             >
               <CardHeader className="pb-2">
@@ -492,7 +486,7 @@ export function OrganizacoesClient() {
 
       {/* Organization Details Modal */}
       {selectedOrg && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-app-fg/50 flex items-center justify-center z-50">
           <Card className="w-full max-w-4xl mx-4 max-h-[90vh] overflow-y-auto">
             <CardHeader>
               <div className="flex items-start justify-between">
@@ -592,7 +586,7 @@ export function OrganizacoesClient() {
                         disabled={!newMemberEmail.trim() || addingMember}
                         size="default"
                       >
-                        {addingMember ? "Adicionando..." : "Adicionar"}
+                        {addingMember ? "Adicionando..." : "Adicionar Membro"}
                       </Button>
                     </div>
                     <p className="text-xs text-muted-foreground">
@@ -751,7 +745,7 @@ export function OrganizacoesClient() {
 
       {/* Create Organization Modal */}
       {createModalOpen && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-app-fg/50 flex items-center justify-center z-50">
           <Card className="w-full max-w-md mx-4">
             <CardHeader>
               <CardTitle>Criar Organizacao</CardTitle>
@@ -798,7 +792,7 @@ export function OrganizacoesClient() {
 
       {/* Delete Organization Confirmation Modal */}
       {deleteOrgModalOpen && selectedOrg && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-app-fg/50 flex items-center justify-center z-50">
           <Card className="w-full max-w-md mx-4">
             <CardHeader>
               <CardTitle className="text-destructive">

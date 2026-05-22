@@ -12,6 +12,7 @@ import {
   SidewalkSurface,
   DefaultSurface 
 } from './BlockRenderers';
+import { floodSceneColors } from '@/lib/theme/colors';
 
 interface WorldProps {
   waterLevel: number;
@@ -150,11 +151,11 @@ const SolidConnector = ({
          <Text
             position={[0, Math.max(h1, h2) + 0.5, 0]}
             fontSize={0.3}
-            color="white"
+            color={floodSceneColors.hoverText}
             anchorX="center"
             anchorY="bottom"
             outlineWidth={0.05}
-            outlineColor="#000"
+            outlineColor={floodSceneColors.hoverOutline}
          >
            {type === ConnectionType.RAMP ? 'RAMPA' : 'DEGRAU'}
            {'\n'}(Clique para alterar)
@@ -228,7 +229,7 @@ const Water = ({ level }: { level: number }) => {
     <mesh ref={meshRef} position={[15, 0.1, 0]} rotation={[-Math.PI / 2, 0, 0]}>
       <planeGeometry args={[100, 100]} />
       <meshStandardMaterial 
-        color="#00D9FF"
+        color={floodSceneColors.water}
         transparent
         opacity={0.4}
         roughness={0.1}
@@ -293,9 +294,8 @@ export const World: React.FC<WorldProps> = ({ waterLevel, edgeStates, onToggleEd
       {/* Deep Ground floor for infinity */}
       <mesh position={[0, -5, 0]} rotation={[-Math.PI/2, 0, 0]} receiveShadow>
           <planeGeometry args={[100, 100]} />
-          <meshStandardMaterial color="#1c1917" />
+          <meshStandardMaterial color={floodSceneColors.ground} />
       </mesh>
     </group>
   );
 };
-

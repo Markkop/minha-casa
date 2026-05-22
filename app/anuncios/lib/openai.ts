@@ -8,6 +8,8 @@ interface ParseApiResponse {
   data?: {
     titulo: string
     endereco: string
+    bairro?: string | null
+    cidade?: string | null
     m2Totais: number | null
     m2Privado: number | null
     quartos: number | null
@@ -21,10 +23,14 @@ interface ParseApiResponse {
     academia: boolean | null
     vistaLivre: boolean | null
     piscinaTermica: boolean | null
+    tipoImovel?: "casa" | "apartamento" | null
+    condominiumName?: string | null
     link: string | null
     contactName?: string | null
     contactNumber?: string | null
     addedAt?: string
+    sitePublishedAt?: string | null
+    siteUpdatedAt?: string | null
   }
   error?: string
 }
@@ -70,6 +76,8 @@ export async function parseListingWithAI(rawText: string): Promise<Imovel> {
     id: generateId(),
     titulo: result.data.titulo,
     endereco: result.data.endereco,
+    bairro: result.data.bairro,
+    cidade: result.data.cidade,
     m2Totais: result.data.m2Totais,
     m2Privado: result.data.m2Privado,
     quartos: result.data.quartos,
@@ -83,11 +91,15 @@ export async function parseListingWithAI(rawText: string): Promise<Imovel> {
     academia: result.data.academia,
     vistaLivre: result.data.vistaLivre,
     piscinaTermica: result.data.piscinaTermica,
+    tipoImovel: result.data.tipoImovel,
+    condominiumName: result.data.condominiumName,
     contactName: result.data.contactName,
     contactNumber: result.data.contactNumber,
     link: result.data.link,
     createdAt: new Date().toISOString(),
     addedAt: result.data.addedAt || new Date().toISOString().split("T")[0],
+    sitePublishedAt: result.data.sitePublishedAt,
+    siteUpdatedAt: result.data.siteUpdatedAt,
   }
 
   return imovel
@@ -106,4 +118,3 @@ export function isParsingAvailable(): boolean {
   // Server-side API handles the key, so parsing is available for logged-in users
   return true
 }
-

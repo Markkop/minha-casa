@@ -1,9 +1,10 @@
 "use client"
 
 import { useState } from "react"
+import { Download, Plus, Upload } from "lucide-react"
+import { PageToolbarButton } from "@/app/components/page-toolbar"
 import { ExportModal } from "./export-modal"
 import { ImportModal } from "./import-modal"
-import { cn } from "@/lib/utils"
 
 interface DataManagementProps {
   onDataChange: () => void
@@ -23,51 +24,24 @@ export function DataManagement({ onDataChange, listingsCount, onOpenParser, onIm
 
   return (
     <>
-      <div className="flex flex-wrap items-center gap-3">
-        {/* Add Listing */}
-        <button
-          onClick={onOpenParser}
-          className={cn(
-            "px-4 py-2 rounded-lg text-sm font-medium transition-all",
-            "bg-primary text-primary-foreground",
-            "hover:bg-primary/90",
-            "flex items-center gap-2"
-          )}
-        >
-          <span>➕</span>
-          Adicionar Imóvel
-        </button>
+      <PageToolbarButton variant="primary" onClick={onOpenParser}>
+        <Plus />
+        <span className="hidden sm:inline">Adicionar</span>
+        <span className="sm:hidden">Novo</span>
+      </PageToolbarButton>
 
-        {/* Export */}
-        <button
-          onClick={() => setShowExportModal(true)}
-          disabled={listingsCount === 0}
-          className={cn(
-            "px-4 py-2 rounded-lg text-sm font-medium transition-all",
-            "bg-eerieBlack border border-brightGrey",
-            "hover:border-primary hover:text-primary",
-            "disabled:opacity-50 disabled:cursor-not-allowed",
-            "flex items-center gap-2"
-          )}
-        >
-          <span>📤</span>
-          Exportar
-        </button>
+      <PageToolbarButton
+        onClick={() => setShowExportModal(true)}
+        disabled={listingsCount === 0}
+      >
+        <Download />
+        Exportar
+      </PageToolbarButton>
 
-        {/* Import */}
-        <button
-          onClick={() => setShowImportModal(true)}
-          className={cn(
-            "px-4 py-2 rounded-lg text-sm font-medium transition-all",
-            "bg-eerieBlack border border-brightGrey",
-            "hover:border-primary hover:text-primary",
-            "flex items-center gap-2"
-          )}
-        >
-          <span>📥</span>
-          Importar
-        </button>
-      </div>
+      <PageToolbarButton onClick={() => setShowImportModal(true)}>
+        <Upload />
+        Importar
+      </PageToolbarButton>
 
       {/* Export Modal */}
       <ExportModal
@@ -86,4 +60,3 @@ export function DataManagement({ onDataChange, listingsCount, onOpenParser, onIm
     </>
   )
 }
-

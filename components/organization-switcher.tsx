@@ -8,6 +8,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { User, Users } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 export interface Organization {
@@ -140,9 +141,8 @@ export function OrganizationSwitcher({
       <SelectTrigger
         className={cn(
           "w-[160px] sm:w-[180px]",
-          "bg-eerieBlack border-brightGrey",
-          "hover:border-primary hover:text-primary",
-          "text-white text-sm",
+          "border-app-border bg-app-surface text-sm text-app-fg",
+          "hover:border-app-border-strong hover:bg-app-bg hover:text-app-fg",
           className
         )}
       >
@@ -151,24 +151,24 @@ export function OrganizationSwitcher({
             "Carregando..."
           ) : context.type === "personal" ? (
             <span className="flex items-center gap-2">
-              <span>👤</span>
+              <User className="h-3.5 w-3.5 shrink-0" />
               <span className="truncate">Pessoal</span>
             </span>
           ) : (
             <span className="flex items-center gap-2">
-              <span>👥</span>
+              <Users className="h-3.5 w-3.5 shrink-0" />
               <span className="truncate">{context.organizationName}</span>
             </span>
           )}
         </SelectValue>
       </SelectTrigger>
-      <SelectContent className="bg-raisinBlack border-brightGrey">
+      <SelectContent className="border-app-border bg-app-surface text-app-fg">
         <SelectItem
           value="personal"
-          className="text-white hover:bg-eerieBlack focus:bg-eerieBlack"
+          className="text-app-fg hover:bg-app-surface-muted focus:bg-app-surface-muted"
         >
           <span className="flex items-center gap-2">
-            <span>👤</span>
+            <User className="h-3.5 w-3.5 shrink-0" />
             <span>Pessoal</span>
           </span>
         </SelectItem>
@@ -183,10 +183,10 @@ export function OrganizationSwitcher({
           <SelectItem
             key={org.id}
             value={org.id}
-            className="text-white hover:bg-eerieBlack focus:bg-eerieBlack"
+            className="text-app-fg hover:bg-app-surface-muted focus:bg-app-surface-muted"
           >
             <span className="flex items-center gap-2">
-              <span>👥</span>
+              <Users className="h-3.5 w-3.5 shrink-0" />
               <span className="truncate">{org.name}</span>
             </span>
           </SelectItem>

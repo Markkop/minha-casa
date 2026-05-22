@@ -1,6 +1,8 @@
 "use client"
 
-import { useMemo, useState } from "react"
+/* eslint-disable @next/next/no-img-element */
+
+import { useEffect, useMemo, useState } from "react"
 import {
   Table,
   TableBody,
@@ -9,7 +11,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import {
   Select,
@@ -33,13 +35,30 @@ import type { Imovel } from "../lib/api"
 import type { ListingData } from "@/lib/db/schema"
 import { cn } from "@/lib/utils"
 import { ArrowDownIcon, ArrowUpIcon, MagnifyingGlassIcon } from "@radix-ui/react-icons"
-import { PencilIcon, TrashIcon, LinkIcon, Star, FolderIcon, Eye, Strikethrough, Waves, Shield, Dumbbell, Mountain, Flag, Home, Building, RefreshCw, Car, WavesLadder, BedDouble, Bath, Copy, Check } from "lucide-react"
+import { PencilIcon, TrashIcon, Star, FolderIcon, Strikethrough, Waves, Shield, Dumbbell, Mountain, Flag, Home, Building, RefreshCw, Car, WavesLadder, BedDouble, Bath, Check, Loader2, Columns3, ImageIcon } from "lucide-react"
+import { ListingLocationMiniMap } from "./listing-location-mini-map"
 import { FaWhatsapp } from "react-icons/fa"
 import { EditModal } from "./edit-modal"
 import { ImageModal } from "./image-modal"
 import { QuickReparseModal, type FieldChange } from "./quick-reparse-modal"
 import { ClickablePrice } from "./clickable-price"
 import { parseListingWithAI } from "../lib/api"
+import { PageToolbarButton, PageToolbarIconButton } from "@/app/components/page-toolbar"
+import { ListingsDisplayPopover } from "./listings-display-popover"
+import {
+  LISTINGS_PANEL_CARD_CLASS,
+  LISTINGS_PANEL_TOOLBAR_CLASS,
+} from "./listings-panel-layout"
+import { AreaM2Stack, PricePerM2Stack } from "./listings-metric-stacks"
+import {
+  DEFAULT_PROPERTY_DISPLAY,
+  getEnabledMetricVariants,
+  getInitialPropertyDisplay,
+  PROPERTY_DISPLAY_STORAGE_KEY,
+  shouldShowPropertyTypeFilters,
+  type ListingsPropertyDisplayPrefs,
+} from "@/app/anuncios/lib/listings-display-prefs"
+import { buildWhatsAppUrl } from "@/app/anuncios/lib/listings-contact"
 
 // ============================================================================
 // TYPES
@@ -47,6 +66,19 @@ import { parseListingWithAI } from "../lib/api"
 
 type SortKey = "titulo" | "m2Totais" | "m2Privado" | "quartos" | "preco" | "precoM2" | "precoM2Privado" | "addedAt"
 type SortDirection = "asc" | "desc"
+type ListingStatus =
+  | "analisando"
+  | "considerando"
+  | "marcando_visita"
+  | "visita_marcada"
+  | "visitando"
+  | "visitado"
+  | "negociando"
+  | "proposta_enviada"
+  | "em_espera"
+  | "descartando"
+  | "descartado"
+type ListingsTableColumn = "image" | "property" | "status" | "price" | "area" | "value" | "rooms" | "bathrooms" | "dates"
 
 interface SortState {
   key: SortKey
@@ -59,6 +91,113 @@ interface SortableHeaderProps {
   currentSort: SortState
   onSort: (key: SortKey) => void
   align?: "left" | "center" | "right"
+}
+
+type MetricVariant = "total" | "privado"
+
+const LISTING_STATUS_OPTIONS: { value: ListingStatus; label: string; className: string }[] = [
+  { value: "analisando", label: "Analisando", className: "border-sky-500/30 bg-sky-500/10 text-sky-700" },
+  { value: "considerando", label: "Considerando", className: "border-emerald-500/30 bg-emerald-500/10 text-emerald-700" },
+  { value: "marcando_visita", label: "Marcando visita", className: "border-amber-500/30 bg-amber-500/10 text-amber-700" },
+  { value: "visita_marcada", label: "Visita marcada", className: "border-purple-500/30 bg-purple-500/10 text-purple-700" },
+  { value: "visitando", label: "Visitando", className: "border-indigo-500/30 bg-indigo-500/10 text-indigo-700" },
+  { value: "visitado", label: "Visitado", className: "border-yellow-500/30 bg-yellow-500/10 text-yellow-700" },
+  { value: "negociando", label: "Negociando", className: "border-cyan-500/30 bg-cyan-500/10 text-cyan-700" },
+  { value: "proposta_enviada", label: "Proposta enviada", className: "border-green-500/30 bg-green-500/10 text-green-700" },
+  { value: "em_espera", label: "Em espera", className: "border-slate-500/30 bg-slate-500/10 text-slate-700" },
+  { value: "descartando", label: "Descartando", className: "border-orange-500/30 bg-orange-500/10 text-orange-700" },
+  { value: "descartado", label: "Descartado", className: "border-destructive/30 bg-destructive/10 text-destructive" },
+]
+
+const LISTING_STATUS_VALUES = new Set<ListingStatus>(LISTING_STATUS_OPTIONS.map((option) => option.value))
+
+const COLUMN_STORAGE_KEY = "minha-casa:listings-table-visible-columns"
+
+const LISTINGS_TABLE_COLUMNS: { id: ListingsTableColumn; label: string }[] = [
+  { id: "image", label: "Imagem" },
+  { id: "property", label: "Imóvel" },
+  { id: "price", label: "Preço" },
+  { id: "area", label: "Área" },
+  { id: "value", label: "Valor" },
+  { id: "rooms", label: "Quartos" },
+  { id: "bathrooms", label: "WC" },
+  { id: "dates", label: "Datas" },
+  { id: "status", label: "Estado" },
+]
+
+const HIDDEN_BY_DEFAULT_COLUMNS = new Set<ListingsTableColumn>(["rooms", "bathrooms", "dates"])
+
+type TipoImovelValue = "casa" | "apartamento" | null
+
+const TIPO_IMOVEL_OPTIONS: {
+  value: TipoImovelValue
+  label: string
+  Icon: typeof Home
+}[] = [
+  { value: null, label: "Não definido", Icon: Flag },
+  { value: "casa", label: "Casa", Icon: Home },
+  { value: "apartamento", label: "Apartamento", Icon: Building },
+]
+
+function normalizeTipoImovel(value: Imovel["tipoImovel"]): TipoImovelValue {
+  if (value === "casa" || value === "apartamento") return value
+  return null
+}
+
+function getTipoImovelOption(value: Imovel["tipoImovel"]) {
+  const normalized = normalizeTipoImovel(value)
+  return TIPO_IMOVEL_OPTIONS.find((option) => option.value === normalized) ?? TIPO_IMOVEL_OPTIONS[0]
+}
+
+const DEFAULT_VISIBLE_COLUMNS = LISTINGS_TABLE_COLUMNS.reduce(
+  (acc, column) => {
+    acc[column.id] = !HIDDEN_BY_DEFAULT_COLUMNS.has(column.id)
+    return acc
+  },
+  {} as Record<ListingsTableColumn, boolean>
+)
+
+function normalizeVisibleColumns(value: unknown): Record<ListingsTableColumn, boolean> {
+  if (!value || typeof value !== "object") return { ...DEFAULT_VISIBLE_COLUMNS }
+
+  const raw = value as Partial<Record<ListingsTableColumn, unknown>>
+  return LISTINGS_TABLE_COLUMNS.reduce(
+    (acc, column) => {
+      const storedValue = raw[column.id]
+      acc[column.id] = typeof storedValue === "boolean" ? storedValue : DEFAULT_VISIBLE_COLUMNS[column.id]
+      return acc
+    },
+    {} as Record<ListingsTableColumn, boolean>
+  )
+}
+
+function getInitialVisibleColumns(): Record<ListingsTableColumn, boolean> {
+  if (typeof window === "undefined") return { ...DEFAULT_VISIBLE_COLUMNS }
+
+  try {
+    return normalizeVisibleColumns(JSON.parse(window.localStorage.getItem(COLUMN_STORAGE_KEY) || "null"))
+  } catch {
+    return { ...DEFAULT_VISIBLE_COLUMNS }
+  }
+}
+
+function getListingStatus(imovel: Pick<Imovel, "listingStatus" | "strikethrough" | "visited">): ListingStatus {
+  if (imovel.listingStatus && LISTING_STATUS_VALUES.has(imovel.listingStatus as ListingStatus)) {
+    return imovel.listingStatus as ListingStatus
+  }
+  if (imovel.strikethrough) return "descartado"
+  if (imovel.visited) return "visitado"
+  return "analisando"
+}
+
+function getListingStatusOption(status: ListingStatus) {
+  return LISTING_STATUS_OPTIONS.find((option) => option.value === status) ?? LISTING_STATUS_OPTIONS[0]
+}
+
+function getMetricVariantForSortKey(key: SortKey): MetricVariant | null {
+  if (key === "m2Totais" || key === "precoM2") return "total"
+  if (key === "m2Privado" || key === "precoM2Privado") return "privado"
+  return null
 }
 
 interface ListingsTableProps {
@@ -88,6 +227,8 @@ const FIELD_LABELS: Record<string, string> = {
   vistaLivre: "Vista Livre",
   piscinaTermica: "Piscina Térmica",
   tipoImovel: "Tipo de Imóvel",
+  sitePublishedAt: "Publicado no site",
+  siteUpdatedAt: "Atualizado no site",
 }
 
 const COMPARABLE_FIELDS: (keyof Imovel & keyof ListingData)[] = [
@@ -105,6 +246,8 @@ const COMPARABLE_FIELDS: (keyof Imovel & keyof ListingData)[] = [
   "academia",
   "vistaLivre",
   "piscinaTermica",
+  "sitePublishedAt",
+  "siteUpdatedAt",
 ]
 
 function valuesAreDifferent(
@@ -144,7 +287,7 @@ function SortableHeader({
   return (
     <TableHead
       className={cn(
-        "text-primary cursor-pointer hover:bg-middleGray/30 transition-colors select-none",
+        "cursor-pointer select-none text-app-muted transition-colors hover:bg-app-surface-muted",
         align === "right" && "text-right",
         align === "center" && "text-center"
       )}
@@ -154,12 +297,94 @@ function SortableHeader({
         <span>{label}</span>
         {isActive && (
           isAsc ? (
-            <ArrowUpIcon className="h-3 w-3 text-primary" />
+            <ArrowUpIcon className="h-3 w-3 text-app-fg" />
           ) : (
-            <ArrowDownIcon className="h-3 w-3 text-primary" />
+            <ArrowDownIcon className="h-3 w-3 text-app-fg" />
           )
         )}
       </div>
+    </TableHead>
+  )
+}
+
+function StackedSortHeader({
+  label,
+  totalSortKey,
+  privadoSortKey,
+  currentSort,
+  onSort,
+}: {
+  label: string
+  totalSortKey: SortKey
+  privadoSortKey: SortKey
+  currentSort: SortState
+  onSort: (key: SortKey) => void
+}) {
+  const [open, setOpen] = useState(false)
+  const activeVariant: MetricVariant | null =
+    currentSort.key === totalSortKey
+      ? "total"
+      : currentSort.key === privadoSortKey
+        ? "privado"
+        : null
+  const isAsc = activeVariant !== null && currentSort.direction === "asc"
+
+  return (
+    <TableHead className="text-right text-app-muted">
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <button
+            type="button"
+            className="ml-auto flex items-center justify-end gap-1 rounded-sm px-1 py-0.5 text-right transition-colors hover:bg-app-surface-muted"
+          >
+            <span>{label}</span>
+            {activeVariant !== null && (
+              isAsc ? (
+                <ArrowUpIcon className="h-3 w-3 text-app-fg" />
+              ) : (
+                <ArrowDownIcon className="h-3 w-3 text-app-fg" />
+              )
+            )}
+          </button>
+        </PopoverTrigger>
+        <PopoverContent
+          align="end"
+          sideOffset={6}
+          className="w-36 border-app-border bg-app-surface p-1 text-app-fg"
+        >
+          {[
+            { label: "total", key: totalSortKey },
+            { label: "privado", key: privadoSortKey },
+          ].map((option) => {
+            const isActive = currentSort.key === option.key
+            return (
+              <button
+                key={option.key}
+                type="button"
+                onClick={() => {
+                  onSort(option.key)
+                  setOpen(false)
+                }}
+                className={cn(
+                  "flex w-full items-center justify-between rounded px-2 py-1.5 text-left text-xs transition-colors",
+                  isActive
+                    ? "bg-app-action text-app-action-foreground"
+                    : "text-app-muted hover:bg-app-surface-muted hover:text-app-fg"
+                )}
+              >
+                <span>{option.label}</span>
+                {isActive && (
+                  isAsc ? (
+                    <ArrowUpIcon className="h-3 w-3" />
+                  ) : (
+                    <ArrowDownIcon className="h-3 w-3" />
+                  )
+                )}
+              </button>
+            )
+          })}
+        </PopoverContent>
+      </Popover>
     </TableHead>
   )
 }
@@ -187,20 +412,66 @@ export function ListingsTable({ listings, onListingsChange, hasApiKey = true }: 
   const [focusImageUrl, setFocusImageUrl] = useState(false)
   const [imageModalListing, setImageModalListing] = useState<Imovel | null>(null)
   const [copyingListingId, setCopyingListingId] = useState<string | null>(null)
-  const [discardPopoverOpen, setDiscardPopoverOpen] = useState<string | null>(null)
-  const [discardReasonInput, setDiscardReasonInput] = useState("")
   const [contactPopoverOpen, setContactPopoverOpen] = useState<string | null>(null)
   const [contactNameInput, setContactNameInput] = useState("")
   const [contactNumberInput, setContactNumberInput] = useState("")
   const [contactSelectorOpen, setContactSelectorOpen] = useState(false)
+  const [tipoImovelPopoverOpen, setTipoImovelPopoverOpen] = useState<string | null>(null)
   const [quickReparsePopoverOpen, setQuickReparsePopoverOpen] = useState<string | null>(null)
   const [quickReparseInput, setQuickReparseInput] = useState("")
   const [quickReparseLoading, setQuickReparseLoading] = useState<string | null>(null)
   const [quickReparseError, setQuickReparseError] = useState<string | null>(null)
   const [quickReparseChanges, setQuickReparseChanges] = useState<FieldChange[] | null>(null)
   const [quickReparseListing, setQuickReparseListing] = useState<Imovel | null>(null)
-  const [exportPopoverOpen, setExportPopoverOpen] = useState(false)
-  const [exportCopied, setExportCopied] = useState(false)
+  const [visibleColumns, setVisibleColumns] = useState<Record<ListingsTableColumn, boolean>>({ ...DEFAULT_VISIBLE_COLUMNS })
+  const [visibleColumnsLoaded, setVisibleColumnsLoaded] = useState(false)
+  const [propertyDisplay, setPropertyDisplay] = useState<ListingsPropertyDisplayPrefs>({ ...DEFAULT_PROPERTY_DISPLAY })
+  const [propertyDisplayLoaded, setPropertyDisplayLoaded] = useState(false)
+
+  useEffect(() => {
+    setVisibleColumns(getInitialVisibleColumns())
+    setVisibleColumnsLoaded(true)
+    setPropertyDisplay(getInitialPropertyDisplay())
+    setPropertyDisplayLoaded(true)
+  }, [])
+
+  useEffect(() => {
+    if (!visibleColumnsLoaded) return
+    window.localStorage.setItem(COLUMN_STORAGE_KEY, JSON.stringify(visibleColumns))
+  }, [visibleColumns, visibleColumnsLoaded])
+
+  useEffect(() => {
+    if (!propertyDisplayLoaded) return
+    window.localStorage.setItem(PROPERTY_DISPLAY_STORAGE_KEY, JSON.stringify(propertyDisplay))
+  }, [propertyDisplay, propertyDisplayLoaded])
+
+  const enabledMetricVariants = useMemo(
+    () => getEnabledMetricVariants(propertyDisplay),
+    [propertyDisplay]
+  )
+
+  const showTypeFilters = useMemo(
+    () => shouldShowPropertyTypeFilters(listings),
+    [listings]
+  )
+
+  const hasDiscardedListings = useMemo(
+    () => listings.some((listing) => listing.strikethrough),
+    [listings]
+  )
+
+  useEffect(() => {
+    if (!showTypeFilters && propertyTypeFilter !== "all") {
+      setPropertyTypeFilter("all")
+    }
+  }, [showTypeFilters, propertyTypeFilter])
+
+  const setColumnVisible = (column: ListingsTableColumn, visible: boolean) => {
+    setVisibleColumns((current) => ({
+      ...current,
+      [column]: visible,
+    }))
+  }
 
   const handleDelete = async (id: string) => {
     try {
@@ -220,12 +491,16 @@ export function ListingsTable({ listings, onListingsChange, hasApiKey = true }: 
     }
   }
 
-  const handleToggleVisited = async (id: string, currentVisited: boolean | undefined) => {
+  const handleChangeListingStatus = async (id: string, nextStatus: ListingStatus) => {
     try {
-      await apiUpdateListing(id, { visited: !currentVisited })
+      await apiUpdateListing(id, {
+        listingStatus: nextStatus,
+        strikethrough: nextStatus === "descartado",
+        visited: nextStatus === "visitado",
+      })
       onListingsChange()
     } catch (error) {
-      console.error("Failed to toggle visited:", error)
+      console.error("Failed to change listing status:", error)
     }
   }
 
@@ -318,65 +593,14 @@ export function ListingsTable({ listings, onListingsChange, hasApiKey = true }: 
     }
   }
 
-  const handleToggleTipoImovel = async (id: string, currentTipo: "casa" | "apartamento" | null | undefined) => {
+  const handleSetTipoImovel = async (id: string, tipo: TipoImovelValue) => {
     try {
-      let nextTipo: "casa" | "apartamento" | null
-      if (currentTipo === null || currentTipo === undefined) {
-        nextTipo = "casa"
-      } else if (currentTipo === "casa") {
-        nextTipo = "apartamento"
-      } else {
-        nextTipo = null
-      }
-      await apiUpdateListing(id, { tipoImovel: nextTipo })
+      await apiUpdateListing(id, { tipoImovel: tipo })
+      setTipoImovelPopoverOpen(null)
       onListingsChange()
     } catch (error) {
-      console.error("Failed to toggle tipo imóvel:", error)
+      console.error("Failed to set tipo imóvel:", error)
     }
-  }
-
-  const handleToggleStrikethrough = async (id: string, currentStrikethrough: boolean | undefined, currentReason?: string | null) => {
-    if (currentStrikethrough) {
-      // Toggling OFF - just set strikethrough to false, keep reason, no popover
-      try {
-        await apiUpdateListing(id, { strikethrough: false })
-        onListingsChange()
-      } catch (error) {
-        console.error("Failed to toggle strikethrough:", error)
-      }
-    } else {
-      // Toggling ON - open popover with existing reason (if any)
-      setDiscardReasonInput(currentReason || "")
-      setDiscardPopoverOpen(id)
-    }
-  }
-
-  const handleSaveDiscardReason = async (id: string) => {
-    try {
-      await apiUpdateListing(id, { 
-        strikethrough: true, 
-        discardedReason: discardReasonInput.trim() || null 
-      })
-      onListingsChange()
-      setDiscardPopoverOpen(null)
-      setDiscardReasonInput("")
-    } catch (error) {
-      console.error("Failed to save discard reason:", error)
-    }
-  }
-
-  const normalizePhoneNumber = (phone: string | null | undefined): string | null => {
-    if (!phone) return null
-    // Remove all non-numeric characters
-    const digits = phone.replace(/\D/g, "")
-    // Return null if no digits
-    return digits.length > 0 ? digits : null
-  }
-
-  const buildWhatsAppUrl = (contactNumber: string | null | undefined): string | null => {
-    const normalized = normalizePhoneNumber(contactNumber)
-    if (!normalized) return null
-    return `https://wa.me/55${normalized}`
   }
 
   const handleSaveContact = async (id: string) => {
@@ -405,7 +629,7 @@ export function ListingsTable({ listings, onListingsChange, hasApiKey = true }: 
   // Extract unique contacts from all listings
   const uniqueContacts = useMemo(() => {
     const contactMap = new Map<string, { name: string | null; number: string }>()
-    
+
     listings.forEach((listing) => {
       if (listing.contactNumber) {
         const normalized = listing.contactNumber.replace(/\D/g, "")
@@ -417,7 +641,7 @@ export function ListingsTable({ listings, onListingsChange, hasApiKey = true }: 
         }
       }
     })
-    
+
     return Array.from(contactMap.values()).sort((a, b) => {
       const nameA = a.name || a.number
       const nameB = b.name || b.number
@@ -438,17 +662,17 @@ export function ListingsTable({ listings, onListingsChange, hasApiKey = true }: 
 
     setQuickReparseLoading(listing.id)
     setQuickReparseError(null)
-    
+
     try {
       const parsed = await parseListingWithAI(quickReparseInput)
-      
+
       // Compare parsed values with current listing data and build changes list
       const detectedChanges: FieldChange[] = []
-      
+
       for (const field of COMPARABLE_FIELDS) {
         const currentValue = listing[field]
         const newValue = parsed[field]
-        
+
         if (valuesAreDifferent(currentValue, newValue)) {
           detectedChanges.push({
             field,
@@ -459,7 +683,7 @@ export function ListingsTable({ listings, onListingsChange, hasApiKey = true }: 
           })
         }
       }
-      
+
       if (detectedChanges.length === 0) {
         // No changes detected - close popover
         setQuickReparsePopoverOpen(null)
@@ -467,7 +691,7 @@ export function ListingsTable({ listings, onListingsChange, hasApiKey = true }: 
         setQuickReparseLoading(null)
         return
       }
-      
+
       setQuickReparseChanges(detectedChanges)
       setQuickReparseListing(listing)
       setQuickReparsePopoverOpen(null)
@@ -482,7 +706,7 @@ export function ListingsTable({ listings, onListingsChange, hasApiKey = true }: 
 
   const handleQuickReparseApply = async (changes: Partial<Imovel>) => {
     if (!quickReparseListing) return
-    
+
     try {
       await apiUpdateListing(quickReparseListing.id, changes)
       onListingsChange()
@@ -588,28 +812,28 @@ export function ListingsTable({ listings, onListingsChange, hasApiKey = true }: 
     // Normalize text (convert accented chars to simple chars)
     const normalizedTitle = normalizeText(titulo)
     const normalizedEndereco = normalizeText(endereco)
-    
+
     // Split by spaces and filter out empty strings, then join with +
     const titleParts = normalizedTitle.split(/\s+/).filter(Boolean)
     const enderecoParts = normalizedEndereco.split(/\s+/).filter(Boolean)
-    
+
     const queryParts = [...titleParts, ...enderecoParts]
-    
+
     // Add m2 total if available
     if (m2Totais !== null) {
       queryParts.push(`${m2Totais}m2`)
     }
-    
+
     // Add quartos if available
     if (quartos !== null) {
       queryParts.push(`${quartos}`, 'quartos')
     }
-    
+
     // Add banheiros if available
     if (banheiros !== null) {
       queryParts.push(`${banheiros}`, 'banheiros')
     }
-    
+
     const query = queryParts.join('+')
     return `https://www.google.com/search?q=${query}`
   }
@@ -625,10 +849,10 @@ export function ListingsTable({ listings, onListingsChange, hasApiKey = true }: 
 
     // Normalize the address
     let normalized = endereco.trim()
-    
+
     // Remove extra whitespace
     normalized = normalized.replace(/\s+/g, " ")
-    
+
     // Common address abbreviations normalization (preserve word boundaries)
     const abbreviations: Record<string, string> = {
       "\\br\\b": "Rua",
@@ -646,23 +870,23 @@ export function ListingsTable({ listings, onListingsChange, hasApiKey = true }: 
       "\\bflorianópolis\\b": "Florianópolis",
       "\\bfloripa\\b": "Florianópolis",
     }
-    
+
     // Apply abbreviations (case-insensitive, word boundaries)
     let processed = normalized
     for (const [pattern, replacement] of Object.entries(abbreviations)) {
       const regex = new RegExp(pattern, "gi")
       processed = processed.replace(regex, replacement)
     }
-    
+
     // Check if address already includes city/state context
     const lowerAddress = processed.toLowerCase()
     const hasCity = /\b(florianópolis|florianopolis|floripa)\b/.test(lowerAddress)
     const hasState = /\b(sc|santa catarina)\b/.test(lowerAddress)
     const hasCountry = /\b(brasil|brazil)\b/.test(lowerAddress)
-    
+
     // Build the final address
     let finalAddress = processed
-    
+
     // Smart context addition based on what's missing
     if (!hasCity && !hasState) {
       // Missing both city and state - add context
@@ -694,7 +918,7 @@ export function ListingsTable({ listings, onListingsChange, hasApiKey = true }: 
       // Has city and state but no country
       finalAddress = `${finalAddress}, Brasil`
     }
-    
+
     return finalAddress.trim()
   }
 
@@ -716,104 +940,6 @@ export function ListingsTable({ listings, onListingsChange, hasApiKey = true }: 
   const calculatePrecoM2Privado = (preco: number | null, m2Privado: number | null) => {
     if (preco === null || m2Privado === null || m2Privado === 0) return null
     return Math.round(preco / m2Privado)
-  }
-
-  const buildListingsMarkdown = (items: Imovel[]): string => {
-    const lines: string[] = []
-    const now = new Date().toLocaleString("pt-BR")
-    lines.push(`# Imóveis (${items.length})`)
-    lines.push("")
-    lines.push(`Exportado em ${now}`)
-    lines.push("")
-
-    for (let i = 0; i < items.length; i++) {
-      const imovel = items[i]
-      const plainTitle = imovel.titulo.replace(/^#+\s*/, "")
-      lines.push(`## ${plainTitle}`)
-      if (imovel.link) {
-        lines.push(imovel.link)
-      }
-      lines.push("")
-
-      lines.push(`Endereço: ${imovel.endereco}`)
-      lines.push(buildGoogleMapsUrl(imovel.endereco))
-      lines.push("")
-
-      if (imovel.tipoImovel === "casa") {
-        lines.push("- Tipo: Casa")
-      } else if (imovel.tipoImovel === "apartamento") {
-        lines.push("- Tipo: Apartamento")
-      }
-
-      if (imovel.preco !== null && imovel.preco !== undefined) {
-        lines.push(`- Preço: ${formatCurrency(imovel.preco)}`)
-      }
-
-      const pm2 = calculatePrecoM2(imovel.preco, imovel.m2Totais)
-      if (pm2 !== null) {
-        lines.push(`- Preço/m² (total): ${formatCurrency(pm2)}`)
-      }
-
-      const pm2Priv = calculatePrecoM2Privado(imovel.preco, imovel.m2Privado)
-      if (pm2Priv !== null) {
-        lines.push(`- Preço/m² (privado): ${formatCurrency(pm2Priv)}`)
-      }
-
-      if (imovel.m2Totais != null) lines.push(`- m² totais: ${imovel.m2Totais}`)
-      if (imovel.m2Privado != null) lines.push(`- m² privado: ${imovel.m2Privado}`)
-      if (imovel.quartos != null) lines.push(`- Quartos: ${imovel.quartos}`)
-      if (imovel.suites != null) lines.push(`- Suítes: ${imovel.suites}`)
-      if (imovel.banheiros != null) lines.push(`- Banheiros: ${imovel.banheiros}`)
-      if (imovel.garagem != null) lines.push(`- Vagas de garagem: ${imovel.garagem}`)
-      if (imovel.andar != null && imovel.andar !== undefined) {
-        lines.push(`- Andar: ${imovel.andar === 10 ? "10+" : imovel.andar}`)
-      }
-
-      const amenities: string[] = []
-      if (imovel.piscina === true) amenities.push("Piscina")
-      if (imovel.piscinaTermica === true) amenities.push("Piscina térmica")
-      if (imovel.porteiro24h === true) amenities.push("Porteiro 24h")
-      if (imovel.academia === true) amenities.push("Academia")
-      if (imovel.vistaLivre === true) amenities.push("Vista livre")
-      if (amenities.length > 0) {
-        lines.push("- Comodidades")
-        for (const a of amenities) {
-          lines.push(`  - ${a}`)
-        }
-      }
-
-      const contactParts = [imovel.contactName, imovel.contactNumber].filter(Boolean)
-      if (contactParts.length > 0) {
-        lines.push(`- Contato: ${contactParts.join(" — ")}`)
-      }
-
-      if (imovel.imageUrl) {
-        lines.push("- Imagem")
-        lines.push(imovel.imageUrl)
-      }
-
-      const statusBits: string[] = []
-      if (imovel.starred) statusBits.push("Estrelado")
-      if (imovel.visited) statusBits.push("Visitado")
-      if (imovel.strikethrough) {
-        statusBits.push(
-          imovel.discardedReason?.trim()
-            ? `Descartado (${imovel.discardedReason.trim()})`
-            : "Descartado"
-        )
-      }
-      if (statusBits.length > 0) {
-        lines.push(`- Status: ${statusBits.join(", ")}`)
-      }
-
-      if (i < items.length - 1) {
-        lines.push("")
-        lines.push("---")
-        lines.push("")
-      }
-    }
-
-    return lines.join("\n")
   }
 
   // Check if there are other collections available (excluding active)
@@ -887,28 +1013,12 @@ export function ListingsTable({ listings, onListingsChange, hasApiKey = true }: 
     })
   }, [listings, searchQuery, sort, propertyTypeFilter, showStrikethrough])
 
-  const showFilteredExportOption = filteredAndSortedListings.length !== listings.length
-
-  const handleCopyMarkdown = async (scope: "filtered" | "all") => {
-    const items = scope === "filtered" ? filteredAndSortedListings : listings
-    if (items.length === 0) return
-    const md = buildListingsMarkdown(items)
-    try {
-      await navigator.clipboard.writeText(md)
-      setExportCopied(true)
-      setExportPopoverOpen(false)
-      setTimeout(() => setExportCopied(false), 2000)
-    } catch (error) {
-      console.error("Failed to copy markdown to clipboard:", error)
-    }
-  }
-
   if (listings.length === 0) {
     return (
-      <Card className="bg-raisinBlack border-brightGrey">
+      <Card className="border-app-border bg-app-surface">
         <CardContent className="py-12 text-center">
-          <p className="text-4xl mb-4">🏠</p>
-          <p className="text-ashGray">
+          <Home className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+          <p className="text-app-muted">
             Nenhum imóvel cadastrado ainda.
           </p>
           <p className="text-sm text-muted-foreground mt-2">
@@ -919,189 +1029,108 @@ export function ListingsTable({ listings, onListingsChange, hasApiKey = true }: 
     )
   }
 
-  return (
-    <Card className="bg-raisinBlack border-brightGrey">
-      <CardHeader className="pb-3">
-        <CardTitle className="text-lg flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2 min-w-0">
-            <span>📋</span>
-            <span>Imóveis Cadastrados</span>
-          </div>
-          <div className="flex items-center gap-2 shrink-0">
-            <span className="text-sm font-normal text-muted-foreground whitespace-nowrap">
-              {filteredAndSortedListings.length === listings.length
-                ? `${listings.length} ${listings.length === 1 ? "imóvel" : "imóveis"}`
-                : `${filteredAndSortedListings.length} de ${listings.length} imóveis`}
-            </span>
-            {showFilteredExportOption ? (
-              <Popover open={exportPopoverOpen} onOpenChange={setExportPopoverOpen}>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <PopoverTrigger asChild>
-                      <button
-                        type="button"
-                        className={cn(
-                          "inline-flex items-center gap-1 rounded-md border px-2 py-1 text-sm transition-colors",
-                          "border-brightGrey hover:border-primary hover:text-primary text-muted-foreground",
-                          exportCopied && "border-green text-green"
-                        )}
-                      >
-                        {exportCopied ? (
-                          <Check className="h-4 w-4 text-green shrink-0" />
-                        ) : (
-                          <Copy className="h-4 w-4 shrink-0" />
-                        )}
-                        <span className="hidden sm:inline">{exportCopied ? "Copiado!" : "Copiar"}</span>
-                      </button>
-                    </PopoverTrigger>
-                  </TooltipTrigger>
-                  <TooltipContent
-                    side="bottom"
-                    sideOffset={4}
-                    className="bg-raisinBlack border border-brightGrey text-white"
-                  >
-                    Copiar como Markdown
-                  </TooltipContent>
-                </Tooltip>
-                <PopoverContent align="end" sideOffset={8} className="w-72 p-2 border-brightGrey bg-raisinBlack text-white">
-                  <div className="flex flex-col gap-1">
-                    <button
-                      type="button"
-                      onClick={() => void handleCopyMarkdown("filtered")}
-                      disabled={filteredAndSortedListings.length === 0}
-                      className={cn(
-                        "w-full rounded-md px-3 py-2 text-left text-sm transition-colors",
-                        "hover:bg-eerieBlack disabled:opacity-50 disabled:cursor-not-allowed"
-                      )}
-                    >
-                      Apenas filtrados ({filteredAndSortedListings.length})
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => void handleCopyMarkdown("all")}
-                      disabled={listings.length === 0}
-                      className={cn(
-                        "w-full rounded-md px-3 py-2 text-left text-sm transition-colors",
-                        "hover:bg-eerieBlack disabled:opacity-50 disabled:cursor-not-allowed"
-                      )}
-                    >
-                      Todos ({listings.length})
-                    </button>
-                  </div>
-                </PopoverContent>
-              </Popover>
-            ) : (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button
-                    type="button"
-                    onClick={() => void handleCopyMarkdown("all")}
-                    className={cn(
-                      "inline-flex items-center gap-1 rounded-md border px-2 py-1 text-sm transition-colors",
-                      "border-brightGrey hover:border-primary hover:text-primary text-muted-foreground",
-                      exportCopied && "border-green text-green"
-                    )}
-                  >
-                    {exportCopied ? (
-                      <Check className="h-4 w-4 text-green shrink-0" />
-                    ) : (
-                      <Copy className="h-4 w-4 shrink-0" />
-                    )}
-                    <span className="hidden sm:inline">{exportCopied ? "Copiado!" : "Copiar"}</span>
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent
-                  side="bottom"
-                  sideOffset={4}
-                  className="bg-raisinBlack border border-brightGrey text-white"
-                >
-                  Copiar como Markdown
-                </TooltipContent>
-              </Tooltip>
-            )}
-          </div>
-        </CardTitle>
+  const casaCount = listings.filter((listing) => listing.tipoImovel === "casa").length
+  const aptoCount = listings.filter((listing) => listing.tipoImovel === "apartamento").length
 
-        {/* Toggle Strikethrough and Search */}
-        <div className="flex items-center gap-3 mt-3">
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                onClick={() => setShowStrikethrough(!showStrikethrough)}
-                className={cn(
-                  "flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all border flex-shrink-0",
-                  showStrikethrough
-                    ? "bg-eerieBlack border-brightGrey text-muted-foreground hover:border-primary hover:text-primary"
-                    : "bg-primary/20 border-primary text-primary"
-                )}
-              >
-                <Strikethrough className="h-4 w-4" />
-                <span className="hidden sm:inline">{showStrikethrough ? "Ocultar" : "Mostrar"}</span>
-              </button>
-            </TooltipTrigger>
-            <TooltipContent 
-              side="bottom" 
-              sideOffset={4}
-              className="bg-raisinBlack border border-brightGrey text-white"
-            >
-              {showStrikethrough ? "Ocultar itens riscados" : "Mostrar itens riscados"}
-            </TooltipContent>
-          </Tooltip>
-          <div className="relative flex-1">
-            <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+  return (
+    <Card className={LISTINGS_PANEL_CARD_CLASS}>
+      <CardHeader className={LISTINGS_PANEL_TOOLBAR_CLASS}>
+        <div className="flex min-w-0 items-center gap-1.5 overflow-x-auto">
+          <ListingsDisplayPopover
+            prefs={propertyDisplay}
+            onChange={setPropertyDisplay}
+          />
+          <div className="relative min-w-0 flex-1">
+            <MagnifyingGlassIcon className="absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
             <Input
               type="text"
               placeholder="Buscar por título ou endereço..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9 bg-eerieBlack border-brightGrey text-white placeholder:text-muted-foreground"
+              className="h-7 border-app-border bg-app-surface py-0 pl-7 text-xs text-app-fg placeholder:text-app-subtle"
             />
           </div>
-        </div>
-
-        {/* Property Type Filter Buttons */}
-        <div className="flex items-center gap-2 mt-3">
-          {(() => {
-            const casaCount = listings.filter((l) => l.tipoImovel === "casa").length
-            const aptoCount = listings.filter((l) => l.tipoImovel === "apartamento").length
-            return (
-              <>
-                <button
-                  onClick={() => setPropertyTypeFilter("all")}
-                  className={cn(
-                    "px-3 py-1.5 rounded-full text-sm font-medium transition-all border",
-                    propertyTypeFilter === "all"
-                      ? "bg-primary text-primary-foreground border-primary"
-                      : "bg-eerieBlack border-brightGrey text-muted-foreground hover:border-primary hover:text-primary"
-                  )}
+          {showTypeFilters && (
+            <>
+              <PageToolbarButton
+                variant={propertyTypeFilter === "all" ? "active" : "secondary"}
+                onClick={() => setPropertyTypeFilter("all")}
+                className="h-7 shrink-0 rounded-full px-2"
+              >
+                Todos ({listings.length})
+              </PageToolbarButton>
+              <PageToolbarButton
+                variant={propertyTypeFilter === "casa" ? "active" : "secondary"}
+                onClick={() => setPropertyTypeFilter("casa")}
+                className="h-7 shrink-0 rounded-full px-2"
+              >
+                Casas ({casaCount})
+              </PageToolbarButton>
+              <PageToolbarButton
+                variant={propertyTypeFilter === "apartamento" ? "active" : "secondary"}
+                onClick={() => setPropertyTypeFilter("apartamento")}
+                className="h-7 shrink-0 rounded-full px-2"
+              >
+                Aptos ({aptoCount})
+              </PageToolbarButton>
+            </>
+          )}
+          {hasDiscardedListings && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <PageToolbarIconButton
+                  variant={showStrikethrough ? "secondary" : "active"}
+                  onClick={() => setShowStrikethrough(!showStrikethrough)}
+                  aria-label={showStrikethrough ? "Ocultar descartados" : "Mostrar descartados"}
                 >
-                  Todos ({listings.length})
-                </button>
-                <button
-                  onClick={() => setPropertyTypeFilter("casa")}
-                  className={cn(
-                    "px-3 py-1.5 rounded-full text-sm font-medium transition-all border",
-                    propertyTypeFilter === "casa"
-                      ? "bg-primary text-primary-foreground border-primary"
-                      : "bg-eerieBlack border-brightGrey text-muted-foreground hover:border-primary hover:text-primary"
-                  )}
-                >
-                  Casas ({casaCount})
-                </button>
-                <button
-                  onClick={() => setPropertyTypeFilter("apartamento")}
-                  className={cn(
-                    "px-3 py-1.5 rounded-full text-sm font-medium transition-all border",
-                    propertyTypeFilter === "apartamento"
-                      ? "bg-primary text-primary-foreground border-primary"
-                      : "bg-eerieBlack border-brightGrey text-muted-foreground hover:border-primary hover:text-primary"
-                  )}
-                >
-                  Aptos ({aptoCount})
-                </button>
-              </>
-            )
-          })()}
+                  <Strikethrough />
+                </PageToolbarIconButton>
+              </TooltipTrigger>
+              <TooltipContent
+                side="bottom"
+                sideOffset={4}
+                className="border border-app-border bg-app-surface text-app-fg"
+              >
+                {showStrikethrough ? "Ocultar descartados" : "Mostrar descartados"}
+              </TooltipContent>
+            </Tooltip>
+          )}
+          <Popover>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <PopoverTrigger asChild>
+                  <PageToolbarIconButton variant="secondary" aria-label="Colunas visíveis">
+                    <Columns3 />
+                  </PageToolbarIconButton>
+                </PopoverTrigger>
+              </TooltipTrigger>
+              <TooltipContent
+                side="bottom"
+                sideOffset={4}
+                className="border border-app-border bg-app-surface text-app-fg"
+              >
+                Colunas visíveis
+              </TooltipContent>
+            </Tooltip>
+            <PopoverContent align="end" sideOffset={8} className="w-56 border-app-border bg-app-surface p-2 text-app-fg">
+              <div className="flex flex-col gap-1">
+                {LISTINGS_TABLE_COLUMNS.map((column) => (
+                  <label
+                    key={column.id}
+                    className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-sm text-app-muted transition-colors hover:bg-app-surface-muted hover:text-app-fg"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={visibleColumns[column.id]}
+                      onChange={(event) => setColumnVisible(column.id, event.target.checked)}
+                      className="h-3.5 w-3.5 accent-app-action"
+                    />
+                    <span>{column.label}</span>
+                  </label>
+                ))}
+              </div>
+            </PopoverContent>
+          </Popover>
         </div>
       </CardHeader>
 
@@ -1115,70 +1144,71 @@ export function ListingsTable({ listings, onListingsChange, hasApiKey = true }: 
         ) : (
           <Table>
               <TableHeader>
-                <TableRow className="border-brightGrey hover:bg-transparent">
-                  <TableHead className="sticky left-0 z-20 bg-raisinBlack">
-                    <span className="text-primary">Imagem</span>
-                  </TableHead>
-                  <SortableHeader
-                    label="Imóvel"
-                    sortKey="titulo"
-                    currentSort={sort}
-                    onSort={handleSort}
-                  />
-                  {propertyTypeFilter !== "apartamento" && (
+                <TableRow className="border-app-border hover:bg-transparent">
+                  {visibleColumns.image && (
+                    <TableHead className="sticky left-0 z-20 bg-app-surface">
+                      <span className="text-app-muted">Imagem</span>
+                    </TableHead>
+                  )}
+                  {visibleColumns.property && (
                     <SortableHeader
-                      label="m² total"
-                      sortKey="m2Totais"
+                      label="Imóvel"
+                      sortKey="titulo"
+                      currentSort={sort}
+                      onSort={handleSort}
+                    />
+                  )}
+                  {visibleColumns.price && (
+                    <SortableHeader
+                      label="Preço"
+                      sortKey="preco"
                       currentSort={sort}
                       onSort={handleSort}
                       align="right"
                     />
                   )}
-                  {propertyTypeFilter !== "apartamento" && (
-                    <SortableHeader
-                      label="R$/m² total"
-                      sortKey="precoM2"
+                  {visibleColumns.area && (
+                    <StackedSortHeader
+                      label="Área"
+                      totalSortKey="m2Totais"
+                      privadoSortKey="m2Privado"
                       currentSort={sort}
                       onSort={handleSort}
-                      align="right"
                     />
                   )}
-                  <SortableHeader
-                    label="m² priv."
-                    sortKey="m2Privado"
-                    currentSort={sort}
-                    onSort={handleSort}
-                    align="right"
-                  />
-                  <SortableHeader
-                    label="R$/m² priv."
-                    sortKey="precoM2Privado"
-                    currentSort={sort}
-                    onSort={handleSort}
-                    align="right"
-                  />
-                  <SortableHeader
-                    label="Preço"
-                    sortKey="preco"
-                    currentSort={sort}
-                    onSort={handleSort}
-                    align="right"
-                  />
-                  <SortableHeader
-                    label="Quartos"
-                    sortKey="quartos"
-                    currentSort={sort}
-                    onSort={handleSort}
-                    align="center"
-                  />
-                  <TableHead className="text-primary text-center">WC</TableHead>
-                  <SortableHeader
-                    label="Adicionado"
-                    sortKey="addedAt"
-                    currentSort={sort}
-                    onSort={handleSort}
-                    align="center"
-                  />
+                  {visibleColumns.value && (
+                    <StackedSortHeader
+                      label="Valor"
+                      totalSortKey="precoM2"
+                      privadoSortKey="precoM2Privado"
+                      currentSort={sort}
+                      onSort={handleSort}
+                    />
+                  )}
+                  {visibleColumns.rooms && (
+                    <SortableHeader
+                      label="Quartos"
+                      sortKey="quartos"
+                      currentSort={sort}
+                      onSort={handleSort}
+                      align="center"
+                    />
+                  )}
+                  {visibleColumns.bathrooms && (
+                    <TableHead className="text-center text-app-muted">WC</TableHead>
+                  )}
+                  {visibleColumns.dates && (
+                    <SortableHeader
+                      label="Datas"
+                      sortKey="addedAt"
+                      currentSort={sort}
+                      onSort={handleSort}
+                      align="center"
+                    />
+                  )}
+                  {visibleColumns.status && (
+                    <TableHead className="text-center text-app-muted">Estado</TableHead>
+                  )}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -1186,52 +1216,73 @@ export function ListingsTable({ listings, onListingsChange, hasApiKey = true }: 
                   <TableRow
                     key={imovel.id}
                     className={cn(
-                      "border-brightGrey group",
+                      "group border-b",
                       imovel.starred
-                        ? "bg-primary/20 hover:bg-primary/30"
-                        : "hover:bg-eerieBlack/50"
+                        ? "border-app-action/50 bg-app-action/20 hover:bg-app-action/30"
+                        : "border-app-border hover:bg-app-bg"
                     )}
                   >
-                    {/* Sticky Image Column */}
+                    {visibleColumns.image && (
                     <TableCell
-                      className="sticky left-0 z-20 p-2 bg-raisinBlack"
+                      className="sticky left-0 z-20 bg-app-surface p-2"
                     >
                       <div
                         className={cn(
                           "absolute inset-0 pointer-events-none z-0",
                           imovel.starred
-                            ? "bg-primary/20 group-hover:bg-primary/30"
-                            : "group-hover:bg-eerieBlack/50"
+                            ? "bg-app-action/20 group-hover:bg-app-action/30"
+                            : "group-hover:bg-app-bg"
                         )}
                       />
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setImageModalListing(imovel)
-                        }}
-                        className="relative z-10 flex-shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
-                        title="Clique para ver/editar imagem"
-                      >
-                        {imovel.imageUrl ? (
-                          <div className="h-20 w-20 rounded border border-brightGrey overflow-hidden aspect-square">
+                      {imovel.imageUrl ? (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setImageModalListing(imovel)
+                          }}
+                          className="relative z-10 flex-shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
+                          title="Clique para ver/editar imagem"
+                        >
+                          <div className="h-20 w-20 overflow-hidden rounded border border-app-border aspect-square">
                             <img
                               src={imovel.imageUrl}
                               alt={imovel.titulo}
                               className="w-full h-full object-cover"
                               onError={(e) => {
-                                // Hide image on error
-                                e.currentTarget.style.display = 'none'
+                                e.currentTarget.style.display = "none"
                               }}
                             />
                           </div>
-                        ) : (
-                          <div className="h-20 w-20 rounded bg-eerieBlack border border-brightGrey flex items-center justify-center aspect-square">
-                            <span className="text-xs text-muted-foreground">🏠</span>
-                          </div>
-                        )}
-                      </button>
+                        </button>
+                      ) : (
+                        <div className="relative z-10 h-20 w-20 flex-shrink-0">
+                          <ListingLocationMiniMap
+                            listing={imovel}
+                            variant="thumbnail"
+                            fallback={
+                              <button
+                                type="button"
+                                onClick={() => setImageModalListing(imovel)}
+                                className="flex h-20 w-20 items-center justify-center rounded border border-app-border bg-app-bg aspect-square cursor-pointer hover:opacity-80 transition-opacity"
+                                title="Clique para ver/editar imagem"
+                              >
+                                <Home className="h-3 w-3 text-app-subtle" />
+                              </button>
+                            }
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setImageModalListing(imovel)}
+                            className="absolute bottom-0.5 right-0.5 z-20 rounded bg-app-fg/70 p-0.5 text-app-surface hover:bg-app-fg/90 transition-colors"
+                            title="Ver/editar imagem"
+                          >
+                            <ImageIcon className="h-3 w-3" />
+                          </button>
+                        </div>
+                      )}
                     </TableCell>
-                    {/* Title, Address, and Actions Column */}
+                    )}
+                    {visibleColumns.property && (
                     <TableCell className="min-w-[320px]">
                       <div className="flex min-w-0 flex-col gap-2">
                           <div className="min-w-0">
@@ -1239,28 +1290,26 @@ export function ListingsTable({ listings, onListingsChange, hasApiKey = true }: 
                               <Tooltip>
                                 <TooltipTrigger asChild>
                                   <button
-                                    onClick={() => handleToggleTipoImovel(imovel.id, imovel.tipoImovel)}
-                                    className="text-muted-foreground hover:text-primary transition-colors p-1 flex-shrink-0"
-                                  >
-                                    {imovel.tipoImovel === "casa" ? (
-                                      <Home className="h-4 w-4" />
-                                    ) : imovel.tipoImovel === "apartamento" ? (
-                                      <Building className="h-4 w-4" />
-                                    ) : (
-                                      <Flag className="h-4 w-4" />
+                                    onClick={() => handleToggleStar(imovel.id, imovel.starred)}
+                                    className={cn(
+                                      "transition-colors p-1 flex-shrink-0",
+                                      imovel.starred
+                                        ? "text-yellow hover:text-yellow/80"
+                                        : "text-muted-foreground hover:text-yellow"
                                     )}
+                                  >
+                                    <Star
+                                      className="h-4 w-4"
+                                      fill={imovel.starred ? "currentColor" : "none"}
+                                    />
                                   </button>
                                 </TooltipTrigger>
-                                <TooltipContent 
-                                  side="bottom" 
+                                <TooltipContent
+                                  side="bottom"
                                   sideOffset={4}
-                                  className="bg-raisinBlack border border-brightGrey text-white"
+                                  className="bg-app-surface border border-app-border text-app-fg"
                                 >
-                                  {imovel.tipoImovel === "casa"
-                                    ? "Marcar como apartamento"
-                                    : imovel.tipoImovel === "apartamento"
-                                    ? "Remover tipo"
-                                    : "Marcar como casa"}
+                                  {imovel.starred ? "Remover dos favoritos" : "Adicionar aos favoritos"}
                                 </TooltipContent>
                               </Tooltip>
                               {imovel.link ? (
@@ -1269,7 +1318,7 @@ export function ListingsTable({ listings, onListingsChange, hasApiKey = true }: 
                                   target="_blank"
                                   rel="noopener noreferrer"
                                   className={cn(
-                                    "font-medium leading-snug truncate hover:text-primary transition-colors cursor-pointer flex-1 min-w-0",
+                                    "min-w-0 flex-1 cursor-pointer truncate font-medium leading-snug text-app-fg transition-colors hover:text-app-fg",
                                     imovel.strikethrough && "line-through opacity-50"
                                   )}
                                   title={`Abrir anúncio: ${imovel.titulo}`}
@@ -1279,7 +1328,7 @@ export function ListingsTable({ listings, onListingsChange, hasApiKey = true }: 
                               ) : (
                                 <div
                                   className={cn(
-                                    "font-medium leading-snug truncate flex-1 min-w-0",
+                                    "min-w-0 flex-1 truncate font-medium leading-snug text-app-fg",
                                     imovel.strikethrough && "line-through opacity-50"
                                   )}
                                   title={imovel.titulo}
@@ -1288,839 +1337,784 @@ export function ListingsTable({ listings, onListingsChange, hasApiKey = true }: 
                                 </div>
                               )}
                             </div>
-                            <a
-                              href={buildGoogleMapsUrl(imovel.endereco)}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className={cn(
-                                "block text-xs text-muted-foreground truncate hover:text-primary transition-colors underline decoration-dotted underline-offset-2 mt-1",
-                                imovel.strikethrough && "line-through opacity-50"
-                              )}
-                              title={`Abrir ${imovel.endereco} no Google Maps`}
-                            >
-                              {imovel.endereco}
-                            </a>
-                          </div>
-
-                        {/* Comodidades row */}
-                        <div className={cn(
-                          "flex items-center gap-2 flex-nowrap",
-                          imovel.strikethrough && "opacity-50"
-                        )}>
-                          {/* Piscina - show for all */}
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <button
-                                onClick={() => handleTogglePiscina(imovel.id, imovel.piscina)}
-                                className={cn(
-                                  "transition-colors flex-shrink-0 p-1 hover:opacity-80",
-                                  imovel.piscina === true ? "text-blue-500" : "text-muted-foreground opacity-50"
-                                )}
-                              >
-                                <WavesLadder className="h-4 w-4" />
-                              </button>
-                            </TooltipTrigger>
-                            <TooltipContent 
-                              side="bottom" 
-                              sideOffset={4}
-                              className="bg-raisinBlack border border-brightGrey text-white"
-                            >
-                              {imovel.piscina === true ? "Remover piscina" : "Adicionar piscina"}
-                            </TooltipContent>
-                          </Tooltip>
-                          {/* Piscina Térmica - show only for apartamento */}
-                          {imovel.tipoImovel === "apartamento" && (
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <button
-                                  onClick={() => handleTogglePiscinaTermica(imovel.id, imovel.piscinaTermica)}
-                                  className={cn(
-                                    "transition-colors flex-shrink-0 p-1 hover:opacity-80",
-                                    imovel.piscinaTermica === true ? "text-blue-500" : "text-muted-foreground opacity-50"
-                                  )}
-                                >
-                                  <Waves className="h-4 w-4" />
-                                </button>
-                              </TooltipTrigger>
-                              <TooltipContent 
-                                side="bottom" 
-                                sideOffset={4}
-                                className="bg-raisinBlack border border-brightGrey text-white"
-                              >
-                                {imovel.piscinaTermica === true ? "Remover piscina térmica" : "Adicionar piscina térmica"}
-                              </TooltipContent>
-                            </Tooltip>
-                          )}
-                          {/* Porteiro 24h - show only for apartamento */}
-                          {imovel.tipoImovel === "apartamento" && (
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <button
-                                  onClick={() => handleTogglePorteiro24h(imovel.id, imovel.porteiro24h)}
-                                  className={cn(
-                                    "transition-colors flex-shrink-0 p-1 hover:opacity-80",
-                                    imovel.porteiro24h === true ? "text-red-500" : "text-muted-foreground opacity-50"
-                                  )}
-                                >
-                                  <Shield className="h-4 w-4" />
-                                </button>
-                              </TooltipTrigger>
-                              <TooltipContent 
-                                side="bottom" 
-                                sideOffset={4}
-                                className="bg-raisinBlack border border-brightGrey text-white"
-                              >
-                                {imovel.porteiro24h === true ? "Remover porteiro 24h" : "Adicionar porteiro 24h"}
-                              </TooltipContent>
-                            </Tooltip>
-                          )}
-                          {/* Academia - show only for apartamento */}
-                          {imovel.tipoImovel === "apartamento" && (
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <button
-                                  onClick={() => handleToggleAcademia(imovel.id, imovel.academia)}
-                                  className={cn(
-                                    "transition-colors flex-shrink-0 p-1 hover:opacity-80",
-                                    imovel.academia === true ? "text-yellow-500" : "text-muted-foreground opacity-50"
-                                  )}
-                                >
-                                  <Dumbbell className="h-4 w-4" />
-                                </button>
-                              </TooltipTrigger>
-                              <TooltipContent 
-                                side="bottom" 
-                                sideOffset={4}
-                                className="bg-raisinBlack border border-brightGrey text-white"
-                              >
-                                {imovel.academia === true ? "Remover academia" : "Adicionar academia"}
-                              </TooltipContent>
-                            </Tooltip>
-                          )}
-                          {/* Quartos - show for all */}
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <button
-                                onClick={() => handleCycleQuartos(imovel.id, imovel.quartos)}
-                                className="transition-colors flex-shrink-0 p-1 hover:opacity-80 relative w-6 h-6 flex items-center justify-center"
-                              >
-                                <BedDouble className="h-4 w-4 absolute text-muted-foreground opacity-50" />
-                                <span className={cn(
-                                  "relative z-10 font-bold text-[10px] drop-shadow-[0_0_2px_rgba(0,0,0,1)]",
-                                  (imovel.quartos ?? 0) > 0 ? "text-white" : "text-muted-foreground opacity-50"
-                                )}>
-                                  {imovel.quartos ?? 0}
-                                </span>
-                              </button>
-                            </TooltipTrigger>
-                            <TooltipContent 
-                              side="bottom" 
-                              sideOffset={4}
-                              className="bg-raisinBlack border border-brightGrey text-white"
-                            >
-                              Quartos: {imovel.quartos ?? 0}
-                            </TooltipContent>
-                          </Tooltip>
-                          {/* Banheiros (WC) - show for all */}
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <button
-                                onClick={() => handleCycleBanheiros(imovel.id, imovel.banheiros)}
-                                className="transition-colors flex-shrink-0 p-1 hover:opacity-80 relative w-6 h-6 flex items-center justify-center"
-                              >
-                                <Bath className="h-4 w-4 absolute text-muted-foreground opacity-50" />
-                                <span className={cn(
-                                  "relative z-10 font-bold text-[10px] drop-shadow-[0_0_2px_rgba(0,0,0,1)]",
-                                  (imovel.banheiros ?? 0) > 0 ? "text-white" : "text-muted-foreground opacity-50"
-                                )}>
-                                  {imovel.banheiros ?? 0}
-                                </span>
-                              </button>
-                            </TooltipTrigger>
-                            <TooltipContent 
-                              side="bottom" 
-                              sideOffset={4}
-                              className="bg-raisinBlack border border-brightGrey text-white"
-                            >
-                              Banheiros: {imovel.banheiros ?? 0}
-                            </TooltipContent>
-                          </Tooltip>
-                          {/* Andar - show only for apartamento */}
-                          {imovel.tipoImovel === "apartamento" && (
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <button
-                                  onClick={() => handleCycleAndar(imovel.id, imovel.andar)}
-                                  className="transition-colors flex-shrink-0 p-1 hover:opacity-80 relative w-6 h-6 flex items-center justify-center"
-                                >
-                                  <Building className="h-4 w-4 absolute text-muted-foreground opacity-50" />
-                                  <span className={cn(
-                                    "relative z-10 font-bold text-[10px] drop-shadow-[0_0_2px_rgba(0,0,0,1)]",
-                                    (imovel.andar ?? 0) > 0 ? "text-white" : "text-muted-foreground opacity-50"
-                                  )}>
-                                    {imovel.andar === 10 ? "+" : (imovel.andar ?? 0)}
-                                  </span>
-                                </button>
-                              </TooltipTrigger>
-                              <TooltipContent 
-                                side="bottom" 
-                                sideOffset={4}
-                                className="bg-raisinBlack border border-brightGrey text-white"
-                              >
-                                Andar: {imovel.andar === 10 ? "10+" : (imovel.andar ?? 0)}
-                              </TooltipContent>
-                            </Tooltip>
-                          )}
-                          {/* Garagem - show for all */}
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <button
-                                onClick={() => handleCycleGaragem(imovel.id, imovel.garagem)}
-                                className="transition-colors flex-shrink-0 p-1 hover:opacity-80 relative w-6 h-6 flex items-center justify-center"
-                              >
-                                <Car className="h-4 w-4 absolute text-muted-foreground opacity-50" />
-                                <span className={cn(
-                                  "relative z-10 font-bold text-[10px] drop-shadow-[0_0_2px_rgba(0,0,0,1)]",
-                                  (imovel.garagem ?? 0) > 0 ? "text-white" : "text-muted-foreground opacity-50"
-                                )}>
-                                  {imovel.garagem ?? 0}
-                                </span>
-                              </button>
-                            </TooltipTrigger>
-                            <TooltipContent 
-                              side="bottom" 
-                              sideOffset={4}
-                              className="bg-raisinBlack border border-brightGrey text-white"
-                            >
-                              Vagas: {imovel.garagem ?? 0}
-                            </TooltipContent>
-                          </Tooltip>
-                          {/* Vista Livre - show for all */}
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <button
-                                onClick={() => handleToggleVistaLivre(imovel.id, imovel.vistaLivre)}
-                                className={cn(
-                                  "transition-colors flex-shrink-0 p-1 hover:opacity-80",
-                                  imovel.vistaLivre === true ? "text-green-500" : "text-muted-foreground opacity-50"
-                                )}
-                              >
-                                <Mountain className="h-4 w-4" />
-                              </button>
-                            </TooltipTrigger>
-                            <TooltipContent 
-                              side="bottom" 
-                              sideOffset={4}
-                              className="bg-raisinBlack border border-brightGrey text-white"
-                            >
-                              {imovel.vistaLivre === true ? "Remover vista livre" : "Adicionar vista livre"}
-                            </TooltipContent>
-                          </Tooltip>
-                        </div>
-
-                        {/* Actions row */}
-                        <div className="flex items-center gap-2 flex-nowrap">
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <button
-                                onClick={() => handleToggleStar(imovel.id, imovel.starred)}
-                                className={cn(
-                                  "transition-colors p-1 flex-shrink-0",
-                                  imovel.starred
-                                    ? "text-yellow hover:text-yellow/80"
-                                    : "text-muted-foreground hover:text-yellow"
-                                )}
-                              >
-                                <Star
-                                  className="h-4 w-4"
-                                  fill={imovel.starred ? "currentColor" : "none"}
-                                />
-                              </button>
-                            </TooltipTrigger>
-                              <TooltipContent 
-                                side="bottom" 
-                                sideOffset={4}
-                                className="bg-raisinBlack border border-brightGrey text-white"
-                              >
-                                {imovel.starred ? "Remover dos favoritos" : "Adicionar aos favoritos"}
-                              </TooltipContent>
-                          </Tooltip>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <button
-                                onClick={() => handleToggleVisited(imovel.id, imovel.visited)}
-                                className={cn(
-                                  "transition-colors p-1 flex-shrink-0",
-                                  imovel.visited
-                                    ? "text-yellow hover:text-yellow/80 [&_svg_*]:!fill-none [&_svg_*]:!stroke-yellow"
-                                    : "text-muted-foreground hover:text-yellow"
-                                )}
-                              >
-                                <Eye
-                                  className="h-4 w-4"
-                                  fill="none"
-                                  stroke="currentColor"
-                                />
-                              </button>
-                            </TooltipTrigger>
-                            <TooltipContent 
-                              side="bottom" 
-                              sideOffset={4}
-                              className="bg-raisinBlack border border-brightGrey text-white"
-                            >
-                              {imovel.visited ? "Marcar como não visitado" : "Marcar como visitado"}
-                            </TooltipContent>
-                          </Tooltip>
-                          <Popover 
-                            open={discardPopoverOpen === imovel.id} 
-                            onOpenChange={(open) => {
-                              if (!open) {
-                                setDiscardPopoverOpen(null)
-                                setDiscardReasonInput("")
-                              }
-                            }}
-                          >
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <PopoverTrigger asChild>
-                                  <button
-                                    onClick={() => handleToggleStrikethrough(imovel.id, imovel.strikethrough, imovel.discardedReason)}
-                                    className={cn(
-                                      "transition-colors p-1 flex-shrink-0",
-                                      imovel.strikethrough
-                                        ? "text-destructive hover:text-destructive/80"
-                                        : "text-muted-foreground hover:text-destructive"
-                                    )}
-                                  >
-                                    <Strikethrough className="h-4 w-4" />
-                                  </button>
-                                </PopoverTrigger>
-                              </TooltipTrigger>
-                              <TooltipContent 
-                                side="bottom" 
-                                sideOffset={4}
-                                className="bg-raisinBlack border border-brightGrey text-white max-w-[200px]"
-                              >
-                                {imovel.strikethrough ? (
-                                  imovel.discardedReason ? (
-                                    <span><span className="font-medium text-destructive">Motivo: </span>{imovel.discardedReason}</span>
-                                  ) : (
-                                    <span>Remover riscado</span>
-                                  )
-                                ) : (
-                                  <span>Riscar imóvel</span>
-                                )}
-                              </TooltipContent>
-                            </Tooltip>
-                            <PopoverContent className="w-64 p-3" align="start">
-                              <div className="space-y-3">
-                                <p className="text-sm font-medium text-ashGray">Motivo do descarte</p>
-                                <Input
-                                  value={discardReasonInput}
-                                  onChange={(e) => setDiscardReasonInput(e.target.value)}
-                                  placeholder="Ex: Preço muito alto"
-                                  className="bg-eerieBlack border-brightGrey text-white placeholder:text-muted-foreground text-sm"
-                                  onKeyDown={(e) => {
-                                    if (e.key === "Enter") {
-                                      handleSaveDiscardReason(imovel.id)
-                                    }
-                                  }}
-                                  autoFocus
-                                />
-                                <div className="flex gap-2">
-                                  <button
-                                    onClick={() => {
-                                      setDiscardPopoverOpen(null)
-                                      setDiscardReasonInput("")
-                                    }}
-                                    className="flex-1 py-1.5 px-3 rounded text-sm bg-eerieBlack border border-brightGrey text-white hover:border-primary hover:text-primary transition-colors"
-                                  >
-                                    Cancelar
-                                  </button>
-                                  <button
-                                    onClick={() => handleSaveDiscardReason(imovel.id)}
-                                    className="flex-1 py-1.5 px-3 rounded text-sm bg-destructive text-white hover:bg-destructive/90 transition-colors"
-                                  >
-                                    Descartar
-                                  </button>
-                                </div>
-                              </div>
-                            </PopoverContent>
-                          </Popover>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <button
-                                onClick={() => {
-                                  setFocusImageUrl(false)
-                                  setEditingListing(imovel)
-                                }}
-                                className="text-muted-foreground hover:text-primary transition-colors p-1 flex-shrink-0"
-                              >
-                                <PencilIcon className="h-4 w-4" />
-                              </button>
-                            </TooltipTrigger>
-                            <TooltipContent 
-                              side="bottom" 
-                              sideOffset={4}
-                              className="bg-raisinBlack border border-brightGrey text-white"
-                            >
-                              Editar imóvel
-                            </TooltipContent>
-                          </Tooltip>
-                          <Popover 
-                            open={quickReparsePopoverOpen === imovel.id} 
-                            onOpenChange={(open) => {
-                              if (!open) {
-                                setQuickReparsePopoverOpen(null)
-                                setQuickReparseInput("")
-                                setQuickReparseLoading(null)
-                                setQuickReparseError(null)
-                              }
-                            }}
-                          >
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <PopoverTrigger asChild>
-                                  <button
-                                    onClick={() => handleOpenQuickReparsePopover(imovel)}
-                                    className="transition-colors p-1 flex-shrink-0 text-muted-foreground hover:text-primary"
-                                  >
-                                    <RefreshCw className="h-4 w-4" />
-                                  </button>
-                                </PopoverTrigger>
-                              </TooltipTrigger>
-                              <TooltipContent 
-                                side="bottom" 
-                                sideOffset={4}
-                                className="bg-raisinBlack border border-brightGrey text-white"
-                              >
-                                Reparse rápido com IA
-                              </TooltipContent>
-                            </Tooltip>
-                            <PopoverContent className="w-64 p-3" align="start">
-                              <div className="space-y-3">
-                                <p className="text-sm font-medium text-ashGray">Cole o texto do anúncio</p>
-                                <Input
-                                  value={quickReparseInput}
-                                  onChange={(e) => {
-                                    setQuickReparseInput(e.target.value)
-                                    setQuickReparseError(null)
-                                  }}
-                                  placeholder="Cole aqui o texto completo..."
-                                  className="bg-eerieBlack border-brightGrey text-white placeholder:text-muted-foreground text-sm"
-                                  disabled={quickReparseLoading === imovel.id}
-                                  onKeyDown={(e) => {
-                                    if (e.key === "Enter" && quickReparseInput.trim() && !quickReparseLoading) {
-                                      handleQuickReparse(imovel)
-                                    }
-                                  }}
-                                  autoFocus
-                                />
-                                {quickReparseError && (
-                                  <p className="text-xs text-destructive">
-                                    {quickReparseError}
-                                  </p>
-                                )}
-                                {quickReparseLoading === imovel.id && (
-                                  <p className="text-xs text-muted-foreground flex items-center gap-2">
-                                    <span className="animate-spin">⏳</span>
-                                    Processando...
-                                  </p>
-                                )}
-                                <div className="flex gap-2">
-                                  <button
-                                    onClick={() => {
-                                      setQuickReparsePopoverOpen(null)
-                                      setQuickReparseInput("")
-                                      setQuickReparseLoading(null)
-                                      setQuickReparseError(null)
-                                    }}
-                                    disabled={quickReparseLoading === imovel.id}
-                                    className="flex-1 py-1.5 px-3 rounded text-sm bg-eerieBlack border border-brightGrey text-white hover:border-primary hover:text-primary transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                                  >
-                                    Cancelar
-                                  </button>
-                                  <button
-                                    onClick={() => handleQuickReparse(imovel)}
-                                    disabled={!quickReparseInput.trim() || quickReparseLoading === imovel.id}
-                                    className="flex-1 py-1.5 px-3 rounded text-sm bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                                  >
-                                    {quickReparseLoading === imovel.id ? "Processando..." : "Processar"}
-                                  </button>
-                                </div>
-                              </div>
-                            </PopoverContent>
-                          </Popover>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <button
-                                onClick={() => handleDelete(imovel.id)}
-                                className="text-muted-foreground hover:text-destructive transition-colors p-1 flex-shrink-0"
-                              >
-                                <TrashIcon className="h-4 w-4" />
-                              </button>
-                            </TooltipTrigger>
-                            <TooltipContent 
-                              side="bottom" 
-                              sideOffset={4}
-                              className="bg-raisinBlack border border-brightGrey text-white"
-                            >
-                              Excluir imóvel
-                            </TooltipContent>
-                          </Tooltip>
-                          {hasOtherCollections && (
-                            copyingListingId === imovel.id ? (
-                              <Select
-                                value=""
-                                onValueChange={(value) => handleCopyToCollection(imovel.id, value)}
-                                onOpenChange={(open) => {
-                                  if (!open) setCopyingListingId(null)
-                                }}
-                              >
-                                <SelectTrigger
-                                  className={cn(
-                                    "h-6 w-[120px] text-xs",
-                                    "bg-eerieBlack border-brightGrey",
-                                    "hover:border-primary hover:text-primary",
-                                    "text-white"
-                                  )}
-                                >
-                                  <SelectValue placeholder="Copiar para..." />
-                                </SelectTrigger>
-                                <SelectContent className="bg-raisinBlack border-brightGrey">
-                                  {collections
-                                    .filter((c) => c.id !== activeCollection?.id)
-                                    .map((collection) => (
-                                      <SelectItem
-                                        key={collection.id}
-                                        value={collection.id}
-                                        className="text-white hover:bg-eerieBlack"
-                                      >
-                                        {collection.label}
-                                      </SelectItem>
-                                    ))}
-                                </SelectContent>
-                              </Select>
-                            ) : (
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <button
-                                    onClick={() => setCopyingListingId(imovel.id)}
-                                    className="text-muted-foreground hover:text-primary transition-colors p-1 flex-shrink-0"
-                                  >
-                                    <FolderIcon className="h-4 w-4" />
-                                  </button>
-                                </TooltipTrigger>
-                                <TooltipContent 
-                                  side="bottom" 
-                                  sideOffset={4}
-                                  className="bg-raisinBlack border border-brightGrey text-white"
-                                >
-                                  Copiar para outra coleção
-                                </TooltipContent>
-                              </Tooltip>
-                            )
-                          )}
-                          <Tooltip>
-                            <TooltipTrigger asChild>
+                            {propertyDisplay.showAddress && (
                               <a
-                                href={buildGoogleSearchUrl(
-                                  imovel.titulo,
-                                  imovel.endereco,
-                                  imovel.m2Totais,
-                                  imovel.quartos,
-                                  imovel.banheiros
-                                )}
+                                href={buildGoogleMapsUrl(imovel.endereco)}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="text-muted-foreground hover:text-primary transition-colors p-1 inline-block flex-shrink-0"
+                                className={cn(
+                                  "mt-1 block truncate text-xs text-app-muted underline decoration-dotted underline-offset-2 transition-colors hover:text-app-fg",
+                                  imovel.strikethrough && "line-through opacity-50"
+                                )}
+                                title={`Abrir ${imovel.endereco} no Google Maps`}
                               >
-                                <MagnifyingGlassIcon className="h-4 w-4" />
+                                {imovel.endereco}
                               </a>
-                            </TooltipTrigger>
-                            <TooltipContent 
-                              side="bottom" 
-                              sideOffset={4}
-                              className="bg-raisinBlack border border-brightGrey text-white"
-                            >
-                              Buscar no Google
-                            </TooltipContent>
-                          </Tooltip>
-                          {imovel.link ? (
-                            <Tooltip>
-                              <TooltipTrigger asChild>
+                            )}
+                            {propertyDisplay.showContact && imovel.contactNumber && (() => {
+                              const whatsappUrl = buildWhatsAppUrl(imovel.contactNumber)
+                              if (!whatsappUrl) return null
+                              return (
                                 <a
-                                  href={imovel.link}
+                                  href={whatsappUrl}
                                   target="_blank"
                                   rel="noopener noreferrer"
-                                  className="text-muted-foreground hover:text-primary transition-colors p-1 inline-block flex-shrink-0"
+                                  className={cn(
+                                    "mt-1 flex min-w-0 items-center gap-1 truncate text-xs text-green-600 transition-colors hover:text-green-500",
+                                    imovel.strikethrough && "line-through opacity-50"
+                                  )}
+                                  title={imovel.contactName ? `WhatsApp — ${imovel.contactName}` : "Abrir WhatsApp"}
                                 >
-                                  <LinkIcon className="h-4 w-4" />
+                                  <FaWhatsapp className="h-3 w-3 shrink-0" />
+                                  <span className="truncate">
+                                    {imovel.contactName ?? imovel.contactNumber}
+                                  </span>
                                 </a>
-                              </TooltipTrigger>
-                              <TooltipContent 
-                                side="bottom" 
-                                sideOffset={4}
-                                className="bg-raisinBlack border border-brightGrey text-white"
-                              >
-                                Abrir link do anúncio
-                              </TooltipContent>
-                            </Tooltip>
-                          ) : (
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <span
-                                  className="text-muted-foreground opacity-50 p-1 inline-block cursor-not-allowed flex-shrink-0"
-                                >
-                                  <LinkIcon className="h-4 w-4" />
-                                </span>
-                              </TooltipTrigger>
-                              <TooltipContent 
-                                side="bottom" 
-                                sideOffset={4}
-                                className="bg-raisinBlack border border-brightGrey text-white"
-                              >
-                                Nenhum link disponível
-                              </TooltipContent>
-                            </Tooltip>
-                          )}
-                          {(() => {
-                            const whatsappUrl = buildWhatsAppUrl(imovel.contactNumber)
-                            const hasContact = !!imovel.contactNumber
-                            
-                            if (hasContact && whatsappUrl) {
-                              // Contact is set - show green icon, click opens WhatsApp
-                              return (
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <a
-                                      href={whatsappUrl}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      className="text-green-500 hover:text-green-400 transition-colors p-1 inline-block flex-shrink-0"
-                                    >
-                                      <FaWhatsapp className="h-4 w-4" />
-                                    </a>
-                                  </TooltipTrigger>
-                                  <TooltipContent 
-                                    side="bottom" 
-                                    sideOffset={4}
-                                    className="bg-raisinBlack border border-brightGrey text-white"
-                                  >
-                                    {imovel.contactName ? `Abrir WhatsApp - ${imovel.contactName}` : "Abrir WhatsApp"}
-                                  </TooltipContent>
-                                </Tooltip>
                               )
-                            } else {
-                              // Contact not set - show gray icon, click opens popover
-                              return (
-                                <Popover 
-                                  open={contactPopoverOpen === imovel.id} 
-                                  onOpenChange={(open) => {
-                                    if (!open) {
-                                      setContactPopoverOpen(null)
-                                      setContactNameInput("")
-                                      setContactNumberInput("")
-                                    }
-                                  }}
-                                >
-                                  <Tooltip>
-                                    <TooltipTrigger asChild>
-                                      <PopoverTrigger asChild>
-                                        <button
-                                          onClick={() => handleOpenContactPopover(imovel.id, imovel.contactName, imovel.contactNumber)}
-                                          className="text-gray-400 hover:text-primary transition-colors p-1 flex-shrink-0"
-                                        >
-                                          <FaWhatsapp className="h-4 w-4" />
-                                        </button>
-                                      </PopoverTrigger>
-                                    </TooltipTrigger>
-                                    <TooltipContent 
-                                      side="bottom" 
-                                      sideOffset={4}
-                                      className="bg-raisinBlack border border-brightGrey text-white"
-                                    >
-                                      Adicionar contato WhatsApp
-                                    </TooltipContent>
-                                  </Tooltip>
-                                  <PopoverContent className="w-64 p-3" align="start">
-                                    <div className="space-y-3">
-                                      <p className="text-sm font-medium text-ashGray">Contato WhatsApp</p>
-                                      {/* Existing contacts selector */}
-                                      {uniqueContacts.length > 0 && (
-                                        <Select
-                                          open={contactSelectorOpen}
-                                          onOpenChange={setContactSelectorOpen}
-                                          value=""
-                                          onValueChange={(value) => {
-                                            const contact = uniqueContacts.find(
-                                              (c) => c.number === value
-                                            )
-                                            if (contact) {
-                                              handleSelectExistingContact(contact)
-                                            }
-                                          }}
-                                        >
-                                          <SelectTrigger className="w-full bg-eerieBlack border-brightGrey text-white text-sm">
-                                            <SelectValue placeholder="Selecionar contato existente..." />
-                                          </SelectTrigger>
-                                          <SelectContent className="bg-raisinBlack border-brightGrey max-h-[200px]">
-                                            {uniqueContacts.map((contact) => (
-                                              <SelectItem
-                                                key={contact.number}
-                                                value={contact.number}
-                                                className="text-white hover:bg-eerieBlack text-sm"
-                                              >
-                                                {contact.name || contact.number}
-                                                {contact.name && (
-                                                  <span className="text-muted-foreground ml-1">
-                                                    ({contact.number})
-                                                  </span>
-                                                )}
-                                              </SelectItem>
-                                            ))}
-                                          </SelectContent>
-                                        </Select>
-                                      )}
-                                      <div className="space-y-2">
-                                        <Input
-                                          value={contactNameInput}
-                                          onChange={(e) => setContactNameInput(e.target.value)}
-                                          placeholder="Nome do contato"
-                                          className="bg-eerieBlack border-brightGrey text-white placeholder:text-muted-foreground text-sm"
-                                        />
-                                        <Input
-                                          value={contactNumberInput}
-                                          onChange={(e) => setContactNumberInput(e.target.value)}
-                                          placeholder="Ex: 48996792216"
-                                          className="bg-eerieBlack border-brightGrey text-white placeholder:text-muted-foreground text-sm"
-                                          onKeyDown={(e) => {
-                                            if (e.key === "Enter") {
-                                              handleSaveContact(imovel.id)
-                                            }
-                                          }}
-                                          autoFocus
-                                        />
-                                      </div>
-                                      <div className="flex gap-2">
-                                        <button
-                                          onClick={() => {
-                                            setContactPopoverOpen(null)
-                                            setContactNameInput("")
-                                            setContactNumberInput("")
-                                          }}
-                                          className="flex-1 py-1.5 px-3 rounded text-sm bg-eerieBlack border border-brightGrey text-white hover:border-primary hover:text-primary transition-colors"
-                                        >
-                                          Cancelar
-                                        </button>
-                                        <button
-                                          onClick={() => handleSaveContact(imovel.id)}
-                                          className="flex-1 py-1.5 px-3 rounded text-sm bg-primary text-black hover:bg-primary/90 transition-colors"
-                                        >
-                                          Salvar
-                                        </button>
-                                      </div>
-                                    </div>
-                                  </PopoverContent>
-                                </Popover>
-                              )
-                            }
-                          })()}
-                        </div>
-                      </div>
-                    </TableCell>
-                    {propertyTypeFilter !== "apartamento" && (
-                      <TableCell className={cn(
-                        "text-right font-mono text-sm",
-                        imovel.strikethrough && "line-through opacity-50"
+                            })()}
+                          </div>
+
+                        {propertyDisplay.showPropertyIcons && (
+                        <div className={cn(
+                        "flex min-w-0 items-center justify-start gap-2 flex-nowrap",
+                        imovel.strikethrough && "opacity-50"
                       )}>
-                        {formatNumber(imovel.m2Totais, "m²")}
-                      </TableCell>
-                    )}
-                    {propertyTypeFilter !== "apartamento" && (
-                      <TableCell className={cn(
-                        "text-right font-mono text-sm text-muted-foreground",
-                        imovel.strikethrough && "line-through opacity-50"
-                      )}>
-                        {imovel.tipoImovel ? (
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <span className="cursor-help border-b border-dotted border-muted-foreground">
-                                {formatCurrency(calculatePrecoM2(imovel.preco, imovel.m2Totais))}
-                              </span>
-                            </TooltipTrigger>
-                            <TooltipContent 
-                              side="bottom" 
-                              sideOffset={4}
-                              className="bg-raisinBlack border border-brightGrey text-white max-w-[280px]"
+                        {(() => {
+                          const tipoOption = getTipoImovelOption(imovel.tipoImovel)
+                          const TipoIcon = tipoOption.Icon
+                          const currentTipo = normalizeTipoImovel(imovel.tipoImovel)
+
+                          return (
+                            <Popover
+                              open={tipoImovelPopoverOpen === imovel.id}
+                              onOpenChange={(open) => setTipoImovelPopoverOpen(open ? imovel.id : null)}
                             >
-                              {imovel.tipoImovel === "apartamento" 
-                                ? "Área total de um apartamento inclui área comum, então esse valor pode confundir"
-                                : "Valor do terreno/área total é melhor pra comprar, Média itacorubi: R$2.000-3.000"
-                              }
-                            </TooltipContent>
-                          </Tooltip>
-                        ) : (
-                          formatCurrency(calculatePrecoM2(imovel.preco, imovel.m2Totais))
-                        )}
-                      </TableCell>
-                    )}
-                    <TableCell className={cn(
-                      "text-right font-mono text-sm",
-                      imovel.strikethrough && "line-through opacity-50"
-                    )}>
-                      {formatNumber(imovel.m2Privado, "m²")}
-                    </TableCell>
-                    <TableCell className={cn(
-                      "text-right font-mono text-sm text-muted-foreground",
-                      imovel.strikethrough && "line-through opacity-50"
-                    )}>
-                      {imovel.tipoImovel === "apartamento" ? (
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <PopoverTrigger asChild>
+                                    <button
+                                      type="button"
+                                      className={cn(
+                                        "transition-colors flex-shrink-0 p-1 hover:opacity-80",
+                                        imovel.tipoImovel ? "text-app-fg" : "text-muted-foreground opacity-50"
+                                      )}
+                                    >
+                                      <TipoIcon className="h-4 w-4" />
+                                    </button>
+                                  </PopoverTrigger>
+                                </TooltipTrigger>
+                                <TooltipContent
+                                  side="bottom"
+                                  sideOffset={4}
+                                  className="border border-app-border bg-app-surface text-app-fg"
+                                >
+                                  Tipo de imóvel: {tipoOption.label}
+                                </TooltipContent>
+                              </Tooltip>
+                              <PopoverContent
+                                align="start"
+                                sideOffset={6}
+                                className="w-44 border-app-border bg-app-surface p-1 text-app-fg"
+                              >
+                                <div className="flex flex-col gap-0.5">
+                                  {TIPO_IMOVEL_OPTIONS.map((option) => {
+                                    const OptionIcon = option.Icon
+                                    const isSelected = currentTipo === option.value
+
+                                    return (
+                                      <button
+                                        key={option.label}
+                                        type="button"
+                                        onClick={() => {
+                                          if (isSelected) {
+                                            setTipoImovelPopoverOpen(null)
+                                            return
+                                          }
+                                          void handleSetTipoImovel(imovel.id, option.value)
+                                        }}
+                                        className={cn(
+                                          "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors",
+                                          "hover:bg-app-surface-muted",
+                                          isSelected && "bg-app-surface-muted"
+                                        )}
+                                      >
+                                        <OptionIcon className="h-4 w-4 shrink-0" />
+                                        <span className="flex-1 text-left">{option.label}</span>
+                                        {isSelected ? (
+                                          <Check className="h-4 w-4 shrink-0 text-app-accent" />
+                                        ) : (
+                                          <span className="h-4 w-4 shrink-0" aria-hidden />
+                                        )}
+                                      </button>
+                                    )
+                                  })}
+                                </div>
+                              </PopoverContent>
+                            </Popover>
+                          )
+                        })()}
                         <Tooltip>
                           <TooltipTrigger asChild>
-                            <span className="cursor-help border-b border-dotted border-muted-foreground">
-                              {formatCurrency(calculatePrecoM2Privado(imovel.preco, imovel.m2Privado))}
-                            </span>
+                            <button
+                              onClick={() => handleTogglePiscina(imovel.id, imovel.piscina)}
+                              className={cn(
+                                "transition-colors flex-shrink-0 p-1 hover:opacity-80",
+                                imovel.piscina === true ? "text-blue-500" : "text-muted-foreground opacity-50"
+                              )}
+                            >
+                              <WavesLadder className="h-4 w-4" />
+                            </button>
                           </TooltipTrigger>
-                          <TooltipContent 
-                            side="bottom" 
+                          <TooltipContent
+                            side="bottom"
                             sideOffset={4}
-                            className="bg-raisinBlack border border-brightGrey text-white"
+                            className="bg-app-surface border border-app-border text-app-fg"
                           >
-                            Média Apto Itacorubi: R$12.000
+                            {imovel.piscina === true ? "Remover piscina" : "Adicionar piscina"}
                           </TooltipContent>
                         </Tooltip>
-                      ) : (
-                        formatCurrency(calculatePrecoM2Privado(imovel.preco, imovel.m2Privado))
-                      )}
+                        {imovel.tipoImovel === "apartamento" && (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <button
+                                onClick={() => handleTogglePiscinaTermica(imovel.id, imovel.piscinaTermica)}
+                                className={cn(
+                                  "transition-colors flex-shrink-0 p-1 hover:opacity-80",
+                                  imovel.piscinaTermica === true ? "text-blue-500" : "text-muted-foreground opacity-50"
+                                )}
+                              >
+                                <Waves className="h-4 w-4" />
+                              </button>
+                            </TooltipTrigger>
+                            <TooltipContent
+                              side="bottom"
+                              sideOffset={4}
+                              className="bg-app-surface border border-app-border text-app-fg"
+                            >
+                              {imovel.piscinaTermica === true ? "Remover piscina térmica" : "Adicionar piscina térmica"}
+                            </TooltipContent>
+                          </Tooltip>
+                        )}
+                        {imovel.tipoImovel === "apartamento" && (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <button
+                                onClick={() => handleTogglePorteiro24h(imovel.id, imovel.porteiro24h)}
+                                className={cn(
+                                  "transition-colors flex-shrink-0 p-1 hover:opacity-80",
+                                  imovel.porteiro24h === true ? "text-red-500" : "text-muted-foreground opacity-50"
+                                )}
+                              >
+                                <Shield className="h-4 w-4" />
+                              </button>
+                            </TooltipTrigger>
+                            <TooltipContent
+                              side="bottom"
+                              sideOffset={4}
+                              className="bg-app-surface border border-app-border text-app-fg"
+                            >
+                              {imovel.porteiro24h === true ? "Remover porteiro 24h" : "Adicionar porteiro 24h"}
+                            </TooltipContent>
+                          </Tooltip>
+                        )}
+                        {imovel.tipoImovel === "apartamento" && (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <button
+                                onClick={() => handleToggleAcademia(imovel.id, imovel.academia)}
+                                className={cn(
+                                  "transition-colors flex-shrink-0 p-1 hover:opacity-80",
+                                  imovel.academia === true ? "text-yellow-500" : "text-muted-foreground opacity-50"
+                                )}
+                              >
+                                <Dumbbell className="h-4 w-4" />
+                              </button>
+                            </TooltipTrigger>
+                            <TooltipContent
+                              side="bottom"
+                              sideOffset={4}
+                              className="bg-app-surface border border-app-border text-app-fg"
+                            >
+                              {imovel.academia === true ? "Remover academia" : "Adicionar academia"}
+                            </TooltipContent>
+                          </Tooltip>
+                        )}
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <button
+                              onClick={() => handleCycleQuartos(imovel.id, imovel.quartos)}
+                              className="transition-colors flex-shrink-0 p-1 hover:opacity-80 relative w-6 h-6 flex items-center justify-center"
+                            >
+                              <BedDouble className="h-4 w-4 absolute text-muted-foreground opacity-50" />
+                              <span className={cn(
+                                "relative z-10 text-[10px] font-bold",
+                                (imovel.quartos ?? 0) > 0 ? "text-app-fg" : "text-app-subtle opacity-50"
+                              )}>
+                                {imovel.quartos ?? 0}
+                              </span>
+                            </button>
+                          </TooltipTrigger>
+                          <TooltipContent
+                            side="bottom"
+                            sideOffset={4}
+                            className="bg-app-surface border border-app-border text-app-fg"
+                          >
+                            Quartos: {imovel.quartos ?? 0}
+                          </TooltipContent>
+                        </Tooltip>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <button
+                              onClick={() => handleCycleBanheiros(imovel.id, imovel.banheiros)}
+                              className="transition-colors flex-shrink-0 p-1 hover:opacity-80 relative w-6 h-6 flex items-center justify-center"
+                            >
+                              <Bath className="h-4 w-4 absolute text-muted-foreground opacity-50" />
+                              <span className={cn(
+                                "relative z-10 text-[10px] font-bold",
+                                (imovel.banheiros ?? 0) > 0 ? "text-app-fg" : "text-app-subtle opacity-50"
+                              )}>
+                                {imovel.banheiros ?? 0}
+                              </span>
+                            </button>
+                          </TooltipTrigger>
+                          <TooltipContent
+                            side="bottom"
+                            sideOffset={4}
+                            className="bg-app-surface border border-app-border text-app-fg"
+                          >
+                            Banheiros: {imovel.banheiros ?? 0}
+                          </TooltipContent>
+                        </Tooltip>
+                        {imovel.tipoImovel === "apartamento" && (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <button
+                                onClick={() => handleCycleAndar(imovel.id, imovel.andar)}
+                                className="transition-colors flex-shrink-0 p-1 hover:opacity-80 relative w-6 h-6 flex items-center justify-center"
+                              >
+                                <Building className="h-4 w-4 absolute text-muted-foreground opacity-50" />
+                                <span className={cn(
+                                  "relative z-10 text-[10px] font-bold",
+                                  (imovel.andar ?? 0) > 0 ? "text-app-fg" : "text-app-subtle opacity-50"
+                                )}>
+                                  {imovel.andar === 10 ? "+" : (imovel.andar ?? 0)}
+                                </span>
+                              </button>
+                            </TooltipTrigger>
+                            <TooltipContent
+                              side="bottom"
+                              sideOffset={4}
+                              className="bg-app-surface border border-app-border text-app-fg"
+                            >
+                              Andar: {imovel.andar === 10 ? "10+" : (imovel.andar ?? 0)}
+                            </TooltipContent>
+                          </Tooltip>
+                        )}
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <button
+                              onClick={() => handleCycleGaragem(imovel.id, imovel.garagem)}
+                              className="transition-colors flex-shrink-0 p-1 hover:opacity-80 relative w-6 h-6 flex items-center justify-center"
+                            >
+                              <Car className="h-4 w-4 absolute text-muted-foreground opacity-50" />
+                              <span className={cn(
+                                "relative z-10 text-[10px] font-bold",
+                                (imovel.garagem ?? 0) > 0 ? "text-app-fg" : "text-app-subtle opacity-50"
+                              )}>
+                                {imovel.garagem ?? 0}
+                              </span>
+                            </button>
+                          </TooltipTrigger>
+                          <TooltipContent
+                            side="bottom"
+                            sideOffset={4}
+                            className="bg-app-surface border border-app-border text-app-fg"
+                          >
+                            Vagas: {imovel.garagem ?? 0}
+                          </TooltipContent>
+                        </Tooltip>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <button
+                              onClick={() => handleToggleVistaLivre(imovel.id, imovel.vistaLivre)}
+                              className={cn(
+                                "transition-colors flex-shrink-0 p-1 hover:opacity-80",
+                                imovel.vistaLivre === true ? "text-green-500" : "text-muted-foreground opacity-50"
+                              )}
+                            >
+                              <Mountain className="h-4 w-4" />
+                            </button>
+                          </TooltipTrigger>
+                          <TooltipContent
+                            side="bottom"
+                            sideOffset={4}
+                            className="bg-app-surface border border-app-border text-app-fg"
+                          >
+                            {imovel.vistaLivre === true ? "Remover vista livre" : "Adicionar vista livre"}
+                          </TooltipContent>
+                        </Tooltip>
+                      </div>
+                        )}
+                      </div>
                     </TableCell>
+                    )}
+                    {visibleColumns.price && (
                     <TableCell className="text-right">
                       <ClickablePrice
                         price={imovel.preco}
                         strikethrough={imovel.strikethrough}
                       />
                     </TableCell>
+                    )}
+                    {visibleColumns.area && (
+                    <TableCell className={cn(
+                      "text-right font-mono text-sm",
+                      imovel.strikethrough && "line-through opacity-50"
+                    )}>
+                      <AreaM2Stack
+                        total={imovel.m2Totais}
+                        privado={imovel.m2Privado}
+                        activeVariant={getMetricVariantForSortKey(sort.key)}
+                        enabledVariants={enabledMetricVariants}
+                      />
+                    </TableCell>
+                    )}
+                    {visibleColumns.value && (
+                    <TableCell className={cn(
+                      "text-right font-mono text-sm",
+                      imovel.strikethrough && "line-through opacity-50"
+                    )}>
+                      <PricePerM2Stack
+                        total={calculatePrecoM2(imovel.preco, imovel.m2Totais)}
+                        privado={calculatePrecoM2Privado(imovel.preco, imovel.m2Privado)}
+                        activeVariant={getMetricVariantForSortKey(sort.key)}
+                        enabledVariants={enabledMetricVariants}
+                        totalTooltip={imovel.tipoImovel
+                          ? imovel.tipoImovel === "apartamento"
+                            ? "Área total de um apartamento inclui área comum, então esse valor pode confundir"
+                            : "Valor do terreno/área total é melhor pra comprar, Média itacorubi: R$2.000-3.000"
+                          : undefined}
+                        privadoTooltip={imovel.tipoImovel === "apartamento" ? "Média Apto Itacorubi: R$12.000" : undefined}
+                      />
+                    </TableCell>
+                    )}
+                    {visibleColumns.rooms && (
                     <TableCell className={cn(
                       "text-center font-mono text-sm",
                       imovel.strikethrough && "line-through opacity-50"
                     )}>
                       {formatQuartosSuites(imovel.quartos, imovel.suites)}
                     </TableCell>
+                    )}
+                    {visibleColumns.bathrooms && (
                     <TableCell className={cn(
                       "text-center font-mono text-sm",
                       imovel.strikethrough && "line-through opacity-50"
                     )}>
                       {formatNumber(imovel.banheiros)}
                     </TableCell>
-                    <TableCell 
+                    )}
+                    {visibleColumns.dates && (
+                    <TableCell
                       className={cn(
-                        "text-center text-sm text-muted-foreground",
+                        "text-right text-sm text-muted-foreground",
                         imovel.strikethrough && "line-through opacity-50"
                       )}
                       title={formatFullDateTime(imovel.createdAt)}
                     >
-                      {formatDate(imovel.addedAt)}
+                      <div className="flex min-w-28 flex-col items-end gap-1 leading-none">
+                        <span className="inline-flex flex-col items-end gap-0.5 whitespace-nowrap">
+                          <span className="font-mono tabular-nums text-app-fg">{formatDate(imovel.addedAt)}</span>
+                          <span className="text-[9px] leading-none text-app-muted">adicionado por você</span>
+                        </span>
+                        {imovel.sitePublishedAt && (
+                          <span className="inline-flex flex-col items-end gap-0.5 whitespace-nowrap">
+                            <span className="font-mono tabular-nums text-app-fg">{formatDate(imovel.sitePublishedAt)}</span>
+                            <span className="text-[9px] leading-none text-app-muted">publicado no site</span>
+                          </span>
+                        )}
+                        {imovel.siteUpdatedAt && (
+                          <span className="inline-flex flex-col items-end gap-0.5 whitespace-nowrap">
+                            <span className="font-mono tabular-nums text-app-fg">{formatDate(imovel.siteUpdatedAt)}</span>
+                            <span className="text-[9px] leading-none text-app-muted">atualizado no site</span>
+                          </span>
+                        )}
+                      </div>
                     </TableCell>
+                    )}
+                    {visibleColumns.status && (() => {
+                      const status = getListingStatus(imovel)
+                      const option = getListingStatusOption(status)
+
+                      return (
+                        <TableCell className="min-w-[132px] align-top">
+                          <div className="flex flex-col items-center gap-1.5">
+                            <Select
+                              value={status}
+                              onValueChange={(value) => handleChangeListingStatus(imovel.id, value as ListingStatus)}
+                            >
+                              <SelectTrigger
+                                className={cn(
+                                  "h-6 w-[128px] rounded-full border px-2 py-0 text-[11px] font-medium shadow-none [&_svg]:size-3",
+                                  option.className
+                                )}
+                              >
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent className="border-app-border bg-app-surface p-0.5 text-app-fg">
+                                {LISTING_STATUS_OPTIONS.map((statusOption) => (
+                                  <SelectItem
+                                    key={statusOption.value}
+                                    value={statusOption.value}
+                                    className="py-1 pr-7 pl-2 text-xs text-app-fg hover:bg-app-surface-muted"
+                                  >
+                                    {statusOption.label}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <div className="flex items-center justify-center gap-2 flex-nowrap">
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <a
+                                    href={buildGoogleSearchUrl(
+                                      imovel.titulo,
+                                      imovel.endereco,
+                                      imovel.m2Totais,
+                                      imovel.quartos,
+                                      imovel.banheiros
+                                    )}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-block flex-shrink-0 p-1 text-muted-foreground transition-colors hover:text-app-accent"
+                                  >
+                                    <MagnifyingGlassIcon className="h-4 w-4" />
+                                  </a>
+                                </TooltipTrigger>
+                                <TooltipContent
+                                  side="bottom"
+                                  sideOffset={4}
+                                  className="border border-app-border bg-app-surface text-app-fg"
+                                >
+                                  Buscar no Google
+                                </TooltipContent>
+                              </Tooltip>
+                              {(() => {
+                                const whatsappUrl = buildWhatsAppUrl(imovel.contactNumber)
+                                const hasContact = !!imovel.contactNumber
+
+                                if (hasContact && whatsappUrl) {
+                                  return (
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <a
+                                          href={whatsappUrl}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          className="text-green-500 hover:text-green-400 transition-colors p-1 inline-block flex-shrink-0"
+                                        >
+                                          <FaWhatsapp className="h-4 w-4" />
+                                        </a>
+                                      </TooltipTrigger>
+                                      <TooltipContent
+                                        side="bottom"
+                                        sideOffset={4}
+                                        className="bg-app-surface border border-app-border text-app-fg"
+                                      >
+                                        {imovel.contactName ? `Abrir WhatsApp - ${imovel.contactName}` : "Abrir WhatsApp"}
+                                      </TooltipContent>
+                                    </Tooltip>
+                                  )
+                                }
+
+                                return (
+                                  <Popover
+                                    open={contactPopoverOpen === imovel.id}
+                                    onOpenChange={(open) => {
+                                      if (!open) {
+                                        setContactPopoverOpen(null)
+                                        setContactNameInput("")
+                                        setContactNumberInput("")
+                                      }
+                                    }}
+                                  >
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <PopoverTrigger asChild>
+                                          <button
+                                            onClick={() => handleOpenContactPopover(imovel.id, imovel.contactName, imovel.contactNumber)}
+                                            className="text-gray-400 hover:text-app-accent transition-colors p-1 flex-shrink-0"
+                                          >
+                                            <FaWhatsapp className="h-4 w-4" />
+                                          </button>
+                                        </PopoverTrigger>
+                                      </TooltipTrigger>
+                                      <TooltipContent
+                                        side="bottom"
+                                        sideOffset={4}
+                                        className="bg-app-surface border border-app-border text-app-fg"
+                                      >
+                                        Adicionar contato WhatsApp
+                                      </TooltipContent>
+                                    </Tooltip>
+                                    <PopoverContent className="w-64 p-3" align="end">
+                                      <div className="space-y-3">
+                                        <p className="text-sm font-medium text-app-muted">Contato WhatsApp</p>
+                                        {uniqueContacts.length > 0 && (
+                                          <Select
+                                            open={contactSelectorOpen}
+                                            onOpenChange={setContactSelectorOpen}
+                                            value=""
+                                            onValueChange={(value) => {
+                                              const contact = uniqueContacts.find((c) => c.number === value)
+                                              if (contact) {
+                                                handleSelectExistingContact(contact)
+                                              }
+                                            }}
+                                          >
+                                            <SelectTrigger className="w-full bg-app-surface-muted border-app-border text-app-fg text-sm">
+                                              <SelectValue placeholder="Selecionar contato existente..." />
+                                            </SelectTrigger>
+                                            <SelectContent className="bg-app-surface border-app-border max-h-[200px]">
+                                              {uniqueContacts.map((contact) => (
+                                                <SelectItem
+                                                  key={contact.number}
+                                                  value={contact.number}
+                                                  className="text-app-fg hover:bg-app-surface-muted text-sm"
+                                                >
+                                                  {contact.name || contact.number}
+                                                  {contact.name && (
+                                                    <span className="text-muted-foreground ml-1">
+                                                      ({contact.number})
+                                                    </span>
+                                                  )}
+                                                </SelectItem>
+                                              ))}
+                                            </SelectContent>
+                                          </Select>
+                                        )}
+                                        <div className="space-y-2">
+                                          <Input
+                                            value={contactNameInput}
+                                            onChange={(e) => setContactNameInput(e.target.value)}
+                                            placeholder="Nome do contato"
+                                            className="bg-app-surface-muted border-app-border text-app-fg placeholder:text-muted-foreground text-sm"
+                                          />
+                                          <Input
+                                            value={contactNumberInput}
+                                            onChange={(e) => setContactNumberInput(e.target.value)}
+                                            placeholder="Ex: 48996792216"
+                                            className="bg-app-surface-muted border-app-border text-app-fg placeholder:text-muted-foreground text-sm"
+                                            onKeyDown={(e) => {
+                                              if (e.key === "Enter") {
+                                                handleSaveContact(imovel.id)
+                                              }
+                                            }}
+                                            autoFocus
+                                          />
+                                        </div>
+                                        <div className="flex gap-2">
+                                          <button
+                                            onClick={() => {
+                                              setContactPopoverOpen(null)
+                                              setContactNameInput("")
+                                              setContactNumberInput("")
+                                            }}
+                                            className="flex-1 py-1.5 px-3 rounded text-sm bg-app-surface-muted border border-app-border text-app-fg hover:border-app-action hover:text-app-accent transition-colors"
+                                          >
+                                            Cancelar
+                                          </button>
+                                          <button
+                                            onClick={() => handleSaveContact(imovel.id)}
+                                            className="flex-1 py-1.5 px-3 rounded text-sm bg-app-action text-app-action-foreground hover:bg-app-action-hover transition-colors"
+                                          >
+                                            Salvar
+                                          </button>
+                                        </div>
+                                      </div>
+                                    </PopoverContent>
+                                  </Popover>
+                                )
+                              })()}
+                              <Popover
+                                open={quickReparsePopoverOpen === imovel.id}
+                                onOpenChange={(open) => {
+                                  if (!open) {
+                                    setQuickReparsePopoverOpen(null)
+                                    setQuickReparseInput("")
+                                    setQuickReparseLoading(null)
+                                    setQuickReparseError(null)
+                                  }
+                                }}
+                              >
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <PopoverTrigger asChild>
+                                      <button
+                                        onClick={() => handleOpenQuickReparsePopover(imovel)}
+                                        className="transition-colors p-1 flex-shrink-0 text-muted-foreground hover:text-app-accent"
+                                      >
+                                        <RefreshCw className="h-4 w-4" />
+                                      </button>
+                                    </PopoverTrigger>
+                                  </TooltipTrigger>
+                                  <TooltipContent
+                                    side="bottom"
+                                    sideOffset={4}
+                                    className="bg-app-surface border border-app-border text-app-fg"
+                                  >
+                                    Reparse rápido com IA
+                                  </TooltipContent>
+                                </Tooltip>
+                                <PopoverContent className="w-64 p-3" align="end">
+                                  <div className="space-y-3">
+                                    <p className="text-sm font-medium text-app-muted">Cole o texto do anúncio</p>
+                                    <Input
+                                      value={quickReparseInput}
+                                      onChange={(e) => {
+                                        setQuickReparseInput(e.target.value)
+                                        setQuickReparseError(null)
+                                      }}
+                                      placeholder="Cole aqui o texto completo..."
+                                      className="bg-app-surface-muted border-app-border text-app-fg placeholder:text-muted-foreground text-sm"
+                                      disabled={quickReparseLoading === imovel.id}
+                                      onKeyDown={(e) => {
+                                        if (e.key === "Enter" && quickReparseInput.trim() && !quickReparseLoading) {
+                                          handleQuickReparse(imovel)
+                                        }
+                                      }}
+                                      autoFocus
+                                    />
+                                    {quickReparseError && (
+                                      <p className="text-xs text-destructive">
+                                        {quickReparseError}
+                                      </p>
+                                    )}
+                                    {quickReparseLoading === imovel.id && (
+                                      <p className="text-xs text-muted-foreground flex items-center gap-2">
+                                        <Loader2 className="h-3 w-3 animate-spin" />
+                                        Processando...
+                                      </p>
+                                    )}
+                                    <div className="flex gap-2">
+                                      <button
+                                        onClick={() => {
+                                          setQuickReparsePopoverOpen(null)
+                                          setQuickReparseInput("")
+                                          setQuickReparseLoading(null)
+                                          setQuickReparseError(null)
+                                        }}
+                                        disabled={quickReparseLoading === imovel.id}
+                                        className="flex-1 py-1.5 px-3 rounded text-sm bg-app-surface-muted border border-app-border text-app-fg hover:border-app-action hover:text-app-accent transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                      >
+                                        Cancelar
+                                      </button>
+                                      <button
+                                        onClick={() => handleQuickReparse(imovel)}
+                                        disabled={!quickReparseInput.trim() || quickReparseLoading === imovel.id}
+                                        className="flex-1 py-1.5 px-3 rounded text-sm bg-app-action text-app-action-foreground hover:bg-app-action-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                      >
+                                        {quickReparseLoading === imovel.id ? "Processando..." : "Processar"}
+                                      </button>
+                                    </div>
+                                  </div>
+                                </PopoverContent>
+                              </Popover>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <button
+                                    onClick={() => {
+                                      setFocusImageUrl(false)
+                                      setEditingListing(imovel)
+                                    }}
+                                    className="text-muted-foreground hover:text-app-accent transition-colors p-1 flex-shrink-0"
+                                  >
+                                    <PencilIcon className="h-4 w-4" />
+                                  </button>
+                                </TooltipTrigger>
+                                <TooltipContent
+                                  side="bottom"
+                                  sideOffset={4}
+                                  className="bg-app-surface border border-app-border text-app-fg"
+                                >
+                                  Editar imóvel
+                                </TooltipContent>
+                              </Tooltip>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <button
+                                    onClick={() => handleDelete(imovel.id)}
+                                    className="text-muted-foreground hover:text-destructive transition-colors p-1 flex-shrink-0"
+                                  >
+                                    <TrashIcon className="h-4 w-4" />
+                                  </button>
+                                </TooltipTrigger>
+                                <TooltipContent
+                                  side="bottom"
+                                  sideOffset={4}
+                                  className="bg-app-surface border border-app-border text-app-fg"
+                                >
+                                  Excluir imóvel
+                                </TooltipContent>
+                              </Tooltip>
+                              {hasOtherCollections && (
+                                copyingListingId === imovel.id ? (
+                                  <Select
+                                    value=""
+                                    onValueChange={(value) => handleCopyToCollection(imovel.id, value)}
+                                    onOpenChange={(open) => {
+                                      if (!open) setCopyingListingId(null)
+                                    }}
+                                  >
+                                    <SelectTrigger
+                                      className={cn(
+                                        "h-6 w-[120px] text-xs",
+                                        "bg-app-surface-muted border-app-border",
+                                        "hover:border-app-action hover:text-app-accent",
+                                        "text-app-fg"
+                                      )}
+                                    >
+                                      <SelectValue placeholder="Copiar para..." />
+                                    </SelectTrigger>
+                                    <SelectContent className="bg-app-surface border-app-border">
+                                      {collections
+                                        .filter((c) => c.id !== activeCollection?.id)
+                                        .map((collection) => (
+                                          <SelectItem
+                                            key={collection.id}
+                                            value={collection.id}
+                                            className="text-app-fg hover:bg-app-surface-muted"
+                                          >
+                                            {collection.label}
+                                          </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                  </Select>
+                                ) : (
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <button
+                                        onClick={() => setCopyingListingId(imovel.id)}
+                                        className="text-muted-foreground hover:text-app-accent transition-colors p-1 flex-shrink-0"
+                                      >
+                                        <FolderIcon className="h-4 w-4" />
+                                      </button>
+                                    </TooltipTrigger>
+                                    <TooltipContent
+                                      side="bottom"
+                                      sideOffset={4}
+                                      className="bg-app-surface border border-app-border text-app-fg"
+                                    >
+                                      Copiar para outra coleção
+                                    </TooltipContent>
+                                  </Tooltip>
+                                )
+                              )}
+                            </div>
+                          </div>
+                        </TableCell>
+                      )
+                    })()}
                   </TableRow>
                 ))}
               </TableBody>

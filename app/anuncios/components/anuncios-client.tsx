@@ -14,6 +14,14 @@ import { getDefaultFirstCollectionName } from "../lib/default-first-collection-n
 import { cn } from "@/lib/utils"
 import type { Collection, Imovel } from "../lib/api"
 import { syncSubscriptionCookie } from "@/lib/sync-subscription-cookie"
+import {
+  PageToolbar,
+  PageToolbarEnd,
+  PageToolbarIconButton,
+  PageToolbarStart,
+} from "@/app/components/page-toolbar"
+import { Download, FolderOpen, Link2, Loader2, Plus, Settings } from "lucide-react"
+import { ModalCloseButton } from "./modal-chrome"
 
 function AnunciosClientInner() {
   const {
@@ -126,8 +134,8 @@ function AnunciosClientInner() {
   // Show loading state until data is loaded
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-black text-white flex items-center justify-center">
-        <p className="text-ashGray">Carregando...</p>
+      <div className="flex min-h-[calc(100vh-104px)] items-center justify-center bg-app-bg text-app-fg">
+        <p className="text-app-muted">Carregando...</p>
       </div>
     )
   }
@@ -135,10 +143,10 @@ function AnunciosClientInner() {
   // Show error state
   if (error) {
     return (
-      <div className="min-h-screen bg-black text-white flex items-center justify-center">
+      <div className="flex min-h-[calc(100vh-104px)] items-center justify-center bg-app-bg text-app-fg">
         <div className="text-center">
           <p className="text-destructive mb-2">Erro ao carregar dados</p>
-          <p className="text-sm text-muted-foreground">{error}</p>
+          <p className="text-sm text-app-muted">{error}</p>
         </div>
       </div>
     )
@@ -151,35 +159,21 @@ function AnunciosClientInner() {
     const defaultCollectionName = getDefaultFirstCollectionName()
 
     return (
-      <div className="min-h-screen bg-black text-white">
+      <div className="min-h-[calc(100vh-104px)] bg-app-bg text-app-fg">
         {/* Header */}
-        <header className="border-b border-brightGrey bg-raisinBlack">
-          <div className="max-w-7xl mx-auto px-4 py-6">
-            <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
-              <div className="flex-1 min-w-0">
-                <h1 className="text-3xl font-bold text-primary mb-2">
-                  🏘️ Anúncios de Imóveis
-                </h1>
-                <p className="text-ashGray">
-                  Gerencie anúncios e extraia dados facilmente de fontes externas.
-                </p>
-              </div>
-            </div>
-          </div>
-        </header>
 
         {/* Empty State */}
         <main className="max-w-7xl mx-auto px-4 py-12">
-          <Card className="bg-raisinBlack border-brightGrey max-w-lg mx-auto">
+          <Card className="mx-auto max-w-lg border-app-border bg-app-surface">
             <CardContent className="py-12 text-center space-y-6">
-              <div className="text-6xl">📁</div>
+              <FolderOpen className="h-16 w-16 mx-auto text-muted-foreground" />
               <div className="space-y-2">
-                <h2 className="text-xl font-semibold text-white">
+                <h2 className="text-xl font-semibold text-app-fg">
                   {isOrgContext
                     ? `Nenhuma coleção na organização "${contextName}"`
                     : "Nenhuma coleção pessoal"}
                 </h2>
-                <p className="text-sm text-muted-foreground max-w-sm mx-auto">
+                <p className="mx-auto max-w-sm text-sm text-app-muted">
                   {isOrgContext
                     ? `Comece agora — criamos automaticamente a coleção "${defaultCollectionName}" nesta organização.`
                     : `Comece agora — criamos automaticamente a coleção "${defaultCollectionName}" para você salvar imóveis.`}
@@ -193,20 +187,20 @@ function AnunciosClientInner() {
                 disabled={isCreatingFirstCollection}
                 className={cn(
                   "px-6 py-3 rounded-lg text-sm font-medium transition-all",
-                  "bg-primary text-primary-foreground",
-                  "hover:bg-primary/90",
+                  "bg-app-action text-app-action-foreground",
+                  "hover:bg-app-action-hover",
                   "disabled:opacity-50 disabled:cursor-not-allowed",
                   "flex items-center gap-2 mx-auto"
                 )}
               >
                 {isCreatingFirstCollection ? (
                   <>
-                    <span className="animate-spin">⏳</span>
+                    <Loader2 className="h-4 w-4 animate-spin" />
                     <span>Criando...</span>
                   </>
                 ) : (
                   <>
-                    <span>+</span>
+                    <Plus className="h-4 w-4" />
                     <span>Criar Primeira Coleção</span>
                   </>
                 )}
@@ -219,43 +213,33 @@ function AnunciosClientInner() {
   }
 
   return (
-    <div className="min-h-screen bg-black text-white">
-      {/* Header */}
-      <header className="border-b border-brightGrey bg-raisinBlack">
-        <div className="max-w-7xl mx-auto px-4 py-6">
-          <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
-            <div className="flex-1 min-w-0">
-              <h1 className="text-3xl font-bold text-primary mb-2">
-                🏘️ Anúncios de Imóveis
-              </h1>
-              <p className="text-ashGray">
-                Cole anúncios de imóveis e deixe a IA extrair os dados automaticamente.
-              </p>
-            </div>
-            <div className="flex flex-wrap items-center gap-3 md:flex-nowrap">
-              <CollectionSelector
-                onCollectionChange={handleCollectionChange}
-                onCreateCollection={handleCreateCollection}
-                onEditCollection={handleEditCollection}
-                onDeleteCollection={handleDeleteCollection}
-                refreshTrigger={refreshTrigger}
-              />
-              <button
-                onClick={() => setShowSettings(true)}
-                className={cn(
-                  "px-4 py-2 rounded-lg text-sm font-medium transition-all",
-                  "bg-eerieBlack border border-brightGrey",
-                  "hover:border-primary hover:text-primary",
-                  "flex items-center gap-2 whitespace-nowrap"
-                )}
-              >
-                <span>⚙️</span>
-                <span className="hidden sm:inline">Configurações</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      </header>
+    <div className="min-h-[calc(100vh-104px)] bg-app-bg text-app-fg">
+      <PageToolbar>
+        <PageToolbarStart>
+          <DataManagement
+            onDataChange={handleListingsChange}
+            listingsCount={listings.length}
+            onOpenParser={() => setShowParser(true)}
+            onImportSuccess={triggerRefresh}
+            onSwitchToCollection={handleSwitchToCollection}
+          />
+        </PageToolbarStart>
+        <PageToolbarEnd>
+          <CollectionSelector
+            onCollectionChange={handleCollectionChange}
+            onCreateCollection={handleCreateCollection}
+            onEditCollection={handleEditCollection}
+            onDeleteCollection={handleDeleteCollection}
+            refreshTrigger={refreshTrigger}
+          />
+          <PageToolbarIconButton
+            onClick={() => setShowSettings(true)}
+            title="Configurações"
+          >
+            <Settings />
+          </PageToolbarIconButton>
+        </PageToolbarEnd>
+      </PageToolbar>
 
       {/* Settings Modal */}
       <SettingsModal
@@ -282,29 +266,24 @@ function AnunciosClientInner() {
       {showShareConfirm && shareData && (
         <div className="fixed inset-0 z-[1000] flex items-center justify-center">
           <div
-            className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+            className="absolute inset-0 bg-app-fg/40 backdrop-blur-sm"
             onClick={handleShareCancel}
           />
-          <Card className="relative z-10 w-full max-w-md mx-4 bg-raisinBlack border-brightGrey">
+          <Card className="relative z-10 w-full max-w-md mx-4 border-app-border bg-app-surface">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-lg flex items-center gap-2">
-                <span>🔗</span>
+                <Link2 className="h-5 w-5 text-app-accent" />
                 <span>Importar Coleção Compartilhada</span>
               </CardTitle>
-              <button
-                onClick={handleShareCancel}
-                className="text-muted-foreground hover:text-white transition-colors"
-              >
-                ✕
-              </button>
+              <ModalCloseButton onClick={handleShareCancel} />
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <p className="text-sm text-ashGray">
+                <p className="text-sm text-app-muted">
                   Você recebeu um link compartilhado com dados de uma coleção:
                 </p>
-                <div className="p-3 rounded-lg bg-eerieBlack border border-brightGrey">
-                  <p className="text-sm font-medium text-white">
+                <div className="rounded-lg border border-app-border bg-app-bg p-3">
+                  <p className="text-sm font-medium text-app-fg">
                     {shareData.collection.label}
                   </p>
                   <p className="text-xs text-muted-foreground mt-1">
@@ -320,8 +299,8 @@ function AnunciosClientInner() {
                   onClick={handleShareCancel}
                   className={cn(
                     "flex-1 py-2.5 px-4 rounded-lg font-medium transition-all",
-                    "bg-eerieBlack border border-brightGrey",
-                    "hover:border-white"
+                    "border border-app-border bg-app-surface text-app-fg",
+                    "hover:border-app-border-strong hover:bg-app-bg hover:text-app-fg"
                   )}
                 >
                   Cancelar
@@ -330,12 +309,12 @@ function AnunciosClientInner() {
                   onClick={handleShareImport}
                   className={cn(
                     "flex-1 py-2.5 px-4 rounded-lg font-medium transition-all",
-                    "bg-primary text-primary-foreground",
-                    "hover:bg-primary/90",
+                    "bg-app-action text-app-action-foreground",
+                    "hover:bg-app-action-hover",
                     "flex items-center justify-center gap-2"
                   )}
                 >
-                  <span>📥</span>
+                  <Download className="h-4 w-4" />
                   Importar
                 </button>
               </div>
@@ -344,23 +323,12 @@ function AnunciosClientInner() {
         </div>
       )}
 
-      <main className="max-w-7xl mx-auto px-4 py-6 space-y-6">
-        {/* Data Management Bar */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <DataManagement
-            onDataChange={handleListingsChange}
-            listingsCount={listings.length}
-            onOpenParser={() => setShowParser(true)}
-            onImportSuccess={triggerRefresh}
-            onSwitchToCollection={handleSwitchToCollection}
-          />
-        </div>
-
+      <main className="max-w-7xl mx-auto space-y-4 px-4 py-4">
         {/* Main Content - Full Width Table */}
         {isLoadingListings ? (
-          <Card className="bg-raisinBlack border-brightGrey">
+          <Card className="border-app-border bg-app-surface">
             <CardContent className="py-12 text-center">
-              <p className="text-ashGray">Carregando imóveis...</p>
+              <p className="text-app-muted">Carregando imóveis...</p>
             </CardContent>
           </Card>
         ) : (

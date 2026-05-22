@@ -164,7 +164,7 @@ export function SignupClient() {
             </Button>
             <p className="text-sm text-muted-foreground text-center">
               Ja tem uma conta?{" "}
-              <Link href="/login" className="text-primary hover:underline">
+              <Link href="/login" className="text-app-accent hover:underline">
                 Entrar
               </Link>
             </p>

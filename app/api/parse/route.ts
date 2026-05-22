@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "@/lib/auth-server"
 import OpenAI from "openai"
+import { PDFParse } from "pdf-parse"
 import type { ListingData } from "@/lib/db/schema"
 
 // ============================================================================
@@ -10,6 +11,8 @@ import type { ListingData } from "@/lib/db/schema"
 interface ParsedListingData {
   titulo: string
   endereco: string
+  bairro: string | null
+  cidade: string | null
   m2Totais: number | null
   m2Privado: number | null
   quartos: number | null
@@ -23,9 +26,27 @@ interface ParsedListingData {
   vistaLivre: boolean | null
   piscinaTermica: boolean | null
   tipoImovel: "casa" | "apartamento" | null
+  condominiumName: string | null
   contactName: string | null
   contactNumber: string | null
+  sitePublishedAt: string | null
+  siteUpdatedAt: string | null
 }
+
+type ParseBody =
+  | { kind: "text"; rawText: string }
+  | { kind: "image"; base64: string; mimeType: string }
+  | { kind: "pdf"; base64: string }
+  | { rawText: string }
+
+const MAX_IMAGE_BYTES = 5 * 1024 * 1024
+const MAX_PDF_BYTES = 10 * 1024 * 1024
+const MIN_PDF_TEXT_LENGTH = 50
+
+const ACCEPTED_IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp"])
+const MAX_LISTINGS = 25
+const BASE_MAX_TOKENS = 500
+const MULTI_MAX_TOKENS_CAP = 4000
 
 // ============================================================================
 // SYSTEM PROMPT
@@ -37,21 +58,26 @@ Dado um texto de anúncio de imóvel (pode vir de sites como ZAP, OLX, VivaReal,
 
 1. **titulo**: Título ou descrição principal do imóvel
 2. **endereco**: Endereço completo ou localização (bairro, cidade)
-3. **m2Totais**: Área total do imóvel em metros quadrados (pode aparecer como "área total", "terreno", etc.)
-4. **m2Privado**: Área privativa/útil em metros quadrados (pode aparecer como "área útil", "área privativa", etc.)
-5. **quartos**: Número de quartos/dormitórios
-6. **suites**: Número de suítes
-7. **banheiros**: Número de banheiros
-8. **garagem**: Número de vagas de garagem
-9. **preco**: Preço do imóvel em reais (apenas números, sem formatação)
-10. **piscina**: Se o imóvel possui piscina (true/false)
-11. **porteiro24h**: Se o imóvel possui porteiro 24 horas (true/false)
-12. **academia**: Se o imóvel possui academia (true/false)
-13. **vistaLivre**: Se o imóvel possui vista livre (true/false)
-14. **piscinaTermica**: Se o imóvel possui piscina térmica (true/false)
-15. **tipoImovel**: Tipo do imóvel ("casa" ou "apartamento")
-16. **contactName**: Nome do contato/corretor (se mencionado no anúncio)
-17. **contactNumber**: Número de telefone/WhatsApp do contato (formato: apenas dígitos, ex: "48996792216" para (48) 99679-2216)
+3. **bairro**: Bairro quando explícito ou inferível com alta confiança
+4. **cidade**: Cidade quando explícita ou inferível com alta confiança
+5. **m2Totais**: Área total do imóvel em metros quadrados (pode aparecer como "área total", "terreno", etc.)
+6. **m2Privado**: Área privativa/útil em metros quadrados (pode aparecer como "área útil", "área privativa", etc.)
+7. **quartos**: Número de quartos/dormitórios
+8. **suites**: Número de suítes
+9. **banheiros**: Número de banheiros
+10. **garagem**: Número de vagas de garagem
+11. **preco**: Preço do imóvel em reais (apenas números, sem formatação)
+12. **piscina**: Se o imóvel possui piscina (true/false)
+13. **porteiro24h**: Se o imóvel possui porteiro 24 horas (true/false)
+14. **academia**: Se o imóvel possui academia (true/false)
+15. **vistaLivre**: Se o imóvel possui vista livre (true/false)
+16. **piscinaTermica**: Se o imóvel possui piscina térmica (true/false)
+17. **tipoImovel**: Tipo do imóvel ("casa" ou "apartamento")
+18. **condominiumName**: Nome do condomínio quando mencionado
+19. **contactName**: Nome do contato/corretor (se mencionado no anúncio)
+20. **contactNumber**: Número de telefone/WhatsApp do contato (formato: apenas dígitos, ex: "48996792216" para (48) 99679-2216)
+21. **sitePublishedAt**: Data em que o anúncio foi publicado no site, no formato YYYY-MM-DD, quando explícita
+22. **siteUpdatedAt**: Data em que o anúncio foi atualizado no site, no formato YYYY-MM-DD, quando explícita
 
 Regras:
 - Retorne SEMPRE um JSON válido
@@ -71,15 +97,26 @@ Regras:
   - "casa": casa, sobrado, residência, terreno com casa, chalé
   - "apartamento": apartamento, apto, ap., flat, studio, kitnet, cobertura, loft
   - Se não for possível determinar, use null
+- condominiumName: procure por "Condomínio X", "Residencial X", "Edifício X", "no X", quando claramente for o nome do empreendimento. Se não houver nome, use null
+- bairro/cidade: quando o endereço trouxer "Bairro, Cidade - UF", separe os campos. Não invente bairro ou cidade se não houver evidência no texto
 - Contact Name: procure por nomes de corretores, imobiliárias, ou contatos mencionados (ex: "Fale com João", "Contato: Maria Silva")
 - Contact Number: procure por números de telefone ou WhatsApp mencionados no anúncio. Normalize removendo espaços, parênteses, hífens e outros caracteres não numéricos. Mantenha apenas os dígitos (ex: "(48) 99679-2216" vira "48996792216", "+55 48 99679-2216" vira "48996792216"). Se o número já começar com 55, remova esse prefixo pois será adicionado automaticamente na URL do WhatsApp.
+- sitePublishedAt/siteUpdatedAt: extraia apenas quando houver texto claro como "Publicado em", "Anunciado em", "Atualizado em", "Última atualização". Normalize para YYYY-MM-DD. Se houver só data relativa sem data absoluta, use null.
+
+Múltiplos anúncios:
+- Se o conteúdo contiver **vários imóveis distintos** (vários anúncios no mesmo texto, PDF com várias páginas, captura com grade de cards, dump de WhatsApp com várias propriedades, etc.), retorne um objeto com a chave **"listings"** contendo um array de objetos (um por imóvel).
+- Não mescle imóveis diferentes em um único objeto. Não duplique o mesmo imóvel.
+- Limite máximo de **${MAX_LISTINGS}** imóveis no array; se houver mais, inclua apenas os ${MAX_LISTINGS} mais completos.
+- Se houver **apenas um** imóvel, retorne o objeto **plano** diretamente (sem wrapper "listings") — mesmo formato do exemplo abaixo.
 
 Responda APENAS com o JSON, sem explicações adicionais.
 
-Exemplo de resposta:
+Exemplo de resposta (um imóvel):
 {
   "titulo": "Casa 3 quartos no Campeche",
   "endereco": "Campeche, Florianópolis - SC",
+  "bairro": "Campeche",
+  "cidade": "Florianópolis",
   "m2Totais": 450,
   "m2Privado": 180,
   "quartos": 3,
@@ -93,9 +130,215 @@ Exemplo de resposta:
   "vistaLivre": true,
   "piscinaTermica": false,
   "tipoImovel": "casa",
+  "condominiumName": null,
   "contactName": "João Silva",
-  "contactNumber": "48996792216"
+  "contactNumber": "48996792216",
+  "sitePublishedAt": null,
+  "siteUpdatedAt": null
+}
+
+Exemplo de resposta (vários imóveis):
+{
+  "listings": [
+    { "titulo": "Casa 3 quartos no Campeche", "endereco": "Campeche, Florianópolis - SC", "preco": 1500000, "quartos": 3 },
+    { "titulo": "Apartamento 2 quartos Centro", "endereco": "Centro, Florianópolis - SC", "preco": 650000, "quartos": 2 }
+  ]
 }`
+
+const VISION_USER_PROMPT =
+  "Extraia todos os dados dos anúncios de imóveis visíveis nesta imagem (screenshot, foto ou cartaz). Se houver vários imóveis distintos, use o formato com array \"listings\". Retorne o JSON conforme o system prompt."
+
+// ============================================================================
+// HELPERS
+// ============================================================================
+
+function normalizeParseBody(body: unknown): ParseBody | null {
+  if (!body || typeof body !== "object") return null
+  const b = body as Record<string, unknown>
+
+  if (b.kind === "text" && typeof b.rawText === "string") {
+    return { kind: "text", rawText: b.rawText }
+  }
+  if (b.kind === "image" && typeof b.base64 === "string" && typeof b.mimeType === "string") {
+    return { kind: "image", base64: b.base64, mimeType: b.mimeType }
+  }
+  if (b.kind === "pdf" && typeof b.base64 === "string") {
+    return { kind: "pdf", base64: b.base64 }
+  }
+  if (typeof b.rawText === "string" && !b.kind) {
+    return { rawText: b.rawText }
+  }
+  return null
+}
+
+function decodeBase64(base64: string): Buffer {
+  const cleaned = base64.replace(/^data:[^;]+;base64,/, "").trim()
+  try {
+    return Buffer.from(cleaned, "base64")
+  } catch {
+    throw new Error("INVALID_BASE64")
+  }
+}
+
+function assertBase64Size(buffer: Buffer, maxBytes: number, label: string): void {
+  if (buffer.length > maxBytes) {
+    throw new Error(`FILE_TOO_LARGE:${label}`)
+  }
+  if (buffer.length === 0) {
+    throw new Error("EMPTY_FILE")
+  }
+}
+
+async function extractTextFromPdf(buffer: Buffer): Promise<string> {
+  const parser = new PDFParse({ data: buffer })
+  const result = await parser.getText()
+  return (result.text || "").trim()
+}
+
+function isValidParsedListing(parsed: ParsedListingData): boolean {
+  const hasTitulo = Boolean(parsed.titulo?.trim())
+  const hasEndereco = Boolean(parsed.endereco?.trim())
+  const hasPreco = parsed.preco != null && parsed.preco > 0
+  return hasTitulo || hasEndereco || hasPreco
+}
+
+function normalizeParseResponse(parsed: unknown): ListingData[] {
+  if (!parsed || typeof parsed !== "object") {
+    throw new Error("INVALID_AI_JSON")
+  }
+
+  const record = parsed as Record<string, unknown>
+
+  if (Array.isArray(record.listings)) {
+    const rawListings = record.listings.filter(
+      (item): item is ParsedListingData => item !== null && typeof item === "object"
+    )
+    const listings = rawListings
+      .filter(isValidParsedListing)
+      .map(buildListingData)
+      .slice(0, MAX_LISTINGS)
+
+    if (listings.length === 0) {
+      throw new Error("INVALID_AI_JSON")
+    }
+    return listings
+  }
+
+  const single = buildListingData(parsed as ParsedListingData)
+  if (!isValidParsedListing(parsed as ParsedListingData)) {
+    throw new Error("INVALID_AI_JSON")
+  }
+  return [single]
+}
+
+function computeMaxTokens(inputLength: number, isVision: boolean): number {
+  const base = isVision ? 800 : BASE_MAX_TOKENS
+  if (inputLength < 800) return base
+  const estimatedListings = Math.min(
+    MAX_LISTINGS,
+    Math.max(2, Math.ceil(inputLength / 600))
+  )
+  return Math.min(MULTI_MAX_TOKENS_CAP, 400 + estimatedListings * 350)
+}
+
+function buildListingData(parsed: ParsedListingData): ListingData {
+  return {
+    titulo: parsed.titulo || "Sem título",
+    endereco: parsed.endereco || "Endereço não informado",
+    bairro: parsed.bairro,
+    cidade: parsed.cidade,
+    m2Totais: parsed.m2Totais,
+    m2Privado: parsed.m2Privado,
+    quartos: parsed.quartos,
+    suites: parsed.suites,
+    banheiros: parsed.banheiros,
+    garagem: parsed.garagem,
+    preco: parsed.preco,
+    precoM2: null,
+    piscina: parsed.piscina,
+    porteiro24h: parsed.porteiro24h,
+    academia: parsed.academia,
+    vistaLivre: parsed.vistaLivre,
+    piscinaTermica: parsed.piscinaTermica,
+    tipoImovel: parsed.tipoImovel,
+    link: null,
+    condominiumName: parsed.condominiumName,
+    contactName: parsed.contactName,
+    contactNumber: parsed.contactNumber,
+    addedAt: new Date().toISOString().split("T")[0],
+    sitePublishedAt: parsed.sitePublishedAt,
+    siteUpdatedAt: parsed.siteUpdatedAt,
+  }
+}
+
+async function parseWithTextModel(
+  openai: OpenAI,
+  rawText: string
+): Promise<ListingData[]> {
+  const response = await openai.chat.completions.create({
+    model: "gpt-4o-mini",
+    messages: [
+      { role: "system", content: SYSTEM_PROMPT },
+      { role: "user", content: rawText },
+    ],
+    temperature: 0.1,
+    max_tokens: computeMaxTokens(rawText.length, false),
+    response_format: { type: "json_object" },
+  })
+
+  const content = response.choices[0]?.message?.content
+  if (!content) {
+    throw new Error("EMPTY_AI_RESPONSE")
+  }
+
+  try {
+    return normalizeParseResponse(JSON.parse(content))
+  } catch (error) {
+    if (error instanceof Error && error.message === "INVALID_AI_JSON") {
+      throw error
+    }
+    throw new Error("INVALID_AI_JSON")
+  }
+}
+
+async function parseWithVision(
+  openai: OpenAI,
+  base64: string,
+  mimeType: string
+): Promise<ListingData[]> {
+  const dataUrl = `data:${mimeType};base64,${base64.replace(/^data:[^;]+;base64,/, "")}`
+
+  const response = await openai.chat.completions.create({
+    model: "gpt-4o",
+    messages: [
+      { role: "system", content: SYSTEM_PROMPT },
+      {
+        role: "user",
+        content: [
+          { type: "text", text: VISION_USER_PROMPT },
+          { type: "image_url", image_url: { url: dataUrl } },
+        ],
+      },
+    ],
+    temperature: 0.1,
+    max_tokens: computeMaxTokens(2000, true),
+    response_format: { type: "json_object" },
+  })
+
+  const content = response.choices[0]?.message?.content
+  if (!content) {
+    throw new Error("EMPTY_AI_RESPONSE")
+  }
+
+  try {
+    return normalizeParseResponse(JSON.parse(content))
+  } catch (error) {
+    if (error instanceof Error && error.message === "INVALID_AI_JSON") {
+      throw error
+    }
+    throw new Error("INVALID_AI_JSON")
+  }
+}
 
 // ============================================================================
 // PARSE ENDPOINT
@@ -103,38 +346,25 @@ Exemplo de resposta:
 
 /**
  * POST /api/parse
- * Parse a raw listing text using AI and return structured data
+ * Parse listing content from text, image, or PDF using AI
  */
 export async function POST(request: NextRequest) {
   try {
-    // Check authentication
     const session = await getServerSession()
     if (!session?.user) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      )
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    // Get request body
     const body = await request.json()
-    const { rawText } = body as { rawText: string }
+    const parseBody = normalizeParseBody(body)
 
-    if (!rawText || typeof rawText !== "string") {
+    if (!parseBody) {
       return NextResponse.json(
-        { error: "Raw text is required" },
+        { error: "Invalid request. Provide kind: text|image|pdf or rawText." },
         { status: 400 }
       )
     }
 
-    if (rawText.trim().length === 0) {
-      return NextResponse.json(
-        { error: "Raw text cannot be empty" },
-        { status: 400 }
-      )
-    }
-
-    // Check for OpenAI API key
     const apiKey = process.env.OPENAI_API_KEY
     if (!apiKey) {
       return NextResponse.json(
@@ -143,77 +373,88 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Initialize OpenAI client (server-side, no dangerouslyAllowBrowser)
     const openai = new OpenAI({ apiKey })
 
-    // Call OpenAI API
-    const response = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
-      messages: [
-        { role: "system", content: SYSTEM_PROMPT },
-        { role: "user", content: rawText },
-      ],
-      temperature: 0.1,
-      max_tokens: 500,
-      response_format: { type: "json_object" },
-    })
+    let listings: ListingData[]
 
-    const content = response.choices[0]?.message?.content
-    if (!content) {
-      return NextResponse.json(
-        { error: "Empty response from AI" },
-        { status: 500 }
-      )
+    if ("rawText" in parseBody && !("kind" in parseBody)) {
+      const text = parseBody.rawText.trim()
+      if (!text) {
+        return NextResponse.json({ error: "Raw text cannot be empty" }, { status: 400 })
+      }
+      listings = await parseWithTextModel(openai, text)
+    } else if (parseBody.kind === "text") {
+      const text = parseBody.rawText.trim()
+      if (!text) {
+        return NextResponse.json({ error: "Raw text cannot be empty" }, { status: 400 })
+      }
+      listings = await parseWithTextModel(openai, text)
+    } else if (parseBody.kind === "image") {
+      if (!ACCEPTED_IMAGE_TYPES.has(parseBody.mimeType)) {
+        return NextResponse.json(
+          { error: "Unsupported image type. Use JPEG, PNG, or WebP." },
+          { status: 400 }
+        )
+      }
+      const buffer = decodeBase64(parseBody.base64)
+      assertBase64Size(buffer, MAX_IMAGE_BYTES, "image")
+      listings = await parseWithVision(openai, parseBody.base64, parseBody.mimeType)
+    } else if (parseBody.kind === "pdf") {
+      const buffer = decodeBase64(parseBody.base64)
+      assertBase64Size(buffer, MAX_PDF_BYTES, "pdf")
+      let extracted: string
+      try {
+        extracted = await extractTextFromPdf(buffer)
+      } catch {
+        return NextResponse.json(
+          { error: "Não foi possível ler o PDF. Verifique se o arquivo está íntegro." },
+          { status: 400 }
+        )
+      }
+      if (extracted.length < MIN_PDF_TEXT_LENGTH) {
+        return NextResponse.json(
+          {
+            error:
+              "Não foi possível extrair texto deste PDF. Tente enviar uma captura de tela (imagem) do anúncio.",
+          },
+          { status: 400 }
+        )
+      }
+      listings = await parseWithTextModel(openai, extracted)
+    } else {
+      return NextResponse.json({ error: "Invalid request kind" }, { status: 400 })
     }
 
-    // Parse AI response
-    let parsed: ParsedListingData
-    try {
-      parsed = JSON.parse(content) as ParsedListingData
-    } catch {
-      return NextResponse.json(
-        { error: "Invalid JSON response from AI" },
-        { status: 500 }
-      )
-    }
-
-    // Build the listing data
-    const listingData: ListingData = {
-      titulo: parsed.titulo || "Sem título",
-      endereco: parsed.endereco || "Endereço não informado",
-      m2Totais: parsed.m2Totais,
-      m2Privado: parsed.m2Privado,
-      quartos: parsed.quartos,
-      suites: parsed.suites,
-      banheiros: parsed.banheiros,
-      garagem: parsed.garagem,
-      preco: parsed.preco,
-      precoM2: null, // Calculated dynamically in UI
-      piscina: parsed.piscina,
-      porteiro24h: parsed.porteiro24h,
-      academia: parsed.academia,
-      vistaLivre: parsed.vistaLivre,
-      piscinaTermica: parsed.piscinaTermica,
-      link: null, // User must add link manually
-      contactName: parsed.contactName,
-      contactNumber: parsed.contactNumber,
-      addedAt: new Date().toISOString().split("T")[0],
-    }
-
-    return NextResponse.json(
-      { data: listingData },
-      { status: 200 }
-    )
+    return NextResponse.json({ listings }, { status: 200 })
   } catch (error) {
     console.error("Error parsing listing:", error)
-    
-    // Handle OpenAI-specific errors
+
+    if (error instanceof Error) {
+      if (error.message === "EMPTY_AI_RESPONSE") {
+        return NextResponse.json({ error: "Empty response from AI" }, { status: 500 })
+      }
+      if (error.message === "INVALID_AI_JSON") {
+        return NextResponse.json({ error: "Invalid JSON response from AI" }, { status: 500 })
+      }
+      if (error.message.startsWith("FILE_TOO_LARGE:")) {
+        const type = error.message.split(":")[1]
+        const limit = type === "pdf" ? "10 MB" : "5 MB"
+        return NextResponse.json(
+          { error: `Arquivo muito grande. O limite é ${limit}.` },
+          { status: 400 }
+        )
+      }
+      if (error.message === "EMPTY_FILE") {
+        return NextResponse.json({ error: "Arquivo vazio" }, { status: 400 })
+      }
+      if (error.message === "INVALID_BASE64") {
+        return NextResponse.json({ error: "Dados do arquivo inválidos" }, { status: 400 })
+      }
+    }
+
     if (error instanceof OpenAI.APIError) {
       if (error.status === 401) {
-        return NextResponse.json(
-          { error: "Invalid OpenAI API key" },
-          { status: 503 }
-        )
+        return NextResponse.json({ error: "Invalid OpenAI API key" }, { status: 503 })
       }
       if (error.status === 429) {
         return NextResponse.json(
@@ -223,9 +464,6 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    return NextResponse.json(
-      { error: "Failed to parse listing" },
-      { status: 500 }
-    )
+    return NextResponse.json({ error: "Failed to parse listing" }, { status: 500 })
   }
 }

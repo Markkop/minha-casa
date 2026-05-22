@@ -5,6 +5,7 @@ import Link from "next/link"
 import { useAddons, useAddonsLoading } from "@/lib/use-addons"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import { CreditCard, Home, Lock, User, Users } from "lucide-react"
 
 interface AddonAccessGuardProps {
   /** The addon slug to check for access */
@@ -36,8 +37,8 @@ export function AddonAccessGuard({
   // Show loading state while checking addon access
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-black text-white flex items-center justify-center">
-        <p className="text-ashGray">Verificando acesso...</p>
+      <div className="min-h-screen bg-app-bg text-app-fg flex items-center justify-center">
+        <p className="text-app-muted">Verificando acesso...</p>
       </div>
     )
   }
@@ -47,41 +48,41 @@ export function AddonAccessGuard({
 
   if (!hasAccess) {
     return (
-      <div className="min-h-screen bg-black text-white">
+      <div className="min-h-screen bg-app-bg text-app-fg">
         <div className="max-w-2xl mx-auto px-4 py-16">
-          <Card className="bg-raisinBlack border-brightGrey">
+          <Card className="bg-app-surface border-app-border">
             <CardHeader className="text-center">
-              <div className="text-6xl mb-4">🔒</div>
-              <CardTitle className="text-2xl text-white">
+              <Lock className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
+              <CardTitle className="text-2xl text-app-fg">
                 Acesso Restrito
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-6">
-              <p className="text-center text-ashGray">
-                O acesso ao <span className="text-primary font-semibold">{addonName}</span> requer
+              <p className="text-center text-app-muted">
+                O acesso ao <span className="text-app-accent font-semibold">{addonName}</span> requer
                 uma licença ativa. Você pode obter acesso de duas formas:
               </p>
 
               <div className="grid gap-4">
-                <div className="p-4 bg-eerieBlack rounded-lg border border-brightGrey">
-                  <h3 className="font-semibold text-white mb-2 flex items-center gap-2">
-                    <span>👤</span>
+                <div className="p-4 bg-app-surface-muted rounded-lg border border-app-border">
+                  <h3 className="font-semibold text-app-fg mb-2 flex items-center gap-2">
+                    <User className="h-4 w-4" />
                     Licença Pessoal
                   </h3>
-                  <p className="text-sm text-ashGray">
+                  <p className="text-sm text-app-muted">
                     Solicite o addon para sua conta pessoal. Você terá acesso
                     independente de qual organização estiver usando.
                   </p>
                 </div>
 
                 {orgContext.type === "organization" && (
-                  <div className="p-4 bg-eerieBlack rounded-lg border border-brightGrey">
-                    <h3 className="font-semibold text-white mb-2 flex items-center gap-2">
-                      <span>👥</span>
+                  <div className="p-4 bg-app-surface-muted rounded-lg border border-app-border">
+                    <h3 className="font-semibold text-app-fg mb-2 flex items-center gap-2">
+                      <Users className="h-4 w-4" />
                       Licença da Organização
                     </h3>
-                    <p className="text-sm text-ashGray">
-                      Sua organização <span className="text-primary">{orgContext.organizationName}</span> não
+                    <p className="text-sm text-app-muted">
+                      Sua organização <span className="text-app-accent">{orgContext.organizationName}</span> não
                       possui este addon. Solicite ao administrador da organização
                       para ativar este recurso.
                     </p>
@@ -89,12 +90,12 @@ export function AddonAccessGuard({
                 )}
 
                 {orgContext.type === "personal" && (
-                  <div className="p-4 bg-eerieBlack rounded-lg border border-brightGrey">
-                    <h3 className="font-semibold text-white mb-2 flex items-center gap-2">
-                      <span>👥</span>
+                  <div className="p-4 bg-app-surface-muted rounded-lg border border-app-border">
+                    <h3 className="font-semibold text-app-fg mb-2 flex items-center gap-2">
+                      <Users className="h-4 w-4" />
                       Licença via Organização
                     </h3>
-                    <p className="text-sm text-ashGray">
+                    <p className="text-sm text-app-muted">
                       Se você faz parte de uma organização que possui este addon,
                       troque para o contexto da organização para ter acesso.
                     </p>
@@ -103,15 +104,15 @@ export function AddonAccessGuard({
               </div>
 
               <div className="flex flex-col sm:flex-row gap-3 justify-center pt-4">
-                <Button asChild variant="outline" className="border-brightGrey hover:bg-eerieBlack">
+                <Button asChild variant="outline" className="border-app-border hover:bg-app-surface-muted">
                   <Link href="/">
-                    <span className="mr-2">🏠</span>
+                    <Home className="h-4 w-4 mr-2" />
                     Voltar ao Início
                   </Link>
                 </Button>
-                <Button asChild className="bg-primary hover:bg-primary/90">
+                <Button asChild className="bg-app-action hover:bg-app-action-hover">
                   <Link href="/subscribe">
-                    <span className="mr-2">💳</span>
+                    <CreditCard className="h-4 w-4 mr-2" />
                     Ver Planos
                   </Link>
                 </Button>

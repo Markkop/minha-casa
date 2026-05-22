@@ -18,7 +18,7 @@ import {
   createListing as apiCreateListing,
   updateApiListing,
   deleteListing as apiDeleteListing,
-  parseListingWithAI as apiParseListingWithAI,
+  parseListing as apiParseListing,
   getShareStatus as apiGetShareStatus,
   createShareLink as apiCreateShareLink,
   revokeShareLink as apiRevokeShareLink,
@@ -96,7 +96,10 @@ interface CollectionsContextValue {
   removeListing: (listingId: string) => Promise<void>
   
   // AI parsing
-  parseListing: (rawText: string) => Promise<ListingData>
+  parseListing: (rawText: string) => Promise<ListingData[]>
+  parseListingInput: (
+    input: import("./parse-input").ParseRequest
+  ) => Promise<ListingData[]>
 
   // Refresh trigger for legacy components
   refreshTrigger: number
@@ -485,9 +488,16 @@ export function CollectionsProvider({ children }: CollectionsProviderProps) {
   // AI PARSING
   // ============================================================================
 
-  const parseListing = useCallback(async (rawText: string): Promise<ListingData> => {
-    return apiParseListingWithAI(rawText)
+  const parseListing = useCallback(async (rawText: string): Promise<ListingData[]> => {
+    return apiParseListing({ kind: "text", rawText })
   }, [])
+
+  const parseListingInput = useCallback(
+    async (input: import("./parse-input").ParseRequest): Promise<ListingData[]> => {
+      return apiParseListing(input)
+    },
+    []
+  )
 
   // ============================================================================
   // EFFECTS
@@ -558,6 +568,7 @@ export function CollectionsProvider({ children }: CollectionsProviderProps) {
 
     // AI parsing
     parseListing,
+    parseListingInput,
 
     // Refresh trigger
     refreshTrigger,

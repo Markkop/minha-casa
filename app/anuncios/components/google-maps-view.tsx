@@ -1,5 +1,7 @@
 "use client"
 
+/* eslint-disable @next/next/no-img-element */
+
 import { useState, useCallback, useEffect, useRef } from "react"
 import { 
   APIProvider, 
@@ -14,14 +16,18 @@ import { geocodeAddress } from "../lib/geocoding"
 import {
   type MapViewProps,
   type GeocodedListing,
-  FLORIANOPOLIS_CENTER,
-  DEFAULT_ZOOM,
   calculatePrecoM2,
   getMarkerColor,
   formatCurrency,
   formatCompactPrice,
   hasCustomLocation,
 } from "./map-shared"
+import { markerColors } from "@/lib/theme/colors"
+import {
+  getGoogleMapsApiKey,
+  isGoogleMapsErrorMessage,
+  markGoogleMapsUnavailable,
+} from "../lib/google-maps-config"
 
 // ============================================================================
 // CUSTOM MARKER COMPONENT
@@ -95,22 +101,22 @@ function CustomMarker({
               <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path 
                   d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" 
-                  fill="#fbbf24" 
-                  stroke="#f59e0b" 
+                  fill={markerColors.favoriteFill} 
+                  stroke={markerColors.favoriteStroke} 
                   strokeWidth="1.5" 
                   strokeLinejoin="round"
                 />
               </svg>
               {customLoc && (
                 <div 
-                  className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-blue-500 border-2 border-white rounded-full"
+                  className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-app-accent border-2 border-app-surface rounded-full"
                   style={{ boxShadow: "0 1px 2px rgba(0,0,0,0.3)" }}
                 />
               )}
             </div>
             {priceLabel && (
               <div 
-                className="mt-0.5 px-1.5 py-0.5 bg-black/75 text-white text-xs font-bold rounded whitespace-nowrap"
+                className="mt-0.5 px-1.5 py-0.5 bg-app-fg/75 text-app-surface text-xs font-bold rounded whitespace-nowrap"
                 style={{ lineHeight: 1 }}
               >
                 {priceLabel}
@@ -138,7 +144,7 @@ function CustomMarker({
   }
 
   // Regular colored marker
-  const borderColor = customLoc ? "#3b82f6" : "white"
+  const borderColor = customLoc ? markerColors.customLocation : markerColors.markerBorder
   const borderWidth = customLoc ? "3px" : "2px"
 
   return (
@@ -161,14 +167,14 @@ function CustomMarker({
           >
             {customLoc && (
               <div 
-                className="absolute -top-1 -right-1 w-2 h-2 bg-blue-500 border-2 border-white rounded-full"
+                className="absolute -top-1 -right-1 w-2 h-2 bg-app-accent border-2 border-app-surface rounded-full"
                 style={{ boxShadow: "0 1px 2px rgba(0,0,0,0.3)" }}
               />
             )}
           </div>
           {priceLabel && (
             <div 
-              className="mt-0.5 px-1.5 py-0.5 bg-black/75 text-white text-xs font-bold rounded whitespace-nowrap"
+              className="mt-0.5 px-1.5 py-0.5 bg-app-fg/75 text-app-surface text-xs font-bold rounded whitespace-nowrap"
               style={{ lineHeight: 1 }}
             >
               {priceLabel}
@@ -248,7 +254,7 @@ function MarkerInfoContent({
       <p className="text-gray-600 text-xs mb-2">{listing.endereco}</p>
       {customLoc && (
         <p className="text-xs text-blue-600 mb-2 font-medium">
-          📍 Localização personalizada
+          Localização personalizada
         </p>
       )}
       <div className="space-y-1">
@@ -279,7 +285,7 @@ function MarkerInfoContent({
             onClick={onResetLocation}
             className="text-blue-600 hover:underline text-xs block w-full text-left mb-1"
           >
-            🔄 Restaurar localização original
+            Restaurar localização original
           </button>
         )}
         {listing.link && (
@@ -356,11 +362,12 @@ interface GoogleMapsContentProps extends MapViewProps {
   onError: (error: Error) => void
 }
 
-function GoogleMapsContent({ 
+function GoogleMapsContent({
   geocodedListings,
   onListingsChange,
   minPreco,
   maxPreco,
+  mapViewport,
   apiKey,
   onError,
 }: GoogleMapsContentProps) {
@@ -381,19 +388,21 @@ function GoogleMapsContent({
       
       // Check for Google Maps related errors
       if (
-        errorMessage.includes("referernotallowedmaperror") ||
-        errorMessage.includes("google maps") ||
-        errorMessage.includes("maps.googleapis.com") ||
+        isGoogleMapsErrorMessage(errorMessage) ||
         errorSource.includes("maps.googleapis.com") ||
         errorMessage.includes("getrootnode") ||
         errorMessage.includes("cannot read properties") ||
-        errorMessage.includes("undefined") && errorMessage.includes("read")
+        (errorMessage.includes("undefined") && errorMessage.includes("read"))
       ) {
         console.error("[Google Maps] API Error detected:", event.message, event.filename)
+        markGoogleMapsUnavailable()
         setHasError(true)
         if (errorHandlerRef.current) {
           let errorMsg = "Erro ao carregar Google Maps"
-          if (errorMessage.includes("referernotallowedmaperror")) {
+          if (errorMessage.includes("invalidkeymaperror")) {
+            errorMsg =
+              "Chave da API do Google Maps inválida. Configure NEXT_PUBLIC_GOOGLE_MAPS_API_KEY no .env.local ou use o mapa OSM."
+          } else if (errorMessage.includes("referernotallowedmaperror")) {
             errorMsg = "RefererNotAllowedMapError: O domínio não está autorizado para usar esta chave da API do Google Maps. Verifique as restrições de referrer na Google Cloud Console."
           } else if (errorMessage.includes("getrootnode") || errorMessage.includes("cannot read properties")) {
             errorMsg = "Erro ao inicializar Google Maps. Verifique se a API está configurada corretamente."
@@ -413,14 +422,13 @@ function GoogleMapsContent({
       const errorObj = event.reason
       
       if (
-        reason.includes("RefererNotAllowedMapError") ||
-        reason.includes("Google Maps") ||
-        reason.includes("maps.googleapis.com") ||
+        isGoogleMapsErrorMessage(reason) ||
         (errorObj && typeof errorObj === "object" && "name" in errorObj && 
          (errorObj.name === "RefererNotAllowedMapError" || 
           String(errorObj.name).includes("Google")))
       ) {
         console.error("[Google Maps] Promise rejection:", reason, errorObj)
+        markGoogleMapsUnavailable()
         setHasError(true)
         if (errorHandlerRef.current) {
           let errorMsg = "Erro ao carregar Google Maps"
@@ -478,8 +486,9 @@ function GoogleMapsContent({
   return (
     <APIProvider apiKey={apiKey} region="BR" language="pt-BR">
       <Map
-        defaultCenter={FLORIANOPOLIS_CENTER}
-        defaultZoom={DEFAULT_ZOOM}
+        key={`${mapViewport.lat}-${mapViewport.lng}-${mapViewport.zoom}-${mapViewport.source}`}
+        defaultCenter={{ lat: mapViewport.lat, lng: mapViewport.lng }}
+        defaultZoom={mapViewport.zoom}
         mapId="minha-casa-map"
         className="h-[400px] rounded-lg"
         gestureHandling="cooperative"
@@ -512,19 +521,20 @@ function GoogleMapsContent({
 // GOOGLE MAPS VIEW COMPONENT
 // ============================================================================
 
-export function GoogleMapsView({ 
+export function GoogleMapsView({
   geocodedListings,
   onListingsChange,
   minPreco,
   maxPreco,
+  mapViewport,
 }: MapViewProps) {
-  const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
+  const apiKey = getGoogleMapsApiKey()
   const [error, setError] = useState<Error | null>(null)
 
-  if (!apiKey || apiKey === "YOUR_API_KEY_HERE") {
+  if (!apiKey) {
     return (
-      <div className="h-[400px] flex flex-col items-center justify-center bg-eerieBlack rounded-lg text-center p-4">
-        <p className="text-ashGray mb-2">
+      <div className="h-[400px] flex flex-col items-center justify-center bg-app-surface-muted rounded-lg text-center p-4">
+        <p className="text-app-muted mb-2">
           Google Maps API key não configurada.
         </p>
         <p className="text-xs text-muted-foreground">
@@ -537,7 +547,7 @@ export function GoogleMapsView({
   // Show error UI if there's an error
   if (error) {
     return (
-      <div className="h-[400px] flex flex-col items-center justify-center bg-eerieBlack rounded-lg text-center p-4">
+      <div className="h-[400px] flex flex-col items-center justify-center bg-app-surface-muted rounded-lg text-center p-4">
         <div className="mb-4">
           <svg
             className="w-12 h-12 mx-auto text-yellow-500 mb-2"
@@ -553,7 +563,7 @@ export function GoogleMapsView({
             />
           </svg>
         </div>
-        <p className="text-ashGray mb-2 font-semibold">
+        <p className="text-app-muted mb-2 font-semibold">
           Erro ao carregar Google Maps
         </p>
         <p className="text-xs text-muted-foreground mb-4 max-w-md">
@@ -584,6 +594,7 @@ export function GoogleMapsView({
       onListingsChange={onListingsChange}
       minPreco={minPreco}
       maxPreco={maxPreco}
+      mapViewport={mapViewport}
       apiKey={apiKey}
       onError={setError}
     />

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react"
 import Link from "next/link"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import {
   Table,
@@ -17,10 +17,34 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover"
 import { cn } from "@/lib/utils"
 import { ArrowDownIcon, ArrowUpIcon, MagnifyingGlassIcon } from "@radix-ui/react-icons"
-import { Home, Building, Flag, Waves, Shield, Dumbbell, Mountain, Car, WavesLadder, BedDouble, Bath, Star, LinkIcon, MapPin } from "lucide-react"
+import { AlertCircle, Home, Building, Flag, Waves, Shield, Dumbbell, Mountain, Car, WavesLadder, BedDouble, Bath, Star, LinkIcon, MapPin, Loader2, Search } from "lucide-react"
+import { ListingLocationMiniMap } from "@/app/anuncios/components/listing-location-mini-map"
+import type { Imovel } from "@/app/anuncios/lib/api"
+import { FaWhatsapp } from "react-icons/fa"
 import type { ListingData } from "@/lib/db/schema"
+import { PageToolbarButton } from "@/app/components/page-toolbar"
+import { ListingsDisplayPopover } from "@/app/anuncios/components/listings-display-popover"
+import {
+  LISTINGS_PANEL_CARD_CLASS,
+  LISTINGS_PANEL_TOOLBAR_CLASS,
+} from "@/app/anuncios/components/listings-panel-layout"
+import { AreaM2Stack, PricePerM2Stack } from "@/app/anuncios/components/listings-metric-stacks"
+import {
+  DEFAULT_PROPERTY_DISPLAY,
+  getEnabledMetricVariants,
+  getInitialPropertyDisplay,
+  PROPERTY_DISPLAY_STORAGE_KEY,
+  shouldShowPropertyTypeFilters,
+  type ListingsPropertyDisplayPrefs,
+} from "@/app/anuncios/lib/listings-display-prefs"
+import { buildWhatsAppUrl } from "@/app/anuncios/lib/listings-contact"
 
 // ============================================================================
 // TYPES
@@ -65,6 +89,13 @@ interface SortableHeaderProps {
 }
 
 type PropertyTypeFilter = "all" | "casa" | "apartamento"
+type MetricVariant = "total" | "privado"
+
+function getMetricVariantForSortKey(key: SortKey): MetricVariant | null {
+  if (key === "m2Totais" || key === "precoM2") return "total"
+  if (key === "m2Privado" || key === "precoM2Privado") return "privado"
+  return null
+}
 
 // ============================================================================
 // HELPER COMPONENTS
@@ -89,7 +120,7 @@ function SortableHeader({
   return (
     <TableHead
       className={cn(
-        "text-primary cursor-pointer hover:bg-middleGray/30 transition-colors select-none",
+        "text-app-accent cursor-pointer hover:bg-app-surface-muted/30 transition-colors select-none",
         align === "right" && "text-right",
         align === "center" && "text-center"
       )}
@@ -99,12 +130,94 @@ function SortableHeader({
         <span>{label}</span>
         {isActive && (
           isAsc ? (
-            <ArrowUpIcon className="h-3 w-3 text-primary" />
+            <ArrowUpIcon className="h-3 w-3 text-app-accent" />
           ) : (
-            <ArrowDownIcon className="h-3 w-3 text-primary" />
+            <ArrowDownIcon className="h-3 w-3 text-app-accent" />
           )
         )}
       </div>
+    </TableHead>
+  )
+}
+
+function StackedSortHeader({
+  label,
+  totalSortKey,
+  privadoSortKey,
+  currentSort,
+  onSort,
+}: {
+  label: string
+  totalSortKey: SortKey
+  privadoSortKey: SortKey
+  currentSort: SortState
+  onSort: (key: SortKey) => void
+}) {
+  const [open, setOpen] = useState(false)
+  const activeVariant: MetricVariant | null =
+    currentSort.key === totalSortKey
+      ? "total"
+      : currentSort.key === privadoSortKey
+        ? "privado"
+        : null
+  const isAsc = activeVariant !== null && currentSort.direction === "asc"
+
+  return (
+    <TableHead className="text-right text-app-accent">
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <button
+            type="button"
+            className="ml-auto flex items-center justify-end gap-1 rounded-sm px-1 py-0.5 text-right transition-colors hover:bg-app-surface-muted/30"
+          >
+            <span>{label}</span>
+            {activeVariant !== null && (
+              isAsc ? (
+                <ArrowUpIcon className="h-3 w-3 text-app-accent" />
+              ) : (
+                <ArrowDownIcon className="h-3 w-3 text-app-accent" />
+              )
+            )}
+          </button>
+        </PopoverTrigger>
+        <PopoverContent
+          align="end"
+          sideOffset={6}
+          className="w-36 border-app-border bg-app-surface p-1 text-app-fg"
+        >
+          {[
+            { label: "total", key: totalSortKey },
+            { label: "privado", key: privadoSortKey },
+          ].map((option) => {
+            const isActive = currentSort.key === option.key
+            return (
+              <button
+                key={option.key}
+                type="button"
+                onClick={() => {
+                  onSort(option.key)
+                  setOpen(false)
+                }}
+                className={cn(
+                  "flex w-full items-center justify-between rounded px-2 py-1.5 text-left text-xs transition-colors",
+                  isActive
+                    ? "bg-app-action text-app-action-foreground"
+                    : "text-app-muted hover:bg-app-surface-muted hover:text-app-fg"
+                )}
+              >
+                <span>{option.label}</span>
+                {isActive && (
+                  isAsc ? (
+                    <ArrowUpIcon className="h-3 w-3" />
+                  ) : (
+                    <ArrowDownIcon className="h-3 w-3" />
+                  )
+                )}
+              </button>
+            )
+          })}
+        </PopoverContent>
+      </Popover>
     </TableHead>
   )
 }
@@ -183,6 +296,23 @@ export function ShareClient({ token }: ShareClientProps) {
   const [searchQuery, setSearchQuery] = useState("")
   const [sort, setSort] = useState<SortState>({ key: "preco", direction: "desc" })
   const [propertyTypeFilter, setPropertyTypeFilter] = useState<PropertyTypeFilter>("all")
+  const [propertyDisplay, setPropertyDisplay] = useState<ListingsPropertyDisplayPrefs>({ ...DEFAULT_PROPERTY_DISPLAY })
+  const [propertyDisplayLoaded, setPropertyDisplayLoaded] = useState(false)
+
+  useEffect(() => {
+    setPropertyDisplay(getInitialPropertyDisplay())
+    setPropertyDisplayLoaded(true)
+  }, [])
+
+  useEffect(() => {
+    if (!propertyDisplayLoaded) return
+    window.localStorage.setItem(PROPERTY_DISPLAY_STORAGE_KEY, JSON.stringify(propertyDisplay))
+  }, [propertyDisplay, propertyDisplayLoaded])
+
+  const enabledMetricVariants = useMemo(
+    () => getEnabledMetricVariants(propertyDisplay),
+    [propertyDisplay]
+  )
 
   useEffect(() => {
     const fetchData = async () => {
@@ -191,7 +321,7 @@ export function ShareClient({ token }: ShareClientProps) {
         setError(null)
 
         const response = await fetch(`/api/shared/${token}`)
-        
+
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({}))
           throw new Error(errorData.error || "Falha ao carregar coleção compartilhada")
@@ -226,6 +356,17 @@ export function ShareClient({ token }: ShareClientProps) {
       createdAt: listing.createdAt,
     }))
   }, [data])
+
+  const showTypeFilters = useMemo(
+    () => shouldShowPropertyTypeFilters(listings),
+    [listings]
+  )
+
+  useEffect(() => {
+    if (!showTypeFilters && propertyTypeFilter !== "all") {
+      setPropertyTypeFilter("all")
+    }
+  }, [showTypeFilters, propertyTypeFilter])
 
   // Filter and sort listings
   const filteredAndSortedListings = useMemo(() => {
@@ -295,10 +436,10 @@ export function ShareClient({ token }: ShareClientProps) {
   // Loading state
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-black text-white flex items-center justify-center">
+      <div className="min-h-screen bg-app-bg text-app-fg flex items-center justify-center">
         <div className="text-center">
-          <span className="animate-spin text-4xl inline-block mb-4">⏳</span>
-          <p className="text-ashGray">Carregando coleção compartilhada...</p>
+          <Loader2 className="h-12 w-12 animate-spin mx-auto mb-4 text-muted-foreground" />
+          <p className="text-app-muted">Carregando coleção compartilhada...</p>
         </div>
       </div>
     )
@@ -307,17 +448,17 @@ export function ShareClient({ token }: ShareClientProps) {
   // Error state
   if (error) {
     return (
-      <div className="min-h-screen bg-black text-white flex items-center justify-center">
-        <Card className="max-w-md mx-4 bg-raisinBlack border-brightGrey">
+      <div className="min-h-screen bg-app-bg text-app-fg flex items-center justify-center">
+        <Card className="max-w-md mx-4 bg-app-surface border-app-border">
           <CardContent className="py-12 text-center">
-            <p className="text-4xl mb-4">😕</p>
+            <AlertCircle className="h-12 w-12 mx-auto mb-4 text-destructive" />
             <p className="text-destructive mb-2 font-medium">Erro ao carregar coleção</p>
             <p className="text-sm text-muted-foreground mb-6">{error}</p>
             <Link
               href="/"
               className={cn(
                 "inline-flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all",
-                "bg-primary text-primary-foreground hover:bg-primary/90"
+                "bg-app-action text-app-action-foreground hover:bg-app-action-hover"
               )}
             >
               Ir para página inicial
@@ -331,11 +472,11 @@ export function ShareClient({ token }: ShareClientProps) {
   // Not found state
   if (!data?.collection) {
     return (
-      <div className="min-h-screen bg-black text-white flex items-center justify-center">
-        <Card className="max-w-md mx-4 bg-raisinBlack border-brightGrey">
+      <div className="min-h-screen bg-app-bg text-app-fg flex items-center justify-center">
+        <Card className="max-w-md mx-4 bg-app-surface border-app-border">
           <CardContent className="py-12 text-center">
-            <p className="text-4xl mb-4">🔍</p>
-            <p className="text-white mb-2 font-medium">Coleção não encontrada</p>
+            <Search className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+            <p className="text-app-fg mb-2 font-medium">Coleção não encontrada</p>
             <p className="text-sm text-muted-foreground mb-6">
               O link de compartilhamento pode ter expirado ou sido revogado.
             </p>
@@ -343,7 +484,7 @@ export function ShareClient({ token }: ShareClientProps) {
               href="/"
               className={cn(
                 "inline-flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all",
-                "bg-primary text-primary-foreground hover:bg-primary/90"
+                "bg-app-action text-app-action-foreground hover:bg-app-action-hover"
               )}
             >
               Ir para página inicial
@@ -358,35 +499,27 @@ export function ShareClient({ token }: ShareClientProps) {
   const aptoCount = listings.filter((l) => l.tipoImovel === "apartamento").length
 
   return (
-    <div className="min-h-screen bg-black text-white">
+    <div className="min-h-screen bg-app-bg text-app-fg">
       {/* Header */}
-      <header className="border-b border-brightGrey bg-raisinBlack">
+      <header className="border-b border-app-border bg-app-surface">
         <div className="max-w-7xl mx-auto px-4 py-6">
           <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 mb-2">
-                <span className="text-sm text-muted-foreground bg-eerieBlack px-2 py-0.5 rounded border border-brightGrey">
-                  Coleção Compartilhada
-                </span>
-              </div>
-              <h1 className="text-3xl font-bold text-primary mb-2">
-                🏘️ {data.collection.name}
-              </h1>
-              <p className="text-ashGray">
-                {data.metadata.totalListings} {data.metadata.totalListings === 1 ? "imóvel" : "imóveis"} nesta coleção
-              </p>
+            <div className="flex flex-1 min-w-0 flex-wrap items-center gap-2">
+              <span className="text-sm text-muted-foreground bg-app-surface-muted px-2 py-0.5 rounded border border-app-border">
+                Coleção Compartilhada
+              </span>
+              <span className="text-sm font-semibold text-app-fg">{data.collection.name}</span>
             </div>
             <div className="flex items-center gap-3">
               <Link
                 href="/"
                 className={cn(
                   "px-4 py-2 rounded-lg text-sm font-medium transition-all",
-                  "bg-primary text-primary-foreground",
-                  "hover:bg-primary/90",
+                  "bg-app-action text-app-action-foreground",
+                  "hover:bg-app-action-hover",
                   "flex items-center gap-2 whitespace-nowrap"
                 )}
               >
-                <span>🏠</span>
                 <span>Minha Casa</span>
               </Link>
             </div>
@@ -396,78 +529,57 @@ export function ShareClient({ token }: ShareClientProps) {
 
       <main className="max-w-7xl mx-auto px-4 py-6 space-y-6">
         {listings.length === 0 ? (
-          <Card className="bg-raisinBlack border-brightGrey">
+          <Card className="bg-app-surface border-app-border">
             <CardContent className="py-12 text-center">
-              <p className="text-4xl mb-4">🏠</p>
-              <p className="text-ashGray">
+              <Home className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+              <p className="text-app-muted">
                 Esta coleção não possui imóveis cadastrados.
               </p>
             </CardContent>
           </Card>
         ) : (
-          <Card className="bg-raisinBlack border-brightGrey">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-lg flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span>📋</span>
-                  <span>Imóveis</span>
-                </div>
-                <span className="text-sm font-normal text-muted-foreground">
-                  {filteredAndSortedListings.length === listings.length
-                    ? `${listings.length} ${listings.length === 1 ? "imóvel" : "imóveis"}`
-                    : `${filteredAndSortedListings.length} de ${listings.length} imóveis`}
-                </span>
-              </CardTitle>
-
-              {/* Search */}
-              <div className="flex items-center gap-3 mt-3">
-                <div className="relative flex-1">
-                  <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Card className={LISTINGS_PANEL_CARD_CLASS}>
+            <CardHeader className={LISTINGS_PANEL_TOOLBAR_CLASS}>
+              <div className="flex min-w-0 items-center gap-1.5 overflow-x-auto">
+                <ListingsDisplayPopover
+                  prefs={propertyDisplay}
+                  onChange={setPropertyDisplay}
+                />
+                <div className="relative min-w-0 flex-1">
+                  <MagnifyingGlassIcon className="absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
                   <Input
                     type="text"
                     placeholder="Buscar por título ou endereço..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-9 bg-eerieBlack border-brightGrey text-white placeholder:text-muted-foreground"
+                    className="h-7 border-app-border bg-app-surface py-0 pl-7 text-xs text-app-fg placeholder:text-app-subtle"
                   />
                 </div>
-              </div>
-
-              {/* Property Type Filter Buttons */}
-              <div className="flex items-center gap-2 mt-3">
-                <button
-                  onClick={() => setPropertyTypeFilter("all")}
-                  className={cn(
-                    "px-3 py-1.5 rounded-full text-sm font-medium transition-all border",
-                    propertyTypeFilter === "all"
-                      ? "bg-primary text-primary-foreground border-primary"
-                      : "bg-eerieBlack border-brightGrey text-muted-foreground hover:border-primary hover:text-primary"
-                  )}
-                >
-                  Todos ({listings.length})
-                </button>
-                <button
-                  onClick={() => setPropertyTypeFilter("casa")}
-                  className={cn(
-                    "px-3 py-1.5 rounded-full text-sm font-medium transition-all border",
-                    propertyTypeFilter === "casa"
-                      ? "bg-primary text-primary-foreground border-primary"
-                      : "bg-eerieBlack border-brightGrey text-muted-foreground hover:border-primary hover:text-primary"
-                  )}
-                >
-                  Casas ({casaCount})
-                </button>
-                <button
-                  onClick={() => setPropertyTypeFilter("apartamento")}
-                  className={cn(
-                    "px-3 py-1.5 rounded-full text-sm font-medium transition-all border",
-                    propertyTypeFilter === "apartamento"
-                      ? "bg-primary text-primary-foreground border-primary"
-                      : "bg-eerieBlack border-brightGrey text-muted-foreground hover:border-primary hover:text-primary"
-                  )}
-                >
-                  Aptos ({aptoCount})
-                </button>
+                {showTypeFilters && (
+                  <>
+                    <PageToolbarButton
+                      variant={propertyTypeFilter === "all" ? "active" : "secondary"}
+                      onClick={() => setPropertyTypeFilter("all")}
+                      className="h-7 shrink-0 rounded-full px-2"
+                    >
+                      Todos ({listings.length})
+                    </PageToolbarButton>
+                    <PageToolbarButton
+                      variant={propertyTypeFilter === "casa" ? "active" : "secondary"}
+                      onClick={() => setPropertyTypeFilter("casa")}
+                      className="h-7 shrink-0 rounded-full px-2"
+                    >
+                      Casas ({casaCount})
+                    </PageToolbarButton>
+                    <PageToolbarButton
+                      variant={propertyTypeFilter === "apartamento" ? "active" : "secondary"}
+                      onClick={() => setPropertyTypeFilter("apartamento")}
+                      className="h-7 shrink-0 rounded-full px-2"
+                    >
+                      Aptos ({aptoCount})
+                    </PageToolbarButton>
+                  </>
+                )}
               </div>
             </CardHeader>
 
@@ -481,47 +593,15 @@ export function ShareClient({ token }: ShareClientProps) {
               ) : (
                 <Table>
                   <TableHeader>
-                    <TableRow className="border-brightGrey hover:bg-transparent">
-                      <TableHead className="sticky left-0 z-20 bg-raisinBlack">
-                        <span className="text-primary">Imagem</span>
+                    <TableRow className="border-app-border hover:bg-transparent">
+                      <TableHead className="sticky left-0 z-20 bg-app-surface">
+                        <span className="text-app-accent">Imagem</span>
                       </TableHead>
                       <SortableHeader
                         label="Imóvel"
                         sortKey="titulo"
                         currentSort={sort}
                         onSort={handleSort}
-                      />
-                      {propertyTypeFilter !== "apartamento" && (
-                        <SortableHeader
-                          label="m² total"
-                          sortKey="m2Totais"
-                          currentSort={sort}
-                          onSort={handleSort}
-                          align="right"
-                        />
-                      )}
-                      {propertyTypeFilter !== "apartamento" && (
-                        <SortableHeader
-                          label="R$/m² total"
-                          sortKey="precoM2"
-                          currentSort={sort}
-                          onSort={handleSort}
-                          align="right"
-                        />
-                      )}
-                      <SortableHeader
-                        label="m² priv."
-                        sortKey="m2Privado"
-                        currentSort={sort}
-                        onSort={handleSort}
-                        align="right"
-                      />
-                      <SortableHeader
-                        label="R$/m² priv."
-                        sortKey="precoM2Privado"
-                        currentSort={sort}
-                        onSort={handleSort}
-                        align="right"
                       />
                       <SortableHeader
                         label="Preço"
@@ -530,6 +610,20 @@ export function ShareClient({ token }: ShareClientProps) {
                         onSort={handleSort}
                         align="right"
                       />
+                      <StackedSortHeader
+                        label="Área"
+                        totalSortKey="m2Totais"
+                        privadoSortKey="m2Privado"
+                        currentSort={sort}
+                        onSort={handleSort}
+                      />
+                      <StackedSortHeader
+                        label="Valor"
+                        totalSortKey="precoM2"
+                        privadoSortKey="precoM2Privado"
+                        currentSort={sort}
+                        onSort={handleSort}
+                      />
                       <SortableHeader
                         label="Quartos"
                         sortKey="quartos"
@@ -537,9 +631,9 @@ export function ShareClient({ token }: ShareClientProps) {
                         onSort={handleSort}
                         align="center"
                       />
-                      <TableHead className="text-primary text-center">WC</TableHead>
+                      <TableHead className="text-app-accent text-center">WC</TableHead>
                       <SortableHeader
-                        label="Adicionado"
+                        label="Datas"
                         sortKey="addedAt"
                         currentSort={sort}
                         onSort={handleSort}
@@ -552,25 +646,25 @@ export function ShareClient({ token }: ShareClientProps) {
                       <TableRow
                         key={imovel.id}
                         className={cn(
-                          "border-brightGrey group",
+                          "border-app-border group",
                           imovel.starred
-                            ? "bg-primary/20 hover:bg-primary/30"
-                            : "hover:bg-eerieBlack/50"
+                            ? "bg-app-action/20 hover:bg-app-action-hover/30"
+                            : "hover:bg-app-surface-muted/50"
                         )}
                       >
                         {/* Image Column */}
-                        <TableCell className="sticky left-0 z-10 p-2 bg-raisinBlack">
+                        <TableCell className="sticky left-0 z-10 p-2 bg-app-surface">
                           <div
                             className={cn(
                               "absolute inset-0 pointer-events-none z-0",
                               imovel.starred
-                                ? "bg-primary/20 group-hover:bg-primary/30"
-                                : "group-hover:bg-eerieBlack/50"
+                                ? "bg-app-action/20 group-hover:bg-app-action-hover/30"
+                                : "group-hover:bg-app-surface-muted/50"
                             )}
                           />
                           <div className="relative z-10 flex-shrink-0">
                             {imovel.imageUrl ? (
-                              <div className="h-20 w-20 rounded border border-brightGrey overflow-hidden aspect-square">
+                              <div className="h-20 w-20 rounded border border-app-border overflow-hidden aspect-square">
                                 {/* eslint-disable-next-line @next/next/no-img-element */}
                                 <img
                                   src={imovel.imageUrl}
@@ -582,9 +676,15 @@ export function ShareClient({ token }: ShareClientProps) {
                                 />
                               </div>
                             ) : (
-                              <div className="h-20 w-20 rounded bg-eerieBlack border border-brightGrey flex items-center justify-center aspect-square">
-                                <span className="text-xs text-muted-foreground">🏠</span>
-                              </div>
+                              <ListingLocationMiniMap
+                                listing={imovel as Imovel}
+                                variant="thumbnail"
+                                fallback={
+                                  <div className="h-20 w-20 rounded bg-app-surface-muted border border-app-border flex items-center justify-center aspect-square">
+                                    <Home className="h-3 w-3 text-muted-foreground" />
+                                  </div>
+                                }
+                              />
                             )}
                           </div>
                         </TableCell>
@@ -609,7 +709,7 @@ export function ShareClient({ token }: ShareClientProps) {
                                     href={imovel.link}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="font-medium leading-snug truncate hover:text-primary transition-colors cursor-pointer flex-1 min-w-0"
+                                    className="font-medium leading-snug truncate hover:text-app-accent transition-colors cursor-pointer flex-1 min-w-0"
                                     title={`Abrir anúncio: ${imovel.titulo}`}
                                   >
                                     {truncateTitle(imovel.titulo)}
@@ -623,113 +723,125 @@ export function ShareClient({ token }: ShareClientProps) {
                                   </div>
                                 )}
                               </div>
-                              <a
-                                href={buildGoogleMapsUrl(imovel.endereco)}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="block text-xs text-muted-foreground truncate hover:text-primary transition-colors underline decoration-dotted underline-offset-2 mt-1"
-                                title={`Abrir ${imovel.endereco} no Google Maps`}
-                              >
-                                {imovel.endereco}
-                              </a>
+                              {propertyDisplay.showAddress && (
+                                <a
+                                  href={buildGoogleMapsUrl(imovel.endereco)}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="mt-1 block truncate text-xs text-muted-foreground underline decoration-dotted underline-offset-2 transition-colors hover:text-app-accent"
+                                  title={`Abrir ${imovel.endereco} no Google Maps`}
+                                >
+                                  {imovel.endereco}
+                                </a>
+                              )}
+                              {propertyDisplay.showContact && imovel.contactNumber && (() => {
+                                const whatsappUrl = buildWhatsAppUrl(imovel.contactNumber)
+                                if (!whatsappUrl) return null
+                                return (
+                                  <a
+                                    href={whatsappUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="mt-1 flex min-w-0 items-center gap-1 truncate text-xs text-green-600 transition-colors hover:text-green-500"
+                                    title={imovel.contactName ? `WhatsApp — ${imovel.contactName}` : "Abrir WhatsApp"}
+                                  >
+                                    <FaWhatsapp className="h-3 w-3 shrink-0" />
+                                    <span className="truncate">
+                                      {imovel.contactName ?? imovel.contactNumber}
+                                    </span>
+                                  </a>
+                                )
+                              })()}
                             </div>
 
-                            {/* Amenities row */}
-                            <div className="flex items-center gap-2 flex-nowrap">
-                              {/* Piscina */}
+                            {propertyDisplay.showPropertyIcons && (
+                          <div className="flex min-w-[220px] items-center justify-center gap-2 flex-nowrap">
+                            <span
+                              className={cn(
+                                "flex-shrink-0 p-1",
+                                imovel.piscina === true ? "text-blue-500" : "text-muted-foreground opacity-50"
+                              )}
+                            >
+                              <WavesLadder className="h-4 w-4" />
+                            </span>
+                            {imovel.tipoImovel === "apartamento" && (
                               <span
                                 className={cn(
                                   "flex-shrink-0 p-1",
-                                  imovel.piscina === true ? "text-blue-500" : "text-muted-foreground opacity-50"
+                                  imovel.piscinaTermica === true ? "text-blue-500" : "text-muted-foreground opacity-50"
                                 )}
                               >
-                                <WavesLadder className="h-4 w-4" />
+                                <Waves className="h-4 w-4" />
                               </span>
-                              {/* Piscina Térmica - show only for apartamento */}
-                              {imovel.tipoImovel === "apartamento" && (
-                                <span
-                                  className={cn(
-                                    "flex-shrink-0 p-1",
-                                    imovel.piscinaTermica === true ? "text-blue-500" : "text-muted-foreground opacity-50"
-                                  )}
-                                >
-                                  <Waves className="h-4 w-4" />
-                                </span>
-                              )}
-                              {/* Porteiro 24h - show only for apartamento */}
-                              {imovel.tipoImovel === "apartamento" && (
-                                <span
-                                  className={cn(
-                                    "flex-shrink-0 p-1",
-                                    imovel.porteiro24h === true ? "text-red-500" : "text-muted-foreground opacity-50"
-                                  )}
-                                >
-                                  <Shield className="h-4 w-4" />
-                                </span>
-                              )}
-                              {/* Academia - show only for apartamento */}
-                              {imovel.tipoImovel === "apartamento" && (
-                                <span
-                                  className={cn(
-                                    "flex-shrink-0 p-1",
-                                    imovel.academia === true ? "text-yellow-500" : "text-muted-foreground opacity-50"
-                                  )}
-                                >
-                                  <Dumbbell className="h-4 w-4" />
-                                </span>
-                              )}
-                              {/* Quartos */}
-                              <span className="flex-shrink-0 p-1 relative w-6 h-6 flex items-center justify-center">
-                                <BedDouble className="h-4 w-4 absolute text-muted-foreground opacity-50" />
-                                <span className={cn(
-                                  "relative z-10 font-bold text-[10px] drop-shadow-[0_0_2px_rgba(0,0,0,1)]",
-                                  (imovel.quartos ?? 0) > 0 ? "text-white" : "text-muted-foreground opacity-50"
-                                )}>
-                                  {imovel.quartos ?? 0}
-                                </span>
-                              </span>
-                              {/* Banheiros */}
-                              <span className="flex-shrink-0 p-1 relative w-6 h-6 flex items-center justify-center">
-                                <Bath className="h-4 w-4 absolute text-muted-foreground opacity-50" />
-                                <span className={cn(
-                                  "relative z-10 font-bold text-[10px] drop-shadow-[0_0_2px_rgba(0,0,0,1)]",
-                                  (imovel.banheiros ?? 0) > 0 ? "text-white" : "text-muted-foreground opacity-50"
-                                )}>
-                                  {imovel.banheiros ?? 0}
-                                </span>
-                              </span>
-                              {/* Andar - show only for apartamento */}
-                              {imovel.tipoImovel === "apartamento" && (
-                                <span className="flex-shrink-0 p-1 relative w-6 h-6 flex items-center justify-center">
-                                  <Building className="h-4 w-4 absolute text-muted-foreground opacity-50" />
-                                  <span className={cn(
-                                    "relative z-10 font-bold text-[10px] drop-shadow-[0_0_2px_rgba(0,0,0,1)]",
-                                    (imovel.andar ?? 0) > 0 ? "text-white" : "text-muted-foreground opacity-50"
-                                  )}>
-                                    {imovel.andar === 10 ? "+" : (imovel.andar ?? 0)}
-                                  </span>
-                                </span>
-                              )}
-                              {/* Garagem */}
-                              <span className="flex-shrink-0 p-1 relative w-6 h-6 flex items-center justify-center">
-                                <Car className="h-4 w-4 absolute text-muted-foreground opacity-50" />
-                                <span className={cn(
-                                  "relative z-10 font-bold text-[10px] drop-shadow-[0_0_2px_rgba(0,0,0,1)]",
-                                  (imovel.garagem ?? 0) > 0 ? "text-white" : "text-muted-foreground opacity-50"
-                                )}>
-                                  {imovel.garagem ?? 0}
-                                </span>
-                              </span>
-                              {/* Vista Livre */}
+                            )}
+                            {imovel.tipoImovel === "apartamento" && (
                               <span
                                 className={cn(
                                   "flex-shrink-0 p-1",
-                                  imovel.vistaLivre === true ? "text-green-500" : "text-muted-foreground opacity-50"
+                                  imovel.porteiro24h === true ? "text-red-500" : "text-muted-foreground opacity-50"
                                 )}
                               >
-                                <Mountain className="h-4 w-4" />
+                                <Shield className="h-4 w-4" />
                               </span>
-                            </div>
+                            )}
+                            {imovel.tipoImovel === "apartamento" && (
+                              <span
+                                className={cn(
+                                  "flex-shrink-0 p-1",
+                                  imovel.academia === true ? "text-yellow-500" : "text-muted-foreground opacity-50"
+                                )}
+                              >
+                                <Dumbbell className="h-4 w-4" />
+                              </span>
+                            )}
+                            <span className="flex-shrink-0 p-1 relative w-6 h-6 flex items-center justify-center">
+                              <BedDouble className="h-4 w-4 absolute text-muted-foreground opacity-50" />
+                              <span className={cn(
+                                "relative z-10 font-bold text-[10px] drop-shadow-[0_0_2px_rgba(0,0,0,1)]",
+                                (imovel.quartos ?? 0) > 0 ? "text-app-fg" : "text-muted-foreground opacity-50"
+                              )}>
+                                {imovel.quartos ?? 0}
+                              </span>
+                            </span>
+                            <span className="flex-shrink-0 p-1 relative w-6 h-6 flex items-center justify-center">
+                              <Bath className="h-4 w-4 absolute text-muted-foreground opacity-50" />
+                              <span className={cn(
+                                "relative z-10 font-bold text-[10px] drop-shadow-[0_0_2px_rgba(0,0,0,1)]",
+                                (imovel.banheiros ?? 0) > 0 ? "text-app-fg" : "text-muted-foreground opacity-50"
+                              )}>
+                                {imovel.banheiros ?? 0}
+                              </span>
+                            </span>
+                            {imovel.tipoImovel === "apartamento" && (
+                              <span className="flex-shrink-0 p-1 relative w-6 h-6 flex items-center justify-center">
+                                <Building className="h-4 w-4 absolute text-muted-foreground opacity-50" />
+                                <span className={cn(
+                                  "relative z-10 font-bold text-[10px] drop-shadow-[0_0_2px_rgba(0,0,0,1)]",
+                                  (imovel.andar ?? 0) > 0 ? "text-app-fg" : "text-muted-foreground opacity-50"
+                                )}>
+                                  {imovel.andar === 10 ? "+" : (imovel.andar ?? 0)}
+                                </span>
+                              </span>
+                            )}
+                            <span className="flex-shrink-0 p-1 relative w-6 h-6 flex items-center justify-center">
+                              <Car className="h-4 w-4 absolute text-muted-foreground opacity-50" />
+                              <span className={cn(
+                                "relative z-10 font-bold text-[10px] drop-shadow-[0_0_2px_rgba(0,0,0,1)]",
+                                (imovel.garagem ?? 0) > 0 ? "text-app-fg" : "text-muted-foreground opacity-50"
+                              )}>
+                                {imovel.garagem ?? 0}
+                              </span>
+                            </span>
+                            <span
+                              className={cn(
+                                "flex-shrink-0 p-1",
+                                imovel.vistaLivre === true ? "text-green-500" : "text-muted-foreground opacity-50"
+                              )}
+                            >
+                              <Mountain className="h-4 w-4" />
+                            </span>
+                          </div>
+                            )}
 
                             {/* Actions row (read-only links) */}
                             <div className="flex items-center gap-2 flex-nowrap">
@@ -744,15 +856,15 @@ export function ShareClient({ token }: ShareClientProps) {
                                     href={buildGoogleMapsUrl(imovel.endereco)}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="text-muted-foreground hover:text-primary transition-colors p-1 inline-block flex-shrink-0"
+                                    className="text-muted-foreground hover:text-app-accent transition-colors p-1 inline-block flex-shrink-0"
                                   >
                                     <MapPin className="h-4 w-4" />
                                   </a>
                                 </TooltipTrigger>
-                                <TooltipContent 
-                                  side="bottom" 
+                                <TooltipContent
+                                  side="bottom"
                                   sideOffset={4}
-                                  className="bg-raisinBlack border border-brightGrey text-white"
+                                  className="bg-app-surface border border-app-border text-app-fg"
                                 >
                                   Ver no Google Maps
                                 </TooltipContent>
@@ -764,15 +876,15 @@ export function ShareClient({ token }: ShareClientProps) {
                                       href={imovel.link}
                                       target="_blank"
                                       rel="noopener noreferrer"
-                                      className="text-muted-foreground hover:text-primary transition-colors p-1 inline-block flex-shrink-0"
+                                      className="text-muted-foreground hover:text-app-accent transition-colors p-1 inline-block flex-shrink-0"
                                     >
                                       <LinkIcon className="h-4 w-4" />
                                     </a>
                                   </TooltipTrigger>
-                                  <TooltipContent 
-                                    side="bottom" 
+                                  <TooltipContent
+                                    side="bottom"
                                     sideOffset={4}
-                                    className="bg-raisinBlack border border-brightGrey text-white"
+                                    className="bg-app-surface border border-app-border text-app-fg"
                                   >
                                     Abrir link do anúncio
                                   </TooltipContent>
@@ -782,33 +894,29 @@ export function ShareClient({ token }: ShareClientProps) {
                           </div>
                         </TableCell>
 
-                        {/* m² Total */}
-                        {propertyTypeFilter !== "apartamento" && (
-                          <TableCell className="text-right font-mono text-sm">
-                            {formatNumber(imovel.m2Totais, "m²")}
-                          </TableCell>
-                        )}
-
-                        {/* R$/m² Total */}
-                        {propertyTypeFilter !== "apartamento" && (
-                          <TableCell className="text-right font-mono text-sm text-muted-foreground">
-                            {formatCurrency(calculatePrecoM2(imovel.preco, imovel.m2Totais))}
-                          </TableCell>
-                        )}
-
-                        {/* m² Privado */}
-                        <TableCell className="text-right font-mono text-sm">
-                          {formatNumber(imovel.m2Privado, "m²")}
-                        </TableCell>
-
-                        {/* R$/m² Privado */}
-                        <TableCell className="text-right font-mono text-sm text-muted-foreground">
-                          {formatCurrency(calculatePrecoM2Privado(imovel.preco, imovel.m2Privado))}
-                        </TableCell>
-
                         {/* Preço */}
-                        <TableCell className="text-right font-mono text-sm text-primary">
+                        <TableCell className="text-right font-mono text-sm text-app-accent">
                           {formatCurrency(imovel.preco)}
+                        </TableCell>
+
+                        {/* m² */}
+                        <TableCell className="text-right font-mono text-sm">
+                          <AreaM2Stack
+                            total={imovel.m2Totais}
+                            privado={imovel.m2Privado}
+                            activeVariant={getMetricVariantForSortKey(sort.key)}
+                            enabledVariants={enabledMetricVariants}
+                          />
+                        </TableCell>
+
+                        {/* R$/m² */}
+                        <TableCell className="text-right font-mono text-sm">
+                          <PricePerM2Stack
+                            total={calculatePrecoM2(imovel.preco, imovel.m2Totais)}
+                            privado={calculatePrecoM2Privado(imovel.preco, imovel.m2Privado)}
+                            activeVariant={getMetricVariantForSortKey(sort.key)}
+                            enabledVariants={enabledMetricVariants}
+                          />
                         </TableCell>
 
                         {/* Quartos */}
@@ -821,9 +929,26 @@ export function ShareClient({ token }: ShareClientProps) {
                           {formatNumber(imovel.banheiros)}
                         </TableCell>
 
-                        {/* Adicionado */}
-                        <TableCell className="text-center text-sm text-muted-foreground">
-                          {formatDate(imovel.addedAt)}
+                        {/* Datas */}
+                        <TableCell className="text-right text-sm text-muted-foreground">
+                          <div className="flex min-w-28 flex-col items-end gap-1 leading-none">
+                            <span className="inline-flex flex-col items-end gap-0.5 whitespace-nowrap">
+                              <span className="font-mono tabular-nums text-app-fg">{formatDate(imovel.addedAt)}</span>
+                              <span className="text-[9px] leading-none text-app-muted">adicionado por você</span>
+                            </span>
+                            {imovel.sitePublishedAt && (
+                              <span className="inline-flex flex-col items-end gap-0.5 whitespace-nowrap">
+                                <span className="font-mono tabular-nums text-app-fg">{formatDate(imovel.sitePublishedAt)}</span>
+                                <span className="text-[9px] leading-none text-app-muted">publicado no site</span>
+                              </span>
+                            )}
+                            {imovel.siteUpdatedAt && (
+                              <span className="inline-flex flex-col items-end gap-0.5 whitespace-nowrap">
+                                <span className="font-mono tabular-nums text-app-fg">{formatDate(imovel.siteUpdatedAt)}</span>
+                                <span className="text-[9px] leading-none text-app-muted">atualizado no site</span>
+                              </span>
+                            )}
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))}
@@ -836,11 +961,11 @@ export function ShareClient({ token }: ShareClientProps) {
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-brightGrey mt-12 py-8">
+      <footer className="border-t border-app-border mt-12 py-8">
         <div className="max-w-7xl mx-auto px-4 text-center">
           <p className="text-sm text-muted-foreground">
             Coleção compartilhada via{" "}
-            <Link href="/" className="text-primary hover:underline">
+            <Link href="/" className="text-app-accent hover:underline">
               Minha Casa
             </Link>
           </p>

@@ -23,7 +23,18 @@ export const SUBSCRIPTION_INACTIVE = "inactive"
 /**
  * Routes that require an active subscription to access
  */
-export const SUBSCRIPTION_REQUIRED_ROUTES = ["/anuncios", "/casa", "/floodrisk"]
+export const SUBSCRIPTION_REQUIRED_ROUTES = [
+  "/visao-geral",
+  "/anuncios",
+  "/comparacao",
+  "/financiamento",
+  "/casa",
+  "/links",
+  "/contatos",
+  "/regioes",
+  "/condominios",
+  "/floodrisk",
+]
 
 /**
  * Routes that users without subscription should be redirected to

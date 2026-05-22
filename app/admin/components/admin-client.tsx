@@ -725,13 +725,6 @@ export function AdminClient() {
 
   return (
     <div className="container mx-auto py-8 px-4 space-y-8">
-      <div>
-        <h1 className="text-3xl font-bold">Painel Administrativo</h1>
-        <p className="text-muted-foreground mt-2">
-          Gerencie usuários, assinaturas e visualize estatísticas do sistema.
-        </p>
-      </div>
-
       {/* Stats Cards */}
       {stats && (
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
@@ -942,7 +935,7 @@ export function AdminClient() {
 
       {/* Grant Subscription Modal */}
       {grantModalOpen && selectedUser && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-app-fg/50 flex items-center justify-center z-50">
           <Card className="w-full max-w-md mx-4">
             <CardHeader>
               <CardTitle>Conceder Assinatura</CardTitle>
@@ -1007,7 +1000,7 @@ export function AdminClient() {
 
       {/* Edit User Modal */}
       {editModalOpen && selectedUser && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-app-fg/50 flex items-center justify-center z-50">
           <Card className="w-full max-w-md mx-4">
             <CardHeader>
               <CardTitle>Editar Usuário</CardTitle>
@@ -1051,7 +1044,7 @@ export function AdminClient() {
 
       {/* Delete User Confirmation Modal */}
       {deleteModalOpen && selectedUser && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-app-fg/50 flex items-center justify-center z-50">
           <Card className="w-full max-w-md mx-4">
             <CardHeader>
               <CardTitle className="text-destructive">Excluir Usuário</CardTitle>
@@ -1095,7 +1088,7 @@ export function AdminClient() {
 
       {/* Manage Subscription Modal */}
       {manageSubscriptionModalOpen && selectedUser && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-app-fg/50 flex items-center justify-center z-50">
           <Card className="w-full max-w-3xl mx-4 max-h-[90vh] overflow-y-auto">
             <CardHeader>
               <CardTitle>Gerenciar Assinaturas</CardTitle>
@@ -1225,7 +1218,7 @@ export function AdminClient() {
 
       {/* Edit Subscription Modal */}
       {editSubscriptionModalOpen && selectedSubscription && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-app-fg/50 flex items-center justify-center z-50">
           <Card className="w-full max-w-md mx-4">
             <CardHeader>
               <CardTitle>Editar Assinatura</CardTitle>
@@ -1326,7 +1319,7 @@ export function AdminClient() {
 
       {/* Manage User Addons Modal */}
       {manageUserAddonsModalOpen && selectedUser && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-app-fg/50 flex items-center justify-center z-50">
           <Card className="w-full max-w-3xl mx-4 max-h-[90vh] overflow-y-auto">
             <CardHeader>
               <CardTitle>Gerenciar Addons do Usuário</CardTitle>
@@ -1431,7 +1424,7 @@ export function AdminClient() {
 
       {/* Grant User Addon Modal */}
       {grantUserAddonModalOpen && selectedUser && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-app-fg/50 flex items-center justify-center z-50">
           <Card className="w-full max-w-md mx-4">
             <CardHeader>
               <CardTitle>Conceder Addon</CardTitle>
@@ -1495,7 +1488,7 @@ export function AdminClient() {
 
       {/* Manage Organization Addons Modal */}
       {manageOrgAddonsModalOpen && selectedOrg && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-app-fg/50 flex items-center justify-center z-50">
           <Card className="w-full max-w-3xl mx-4 max-h-[90vh] overflow-y-auto">
             <CardHeader>
               <CardTitle>Gerenciar Addons da Organização</CardTitle>
@@ -1600,7 +1593,7 @@ export function AdminClient() {
 
       {/* Grant Organization Addon Modal */}
       {grantOrgAddonModalOpen && selectedOrg && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-app-fg/50 flex items-center justify-center z-50">
           <Card className="w-full max-w-md mx-4">
             <CardHeader>
               <CardTitle>Conceder Addon</CardTitle>

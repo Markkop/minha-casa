@@ -11,6 +11,8 @@ export interface Imovel {
   id: string
   titulo: string
   endereco: string
+  bairro?: string | null
+  cidade?: string | null
   m2Totais: number | null
   m2Privado: number | null
   quartos: number | null
@@ -30,6 +32,9 @@ export interface Imovel {
   imageUrl?: string | null
   contactName?: string | null
   contactNumber?: string | null
+  condominiumName?: string | null
+  condominiumId?: string | null
+  regionId?: string | null
   starred?: boolean
   visited?: boolean
   strikethrough?: boolean
@@ -38,6 +43,8 @@ export interface Imovel {
   customLng?: number | null
   createdAt: string
   addedAt?: string
+  sitePublishedAt?: string | null
+  siteUpdatedAt?: string | null
 }
 
 export interface Collection {
@@ -752,6 +759,8 @@ const KEY_MAP: Record<string, string> = {
   id: "i",
   titulo: "t",
   endereco: "e",
+  bairro: "br",
+  cidade: "cd",
   m2Totais: "mt",
   m2Privado: "mp",
   quartos: "q",
@@ -771,6 +780,9 @@ const KEY_MAP: Record<string, string> = {
   imageUrl: "iu",
   contactName: "cn",
   contactNumber: "cnu",
+  condominiumName: "con",
+  condominiumId: "coi",
+  regionId: "ri",
   starred: "st",
   visited: "v",
   strikethrough: "x",
@@ -779,6 +791,8 @@ const KEY_MAP: Record<string, string> = {
   customLng: "lg",
   createdAt: "ca",
   addedAt: "aa",
+  sitePublishedAt: "spa",
+  siteUpdatedAt: "sua",
   updatedAt: "ua",
   isDefault: "d",
   label: "lb",
@@ -866,6 +880,8 @@ const IMOVEL_KEYS_ORDER: (keyof Imovel)[] = [
   "id",
   "titulo",
   "endereco",
+  "bairro",
+  "cidade",
   "m2Totais",
   "m2Privado",
   "quartos",
@@ -885,6 +901,9 @@ const IMOVEL_KEYS_ORDER: (keyof Imovel)[] = [
   "imageUrl",
   "contactName",
   "contactNumber",
+  "condominiumName",
+  "condominiumId",
+  "regionId",
   "starred",
   "visited",
   "strikethrough",
@@ -893,6 +912,8 @@ const IMOVEL_KEYS_ORDER: (keyof Imovel)[] = [
   "customLng",
   "createdAt",
   "addedAt",
+  "sitePublishedAt",
+  "siteUpdatedAt",
 ]
 
 // Note: IMOVEL_MINIFIED_KEYS_ORDER removed as unused; if needed, compute as:
@@ -979,6 +1000,8 @@ function imovelToCompactArray(imovel: Imovel): unknown[] {
     ...imovel,
     createdAt: compactDate(imovel.createdAt),
     addedAt: compactDate(imovel.addedAt),
+    sitePublishedAt: compactDate(imovel.sitePublishedAt || undefined),
+    siteUpdatedAt: compactDate(imovel.siteUpdatedAt || undefined),
   }
   
   // Convert to array in key order, omitting defaults
@@ -1016,6 +1039,12 @@ function compactArrayToImovel(arr: unknown[]): Imovel {
   restored.createdAt = expandDate(restored.createdAt as string) || new Date().toISOString()
   if (restored.addedAt) {
     restored.addedAt = expandDate(restored.addedAt as string)
+  }
+  if (restored.sitePublishedAt) {
+    restored.sitePublishedAt = expandDate(restored.sitePublishedAt as string)
+  }
+  if (restored.siteUpdatedAt) {
+    restored.siteUpdatedAt = expandDate(restored.siteUpdatedAt as string)
   }
   
   // Generate ID if missing (for imports)
@@ -1188,4 +1217,3 @@ export function decompressCollectionData(compressed: string): CollectionExport {
     throw error
   }
 }
-
