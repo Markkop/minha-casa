@@ -579,8 +579,6 @@ export async function POST(request: NextRequest) {
         if (!listing.link) {
           listing.link = scraped.sourceUrl
         }
-        listing.imageUrls = scraped.imageUrls
-        listing.imageUrl = scraped.imageUrls[0] ?? null
       }
     } else {
       return NextResponse.json({ error: "Invalid request kind" }, { status: 400 })

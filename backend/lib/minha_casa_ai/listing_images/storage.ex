@@ -1,0 +1,78 @@
+defmodule MinhaCasaAi.ListingImages.Storage do
+  alias MinhaCasaAi.Config
+
+  @content_type_ext %{
+    "image/jpeg" => "jpg",
+    "image/jpg" => "jpg",
+    "image/png" => "png",
+    "image/webp" => "webp",
+    "image/gif" => "gif"
+  }
+
+  def put_listing_image(listing_id, index, bytes, content_type)
+      when is_binary(listing_id) and is_integer(index) and index >= 0 and is_binary(bytes) do
+    key = listing_image_key(listing_id, index, content_type)
+
+    if Config.configured?(:minio) do
+      ExAws.S3.put_object(Config.minio_bucket(), key, bytes, content_type: content_type)
+      |> ExAws.request(ex_aws_config())
+      |> case do
+        {:ok, _} -> {:ok, key}
+        {:error, reason} -> {:error, {:minio_upload_failed, reason}}
+      end
+    else
+      {:error, :minio_not_configured}
+    end
+  end
+
+  def get_object(key) when is_binary(key) do
+    if Config.configured?(:minio) do
+      ExAws.S3.get_object(Config.minio_bucket(), key)
+      |> ExAws.request(ex_aws_config())
+      |> case do
+        {:ok, %{body: body, headers: headers}} ->
+          {:ok, body, content_type_from_headers(headers)}
+
+        {:error, reason} ->
+          {:error, {:minio_get_failed, reason}}
+      end
+    else
+      {:error, :minio_not_configured}
+    end
+  end
+
+  def listing_image_key(listing_id, index, content_type) do
+    ext = Map.get(@content_type_ext, content_type, "jpg")
+    "listings/#{listing_id}/#{index}.#{ext}"
+  end
+
+  defp content_type_from_headers(headers) when is_list(headers) do
+    headers
+    |> Enum.find_value("image/jpeg", fn
+      {"Content-Type", value} -> value |> String.split(";") |> List.first() |> String.trim()
+      {"content-type", value} -> value |> String.split(";") |> List.first() |> String.trim()
+      _ -> nil
+    end)
+  end
+
+  defp ex_aws_config do
+    uri = URI.parse(Config.minio_endpoint())
+    scheme = (uri.scheme || "http") <> "://"
+    port = uri.port || if(uri.scheme == "https", do: 443, else: 80)
+
+    [
+      access_key_id: Config.minio_access_key(),
+      secret_access_key: Config.minio_secret_key(),
+      region: "us-east-1",
+      scheme: scheme,
+      host: uri.host,
+      port: port,
+      s3: [
+        scheme: scheme,
+        host: uri.host,
+        port: port,
+        bucket_as_host: false
+      ]
+    ]
+  end
+end

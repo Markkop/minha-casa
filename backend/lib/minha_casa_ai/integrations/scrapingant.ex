@@ -244,7 +244,7 @@ defmodule MinhaCasaAi.Integrations.ScrapingAnt do
       Regex.match?(~r/dimension=72x56/i, url)
   end
 
-  defp image_url_score(url) do
+  def image_url_score(url) do
     base = if Regex.match?(~r/action=fit-in/i, url), do: 100_000, else: 0
 
     case Regex.run(~r/dimension=(\d+)x(\d+)/i, url) do

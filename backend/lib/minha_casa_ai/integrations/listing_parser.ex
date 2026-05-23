@@ -34,10 +34,7 @@ defmodule MinhaCasaAi.Integrations.ListingParser do
            OpenAIListingParser.parse_text(
              "URL do anúncio: #{scraped.source_url}\n\n#{scraped.text}"
            ) do
-      {:ok,
-       listings
-       |> Enum.map(&ensure_link(&1, scraped.source_url))
-       |> Enum.map(&attach_images(&1, scraped.image_urls))}
+      {:ok, Enum.map(listings, &ensure_link(&1, scraped.source_url))}
     end
   end
 
@@ -48,14 +45,6 @@ defmodule MinhaCasaAi.Integrations.ListingParser do
       value when is_binary(value) and value != "" -> listing
       _ -> Map.put(listing, "link", source_url)
     end
-  end
-
-  defp attach_images(listing, image_urls) when is_list(image_urls) do
-    first = List.first(image_urls)
-
-    listing
-    |> Map.put("imageUrls", image_urls)
-    |> Map.put("imageUrl", first)
   end
 
   defp assert_size(base64, max_bytes) do

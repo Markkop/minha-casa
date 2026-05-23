@@ -21,7 +21,30 @@ defmodule MinhaCasaAi.Listings do
         data: Map.put_new(data, "addedAt", Date.utc_today() |> Date.to_iso8601())
       })
       |> Repo.insert()
+      |> case do
+        {:ok, listing} = ok ->
+          maybe_enqueue_image_ingestion(listing, opts)
+          ok
+
+        error ->
+          error
+      end
     end
+  end
+
+  defp maybe_enqueue_image_ingestion(%Listing{id: id, collection_id: collection_id, data: data}, opts) do
+    data = data || %{}
+    link = data["link"]
+
+    if is_binary(link) and String.trim(link) != "" do
+      MinhaCasaAi.ListingImages.enqueue_ingestion(id, collection_id,
+        user_id: Keyword.get(opts, :user_id),
+        org_id: Keyword.get(opts, :org_id),
+        overwrite: false
+      )
+    end
+
+    :ok
   end
 
   def duplicate_candidates(collection_id, listing_data) do
@@ -52,6 +75,21 @@ defmodule MinhaCasaAi.Listings do
       end)
     else
       listings
+    end
+  end
+
+  def get_listing_by_id(listing_id, opts \\ []) do
+    user_id = Keyword.get(opts, :user_id)
+    org_id = Keyword.get(opts, :org_id)
+
+    case Repo.get(Listing, listing_id) do
+      nil ->
+        {:error, :listing_not_found}
+
+      %Listing{} = listing ->
+        with {:ok, _} <- authorize_collection(listing.collection_id, user_id, org_id) do
+          {:ok, listing}
+        end
     end
   end
 

@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "@/lib/auth-server"
-import { getDb, collections, listings } from "@/lib/db"
+import { getDb, collections, listings, organizationMembers } from "@/lib/db"
 import { eq, and } from "drizzle-orm"
-import { scrapeUrlPage, ScrapingAntError } from "@/lib/scrapingant"
-import { syncListingImageFields } from "@/lib/listing-images"
+import type { ListingData } from "@/lib/db/schema"
+import { enqueueListingImageIngestionOnBackend } from "@/lib/backend-listing-images"
 import {
   handleApiError,
   successResponse,
@@ -16,11 +16,9 @@ interface RouteParams {
   params: Promise<{ id: string }>
 }
 
-export const maxDuration = 60
-
 /**
  * POST /api/listings/[id]/pull-images
- * Re-scrapes listing link and returns image URLs (preview; client persists on confirm).
+ * Enqueues backend image scrape + download (overwrite existing gallery).
  */
 export async function POST(_request: NextRequest, { params }: RouteParams) {
   try {
@@ -40,14 +38,27 @@ export async function POST(_request: NextRequest, { params }: RouteParams) {
     const [collection] = await db
       .select()
       .from(collections)
-      .where(
-        and(
-          eq(collections.id, listing.collectionId),
-          eq(collections.userId, session.user.id)
-        )
-      )
+      .where(eq(collections.id, listing.collectionId))
 
     requireResource(collection, "Listing")
+
+    const canAccess =
+      (collection.userId && collection.userId === session.user.id) ||
+      (collection.orgId &&
+        (await db
+          .select()
+          .from(organizationMembers)
+          .where(
+            and(
+              eq(organizationMembers.orgId, collection.orgId),
+              eq(organizationMembers.userId, session.user.id)
+            )
+          )
+          .limit(1)).length > 0)
+
+    if (!canAccess) {
+      return NextResponse.json({ error: "Listing not found" }, { status: 404 })
+    }
 
     const link = listing.data.link?.trim()
     if (!link) {
@@ -57,24 +68,39 @@ export async function POST(_request: NextRequest, { params }: RouteParams) {
       )
     }
 
-    const scraped = await scrapeUrlPage(link)
-    const synced = syncListingImageFields(scraped.imageUrls)
-
-    return successResponse({
-      imageUrls: synced.imageUrls,
-      imageUrl: synced.imageUrl,
-      imageCount: synced.imageUrls.length,
-    })
-  } catch (error) {
-    if (error instanceof ScrapingAntError) {
-      return NextResponse.json({ error: error.message }, { status: error.statusCode })
-    }
-    if (error instanceof Error && error.message === "INVALID_URL") {
+    const backendUrl = process.env.INTERNAL_BACKEND_URL || process.env.BACKEND_API_URL
+    if (!backendUrl?.trim()) {
       return NextResponse.json(
-        { error: "Link do anúncio inválido." },
-        { status: 400 }
+        { error: "Backend de imagens não configurado." },
+        { status: 503 }
       )
     }
+
+    const pendingData: Partial<ListingData> = {
+      imageIngestionStatus: "pending",
+      imageIngestionError: null,
+      imageStorageKeys: [],
+      imageUrls: [],
+      imageUrl: null,
+    }
+
+    await db
+      .update(listings)
+      .set({
+        data: { ...listing.data, ...pendingData },
+        updatedAt: new Date(),
+      })
+      .where(eq(listings.id, id))
+
+    await enqueueListingImageIngestionOnBackend(
+      id,
+      session.user.id,
+      collection.orgId,
+      { overwrite: true }
+    )
+
+    return successResponse({ status: "pending" as const })
+  } catch (error) {
     return handleApiError(error, "POST /api/listings/[id]/pull-images")
   }
 }

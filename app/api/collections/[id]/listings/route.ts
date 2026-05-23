@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "@/lib/auth-server"
 import { getDb, collections, listings, organizationMembers, type ListingData } from "@/lib/db"
 import { eq, and } from "drizzle-orm"
+import { enqueueListingImageIngestionOnBackend } from "@/lib/backend-listing-images"
 
 interface RouteParams {
   params: Promise<{ id: string }>
@@ -162,6 +163,12 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     const listingData: ListingData = {
       ...data,
       addedAt: data.addedAt || new Date().toISOString().split("T")[0],
+      ...(data.link?.trim()
+        ? {
+            imageIngestionStatus: "pending" as const,
+            imageIngestionError: null,
+          }
+        : {}),
     }
 
     const [newListing] = await db
@@ -171,6 +178,15 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
         data: listingData,
       })
       .returning()
+
+    if (listingData.link?.trim()) {
+      void enqueueListingImageIngestionOnBackend(
+        newListing.id,
+        session.user.id,
+        collection.orgId,
+        { overwrite: false }
+      )
+    }
 
     return NextResponse.json(
       { listing: newListing },

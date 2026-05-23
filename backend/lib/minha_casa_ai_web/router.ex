@@ -24,6 +24,8 @@ defmodule MinhaCasaAiWeb.Router do
 
     post "/parse", ParseController, :create
     post "/listings/check-duplicate", ListingsDuplicateController, :check
+    post "/listings/:id/ingest-images", ListingImageController, :ingest
+    get "/listings/:id/images/:index", ListingImageController, :show
     post "/attachments", AttachmentController, :create
     post "/workflows/ingestions", WorkflowController, :create
     get "/workflows/:id", WorkflowController, :show

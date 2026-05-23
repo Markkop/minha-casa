@@ -27,6 +27,7 @@ import { ArrowDownIcon, ArrowUpIcon, MagnifyingGlassIcon } from "@radix-ui/react
 import { AlertCircle, Home, Building, Flag, Waves, Shield, Dumbbell, Mountain, Car, WavesLadder, BedDouble, Bath, Star, LinkIcon, MapPin, Loader2, Search } from "lucide-react"
 import { ListingLocationMiniMap } from "@/app/anuncios/components/listing-location-mini-map"
 import type { Imovel } from "@/app/anuncios/lib/api"
+import { resolveShareListingImages } from "@/lib/listing-images"
 import { FaWhatsapp } from "react-icons/fa"
 import type { ListingData } from "@/lib/db/schema"
 import { PageToolbarButton } from "@/app/components/page-toolbar"
@@ -349,13 +350,18 @@ export function ShareClient({ token }: ShareClientProps) {
   // Convert API listings to frontend format
   const listings = useMemo(() => {
     if (!data?.listings) return []
-    return data.listings.map((listing) => ({
-      id: listing.id,
-      ...listing.data,
-      tipoImovel: (listing.data as { tipoImovel?: string }).tipoImovel || null,
-      createdAt: listing.createdAt,
-    }))
-  }, [data])
+    return data.listings.map((listing) => {
+      const images = resolveShareListingImages(token, listing.id, listing.data)
+      return {
+        id: listing.id,
+        ...listing.data,
+        imageUrl: images.imageUrl,
+        imageUrls: images.imageUrls,
+        tipoImovel: (listing.data as { tipoImovel?: string }).tipoImovel || null,
+        createdAt: listing.createdAt,
+      }
+    })
+  }, [data, token])
 
   const showTypeFilters = useMemo(
     () => shouldShowPropertyTypeFilters(listings),

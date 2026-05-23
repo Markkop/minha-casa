@@ -24,6 +24,6 @@ config :req, default_finch: MinhaCasaAi.Finch
 config :minha_casa_ai, Oban,
   repo: MinhaCasaAi.Repo,
   engine: Oban.Engines.Basic,
-  queues: [ai: 5, default: 5, webhooks: 5]
+  queues: [ai: 5, default: 5, webhooks: 5, images: 3]
 
 import_config "#{config_env()}.exs"

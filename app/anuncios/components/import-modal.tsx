@@ -91,7 +91,13 @@ export function ImportModal({
       imageUrl: typeof listing.imageUrl === "string" ? listing.imageUrl : null,
       imageUrls: Array.isArray(listing.imageUrls)
         ? listing.imageUrls.filter((u): u is string => typeof u === "string" && u.trim() !== "")
-        : undefined,
+        : null,
+      imageStorageKeys: null,
+      imageIngestionStatus:
+        typeof listing.link === "string" && listing.link.trim()
+          ? "idle"
+          : null,
+      imageIngestionError: null,
       contactName: typeof listing.contactName === "string" ? listing.contactName : null,
       contactNumber: typeof listing.contactNumber === "string" ? listing.contactNumber : null,
       condominiumName:

@@ -31,6 +31,9 @@ export interface Imovel {
   link: string | null
   imageUrl?: string | null
   imageUrls?: string[] | null
+  imageStorageKeys?: string[] | null
+  imageIngestionStatus?: string | null
+  imageIngestionError?: string | null
   contactName?: string | null
   contactNumber?: string | null
   condominiumName?: string | null

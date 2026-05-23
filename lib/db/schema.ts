@@ -344,6 +344,9 @@ export interface ListingData {
   link: string | null
   imageUrl?: string | null
   imageUrls?: string[] | null
+  imageStorageKeys?: string[] | null
+  imageIngestionStatus?: "idle" | "pending" | "processing" | "ready" | "failed" | null
+  imageIngestionError?: string | null
   contactName?: string | null
   contactNumber?: string | null
   condominiumName?: string | null

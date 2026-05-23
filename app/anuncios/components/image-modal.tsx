@@ -21,8 +21,13 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useCollections } from "../lib/use-collections"
 import type { Imovel } from "../lib/api"
-import { pullListingImages } from "../lib/api"
-import { resolveListingImages, syncListingImageFields } from "@/lib/listing-images"
+import { enqueueListingImageIngestion } from "../lib/api"
+import {
+  resolveListingImages,
+  syncListingImageFields,
+  isListingImageIngesting,
+  isExternalListingImageUrl,
+} from "@/lib/listing-images"
 import { cn } from "@/lib/utils"
 
 interface ImageModalProps {
@@ -46,20 +51,24 @@ export function ImageModal({
   const [isSaving, setIsSaving] = useState(false)
   const [isPulling, setIsPulling] = useState(false)
   const [confirmPullOpen, setConfirmPullOpen] = useState(false)
-  const [pendingPull, setPendingPull] = useState<{
-    imageUrls: string[]
-    imageUrl: string | null
-  } | null>(null)
+
+  const isIngesting = listing
+    ? isListingImageIngesting(listing.imageIngestionStatus)
+    : false
 
   useEffect(() => {
     if (isOpen && listing) {
-      const resolved = resolveListingImages(listing)
+      const resolved = resolveListingImages({
+        listingId: listing.id,
+        imageUrl: listing.imageUrl,
+        imageUrls: listing.imageUrls,
+        imageStorageKeys: listing.imageStorageKeys,
+      })
       setImageUrls(resolved.imageUrls)
       setCurrentIndex(0)
       setError(null)
       setImageError(false)
       setConfirmPullOpen(false)
-      setPendingPull(null)
     }
   }, [isOpen, listing])
 
@@ -72,6 +81,14 @@ export function ImageModal({
 
   const handleSave = async () => {
     if (!listing) return
+
+    const hasExternal = imageUrls.some((url) => isExternalListingImageUrl(url))
+    if (hasExternal) {
+      setError(
+        "URLs externas não são suportadas. Use Buscar do anúncio para importar imagens hospedadas."
+      )
+      return
+    }
 
     setIsSaving(true)
     setError(null)
@@ -94,7 +111,6 @@ export function ImageModal({
     if (e.key === "Escape") {
       if (confirmPullOpen) {
         setConfirmPullOpen(false)
-        setPendingPull(null)
       } else {
         onClose()
       }
@@ -133,31 +149,25 @@ export function ImageModal({
     setCurrentIndex(imageUrls.length)
   }
 
-  const handlePullFromLink = async () => {
+  const handlePullFromLink = () => {
+    if (!listing?.link?.trim()) return
+    setConfirmPullOpen(true)
+  }
+
+  const applyPullOverwrite = useCallback(async () => {
     if (!listing?.link?.trim()) return
     setIsPulling(true)
     setError(null)
+    setConfirmPullOpen(false)
     try {
-      const result = await pullListingImages(listing.id)
-      setPendingPull({
-        imageUrls: result.imageUrls,
-        imageUrl: result.imageUrl,
-      })
-      setConfirmPullOpen(true)
+      await enqueueListingImageIngestion(listing.id)
+      onListingUpdated()
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erro ao buscar imagens")
     } finally {
       setIsPulling(false)
     }
-  }
-
-  const applyPullOverwrite = useCallback(() => {
-    if (!pendingPull) return
-    setImageUrls(pendingPull.imageUrls)
-    setCurrentIndex(0)
-    setConfirmPullOpen(false)
-    setPendingPull(null)
-  }, [pendingPull])
+  }, [listing, onListingUpdated])
 
   if (!isOpen || !listing) return null
 
@@ -178,7 +188,7 @@ export function ImageModal({
             <button
               type="button"
               onClick={handlePullFromLink}
-              disabled={!hasLink || isPulling}
+              disabled={!hasLink || isPulling || isIngesting}
               title={
                 hasLink
                   ? "Buscar imagens do link do anúncio"
@@ -191,7 +201,7 @@ export function ImageModal({
                 "disabled:opacity-50 disabled:cursor-not-allowed"
               )}
             >
-              {isPulling ? (
+              {isPulling || isIngesting ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
                 <Download className="h-4 w-4" />
@@ -208,8 +218,16 @@ export function ImageModal({
             </div>
           )}
 
+          {listing.imageIngestionStatus === "failed" && listing.imageIngestionError && (
+            <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-3">
+              <p className="text-sm text-amber-800 dark:text-amber-200">
+                {listing.imageIngestionError}
+              </p>
+            </div>
+          )}
+
           <div className="flex items-center justify-center min-h-[200px] max-h-[70vh] bg-app-surface-muted rounded-lg border border-app-border overflow-hidden relative">
-            {imageUrls.length > 1 && (
+            {imageUrls.length > 1 && !isIngesting && (
               <>
                 <button
                   type="button"
@@ -236,7 +254,12 @@ export function ImageModal({
               </>
             )}
 
-            {currentUrl && !imageError ? (
+            {isIngesting ? (
+              <div className="flex flex-col items-center justify-center gap-3 text-muted-foreground">
+                <Loader2 className="h-10 w-10 animate-spin text-app-accent" />
+                <span className="text-sm">Baixando imagens do anúncio…</span>
+              </div>
+            ) : currentUrl && !imageError ? (
               <img
                 key={currentUrl}
                 src={currentUrl}
@@ -265,11 +288,9 @@ export function ImageModal({
             )}
           </div>
 
-          {imageUrls.length > 0 && (
+          {imageUrls.length > 0 && !isIngesting && (
             <p className="text-xs text-center text-muted-foreground">
-              {imageUrls.length > 0
-                ? `Imagem ${currentIndex + 1} de ${imageUrls.length}`
-                : "Nenhuma imagem"}
+              Imagem {currentIndex + 1} de {imageUrls.length}
             </p>
           )}
 
@@ -282,13 +303,15 @@ export function ImageModal({
               type="url"
               value={currentUrl}
               onChange={(e) => updateCurrentUrl(e.target.value)}
-              placeholder="Ex: https://example.com/image.jpg"
+              placeholder="/api/listings/…/images/0"
+              disabled={isIngesting}
               className="bg-app-surface-muted border-app-border text-app-fg placeholder:text-muted-foreground"
             />
             <div className="flex gap-2 pt-1">
               <button
                 type="button"
                 onClick={handleAddUrl}
+                disabled={isIngesting}
                 className={cn(
                   "flex items-center gap-1.5 py-1.5 px-3 rounded-lg text-sm",
                   "bg-app-surface-muted border border-app-border text-app-fg",
@@ -302,6 +325,7 @@ export function ImageModal({
                 <button
                   type="button"
                   onClick={handleDeleteCurrent}
+                  disabled={isIngesting}
                   className={cn(
                     "flex items-center gap-1.5 py-1.5 px-3 rounded-lg text-sm",
                     "border border-destructive/40 text-destructive",
@@ -314,8 +338,8 @@ export function ImageModal({
               )}
             </div>
             <p className="text-xs text-muted-foreground">
-              A primeira imagem da lista é usada como miniatura na tabela. Cmd/Ctrl +
-              Enter para salvar.
+              Use Buscar do anúncio para importar fotos hospedadas. A primeira imagem
+              é a miniatura na tabela.
             </p>
           </div>
 
@@ -333,7 +357,7 @@ export function ImageModal({
             </button>
             <button
               onClick={handleSave}
-              disabled={isSaving}
+              disabled={isSaving || isIngesting}
               className={cn(
                 "flex-1 py-2.5 px-4 rounded-lg font-medium transition-all",
                 "bg-app-action text-app-action-foreground",
@@ -353,37 +377,24 @@ export function ImageModal({
         </CardContent>
       </Card>
 
-      {confirmPullOpen && pendingPull && (
+      {confirmPullOpen && (
         <div className="fixed inset-0 z-[1010] flex items-center justify-center">
           <div
             className="absolute inset-0 bg-app-fg/60"
-            onClick={() => {
-              setConfirmPullOpen(false)
-              setPendingPull(null)
-            }}
+            onClick={() => setConfirmPullOpen(false)}
           />
           <Card className="relative z-10 w-full max-w-md mx-4 bg-app-surface border-app-border p-4">
             <h3 className="text-lg font-semibold text-app-fg mb-2">
               Substituir imagens?
             </h3>
             <p className="text-sm text-muted-foreground mb-4">
-              Foram encontradas {pendingPull.imageUrls.length} imagem
-              {pendingPull.imageUrls.length === 1 ? "" : "s"} no link do anúncio.
-              Isso vai substituir todas as URLs atuais.
+              O sistema vai buscar as fotos no link do anúncio, baixá-las e substituir
+              a galeria atual. Isso pode levar alguns minutos.
             </p>
-            {pendingPull.imageUrls.length === 0 && (
-              <p className="text-sm text-amber-600 dark:text-amber-400 mb-4">
-                Nenhuma imagem encontrada neste link. Você ainda pode confirmar para
-                limpar a galeria.
-              </p>
-            )}
             <div className="flex gap-3">
               <button
                 type="button"
-                onClick={() => {
-                  setConfirmPullOpen(false)
-                  setPendingPull(null)
-                }}
+                onClick={() => setConfirmPullOpen(false)}
                 className={cn(
                   "flex-1 py-2 px-4 rounded-lg text-sm font-medium",
                   "bg-app-surface-muted border border-app-border"
@@ -394,11 +405,15 @@ export function ImageModal({
               <button
                 type="button"
                 onClick={applyPullOverwrite}
+                disabled={isPulling}
                 className={cn(
                   "flex-1 py-2 px-4 rounded-lg text-sm font-medium",
-                  "bg-app-action text-app-action-foreground"
+                  "bg-app-action text-app-action-foreground flex items-center justify-center gap-2"
                 )}
               >
+                {isPulling ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : null}
                 Substituir
               </button>
             </div>

@@ -30,6 +30,7 @@ import {
   type ShareInfo,
 } from "./api"
 import type { ListingData } from "@/lib/db/schema"
+import { isListingImageIngesting } from "@/lib/listing-images"
 import {
   getStoredOrgContext,
   type OrganizationContext,
@@ -519,6 +520,26 @@ export function CollectionsProvider({ children }: CollectionsProviderProps) {
       setListings([])
     }
   }, [activeCollection?.id]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Poll while any listing is ingesting images (max ~2 min)
+  useEffect(() => {
+    const hasIngesting = listings.some((listing) =>
+      isListingImageIngesting(listing.imageIngestionStatus)
+    )
+    if (!hasIngesting || !activeCollection?.id) return
+
+    let ticks = 0
+    const intervalId = window.setInterval(() => {
+      ticks += 1
+      if (ticks > 40) {
+        window.clearInterval(intervalId)
+        return
+      }
+      void loadListings(activeCollection.id)
+    }, 3000)
+
+    return () => window.clearInterval(intervalId)
+  }, [listings, activeCollection?.id, loadListings])
 
   // ============================================================================
   // CONTEXT VALUE

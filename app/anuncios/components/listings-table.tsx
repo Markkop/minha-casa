@@ -43,6 +43,7 @@ import { ImageModal } from "./image-modal"
 import { QuickReparseModal, type FieldChange } from "./quick-reparse-modal"
 import { ClickablePrice } from "./clickable-price"
 import { parseListingWithAI } from "../lib/api"
+import { isListingImageIngesting } from "@/lib/listing-images"
 import { PageToolbarButton, PageToolbarIconButton } from "@/app/components/page-toolbar"
 import { ListingsDisplayPopover } from "./listings-display-popover"
 import {
@@ -1241,7 +1242,16 @@ export function ListingsTable({ listings, onListingsChange, hasApiKey = true }: 
                             : "group-hover:bg-app-bg"
                         )}
                       />
-                      {imovel.imageUrl ? (
+                      {isListingImageIngesting(imovel.imageIngestionStatus) ? (
+                        <button
+                          type="button"
+                          onClick={() => setImageModalListing(imovel)}
+                          className="relative z-10 flex h-20 w-20 flex-shrink-0 cursor-pointer items-center justify-center rounded border border-app-border bg-app-surface-muted aspect-square hover:opacity-80 transition-opacity"
+                          title="Imagens sendo baixadas…"
+                        >
+                          <Loader2 className="h-6 w-6 animate-spin text-app-accent" />
+                        </button>
+                      ) : imovel.imageUrl ? (
                         <button
                           type="button"
                           onClick={() => {

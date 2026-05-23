@@ -150,12 +150,8 @@ describe("Parse API - POST /api/parse", () => {
     expect(response.status).toBe(200)
     expect(json.listings).toHaveLength(1)
     expect(json.listings[0].link).toBe("https://www.vivareal.com.br/imovel/test")
-    expect(json.listings[0].imageUrls).toEqual([
-      "https://resizedimgs.vivareal.com/img/vr-listing/abc/photo.webp",
-    ])
-    expect(json.listings[0].imageUrl).toBe(
-      "https://resizedimgs.vivareal.com/img/vr-listing/abc/photo.webp"
-    )
+    expect(json.listings[0].imageUrls).toBeUndefined()
+    expect(json.listings[0].imageUrl).toBeUndefined()
     expect(scrapeUrlPage).toHaveBeenCalledWith(
       "https://www.vivareal.com.br/imovel/test"
     )

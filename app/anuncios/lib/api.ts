@@ -6,7 +6,11 @@
  */
 
 import type { ListingData } from "@/lib/db/schema"
-import { resolveListingImages, syncListingImageFields } from "@/lib/listing-images"
+import {
+  resolveListingImages,
+  syncListingImageFields,
+  type ImageIngestionStatus,
+} from "@/lib/listing-images"
 import type { ParseRequest } from "./parse-input"
 import {
   ApiError,
@@ -80,6 +84,9 @@ export interface Imovel {
   link: string | null
   imageUrl?: string | null
   imageUrls?: string[] | null
+  imageStorageKeys?: string[] | null
+  imageIngestionStatus?: ImageIngestionStatus | null
+  imageIngestionError?: string | null
   contactName?: string | null
   contactNumber?: string | null
   condominiumName?: string | null
@@ -121,7 +128,12 @@ export function toCollection(apiCollection: ApiCollection & { ownerName?: string
  * Convert API listing to frontend Imovel format
  */
 export function toImovel(apiListing: ApiListing): Imovel {
-  const images = resolveListingImages(apiListing.data)
+  const images = resolveListingImages({
+    listingId: apiListing.id,
+    imageUrl: apiListing.data.imageUrl,
+    imageUrls: apiListing.data.imageUrls,
+    imageStorageKeys: apiListing.data.imageStorageKeys,
+  })
   return {
     id: apiListing.id,
     titulo: apiListing.data.titulo,
@@ -146,6 +158,9 @@ export function toImovel(apiListing: ApiListing): Imovel {
     link: apiListing.data.link,
     imageUrl: images.imageUrl,
     imageUrls: images.imageUrls,
+    imageStorageKeys: apiListing.data.imageStorageKeys,
+    imageIngestionStatus: apiListing.data.imageIngestionStatus ?? null,
+    imageIngestionError: apiListing.data.imageIngestionError ?? null,
     contactName: apiListing.data.contactName,
     contactNumber: apiListing.data.contactNumber,
     condominiumName: apiListing.data.condominiumName,
@@ -218,6 +233,15 @@ export function toListingData(imovel: Partial<Imovel>): Partial<ListingData> {
   if (imovel.addedAt !== undefined) data.addedAt = imovel.addedAt
   if (imovel.sitePublishedAt !== undefined) data.sitePublishedAt = imovel.sitePublishedAt
   if (imovel.siteUpdatedAt !== undefined) data.siteUpdatedAt = imovel.siteUpdatedAt
+  if (imovel.imageStorageKeys !== undefined) {
+    data.imageStorageKeys = imovel.imageStorageKeys
+  }
+  if (imovel.imageIngestionStatus !== undefined) {
+    data.imageIngestionStatus = imovel.imageIngestionStatus
+  }
+  if (imovel.imageIngestionError !== undefined) {
+    data.imageIngestionError = imovel.imageIngestionError
+  }
 
   return data
 }
@@ -411,20 +435,20 @@ export async function deleteListing(collectionId: string, listingId: string): Pr
   await handleResponse<{ success: boolean }>(response)
 }
 
-export interface PullListingImagesResult {
-  imageUrls: string[]
-  imageUrl: string | null
-  imageCount: number
+export interface EnqueueListingImageIngestionResult {
+  status: ImageIngestionStatus | "pending"
 }
 
 /**
- * Re-scrapes listing link for gallery images (preview; save via updateApiListing).
+ * Enqueues backend image scrape + download to hosted storage (overwrite existing gallery).
  */
-export async function pullListingImages(listingId: string): Promise<PullListingImagesResult> {
+export async function enqueueListingImageIngestion(
+  listingId: string
+): Promise<EnqueueListingImageIngestionResult> {
   const response = await fetch(`/api/listings/${listingId}/pull-images`, {
     method: "POST",
   })
-  return handleResponse<PullListingImagesResult>(response)
+  return handleResponse<EnqueueListingImageIngestionResult>(response)
 }
 
 // ============================================================================
