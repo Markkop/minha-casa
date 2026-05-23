@@ -39,4 +39,40 @@ defmodule MinhaCasaAi.ListingImages.IngestTest do
       assert hd(urls) =~ "800x600"
     end
   end
+
+  describe "extract_og_image_url_from_html/1" do
+    test "reads og:image meta content" do
+      html = """
+      <head>
+        <meta property="og:image" content="https://cdn.example.com/hero.jpg" />
+      </head>
+      """
+
+      assert ScrapingAnt.extract_og_image_url_from_html(html) ==
+               "https://cdn.example.com/hero.jpg"
+    end
+
+    test "ignores blocked og images" do
+      html = ~s(<meta property="og:image" content="https://cdn.example.com/logo.png" />)
+
+      assert ScrapingAnt.extract_og_image_url_from_html(html) == nil
+    end
+  end
+
+  describe "top_image_urls og priority" do
+    test "places og image first even when lower score" do
+      og = "https://cdn.example.com/og-thumb.jpg"
+      large = "https://resizedimgs.vivareal.com/x?dimension=800x600"
+      small = "https://resizedimgs.vivareal.com/y?dimension=100x100"
+
+      ordered =
+        [small, large]
+        |> Enum.sort_by(&ScrapingAnt.image_url_score/1, :desc)
+        |> Enum.reject(&ScrapingAnt.same_listing_image?(&1, og))
+        |> then(fn rest -> [og | rest] end)
+
+      assert hd(ordered) == og
+      assert length(ordered) == 3
+    end
+  end
 end

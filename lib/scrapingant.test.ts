@@ -5,6 +5,8 @@ import {
   isJsHeavyListingPortal,
   htmlToListingText,
   extractImageUrlsFromHtml,
+  extractOgImageUrlFromHtml,
+  orderImageUrlsWithOgFirst,
   MAX_SCRAPED_PAGE_TEXT_LENGTH,
   MIN_SCRAPED_PAGE_TEXT_LENGTH,
 } from "./scrapingant"
@@ -167,5 +169,30 @@ describe("extractImageUrlsFromHtml", () => {
     expect(urls).toHaveLength(1)
     expect(urls[0]).toContain("abc123")
     expect(urls[0]).not.toContain("logo.svg")
+  })
+})
+
+describe("extractOgImageUrlFromHtml", () => {
+  it("reads og:image meta tag", () => {
+    const html = `<meta property="og:image" content="https://cdn.example.com/og.jpg" />`
+    expect(extractOgImageUrlFromHtml(html)).toBe(
+      "https://cdn.example.com/og.jpg"
+    )
+  })
+
+  it("ignores logo og images", () => {
+    const html = `<meta property="og:image" content="https://cdn.example.com/logo.png" />`
+    expect(extractOgImageUrlFromHtml(html)).toBeNull()
+  })
+})
+
+describe("orderImageUrlsWithOgFirst", () => {
+  it("puts og image first and dedupes", () => {
+    const og = "https://resizedimgs.vivareal.com/vr-listing/abc/og.jpg?dimension=200x200"
+    const larger =
+      "https://resizedimgs.vivareal.com/vr-listing/abc/casa.webp?dimension=870x707"
+    const ordered = orderImageUrlsWithOgFirst([larger], og)
+    expect(ordered[0]).toBe(og)
+    expect(ordered).toHaveLength(1)
   })
 })

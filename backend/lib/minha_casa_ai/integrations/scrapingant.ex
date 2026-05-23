@@ -51,10 +51,13 @@ defmodule MinhaCasaAi.Integrations.ScrapingAnt do
   defp build_result(uri, html) do
     text = html_to_listing_text(html)
 
+    og_image_url = extract_og_image_url_from_html(html)
+
     %{
       html: html,
       text: text,
       image_urls: extract_image_urls_from_html(html),
+      og_image_url: og_image_url,
       source_url: URI.to_string(uri)
     }
   end
@@ -146,6 +149,22 @@ defmodule MinhaCasaAi.Integrations.ScrapingAnt do
 
   defp truncate_text(text),
     do: binary_part(text, 0, @max_text_length) <> "\n\n[conteúdo truncado]"
+
+  @og_image_meta_patterns [
+    ~r/<meta[^>]*\sproperty=["']og:image(?::url)?["'][^>]*\scontent=["']([^"']+)["']/i,
+    ~r/<meta[^>]*\scontent=["']([^"']+)["'][^>]*\sproperty=["']og:image(?::url)?["']/i,
+    ~r/<meta[^>]*\sname=["']og:image["'][^>]*\scontent=["']([^"']+)["']/i,
+    ~r/<meta[^>]*\scontent=["']([^"']+)["'][^>]*\sname=["']og:image["']/i
+  ]
+
+  def extract_og_image_url_from_html(html) when is_binary(html) do
+    Enum.find_value(@og_image_meta_patterns, fn pattern ->
+      case Regex.run(pattern, html) do
+        [_, raw] -> normalize_og_image_url(raw)
+        _ -> nil
+      end
+    end)
+  end
 
   def extract_image_urls_from_html(html) when is_binary(html) do
     html
@@ -253,10 +272,21 @@ defmodule MinhaCasaAi.Integrations.ScrapingAnt do
     end
   end
 
-  defp listing_image_key(url) do
+  def listing_image_key(url) when is_binary(url) do
     case Regex.run(~r/\/vr-listing\/([a-f0-9]+)\//i, url) do
       [_, hash] -> "vr:" <> hash
       _ -> "url:" <> url
+    end
+  end
+
+  def same_listing_image?(url1, url2) when is_binary(url1) and is_binary(url2) do
+    listing_image_key(url1) == listing_image_key(url2)
+  end
+
+  defp normalize_og_image_url(raw) when is_binary(raw) do
+    case normalize_image_url(raw) do
+      nil -> nil
+      url -> if blocked_image_url?(url), do: nil, else: url
     end
   end
 

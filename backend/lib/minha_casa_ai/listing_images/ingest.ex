@@ -36,7 +36,7 @@ defmodule MinhaCasaAi.ListingImages.Ingest do
       true ->
         case ScrapingAnt.scrape_url(link) do
           {:ok, scraped} ->
-            urls = top_image_urls(scraped.image_urls)
+            urls = top_image_urls(scraped.image_urls, Map.get(scraped, :og_image_url))
 
             cond do
               urls == [] ->
@@ -71,11 +71,29 @@ defmodule MinhaCasaAi.ListingImages.Ingest do
     end
   end
 
-  defp top_image_urls(urls) when is_list(urls) do
-    urls
-    |> Enum.sort_by(&ScrapingAnt.image_url_score/1, :desc)
-    |> Enum.take(@max_images)
+  defp top_image_urls(urls, og_url \\ nil) when is_list(urls) do
+    sorted = Enum.sort_by(urls, &ScrapingAnt.image_url_score/1, :desc)
+
+    ordered =
+      case normalize_og_url(og_url) do
+        nil ->
+          sorted
+
+        og ->
+          sorted
+          |> Enum.reject(&ScrapingAnt.same_listing_image?(&1, og))
+          |> then(fn rest -> [og | rest] end)
+      end
+
+    Enum.take(ordered, @max_images)
   end
+
+  defp normalize_og_url(url) when is_binary(url) do
+    trimmed = String.trim(url)
+    if trimmed == "", do: nil, else: trimmed
+  end
+
+  defp normalize_og_url(_), do: nil
 
   defp download_and_store(listing_id, urls) do
     {keys, paths} =

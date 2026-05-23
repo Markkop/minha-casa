@@ -161,6 +161,45 @@ function listingImageKey(url: string): string | null {
   }
 }
 
+const OG_IMAGE_META_PATTERNS = [
+  /<meta[^>]*\sproperty=["']og:image(?::url)?["'][^>]*\scontent=["']([^"']+)["']/i,
+  /<meta[^>]*\scontent=["']([^"']+)["'][^>]*\sproperty=["']og:image(?::url)?["']/i,
+  /<meta[^>]*\sname=["']og:image["'][^>]*\scontent=["']([^"']+)["']/i,
+  /<meta[^>]*\scontent=["']([^"']+)["'][^>]*\sname=["']og:image["']/i,
+]
+
+/**
+ * Extracts og:image from scraped HTML meta tags.
+ */
+export function extractOgImageUrlFromHtml(html: string): string | null {
+  for (const pattern of OG_IMAGE_META_PATTERNS) {
+    const match = html.match(pattern)
+    if (!match?.[1]) continue
+    const normalized = normalizeImageUrl(match[1].replace(/&amp;/g, "&"))
+    if (normalized && !isBlockedImageUrl(normalized)) return normalized
+  }
+  return null
+}
+
+function sameListingImage(url1: string, url2: string): boolean {
+  const key1 = listingImageKey(url1)
+  const key2 = listingImageKey(url2)
+  return key1 !== null && key1 === key2
+}
+
+/**
+ * Puts the OG image first and removes duplicates from the rest.
+ */
+export function orderImageUrlsWithOgFirst(
+  imageUrls: string[],
+  ogUrl: string | null
+): string[] {
+  if (!ogUrl?.trim()) return imageUrls
+  const og = ogUrl.trim()
+  const rest = imageUrls.filter((url) => !sameListingImage(url, og))
+  return [og, ...rest]
+}
+
 /**
  * Extracts property image URLs from scraped HTML.
  */
@@ -314,11 +353,16 @@ async function fetchGeneralHtmlFromScrapingAnt(
 
 function buildScrapeResult(sourceUrl: string, html: string): ScrapePageResult {
   const text = htmlToListingText(html)
+  const ogImageUrl = extractOgImageUrlFromHtml(html)
+  const imageUrls = orderImageUrlsWithOgFirst(
+    extractImageUrlsFromHtml(html),
+    ogImageUrl
+  )
   return {
     sourceUrl,
     html,
     text,
-    imageUrls: extractImageUrlsFromHtml(html),
+    imageUrls,
   }
 }
 
