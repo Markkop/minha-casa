@@ -4,6 +4,8 @@ defmodule MinhaCasaAiWeb.WhatsAppWebhookController do
   alias MinhaCasaAi.Config
   alias MinhaCasaAi.WhatsApp
 
+  plug MinhaCasaAiWeb.Plugs.WhatsAppSignature when action in [:receive]
+
   def verify(conn, params) do
     mode = params["hub.mode"]
     token = params["hub.verify_token"]

@@ -29,5 +29,8 @@ docker compose -f infra/local/docker-compose.app.yml exec phoenix-api /app/bin/m
 - `POST /api/workflows/ingestions`
 - `GET /api/workflows/:id`
 - `POST /api/chat/messages`
-- `GET|POST /webhooks/whatsapp`
+- `GET|POST /webhooks/whatsapp` (gated onboarding + linked AI replies; see [docs/whatsapp-setup.md](../docs/whatsapp-setup.md))
+- `POST /webhooks/telegram` (same flow; see [docs/telegram-setup.md](../docs/telegram-setup.md))
+- `POST /api/whatsapp/link`, `GET /api/whatsapp/status` (internal; account linking)
+- `POST /api/telegram/link`, `GET /api/telegram/status` (internal; account linking)
 - `POST /mcp`

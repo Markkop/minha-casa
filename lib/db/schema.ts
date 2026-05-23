@@ -664,3 +664,111 @@ export const organizationAddonsRelations = relations(organizationAddons, ({ one 
     relationName: "grantedBy",
   }),
 }))
+
+// ============================================================================
+// WhatsApp linking (Cloud API bot ↔ minha-casa user)
+// ============================================================================
+export const whatsappLinkCodes = pgTable(
+  "whatsapp_link_codes",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    code: text("code").notNull(),
+    waId: text("wa_id").notNull(),
+    phone: text("phone"),
+    status: text("status").notNull().default("pending"),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    consumedByUserId: uuid("consumed_by_user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    insertedAt: timestamp("inserted_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex("whatsapp_link_codes_code_idx").on(table.code),
+    index("whatsapp_link_codes_wa_id_idx").on(table.waId),
+  ]
+)
+
+export const whatsappIdentities = pgTable(
+  "whatsapp_identities",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    waId: text("wa_id").notNull(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    phone: text("phone"),
+    linkedAt: timestamp("linked_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex("whatsapp_identities_wa_id_idx").on(table.waId),
+    index("whatsapp_identities_user_id_idx").on(table.userId),
+  ]
+)
+
+export const whatsappLinkCodesRelations = relations(whatsappLinkCodes, ({ one }) => ({
+  consumedByUser: one(users, {
+    fields: [whatsappLinkCodes.consumedByUserId],
+    references: [users.id],
+  }),
+}))
+
+export const whatsappIdentitiesRelations = relations(whatsappIdentities, ({ one }) => ({
+  user: one(users, {
+    fields: [whatsappIdentities.userId],
+    references: [users.id],
+  }),
+}))
+
+// ============================================================================
+// Telegram linking (Bot API ↔ minha-casa user)
+// ============================================================================
+export const telegramLinkCodes = pgTable(
+  "telegram_link_codes",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    code: text("code").notNull(),
+    chatId: text("chat_id").notNull(),
+    telegramUserId: text("telegram_user_id"),
+    status: text("status").notNull().default("pending"),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    consumedByUserId: uuid("consumed_by_user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    insertedAt: timestamp("inserted_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex("telegram_link_codes_code_idx").on(table.code),
+    index("telegram_link_codes_chat_id_idx").on(table.chatId),
+  ]
+)
+
+export const telegramIdentities = pgTable(
+  "telegram_identities",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    chatId: text("chat_id").notNull(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    telegramUserId: text("telegram_user_id"),
+    linkedAt: timestamp("linked_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex("telegram_identities_chat_id_idx").on(table.chatId),
+    index("telegram_identities_user_id_idx").on(table.userId),
+  ]
+)
+
+export const telegramLinkCodesRelations = relations(telegramLinkCodes, ({ one }) => ({
+  consumedByUser: one(users, {
+    fields: [telegramLinkCodes.consumedByUserId],
+    references: [users.id],
+  }),
+}))
+
+export const telegramIdentitiesRelations = relations(telegramIdentities, ({ one }) => ({
+  user: one(users, {
+    fields: [telegramIdentities.userId],
+    references: [users.id],
+  }),
+}))

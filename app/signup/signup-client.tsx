@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { signUp, authClient } from "@/lib/auth-client"
 import { syncSubscriptionCookie } from "@/lib/sync-subscription-cookie"
@@ -12,6 +12,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 
 export function SignupClient() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [name, setName] = useState("")
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
@@ -49,7 +50,8 @@ export function SignupClient() {
 
       await syncSubscriptionCookie()
 
-      router.push("/anuncios")
+      const redirectTo = searchParams.get("redirect") || "/anuncios"
+      router.push(redirectTo)
       router.refresh()
     } catch {
       setError("Erro ao criar conta. Tente novamente.")
@@ -63,9 +65,10 @@ export function SignupClient() {
     setLoading(true)
 
     try {
+      const redirectTo = searchParams.get("redirect") || "/anuncios"
       const result = await authClient.signIn.social({
         provider: "google",
-        callbackURL: "/anuncios",
+        callbackURL: redirectTo,
       })
 
       if (result.error) {

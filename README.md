@@ -16,7 +16,7 @@ Minha Casa helps users manage and organize real estate listings with AI-powered 
 - **ORM**: Drizzle ORM
 - **Authentication**: BetterAuth
 - **AI**: OpenAI SDK (gpt-4o-mini)
-- **AI Backend**: Phoenix/Elixir service in `backend/` for parsing, workflows, chat, MCP, WhatsApp webhooks, and MinIO attachments
+- **AI Backend**: Phoenix/Elixir service in `backend/` for parsing, workflows, chat, MCP, WhatsApp/Telegram webhooks, and MinIO attachments ([WhatsApp](docs/whatsapp-setup.md), [Telegram](docs/telegram-setup.md))
 - **Maps**: Leaflet + Google Maps (dual provider)
 - **Testing**: Vitest + React Testing Library
 

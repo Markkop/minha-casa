@@ -35,4 +35,9 @@ config :minha_casa_ai, MinhaCasaAi.Config,
   minio_secret_key: System.get_env("MINIO_SECRET_KEY"),
   whatsapp_verify_token: System.get_env("WHATSAPP_VERIFY_TOKEN"),
   whatsapp_access_token: System.get_env("WHATSAPP_ACCESS_TOKEN"),
-  whatsapp_phone_number_id: System.get_env("WHATSAPP_PHONE_NUMBER_ID")
+  whatsapp_phone_number_id: System.get_env("WHATSAPP_PHONE_NUMBER_ID"),
+  whatsapp_app_secret: System.get_env("WHATSAPP_APP_SECRET"),
+  telegram_bot_token: System.get_env("TELEGRAM_BOT_TOKEN"),
+  telegram_webhook_secret: System.get_env("TELEGRAM_WEBHOOK_SECRET"),
+  app_public_url:
+    System.get_env("APP_PUBLIC_URL") || System.get_env("NEXT_PUBLIC_APP_URL") || "http://localhost:3000"

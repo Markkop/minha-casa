@@ -10,7 +10,15 @@ import {
 /**
  * Routes that don't require authentication
  */
-const PUBLIC_ROUTES = ["/", "/login", "/signup", "/privacy", "/terms"]
+const PUBLIC_ROUTES = [
+  "/",
+  "/login",
+  "/signup",
+  "/privacy",
+  "/terms",
+  "/conectar-whatsapp",
+  "/conectar-telegram",
+]
 
 /**
  * Routes that authenticated users should be redirected away from

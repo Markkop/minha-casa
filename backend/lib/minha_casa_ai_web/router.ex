@@ -15,6 +15,7 @@ defmodule MinhaCasaAiWeb.Router do
     get "/health", HealthController, :show
     get "/webhooks/whatsapp", WhatsAppWebhookController, :verify
     post "/webhooks/whatsapp", WhatsAppWebhookController, :receive
+    post "/webhooks/telegram", TelegramWebhookController, :receive
     post "/mcp", McpController, :handle
   end
 
@@ -27,5 +28,9 @@ defmodule MinhaCasaAiWeb.Router do
     get "/workflows/:id", WorkflowController, :show
     post "/workflows/:id/confirm", WorkflowController, :confirm
     post "/chat/messages", ChatController, :create
+    post "/whatsapp/link", WhatsAppLinkController, :link
+    get "/whatsapp/status", WhatsAppLinkController, :status
+    post "/telegram/link", TelegramLinkController, :link
+    get "/telegram/status", TelegramLinkController, :status
   end
 end

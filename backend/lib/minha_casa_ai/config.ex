@@ -9,6 +9,10 @@ defmodule MinhaCasaAi.Config do
   def whatsapp_verify_token, do: get(:whatsapp_verify_token)
   def whatsapp_access_token, do: get(:whatsapp_access_token)
   def whatsapp_phone_number_id, do: get(:whatsapp_phone_number_id)
+  def whatsapp_app_secret, do: get(:whatsapp_app_secret)
+  def telegram_bot_token, do: get(:telegram_bot_token)
+  def telegram_webhook_secret, do: get(:telegram_webhook_secret)
+  def app_public_url, do: get(:app_public_url)
 
   def configured?(:openai), do: present?(openai_api_key())
   def configured?(:scrapingant), do: present?(scrapingant_api_key())
@@ -22,6 +26,14 @@ defmodule MinhaCasaAi.Config do
 
   def configured?(:whatsapp) do
     Enum.all?([whatsapp_access_token(), whatsapp_phone_number_id()], &present?/1)
+  end
+
+  def configured?(:whatsapp_webhook_signature) do
+    present?(whatsapp_app_secret())
+  end
+
+  def configured?(:telegram) do
+    present?(telegram_bot_token())
   end
 
   defp get(key), do: Application.get_env(:minha_casa_ai, __MODULE__, []) |> Keyword.get(key)
