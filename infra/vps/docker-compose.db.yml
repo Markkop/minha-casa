@@ -1,8 +1,10 @@
-# Minha Casa production database stack for a shared VPS.
+# Minha Casa production stack for a shared VPS.
 #
 # Shape:
-#   - App/API routes run on Vercel.
-#   - This Compose file only exposes a dedicated Postgres instance for Minha Casa.
+#   - Postgres remains the source of truth.
+#   - Phoenix runs the AI backend, workflows, WhatsApp webhooks, MCP, and attachments.
+#   - MinIO stores AI/chat attachments.
+#   - The shared /docker/caddy stack exposes Phoenix/MinIO through caddy_net.
 #   - Do not reuse Todo Idle Quest containers, DBs, users, volumes, or ports.
 #
 # Prerequisites on VPS:
@@ -44,9 +46,80 @@ services:
     networks:
       - minha_casa_internal
 
+  minio:
+    image: minio/minio:RELEASE.2025-09-07T16-13-09Z
+    container_name: minha-casa-minio-1
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY:-minhacasa}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY:?set MINIO_SECRET_KEY}
+    volumes:
+      - minha_casa_minio:/data
+    networks:
+      - minha_casa_internal
+      - caddy_net
+
+  minio-init:
+    image: minio/mc:RELEASE.2025-08-13T08-35-41Z
+    depends_on:
+      minio:
+        condition: service_started
+    environment:
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:-minhacasa}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:?set MINIO_SECRET_KEY}
+      MINIO_BUCKET: ${MINIO_BUCKET:-minha-casa-ai}
+    entrypoint:
+      - /bin/sh
+      - -lc
+      - |
+        until mc alias set local http://minio:9000 "$${MINIO_ACCESS_KEY}" "$${MINIO_SECRET_KEY}"; do sleep 2; done
+        mc mb --ignore-existing "local/$${MINIO_BUCKET}"
+    networks:
+      - minha_casa_internal
+
+  phoenix-api:
+    build:
+      context: ../../backend
+      dockerfile: Dockerfile
+    container_name: minha-casa-phoenix-api-1
+    restart: unless-stopped
+    depends_on:
+      minha-casa-db:
+        condition: service_healthy
+      minio:
+        condition: service_started
+    environment:
+      PORT: 4000
+      DATABASE_URL: postgresql://${POSTGRES_USER:?set POSTGRES_USER}:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}@minha-casa-db:5432/${POSTGRES_DB:?set POSTGRES_DB}
+      DATABASE_SSL: "false"
+      DATABASE_POOL_MAX: ${DATABASE_POOL_MAX:-10}
+      SECRET_KEY_BASE: ${PHOENIX_SECRET_KEY_BASE:?set PHOENIX_SECRET_KEY_BASE}
+      INTERNAL_API_SECRET: ${INTERNAL_API_SECRET:?set INTERNAL_API_SECRET}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      SCRAPINGANT_API_KEY: ${SCRAPINGANT_API_KEY:-}
+      MINIO_ENDPOINT: http://minio:9000
+      MINIO_BUCKET: ${MINIO_BUCKET:-minha-casa-ai}
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:-minhacasa}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:?set MINIO_SECRET_KEY}
+      WHATSAPP_VERIFY_TOKEN: ${WHATSAPP_VERIFY_TOKEN:-}
+      WHATSAPP_ACCESS_TOKEN: ${WHATSAPP_ACCESS_TOKEN:-}
+      WHATSAPP_PHONE_NUMBER_ID: ${WHATSAPP_PHONE_NUMBER_ID:-}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+    networks:
+      - minha_casa_internal
+      - caddy_net
+
 networks:
   minha_casa_internal:
     driver: bridge
+  caddy_net:
+    external: true
 
 volumes:
   minha_casa_pgdata:
+  minha_casa_minio:

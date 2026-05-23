@@ -51,6 +51,56 @@ const MAX_LISTINGS = 25
 const BASE_MAX_TOKENS = 500
 const MULTI_MAX_TOKENS_CAP = 4000
 
+function getBackendApiUrl(): string | null {
+  const raw = process.env.INTERNAL_BACKEND_URL || process.env.BACKEND_API_URL
+  if (!raw?.trim()) return null
+  return raw.replace(/\/+$/, "")
+}
+
+async function proxyParseToBackend(
+  body: unknown,
+  userId: string,
+  orgId?: string | null
+): Promise<NextResponse | null> {
+  const backendUrl = getBackendApiUrl()
+  if (!backendUrl) return null
+
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    "x-minha-casa-user-id": userId,
+  }
+
+  if (orgId) {
+    headers["x-minha-casa-org-id"] = orgId
+  }
+
+  const internalSecret = process.env.INTERNAL_API_SECRET
+  if (internalSecret?.trim()) {
+    headers.Authorization = `Bearer ${internalSecret}`
+  }
+
+  try {
+    const response = await fetch(`${backendUrl}/api/parse`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify(body),
+    })
+
+    const contentType = response.headers.get("content-type") ?? ""
+    const payload = contentType.includes("application/json")
+      ? await response.json().catch(() => ({ error: "Invalid backend response" }))
+      : { error: await response.text().catch(() => "Invalid backend response") }
+
+    return NextResponse.json(payload, { status: response.status })
+  } catch (error) {
+    console.error("[parse] backend proxy failed", { backendUrl, error })
+    return NextResponse.json(
+      { error: "Backend de IA indisponível. Tente novamente em instantes." },
+      { status: 503 }
+    )
+  }
+}
+
 // ============================================================================
 // SYSTEM PROMPT
 // ============================================================================
@@ -391,6 +441,14 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
+
+    const proxied = await proxyParseToBackend(
+      body,
+      session.user.id,
+      "orgId" in session.user ? String(session.user.orgId) : null
+    )
+    if (proxied) return proxied
+
     const parseBody = normalizeParseBody(body)
 
     if (!parseBody) {

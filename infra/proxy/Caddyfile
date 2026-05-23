@@ -1,0 +1,15 @@
+{
+  email {$ACME_EMAIL}
+}
+
+{$API_HOSTNAME} {
+  reverse_proxy phoenix-api:4000
+}
+
+{$MINIO_HOSTNAME} {
+  reverse_proxy minio:9000
+}
+
+{$MINIO_CONSOLE_HOSTNAME} {
+  reverse_proxy minio:9001
+}

@@ -1,16 +1,31 @@
-# VPS Postgres for Minha Casa
+# VPS Stack for Minha Casa
 
-Minha Casa is intended to run frontend/API routes on Vercel and use a separate Postgres container on the VPS. This keeps it isolated from Todo Idle Quest while reusing the same operational style: Docker Compose, `.env.prod`, health checks, and small debug scripts.
+Minha Casa now runs the database plus the Elixir AI backend on the VPS. The stack keeps the same operational style: Docker Compose, `.env.prod`, health checks, and small debug scripts.
 
 ## Files
 
-- `infra/vps/docker-compose.db.yml` — dedicated Postgres 17 container exposed on `${POSTGRES_PUBLIC_PORT:-5433}`.
+- `infra/vps/docker-compose.db.yml` — Postgres 17, Phoenix AI backend, and MinIO.
 - `infra/vps/.env.prod.example` — safe template for the VPS `.env.prod`.
 - `infra/vps/scripts/generate-postgres-tls.sh` — creates local cert/key for Postgres TLS.
 - `infra/vps/scripts/db-status.sh` — shows Compose status and recent DB logs.
 - `infra/vps/scripts/db-smoke-test.sh` — runs a read-only `select version(), now();` check.
 
 ## First deploy on the VPS
+
+Local access uses `.ssh-prod` at the repo root, ignored by git:
+
+```text
+user@host
+password
+```
+
+Use it without printing the password:
+
+```bash
+VPS_TARGET="$(sed -n '1p' .ssh-prod)"
+VPS_PASSWORD="$(sed -n '2p' .ssh-prod)"
+sshpass -p "$VPS_PASSWORD" ssh -o StrictHostKeyChecking=no "$VPS_TARGET" "hostname"
+```
 
 ```bash
 cd /docker/minha-casa
@@ -22,9 +37,32 @@ docker compose -f infra/vps/docker-compose.db.yml --env-file .env.prod up -d
 ./infra/vps/scripts/db-smoke-test.sh
 ```
 
-## Vercel env vars
+The VPS uses the shared `/docker/caddy` stack. Add host blocks there, not a second Caddy container:
 
-Set these in Vercel production/preview as appropriate:
+```caddyfile
+api.casas.markkop.dev {
+  reverse_proxy phoenix-api:4000
+}
+
+s3.casas.markkop.dev {
+  reverse_proxy minio:9000
+}
+
+minio.casas.markkop.dev {
+  reverse_proxy minio:9001
+}
+```
+
+Run Phoenix migrations after the first backend deploy:
+
+```bash
+docker compose -f infra/vps/docker-compose.db.yml --env-file .env.prod exec phoenix-api \
+  /app/bin/minha_casa_ai eval "MinhaCasaAi.Release.migrate()"
+```
+
+## Frontend env vars
+
+Set these wherever the Next.js frontend runs:
 
 ```env
 DATABASE_URL=postgresql://minhacasa:<POSTGRES_PASSWORD>@<VPS_HOST>:5433/minha_casa_prod
@@ -35,9 +73,12 @@ BETTER_AUTH_SECRET=<openssl rand -base64 32>
 BETTER_AUTH_TRUSTED_ORIGINS=https://<minha-casa-domain>,http://localhost:3000
 GOOGLE_CLIENT_ID=<from Google Cloud Console>
 GOOGLE_CLIENT_SECRET=<from Google Cloud Console>
+INTERNAL_BACKEND_URL=https://<api-domain>
+BACKEND_API_URL=https://<api-domain>
+INTERNAL_API_SECRET=<same value as VPS .env.prod>
 ```
 
-Also keep the existing production values for OpenAI, ScrapingAnt, Google Maps, Stripe and share links.
+Also keep the existing production values for OpenAI, ScrapingAnt, Google Maps, Stripe and share links. OpenAI and ScrapingAnt should be available to Phoenix on the VPS, while keeping the frontend fallback values until `/api/parse` is fully migrated.
 
 ```env
 SCRAPINGANT_API_KEY=<from ScrapingAnt dashboard>
@@ -54,7 +95,7 @@ DATABASE_URL="postgresql://minhacasa:<password>@<VPS_HOST>:5433/minha_casa_prod"
 DATABASE_SSL="true"
 ```
 
-For **Vercel**, use the same pattern: **no** `sslmode` in `DATABASE_URL`, only `DATABASE_SSL=true`. Node `pg` treats `sslmode=require` as strict certificate verification, which breaks the VPS self-signed cert even when `rejectUnauthorized: false` is set in code.
+For a remotely hosted frontend such as Vercel, use the same pattern: **no** `sslmode` in `DATABASE_URL`, only `DATABASE_SSL=true`. Node `pg` treats `sslmode=require` as strict certificate verification, which breaks the VPS self-signed cert even when `rejectUnauthorized: false` is set in code.
 
 ## Google OAuth Console
 
@@ -82,12 +123,14 @@ Use Web Application credentials:
 
 # Restart DB only, preserving volume
 docker compose -f infra/vps/docker-compose.db.yml --env-file .env.prod restart minha-casa-db
+
+# Restart Phoenix only
+docker compose -f infra/vps/docker-compose.db.yml --env-file .env.prod restart phoenix-api
 ```
 
 Do not run `docker compose down -v` or `docker volume prune` unless you explicitly intend to delete the Minha Casa database volume.
 
 ## Notes
 
-- This setup exposes Postgres publicly so Vercel can connect. It is acceptable for a beta with TLS, strong password, and a low pool size.
-- Stronger production options: managed Postgres, static egress allowlisting, private networking, or moving the backend API onto the VPS behind Caddy.
-- This stack intentionally does not join `caddy_net` because Vercel connects directly to the DB port; Caddy is only needed if an HTTP service is hosted on the VPS.
+- This setup still exposes Postgres publicly for the current frontend/API routes. Once all server routes move to Phoenix or the frontend moves to the VPS, Postgres can be made private to the Docker network.
+- The shared Caddy exposes Phoenix and MinIO over HTTPS. Keep MinIO console protected by a strong password and restrict it further at the firewall if possible.

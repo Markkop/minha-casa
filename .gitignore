@@ -2,6 +2,8 @@
 
 # dependencies
 /node_modules
+/backend/deps
+/backend/_build
 /.pnp
 .pnp.*
 .yarn/*
@@ -41,3 +43,5 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+.ssh-prod

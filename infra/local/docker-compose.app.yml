@@ -1,0 +1,129 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: minha-casa-app-postgres-1
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-minhacasa}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-minhacasa_local_password}
+      POSTGRES_DB: ${POSTGRES_DB:-minha_casa_local}
+    ports:
+      - "${APP_POSTGRES_PUBLIC_PORT:-5435}:5432"
+    volumes:
+      - minha_casa_app_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - minha_casa_local
+
+  minio:
+    image: minio/minio:RELEASE.2025-09-07T16-13-09Z
+    container_name: minha-casa-local-minio-1
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY:-minhacasa}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY:-minhacasa_local_password}
+    ports:
+      - "${MINIO_PUBLIC_PORT:-9000}:9000"
+      - "${MINIO_CONSOLE_PUBLIC_PORT:-9001}:9001"
+    volumes:
+      - minha_casa_local_minio:/data
+    networks:
+      - minha_casa_local
+
+  minio-init:
+    image: minio/mc:RELEASE.2025-08-13T08-35-41Z
+    depends_on:
+      minio:
+        condition: service_started
+    environment:
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:-minhacasa}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-minhacasa_local_password}
+      MINIO_BUCKET: ${MINIO_BUCKET:-minha-casa-ai}
+    entrypoint:
+      - /bin/sh
+      - -lc
+      - |
+        until mc alias set local http://minio:9000 "$${MINIO_ACCESS_KEY}" "$${MINIO_SECRET_KEY}"; do sleep 2; done
+        mc mb --ignore-existing "local/$${MINIO_BUCKET}"
+    networks:
+      - minha_casa_local
+
+  phoenix-api:
+    build:
+      context: ../../backend
+      dockerfile: Dockerfile
+    container_name: minha-casa-phoenix-api-1
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_started
+    environment:
+      PORT: 4000
+      DATABASE_URL: ${BACKEND_DATABASE_URL:-postgresql://minhacasa:minhacasa_local_password@postgres:5432/minha_casa_local}
+      DATABASE_SSL: ${DATABASE_SSL:-false}
+      DATABASE_POOL_MAX: ${DATABASE_POOL_MAX:-10}
+      SECRET_KEY_BASE: ${PHOENIX_SECRET_KEY_BASE:-local-secret-key-base-local-secret-key-base-local-secret-key-base-local-secret-key-base}
+      INTERNAL_API_SECRET: ${INTERNAL_API_SECRET:-local-internal-api-secret}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      SCRAPINGANT_API_KEY: ${SCRAPINGANT_API_KEY:-}
+      MINIO_ENDPOINT: ${MINIO_ENDPOINT:-http://minio:9000}
+      MINIO_BUCKET: ${MINIO_BUCKET:-minha-casa-ai}
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:-minhacasa}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-minhacasa_local_password}
+      WHATSAPP_VERIFY_TOKEN: ${WHATSAPP_VERIFY_TOKEN:-}
+      WHATSAPP_ACCESS_TOKEN: ${WHATSAPP_ACCESS_TOKEN:-}
+      WHATSAPP_PHONE_NUMBER_ID: ${WHATSAPP_PHONE_NUMBER_ID:-}
+    ports:
+      - "${PHOENIX_PUBLIC_PORT:-4000}:4000"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+    networks:
+      - minha_casa_local
+
+  next-web:
+    image: node:22-alpine
+    container_name: minha-casa-next-web-1
+    restart: unless-stopped
+    working_dir: /app
+    depends_on:
+      phoenix-api:
+        condition: service_started
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-postgresql://minhacasa:minhacasa_local_password@postgres:5432/minha_casa_local}
+      DATABASE_SSL: ${DATABASE_SSL:-false}
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:-local-better-auth-secret}
+      BETTER_AUTH_URL: ${BETTER_AUTH_URL:-http://localhost:3000}
+      BETTER_AUTH_TRUSTED_ORIGINS: ${BETTER_AUTH_TRUSTED_ORIGINS:-http://localhost:3000}
+      NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-http://localhost:3000}
+      INTERNAL_BACKEND_URL: http://phoenix-api:4000
+      BACKEND_API_URL: ${BACKEND_API_URL:-http://localhost:4000}
+      INTERNAL_API_SECRET: ${INTERNAL_API_SECRET:-local-internal-api-secret}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      SCRAPINGANT_API_KEY: ${SCRAPINGANT_API_KEY:-}
+    command: sh -lc "corepack enable && pnpm install --frozen-lockfile && pnpm dev"
+    volumes:
+      - ../..:/app
+      - minha_casa_local_pnpm_store:/root/.local/share/pnpm/store
+    ports:
+      - "${NEXT_PUBLIC_PORT:-3000}:3000"
+    networks:
+      - minha_casa_local
+
+networks:
+  minha_casa_local:
+    driver: bridge
+
+volumes:
+  minha_casa_app_pgdata:
+  minha_casa_local_minio:
+  minha_casa_local_pnpm_store:

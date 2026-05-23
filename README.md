@@ -16,6 +16,7 @@ Minha Casa helps users manage and organize real estate listings with AI-powered 
 - **ORM**: Drizzle ORM
 - **Authentication**: BetterAuth
 - **AI**: OpenAI SDK (gpt-4o-mini)
+- **AI Backend**: Phoenix/Elixir service in `backend/` for parsing, workflows, chat, MCP, WhatsApp webhooks, and MinIO attachments
 - **Maps**: Leaflet + Google Maps (dual provider)
 - **Testing**: Vitest + React Testing Library
 
@@ -87,6 +88,26 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 | `pnpm db:push` | Push schema changes directly |
 | `pnpm db:studio` | Open Drizzle Studio |
 
+## Dockerized AI Backend
+
+The Elixir backend lives in `backend/` and is designed to run locally and on the VPS with Docker.
+
+Local full stack:
+
+```bash
+docker compose -f infra/local/docker-compose.app.yml --env-file infra/local/.env.local.example up
+```
+
+Backend health check:
+
+```bash
+curl http://localhost:4000/health
+```
+
+The backend boots without optional credentials. Features that need OpenAI, ScrapingAnt, MinIO, or WhatsApp validate those env vars when called and return a feature-specific error if missing.
+
+Next.js consumes Phoenix server-side through `/api/parse` when `INTERNAL_BACKEND_URL` or `BACKEND_API_URL` is configured. Without those env vars, the existing in-process parser remains as a local fallback.
+
 ## Project Structure
 
 ```
@@ -117,6 +138,7 @@ minha-casa/
 │   └── ui/                 # shadcn/ui components
 ├── drizzle/                 # Database migrations
 │   └── migrations/
+├── backend/                 # Phoenix/Elixir AI backend
 ├── lib/                     # Shared utilities
 │   ├── db/                 # Database schema and connection
 │   │   ├── index.ts       # DB connection
