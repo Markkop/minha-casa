@@ -61,6 +61,7 @@ export function ExportModal({
     tipoImovel: listing.tipoImovel,
     link: listing.link,
     imageUrl: listing.imageUrl,
+    imageUrls: listing.imageUrls,
     contactName: listing.contactName,
     contactNumber: listing.contactNumber,
     starred: listing.starred,

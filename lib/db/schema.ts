@@ -343,6 +343,7 @@ export interface ListingData {
   tipoImovel?: "casa" | "apartamento" | null
   link: string | null
   imageUrl?: string | null
+  imageUrls?: string[] | null
   contactName?: string | null
   contactNumber?: string | null
   condominiumName?: string | null

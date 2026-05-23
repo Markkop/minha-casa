@@ -6,6 +6,7 @@
  */
 
 import type { ListingData } from "@/lib/db/schema"
+import { resolveListingImages, syncListingImageFields } from "@/lib/listing-images"
 import type { ParseRequest } from "./parse-input"
 import {
   ApiError,
@@ -78,6 +79,7 @@ export interface Imovel {
   tipoImovel?: "casa" | "apartamento" | null
   link: string | null
   imageUrl?: string | null
+  imageUrls?: string[] | null
   contactName?: string | null
   contactNumber?: string | null
   condominiumName?: string | null
@@ -119,6 +121,7 @@ export function toCollection(apiCollection: ApiCollection & { ownerName?: string
  * Convert API listing to frontend Imovel format
  */
 export function toImovel(apiListing: ApiListing): Imovel {
+  const images = resolveListingImages(apiListing.data)
   return {
     id: apiListing.id,
     titulo: apiListing.data.titulo,
@@ -141,7 +144,8 @@ export function toImovel(apiListing: ApiListing): Imovel {
     andar: apiListing.data.andar,
     tipoImovel: apiListing.data.tipoImovel,
     link: apiListing.data.link,
-    imageUrl: apiListing.data.imageUrl,
+    imageUrl: images.imageUrl,
+    imageUrls: images.imageUrls,
     contactName: apiListing.data.contactName,
     contactNumber: apiListing.data.contactNumber,
     condominiumName: apiListing.data.condominiumName,
@@ -187,7 +191,18 @@ export function toListingData(imovel: Partial<Imovel>): Partial<ListingData> {
   if (imovel.andar !== undefined) data.andar = imovel.andar
   if (imovel.tipoImovel !== undefined) data.tipoImovel = imovel.tipoImovel
   if (imovel.link !== undefined) data.link = imovel.link
-  if (imovel.imageUrl !== undefined) data.imageUrl = imovel.imageUrl
+  if (imovel.imageUrls !== undefined) {
+    const synced = syncListingImageFields(imovel.imageUrls ?? [])
+    data.imageUrls = synced.imageUrls
+    data.imageUrl = synced.imageUrl
+  } else if (imovel.imageUrl !== undefined) {
+    data.imageUrl = imovel.imageUrl
+    if (imovel.imageUrl) {
+      data.imageUrls = [imovel.imageUrl]
+    } else {
+      data.imageUrls = []
+    }
+  }
   if (imovel.contactName !== undefined) data.contactName = imovel.contactName
   if (imovel.contactNumber !== undefined) data.contactNumber = imovel.contactNumber
   if (imovel.condominiumName !== undefined) data.condominiumName = imovel.condominiumName
@@ -394,6 +409,22 @@ export async function deleteListing(collectionId: string, listingId: string): Pr
     method: "DELETE",
   })
   await handleResponse<{ success: boolean }>(response)
+}
+
+export interface PullListingImagesResult {
+  imageUrls: string[]
+  imageUrl: string | null
+  imageCount: number
+}
+
+/**
+ * Re-scrapes listing link for gallery images (preview; save via updateApiListing).
+ */
+export async function pullListingImages(listingId: string): Promise<PullListingImagesResult> {
+  const response = await fetch(`/api/listings/${listingId}/pull-images`, {
+    method: "POST",
+  })
+  return handleResponse<PullListingImagesResult>(response)
 }
 
 // ============================================================================

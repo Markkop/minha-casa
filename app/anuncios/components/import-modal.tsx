@@ -89,6 +89,9 @@ export function ImportModal({
           : null,
       link: typeof listing.link === "string" ? listing.link : null,
       imageUrl: typeof listing.imageUrl === "string" ? listing.imageUrl : null,
+      imageUrls: Array.isArray(listing.imageUrls)
+        ? listing.imageUrls.filter((u): u is string => typeof u === "string" && u.trim() !== "")
+        : undefined,
       contactName: typeof listing.contactName === "string" ? listing.contactName : null,
       contactNumber: typeof listing.contactNumber === "string" ? listing.contactNumber : null,
       condominiumName:

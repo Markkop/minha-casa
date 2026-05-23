@@ -30,6 +30,7 @@ export interface Imovel {
   tipoImovel?: "casa" | "apartamento" | null
   link: string | null
   imageUrl?: string | null
+  imageUrls?: string[] | null
   contactName?: string | null
   contactNumber?: string | null
   condominiumName?: string | null
@@ -778,6 +779,7 @@ const KEY_MAP: Record<string, string> = {
   tipoImovel: "ti",
   link: "lk",
   imageUrl: "iu",
+  imageUrls: "ius",
   contactName: "cn",
   contactNumber: "cnu",
   condominiumName: "con",
@@ -899,6 +901,7 @@ const IMOVEL_KEYS_ORDER: (keyof Imovel)[] = [
   "tipoImovel",
   "link",
   "imageUrl",
+  "imageUrls",
   "contactName",
   "contactNumber",
   "condominiumName",

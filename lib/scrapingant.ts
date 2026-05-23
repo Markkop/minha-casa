@@ -1,9 +1,15 @@
 import { validatePublicHttpUrl } from "@/lib/url-validation"
 
-const SCRAPINGANT_MARKDOWN_URL = "https://api.scrapingant.com/v2/markdown"
+const SCRAPINGANT_GENERAL_URL = "https://api.scrapingant.com/v2/general"
 const FETCH_TIMEOUT_MS = 55_000
-export const MIN_SCRAPED_MARKDOWN_LENGTH = 50
-export const MAX_SCRAPED_MARKDOWN_LENGTH = 100_000
+export const MIN_SCRAPED_PAGE_TEXT_LENGTH = 50
+export const MAX_SCRAPED_PAGE_TEXT_LENGTH = 100_000
+
+/** @deprecated Use MIN_SCRAPED_PAGE_TEXT_LENGTH */
+export const MIN_SCRAPED_MARKDOWN_LENGTH = MIN_SCRAPED_PAGE_TEXT_LENGTH
+
+/** @deprecated Use MAX_SCRAPED_PAGE_TEXT_LENGTH */
+export const MAX_SCRAPED_MARKDOWN_LENGTH = MAX_SCRAPED_PAGE_TEXT_LENGTH
 
 const JS_HEAVY_PORTAL_HOST_SUFFIXES = [
   "vivareal.com.br",
@@ -12,6 +18,18 @@ const JS_HEAVY_PORTAL_HOST_SUFFIXES = [
   "quintoandar.com.br",
   "imovelweb.com.br",
   "chavesnamao.com.br",
+]
+
+const IMAGE_URL_BLOCKLIST = [
+  "app-store",
+  "google-play",
+  "play-badge",
+  "logo",
+  "badge",
+  "avatar",
+  "favicon",
+  "sprite",
+  "placeholder",
 ]
 
 export class ScrapingAntError extends Error {
@@ -24,9 +42,11 @@ export class ScrapingAntError extends Error {
   }
 }
 
-export interface ScrapeMarkdownResult {
-  markdown: string
+export interface ScrapePageResult {
   sourceUrl: string
+  html: string
+  text: string
+  imageUrls: string[]
 }
 
 function getApiKey(): string {
@@ -71,20 +91,123 @@ function mapHttpStatusToMessage(status: number, detail: string | null): string {
   return "Não foi possível acessar o anúncio neste link. Verifique a URL ou cole o texto."
 }
 
-function truncateMarkdown(markdown: string): string {
-  if (markdown.length <= MAX_SCRAPED_MARKDOWN_LENGTH) return markdown
-  return `${markdown.slice(0, MAX_SCRAPED_MARKDOWN_LENGTH)}\n\n[conteúdo truncado]`
+function truncateText(text: string): string {
+  if (text.length <= MAX_SCRAPED_PAGE_TEXT_LENGTH) return text
+  return `${text.slice(0, MAX_SCRAPED_PAGE_TEXT_LENGTH)}\n\n[conteúdo truncado]`
 }
 
-function extractMarkdown(body: unknown): string {
-  if (
-    body &&
-    typeof body === "object" &&
-    typeof (body as Record<string, unknown>).markdown === "string"
-  ) {
-    return (body as { markdown: string }).markdown.trim()
+function decodeHtmlEntities(text: string): string {
+  return text
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/gi, "'")
+    .replace(/&#x27;/gi, "'")
+}
+
+/**
+ * Strips HTML to plain text for OpenAI parsing.
+ */
+export function htmlToListingText(html: string): string {
+  let text = html
+  text = text.replace(/<script[\s\S]*?<\/script>/gi, " ")
+  text = text.replace(/<style[\s\S]*?<\/style>/gi, " ")
+  text = text.replace(/<noscript[\s\S]*?<\/noscript>/gi, " ")
+  text = text.replace(/<[^>]+>/g, " ")
+  text = decodeHtmlEntities(text)
+  text = text.replace(/\s+/g, " ").trim()
+  return truncateText(text)
+}
+
+function normalizeImageUrl(raw: string): string | null {
+  const trimmed = raw.trim().replace(/\\n/g, "").replace(/\s+/g, "")
+  if (!trimmed || trimmed.startsWith("data:")) return null
+  try {
+    const url = new URL(trimmed)
+    if (url.protocol !== "http:" && url.protocol !== "https:") return null
+    return url.toString()
+  } catch {
+    return null
   }
-  return ""
+}
+
+function isBlockedImageUrl(url: string): boolean {
+  const lower = url.toLowerCase()
+  if (lower.endsWith(".svg")) return true
+  if (/\{[^}]+\}/.test(url)) return true
+  if (IMAGE_URL_BLOCKLIST.some((token) => lower.includes(token))) return true
+  if (/dimension=72x56/i.test(url)) return true
+  return false
+}
+
+function imageUrlScore(url: string): number {
+  let score = 0
+  if (/action=fit-in/i.test(url)) score += 100_000
+  const dim = url.match(/dimension=(\d+)x(\d+)/i)
+  if (dim) score += Number(dim[1]) * Number(dim[2])
+  return score
+}
+
+function listingImageKey(url: string): string | null {
+  const vr = url.match(/\/vr-listing\/([a-f0-9]+)\//i)
+  if (vr) return `vr:${vr[1]}`
+  try {
+    const parsed = new URL(url)
+    return `url:${parsed.origin}${parsed.pathname}`
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Extracts property image URLs from scraped HTML.
+ */
+export function extractImageUrlsFromHtml(html: string): string[] {
+  const candidates = new Set<string>()
+
+  const imgTagRegex = /<img[^>]+>/gi
+  let tagMatch: RegExpExecArray | null
+  while ((tagMatch = imgTagRegex.exec(html)) !== null) {
+    const tag = tagMatch[0]
+    for (const attr of ["src", "data-src"]) {
+      const attrMatch = tag.match(new RegExp(`${attr}=["']([^"']+)["']`, "i"))
+      if (attrMatch) {
+        const normalized = normalizeImageUrl(attrMatch[1].replace(/&amp;/g, "&"))
+        if (normalized) candidates.add(normalized)
+      }
+    }
+    const srcsetMatch = tag.match(/srcset=["']([^"']+)["']/i)
+    if (srcsetMatch) {
+      for (const part of srcsetMatch[1].split(",")) {
+        const urlPart = part.trim().split(/\s+/)[0]
+        const normalized = normalizeImageUrl(urlPart.replace(/&amp;/g, "&"))
+        if (normalized) candidates.add(normalized)
+      }
+    }
+  }
+
+  const urlRegex =
+    /https?:\/\/resizedimgs\.vivareal\.com\/[^\s"'<>]+|https?:\/\/[^\s"'<>]+\.(?:jpg|jpeg|png|webp)(?:\?[^\s"'<>]*)?/gi
+  let urlMatch: RegExpExecArray | null
+  while ((urlMatch = urlRegex.exec(html)) !== null) {
+    const normalized = normalizeImageUrl(urlMatch[0].replace(/&amp;/g, "&"))
+    if (normalized) candidates.add(normalized)
+  }
+
+  const bestByKey = new Map<string, string>()
+  for (const url of candidates) {
+    if (isBlockedImageUrl(url)) continue
+    const key = listingImageKey(url)
+    if (!key) continue
+    const existing = bestByKey.get(key)
+    if (!existing || imageUrlScore(url) > imageUrlScore(existing)) {
+      bestByKey.set(key, url)
+    }
+  }
+
+  return [...bestByKey.values()]
 }
 
 export function isJsHeavyListingPortal(hostname: string): boolean {
@@ -94,44 +217,35 @@ export function isJsHeavyListingPortal(hostname: string): boolean {
   )
 }
 
-async function parseResponseBody(
-  response: Response,
-  contentType: string
+async function parseErrorResponseBody(
+  response: Response
 ): Promise<{ body: unknown; rawPreview: string | null }> {
   const rawText = await response.text()
-
-  if (!rawText) {
-    return { body: null, rawPreview: null }
-  }
+  if (!rawText) return { body: null, rawPreview: null }
 
   const preview = rawText.slice(0, 200)
+  const contentType = response.headers.get("content-type") ?? ""
   const shouldTryJson =
     contentType.includes("application/json") ||
     contentType.includes("+json") ||
-    (response.ok && rawText.trimStart().startsWith("{"))
+    rawText.trimStart().startsWith("{")
 
   if (!shouldTryJson) {
-    if (!response.ok) {
-      return { body: { detail: rawText.slice(0, 500) }, rawPreview: preview }
-    }
-    return { body: null, rawPreview: preview }
+    return { body: { detail: rawText.slice(0, 500) }, rawPreview: preview }
   }
 
   try {
     return { body: JSON.parse(rawText) as unknown, rawPreview: preview }
   } catch {
-    if (!response.ok) {
-      return { body: { detail: rawText.slice(0, 500) }, rawPreview: preview }
-    }
-    return { body: null, rawPreview: preview }
+    return { body: { detail: rawText.slice(0, 500) }, rawPreview: preview }
   }
 }
 
-async function fetchMarkdownFromScrapingAnt(
+async function fetchGeneralHtmlFromScrapingAnt(
   sourceUrl: URL,
   apiKey: string,
   browser: boolean
-): Promise<{ markdown: string; httpStatus: number; contentType: string }> {
+): Promise<{ html: string; httpStatus: number; contentType: string }> {
   const params = new URLSearchParams({
     url: sourceUrl.toString(),
     "x-api-key": apiKey,
@@ -143,10 +257,10 @@ async function fetchMarkdownFromScrapingAnt(
 
   let response: Response
   try {
-    response = await fetch(`${SCRAPINGANT_MARKDOWN_URL}?${params.toString()}`, {
+    response = await fetch(`${SCRAPINGANT_GENERAL_URL}?${params.toString()}`, {
       method: "GET",
       signal: controller.signal,
-      headers: { Accept: "application/json" },
+      headers: { Accept: "text/html,application/json" },
     })
   } catch (error) {
     if (error instanceof Error && error.name === "AbortError") {
@@ -164,9 +278,9 @@ async function fetchMarkdownFromScrapingAnt(
   }
 
   const contentType = response.headers.get("content-type") ?? ""
-  const { body, rawPreview } = await parseResponseBody(response, contentType)
 
   if (!response.ok) {
+    const { body, rawPreview } = await parseErrorResponseBody(response)
     const detail = parseErrorDetail(body)
     console.warn("[scrapingant] request failed", {
       hostname: sourceUrl.hostname,
@@ -181,48 +295,57 @@ async function fetchMarkdownFromScrapingAnt(
     )
   }
 
-  const markdown = extractMarkdown(body)
-  if (markdown.length < MIN_SCRAPED_MARKDOWN_LENGTH && rawPreview) {
-    console.warn("[scrapingant] short or empty markdown", {
+  const html = (await response.text()).trim()
+  const text = htmlToListingText(html)
+
+  if (text.length < MIN_SCRAPED_PAGE_TEXT_LENGTH) {
+    console.warn("[scrapingant] short or empty page text", {
       hostname: sourceUrl.hostname,
       browser,
       httpStatus: response.status,
       contentType,
-      markdownLength: markdown.length,
-      bodyPreview: rawPreview,
+      textLength: text.length,
+      htmlLength: html.length,
     })
   }
 
-  return { markdown, httpStatus: response.status, contentType }
+  return { html, httpStatus: response.status, contentType }
+}
+
+function buildScrapeResult(sourceUrl: string, html: string): ScrapePageResult {
+  const text = htmlToListingText(html)
+  return {
+    sourceUrl,
+    html,
+    text,
+    imageUrls: extractImageUrlsFromHtml(html),
+  }
 }
 
 /**
- * Fetches listing page content via ScrapingAnt markdown endpoint.
- * Uses browser=false first; retries with browser=true on JS-heavy portals when content is too short.
+ * Fetches listing page via ScrapingAnt general endpoint.
+ * Uses browser=false first; retries with browser=true on JS-heavy portals when text is too short.
  */
-export async function scrapeUrlToMarkdown(rawUrl: string): Promise<ScrapeMarkdownResult> {
+export async function scrapeUrlPage(rawUrl: string): Promise<ScrapePageResult> {
   const parsed = validatePublicHttpUrl(rawUrl)
   const apiKey = getApiKey()
   const hostname = parsed.hostname
   const useBrowserRetry = isJsHeavyListingPortal(hostname)
+  const sourceUrl = parsed.toString()
 
-  const first = await fetchMarkdownFromScrapingAnt(parsed, apiKey, false)
+  const first = await fetchGeneralHtmlFromScrapingAnt(parsed, apiKey, false)
+  const firstText = htmlToListingText(first.html)
 
-  if (first.markdown.length >= MIN_SCRAPED_MARKDOWN_LENGTH) {
-    return {
-      markdown: truncateMarkdown(first.markdown),
-      sourceUrl: parsed.toString(),
-    }
+  if (firstText.length >= MIN_SCRAPED_PAGE_TEXT_LENGTH) {
+    return buildScrapeResult(sourceUrl, first.html)
   }
 
   if (useBrowserRetry) {
     console.info("[scrapingant] retrying with browser=true", { hostname })
-    const second = await fetchMarkdownFromScrapingAnt(parsed, apiKey, true)
-    if (second.markdown.length >= MIN_SCRAPED_MARKDOWN_LENGTH) {
-      return {
-        markdown: truncateMarkdown(second.markdown),
-        sourceUrl: parsed.toString(),
-      }
+    const second = await fetchGeneralHtmlFromScrapingAnt(parsed, apiKey, true)
+    const secondText = htmlToListingText(second.html)
+    if (secondText.length >= MIN_SCRAPED_PAGE_TEXT_LENGTH) {
+      return buildScrapeResult(sourceUrl, second.html)
     }
   }
 

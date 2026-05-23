@@ -1,13 +1,22 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import {
-  scrapeUrlToMarkdown,
+  scrapeUrlPage,
   ScrapingAntError,
   isJsHeavyListingPortal,
-  MAX_SCRAPED_MARKDOWN_LENGTH,
-  MIN_SCRAPED_MARKDOWN_LENGTH,
+  htmlToListingText,
+  extractImageUrlsFromHtml,
+  MAX_SCRAPED_PAGE_TEXT_LENGTH,
+  MIN_SCRAPED_PAGE_TEXT_LENGTH,
 } from "./scrapingant"
 
-describe("scrapeUrlToMarkdown", () => {
+const SAMPLE_HTML = `<!DOCTYPE html><html><body>
+<h1>Casa no Campeche</h1>
+<p>3 quartos, 2 banheiros, garagem, 180m², R$ 1.500.000. Condomínio com piscina.</p>
+<img src="https://resizedimgs.vivareal.com/img/vr-listing/abc123/casa.webp?action=fit-in&dimension=870x707&seo=false" />
+<img src="https://cdn.example.com/logo.svg" />
+</body></html>`
+
+describe("scrapeUrlPage", () => {
   const originalKey = process.env.SCRAPINGANT_API_KEY
 
   beforeEach(() => {
@@ -24,42 +33,40 @@ describe("scrapeUrlToMarkdown", () => {
     }
   })
 
-  it("calls markdown endpoint with browser=false", async () => {
+  it("calls general endpoint with browser=false", async () => {
     const mockFetch = vi.mocked(fetch)
     mockFetch.mockResolvedValueOnce(
-      new Response(
-        JSON.stringify({
-          url: "https://example.com/listing",
-          markdown:
-            "# Casa no Campeche\n\n3 quartos, 2 banheiros, garagem, 180m², R$ 1.500.000. Condomínio com piscina.",
-        }),
-        { status: 200, headers: { "Content-Type": "application/json" } }
-      )
+      new Response(SAMPLE_HTML, {
+        status: 200,
+        headers: { "Content-Type": "text/html; charset=utf-8" },
+      })
     )
 
-    const result = await scrapeUrlToMarkdown("https://example.com/listing")
+    const result = await scrapeUrlPage("https://example.com/listing")
 
     expect(result.sourceUrl).toBe("https://example.com/listing")
-    expect(result.markdown).toContain("Casa")
+    expect(result.text).toContain("Casa no Campeche")
+    expect(result.imageUrls.length).toBeGreaterThan(0)
+    expect(result.imageUrls[0]).toContain("vr-listing/abc123")
     const calledUrl = mockFetch.mock.calls[0][0] as string
-    expect(calledUrl).toContain("api.scrapingant.com/v2/markdown")
+    expect(calledUrl).toContain("api.scrapingant.com/v2/general")
     expect(calledUrl).toContain("browser=false")
     expect(calledUrl).toContain("x-api-key=test-key")
   })
 
   it("throws when API key is missing", async () => {
     delete process.env.SCRAPINGANT_API_KEY
-    await expect(scrapeUrlToMarkdown("https://example.com")).rejects.toThrow(
+    await expect(scrapeUrlPage("https://example.com")).rejects.toThrow(
       ScrapingAntError
     )
   })
 
   it("throws on invalid URL", async () => {
-    await expect(scrapeUrlToMarkdown("not-a-url")).rejects.toThrow("INVALID_URL")
+    await expect(scrapeUrlPage("not-a-url")).rejects.toThrow("INVALID_URL")
   })
 
   it("throws on localhost URL", async () => {
-    await expect(scrapeUrlToMarkdown("http://localhost/secret")).rejects.toThrow(
+    await expect(scrapeUrlPage("http://localhost/secret")).rejects.toThrow(
       "INVALID_URL"
     )
   })
@@ -72,21 +79,21 @@ describe("scrapeUrlToMarkdown", () => {
       })
     )
 
-    await expect(scrapeUrlToMarkdown("https://example.com")).rejects.toMatchObject({
+    await expect(scrapeUrlPage("https://example.com")).rejects.toMatchObject({
       statusCode: 429,
       message: expect.stringContaining("Limite"),
     })
   })
 
-  it("throws when markdown is too short on non-portal hosts", async () => {
+  it("throws when page text is too short on non-portal hosts", async () => {
     vi.mocked(fetch).mockResolvedValueOnce(
-      new Response(
-        JSON.stringify({ markdown: "x".repeat(MIN_SCRAPED_MARKDOWN_LENGTH - 1) }),
-        { status: 200, headers: { "Content-Type": "application/json" } }
-      )
+      new Response("<html><body>x</body></html>", {
+        status: 200,
+        headers: { "Content-Type": "text/html" },
+      })
     )
 
-    await expect(scrapeUrlToMarkdown("https://example.com")).rejects.toMatchObject({
+    await expect(scrapeUrlPage("https://example.com")).rejects.toMatchObject({
       statusCode: 400,
       message: expect.stringContaining("conteúdo suficiente"),
     })
@@ -94,46 +101,34 @@ describe("scrapeUrlToMarkdown", () => {
   })
 
   it("retries with browser=true on JS-heavy portals when first scrape is short", async () => {
-    const short = "x".repeat(MIN_SCRAPED_MARKDOWN_LENGTH - 1)
-    const long =
-      "# Apartamento\n\n" + "a".repeat(MIN_SCRAPED_MARKDOWN_LENGTH)
+    const shortHtml = "<html><body>x</body></html>"
+    const longHtml =
+      "<html><body><h1>Apartamento</h1>" +
+      "a".repeat(MIN_SCRAPED_PAGE_TEXT_LENGTH) +
+      "</body></html>"
 
     vi.mocked(fetch)
       .mockResolvedValueOnce(
-        new Response(JSON.stringify({ markdown: short }), {
+        new Response(shortHtml, {
           status: 200,
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "text/html" },
         })
       )
       .mockResolvedValueOnce(
-        new Response(JSON.stringify({ markdown: long }), {
+        new Response(longHtml, {
           status: 200,
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "text/html" },
         })
       )
 
-    const result = await scrapeUrlToMarkdown(
+    const result = await scrapeUrlPage(
       "https://www.vivareal.com.br/imovel/apartamento-venda"
     )
 
-    expect(result.markdown).toContain("Apartamento")
+    expect(result.text).toContain("Apartamento")
     expect(vi.mocked(fetch)).toHaveBeenCalledTimes(2)
     expect(String(vi.mocked(fetch).mock.calls[0][0])).toContain("browser=false")
     expect(String(vi.mocked(fetch).mock.calls[1][0])).toContain("browser=true")
-  })
-
-  it("parses JSON body when content-type is not application/json", async () => {
-    const markdown =
-      "# Casa\n\n" + "Descrição longa do imóvel. ".repeat(10)
-    vi.mocked(fetch).mockResolvedValueOnce(
-      new Response(JSON.stringify({ markdown }), {
-        status: 200,
-        headers: { "Content-Type": "text/plain" },
-      })
-    )
-
-    const result = await scrapeUrlToMarkdown("https://example.com/listing")
-    expect(result.markdown).toContain("Casa")
   })
 
   it("detects JS-heavy listing portals", () => {
@@ -141,17 +136,36 @@ describe("scrapeUrlToMarkdown", () => {
     expect(isJsHeavyListingPortal("example.com")).toBe(false)
   })
 
-  it("truncates very long markdown", async () => {
-    const longBody = "a".repeat(MAX_SCRAPED_MARKDOWN_LENGTH + 500)
+  it("truncates very long page text", async () => {
+    const longBody = "a".repeat(MAX_SCRAPED_PAGE_TEXT_LENGTH + 500)
     vi.mocked(fetch).mockResolvedValueOnce(
-      new Response(JSON.stringify({ markdown: longBody }), {
+      new Response(`<html><body>${longBody}</body></html>`, {
         status: 200,
-        headers: { "Content-Type": "application/json" } }
-      )
+        headers: { "Content-Type": "text/html" },
+      })
     )
 
-    const result = await scrapeUrlToMarkdown("https://example.com")
-    expect(result.markdown.length).toBeLessThan(longBody.length)
-    expect(result.markdown).toContain("[conteúdo truncado]")
+    const result = await scrapeUrlPage("https://example.com")
+    expect(result.text.length).toBeLessThan(longBody.length)
+    expect(result.text).toContain("[conteúdo truncado]")
+  })
+})
+
+describe("htmlToListingText", () => {
+  it("strips tags and scripts", () => {
+    const text = htmlToListingText(
+      "<html><script>alert(1)</script><body><p>Olá &amp; mundo</p></body></html>"
+    )
+    expect(text).toContain("Olá & mundo")
+    expect(text).not.toContain("alert")
+  })
+})
+
+describe("extractImageUrlsFromHtml", () => {
+  it("extracts and filters images", () => {
+    const urls = extractImageUrlsFromHtml(SAMPLE_HTML)
+    expect(urls).toHaveLength(1)
+    expect(urls[0]).toContain("abc123")
+    expect(urls[0]).not.toContain("logo.svg")
   })
 })

@@ -38,6 +38,7 @@ export interface CollectionExportData {
     andar?: number | null
     link: string | null
     imageUrl?: string | null
+    imageUrls?: string[] | null
     contactName?: string | null
     contactNumber?: string | null
     starred?: boolean

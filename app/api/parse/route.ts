@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "@/lib/auth-server"
 import OpenAI from "openai"
-import { scrapeUrlToMarkdown, ScrapingAntError } from "@/lib/scrapingant"
+import { scrapeUrlPage, ScrapingAntError } from "@/lib/scrapingant"
 import type { ListingData } from "@/lib/db/schema"
 
 export const maxDuration = 60
@@ -547,12 +547,13 @@ export async function POST(request: NextRequest) {
       }
 
       const scrapeStartedAt = Date.now()
-      let scraped: Awaited<ReturnType<typeof scrapeUrlToMarkdown>>
+      let scraped: Awaited<ReturnType<typeof scrapeUrlPage>>
       try {
-        scraped = await scrapeUrlToMarkdown(url)
+        scraped = await scrapeUrlPage(url)
         console.info("[parse] scrape ok", {
           hostname: listingHostname,
-          markdownLength: scraped.markdown.length,
+          textLength: scraped.text.length,
+          imageCount: scraped.imageUrls.length,
           durationMs: Date.now() - scrapeStartedAt,
         })
       } catch (error) {
@@ -572,12 +573,14 @@ export async function POST(request: NextRequest) {
         }
         throw error
       }
-      const textForAi = `URL do anúncio: ${scraped.sourceUrl}\n\n${scraped.markdown}`
+      const textForAi = `URL do anúncio: ${scraped.sourceUrl}\n\n${scraped.text}`
       listings = await parseWithTextModel(openai, textForAi)
       for (const listing of listings) {
         if (!listing.link) {
           listing.link = scraped.sourceUrl
         }
+        listing.imageUrls = scraped.imageUrls
+        listing.imageUrl = scraped.imageUrls[0] ?? null
       }
     } else {
       return NextResponse.json({ error: "Invalid request kind" }, { status: 400 })

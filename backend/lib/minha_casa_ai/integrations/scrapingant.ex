@@ -1,9 +1,9 @@
 defmodule MinhaCasaAi.Integrations.ScrapingAnt do
   alias MinhaCasaAi.Config
 
-  @markdown_url "https://api.scrapingant.com/v2/markdown"
-  @min_markdown_length 50
-  @max_markdown_length 100_000
+  @general_url "https://api.scrapingant.com/v2/general"
+  @min_text_length 50
+  @max_text_length 100_000
   @js_heavy_hosts [
     "vivareal.com.br",
     "zapimoveis.com.br",
@@ -13,16 +13,28 @@ defmodule MinhaCasaAi.Integrations.ScrapingAnt do
     "chavesnamao.com.br"
   ]
 
+  @image_blocklist [
+    "app-store",
+    "google-play",
+    "play-badge",
+    "logo",
+    "badge",
+    "avatar",
+    "favicon",
+    "sprite",
+    "placeholder"
+  ]
+
   def scrape_url(raw_url) when is_binary(raw_url) do
     with {:ok, api_key} <- require_key(),
          {:ok, uri} <- validate_url(raw_url),
-         {:ok, markdown} <- fetch_markdown(uri, api_key, false) do
-      {:ok, %{markdown: truncate(markdown), source_url: URI.to_string(uri)}}
+         {:ok, html} <- fetch_html(uri, api_key, false) do
+      {:ok, build_result(uri, html)}
     else
       {:short, uri, api_key} ->
         if js_heavy?(uri.host) do
-          with {:ok, markdown} <- fetch_markdown(uri, api_key, true) do
-            {:ok, %{markdown: truncate(markdown), source_url: URI.to_string(uri)}}
+          with {:ok, html} <- fetch_html(uri, api_key, true) do
+            {:ok, build_result(uri, html)}
           else
             {:short, _uri, _api_key} -> {:error, :scraped_content_too_short}
             other -> other
@@ -34,6 +46,17 @@ defmodule MinhaCasaAi.Integrations.ScrapingAnt do
       other ->
         other
     end
+  end
+
+  defp build_result(uri, html) do
+    text = html_to_listing_text(html)
+
+    %{
+      html: html,
+      text: text,
+      image_urls: extract_image_urls_from_html(html),
+      source_url: URI.to_string(uri)
+    }
   end
 
   defp require_key do
@@ -54,23 +77,24 @@ defmodule MinhaCasaAi.Integrations.ScrapingAnt do
     end
   end
 
-  defp fetch_markdown(uri, api_key, browser?) do
+  defp fetch_html(uri, api_key, browser?) do
     params = %{
       "url" => URI.to_string(uri),
       "x-api-key" => api_key,
       "browser" => if(browser?, do: "true", else: "false")
     }
 
-    case Req.get(@markdown_url,
+    case Req.get(@general_url,
            params: params,
            finch: MinhaCasaAi.Finch,
            receive_timeout: 55_000
          ) do
-      {:ok, %{status: status, body: body}} when status in 200..299 ->
-        markdown = extract_markdown(body)
+      {:ok, %{status: status, body: body}} when status in 200..299 and is_binary(body) ->
+        html = String.trim(body)
+        text = html_to_listing_text(html)
 
-        if String.length(markdown) >= @min_markdown_length do
-          {:ok, markdown}
+        if String.length(text) >= @min_text_length do
+          {:ok, html}
         else
           {:short, uri, api_key}
         end
@@ -95,15 +119,146 @@ defmodule MinhaCasaAi.Integrations.ScrapingAnt do
     end
   end
 
-  defp extract_markdown(%{"markdown" => markdown}) when is_binary(markdown),
-    do: String.trim(markdown)
+  def html_to_listing_text(html) when is_binary(html) do
+    html
+    |> String.replace(~r/<script[\s\S]*?<\/script>/i, " ")
+    |> String.replace(~r/<style[\s\S]*?<\/style>/i, " ")
+    |> String.replace(~r/<noscript[\s\S]*?<\/noscript>/i, " ")
+    |> String.replace(~r/<[^>]+>/, " ")
+    |> decode_html_entities()
+    |> String.replace(~r/\s+/, " ")
+    |> String.trim()
+    |> truncate_text()
+  end
 
-  defp extract_markdown(_), do: ""
+  defp decode_html_entities(text) do
+    text
+    |> String.replace("&nbsp;", " ")
+    |> String.replace("&amp;", "&")
+    |> String.replace("&lt;", "<")
+    |> String.replace("&gt;", ">")
+    |> String.replace("&quot;", "\"")
+    |> String.replace("&#39;", "'")
+    |> String.replace("&#x27;", "'")
+  end
 
-  defp truncate(markdown) when byte_size(markdown) <= @max_markdown_length, do: markdown
+  defp truncate_text(text) when byte_size(text) <= @max_text_length, do: text
 
-  defp truncate(markdown),
-    do: binary_part(markdown, 0, @max_markdown_length) <> "\n\n[conteúdo truncado]"
+  defp truncate_text(text),
+    do: binary_part(text, 0, @max_text_length) <> "\n\n[conteúdo truncado]"
+
+  def extract_image_urls_from_html(html) when is_binary(html) do
+    html
+    |> collect_image_candidates()
+    |> Enum.reject(&blocked_image_url?/1)
+    |> Enum.reduce(%{}, fn url, acc ->
+      case listing_image_key(url) do
+        nil ->
+          acc
+
+        key ->
+          existing = Map.get(acc, key)
+
+          if is_nil(existing) or image_url_score(url) > image_url_score(existing) do
+            Map.put(acc, key, url)
+          else
+            acc
+          end
+      end
+    end)
+    |> Map.values()
+  end
+
+  defp collect_image_candidates(html) do
+    img_srcs =
+      ~r/<img[^>]+>/i
+      |> Regex.scan(html)
+      |> List.flatten()
+      |> Enum.flat_map(&urls_from_img_tag/1)
+
+    bare =
+      ~r/https?:\/\/resizedimgs\.vivareal\.com\/[^\s"'<>]+|https?:\/\/[^\s"'<>]+\.(?:jpg|jpeg|png|webp)(?:\?[^\s"'<>]*)?/i
+      |> Regex.scan(html)
+      |> List.flatten()
+
+    Enum.uniq(img_srcs ++ bare)
+    |> Enum.map(&normalize_image_url/1)
+    |> Enum.reject(&is_nil/1)
+  end
+
+  defp urls_from_img_tag(tag) do
+    src =
+      case Regex.run(~r/src=["']([^"']+)["']/i, tag) do
+        [_, value] -> [value]
+        _ -> []
+      end
+
+    data_src =
+      case Regex.run(~r/data-src=["']([^"']+)["']/i, tag) do
+        [_, value] -> [value]
+        _ -> []
+      end
+
+    srcset =
+      case Regex.run(~r/srcset=["']([^"']+)["']/i, tag) do
+        [_, value] ->
+          value
+          |> String.split(",")
+          |> Enum.map(fn part ->
+            part |> String.trim() |> String.split(~r/\s+/, parts: 2) |> List.first()
+          end)
+
+        _ ->
+          []
+      end
+
+    src ++ data_src ++ srcset
+  end
+
+  defp normalize_image_url(raw) when is_binary(raw) do
+    cleaned =
+      raw
+      |> String.trim()
+      |> String.replace("\\n", "")
+      |> String.replace(~r/\s+/, "")
+      |> String.replace("&amp;", "&")
+
+    cond do
+      cleaned == "" or String.starts_with?(cleaned, "data:") ->
+        nil
+
+      String.starts_with?(cleaned, "http://") or String.starts_with?(cleaned, "https://") ->
+        cleaned
+
+      true ->
+        nil
+    end
+  end
+
+  defp blocked_image_url?(url) do
+    lower = String.downcase(url)
+
+    String.ends_with?(lower, ".svg") or
+      String.contains?(url, "{") or
+      Enum.any?(@image_blocklist, &String.contains?(lower, &1)) or
+      Regex.match?(~r/dimension=72x56/i, url)
+  end
+
+  defp image_url_score(url) do
+    base = if Regex.match?(~r/action=fit-in/i, url), do: 100_000, else: 0
+
+    case Regex.run(~r/dimension=(\d+)x(\d+)/i, url) do
+      [_, w, h] -> base + String.to_integer(w) * String.to_integer(h)
+      _ -> base
+    end
+  end
+
+  defp listing_image_key(url) do
+    case Regex.run(~r/\/vr-listing\/([a-f0-9]+)\//i, url) do
+      [_, hash] -> "vr:" <> hash
+      _ -> "url:" <> url
+    end
+  end
 
   defp js_heavy?(hostname) when is_binary(hostname) do
     lower = String.downcase(hostname)

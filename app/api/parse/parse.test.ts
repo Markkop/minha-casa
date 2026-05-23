@@ -100,7 +100,7 @@ vi.mock("pdf-parse", () => {
 })
 
 vi.mock("@/lib/scrapingant", () => ({
-  scrapeUrlToMarkdown: vi.fn(),
+  scrapeUrlPage: vi.fn(),
   ScrapingAntError: class ScrapingAntError extends Error {
     statusCode: number
     constructor(message: string, statusCode = 502) {
@@ -121,11 +121,13 @@ describe("Parse API - POST /api/parse", () => {
 
   it("parses listing from URL without loading pdf-parse", async () => {
     const { getServerSession } = await import("@/lib/auth-server")
-    const { scrapeUrlToMarkdown } = await import("@/lib/scrapingant")
+    const { scrapeUrlPage } = await import("@/lib/scrapingant")
     vi.mocked(getServerSession).mockResolvedValue(mockSession)
-    vi.mocked(scrapeUrlToMarkdown).mockResolvedValue({
-      markdown:
-        "# Apartamento VivaReal\n\n3 quartos, 2 banheiros, 120m², R$ 850.000 em Florianópolis.",
+    vi.mocked(scrapeUrlPage).mockResolvedValue({
+      html: "<html><body>Apartamento</body></html>",
+      text:
+        "Apartamento VivaReal 3 quartos, 2 banheiros, 120m², R$ 850.000 em Florianópolis.",
+      imageUrls: ["https://resizedimgs.vivareal.com/img/vr-listing/abc/photo.webp"],
       sourceUrl: "https://www.vivareal.com.br/imovel/test",
     })
 
@@ -148,7 +150,13 @@ describe("Parse API - POST /api/parse", () => {
     expect(response.status).toBe(200)
     expect(json.listings).toHaveLength(1)
     expect(json.listings[0].link).toBe("https://www.vivareal.com.br/imovel/test")
-    expect(scrapeUrlToMarkdown).toHaveBeenCalledWith(
+    expect(json.listings[0].imageUrls).toEqual([
+      "https://resizedimgs.vivareal.com/img/vr-listing/abc/photo.webp",
+    ])
+    expect(json.listings[0].imageUrl).toBe(
+      "https://resizedimgs.vivareal.com/img/vr-listing/abc/photo.webp"
+    )
+    expect(scrapeUrlPage).toHaveBeenCalledWith(
       "https://www.vivareal.com.br/imovel/test"
     )
     expect(pdfParseImportCount).toBe(0)
