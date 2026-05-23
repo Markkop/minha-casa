@@ -3,7 +3,7 @@ defmodule MinhaCasaAiWeb.Plugs.RawBodyReader do
   Caches the raw request body for webhook signature verification.
   """
 
-  def read_body(conn, opts, _reader, _opts) do
+  def read_body(conn, opts) do
     case Plug.Conn.read_body(conn, opts) do
       {:ok, body, conn} ->
         conn = update_in(conn.assigns[:raw_body], &[body | &1 || []])
@@ -14,6 +14,6 @@ defmodule MinhaCasaAiWeb.Plugs.RawBodyReader do
 
       {:error, reason} ->
         {:error, reason}
-      end
+    end
   end
 end
