@@ -2,6 +2,21 @@ defmodule MinhaCasaAi.ListingImages.IngestTest do
   use ExUnit.Case, async: true
 
   alias MinhaCasaAi.Integrations.ScrapingAnt
+  alias MinhaCasaAi.ListingImages.Ingest
+
+  describe "content_type_from_headers" do
+    test "handles Req map headers with list values" do
+      headers = %{"content-type" => ["image/webp"], "cache-control" => ["max-age=315360000"]}
+
+      assert Ingest.content_type_from_headers(headers) == "image/webp"
+    end
+
+    test "handles tuple list headers" do
+      headers = [{"content-type", "image/jpeg; charset=utf-8"}]
+
+      assert Ingest.content_type_from_headers(headers) == "image/jpeg"
+    end
+  end
 
   describe "top image url ordering" do
     test "image_url_score prefers larger dimensions" do

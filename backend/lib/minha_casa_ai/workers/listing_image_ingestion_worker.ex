@@ -19,9 +19,19 @@ defmodule MinhaCasaAi.Workers.ListingImageIngestionWorker do
       "imageIngestionError" => nil
     })
 
-    case Ingest.run(listing_id, collection_id) do
-      :ok -> :ok
-      {:error, _} = error -> error
+    try do
+      case Ingest.run(listing_id, collection_id) do
+        :ok -> :ok
+        {:error, _} = error -> error
+      end
+    rescue
+      exception ->
+        Listings.update_listing(collection_id, listing_id, %{
+          "imageIngestionStatus" => "failed",
+          "imageIngestionError" => "Erro interno ao baixar imagens."
+        })
+
+        {:error, exception}
     end
   end
 end

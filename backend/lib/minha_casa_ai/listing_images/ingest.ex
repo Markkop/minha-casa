@@ -110,7 +110,7 @@ defmodule MinhaCasaAi.ListingImages.Ingest do
       {:ok, %{status: status, body: body, headers: headers}}
       when status in 200..299 and is_binary(body) and byte_size(body) > 0 and
              byte_size(body) <= @max_bytes ->
-        content_type = content_type_from_headers(headers) || guess_content_type(url)
+        content_type = do_content_type_from_headers(headers) || guess_content_type(url)
         {:ok, body, content_type}
 
       _ ->
@@ -118,17 +118,37 @@ defmodule MinhaCasaAi.ListingImages.Ingest do
     end
   end
 
-  defp content_type_from_headers(headers) when is_list(headers) do
+  @doc false
+  def content_type_from_headers(headers), do: do_content_type_from_headers(headers)
+
+  defp do_content_type_from_headers(headers) when is_map(headers) do
+    headers
+    |> Map.get("content-type", Map.get(headers, "Content-Type"))
+    |> normalize_content_type_value()
+  end
+
+  defp do_content_type_from_headers(headers) when is_list(headers) do
     Enum.find_value(headers, fn
-      {key, value} when is_binary(key) and is_binary(value) ->
+      {key, value} when is_binary(key) ->
         if String.downcase(key) == "content-type" do
-          value |> String.split(";") |> List.first() |> String.trim()
+          normalize_content_type_value(value)
         end
 
       _ ->
         nil
     end)
   end
+
+  defp do_content_type_from_headers(_), do: nil
+
+  defp normalize_content_type_value([value | _]) when is_binary(value),
+    do: normalize_content_type_value(value)
+
+  defp normalize_content_type_value(value) when is_binary(value) do
+    value |> String.split(";") |> List.first() |> String.trim()
+  end
+
+  defp normalize_content_type_value(_), do: nil
 
   defp guess_content_type(url) do
     lower = String.downcase(url)
