@@ -61,7 +61,11 @@ defmodule MinhaCasaAi.Integrations.ScrapingAnt do
       "browser" => if(browser?, do: "true", else: "false")
     }
 
-    case Req.get(@markdown_url, params: params, receive_timeout: 55_000) do
+    case Req.get(@markdown_url,
+           params: params,
+           finch: MinhaCasaAi.Finch,
+           receive_timeout: 55_000
+         ) do
       {:ok, %{status: status, body: body}} when status in 200..299 ->
         markdown = extract_markdown(body)
 

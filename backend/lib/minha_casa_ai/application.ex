@@ -6,6 +6,7 @@ defmodule MinhaCasaAi.Application do
     children = [
       MinhaCasaAiWeb.Telemetry,
       MinhaCasaAi.Repo,
+      {Finch, name: MinhaCasaAi.Finch},
       {Phoenix.PubSub, name: MinhaCasaAi.PubSub},
       {Oban, Application.fetch_env!(:minha_casa_ai, Oban)},
       MinhaCasaAiWeb.Endpoint

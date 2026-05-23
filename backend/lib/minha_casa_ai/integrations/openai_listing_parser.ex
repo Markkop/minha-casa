@@ -96,7 +96,8 @@ defmodule MinhaCasaAi.Integrations.OpenAIListingParser do
     case Req.post("https://api.openai.com/v1/chat/completions",
            json: body,
            headers: [{"authorization", "Bearer #{api_key}"}],
-           receive_timeout: 60_000
+           finch: MinhaCasaAi.Finch,
+           receive_timeout: 45_000
          ) do
       {:ok,
        %{status: status, body: %{"choices" => [%{"message" => %{"content" => content}} | _]}}}

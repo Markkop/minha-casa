@@ -19,6 +19,8 @@ config :logger, :console,
 
 config :phoenix, :json_library, Jason
 
+config :req, default_finch: MinhaCasaAi.Finch
+
 config :minha_casa_ai, Oban,
   repo: MinhaCasaAi.Repo,
   engine: Oban.Engines.Basic,

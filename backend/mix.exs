@@ -35,6 +35,7 @@ defmodule MinhaCasaAi.MixProject do
       {:ecto_sql, "~> 3.12"},
       {:postgrex, ">= 0.0.0"},
       {:oban, "~> 2.22"},
+      {:finch, "~> 0.22"},
       {:req, "~> 0.5"},
       {:ex_aws, "~> 2.5"},
       {:ex_aws_s3, "~> 2.5"},
