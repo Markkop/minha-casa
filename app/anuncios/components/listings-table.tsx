@@ -113,6 +113,11 @@ const LISTING_STATUS_OPTIONS: { value: ListingStatus; label: string; className: 
 const LISTING_STATUS_VALUES = new Set<ListingStatus>(LISTING_STATUS_OPTIONS.map((option) => option.value))
 
 const COLUMN_STORAGE_KEY = "minha-casa:listings-table-visible-columns"
+const IMAGE_COLUMN_VIEW_KEY = "minha-casa:listings-table-image-column-view"
+
+type ImageColumnView = "image" | "map"
+
+const LISTING_THUMB_SIZE_CLASS = "h-20 w-20 flex-shrink-0 aspect-square"
 
 const LISTINGS_TABLE_COLUMNS: { id: ListingsTableColumn; label: string }[] = [
   { id: "image", label: "Imagem" },
@@ -180,6 +185,149 @@ function getInitialVisibleColumns(): Record<ListingsTableColumn, boolean> {
   } catch {
     return { ...DEFAULT_VISIBLE_COLUMNS }
   }
+}
+
+function getInitialImageColumnView(): ImageColumnView {
+  if (typeof window === "undefined") return "image"
+
+  try {
+    const stored = window.localStorage.getItem(IMAGE_COLUMN_VIEW_KEY)
+    return stored === "map" ? "map" : "image"
+  } catch {
+    return "image"
+  }
+}
+
+function ImageColumnHeaderToggle({
+  value,
+  onChange,
+}: {
+  value: ImageColumnView
+  onChange: (value: ImageColumnView) => void
+}) {
+  const options: { value: ImageColumnView; label: string }[] = [
+    { value: "image", label: "Image" },
+    { value: "map", label: "Map" },
+  ]
+
+  return (
+    <div
+      role="group"
+      aria-label="Alternar entre imagem e mapa na coluna"
+      className="inline-flex h-5 w-full max-w-[5.25rem] rounded border border-app-border bg-app-surface-muted p-px text-[8px] font-medium leading-none"
+    >
+      {options.map((option) => (
+        <button
+          key={option.value}
+          type="button"
+          aria-pressed={value === option.value}
+          onClick={() => onChange(option.value)}
+          className={cn(
+            "flex min-w-0 flex-1 items-center justify-center rounded-[3px] px-0.5 transition-colors",
+            value === option.value
+              ? "bg-app-action text-app-action-foreground"
+              : "text-app-muted hover:text-app-fg"
+          )}
+        >
+          {option.label}
+        </button>
+      ))}
+    </div>
+  )
+}
+
+function ListingImageColumnCell({
+  imovel,
+  view,
+  onOpenImageModal,
+}: {
+  imovel: Imovel
+  view: ImageColumnView
+  onOpenImageModal: () => void
+}) {
+  const ingesting = isListingImageIngesting(imovel.imageIngestionStatus)
+  const hasImage = Boolean(imovel.imageUrl)
+  const showImageShortcut = view === "map" && (hasImage || ingesting)
+
+  const placeholderButton = (
+    <button
+      type="button"
+      onClick={onOpenImageModal}
+      className={cn(
+        "flex items-center justify-center rounded border border-app-border bg-app-bg cursor-pointer hover:opacity-80 transition-opacity",
+        LISTING_THUMB_SIZE_CLASS
+      )}
+      title="Clique para ver/editar imagem"
+    >
+      <Home className="h-3 w-3 text-app-subtle" />
+    </button>
+  )
+
+  if (view === "map") {
+    return (
+      <div className={cn("relative z-10", LISTING_THUMB_SIZE_CLASS)}>
+        <ListingLocationMiniMap
+          listing={imovel}
+          variant="thumbnail"
+          fallback={placeholderButton}
+        />
+        {showImageShortcut && (
+          <button
+            type="button"
+            onClick={onOpenImageModal}
+            className="absolute bottom-0.5 right-0.5 z-20 rounded bg-app-fg/70 p-0.5 text-app-surface hover:bg-app-fg/90 transition-colors"
+            title={ingesting ? "Imagens sendo baixadas…" : "Ver/editar imagem"}
+          >
+            {ingesting ? (
+              <Loader2 className="h-3 w-3 animate-spin" />
+            ) : (
+              <ImageIcon className="h-3 w-3" />
+            )}
+          </button>
+        )}
+      </div>
+    )
+  }
+
+  if (ingesting) {
+    return (
+      <button
+        type="button"
+        onClick={onOpenImageModal}
+        className={cn(
+          "relative z-10 flex cursor-pointer items-center justify-center rounded border border-app-border bg-app-surface-muted hover:opacity-80 transition-opacity",
+          LISTING_THUMB_SIZE_CLASS
+        )}
+        title="Imagens sendo baixadas…"
+      >
+        <Loader2 className="h-6 w-6 animate-spin text-app-accent" />
+      </button>
+    )
+  }
+
+  if (hasImage) {
+    return (
+      <button
+        type="button"
+        onClick={onOpenImageModal}
+        className="relative z-10 flex-shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
+        title="Clique para ver/editar imagem"
+      >
+        <div className={cn("overflow-hidden rounded border border-app-border", LISTING_THUMB_SIZE_CLASS)}>
+          <img
+            src={imovel.imageUrl!}
+            alt={imovel.titulo}
+            className="h-full w-full object-cover"
+            onError={(e) => {
+              e.currentTarget.style.display = "none"
+            }}
+          />
+        </div>
+      </button>
+    )
+  }
+
+  return <div className="relative z-10">{placeholderButton}</div>
 }
 
 function getListingStatus(imovel: Pick<Imovel, "listingStatus" | "strikethrough" | "visited">): ListingStatus {
@@ -434,12 +582,16 @@ export function ListingsTable({ listings, onListingsChange, hasApiKey = true }: 
   const [visibleColumnsLoaded, setVisibleColumnsLoaded] = useState(false)
   const [propertyDisplay, setPropertyDisplay] = useState<ListingsPropertyDisplayPrefs>({ ...DEFAULT_PROPERTY_DISPLAY })
   const [propertyDisplayLoaded, setPropertyDisplayLoaded] = useState(false)
+  const [imageColumnView, setImageColumnView] = useState<ImageColumnView>("image")
+  const [imageColumnViewLoaded, setImageColumnViewLoaded] = useState(false)
 
   useEffect(() => {
     setVisibleColumns(getInitialVisibleColumns())
     setVisibleColumnsLoaded(true)
     setPropertyDisplay(getInitialPropertyDisplay())
     setPropertyDisplayLoaded(true)
+    setImageColumnView(getInitialImageColumnView())
+    setImageColumnViewLoaded(true)
   }, [])
 
   useEffect(() => {
@@ -451,6 +603,11 @@ export function ListingsTable({ listings, onListingsChange, hasApiKey = true }: 
     if (!propertyDisplayLoaded) return
     window.localStorage.setItem(PROPERTY_DISPLAY_STORAGE_KEY, JSON.stringify(propertyDisplay))
   }, [propertyDisplay, propertyDisplayLoaded])
+
+  useEffect(() => {
+    if (!imageColumnViewLoaded) return
+    window.localStorage.setItem(IMAGE_COLUMN_VIEW_KEY, imageColumnView)
+  }, [imageColumnView, imageColumnViewLoaded])
 
   const enabledMetricVariants = useMemo(
     () => getEnabledMetricVariants(propertyDisplay),
@@ -1153,8 +1310,11 @@ export function ListingsTable({ listings, onListingsChange, hasApiKey = true }: 
               <TableHeader>
                 <TableRow className="border-app-border hover:bg-transparent">
                   {visibleColumns.image && (
-                    <TableHead className="sticky left-0 z-20 bg-app-surface">
-                      <span className="text-app-muted">Imagem</span>
+                    <TableHead className="sticky left-0 z-20 w-[5.5rem] bg-app-surface p-1">
+                      <ImageColumnHeaderToggle
+                        value={imageColumnView}
+                        onChange={setImageColumnView}
+                      />
                     </TableHead>
                   )}
                   {visibleColumns.property && (
@@ -1231,9 +1391,7 @@ export function ListingsTable({ listings, onListingsChange, hasApiKey = true }: 
                     )}
                   >
                     {visibleColumns.image && (
-                    <TableCell
-                      className="sticky left-0 z-20 bg-app-surface p-2"
-                    >
+                    <TableCell className="sticky left-0 z-20 w-[5.5rem] bg-app-surface p-2">
                       <div
                         className={cn(
                           "absolute inset-0 pointer-events-none z-0",
@@ -1242,61 +1400,11 @@ export function ListingsTable({ listings, onListingsChange, hasApiKey = true }: 
                             : "group-hover:bg-app-bg"
                         )}
                       />
-                      {isListingImageIngesting(imovel.imageIngestionStatus) ? (
-                        <button
-                          type="button"
-                          onClick={() => setImageModalListing(imovel)}
-                          className="relative z-10 flex h-20 w-20 flex-shrink-0 cursor-pointer items-center justify-center rounded border border-app-border bg-app-surface-muted aspect-square hover:opacity-80 transition-opacity"
-                          title="Imagens sendo baixadas…"
-                        >
-                          <Loader2 className="h-6 w-6 animate-spin text-app-accent" />
-                        </button>
-                      ) : imovel.imageUrl ? (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setImageModalListing(imovel)
-                          }}
-                          className="relative z-10 flex-shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
-                          title="Clique para ver/editar imagem"
-                        >
-                          <div className="h-20 w-20 overflow-hidden rounded border border-app-border aspect-square">
-                            <img
-                              src={imovel.imageUrl}
-                              alt={imovel.titulo}
-                              className="w-full h-full object-cover"
-                              onError={(e) => {
-                                e.currentTarget.style.display = "none"
-                              }}
-                            />
-                          </div>
-                        </button>
-                      ) : (
-                        <div className="relative z-10 h-20 w-20 flex-shrink-0">
-                          <ListingLocationMiniMap
-                            listing={imovel}
-                            variant="thumbnail"
-                            fallback={
-                              <button
-                                type="button"
-                                onClick={() => setImageModalListing(imovel)}
-                                className="flex h-20 w-20 items-center justify-center rounded border border-app-border bg-app-bg aspect-square cursor-pointer hover:opacity-80 transition-opacity"
-                                title="Clique para ver/editar imagem"
-                              >
-                                <Home className="h-3 w-3 text-app-subtle" />
-                              </button>
-                            }
-                          />
-                          <button
-                            type="button"
-                            onClick={() => setImageModalListing(imovel)}
-                            className="absolute bottom-0.5 right-0.5 z-20 rounded bg-app-fg/70 p-0.5 text-app-surface hover:bg-app-fg/90 transition-colors"
-                            title="Ver/editar imagem"
-                          >
-                            <ImageIcon className="h-3 w-3" />
-                          </button>
-                        </div>
-                      )}
+                      <ListingImageColumnCell
+                        imovel={imovel}
+                        view={imageColumnView}
+                        onOpenImageModal={() => setImageModalListing(imovel)}
+                      />
                     </TableCell>
                     )}
                     {visibleColumns.property && (
