@@ -12,9 +12,15 @@ import {
 } from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
 import { InfoCircledIcon } from "@radix-ui/react-icons"
+import { Pencil } from "lucide-react"
 import { useState, useEffect, type ReactNode } from "react"
 
-import { formatCurrency, generateTooltips } from "./utils/calculations"
+import {
+  calcularPctReservaRecomendada,
+  calcularReservaRecomendada,
+  formatCurrency,
+  generateTooltips,
+} from "./utils/calculations"
 import { useSettings } from "./utils/settings"
 import type { SimulatorParams } from "./simulator-client"
 import { PERCENTAGE_OPTIONS } from "./simulator-client"
@@ -40,31 +46,50 @@ interface PercentInputProps {
   onChange: (value: number) => void
 }
 
-interface ParameterCardProps {
+type SliderField =
+  | "valorImovel"
+  | "valorApartamento"
+  | "custoCondominio"
+  | "seguros"
+  | "prazoMeses"
+
+export interface RecursosMeta {
+  reservaRecomendada: number
+  reservaPctRecomendado: number
+  reservaTeto: number
+  capitalSlider: { min: number; max: number; step: number }
+}
+
+export interface ParameterCardProps {
   params: SimulatorParams
+  recursosMeta?: RecursosMeta
   onChange: (params: SimulatorParams) => void
-  onValueChange?: (
-    field:
-      | "valorImovel"
-      | "capitalDisponivel"
-      | "reservaEmergencia"
-      | "valorApartamento"
-      | "custoCondominio"
-      | "seguros"
-      | "prazoMeses",
-    newValue: number
-  ) => void
-  onSliderChange?: (
-    field:
-      | "valorImovel"
-      | "capitalDisponivel"
-      | "reservaEmergencia"
-      | "valorApartamento"
-      | "custoCondominio"
-      | "seguros"
-      | "prazoMeses",
-    multiplier: number
-  ) => void
+  onValueChange?: (field: SliderField | "capitalDisponivel", newValue: number) => void
+  onSliderChange?: (field: SliderField, multiplier: number) => void
+  onCapitalChange?: (newCapital: number) => void
+  onReservaChange?: (newReserva: number) => void
+  onEntradaChange?: (newEntrada: number) => void
+}
+
+interface ParameterRowProps {
+  label: string
+  tooltip?: string
+  valueDisplay: string
+  slider?: {
+    value: number
+    min: number
+    max: number
+    step: number
+    onValueChange: (value: number) => void
+  }
+  edit?: {
+    type: "currency" | "percent" | "number"
+    value: number
+    onChange: (value: number) => void
+  }
+  extras?: ReactNode
+  valueClassName?: string
+  hint?: string
 }
 
 // ============================================================================
@@ -278,545 +303,510 @@ const calculateSliderRange = (base: number, isCurrency = false): { min: number; 
   }
 }
 
-/**
- * Format multiplier as percentage
- */
-const formatPercentage = (multiplier: number): string => {
-  return `${(multiplier * 100).toFixed(0)}%`
+// ============================================================================
+// COMPACT PARAMETER ROW & ADJUSTMENT PANEL
+// ============================================================================
+
+const ParameterRow = ({
+  label,
+  tooltip,
+  valueDisplay,
+  slider,
+  edit,
+  extras,
+  valueClassName,
+  hint,
+}: ParameterRowProps) => {
+  const [isEditing, setIsEditing] = useState(false)
+
+  return (
+    <div className="py-1 border-b border-app-border/40 last:border-b-0">
+      {/* Linha 1: rótulo + valor */}
+      <div className="flex items-center justify-between gap-2 mb-0.5">
+        <div className="flex items-center gap-1.5 min-w-0">
+          <span className="text-sm text-app-muted leading-tight">{label}</span>
+          {tooltip && (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <InfoCircledIcon className="h-3.5 w-3.5 shrink-0 text-app-subtle hover:text-app-accent cursor-help" />
+                </TooltipTrigger>
+                <TooltipContent className="max-w-xs">
+                  <p className="text-xs">{tooltip}</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
+        </div>
+
+        <div className="flex flex-col items-end gap-0.5 shrink-0">
+          <div className="flex items-center gap-1.5">
+          {isEditing && edit ? (
+            <div className="w-[8.5rem]">
+              {edit.type === "currency" && (
+                <CurrencyInput
+                  value={edit.value}
+                  onChange={edit.onChange}
+                  className="h-8 text-xs"
+                />
+              )}
+              {edit.type === "percent" && (
+                <PercentInput
+                  value={edit.value}
+                  onChange={edit.onChange}
+                  className="h-8 text-xs"
+                />
+              )}
+              {edit.type === "number" && (
+                <Input
+                  type="number"
+                  value={edit.value}
+                  onChange={(e) => edit.onChange(parseInt(e.target.value, 10) || 0)}
+                  className="h-8 font-mono text-xs"
+                />
+              )}
+            </div>
+          ) : (
+            <span
+              className={cn(
+                "font-mono text-sm tabular-nums whitespace-nowrap text-right",
+                valueClassName ?? "text-app-fg"
+              )}
+            >
+              {valueDisplay}
+            </span>
+          )}
+          {edit && (
+            <button
+              type="button"
+              onClick={() => setIsEditing((v) => !v)}
+              className={cn(
+                "p-1.5 rounded-md text-app-subtle hover:text-app-accent hover:bg-app-bg transition-colors",
+                isEditing && "text-app-accent bg-app-action/10"
+              )}
+              aria-label={isEditing ? "Fechar edição" : "Editar valor"}
+            >
+              <Pencil className="h-3.5 w-3.5" />
+            </button>
+          )}
+          </div>
+          {hint && !isEditing && (
+            <span className="text-[10px] text-app-subtle leading-tight">{hint}</span>
+          )}
+        </div>
+      </div>
+
+      {/* Linha 2: slider em largura total */}
+      {slider && (
+        <Slider
+          value={[slider.value]}
+          onValueChange={([v]) => slider.onValueChange(v)}
+          min={slider.min}
+          max={slider.max}
+          step={slider.step}
+          className="w-full py-0.5 touch-none [&_[data-slot=slider-track]]:h-2 [&_[data-slot=slider-thumb]]:size-[18px]"
+        />
+      )}
+
+      {/* Linha 3 (opcional): atalhos / chips */}
+      {extras && <div className="mt-1 flex flex-wrap gap-1 items-center">{extras}</div>}
+    </div>
+  )
 }
 
-// ============================================================================
-// PARAMETER CARDS
-// ============================================================================
+const ColumnHeader = ({ title }: { title: string }) => (
+  <p className="text-xs font-semibold uppercase tracking-wide text-app-subtle mb-1 pb-0.5 border-b border-app-border/60">
+    {title}
+  </p>
+)
 
 /**
- * Card de parâmetros do imóvel
+ * Compact 3-column adjustment panel for all simulator parameters.
  */
-export const ImovelParameterCard = ({ params, onChange, onValueChange, onSliderChange }: ParameterCardProps) => {
+export const AdjustmentPanel = ({
+  params,
+  recursosMeta,
+  onChange,
+  onValueChange,
+  onSliderChange,
+  onCapitalChange,
+  onReservaChange,
+  onEntradaChange,
+}: ParameterCardProps) => {
   const { settings } = useSettings()
   const prazoOptions = settings.prazoOptions
   const taxaAnualRange = settings.sliders.taxaAnual
   const trMensalRange = settings.sliders.trMensal
+  const haircutRange = settings.sliders.haircut
+  const aporteExtraRange = settings.sliders.aporteExtra
+  const rendaMensalRange = settings.sliders.rendaMensal
 
-  // Generate dynamic tooltips
+  const reservaPct =
+    recursosMeta?.reservaPctRecomendado ??
+    calcularPctReservaRecomendada(params.valorImovelSelecionado)
+  const reservaRecomendada =
+    recursosMeta?.reservaRecomendada ??
+    calcularReservaRecomendada(params.valorImovelSelecionado).valor
+  const reservaTeto =
+    recursosMeta?.reservaTeto ??
+    Math.min(reservaRecomendada, params.capitalDisponivel)
+
   const tooltips = generateTooltips({
     taxaAnualRange,
     trMensalRange,
     prazoOptions,
-  })
-
-  const valorImovelRange = calculateSliderRange(params.valorImovelBase, true)
-  const prazoRange = calculateSliderRange(params.prazoMesesBase, false)
-
-  return (
-    <Card className="bg-app-surface-muted border-app-border">
-      <CardHeader className="pb-4">
-        <CardTitle className="text-lg flex items-center gap-2">
-          <span className="text-2xl">🏠</span>
-          Imóvel
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <FieldWithTooltip label="Valor da Casa" tooltip={tooltips.valorImovel}>
-          <div className="space-y-2">
-            {onSliderChange && (
-              <Slider
-                value={[params.valorImovelSelecionado]}
-                onValueChange={([v]) => {
-                  const multiplier = v / params.valorImovelBase
-                  onSliderChange("valorImovel", multiplier)
-                }}
-                min={valorImovelRange.min}
-                max={valorImovelRange.max}
-                step={valorImovelRange.step}
-                className="py-2"
-              />
-            )}
-            <div className="flex justify-between text-xs text-app-subtle">
-              {onSliderChange && (
-                <>
-                  <span>{formatCurrency(valorImovelRange.min)}</span>
-                  <span className="text-app-muted font-mono">
-                    {formatPercentage(params.valorImovelMultiplier)}
-                  </span>
-                  <span>{formatCurrency(valorImovelRange.max)}</span>
-                </>
-              )}
-            </div>
-            <CurrencyInput
-              value={params.valorImovelSelecionado}
-              onChange={(v) => {
-                if (onValueChange) {
-                  onValueChange("valorImovel", v)
-                } else {
-                  onChange({ ...params, valorImovelSelecionado: v })
-                }
-              }}
-            />
-          </div>
-        </FieldWithTooltip>
-
-        <FieldWithTooltip
-          label="Taxa de Juros Anual"
-          tooltip={tooltips.taxaAnual}
-        >
-          <div className="space-y-2">
-            <Slider
-              value={[params.taxaAnual * 100]}
-              onValueChange={([v]) =>
-                onChange({ ...params, taxaAnual: v / 100 })
-              }
-              min={taxaAnualRange.min}
-              max={taxaAnualRange.max}
-              step={taxaAnualRange.step}
-              className="py-2"
-            />
-            <PercentInput
-              value={params.taxaAnual}
-              onChange={(v) => onChange({ ...params, taxaAnual: v })}
-            />
-          </div>
-        </FieldWithTooltip>
-
-        <FieldWithTooltip label="TR Mensal" tooltip={tooltips.trMensal}>
-          <div className="space-y-2">
-            <Slider
-              value={[params.trMensal * 100]}
-              onValueChange={([v]) =>
-                onChange({ ...params, trMensal: v / 100 })
-              }
-              min={trMensalRange.min}
-              max={trMensalRange.max}
-              step={trMensalRange.step}
-              className="py-2"
-            />
-            <PercentInput
-              value={params.trMensal}
-              onChange={(v) => onChange({ ...params, trMensal: v })}
-            />
-          </div>
-        </FieldWithTooltip>
-
-        <FieldWithTooltip
-          label="Prazo (meses)"
-          tooltip={tooltips.prazoMeses}
-        >
-          <div className="space-y-2">
-            {onSliderChange && (
-              <Slider
-                value={[params.prazoMeses]}
-                onValueChange={([v]) => {
-                  const multiplier = v / params.prazoMesesBase
-                  onSliderChange("prazoMeses", multiplier)
-                }}
-                min={prazoRange.min}
-                max={prazoRange.max}
-                step={prazoRange.step}
-                className="py-2"
-              />
-            )}
-            {onSliderChange && (
-              <div className="flex justify-between text-xs text-app-subtle">
-                <span>{Math.round(prazoRange.min)} meses</span>
-                <span className="text-app-muted font-mono">
-                  {formatPercentage(params.prazoMesesMultiplier)}
-                </span>
-                <span>{Math.round(prazoRange.max)} meses</span>
-              </div>
-            )}
-            <div className="flex gap-2 flex-wrap">
-              {prazoOptions.map((prazo) => (
-                <button
-                  key={prazo}
-                  onClick={() => {
-                    if (onValueChange) {
-                      onValueChange("prazoMeses", prazo)
-                    } else {
-                      onChange({ ...params, prazoMeses: prazo })
-                    }
-                  }}
-                  className={cn(
-                    "px-3 py-1 text-xs rounded-md border transition-all",
-                    params.prazoMeses === prazo
-                      ? "bg-app-action text-app-action-foreground border-app-action font-bold"
-                      : "bg-app-bg border-app-border text-app-muted hover:border-app-action"
-                  )}
-                >
-                  {prazo / 12} anos
-                </button>
-              ))}
-            </div>
-            <Input
-              type="number"
-              value={params.prazoMeses}
-              onChange={(e) => {
-                const value = parseInt(e.target.value) || 360
-                if (onValueChange) {
-                  onValueChange("prazoMeses", value)
-                } else {
-                  onChange({ ...params, prazoMeses: value })
-                }
-              }}
-              className="font-mono"
-            />
-          </div>
-        </FieldWithTooltip>
-      </CardContent>
-    </Card>
-  )
-}
-
-/**
- * Card de parâmetros de recursos
- */
-export const RecursosParameterCard = ({ params, onChange, onValueChange, onSliderChange }: ParameterCardProps) => {
-  const entrada = params.capitalDisponivel - params.reservaEmergencia
-
-  // Generate dynamic tooltips
-  const tooltips = generateTooltips({
-    reservaEmergencia: params.reservaEmergencia,
-  })
-
-  const capitalRange = calculateSliderRange(params.capitalDisponivelBase, true)
-  const reservaRange = calculateSliderRange(params.reservaEmergenciaBase, true)
-
-  return (
-    <Card className="bg-app-surface-muted border-app-border">
-      <CardHeader className="pb-4">
-        <CardTitle className="text-lg flex items-center gap-2">
-          <span className="text-2xl">💰</span>
-          Recursos Disponíveis
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <FieldWithTooltip
-          label="Capital Disponível"
-          tooltip={tooltips.capitalDisponivel}
-        >
-          <div className="space-y-2">
-            {onSliderChange && (
-              <Slider
-                value={[params.capitalDisponivel]}
-                onValueChange={([v]) => {
-                  const multiplier = v / params.capitalDisponivelBase
-                  onSliderChange("capitalDisponivel", multiplier)
-                }}
-                min={capitalRange.min}
-                max={capitalRange.max}
-                step={capitalRange.step}
-                className="py-2"
-              />
-            )}
-            {onSliderChange && (
-              <div className="flex justify-between text-xs text-app-subtle">
-                <span>{formatCurrency(capitalRange.min)}</span>
-                <span className="text-app-muted font-mono">
-                  {formatPercentage(params.capitalDisponivelMultiplier)}
-                </span>
-                <span>{formatCurrency(capitalRange.max)}</span>
-              </div>
-            )}
-            <CurrencyInput
-              value={params.capitalDisponivel}
-              onChange={(v) => {
-                if (onValueChange) {
-                  onValueChange("capitalDisponivel", v)
-                } else {
-                  onChange({ ...params, capitalDisponivel: v })
-                }
-              }}
-            />
-          </div>
-        </FieldWithTooltip>
-
-        <FieldWithTooltip
-          label="Reserva de Emergência"
-          tooltip={tooltips.reservaEmergencia}
-        >
-          <div className="space-y-2">
-            {onSliderChange && (
-              <Slider
-                value={[params.reservaEmergencia]}
-                onValueChange={([v]) => {
-                  const multiplier = v / params.reservaEmergenciaBase
-                  onSliderChange("reservaEmergencia", multiplier)
-                }}
-                min={reservaRange.min}
-                max={reservaRange.max}
-                step={reservaRange.step}
-                className="py-2"
-              />
-            )}
-            {onSliderChange && (
-              <div className="flex justify-between text-xs text-app-subtle">
-                <span>{formatCurrency(reservaRange.min)}</span>
-                <span className="text-app-muted font-mono">
-                  {formatPercentage(params.reservaEmergenciaMultiplier)}
-                </span>
-                <span>{formatCurrency(reservaRange.max)}</span>
-              </div>
-            )}
-            <CurrencyInput
-              value={params.reservaEmergencia}
-              onChange={(v) => {
-                if (onValueChange) {
-                  onValueChange("reservaEmergencia", v)
-                } else {
-                  onChange({ ...params, reservaEmergencia: v })
-                }
-              }}
-            />
-          </div>
-        </FieldWithTooltip>
-
-        <div className="pt-2 border-t border-app-border">
-          <div className="flex justify-between items-center">
-            <span className="text-sm text-app-muted">Entrada Disponível</span>
-            <span className="text-lg font-bold text-app-accent">
-              {formatCurrency(entrada)}
-            </span>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  )
-}
-
-/**
- * Card de parâmetros do imóvel que o comprador já tem (antigo apartamento)
- */
-export const ImovelCompradorParameterCard = ({ params, onChange, onValueChange, onSliderChange }: ParameterCardProps) => {
-  const { settings } = useSettings()
-  const haircutRange = settings.sliders.haircut
-
-  // Generate dynamic tooltips
-  const tooltips = generateTooltips({
+    reservaPctRecomendado: reservaPct,
     haircutRange,
-  })
-
-  const valorAptoRange = calculateSliderRange(params.valorApartamentoBase, true)
-  const custoCondominioRange = calculateSliderRange(params.custoCondominioBase, true)
-
-  return (
-    <Card className="bg-app-surface-muted border-app-border">
-      <CardHeader className="pb-4">
-        <CardTitle className="text-lg flex items-center gap-2">
-          <span className="text-2xl">🏢</span>
-          Imóvel que o Comprador Já Tem
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <FieldWithTooltip
-          label="Valor do Imóvel"
-          tooltip={tooltips.valorApartamento}
-        >
-          <div className="space-y-2">
-            {onSliderChange && (
-              <Slider
-                value={[params.valorApartamentoSelecionado]}
-                onValueChange={([v]) => {
-                  const multiplier = v / params.valorApartamentoBase
-                  onSliderChange("valorApartamento", multiplier)
-                }}
-                min={valorAptoRange.min}
-                max={valorAptoRange.max}
-                step={valorAptoRange.step}
-                className="py-2"
-              />
-            )}
-            {onSliderChange && (
-              <div className="flex justify-between text-xs text-app-subtle">
-                <span>{formatCurrency(valorAptoRange.min)}</span>
-                <span className="text-app-muted font-mono">
-                  {formatPercentage(params.valorApartamentoMultiplier)}
-                </span>
-                <span>{formatCurrency(valorAptoRange.max)}</span>
-              </div>
-            )}
-            <CurrencyInput
-              value={params.valorApartamentoSelecionado}
-              onChange={(v) => {
-                if (onValueChange) {
-                  onValueChange("valorApartamento", v)
-                } else {
-                  onChange({ ...params, valorApartamentoSelecionado: v })
-                }
-              }}
-            />
-          </div>
-        </FieldWithTooltip>
-
-        <FieldWithTooltip
-          label="Haircut (Deságio Permuta)"
-          tooltip={tooltips.haircut}
-        >
-          <div className="space-y-2">
-            <Slider
-              value={[params.haircut * 100]}
-              onValueChange={([v]) =>
-                onChange({ ...params, haircut: v / 100 })
-              }
-              min={haircutRange.min}
-              max={haircutRange.max}
-              step={haircutRange.step}
-              className="py-2"
-            />
-            <div className="flex justify-between text-xs text-app-subtle">
-              <span>{haircutRange.min}%</span>
-              <span className="text-app-muted font-mono">
-                {(params.haircut * 100).toFixed(0)}%
-              </span>
-              <span>{haircutRange.max}%</span>
-            </div>
-          </div>
-        </FieldWithTooltip>
-
-        <FieldWithTooltip
-          label="Custo Condomínio/IPTU Mensal"
-          tooltip="Custo mensal para manter o imóvel vazio durante o período de venda."
-        >
-          <div className="space-y-2">
-            {onSliderChange && (
-              <Slider
-                value={[params.custoCondominioMensal]}
-                onValueChange={([v]) => {
-                  const multiplier = v / params.custoCondominioBase
-                  onSliderChange("custoCondominio", multiplier)
-                }}
-                min={custoCondominioRange.min}
-                max={custoCondominioRange.max}
-                step={custoCondominioRange.step}
-                className="py-2"
-              />
-            )}
-            {onSliderChange && (
-              <div className="flex justify-between text-xs text-app-subtle">
-                <span>{formatCurrency(custoCondominioRange.min)}</span>
-                <span className="text-app-muted font-mono">
-                  {formatPercentage(params.custoCondominioMultiplier)}
-                </span>
-                <span>{formatCurrency(custoCondominioRange.max)}</span>
-              </div>
-            )}
-            <CurrencyInput
-              value={params.custoCondominioMensal}
-              onChange={(v) => {
-                if (onValueChange) {
-                  onValueChange("custoCondominio", v)
-                } else {
-                  onChange({ ...params, custoCondominioMensal: v })
-                }
-              }}
-            />
-          </div>
-        </FieldWithTooltip>
-      </CardContent>
-    </Card>
-  )
-}
-
-/**
- * Card de parâmetros de amortização
- */
-export const AmortizacaoParameterCard = ({ params, onChange, onValueChange, onSliderChange }: ParameterCardProps) => {
-  const { settings } = useSettings()
-  const aporteExtraRange = settings.sliders.aporteExtra
-  const rendaMensalRange = settings.sliders.rendaMensal
-
-  // Generate dynamic tooltips
-  const tooltips = generateTooltips({
     aporteExtra: params.aporteExtra,
     aporteExtraRange,
     rendaMensalRange,
   })
 
+  const entrada = params.capitalDisponivel - params.reservaEmergencia
+  const valorImovelRange = calculateSliderRange(params.valorImovelBase, true)
+  const capitalSlider = recursosMeta?.capitalSlider ?? {
+    min: 0,
+    max: Math.max(params.capitalDisponivel, 1_400_000),
+    step: 10_000,
+  }
+  const valorAptoRange = calculateSliderRange(params.valorApartamentoBase, true)
+  const custoCondominioRange = calculateSliderRange(params.custoCondominioBase, true)
   const segurosRange = calculateSliderRange(params.segurosBase, true)
+  const prazoRange = calculateSliderRange(params.prazoMesesBase, false)
 
   return (
     <Card className="bg-app-surface-muted border-app-border">
-      <CardHeader className="pb-4">
-        <CardTitle className="text-lg flex items-center gap-2">
-          <span className="text-2xl">📈</span>
-          Amortização e Renda
-        </CardTitle>
+      <CardHeader className="pb-2 pt-4">
+        <CardTitle className="text-lg">Parâmetros da simulação</CardTitle>
       </CardHeader>
-      <CardContent className="space-y-4">
-        <FieldWithTooltip
-          label="Aporte Extra Mensal"
-          tooltip={tooltips.aporteExtra}
-        >
-          <div className="space-y-2">
-            <Slider
-              value={[params.aporteExtra]}
-              onValueChange={([v]) => onChange({ ...params, aporteExtra: v })}
-              min={aporteExtraRange.min}
-              max={aporteExtraRange.max}
-              step={aporteExtraRange.step}
-              className="py-2"
+      <CardContent className="pb-4 pt-0">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-x-8 gap-y-0">
+          {/* Column 1 — Imóvel */}
+          <div>
+            <ColumnHeader title="Imóvel" />
+            <ParameterRow
+              label="Valor da Casa"
+              tooltip={tooltips.valorImovel}
+              valueDisplay={formatCurrency(params.valorImovelSelecionado)}
+              slider={
+                onSliderChange
+                  ? {
+                      value: params.valorImovelSelecionado,
+                      min: valorImovelRange.min,
+                      max: valorImovelRange.max,
+                      step: valorImovelRange.step,
+                      onValueChange: (v) =>
+                        onSliderChange("valorImovel", v / params.valorImovelBase),
+                    }
+                  : undefined
+              }
+              edit={{
+                type: "currency",
+                value: params.valorImovelSelecionado,
+                onChange: (v) =>
+                  onValueChange
+                    ? onValueChange("valorImovel", v)
+                    : onChange({ ...params, valorImovelSelecionado: v }),
+              }}
             />
-            <CurrencyInput
-              value={params.aporteExtra}
-              onChange={(v) => onChange({ ...params, aporteExtra: v })}
+            <ParameterRow
+              label="Taxa Juros a.a."
+              tooltip={tooltips.taxaAnual}
+              valueDisplay={`${(params.taxaAnual * 100).toFixed(2)}%`}
+              slider={{
+                value: params.taxaAnual * 100,
+                min: taxaAnualRange.min,
+                max: taxaAnualRange.max,
+                step: taxaAnualRange.step,
+                onValueChange: (v) => onChange({ ...params, taxaAnual: v / 100 }),
+              }}
+              edit={{
+                type: "percent",
+                value: params.taxaAnual,
+                onChange: (v) => onChange({ ...params, taxaAnual: v }),
+              }}
+            />
+            <ParameterRow
+              label="TR Mensal"
+              tooltip={tooltips.trMensal}
+              valueDisplay={`${(params.trMensal * 100).toFixed(2)}%`}
+              slider={{
+                value: params.trMensal * 100,
+                min: trMensalRange.min,
+                max: trMensalRange.max,
+                step: trMensalRange.step,
+                onValueChange: (v) => onChange({ ...params, trMensal: v / 100 }),
+              }}
+              edit={{
+                type: "percent",
+                value: params.trMensal,
+                onChange: (v) => onChange({ ...params, trMensal: v }),
+              }}
+            />
+            <ParameterRow
+              label="Prazo"
+              tooltip={tooltips.prazoMeses}
+              valueDisplay={`${params.prazoMeses} meses`}
+              slider={
+                onSliderChange
+                  ? {
+                      value: params.prazoMeses,
+                      min: prazoRange.min,
+                      max: prazoRange.max,
+                      step: prazoRange.step,
+                      onValueChange: (v) =>
+                        onSliderChange("prazoMeses", v / params.prazoMesesBase),
+                    }
+                  : undefined
+              }
+              edit={{
+                type: "number",
+                value: params.prazoMeses,
+                onChange: (v) =>
+                  onValueChange
+                    ? onValueChange("prazoMeses", v)
+                    : onChange({ ...params, prazoMeses: v }),
+              }}
+              extras={
+                <div className="flex flex-wrap gap-1">
+                  {prazoOptions.map((prazo) => (
+                    <button
+                      key={prazo}
+                      type="button"
+                      onClick={() =>
+                        onValueChange
+                          ? onValueChange("prazoMeses", prazo)
+                          : onChange({ ...params, prazoMeses: prazo })
+                      }
+                      className={cn(
+                        "px-2 py-0.5 text-[10px] rounded border transition-all",
+                        params.prazoMeses === prazo
+                          ? "bg-app-action text-app-action-foreground border-app-action font-semibold"
+                          : "bg-app-bg border-app-border text-app-muted hover:border-app-action"
+                      )}
+                    >
+                      {prazo / 12}a
+                    </button>
+                  ))}
+                </div>
+              }
             />
           </div>
-        </FieldWithTooltip>
 
-        <FieldWithTooltip label="Renda Mensal" tooltip={tooltips.rendaMensal}>
-          <div className="space-y-2">
-            <Slider
-              value={[params.rendaMensal]}
-              onValueChange={([v]) => onChange({ ...params, rendaMensal: v })}
-              min={rendaMensalRange.min}
-              max={rendaMensalRange.max}
-              step={rendaMensalRange.step}
-              className="py-2"
+          {/* Column 2 — Recursos */}
+          <div>
+            <ColumnHeader title="Recursos" />
+            <ParameterRow
+              label="Capital Disponível"
+              tooltip={tooltips.capitalDisponivel}
+              valueDisplay={formatCurrency(params.capitalDisponivel)}
+              slider={
+                onCapitalChange
+                  ? {
+                      value: params.capitalDisponivel,
+                      min: capitalSlider.min,
+                      max: capitalSlider.max,
+                      step: capitalSlider.step,
+                      onValueChange: onCapitalChange,
+                    }
+                  : undefined
+              }
+              edit={{
+                type: "currency",
+                value: params.capitalDisponivel,
+                onChange: (v) =>
+                  onCapitalChange
+                    ? onCapitalChange(v)
+                    : onValueChange
+                      ? onValueChange("capitalDisponivel", v)
+                      : onChange({ ...params, capitalDisponivel: v }),
+              }}
             />
-            <CurrencyInput
-              value={params.rendaMensal}
-              onChange={(v) => onChange({ ...params, rendaMensal: v })}
+            <ParameterRow
+              label="Reserva Emergência"
+              tooltip={tooltips.reservaEmergencia}
+              valueDisplay={formatCurrency(params.reservaEmergencia)}
+              slider={
+                onReservaChange
+                  ? {
+                      value: params.reservaEmergencia,
+                      min: 0,
+                      max: Math.max(reservaTeto, 1),
+                      step: 5000,
+                      onValueChange: onReservaChange,
+                    }
+                  : undefined
+              }
+              edit={
+                onReservaChange
+                  ? {
+                      type: "currency",
+                      value: params.reservaEmergencia,
+                      onChange: onReservaChange,
+                    }
+                  : undefined
+              }
+            />
+            <ParameterRow
+              label="Entrada Disponível"
+              tooltip={tooltips.entradaDisponivel}
+              valueDisplay={formatCurrency(entrada)}
+              valueClassName="text-app-accent font-semibold"
+              slider={
+                onEntradaChange
+                  ? {
+                      value: entrada,
+                      min: 0,
+                      max: Math.max(params.capitalDisponivel, 1),
+                      step: 10000,
+                      onValueChange: onEntradaChange,
+                    }
+                  : undefined
+              }
+              edit={
+                onEntradaChange
+                  ? {
+                      type: "currency",
+                      value: entrada,
+                      onChange: onEntradaChange,
+                    }
+                  : undefined
+              }
             />
           </div>
-        </FieldWithTooltip>
 
-        <FieldWithTooltip
-          label="Seguros (MIP + DFI)"
-          tooltip={`Seguros obrigatórios: Morte e Invalidez Permanente (MIP) e Danos Físicos ao Imóvel (DFI). Valor atual: ${formatCurrency(params.seguros)}/mês.`}
-        >
-          <div className="space-y-2">
-            {onSliderChange && (
-              <Slider
-                value={[params.seguros]}
-                onValueChange={([v]) => {
-                  const multiplier = v / params.segurosBase
-                  onSliderChange("seguros", multiplier)
-                }}
-                min={segurosRange.min}
-                max={segurosRange.max}
-                step={segurosRange.step}
-                className="py-2"
-              />
-            )}
-            {onSliderChange && (
-              <div className="flex justify-between text-xs text-app-subtle">
-                <span>{formatCurrency(segurosRange.min)}</span>
-                <span className="text-app-muted font-mono">
-                  {formatPercentage(params.segurosMultiplier)}
-                </span>
-                <span>{formatCurrency(segurosRange.max)}</span>
-              </div>
-            )}
-            <CurrencyInput
-              value={params.seguros}
-              onChange={(v) => {
-                if (onValueChange) {
-                  onValueChange("seguros", v)
-                } else {
-                  onChange({ ...params, seguros: v })
-                }
+          {/* Column 3 — Comprador + Amortização */}
+          <div className="md:col-span-2 xl:col-span-1">
+            <ColumnHeader title="Comprador / Amortização" />
+            <ParameterRow
+              label="Valor Imóvel Atual"
+              tooltip={tooltips.valorApartamento}
+              valueDisplay={formatCurrency(params.valorApartamentoSelecionado)}
+              slider={
+                onSliderChange
+                  ? {
+                      value: params.valorApartamentoSelecionado,
+                      min: valorAptoRange.min,
+                      max: valorAptoRange.max,
+                      step: valorAptoRange.step,
+                      onValueChange: (v) =>
+                        onSliderChange(
+                          "valorApartamento",
+                          v / params.valorApartamentoBase
+                        ),
+                    }
+                  : undefined
+              }
+              edit={{
+                type: "currency",
+                value: params.valorApartamentoSelecionado,
+                onChange: (v) =>
+                  onValueChange
+                    ? onValueChange("valorApartamento", v)
+                    : onChange({ ...params, valorApartamentoSelecionado: v }),
+              }}
+            />
+            <ParameterRow
+              label="Haircut Permuta"
+              tooltip={tooltips.haircut}
+              valueDisplay={`${(params.haircut * 100).toFixed(0)}%`}
+              slider={{
+                value: params.haircut * 100,
+                min: haircutRange.min,
+                max: haircutRange.max,
+                step: haircutRange.step,
+                onValueChange: (v) => onChange({ ...params, haircut: v / 100 }),
+              }}
+            />
+            <ParameterRow
+              label="Condomínio/IPTU"
+              tooltip="Custo mensal para manter o imóvel vazio durante o período de venda."
+              valueDisplay={formatCurrency(params.custoCondominioMensal)}
+              slider={
+                onSliderChange
+                  ? {
+                      value: params.custoCondominioMensal,
+                      min: custoCondominioRange.min,
+                      max: custoCondominioRange.max,
+                      step: custoCondominioRange.step,
+                      onValueChange: (v) =>
+                        onSliderChange(
+                          "custoCondominio",
+                          v / params.custoCondominioBase
+                        ),
+                    }
+                  : undefined
+              }
+              edit={{
+                type: "currency",
+                value: params.custoCondominioMensal,
+                onChange: (v) =>
+                  onValueChange
+                    ? onValueChange("custoCondominio", v)
+                    : onChange({ ...params, custoCondominioMensal: v }),
+              }}
+            />
+            <ParameterRow
+              label="Aporte Extra"
+              tooltip={tooltips.aporteExtra}
+              valueDisplay={formatCurrency(params.aporteExtra)}
+              slider={{
+                value: params.aporteExtra,
+                min: aporteExtraRange.min,
+                max: aporteExtraRange.max,
+                step: aporteExtraRange.step,
+                onValueChange: (v) => onChange({ ...params, aporteExtra: v }),
+              }}
+              edit={{
+                type: "currency",
+                value: params.aporteExtra,
+                onChange: (v) => onChange({ ...params, aporteExtra: v }),
+              }}
+            />
+            <ParameterRow
+              label="Renda Mensal"
+              tooltip={tooltips.rendaMensal}
+              valueDisplay={formatCurrency(params.rendaMensal)}
+              slider={{
+                value: params.rendaMensal,
+                min: rendaMensalRange.min,
+                max: rendaMensalRange.max,
+                step: rendaMensalRange.step,
+                onValueChange: (v) => onChange({ ...params, rendaMensal: v }),
+              }}
+              edit={{
+                type: "currency",
+                value: params.rendaMensal,
+                onChange: (v) => onChange({ ...params, rendaMensal: v }),
+              }}
+            />
+            <ParameterRow
+              label="Seguros MIP+DFI"
+              tooltip={`Seguros obrigatórios (MIP + DFI). Valor atual: ${formatCurrency(params.seguros)}/mês.`}
+              valueDisplay={formatCurrency(params.seguros)}
+              slider={
+                onSliderChange
+                  ? {
+                      value: params.seguros,
+                      min: segurosRange.min,
+                      max: segurosRange.max,
+                      step: segurosRange.step,
+                      onValueChange: (v) =>
+                        onSliderChange("seguros", v / params.segurosBase),
+                    }
+                  : undefined
+              }
+              edit={{
+                type: "currency",
+                value: params.seguros,
+                onChange: (v) =>
+                  onValueChange
+                    ? onValueChange("seguros", v)
+                    : onChange({ ...params, seguros: v }),
               }}
             />
           </div>
-        </FieldWithTooltip>
+        </div>
       </CardContent>
     </Card>
   )

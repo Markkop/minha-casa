@@ -3,32 +3,24 @@ import { render, screen, cleanup, waitFor } from "@testing-library/react"
 import { SimulatorClient } from "./simulator-client"
 import { SettingsProvider } from "./utils/settings"
 
-// Mock next/navigation with stable reference
 let mockPriceValue: string | null = null
 
-// Create a stable search params object
-const createStableSearchParams = () => {
-  const params = {
-    get: (key: string) => {
-      if (key === "price") return mockPriceValue
-      return null
-    },
-  }
-  return params
-}
+const createStableSearchParams = () => ({
+  get: (key: string) => {
+    if (key === "price") return mockPriceValue
+    return null
+  },
+})
 
-// Keep a stable reference to the search params object
 const stableSearchParams = createStableSearchParams()
 
 vi.mock("next/navigation", () => ({
   useSearchParams: () => stableSearchParams,
 }))
 
-// Mock fetch for subscription refresh
 const mockFetch = vi.fn(() => Promise.resolve({ ok: true } as Response))
 global.fetch = mockFetch as typeof fetch
 
-// Mock window.history.replaceState
 const mockReplaceState = vi.fn()
 Object.defineProperty(window, "history", {
   value: {
@@ -37,16 +29,14 @@ Object.defineProperty(window, "history", {
   writable: true,
 })
 
-// Mock window.location
 const mockLocation = {
-  href: "http://localhost:3000/casa",
+  href: "http://localhost:3000/financiamento",
 }
 Object.defineProperty(window, "location", {
   value: mockLocation,
   writable: true,
 })
 
-// Helper to render with providers
 const renderWithProviders = (ui: React.ReactElement) => {
   return render(<SettingsProvider>{ui}</SettingsProvider>)
 }
@@ -55,7 +45,7 @@ describe("SimulatorClient", () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockPriceValue = null
-    mockLocation.href = "http://localhost:3000/casa"
+    mockLocation.href = "http://localhost:3000/financiamento"
   })
 
   afterEach(() => {
@@ -63,34 +53,33 @@ describe("SimulatorClient", () => {
   })
 
   describe("price query parameter", () => {
-    it("renders the simulator with default property value when no price param", async () => {
+    it("renders the adjustment panel when no price param", async () => {
       mockPriceValue = null
 
       renderWithProviders(<SimulatorClient />)
 
-      // Wait for loading state to resolve
       await waitFor(() => {
         expect(screen.queryByText("Carregando...")).not.toBeInTheDocument()
       })
 
-      expect(screen.getByText("Taxa Efetiva Mensal")).toBeInTheDocument()
+      expect(screen.getByText("Parâmetros da simulação")).toBeInTheDocument()
+      expect(screen.getByText("Valor da Casa")).toBeInTheDocument()
+      expect(screen.queryByText("Taxa Efetiva Mensal")).not.toBeInTheDocument()
     })
 
     it("pre-populates the simulator with price from query param", async () => {
       const testPrice = 1500000
       mockPriceValue = testPrice.toString()
-      mockLocation.href = `http://localhost:3000/casa?price=${testPrice}`
+      mockLocation.href = `http://localhost:3000/financiamento?price=${testPrice}`
 
       renderWithProviders(<SimulatorClient />)
 
-      // Wait for loading state to resolve
       await waitFor(() => {
         expect(screen.queryByText("Carregando...")).not.toBeInTheDocument()
       })
 
-      expect(screen.getByText("Taxa Efetiva Mensal")).toBeInTheDocument()
+      expect(screen.getByText("Parâmetros da simulação")).toBeInTheDocument()
 
-      // URL should have been cleaned after reading price
       await waitFor(() => {
         expect(mockReplaceState).toHaveBeenCalled()
       })
@@ -99,16 +88,14 @@ describe("SimulatorClient", () => {
     it("cleans up URL parameter after reading price", async () => {
       const testPrice = 1800000
       mockPriceValue = testPrice.toString()
-      mockLocation.href = `http://localhost:3000/casa?price=${testPrice}`
+      mockLocation.href = `http://localhost:3000/financiamento?price=${testPrice}`
 
       renderWithProviders(<SimulatorClient />)
 
-      // Wait for loading and effect to run
       await waitFor(() => {
         expect(screen.queryByText("Carregando...")).not.toBeInTheDocument()
       })
 
-      // Should have called replaceState to clean up URL
       await waitFor(() => {
         expect(mockReplaceState).toHaveBeenCalled()
       })
@@ -119,14 +106,10 @@ describe("SimulatorClient", () => {
 
       renderWithProviders(<SimulatorClient />)
 
-      // Wait for loading state to resolve
       await waitFor(() => {
         expect(screen.queryByText("Carregando...")).not.toBeInTheDocument()
       })
 
-      expect(screen.getByText("Taxa Efetiva Mensal")).toBeInTheDocument()
-
-      // URL should not have been cleaned (no valid price was processed)
       expect(mockReplaceState).not.toHaveBeenCalled()
     })
 
@@ -135,14 +118,10 @@ describe("SimulatorClient", () => {
 
       renderWithProviders(<SimulatorClient />)
 
-      // Wait for loading state to resolve
       await waitFor(() => {
         expect(screen.queryByText("Carregando...")).not.toBeInTheDocument()
       })
 
-      expect(screen.getByText("Taxa Efetiva Mensal")).toBeInTheDocument()
-
-      // URL should not have been cleaned (no valid price was processed)
       expect(mockReplaceState).not.toHaveBeenCalled()
     })
 
@@ -151,32 +130,24 @@ describe("SimulatorClient", () => {
 
       renderWithProviders(<SimulatorClient />)
 
-      // Wait for loading state to resolve
       await waitFor(() => {
         expect(screen.queryByText("Carregando...")).not.toBeInTheDocument()
       })
 
-      expect(screen.getByText("Taxa Efetiva Mensal")).toBeInTheDocument()
-
-      // URL should not have been cleaned (no valid price was processed)
       expect(mockReplaceState).not.toHaveBeenCalled()
     })
 
     it("handles decimal price values correctly", async () => {
       const testPrice = 1750000.5
       mockPriceValue = testPrice.toString()
-      mockLocation.href = `http://localhost:3000/casa?price=${testPrice}`
+      mockLocation.href = `http://localhost:3000/financiamento?price=${testPrice}`
 
       renderWithProviders(<SimulatorClient />)
 
-      // Wait for loading state to resolve
       await waitFor(() => {
         expect(screen.queryByText("Carregando...")).not.toBeInTheDocument()
       })
 
-      expect(screen.getByText("Taxa Efetiva Mensal")).toBeInTheDocument()
-
-      // URL should have been cleaned
       await waitFor(() => {
         expect(mockReplaceState).toHaveBeenCalled()
       })
@@ -202,12 +173,10 @@ describe("SimulatorClient", () => {
     it("shows loading message while settings are loading", () => {
       mockPriceValue = null
 
-      // Note: The actual loading state is very brief in tests due to synchronous execution
-      // This test ensures the component renders properly
       renderWithProviders(<SimulatorClient />)
 
       expect(
-        screen.queryByText("Taxa Efetiva Mensal") || screen.queryByText("Carregando...")
+        screen.queryByText("Parâmetros da simulação") || screen.queryByText("Carregando...")
       ).toBeTruthy()
     })
   })

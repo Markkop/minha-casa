@@ -2,24 +2,10 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip"
-import { cn } from "@/lib/utils"
-import { InfoCircledIcon } from "@radix-ui/react-icons"
 import { useMemo, useState, useEffect } from "react"
 import { useSearchParams } from "next/navigation"
 
-import {
-  ImovelCompradorParameterCard,
-  AmortizacaoParameterCard,
-  FiltrosCenarioCard,
-  ImovelParameterCard,
-  RecursosParameterCard,
-} from "./parameter-card"
+import { AdjustmentPanel, FiltrosCenarioCard } from "./parameter-card"
 import {
   ResultsTable,
   SummaryComparison,
@@ -37,11 +23,14 @@ import {
 import { SettingsButton, SettingsPanel } from "./settings-panel"
 import {
   DEFAULTS,
+  calcularReservaRecomendada,
+  clampReservaAoTeto,
   formatCurrency,
   formatCurrencyCompact,
-  formatPercent,
   gerarMatrizCenarios,
-  generateTooltips,
+  inferReservaTetoRatio,
+  syncRecursosFromEntradaDesejada,
+  syncRecursosMesh,
   type CenarioCompleto,
 } from "./utils/calculations"
 import { useSettings } from "./utils/settings"
@@ -100,68 +89,91 @@ export interface SimulatorParams {
   segurosMultiplier: number
   prazoMesesBase: number
   prazoMesesMultiplier: number
+
+  /** Fração (0–1) do teto de reserva recomendada que o usuário mantém. */
+  reservaTetoRatio: number
 }
 
-interface InfoCardProps {
-  title: string
-  value: string
-  subtitle?: string
-  tooltip?: string
-  icon?: string
-  highlight?: boolean
+type RecursosMeshOptions = {
+  capitalDisponivel?: number
+  valorImovel?: number
+  reservaTetoRatio?: number
+  entradaDesejada?: number
+  reservaDesejada?: number
 }
+
+const readCapital = (p: SimulatorParams) =>
+  Math.round(p.capitalDisponivelBase * p.capitalDisponivelMultiplier)
+
+const readValorImovel = (p: SimulatorParams) =>
+  Math.round(p.valorImovelBase * p.valorImovelMultiplier)
+
+const applyRecursosMesh = (
+  prev: SimulatorParams,
+  options: RecursosMeshOptions
+): SimulatorParams => {
+  const capital = options.capitalDisponivel ?? readCapital(prev)
+  const valorImovel = options.valorImovel ?? readValorImovel(prev)
+
+  let ratio = options.reservaTetoRatio ?? prev.reservaTetoRatio ?? 1
+
+  if (options.entradaDesejada !== undefined) {
+    const fromEntrada = syncRecursosFromEntradaDesejada(
+      capital,
+      valorImovel,
+      options.entradaDesejada
+    )
+    return {
+      ...prev,
+      capitalDisponivelBase: fromEntrada.capitalDisponivel,
+      capitalDisponivelMultiplier: 1.0,
+      reservaEmergenciaBase: fromEntrada.reservaEmergencia,
+      reservaEmergenciaMultiplier: 1.0,
+      reservaTetoRatio: fromEntrada.reservaTetoRatio,
+      ...(options.valorImovel !== undefined
+        ? { valorImovelBase: valorImovel, valorImovelMultiplier: 1.0 }
+        : {}),
+    }
+  }
+
+  if (options.reservaDesejada !== undefined) {
+    const clamped = clampReservaAoTeto(options.reservaDesejada, capital, valorImovel)
+    ratio = inferReservaTetoRatio(clamped, capital, valorImovel)
+  }
+
+  const mesh = syncRecursosMesh({
+    capitalDisponivel: capital,
+    valorImovel,
+    reservaTetoRatio: ratio,
+  })
+
+  return {
+    ...prev,
+    capitalDisponivelBase: capital,
+    capitalDisponivelMultiplier: 1.0,
+    reservaEmergenciaBase: mesh.reservaEmergencia,
+    reservaEmergenciaMultiplier: 1.0,
+    reservaTetoRatio: mesh.reservaTetoRatio,
+    ...(options.valorImovel !== undefined
+      ? { valorImovelBase: valorImovel, valorImovelMultiplier: 1.0 }
+      : {}),
+  }
+}
+
+const initialValorImovel = DEFAULTS.valoresImovel[0]
+const initialReservaMesh = syncRecursosMesh({
+  capitalDisponivel: DEFAULTS.capitalDisponivel,
+  valorImovel: initialValorImovel,
+  reservaTetoRatio: inferReservaTetoRatio(
+    DEFAULTS.reservaEmergencia,
+    DEFAULTS.capitalDisponivel,
+    initialValorImovel
+  ),
+})
 
 // ============================================================================
 // COMPONENTS
 // ============================================================================
-
-/**
- * Info card com tooltip
- */
-const InfoCard = ({ title, value, subtitle, tooltip, icon, highlight }: InfoCardProps) => {
-  return (
-    <Card
-      className={cn(
-        "bg-app-surface-muted border-app-border",
-        highlight && "border-app-action bg-app-action/5"
-      )}
-    >
-      <CardContent className="p-4">
-        <div className="flex items-start justify-between">
-          <div>
-            <div className="flex items-center gap-2 mb-1">
-              {icon && <span className="text-lg">{icon}</span>}
-              <span className="text-xs text-app-muted">{title}</span>
-              {tooltip && (
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <InfoCircledIcon className="h-3 w-3 text-app-subtle hover:text-app-accent cursor-help" />
-                    </TooltipTrigger>
-                    <TooltipContent className="max-w-xs">
-                      <p className="text-xs">{tooltip}</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              )}
-            </div>
-            <p
-              className={cn(
-                "text-xl font-bold font-mono",
-                highlight ? "text-app-accent" : "text-app-fg"
-              )}
-            >
-              {value}
-            </p>
-            {subtitle && (
-              <p className="text-xs text-app-subtle mt-1">{subtitle}</p>
-            )}
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  )
-}
 
 /**
  * Componente principal do simulador
@@ -194,7 +206,7 @@ export const SimulatorClient = () => {
 
     // Recursos
     capitalDisponivel: DEFAULTS.capitalDisponivel,
-    reservaEmergencia: DEFAULTS.reservaEmergencia,
+    reservaEmergencia: initialReservaMesh.reservaEmergencia,
 
     // Imóvel do Comprador (antigo Apartamento)
     valorApartamentoSelecionado: DEFAULTS.valoresApartamento[0],
@@ -216,8 +228,9 @@ export const SimulatorClient = () => {
     valorImovelMultiplier: 1.0,
     capitalDisponivelBase: DEFAULTS.capitalDisponivel,
     capitalDisponivelMultiplier: 1.0,
-    reservaEmergenciaBase: DEFAULTS.reservaEmergencia,
+    reservaEmergenciaBase: initialReservaMesh.reservaEmergencia,
     reservaEmergenciaMultiplier: 1.0,
+    reservaTetoRatio: initialReservaMesh.reservaTetoRatio,
     valorApartamentoBase: DEFAULTS.valoresApartamento[0],
     valorApartamentoMultiplier: 1.0,
     custoCondominioBase: DEFAULTS.custoCondominioMensal,
@@ -235,11 +248,12 @@ export const SimulatorClient = () => {
       const price = parseFloat(priceParam)
       if (!isNaN(price) && price > 0) {
         // eslint-disable-next-line react-hooks/set-state-in-effect -- One-time URL parameter initialization
-        setParams((prev) => ({
-          ...prev,
-          valorImovelBase: price,
-          valorImovelMultiplier: 1.0,
-        }))
+        setParams((prev) =>
+          applyRecursosMesh(
+            { ...prev, valorImovelBase: price, valorImovelMultiplier: 1.0 },
+            { valorImovel: price }
+          )
+        )
         // Clean up URL parameter after reading
         if (typeof window !== "undefined") {
           const url = new URL(window.location.href)
@@ -262,6 +276,19 @@ export const SimulatorClient = () => {
       | "prazoMeses",
     newValue: number
   ) => {
+    if (field === "capitalDisponivel") {
+      setParams((prev) => applyRecursosMesh(prev, { capitalDisponivel: newValue }))
+      return
+    }
+    if (field === "reservaEmergencia") {
+      setParams((prev) => applyRecursosMesh(prev, { reservaDesejada: newValue }))
+      return
+    }
+    if (field === "valorImovel") {
+      setParams((prev) => applyRecursosMesh(prev, { valorImovel: newValue }))
+      return
+    }
+
     const baseField = `${field}Base` as keyof SimulatorParams
     const multiplierField = `${field}Multiplier` as keyof SimulatorParams
 
@@ -272,25 +299,56 @@ export const SimulatorClient = () => {
     }))
   }
 
+  const handleCapitalChange = (newCapital: number) => {
+    setParams((prev) => {
+      const valorImovel = readValorImovel(prev)
+      const { valor: reservaRec } = calcularReservaRecomendada(valorImovel)
+      const max = Math.max(
+        Math.round(valorImovel * 0.75),
+        reservaRec * 10,
+        DEFAULTS.capitalDisponivel * 3
+      )
+      return applyRecursosMesh(prev, {
+        capitalDisponivel: Math.max(0, Math.min(Math.round(newCapital), max)),
+      })
+    })
+  }
+
   const handleSliderChange = (
     field:
       | "valorImovel"
-      | "capitalDisponivel"
-      | "reservaEmergencia"
       | "valorApartamento"
       | "custoCondominio"
       | "seguros"
       | "prazoMeses",
     multiplier: number
   ) => {
-    // Clamp multiplier to 0.1 (10%) to 2.0 (200%)
     const clampedMultiplier = Math.max(0.1, Math.min(2.0, multiplier))
-    const multiplierField = `${field}Multiplier` as keyof SimulatorParams
 
+    if (field === "valorImovel") {
+      setParams((prev) => {
+        const valorImovel = Math.round(prev.valorImovelBase * clampedMultiplier)
+        return applyRecursosMesh(
+          { ...prev, valorImovelMultiplier: clampedMultiplier },
+          { valorImovel }
+        )
+      })
+      return
+    }
+
+    const multiplierField = `${field}Multiplier` as keyof SimulatorParams
     setParams((prev) => ({
       ...prev,
       [multiplierField]: clampedMultiplier,
     }))
+  }
+
+  const handleReservaChange = (newReserva: number) => {
+    setParams((prev) => applyRecursosMesh(prev, { reservaDesejada: newReserva }))
+  }
+
+  const handleEntradaChange = (newEntrada: number) => {
+    setParams((prev) => applyRecursosMesh(prev, { entradaDesejada: newEntrada }))
   }
 
   // Compute actual values from base * multiplier (keep in sync)
@@ -318,6 +376,31 @@ export const SimulatorClient = () => {
       ),
     }
   }, [params])
+
+  const recursosMeta = useMemo(() => {
+    const valorImovel = computedParams.valorImovelSelecionado
+    const { pct, valor: reservaRecomendada } = calcularReservaRecomendada(valorImovel)
+    const reservaTeto = Math.min(
+      reservaRecomendada,
+      computedParams.capitalDisponivel
+    )
+    // Faixa estável: só recalcula quando o imóvel muda (não quando o capital muda)
+    const capitalMax = Math.max(
+      Math.round(valorImovel * 0.75),
+      reservaRecomendada * 10,
+      DEFAULTS.capitalDisponivel * 3
+    )
+    return {
+      reservaRecomendada,
+      reservaPctRecomendado: pct,
+      reservaTeto,
+      capitalSlider: {
+        min: 0,
+        max: capitalMax,
+        step: 10_000,
+      },
+    }
+  }, [computedParams.valorImovelSelecionado, computedParams.capitalDisponivel])
 
   // Estado da view
   const [activeTab, setActiveTab] = useState("table")
@@ -379,37 +462,6 @@ export const SimulatorClient = () => {
   // Melhor cenário dos filtrados
   const bestCenario = filteredCenarios.find((c) => c.isBest) || filteredCenarios[0]
 
-  // Taxa efetiva mensal e CET usando settings
-  const taxaMensalEfetiva = computedParams.taxaAnual / 12 + computedParams.trMensal
-  const cetEstimado = computedParams.taxaAnual + computedParams.trMensal * 12 + settings.cetAdditionalCost
-
-  // Generate dynamic tooltips based on current params and settings
-  const tooltips = useMemo(() => {
-    return generateTooltips({
-      reservaEmergencia: computedParams.reservaEmergencia,
-      haircut: computedParams.haircut,
-      haircutRange: settings.sliders.haircut,
-      taxaAnualRange: settings.sliders.taxaAnual,
-      trMensalRange: settings.sliders.trMensal,
-      prazoOptions: settings.prazoOptions,
-      aporteExtra: computedParams.aporteExtra,
-      economiaJuros: bestCenario?.economiaJuros,
-      aporteExtraRange: settings.sliders.aporteExtra,
-      rendaMensalRange: settings.sliders.rendaMensal,
-    })
-  }, [
-    computedParams.reservaEmergencia,
-    computedParams.haircut,
-    computedParams.aporteExtra,
-    settings.sliders.haircut,
-    settings.sliders.taxaAnual,
-    settings.sliders.trMensal,
-    settings.sliders.aporteExtra,
-    settings.sliders.rendaMensal,
-    settings.prazoOptions,
-    bestCenario?.economiaJuros,
-  ])
-
   // Show loading state until settings are loaded
   if (!isLoaded) {
     return (
@@ -431,68 +483,16 @@ export const SimulatorClient = () => {
       <SettingsPanel isOpen={showSettings} onClose={() => setShowSettings(false)} />
 
       <main className="max-w-7xl mx-auto space-y-4 px-4 py-4">
-        {/* Info cards rápidos */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <InfoCard
-            title="Taxa Efetiva Mensal"
-            value={formatPercent(taxaMensalEfetiva)}
-            subtitle={`Juros ${formatPercent(computedParams.taxaAnual)} + TR ${formatPercent(computedParams.trMensal)}`}
-            tooltip={tooltips.trMensal}
-            icon="📊"
-          />
-          <InfoCard
-            title="CET Estimado"
-            value={`${formatPercent(cetEstimado)} a.a.`}
-            subtitle="Custo Efetivo Total"
-            tooltip={tooltips.cetEstimado}
-            icon="💹"
-            highlight
-          />
-          <InfoCard
-            title="Entrada Disponível"
-            value={formatCurrency(
-              computedParams.capitalDisponivel - computedParams.reservaEmergencia
-            )}
-            subtitle={`De ${formatCurrency(computedParams.capitalDisponivel)} total`}
-            tooltip={tooltips.reservaEmergencia}
-            icon="💰"
-          />
-          <InfoCard
-            title="Cenários Analisados"
-            value={`${filteredCenarios.length} de ${cenarios.length}`}
-            subtitle={`${filteredCenarios.filter((c) => c.comprometimento.dentroDoLimite).length} dentro do limite de renda`}
-            tooltip="Número de combinações calculadas"
-            icon="🎯"
-          />
-        </div>
-
-        {/* Painel de configuração */}
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
-          <ImovelParameterCard
-            params={{ ...params, ...computedParams }}
-            onChange={setParams}
-            onValueChange={handleValueChange}
-            onSliderChange={handleSliderChange}
-          />
-          <RecursosParameterCard
-            params={{ ...params, ...computedParams }}
-            onChange={setParams}
-            onValueChange={handleValueChange}
-            onSliderChange={handleSliderChange}
-          />
-          <ImovelCompradorParameterCard
-            params={{ ...params, ...computedParams }}
-            onChange={setParams}
-            onValueChange={handleValueChange}
-            onSliderChange={handleSliderChange}
-          />
-          <AmortizacaoParameterCard
-            params={{ ...params, ...computedParams }}
-            onChange={setParams}
-            onValueChange={handleValueChange}
-            onSliderChange={handleSliderChange}
-          />
-        </div>
+        <AdjustmentPanel
+          params={{ ...params, ...computedParams }}
+          recursosMeta={recursosMeta}
+          onChange={setParams}
+          onValueChange={handleValueChange}
+          onSliderChange={handleSliderChange}
+          onCapitalChange={handleCapitalChange}
+          onReservaChange={handleReservaChange}
+          onEntradaChange={handleEntradaChange}
+        />
 
         {/* Resumo comparativo */}
         <Card className="bg-app-surface border-app-border">

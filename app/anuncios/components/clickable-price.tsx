@@ -1,7 +1,6 @@
 "use client"
 
 import { useRouter } from "next/navigation"
-import { useAddons } from "@/lib/use-addons"
 import {
   Tooltip,
   TooltipContent,
@@ -42,14 +41,8 @@ const formatCurrency = (value: number | null): string => {
 /**
  * ClickablePrice
  *
- * A price display component that becomes clickable when the user has access
- * to the "financiamento" addon. When clicked, navigates to the financing
- * calculator with the price pre-filled.
- *
- * @example
- * ```tsx
- * <ClickablePrice price={500000} />
- * ```
+ * Displays the property total price. When price is set, click navigates to the
+ * financing simulator with the value pre-filled.
  */
 export function ClickablePrice({
   price,
@@ -57,21 +50,17 @@ export function ClickablePrice({
   className,
 }: ClickablePriceProps) {
   const router = useRouter()
-  const { hasAddon } = useAddons()
-
-  const hasFinanciamentoAddon = hasAddon("financiamento")
-  const isClickable = hasFinanciamentoAddon && price !== null
+  const isClickable = price !== null
 
   const handleClick = () => {
     if (isClickable) {
-      router.push(`/casa?price=${price}`)
+      router.push(`/financiamento?price=${price}`)
     }
   }
 
   const formattedPrice = formatCurrency(price)
 
-  // When addon is not available, show simple price without click behavior
-  if (!hasFinanciamentoAddon) {
+  if (!isClickable) {
     return (
       <span
         className={cn(
@@ -86,7 +75,6 @@ export function ClickablePrice({
     )
   }
 
-  // When addon is available, show clickable price with tooltip
   return (
     <Tooltip>
       <TooltipTrigger asChild>

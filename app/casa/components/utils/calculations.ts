@@ -325,6 +325,159 @@ export const calcularEntrada = ({
 }
 
 /**
+ * Given total capital and desired down payment, returns clamped entrada and matching reserve.
+ */
+export const syncReservaFromEntrada = (
+  capitalDisponivel: number,
+  entradaDesejada: number
+): { entrada: number; reservaEmergencia: number } => {
+  const entrada = Math.max(0, Math.min(entradaDesejada, capitalDisponivel))
+  return {
+    entrada,
+    reservaEmergencia: capitalDisponivel - entrada,
+  }
+}
+
+/** Percentual sugerido de reserva sobre o valor do imóvel (custos de fechamento + buffer). */
+export const calcularPctReservaRecomendada = (valorImovel: number): number => {
+  if (valorImovel <= 0) return 0.05
+  if (valorImovel <= 1_000_000) return 0.06
+  if (valorImovel <= 2_000_000) return 0.05
+  if (valorImovel <= 3_500_000) return 0.045
+  return 0.04
+}
+
+export const calcularReservaRecomendada = (
+  valorImovel: number
+): { pct: number; valor: number } => {
+  const pct = calcularPctReservaRecomendada(valorImovel)
+  return { pct, valor: Math.round(valorImovel * pct) }
+}
+
+export const formatPctReserva = (pct: number): string =>
+  `${(pct * 100).toFixed(1).replace(".0", "")}%`
+
+export interface RecursosMeshInput {
+  capitalDisponivel: number
+  valorImovel: number
+  reservaTetoRatio?: number
+}
+
+export interface RecursosMeshResult {
+  reservaEmergencia: number
+  entrada: number
+  reservaRecomendada: number
+  reservaPctRecomendado: number
+  reservaTeto: number
+  reservaTetoRatio: number
+}
+
+/**
+ * Distribui capital entre reserva (até o teto recomendado) e entrada.
+ * reservaTetoRatio: fração do teto (0–1) que o usuário deseja manter em reserva.
+ */
+export const syncRecursosMesh = ({
+  capitalDisponivel,
+  valorImovel,
+  reservaTetoRatio = 1,
+}: RecursosMeshInput): RecursosMeshResult => {
+  const { pct, valor: reservaRecomendada } = calcularReservaRecomendada(valorImovel)
+  const reservaTeto = Math.min(reservaRecomendada, Math.max(0, capitalDisponivel))
+  const ratio = Math.max(0, Math.min(1, reservaTetoRatio))
+  const reservaEmergencia = Math.round(reservaTeto * ratio)
+
+  return {
+    reservaEmergencia,
+    entrada: capitalDisponivel - reservaEmergencia,
+    reservaRecomendada,
+    reservaPctRecomendado: pct,
+    reservaTeto,
+    reservaTetoRatio: reservaTeto > 0 ? reservaEmergencia / reservaTeto : 0,
+  }
+}
+
+/** Infere a fração do teto a partir da reserva atual. */
+export const inferReservaTetoRatio = (
+  reservaAtual: number,
+  capitalDisponivel: number,
+  valorImovel: number
+): number => {
+  const { valor: reservaRecomendada } = calcularReservaRecomendada(valorImovel)
+  const teto = Math.min(reservaRecomendada, Math.max(0, capitalDisponivel))
+  if (teto <= 0) return 0
+  return Math.max(0, Math.min(1, reservaAtual / teto))
+}
+
+/** Limita reserva ao teto recomendado (não ultrapassa % sugerida nem o capital). */
+export const clampReservaAoTeto = (
+  reservaDesejada: number,
+  capitalDisponivel: number,
+  valorImovel: number
+): number => {
+  const { valor: reservaRecomendada } = calcularReservaRecomendada(valorImovel)
+  const teto = Math.min(reservaRecomendada, Math.max(0, capitalDisponivel))
+  return Math.max(0, Math.min(reservaDesejada, teto))
+}
+
+export interface RecursosFromEntradaResult {
+  capitalDisponivel: number
+  reservaEmergencia: number
+  entrada: number
+  reservaTetoRatio: number
+}
+
+/**
+ * Ajusta entrada; se a reserva já está no teto e a entrada precisa cair mais,
+ * reduz o capital (em vez de travar o slider).
+ */
+export const syncRecursosFromEntradaDesejada = (
+  capitalDisponivel: number,
+  valorImovel: number,
+  entradaDesejada: number
+): RecursosFromEntradaResult => {
+  const { valor: reservaRecomendada } = calcularReservaRecomendada(valorImovel)
+  const targetEntrada = Math.max(0, entradaDesejada)
+
+  if (targetEntrada >= capitalDisponivel) {
+    return {
+      capitalDisponivel,
+      reservaEmergencia: 0,
+      entrada: capitalDisponivel,
+      reservaTetoRatio: 0,
+    }
+  }
+
+  const tetoAtual = Math.min(reservaRecomendada, capitalDisponivel)
+  const entradaMinima = capitalDisponivel - tetoAtual
+
+  let newCapital = capitalDisponivel
+
+  if (targetEntrada < entradaMinima) {
+    newCapital = Math.max(reservaRecomendada, targetEntrada + reservaRecomendada)
+    const reservaTeto = Math.min(reservaRecomendada, newCapital)
+    const reservaEmergencia = Math.round(reservaTeto)
+    return {
+      capitalDisponivel: newCapital,
+      reservaEmergencia,
+      entrada: newCapital - reservaEmergencia,
+      reservaTetoRatio: 1,
+    }
+  }
+
+  const reservaTeto = Math.min(reservaRecomendada, newCapital)
+  const desiredReserva = newCapital - targetEntrada
+  const reservaEmergencia = Math.min(Math.round(desiredReserva), reservaTeto)
+  const entrada = newCapital - reservaEmergencia
+
+  return {
+    capitalDisponivel: newCapital,
+    reservaEmergencia,
+    entrada,
+    reservaTetoRatio: reservaTeto > 0 ? reservaEmergencia / reservaTeto : 0,
+  }
+}
+
+/**
  * Calcula o valor do apartamento na permuta (com deságio/haircut)
  */
 export const calcularValorPermuta = ({
@@ -859,6 +1012,7 @@ export const DEFAULTS = {
 
 export interface TooltipParams {
   reservaEmergencia?: number
+  reservaPctRecomendado?: number
   haircut?: number
   haircutRange?: { min: number; max: number }
   taxaAnualRange?: { min: number; max: number }
@@ -875,7 +1029,7 @@ export interface TooltipParams {
  */
 export const generateTooltips = (params: TooltipParams = {}) => {
   const {
-    reservaEmergencia = DEFAULTS.reservaEmergencia,
+    reservaPctRecomendado = calcularPctReservaRecomendada(DEFAULTS.valoresImovel[0]),
     haircutRange = { min: 5, max: 30 },
     taxaAnualRange = { min: 9, max: 15 },
     trMensalRange = { min: 0, max: 0.5 },
@@ -901,9 +1055,10 @@ export const generateTooltips = (params: TooltipParams = {}) => {
     valorImovel:
       "Valor de compra do imóvel. Negocie! Uma entrada robusta dá poder de barganha.",
     capitalDisponivel:
-      "Total de recursos líquidos disponíveis para a operação (incluindo reserva).",
-    reservaEmergencia:
-      `Valor reservado para custos de fechamento (ITBI, registro) e emergências. Recomendado: mínimo ${formatCurrency(reservaEmergencia)}.`,
+      "Total de recursos líquidos. Ao alterar, a reserva tende ao teto recomendado e o restante compõe a entrada.",
+    reservaEmergencia: `Reserva sugerida de ${formatPctReserva(reservaPctRecomendado)} do valor do imóvel (ITBI, registro, cartório e imprevistos). Ajuste até esse teto; acima disso só via entrada.`,
+    entradaDisponivel:
+      "Valor livre para entrada após a reserva de emergência. Aumentar a entrada reduz a reserva, respeitando o capital total.",
     valorApartamento:
       `Valor de mercado do apartamento secundário. Na permuta, espere um deságio de ${haircutRange.min}-${haircutRange.max}%.`,
     estrategia:
