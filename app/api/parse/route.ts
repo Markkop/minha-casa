@@ -54,7 +54,13 @@ const MULTI_MAX_TOKENS_CAP = 4000
 function getBackendApiUrl(): string | null {
   const raw = process.env.INTERNAL_BACKEND_URL || process.env.BACKEND_API_URL
   if (!raw?.trim()) return null
-  return raw.replace(/\/+$/, "")
+  return raw.trim().replace(/^["']+|["']+$/g, "").replace(/\/+$/, "")
+}
+
+function getInternalApiSecret(): string | undefined {
+  const raw = process.env.INTERNAL_API_SECRET?.trim()
+  if (!raw) return undefined
+  return raw.replace(/^["']+|["']+$/g, "")
 }
 
 async function proxyParseToBackend(
@@ -74,8 +80,8 @@ async function proxyParseToBackend(
     headers["x-minha-casa-org-id"] = orgId
   }
 
-  const internalSecret = process.env.INTERNAL_API_SECRET
-  if (internalSecret?.trim()) {
+  const internalSecret = getInternalApiSecret()
+  if (internalSecret) {
     headers.Authorization = `Bearer ${internalSecret}`
   }
 
