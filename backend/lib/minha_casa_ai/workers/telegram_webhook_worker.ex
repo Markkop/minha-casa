@@ -9,7 +9,7 @@ defmodule MinhaCasaAi.Workers.TelegramWebhookWorker do
   @impl Oban.Worker
   def perform(%Oban.Job{args: %{"payload" => payload}}) when is_map(payload) do
     payload
-    |> Payload.extract_messages()
+    |> Payload.extract_inbound()
     |> Enum.each(&Router.handle/1)
 
     :ok

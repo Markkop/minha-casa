@@ -13,6 +13,16 @@ defmodule MinhaCasaAi.Config do
   def telegram_bot_token, do: get(:telegram_bot_token)
   def telegram_webhook_secret, do: get(:telegram_webhook_secret)
   def app_public_url, do: get(:app_public_url)
+  def assistant_llm_enabled? do
+    case get(:assistant_llm_enabled) do
+      false -> false
+      "false" -> false
+      "0" -> false
+      _ -> true
+    end
+  end
+
+  def configured?(:assistant_llm), do: assistant_llm_enabled?() and configured?(:openai)
 
   def configured?(:openai), do: present?(openai_api_key())
   def configured?(:scrapingant), do: present?(scrapingant_api_key())

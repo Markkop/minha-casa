@@ -40,4 +40,5 @@ config :minha_casa_ai, MinhaCasaAi.Config,
   telegram_bot_token: System.get_env("TELEGRAM_BOT_TOKEN"),
   telegram_webhook_secret: System.get_env("TELEGRAM_WEBHOOK_SECRET"),
   app_public_url:
-    System.get_env("APP_PUBLIC_URL") || System.get_env("NEXT_PUBLIC_APP_URL") || "http://localhost:3000"
+    System.get_env("APP_PUBLIC_URL") || System.get_env("NEXT_PUBLIC_APP_URL") || "http://localhost:3000",
+  assistant_llm_enabled: System.get_env("ASSISTANT_LLM_ENABLED", "true") not in ["false", "0"]

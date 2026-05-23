@@ -64,7 +64,8 @@ Meta provides a test WABA and test phone number in API Setup. Use those credenti
 2. Set env vars in `infra/local/.env.local` (see `.env.local.example`).
 3. Expose Phoenix with a tunnel (e.g. ngrok) if testing Meta webhooks locally.
 4. Message the test number → open the link → log in → confirm “WhatsApp conectado”.
-5. Send a listing URL or text → bot should reply with parse summary (requires `OPENAI_API_KEY`).
+5. Send a listing URL or text → auto-save to default collection (or duplicate prompt via numbered replies `1`/`2`/`3`).
+6. Commands: `ajuda`, `coleções`, `meus imóveis`, `favoritos`, `cancelar` (same as Telegram assistant).
 
 Without `WHATSAPP_ACCESS_TOKEN` / `WHATSAPP_PHONE_NUMBER_ID`, outbound messages are **logged** (dry-run) but not sent to Meta.
 
@@ -83,6 +84,7 @@ Without `WHATSAPP_ACCESS_TOKEN` / `WHATSAPP_PHONE_NUMBER_ID`, outbound messages 
 ## Related code
 
 - Webhook: `backend/lib/minha_casa_ai_web/controllers/whats_app_webhook_controller.ex`
-- Router (onboarding vs AI): `backend/lib/minha_casa_ai/whatsapp/router.ex`
-- Channel agent: `backend/lib/minha_casa_ai/channel/agent.ex`
+- Router: `backend/lib/minha_casa_ai/whatsapp/router.ex`
+- Assistant: `backend/lib/minha_casa_ai/assistant/`
+- Ingestion: `backend/lib/minha_casa_ai/ingestion/complete.ex`
 - Connect UI: `app/conectar-whatsapp/`

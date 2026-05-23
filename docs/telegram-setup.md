@@ -22,8 +22,9 @@ Gated onboarding mirrors WhatsApp: predefined replies until the user links their
 |----------|-------------|
 | `TELEGRAM_BOT_TOKEN` | Bot token from BotFather |
 | `TELEGRAM_WEBHOOK_SECRET` | Random string; sent in `X-Telegram-Bot-Api-Secret-Token` |
-| `APP_PUBLIC_URL` | Public site URL for connect links |
+| `APP_PUBLIC_URL` | Public site URL for connect links and saved listing deep links |
 | `API_HOSTNAME` | Caddy hostname for Phoenix (webhook base) |
+| `ASSISTANT_LLM_ENABLED` | Set to `false` to disable LLM fallback for ambiguous text (default: enabled) |
 
 ### Next.js
 
@@ -64,7 +65,21 @@ curl -s "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/getMe"
 2. User logs in or signs up on the website.
 3. Page calls `POST /api/integrations/telegram/link`.
 4. Bot sends “Conta conectada”.
-5. User sends text, URL, image, or PDF → “Analisando…” → parse summary.
+5. User sends text, URL, image, or PDF → “Analisando…” → auto-save to default collection (or duplicate / multi-import prompts).
+6. Reply includes a link like `/anuncios?collection=…&listing=…` when saved.
+
+## Assistant commands (after linking)
+
+| Command | Action |
+|---------|--------|
+| `ajuda` | List commands |
+| `coleções` | List collections |
+| `meus imóveis` | Recent listings in default collection |
+| `favoritos` | Starred listings |
+| `editar preço 1900000` | Update last saved listing field |
+| `cancelar` | Cancel pending duplicate / multi-import flow |
+
+Duplicate prompts: inline buttons on Telegram, or reply `1` / `2` / `3` on WhatsApp.
 
 ## Manual test checklist
 
@@ -73,7 +88,9 @@ curl -s "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/getMe"
 3. Run `scripts/telegram-set-webhook.sh`.
 4. Message the bot in a **private chat** (groups are ignored in v1).
 5. Open the link, log in, confirm connection.
-6. Send a listing URL and confirm the summary reply.
+6. Send a listing URL and confirm auto-save + deep link.
+7. Send the same URL again and confirm duplicate prompt.
+8. Send `ajuda` and `favoritos`.
 
 Without `TELEGRAM_BOT_TOKEN`, outbound messages are logged as dry-run in Phoenix logs.
 
@@ -81,5 +98,6 @@ Without `TELEGRAM_BOT_TOKEN`, outbound messages are logged as dry-run in Phoenix
 
 - Webhook: `backend/lib/minha_casa_ai_web/controllers/telegram_webhook_controller.ex`
 - Router: `backend/lib/minha_casa_ai/telegram/router.ex`
-- Agent: `backend/lib/minha_casa_ai/channel/agent.ex`
+- Assistant: `backend/lib/minha_casa_ai/assistant/`
+- Ingestion: `backend/lib/minha_casa_ai/ingestion/complete.ex`
 - Connect UI: `app/conectar-telegram/`

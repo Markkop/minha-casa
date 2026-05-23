@@ -23,6 +23,7 @@ defmodule MinhaCasaAiWeb.Router do
     pipe_through [:api, :internal_api]
 
     post "/parse", ParseController, :create
+    post "/listings/check-duplicate", ListingsDuplicateController, :check
     post "/attachments", AttachmentController, :create
     post "/workflows/ingestions", WorkflowController, :create
     get "/workflows/:id", WorkflowController, :show

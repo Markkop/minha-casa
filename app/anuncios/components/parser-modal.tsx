@@ -19,7 +19,10 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useCollections } from "../lib/use-collections"
-import { createListing as apiCreateListing } from "../lib/api"
+import {
+  checkDuplicateCandidates,
+  createListing as apiCreateListing,
+} from "../lib/api"
 import { getDefaultFirstCollectionName } from "../lib/default-first-collection-name"
 import {
   buildParseRequestFromFile,
@@ -39,7 +42,7 @@ import type { Imovel } from "../lib/api"
 import type { ListingData } from "@/lib/db/schema"
 import type { ParseRequest } from "../lib/parse-input"
 
-type ParserPhase = "input" | "review" | "success"
+type ParserPhase = "input" | "review" | "success" | "duplicate"
 
 interface ParserModalProps {
   isOpen: boolean
@@ -88,6 +91,11 @@ export function ParserModal({
   const [contactNumberValue, setContactNumberValue] = useState("")
   const [showHelpModal, setShowHelpModal] = useState(false)
   const [isDragOver, setIsDragOver] = useState(false)
+  const [duplicateConflict, setDuplicateConflict] = useState<{
+    collectionId: string
+    data: ListingData
+    candidates: { listingId: string; reason: string }[]
+  } | null>(null)
   const linkInputRef = useRef<HTMLInputElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -101,6 +109,7 @@ export function ParserModal({
     setLoadingLabel("Processando...")
     setError(null)
     setPendingListings([])
+    setDuplicateConflict(null)
     setLastParsed(null)
     setImportedCount(0)
     setTargetCollectionId(null)
@@ -233,26 +242,22 @@ export function ParserModal({
 
       if (listings.length === 1) {
         const parsedData = listings[0]
-        const newListing = await apiCreateListing(collectionId, parsedData)
+        const duplicates = await checkDuplicateCandidates(collectionId, parsedData)
 
-        if (collectionId === activeCollection?.id) {
-          await loadListings()
-        } else {
-          triggerRefresh()
+        if (duplicates.length > 0) {
+          setDuplicateConflict({
+            collectionId,
+            data: parsedData,
+            candidates: duplicates.map((d) => ({
+              listingId: d.listingId,
+              reason: d.reason,
+            })),
+          })
+          setPhase("duplicate")
+          return
         }
 
-        setLastParsed({ id: newListing.id, data: parsedData })
-        setImportedCount(1)
-        setLinkValue(
-          parsedData.link?.trim() ||
-            (parseInput.kind === "url" ? parseInput.url : "") ||
-            ""
-        )
-        setPhase("success")
-        onListingAdded()
-        setUrlValue("")
-        setRawText("")
-        clearFile()
+        await finishSingleImport(collectionId, parsedData, parseInput)
       } else {
         setPendingListings(
           listings.map((data) => ({ data, selected: true }))
@@ -268,9 +273,55 @@ export function ParserModal({
     }
   }
 
+  const finishSingleImport = async (
+    collectionId: string,
+    parsedData: ListingData,
+    parseInput: ParseRequest
+  ) => {
+    const newListing = await apiCreateListing(collectionId, parsedData)
+
+    if (collectionId === activeCollection?.id) {
+      await loadListings()
+    } else {
+      triggerRefresh()
+    }
+
+    setLastParsed({ id: newListing.id, data: parsedData })
+    setImportedCount(1)
+    setLinkValue(
+      parsedData.link?.trim() ||
+        (parseInput.kind === "url" ? parseInput.url : "") ||
+        ""
+    )
+    setPhase("success")
+    onListingAdded()
+    setUrlValue("")
+    setRawText("")
+    clearFile()
+    setDuplicateConflict(null)
+  }
+
+  const handleSaveDespiteDuplicate = async () => {
+    if (!duplicateConflict) return
+    setIsLoading(true)
+    setError(null)
+    try {
+      await finishSingleImport(
+        duplicateConflict.collectionId,
+        duplicateConflict.data,
+        { kind: "text", rawText: "" }
+      )
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erro ao salvar imóvel")
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
   const handleBackToInput = () => {
     setPhase("input")
     setPendingListings([])
+    setDuplicateConflict(null)
     setError(null)
   }
 
@@ -372,6 +423,8 @@ export function ParserModal({
   const modalTitle =
     phase === "review"
       ? "Revisar imóveis"
+      : phase === "duplicate"
+        ? "Possível duplicado"
       : phase === "success" && importedCount > 1
         ? "Imóveis adicionados"
         : "Adicionar imóvel"
@@ -506,6 +559,36 @@ export function ParserModal({
                     </span>
                   </>
                 )}
+              </div>
+            </div>
+          )}
+
+          {phase === "duplicate" && duplicateConflict && (
+            <div className="space-y-3 text-sm">
+              <p className="text-app-muted">
+                Já existe um imóvel parecido nesta coleção
+                {duplicateConflict.candidates[0]?.reason
+                  ? ` (${duplicateConflict.candidates[0].reason})`
+                  : ""}
+                .
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  className="inline-flex items-center gap-1 rounded-md bg-primary px-3 py-1.5 text-primary-foreground text-sm"
+                  onClick={() => void handleSaveDespiteDuplicate()}
+                  disabled={isLoading}
+                >
+                  Salvar mesmo assim
+                </button>
+                <button
+                  type="button"
+                  className="inline-flex items-center gap-1 rounded-md border border-app-border px-3 py-1.5 text-sm"
+                  onClick={handleBackToInput}
+                  disabled={isLoading}
+                >
+                  Voltar
+                </button>
               </div>
             </div>
           )}

@@ -109,6 +109,7 @@ services:
       APP_PUBLIC_URL: ${APP_PUBLIC_URL:-https://your-app-domain.example.com}
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
       TELEGRAM_WEBHOOK_SECRET: ${TELEGRAM_WEBHOOK_SECRET:-}
+      ASSISTANT_LLM_ENABLED: ${ASSISTANT_LLM_ENABLED:-true}
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:4000/health"]
       interval: 10s

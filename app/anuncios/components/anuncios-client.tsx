@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useCallback, useEffect } from "react"
+import { Suspense, useState, useCallback, useEffect } from "react"
 import { ListingsTable } from "./listings-table"
 import { ListingsMap } from "./listings-map"
 import { ParserModal } from "./parser-modal"
@@ -16,6 +16,7 @@ import { syncSubscriptionCookie } from "@/lib/sync-subscription-cookie"
 import { PageToolbar } from "@/app/components/page-toolbar"
 import { Download, FolderOpen, Link2, Loader2, Plus } from "lucide-react"
 import { ModalCloseButton } from "./modal-chrome"
+import { AnunciosQuerySync } from "./anuncios-query-sync"
 
 function AnunciosClientInner() {
   const {
@@ -332,6 +333,9 @@ function AnunciosClientInner() {
 export function AnunciosClient() {
   return (
     <CollectionsProvider>
+      <Suspense fallback={null}>
+        <AnunciosQuerySync />
+      </Suspense>
       <AnunciosClientInner />
     </CollectionsProvider>
   )

@@ -338,6 +338,37 @@ export async function createListing(collectionId: string, listingData: ListingDa
   return toImovel(data.listing)
 }
 
+export interface DuplicateCandidate {
+  listingId: string
+  score: number
+  reason: string
+}
+
+/**
+ * Check for duplicate listings before create (Phoenix scoring).
+ */
+export async function checkDuplicateCandidates(
+  collectionId: string,
+  listingData: ListingData
+): Promise<DuplicateCandidate[]> {
+  const response = await fetch("/api/listings/check-duplicate", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ collectionId, data: listingData }),
+  })
+
+  if (response.status === 409) {
+    const data = await response.json()
+    return (data.duplicateCandidates as DuplicateCandidate[]) || []
+  }
+
+  if (!response.ok) {
+    await handleResponse(response)
+  }
+
+  return []
+}
+
 /**
  * Update a listing
  */

@@ -24,15 +24,56 @@ defmodule MinhaCasaAi.Chat do
         })
         |> Repo.insert!()
 
+      input =
+        attrs
+        |> normalize_message_input()
+        |> attach_conversation_to_reply(conversation_id)
+
       {:ok, run} =
         Workflows.create_ingestion(%{
-          input: normalize_message_input(attrs),
+          input: input,
           user_id: Map.get(attrs, :user_id),
           org_id: Map.get(attrs, :org_id)
         })
 
-      %{message: message, workflow: run}
+      %{message: message, workflow: run, conversation_id: conversation_id}
     end)
+  end
+
+  def append_message(conversation_id, role, content, opts \\ []) do
+    metadata = Keyword.get(opts, :metadata, %{})
+
+    %Message{}
+    |> Message.changeset(%{
+      conversation_id: conversation_id,
+      role: role,
+      content: content,
+      attachments: Keyword.get(opts, :attachments, []),
+      metadata: metadata
+    })
+    |> Repo.insert()
+  end
+
+  def get_conversation(id), do: Repo.get(Conversation, id)
+
+  def ensure_channel_conversation!(channel, user_id, metadata) when is_map(metadata) do
+    wa_id = Map.get(metadata, "wa_id")
+    chat_id = Map.get(metadata, "chat_id")
+
+    existing =
+      cond do
+        channel == "whatsapp" and is_binary(wa_id) ->
+          find_channel_conversation("whatsapp", "wa_id", wa_id, user_id)
+
+        channel == "telegram" and is_binary(chat_id) ->
+          find_channel_conversation("telegram", "chat_id", chat_id, user_id)
+
+        true ->
+          nil
+      end
+
+    existing ||
+      create_conversation!(%{channel: channel, user_id: user_id, metadata: metadata})
   end
 
   defp find_or_create_conversation!(attrs) do
@@ -123,4 +164,11 @@ defmodule MinhaCasaAi.Chat do
   end
 
   defp fallback_message_input(_attrs), do: %{"kind" => "text", "rawText" => ""}
+
+  defp attach_conversation_to_reply(input, conversation_id) when is_map(input) do
+    reply = Map.get(input, "_reply", %{})
+    Map.put(input, "_reply", Map.put(reply, "conversation_id", conversation_id))
+  end
+
+  defp attach_conversation_to_reply(input, _), do: input
 end

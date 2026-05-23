@@ -3,12 +3,18 @@ defmodule MinhaCasaAi.WhatsApp.Router do
   Routes inbound WhatsApp messages to onboarding templates or the channel agent.
   """
 
-  alias MinhaCasaAi.Channel.Agent
+  alias MinhaCasaAi.Assistant.Router, as: AssistantRouter
   alias MinhaCasaAi.WhatsApp.{Client, Identities, LinkCodes, Templates}
 
   def handle(%{wa_id: wa_id, phone: phone} = inbound) when is_binary(wa_id) do
     if Identities.linked?(wa_id) do
-      Agent.handle_whatsapp(inbound)
+      user_id =
+        case Identities.get_by_wa_id(wa_id) do
+          %{user_id: id} -> id
+          _ -> nil
+        end
+
+      AssistantRouter.handle("whatsapp", inbound, user_id)
     else
       handle_unlinked(wa_id, phone)
     end

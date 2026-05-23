@@ -1219,6 +1219,7 @@ export function ListingsTable({ listings, onListingsChange, hasApiKey = true }: 
                 {filteredAndSortedListings.map((imovel) => (
                   <TableRow
                     key={imovel.id}
+                    id={`listing-${imovel.id}`}
                     className={cn(
                       "group border-b",
                       imovel.starred
