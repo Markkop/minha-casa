@@ -93,27 +93,40 @@ defmodule MinhaCasaAi.Integrations.OpenAIListingParser do
       response_format: %{type: "json_object"}
     }
 
-    case Req.post("https://api.openai.com/v1/chat/completions",
-           json: body,
-           headers: [{"authorization", "Bearer #{api_key}"}],
-           finch: MinhaCasaAi.Finch,
-           receive_timeout: 45_000
-         ) do
-      {:ok,
-       %{status: status, body: %{"choices" => [%{"message" => %{"content" => content}} | _]}}}
-      when status in 200..299 and is_binary(content) ->
-        {:ok, content}
+    url = "https://api.openai.com/v1/chat/completions"
+    headers = [{"content-type", "application/json"}, {"authorization", "Bearer #{api_key}"}]
+    encoded = Jason.encode!(body)
 
-      {:ok, %{status: 401}} ->
+    case :hackney.post(url, headers, encoded,
+           with_body: true,
+           recv_timeout: 45_000,
+           pool: :default
+         ) do
+      {:ok, status, _resp_headers, client}
+      when status in 200..299 and is_reference(client) ->
+        with {:ok, resp_body} <- :hackney.body(client),
+             {:ok, %{"choices" => [%{"message" => %{"content" => content}} | _]}} <-
+               Jason.decode(resp_body),
+             true <- is_binary(content) do
+          {:ok, content}
+        else
+          _ -> {:error, :empty_ai_response}
+        end
+
+      {:ok, 401, _, client} ->
+        :hackney.close(client)
         {:error, :openai_unauthorized}
 
-      {:ok, %{status: 429}} ->
+      {:ok, 429, _, client} ->
+        :hackney.close(client)
         {:error, :openai_rate_limited}
 
-      {:ok, %{status: status}} when status >= 500 ->
+      {:ok, status, _, client} when status >= 500 ->
+        :hackney.close(client)
         {:error, :openai_unavailable}
 
-      {:ok, _} ->
+      {:ok, _, _, client} ->
+        :hackney.close(client)
         {:error, :empty_ai_response}
 
       {:error, _reason} ->

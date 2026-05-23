@@ -3,8 +3,12 @@ defmodule MinhaCasaAiWeb.ParseController do
 
   alias MinhaCasaAi.Integrations.ListingParser
 
+  @parse_timeout_ms 45_000
+
   def create(conn, params) do
-    case ListingParser.parse(params) do
+    input = Map.merge(conn.body_params, params)
+
+    case await_parse(input) do
       {:ok, listings} ->
         json(conn, %{listings: listings})
 
@@ -15,6 +19,13 @@ defmodule MinhaCasaAiWeb.ParseController do
         |> put_status(status)
         |> json(%{error: message})
     end
+  end
+
+  defp await_parse(input) do
+    task = Task.async(fn -> ListingParser.parse(input) end)
+    Task.await(task, @parse_timeout_ms)
+  catch
+    :exit, {:timeout, _} -> {:error, :openai_timeout}
   end
 
   defp map_error(:invalid_request),
@@ -65,6 +76,9 @@ defmodule MinhaCasaAiWeb.ParseController do
 
   defp map_error(:scrapingant_no_credits),
     do: {:payment_required, "Créditos da API de extração esgotados. Tente mais tarde."}
+
+  defp map_error(:openai_timeout),
+    do: {:gateway_timeout, "A extração demorou demais. Tente novamente em instantes."}
 
   defp map_error(:openai_unauthorized), do: {:service_unavailable, "Invalid OpenAI API key"}
 
