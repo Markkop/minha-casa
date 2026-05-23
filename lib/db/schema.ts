@@ -583,6 +583,24 @@ export const collectionsRelations = relations(collections, ({ one, many }) => ({
   listings: many(listings),
 }))
 
+export const listingShortLinks = pgTable(
+  "listing_short_links",
+  {
+    shortId: text("short_id").primaryKey(),
+    listingId: uuid("listing_id")
+      .notNull()
+      .references(() => listings.id, { onDelete: "cascade" }),
+    collectionId: uuid("collection_id")
+      .notNull()
+      .references(() => collections.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex("listing_short_links_listing_id_idx").on(table.listingId),
+    index("listing_short_links_collection_id_idx").on(table.collectionId),
+  ]
+)
+
 export const listingsRelations = relations(listings, ({ one }) => ({
   collection: one(collections, {
     fields: [listings.collectionId],
@@ -591,6 +609,21 @@ export const listingsRelations = relations(listings, ({ one }) => ({
   comparisonNotes: one(listingComparisonNotes, {
     fields: [listings.id],
     references: [listingComparisonNotes.listingId],
+  }),
+  shortLink: one(listingShortLinks, {
+    fields: [listings.id],
+    references: [listingShortLinks.listingId],
+  }),
+}))
+
+export const listingShortLinksRelations = relations(listingShortLinks, ({ one }) => ({
+  listing: one(listings, {
+    fields: [listingShortLinks.listingId],
+    references: [listings.id],
+  }),
+  collection: one(collections, {
+    fields: [listingShortLinks.collectionId],
+    references: [collections.id],
   }),
 }))
 

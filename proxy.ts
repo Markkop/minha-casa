@@ -20,6 +20,10 @@ const PUBLIC_ROUTES = [
   "/conectar-telegram",
 ]
 
+function isPublicShortLink(pathname: string): boolean {
+  return /^\/s\/[a-z0-9]{4,12}$/i.test(pathname)
+}
+
 /**
  * Routes that authenticated users should be redirected away from
  */
@@ -92,7 +96,7 @@ export function proxy(request: NextRequest) {
   }
 
   // Allow public routes
-  if (isPublicRoute(pathname)) {
+  if (isPublicRoute(pathname) || isPublicShortLink(pathname)) {
     return NextResponse.next()
   }
 

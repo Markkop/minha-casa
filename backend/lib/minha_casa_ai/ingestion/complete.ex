@@ -5,6 +5,7 @@ defmodule MinhaCasaAi.Ingestion.Complete do
 
   alias MinhaCasaAi.Chat.Pending
   alias MinhaCasaAi.Config
+  alias MinhaCasaAi.ListingShortLinks
   alias MinhaCasaAi.Listings
   alias MinhaCasaAi.Listings.Collection
   alias MinhaCasaAi.Workflows.WorkflowRun
@@ -163,11 +164,16 @@ defmodule MinhaCasaAi.Ingestion.Complete do
       collection_id: collection.id,
       title: Map.get(listing_data, "titulo") || "Sem título",
       listing_data: listing_data,
-      url: listing_url(collection.id, id)
+      url: ListingShortLinks.short_url(collection.id, id)
     }
   end
 
   def listing_url(collection_id, listing_id) do
+    ListingShortLinks.short_url(collection_id, listing_id) ||
+      app_listing_url(collection_id, listing_id)
+  end
+
+  def app_listing_url(collection_id, listing_id) do
     base = Config.app_public_url() || ""
 
     if base == "" do
