@@ -97,7 +97,11 @@ defmodule MinhaCasaAi.Integrations.OpenAIListingParser do
     headers = [{"content-type", "application/json"}, {"authorization", "Bearer #{api_key}"}]
     encoded = Jason.encode!(body)
 
-    case :hackney.post(url, headers, encoded, recv_timeout: 45_000, pool: :default) do
+    case :hackney.post(url, headers, encoded,
+           with_body: true,
+           recv_timeout: 45_000,
+           pool: :default
+         ) do
       {:ok, status, _resp_headers, body} when status in 200..299 and is_binary(body) ->
         with {:ok, %{"choices" => [%{"message" => %{"content" => content}} | _]}} <-
                Jason.decode(body),
