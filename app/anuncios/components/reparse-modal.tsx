@@ -50,8 +50,10 @@ const FIELD_LABELS: Record<string, string> = {
   piscinaTermica: "Piscina Térmica",
 }
 
+type ComparableScalar = string | number | boolean | null | undefined
+
 // Fields to compare (excluding metadata fields)
-const COMPARABLE_FIELDS: (keyof Imovel & keyof ListingData)[] = [
+const COMPARABLE_FIELDS = [
   "titulo",
   "endereco",
   "m2Totais",
@@ -66,7 +68,7 @@ const COMPARABLE_FIELDS: (keyof Imovel & keyof ListingData)[] = [
   "academia",
   "vistaLivre",
   "piscinaTermica",
-]
+] as const satisfies readonly (keyof Imovel & keyof ListingData)[]
 
 // ============================================================================
 // HELPER FUNCTIONS
@@ -142,9 +144,9 @@ export function ReparseModal({
       const detectedChanges: FieldChange[] = []
       
       for (const field of COMPARABLE_FIELDS) {
-        const currentValue = currentData[field]
-        const newValue = parsed[field]
-        
+        const currentValue = currentData[field] as ComparableScalar
+        const newValue = parsed[field] as ComparableScalar
+
         if (valuesAreDifferent(currentValue, newValue)) {
           detectedChanges.push({
             field,

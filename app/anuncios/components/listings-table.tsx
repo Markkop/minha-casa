@@ -231,7 +231,9 @@ const FIELD_LABELS: Record<string, string> = {
   siteUpdatedAt: "Atualizado no site",
 }
 
-const COMPARABLE_FIELDS: (keyof Imovel & keyof ListingData)[] = [
+type ComparableScalar = string | number | boolean | null | undefined
+
+const COMPARABLE_FIELDS = [
   "titulo",
   "endereco",
   "m2Totais",
@@ -248,7 +250,7 @@ const COMPARABLE_FIELDS: (keyof Imovel & keyof ListingData)[] = [
   "piscinaTermica",
   "sitePublishedAt",
   "siteUpdatedAt",
-]
+] as const satisfies readonly (keyof Imovel & keyof ListingData)[]
 
 function valuesAreDifferent(
   current: string | number | boolean | null | undefined,
@@ -674,8 +676,8 @@ export function ListingsTable({ listings, onListingsChange, hasApiKey = true }: 
       const detectedChanges: FieldChange[] = []
 
       for (const field of COMPARABLE_FIELDS) {
-        const currentValue = listing[field]
-        const newValue = parsed[field]
+        const currentValue = listing[field] as ComparableScalar
+        const newValue = parsed[field] as ComparableScalar
 
         if (valuesAreDifferent(currentValue, newValue)) {
           detectedChanges.push({
