@@ -3,12 +3,10 @@ defmodule MinhaCasaAiWeb.ParseController do
 
   alias MinhaCasaAi.Integrations.ListingParser
 
-  @parse_timeout_ms 45_000
-
   def create(conn, params) do
     input = Map.merge(conn.body_params, params)
 
-    case await_parse(input) do
+    case ListingParser.parse(input) do
       {:ok, listings} ->
         json(conn, %{listings: listings})
 
@@ -19,13 +17,6 @@ defmodule MinhaCasaAiWeb.ParseController do
         |> put_status(status)
         |> json(%{error: message})
     end
-  end
-
-  defp await_parse(input) do
-    task = Task.async(fn -> ListingParser.parse(input) end)
-    Task.await(task, @parse_timeout_ms)
-  catch
-    :exit, {:timeout, _} -> {:error, :openai_timeout}
   end
 
   defp map_error(:invalid_request),

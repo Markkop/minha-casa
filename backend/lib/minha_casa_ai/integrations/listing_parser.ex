@@ -4,16 +4,16 @@ defmodule MinhaCasaAi.Integrations.ListingParser do
   @max_image_bytes 5 * 1024 * 1024
   @max_pdf_bytes 10 * 1024 * 1024
 
+  def parse(%{"kind" => "text", "rawText" => raw_text}) when is_binary(raw_text) do
+    text = String.trim(raw_text)
+    if text == "", do: {:error, :empty_text}, else: OpenAIListingParser.parse_text(text)
+  end
+
   def parse(%{"rawText" => raw_text}) when is_binary(raw_text),
     do: parse(%{"kind" => "text", "rawText" => raw_text})
 
   def parse(%{rawText: raw_text}) when is_binary(raw_text),
     do: parse(%{"kind" => "text", "rawText" => raw_text})
-
-  def parse(%{"kind" => "text", "rawText" => raw_text}) when is_binary(raw_text) do
-    text = String.trim(raw_text)
-    if text == "", do: {:error, :empty_text}, else: OpenAIListingParser.parse_text(text)
-  end
 
   def parse(%{"kind" => "image", "base64" => base64, "mimeType" => mime_type}) do
     with :ok <- assert_size(base64, @max_image_bytes) do
