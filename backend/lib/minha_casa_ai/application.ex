@@ -3,6 +3,8 @@ defmodule MinhaCasaAi.Application do
 
   @impl true
   def start(_type, _args) do
+    {:ok, _} = Application.ensure_all_started(:hackney)
+
     children = [
       MinhaCasaAiWeb.Telemetry,
       MinhaCasaAi.Repo,
