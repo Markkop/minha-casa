@@ -1,21 +1,21 @@
 "use client"
 
 import { useCallback, useEffect, useState } from "react"
-import { ExternalLink, Plus, Trash2 } from "lucide-react"
+import { Check, Copy, ExternalLink, Trash2, X } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import {
   WorkspaceDataTable,
   WorkspaceDataTableBody,
   WorkspaceDataTableHeader,
   WorkspaceDataTableRow,
   WorkspaceEditButton,
-  WorkspaceIntroCard,
   WorkspacePage,
   WorkspaceTableActions,
   WorkspaceTableCell,
   WorkspaceTableEmpty,
   WorkspaceTableInput,
   WorkspaceTableIconButton,
-  WorkspaceTableSaveCancel,
   WORKSPACE_TABLE_ACTIONS_WIDTH_WIDE,
   useEscapeToCancel,
   type WorkspaceTableColumn,
@@ -23,56 +23,164 @@ import {
 import {
   createSavedLink,
   deleteSavedLink,
+  enrichSavedLink,
   fetchSavedLinks,
   updateSavedLink,
-  type SavedLink,
+  type SavedLinkRow,
 } from "@/lib/workspace/client"
 import { useInlineRowEdit } from "@/lib/workspace/use-inline-row-edit"
 import { useWorkspaceProfile } from "@/lib/workspace/use-workspace-profile"
 
-const emptyDraft = { title: "", url: "", description: "" }
+const emptyAddDraft = { url: "" }
 
-const linkColumns: WorkspaceTableColumn<SavedLink>[] = [
-  {
-    id: "title",
-    header: "Título",
-    width: "22%",
-    renderView: (row) => (
+function LoadingCell() {
+  return <span className="text-sm text-app-muted animate-pulse">Carregando…</span>
+}
+
+function LinkUrlLine({ url }: { url: string }) {
+  return (
+    <a
+      href={url}
+      target="_blank"
+      rel="noreferrer"
+      className="mt-1 block min-w-0 truncate text-xs text-app-muted underline decoration-dotted underline-offset-2 transition-colors hover:text-app-fg"
+      title={url}
+    >
+      {url}
+    </a>
+  )
+}
+
+function LinkCopyButton({
+  url,
+  disabled,
+}: {
+  url: string
+  disabled?: boolean
+}) {
+  const [copied, setCopied] = useState(false)
+
+  const handleCopy = async () => {
+    const value = url.trim()
+    if (!value) return
+    try {
+      await navigator.clipboard.writeText(value)
+      setCopied(true)
+      window.setTimeout(() => setCopied(false), 2000)
+    } catch {
+      // ignore — button stays in default state
+    }
+  }
+
+  return (
+    <WorkspaceTableIconButton
+      title={copied ? "Copiado!" : "Copiar link"}
+      aria-label={copied ? "Copiado!" : "Copiar link"}
+      disabled={disabled || !url.trim()}
+      onClick={() => void handleCopy()}
+    >
+      {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+    </WorkspaceTableIconButton>
+  )
+}
+
+function LinkTitleBlock({
+  title,
+  url,
+  enriching,
+}: {
+  title: string
+  url: string
+  enriching?: boolean
+}) {
+  if (enriching) {
+    return <LoadingCell />
+  }
+
+  return (
+    <div className="inline-flex max-w-full min-w-0 items-center gap-1">
       <a
-        href={row.url}
+        href={url}
         target="_blank"
         rel="noreferrer"
-        className="font-medium text-app-fg hover:underline"
+        className="min-w-0 cursor-pointer truncate font-medium leading-snug text-app-fg transition-colors hover:underline"
+        title={title}
       >
-        {row.title}
+        {title || "—"}
       </a>
-    ),
-    renderEdit: (row, onChange) => (
-      <WorkspaceTableInput
-        placeholder="Título"
-        value={row.title}
-        onChange={(e) => onChange({ title: e.target.value })}
-      />
-    ),
-  },
+      <a
+        href={url}
+        target="_blank"
+        rel="noreferrer"
+        className="shrink-0 text-app-muted transition-colors hover:text-app-fg"
+        title="Abrir link"
+        aria-label="Abrir link"
+      >
+        <ExternalLink className="h-3.5 w-3.5" />
+      </a>
+    </div>
+  )
+}
+
+function makePendingRow(url: string, pendingId: string): SavedLinkRow {
+  const now = new Date().toISOString()
+  return {
+    id: pendingId,
+    userId: null,
+    orgId: null,
+    title: "",
+    url,
+    description: null,
+    createdAt: now,
+    updatedAt: now,
+    enriching: true,
+  }
+}
+
+const linkColumns: WorkspaceTableColumn<SavedLinkRow>[] = [
   {
-    id: "url",
-    header: "URL",
-    width: "40%",
-    renderView: (row) => <span className="text-app-muted">{row.url}</span>,
+    id: "title",
+    header: "Link",
+    width: "42%",
+    renderView: (row) => (
+      <div className="min-w-0">
+        <LinkTitleBlock
+          title={row.title}
+          url={row.url}
+          enriching={row.enriching}
+        />
+        <LinkUrlLine url={row.url} />
+      </div>
+    ),
     renderEdit: (row, onChange) => (
-      <WorkspaceTableInput
-        placeholder="https://..."
-        value={row.url}
-        onChange={(e) => onChange({ url: e.target.value })}
-      />
+      <div className="flex min-w-0 flex-col gap-1.5">
+        <WorkspaceTableInput
+          placeholder="Título"
+          value={row.title}
+          onChange={(e) => onChange({ title: e.target.value })}
+        />
+        <WorkspaceTableInput
+          placeholder="https://..."
+          value={row.url}
+          onChange={(e) => onChange({ url: e.target.value })}
+        />
+      </div>
     ),
   },
   {
     id: "description",
     header: "Descrição",
-    width: "28%",
-    renderView: (row) => row.description ?? "",
+    width: "46%",
+    renderView: (row) =>
+      row.enriching ? (
+        <LoadingCell />
+      ) : row.enrichError ? (
+        <span className="text-xs text-amber-700">{row.enrichError}</span>
+      ) : (
+        <span className="block min-w-0 text-app-fg leading-snug">
+          {row.description ?? ""}
+        </span>
+      ),
     renderEdit: (row, onChange) => (
       <WorkspaceTableInput
         placeholder="Descrição"
@@ -84,13 +192,15 @@ const linkColumns: WorkspaceTableColumn<SavedLink>[] = [
 ]
 
 export function LinksClient() {
-  const { orgId, profileLabel } = useWorkspaceProfile()
-  const [links, setLinks] = useState<SavedLink[]>([])
-  const [addDraft, setAddDraft] = useState(emptyDraft)
+  const { orgId } = useWorkspaceProfile()
+  const [links, setLinks] = useState<SavedLinkRow[]>([])
+  const [addDraft, setAddDraft] = useState(emptyAddDraft)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
-  const { editingId, draft, startEdit, cancelEdit, isEditing, updateDraft } = useInlineRowEdit<SavedLink>()
+  const { editingId, draft, startEdit, cancelEdit, isEditing, updateDraft } =
+    useInlineRowEdit<SavedLinkRow>()
+
   const loadLinks = async () => {
     setLoading(true)
     setError(null)
@@ -131,134 +241,176 @@ export function LinksClient() {
     }
   }
 
+  const runEnrichment = useCallback(
+    async (linkId: string) => {
+      try {
+        const { link } = await enrichSavedLink(linkId, orgId)
+        setLinks((prev) =>
+          prev.map((row) =>
+            row.id === linkId
+              ? { ...link, enriching: false, enrichError: null }
+              : row
+          )
+        )
+      } catch (err) {
+        const message =
+          err instanceof Error && err.name === "AbortError"
+            ? "Enriquecimento demorou demais; você pode editar o título e a descrição."
+            : err instanceof Error
+              ? err.message
+              : "Não foi possível enriquecer o link"
+        setLinks((prev) =>
+          prev.map((row) =>
+            row.id === linkId
+              ? { ...row, enriching: false, enrichError: message }
+              : row
+          )
+        )
+      }
+    },
+    [orgId]
+  )
+
   const addLink = async () => {
-    setSaving(true)
+    const url = addDraft.url.trim()
+    if (!url) return
+
+    const pendingId = `pending-${crypto.randomUUID()}`
+    setLinks((prev) => [makePendingRow(url, pendingId), ...prev])
+    setAddDraft(emptyAddDraft)
     setError(null)
+
     try {
-      await createSavedLink(
-        {
-          title: addDraft.title,
-          url: addDraft.url,
-          description: addDraft.description || null,
-        },
-        orgId
+      const { link } = await createSavedLink({ url }, orgId)
+      setLinks((prev) =>
+        prev.map((row) =>
+          row.id === pendingId
+            ? { ...link, enriching: true, enrichError: null }
+            : row
+        )
       )
-      setAddDraft(emptyDraft)
-      await loadLinks()
+      void runEnrichment(link.id)
     } catch (err) {
+      setLinks((prev) => prev.filter((row) => row.id !== pendingId))
       setError(err instanceof Error ? err.message : "Erro ao salvar link")
-    } finally {
-      setSaving(false)
     }
   }
 
-  const addDisabled = saving || editingId !== null
+  const isRowBusy = (link: SavedLinkRow) =>
+    link.enriching || link.id.startsWith("pending-")
+
+  const canAddLink =
+    Boolean(addDraft.url.trim()) && !saving && editingId === null
 
   return (
     <WorkspacePage>
-      <WorkspaceIntroCard>
-        Guarde buscas, filtros e referências externas para voltar depois sem recomeçar. {profileLabel}.
-      </WorkspaceIntroCard>
+      <div className="-my-4">
+        <div className="py-4">
+          <div className="flex items-stretch gap-2">
+            <Input
+              type="text"
+              className="h-11 flex-1 bg-white text-base dark:bg-white"
+              placeholder="Cole aqui links, buscas com filtros, sites úteis e referências externas."
+              value={addDraft.url}
+              disabled={saving || editingId !== null}
+              onChange={(e) => setAddDraft({ url: e.target.value })}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && canAddLink) {
+                  void addLink()
+                }
+              }}
+            />
+            <Button
+              type="button"
+              className="h-11 shrink-0 px-5"
+              disabled={!canAddLink}
+              onClick={() => void addLink()}
+            >
+              Salvar
+            </Button>
+          </div>
+        </div>
 
-      {error && <p className="mb-3 text-sm text-red-600">{error}</p>}
+        {error && <p className="text-sm text-red-600">{error}</p>}
 
-      {loading ? (
-        <p className="text-sm text-app-muted">Carregando links...</p>
-      ) : (
-        <WorkspaceDataTable
+        {loading ? (
+          <p className="text-sm text-app-muted">Carregando links...</p>
+        ) : (
+          <WorkspaceDataTable
           columns={linkColumns}
-          minWidth="800px"
+          minWidth="640px"
           actionsWidth={WORKSPACE_TABLE_ACTIONS_WIDTH_WIDE}
         >
           <WorkspaceDataTableHeader columns={linkColumns} />
           {links.length === 0 && (
             <WorkspaceTableEmpty colSpan={linkColumns.length + 1}>
-              Nenhum link salvo. Use a linha abaixo para adicionar.
+              Nenhum link salvo. Cole um link no campo acima para adicionar.
             </WorkspaceTableEmpty>
           )}
           <WorkspaceDataTableBody>
-          {links.map((link) => {
-            const editing = isEditing(link.id) && draft
-            const row = editing ? draft : link
-            return (
-              <WorkspaceDataTableRow key={link.id}>
-                {linkColumns.map((col) => (
-                  <WorkspaceTableCell key={col.id} inputCell={!!(editing && col.renderEdit)}>
-                    {editing && col.renderEdit
-                      ? col.renderEdit(row, updateDraft)
-                      : col.renderView(link)}
-                  </WorkspaceTableCell>
-                ))}
-                <WorkspaceTableActions>
-                  {editing ? (
-                    <WorkspaceTableSaveCancel
-                      onSave={() => void saveEdit()}
-                      onCancel={cancelEdit}
-                      saving={saving}
-                    />
-                  ) : (
-                    <>
-                      <WorkspaceTableIconButton asChild title="Abrir">
-                        <a href={link.url} target="_blank" rel="noreferrer">
-                          <ExternalLink className="h-4 w-4" />
-                        </a>
-                      </WorkspaceTableIconButton>
-                      <WorkspaceEditButton
-                        onClick={() => startEdit(link)}
-                        disabled={editingId !== null}
-                      />
-                      <WorkspaceTableIconButton
-                        title="Excluir"
-                        disabled={editingId !== null}
-                        onClick={() => void deleteSavedLink(link.id, orgId).then(loadLinks)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </WorkspaceTableIconButton>
-                    </>
-                  )}
-                </WorkspaceTableActions>
-              </WorkspaceDataTableRow>
-            )
-          })}
-          <WorkspaceDataTableRow className="bg-app-bg/50">
-            <WorkspaceTableCell inputCell>
-              <WorkspaceTableInput
-                placeholder="Título"
-                value={addDraft.title}
-                disabled={addDisabled}
-                onChange={(e) => setAddDraft((d) => ({ ...d, title: e.target.value }))}
-              />
-            </WorkspaceTableCell>
-            <WorkspaceTableCell inputCell>
-              <WorkspaceTableInput
-                placeholder="https://..."
-                value={addDraft.url}
-                disabled={addDisabled}
-                onChange={(e) => setAddDraft((d) => ({ ...d, url: e.target.value }))}
-              />
-            </WorkspaceTableCell>
-            <WorkspaceTableCell inputCell>
-              <WorkspaceTableInput
-                placeholder="Descrição"
-                value={addDraft.description}
-                disabled={addDisabled}
-                onChange={(e) => setAddDraft((d) => ({ ...d, description: e.target.value }))}
-              />
-            </WorkspaceTableCell>
-            <WorkspaceTableActions>
-              <WorkspaceTableIconButton
-                className="bg-app-action text-app-action-foreground hover:bg-app-action-hover"
-                title="Adicionar link"
-                disabled={addDisabled || !addDraft.title.trim() || !addDraft.url.trim()}
-                onClick={() => void addLink()}
-              >
-                <Plus className="h-4 w-4" />
-              </WorkspaceTableIconButton>
-            </WorkspaceTableActions>
-          </WorkspaceDataTableRow>
+            {links.map((link) => {
+              const editing = isEditing(link.id) && draft
+              const row = editing ? draft : link
+              return (
+                <WorkspaceDataTableRow key={link.id}>
+                  {linkColumns.map((col) => (
+                    <WorkspaceTableCell
+                      key={col.id}
+                      inputCell={!!(editing && col.renderEdit)}
+                    >
+                      {editing && col.renderEdit
+                        ? col.renderEdit(row, updateDraft)
+                        : col.renderView(link)}
+                    </WorkspaceTableCell>
+                  ))}
+                  <WorkspaceTableActions>
+                    {editing ? (
+                      <>
+                        <LinkCopyButton url={row.url} disabled={saving} />
+                        <WorkspaceTableIconButton
+                          onClick={() => void saveEdit()}
+                          disabled={saving}
+                          title="Salvar"
+                        >
+                          <Check className="h-4 w-4" />
+                        </WorkspaceTableIconButton>
+                        <WorkspaceTableIconButton
+                          onClick={cancelEdit}
+                          disabled={saving}
+                          title="Cancelar"
+                        >
+                          <X className="h-4 w-4" />
+                        </WorkspaceTableIconButton>
+                      </>
+                    ) : (
+                      <>
+                        <LinkCopyButton
+                          url={link.url}
+                          disabled={editingId !== null || isRowBusy(link)}
+                        />
+                        <WorkspaceEditButton
+                          onClick={() => startEdit(link)}
+                          disabled={editingId !== null || isRowBusy(link)}
+                        />
+                        <WorkspaceTableIconButton
+                          title="Excluir"
+                          disabled={editingId !== null || link.id.startsWith("pending-")}
+                          onClick={() =>
+                            void deleteSavedLink(link.id, orgId).then(loadLinks)
+                          }
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </WorkspaceTableIconButton>
+                      </>
+                    )}
+                  </WorkspaceTableActions>
+                </WorkspaceDataTableRow>
+              )
+            })}
           </WorkspaceDataTableBody>
-        </WorkspaceDataTable>
-      )}
+          </WorkspaceDataTable>
+        )}
+      </div>
     </WorkspacePage>
   )
 }

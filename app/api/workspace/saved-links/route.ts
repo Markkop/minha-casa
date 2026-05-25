@@ -6,6 +6,7 @@ import {
   successResponse,
   ValidationError,
 } from "@/lib/errors"
+import { fallbackTitleFromUrl } from "@/lib/saved-link-enrichment"
 import {
   getWorkspaceProfile,
   profileValues,
@@ -50,14 +51,16 @@ export async function POST(request: NextRequest) {
       throw new ValidationError("URL must be valid")
     }
 
+    const resolvedTitle = title || fallbackTitleFromUrl(url)
+
     const db = getDb()
     const [link] = await db
       .insert(savedLinks)
       .values({
         ...profileValues(profile),
-        title: title || url,
+        title: resolvedTitle,
         url,
-        description,
+        description: title ? description : null,
       })
       .returning()
 

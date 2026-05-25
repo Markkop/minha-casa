@@ -6,6 +6,8 @@ import {
   htmlToListingText,
   extractImageUrlsFromHtml,
   extractOgImageUrlFromHtml,
+  extractPageMetadataFromHtml,
+  hasUsablePageMetadata,
   orderImageUrlsWithOgFirst,
   MAX_SCRAPED_PAGE_TEXT_LENGTH,
   MIN_SCRAPED_PAGE_TEXT_LENGTH,
@@ -169,6 +171,42 @@ describe("extractImageUrlsFromHtml", () => {
     expect(urls).toHaveLength(1)
     expect(urls[0]).toContain("abc123")
     expect(urls[0]).not.toContain("logo.svg")
+  })
+})
+
+describe("extractPageMetadataFromHtml", () => {
+  it("reads og:title and og:description", () => {
+    const html = `<html><head>
+<meta property="og:title" content="Busca Campeche" />
+<meta property="og:description" content="Filtro 3 quartos no sul da ilha." />
+</head></html>`
+    expect(extractPageMetadataFromHtml(html)).toEqual({
+      title: "Busca Campeche",
+      description: "Filtro 3 quartos no sul da ilha.",
+    })
+  })
+
+  it("falls back to title tag and meta description", () => {
+    const html = `<html><head>
+<title>Página &amp; Referência</title>
+<meta name="description" content="Notas da busca." />
+</head></html>`
+    expect(extractPageMetadataFromHtml(html)).toEqual({
+      title: "Página & Referência",
+      description: "Notas da busca.",
+    })
+  })
+
+  it("returns empty object when no metadata", () => {
+    expect(extractPageMetadataFromHtml("<html><body>hi</body></html>")).toEqual({})
+  })
+})
+
+describe("hasUsablePageMetadata", () => {
+  it("is true when title or description exists", () => {
+    expect(hasUsablePageMetadata({ title: "x" })).toBe(true)
+    expect(hasUsablePageMetadata({ description: "y" })).toBe(true)
+    expect(hasUsablePageMetadata({})).toBe(false)
   })
 })
 

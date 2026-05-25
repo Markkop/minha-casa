@@ -168,6 +168,83 @@ const OG_IMAGE_META_PATTERNS = [
   /<meta[^>]*\scontent=["']([^"']+)["'][^>]*\sname=["']og:image["']/i,
 ]
 
+export interface PageMetadata {
+  title?: string
+  description?: string
+}
+
+function extractMetaContent(html: string, patterns: RegExp[]): string | null {
+  for (const pattern of patterns) {
+    const match = html.match(pattern)
+    if (!match?.[1]) continue
+    const value = decodeHtmlEntities(match[1].replace(/&amp;/g, "&")).trim()
+    if (value) return value
+  }
+  return null
+}
+
+const OG_TITLE_PATTERNS = [
+  /<meta[^>]*\sproperty=["']og:title["'][^>]*\scontent=["']([^"']+)["']/i,
+  /<meta[^>]*\scontent=["']([^"']+)["'][^>]*\sproperty=["']og:title["']/i,
+  /<meta[^>]*\sname=["']og:title["'][^>]*\scontent=["']([^"']+)["']/i,
+  /<meta[^>]*\scontent=["']([^"']+)["'][^>]*\sname=["']og:title["']/i,
+]
+
+const TWITTER_TITLE_PATTERNS = [
+  /<meta[^>]*\sname=["']twitter:title["'][^>]*\scontent=["']([^"']+)["']/i,
+  /<meta[^>]*\scontent=["']([^"']+)["'][^>]*\sname=["']twitter:title["']/i,
+  /<meta[^>]*\sproperty=["']twitter:title["'][^>]*\scontent=["']([^"']+)["']/i,
+  /<meta[^>]*\scontent=["']([^"']+)["'][^>]*\sproperty=["']twitter:title["']/i,
+]
+
+const OG_DESCRIPTION_PATTERNS = [
+  /<meta[^>]*\sproperty=["']og:description["'][^>]*\scontent=["']([^"']+)["']/i,
+  /<meta[^>]*\scontent=["']([^"']+)["'][^>]*\sproperty=["']og:description["']/i,
+  /<meta[^>]*\sname=["']og:description["'][^>]*\scontent=["']([^"']+)["']/i,
+  /<meta[^>]*\scontent=["']([^"']+)["'][^>]*\sname=["']og:description["']/i,
+]
+
+const META_DESCRIPTION_PATTERNS = [
+  /<meta[^>]*\sname=["']description["'][^>]*\scontent=["']([^"']+)["']/i,
+  /<meta[^>]*\scontent=["']([^"']+)["'][^>]*\sname=["']description["']/i,
+]
+
+const TWITTER_DESCRIPTION_PATTERNS = [
+  /<meta[^>]*\sname=["']twitter:description["'][^>]*\scontent=["']([^"']+)["']/i,
+  /<meta[^>]*\scontent=["']([^"']+)["'][^>]*\sname=["']twitter:description["']/i,
+  /<meta[^>]*\sproperty=["']twitter:description["'][^>]*\scontent=["']([^"']+)["']/i,
+  /<meta[^>]*\scontent=["']([^"']+)["'][^>]*\sproperty=["']twitter:description["']/i,
+]
+
+const HTML_TITLE_PATTERN = /<title[^>]*>([^<]+)<\/title>/i
+
+/**
+ * Extracts page title and description from HTML meta tags and title element.
+ */
+export function extractPageMetadataFromHtml(html: string): PageMetadata {
+  const title =
+    extractMetaContent(html, OG_TITLE_PATTERNS) ??
+    extractMetaContent(html, TWITTER_TITLE_PATTERNS) ??
+    extractMetaContent(html, [HTML_TITLE_PATTERN])
+
+  const description =
+    extractMetaContent(html, OG_DESCRIPTION_PATTERNS) ??
+    extractMetaContent(html, META_DESCRIPTION_PATTERNS) ??
+    extractMetaContent(html, TWITTER_DESCRIPTION_PATTERNS)
+
+  const result: PageMetadata = {}
+  if (title) result.title = title
+  if (description) result.description = description
+  return result
+}
+
+/**
+ * Returns true when extracted metadata has at least a title or description.
+ */
+export function hasUsablePageMetadata(meta: PageMetadata): boolean {
+  return Boolean(meta.title?.trim() || meta.description?.trim())
+}
+
 /**
  * Extracts og:image from scraped HTML meta tags.
  */

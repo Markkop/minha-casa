@@ -164,15 +164,17 @@ export function WorkspaceTableCell({
   className,
   title,
   inputCell,
+  colSpan,
 }: {
   children?: ReactNode
   className?: string
   title?: string
   /** Skip truncate wrapper so inputs align with header text */
   inputCell?: boolean
+  colSpan?: number
 }) {
   return (
-    <td className={cn(tableCellClass, className)} title={title}>
+    <td colSpan={colSpan} className={cn(tableCellClass, className)} title={title}>
       {inputCell ? (
         children
       ) : (

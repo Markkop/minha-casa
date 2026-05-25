@@ -28,6 +28,14 @@ export interface SavedLink {
   updatedAt: string
 }
 
+/** Client-only row state while metadata enrichment runs */
+export type SavedLinkRow = SavedLink & {
+  enriching?: boolean
+  enrichError?: string | null
+}
+
+const ENRICH_LINK_TIMEOUT_MS = 58_000
+
 export interface Contact {
   id: string
   userId: string | null
@@ -92,7 +100,10 @@ export async function fetchSavedLinks(orgId?: string | null) {
   )
 }
 
-export async function createSavedLink(input: Pick<SavedLink, "title" | "url"> & { description?: string | null }, orgId?: string | null) {
+export async function createSavedLink(
+  input: { url: string } | (Pick<SavedLink, "title" | "url"> & { description?: string | null }),
+  orgId?: string | null
+) {
   return handleResponse<{ link: SavedLink }>(
     await fetch("/api/workspace/saved-links", {
       method: "POST",
@@ -118,6 +129,23 @@ export async function deleteSavedLink(id: string, orgId?: string | null) {
       method: "DELETE",
     })
   )
+}
+
+export async function enrichSavedLink(id: string, orgId?: string | null) {
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), ENRICH_LINK_TIMEOUT_MS)
+  try {
+    return await handleResponse<{ link: SavedLink }>(
+      await fetch(`/api/workspace/saved-links/${id}/enrich`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(withOrgBody({}, orgId)),
+        signal: controller.signal,
+      })
+    )
+  } finally {
+    clearTimeout(timeoutId)
+  }
 }
 
 export async function fetchContacts(orgId?: string | null) {
