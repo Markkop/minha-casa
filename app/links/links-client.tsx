@@ -175,9 +175,11 @@ const linkColumns: WorkspaceTableColumn<SavedLinkRow>[] = [
       row.enriching ? (
         <LoadingCell />
       ) : row.enrichError ? (
-        <span className="text-xs text-amber-700">{row.enrichError}</span>
+        <span className="block min-w-0 text-xs text-amber-700 whitespace-pre-wrap break-words">
+          {row.enrichError}
+        </span>
       ) : (
-        <span className="block min-w-0 text-app-fg leading-snug">
+        <span className="block min-w-0 whitespace-pre-wrap break-words text-app-fg leading-snug">
           {row.description ?? ""}
         </span>
       ),
@@ -271,8 +273,8 @@ export function LinksClient() {
     [orgId]
   )
 
-  const addLink = async () => {
-    const url = addDraft.url.trim()
+  const addLink = async (urlOverride?: string) => {
+    const url = (urlOverride ?? addDraft.url).trim()
     if (!url) return
 
     const pendingId = `pending-${crypto.randomUUID()}`
@@ -296,11 +298,32 @@ export function LinksClient() {
     }
   }
 
+  const pasteAndSave = async () => {
+    setError(null)
+    try {
+      const text = await navigator.clipboard.readText()
+      const url = text.trim()
+      if (!url) {
+        setError("Nada na área de transferência para salvar.")
+        return
+      }
+      setAddDraft({ url })
+      await addLink(url)
+    } catch {
+      setError(
+        "Não foi possível ler a área de transferência. Permita o acesso ou cole o link manualmente."
+      )
+    }
+  }
+
   const isRowBusy = (link: SavedLinkRow) =>
     link.enriching || link.id.startsWith("pending-")
 
-  const canAddLink =
-    Boolean(addDraft.url.trim()) && !saving && editingId === null
+  const hasUrl = Boolean(addDraft.url.trim())
+  const canUseAddRow = !saving && editingId === null
+  const canSaveLink = hasUrl && canUseAddRow
+  const canPasteAndSave = !hasUrl && canUseAddRow
+  const canSubmitAddRow = canSaveLink || canPasteAndSave
 
   return (
     <WorkspacePage>
@@ -315,18 +338,20 @@ export function LinksClient() {
               disabled={saving || editingId !== null}
               onChange={(e) => setAddDraft({ url: e.target.value })}
               onKeyDown={(e) => {
-                if (e.key === "Enter" && canAddLink) {
-                  void addLink()
-                }
+                if (e.key !== "Enter" || !canSubmitAddRow) return
+                if (canSaveLink) void addLink()
+                else if (canPasteAndSave) void pasteAndSave()
               }}
             />
             <Button
               type="button"
               className="h-11 shrink-0 px-5"
-              disabled={!canAddLink}
-              onClick={() => void addLink()}
+              disabled={!canSubmitAddRow}
+              onClick={() =>
+                void (hasUrl ? addLink() : pasteAndSave())
+              }
             >
-              Salvar
+              {hasUrl ? "Salvar" : "Colar e salvar"}
             </Button>
           </div>
         </div>
@@ -356,7 +381,9 @@ export function LinksClient() {
                   {linkColumns.map((col) => (
                     <WorkspaceTableCell
                       key={col.id}
-                      inputCell={!!(editing && col.renderEdit)}
+                      inputCell={
+                        col.id === "description" || !!(editing && col.renderEdit)
+                      }
                     >
                       {editing && col.renderEdit
                         ? col.renderEdit(row, updateDraft)
