@@ -39,11 +39,13 @@ interface FieldWithTooltipProps {
 interface CurrencyInputProps {
   value: number
   onChange: (value: number) => void
+  className?: string
 }
 
 interface PercentInputProps {
   value: number
   onChange: (value: number) => void
+  className?: string
 }
 
 type SliderField =
@@ -125,7 +127,7 @@ const FieldWithTooltip = ({ label, tooltip, children, className }: FieldWithTool
 /**
  * Input monetário formatado - shows raw value while editing, formatted on blur
  */
-const CurrencyInput = ({ value, onChange, ...props }: CurrencyInputProps) => {
+const CurrencyInput = ({ value, onChange, className, ...props }: CurrencyInputProps) => {
   const [isFocused, setIsFocused] = useState(false)
   const [inputValue, setInputValue] = useState(value.toString())
 
@@ -195,7 +197,7 @@ const CurrencyInput = ({ value, onChange, ...props }: CurrencyInputProps) => {
       onFocus={handleFocus}
       onBlur={handleBlur}
       onKeyDown={handleKeyDown}
-      className="font-mono"
+      className={cn("font-mono", className)}
       {...props}
     />
   )
@@ -204,7 +206,7 @@ const CurrencyInput = ({ value, onChange, ...props }: CurrencyInputProps) => {
 /**
  * Input percentual - shows raw value while editing, formatted on blur
  */
-const PercentInput = ({ value, onChange, ...props }: PercentInputProps) => {
+const PercentInput = ({ value, onChange, className, ...props }: PercentInputProps) => {
   const [isFocused, setIsFocused] = useState(false)
   const [inputValue, setInputValue] = useState((value * 100).toFixed(2))
 
@@ -275,7 +277,7 @@ const PercentInput = ({ value, onChange, ...props }: PercentInputProps) => {
       onFocus={handleFocus}
       onBlur={handleBlur}
       onKeyDown={handleKeyDown}
-      className="font-mono"
+      className={cn("font-mono", className)}
       {...props}
     />
   )
