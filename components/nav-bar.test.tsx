@@ -84,9 +84,12 @@ describe("NavBar", () => {
     const logoLink = screen.getByRole("link", { name: /minha casa/i })
     expect(logoLink).toHaveAttribute("href", "/")
     expect(screen.queryByRole("link", { name: /anúncios/i })).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole("button", { name: /abrir navegação/i })
+    ).not.toBeInTheDocument()
   })
 
-  it("renders workspace links when logged in", () => {
+  it("renders workspace links when logged in with active subscription", () => {
     mockUseSession.mockReturnValue({
       data: { user: { id: "user-1", name: "Test User", email: "test@example.com" } },
     })
@@ -103,6 +106,37 @@ describe("NavBar", () => {
     expect(screen.getByRole("link", { name: /condomínios/i })).toHaveAttribute("href", "/condominios")
   })
 
+  it("hides workspace navigation when subscription is inactive", () => {
+    mockHasActiveSubscription = false
+    mockUseSession.mockReturnValue({
+      data: { user: { id: "user-1", name: "Test User", email: "test@example.com" } },
+    })
+
+    render(<NavBar />)
+
+    expect(screen.queryByRole("link", { name: /visão geral/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole("link", { name: /anúncios/i })).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole("button", { name: /abrir navegação/i })
+    ).not.toBeInTheDocument()
+    expect(screen.getByRole("link", { name: /minha casa/i })).toHaveAttribute(
+      "href",
+      "/subscribe"
+    )
+  })
+
+  it("shows mobile navigation trigger when logged in with active subscription", () => {
+    mockUseSession.mockReturnValue({
+      data: { user: { id: "user-1", name: "Test User", email: "test@example.com" } },
+    })
+
+    render(<NavBar />)
+
+    expect(
+      screen.getByRole("button", { name: /abrir navegação/i })
+    ).toBeInTheDocument()
+  })
+
   it("highlights current workspace link", () => {
     mockPathname.mockReturnValue("/comparacao")
     mockUseSession.mockReturnValue({
@@ -111,7 +145,9 @@ describe("NavBar", () => {
 
     render(<NavBar />)
 
-    expect(screen.getByRole("link", { name: /comparação/i })).toHaveClass(
+    const comparisonLinks = screen.getAllByRole("link", { name: /comparação/i })
+    expect(comparisonLinks.length).toBeGreaterThanOrEqual(1)
+    expect(comparisonLinks[0]).toHaveClass(
       "bg-app-action",
       "text-app-action-foreground"
     )
@@ -129,18 +165,6 @@ describe("NavBar", () => {
     expect(screen.getByRole("link", { name: /organizações/i })).toBeInTheDocument()
     expect(screen.getByRole("link", { name: /admin/i })).toBeInTheDocument()
     expect(screen.getByRole("link", { name: /assinatura/i })).toBeInTheDocument()
-  })
-
-  it("redirects subscription-gated links when subscription is inactive", () => {
-    mockHasActiveSubscription = false
-    mockUseSession.mockReturnValue({
-      data: { user: { id: "user-1", name: "Test User", email: "test@example.com" } },
-    })
-
-    render(<NavBar />)
-    fireEvent.click(screen.getByRole("link", { name: /anúncios/i }))
-
-    expect(mockPush).toHaveBeenCalledWith("/subscribe?redirect=%2Fanuncios")
   })
 
   it("shows flood risk shortcut only when addon is enabled", () => {

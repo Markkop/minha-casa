@@ -28,7 +28,7 @@ export function WorkspacePage({
   children: ReactNode
 }) {
   return (
-    <main className="min-h-[calc(100vh-56px)] bg-app-bg text-app-fg">
+    <main className="min-h-[calc(100vh-var(--nav-height,3.5rem))] bg-app-bg text-app-fg">
       {toolbar && (
         <PageToolbar maxWidthClassName="max-w-[1500px]">
           <PageToolbarEnd className="w-full">{toolbar}</PageToolbarEnd>
