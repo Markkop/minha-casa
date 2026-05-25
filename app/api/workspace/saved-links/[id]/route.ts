@@ -1,16 +1,8 @@
-import { NextRequest } from "next/server"
-import { and, eq } from "drizzle-orm"
-import { getDb, savedLinks } from "@/lib/db"
-import {
-  handleApiError,
-  NotFoundError,
-  successResponse,
-  ValidationError,
-} from "@/lib/errors"
-import {
-  getWorkspaceProfile,
-  profileWhere,
-} from "@/lib/workspace/profile"
+import { NextRequest, NextResponse } from "next/server"
+import { getServerSession } from "@/lib/auth-server"
+import { proxyBackendRequest } from "@/lib/backend-api"
+import { handleApiError } from "@/lib/errors"
+import { getWorkspaceProfile } from "@/lib/workspace/profile"
 
 interface RouteParams {
   params: Promise<{ id: string }>
@@ -18,48 +10,24 @@ interface RouteParams {
 
 export async function PUT(request: NextRequest, { params }: RouteParams) {
   try {
+    const session = await getServerSession()
+    if (!session?.user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+
     const { id } = await params
     const body = await request.json()
-    const profile = await getWorkspaceProfile(body.orgId)
-    const updates: {
-      title?: string
-      url?: string
-      description?: string | null
-    } = {}
+    await getWorkspaceProfile(body.orgId)
 
-    if (body.title !== undefined) {
-      const title = typeof body.title === "string" ? body.title.trim() : ""
-      if (!title) throw new ValidationError("Title is required")
-      updates.title = title
-    }
+    const response = await proxyBackendRequest(`/api/saved-links/${id}`, {
+      method: "PUT",
+      userId: session.user.id,
+      orgId: body.orgId,
+      body,
+    })
 
-    if (body.url !== undefined) {
-      const url = typeof body.url === "string" ? body.url.trim() : ""
-      if (!url) throw new ValidationError("URL is required")
-      try {
-        new URL(url)
-      } catch {
-        throw new ValidationError("URL must be valid")
-      }
-      updates.url = url
-    }
-
-    if (body.description !== undefined) {
-      updates.description =
-        typeof body.description === "string" && body.description.trim()
-          ? body.description.trim()
-          : null
-    }
-
-    const db = getDb()
-    const [link] = await db
-      .update(savedLinks)
-      .set(updates)
-      .where(and(eq(savedLinks.id, id), profileWhere(savedLinks, profile)))
-      .returning()
-
-    if (!link) throw new NotFoundError("Saved link")
-    return successResponse({ link })
+    const payload = await response.json().catch(() => ({}))
+    return NextResponse.json(payload, { status: response.status })
   } catch (error) {
     return handleApiError(error, "PUT /api/workspace/saved-links/[id]")
   }
@@ -67,17 +35,24 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
 
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
   try {
+    const session = await getServerSession()
+    if (!session?.user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+
     const { id } = await params
     const orgId = request.nextUrl.searchParams.get("orgId")
-    const profile = await getWorkspaceProfile(orgId)
-    const db = getDb()
-    const [link] = await db
-      .delete(savedLinks)
-      .where(and(eq(savedLinks.id, id), profileWhere(savedLinks, profile)))
-      .returning()
+    await getWorkspaceProfile(orgId)
 
-    if (!link) throw new NotFoundError("Saved link")
-    return successResponse({ success: true })
+    const response = await proxyBackendRequest(`/api/saved-links/${id}`, {
+      method: "DELETE",
+      userId: session.user.id,
+      orgId,
+      searchParams: orgId ? { orgId } : undefined,
+    })
+
+    const payload = await response.json().catch(() => ({}))
+    return NextResponse.json(payload, { status: response.status })
   } catch (error) {
     return handleApiError(error, "DELETE /api/workspace/saved-links/[id]")
   }

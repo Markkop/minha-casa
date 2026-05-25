@@ -60,6 +60,10 @@ docker compose -f infra/vps/docker-compose.db.yml --env-file .env.prod exec phoe
   /app/bin/minha_casa_ai eval "MinhaCasaAi.Release.migrate()"
 ```
 
+## Data model note
+
+All app tables (listings, `saved_links`, auth, etc.) live in this Postgres instance. Drizzle (Next.js) and Ecto (Phoenix) are ORMs over the same database.
+
 ## Frontend env vars
 
 Set these wherever the Next.js frontend runs:
@@ -78,7 +82,7 @@ BACKEND_API_URL=https://<api-domain>
 INTERNAL_API_SECRET=<same value as VPS .env.prod>
 ```
 
-Also keep the existing production values for OpenAI, ScrapingAnt, Google Maps, Stripe and share links. OpenAI and ScrapingAnt should be available to Phoenix on the VPS, while keeping the frontend fallback values until `/api/parse` is fully migrated.
+Also keep the existing production values for OpenAI, ScrapingAnt, Brave Search, Google Maps, Stripe and share links. OpenAI, ScrapingAnt, and Brave Search should be available to Phoenix on the VPS. The Next.js app proxies `/api/parse` and workspace saved-links to Phoenix in production.
 
 ```env
 SCRAPINGANT_API_KEY=<from ScrapingAnt dashboard>

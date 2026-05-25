@@ -294,4 +294,69 @@ defmodule MinhaCasaAi.Integrations.ScrapingAnt do
     lower = String.downcase(hostname)
     Enum.any?(@js_heavy_hosts, &(lower == &1 || String.ends_with?(lower, "." <> &1)))
   end
+
+  @og_title_patterns [
+    ~r/<meta[^>]*\sproperty=["']og:title["'][^>]*\scontent=["']([^"']+)["']/i,
+    ~r/<meta[^>]*\scontent=["']([^"']+)["'][^>]*\sproperty=["']og:title["']/i,
+    ~r/<meta[^>]*\sname=["']og:title["'][^>]*\scontent=["']([^"']+)["']/i,
+    ~r/<meta[^>]*\scontent=["']([^"']+)["'][^>]*\sname=["']og:title["']/i,
+    ~r/<meta[^>]*\sname=["']twitter:title["'][^>]*\scontent=["']([^"']+)["']/i,
+    ~r/<meta[^>]*\scontent=["']([^"']+)["'][^>]*\sname=["']twitter:title["']/i
+  ]
+
+  @og_description_patterns [
+    ~r/<meta[^>]*\sproperty=["']og:description["'][^>]*\scontent=["']([^"']+)["']/i,
+    ~r/<meta[^>]*\scontent=["']([^"']+)["'][^>]*\sproperty=["']og:description["']/i,
+    ~r/<meta[^>]*\sname=["']description["'][^>]*\scontent=["']([^"']+)["']/i,
+    ~r/<meta[^>]*\scontent=["']([^"']+)["'][^>]*\sname=["']description["']/i,
+    ~r/<meta[^>]*\sname=["']twitter:description["'][^>]*\scontent=["']([^"']+)["']/i,
+    ~r/<meta[^>]*\scontent=["']([^"']+)["'][^>]*\sname=["']twitter:description["']/i
+  ]
+
+  @html_title_pattern ~r/<title[^>]*>([^<]+)<\/title>/i
+
+  @doc """
+  Extracts page title and description from HTML meta tags and title element.
+  """
+  def extract_page_metadata_from_html(html) when is_binary(html) do
+    title =
+      meta_content(html, @og_title_patterns) ||
+        meta_content(html, [@html_title_pattern])
+
+    description = meta_content(html, @og_description_patterns)
+
+    %{}
+    |> maybe_put(:title, title)
+    |> maybe_put(:description, description)
+  end
+
+  def has_usable_page_metadata?(%{title: title}) when is_binary(title) and title != "",
+    do: true
+
+  def has_usable_page_metadata?(%{description: description})
+      when is_binary(description) and description != "",
+      do: true
+
+  def has_usable_page_metadata?(_), do: false
+
+  defp meta_content(html, patterns) do
+    Enum.find_value(patterns, fn pattern ->
+      case Regex.run(pattern, html) do
+        [_, raw] ->
+          raw
+          |> decode_html_entities()
+          |> String.trim()
+          |> case do
+            "" -> nil
+            value -> value
+          end
+
+        _ ->
+          nil
+      end
+    end)
+  end
+
+  defp maybe_put(map, _key, nil), do: map
+  defp maybe_put(map, key, value), do: Map.put(map, key, value)
 end

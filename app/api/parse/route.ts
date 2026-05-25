@@ -455,6 +455,13 @@ export async function POST(request: NextRequest) {
     )
     if (proxied) return proxied
 
+    if (process.env.NODE_ENV === "production") {
+      return NextResponse.json(
+        { error: "Backend API not configured" },
+        { status: 503 }
+      )
+    }
+
     const parseBody = normalizeParseBody(body)
 
     if (!parseBody) {

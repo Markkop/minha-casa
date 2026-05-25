@@ -27,8 +27,9 @@ describe("google-maps-config", () => {
   })
 
   it("accepts real-looking keys", () => {
-    process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY = "AIzaSyDtc4IssZRP4nDekS2zxNh2AH298zKfO-4"
-    expect(getGoogleMapsApiKey()).toBe("AIzaSyDtc4IssZRP4nDekS2zxNh2AH298zKfO-4")
+    const fakeKey = "AIzaSyFakeKeyForTestsOnly000000000"
+    process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY = fakeKey
+    expect(getGoogleMapsApiKey()).toBe(fakeKey)
     expect(isGoogleMapsApiKeyConfigured()).toBe(true)
   })
 

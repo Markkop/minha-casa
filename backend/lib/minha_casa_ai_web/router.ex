@@ -35,5 +35,11 @@ defmodule MinhaCasaAiWeb.Router do
     get "/whatsapp/status", WhatsAppLinkController, :status
     post "/telegram/link", TelegramLinkController, :link
     get "/telegram/status", TelegramLinkController, :status
+    get "/saved-links", SavedLinkController, :index
+    post "/saved-links", SavedLinkController, :create
+    get "/saved-links/:id", SavedLinkController, :show
+    put "/saved-links/:id", SavedLinkController, :update
+    delete "/saved-links/:id", SavedLinkController, :delete
+    post "/saved-links/:id/enrich", SavedLinkController, :enrich
   end
 end

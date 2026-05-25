@@ -31,3 +31,48 @@ export function backendHeaders(userId: string, orgId?: string | null): Record<st
 
   return headers
 }
+
+export type BackendProxyOptions = {
+  method: string
+  userId: string
+  orgId?: string | null
+  body?: unknown
+  searchParams?: Record<string, string | null | undefined>
+}
+
+/**
+ * Proxies a request to the Phoenix internal API. Returns the raw Response.
+ */
+export async function proxyBackendRequest(
+  path: string,
+  options: BackendProxyOptions
+): Promise<Response> {
+  const backendUrl = getBackendApiUrl()
+  if (!backendUrl) {
+    return new Response(JSON.stringify({ error: "Backend API not configured" }), {
+      status: 503,
+      headers: { "Content-Type": "application/json" },
+    })
+  }
+
+  const url = new URL(path.startsWith("/") ? path : `/${path}`, `${backendUrl}/`)
+
+  if (options.searchParams) {
+    for (const [key, value] of Object.entries(options.searchParams)) {
+      if (value != null && value !== "") {
+        url.searchParams.set(key, value)
+      }
+    }
+  }
+
+  const init: RequestInit = {
+    method: options.method,
+    headers: backendHeaders(options.userId, options.orgId ?? null),
+  }
+
+  if (options.body !== undefined && options.method !== "GET" && options.method !== "HEAD") {
+    init.body = JSON.stringify(options.body)
+  }
+
+  return fetch(url.toString(), init)
+}

@@ -1,6 +1,9 @@
 <INSTRUCTIONS>
 Don't run build unless asked to.
 
+Never commit API keys, tokens, or secrets in source files (including tests and one-off scripts).
+Use `.env`, `.env.local`, or env examples with placeholders only. Rotate any key that was ever committed.
+
 When needed, access the production VPS using `.ssh-prod` at the repository root.
 The file is ignored by git and uses this format:
 

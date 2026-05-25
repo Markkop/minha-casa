@@ -1,3 +1,7 @@
+/**
+ * Local/dev enrichment implementation. Production BFF proxies to Phoenix
+ * (`MinhaCasaAi.Integrations.SavedLinkMetadata`). Scripts under `scripts/` may still import this module.
+ */
 import OpenAI from "openai"
 import {
   extractPageMetadataFromHtml,

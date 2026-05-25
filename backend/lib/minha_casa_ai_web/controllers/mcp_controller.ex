@@ -3,6 +3,8 @@ defmodule MinhaCasaAiWeb.McpController do
 
   alias MinhaCasaAi.Integrations.ListingParser
   alias MinhaCasaAi.Listings
+  alias MinhaCasaAi.Workspace.SavedLinks
+  alias MinhaCasaAiWeb.SavedLinkJSON
 
   @tools [
     %{
@@ -78,6 +80,33 @@ defmodule MinhaCasaAiWeb.McpController do
           data: %{type: "object"}
         },
         required: ["userId", "collectionId", "listingId", "data"]
+      }
+    },
+    %{
+      name: "list_saved_links",
+      description: "List saved workspace links for a user or organization profile.",
+      inputSchema: %{
+        type: "object",
+        properties: %{
+          userId: %{type: "string"},
+          orgId: %{type: "string"}
+        },
+        required: ["userId"]
+      }
+    },
+    %{
+      name: "create_saved_link",
+      description: "Create a saved workspace link (URL required).",
+      inputSchema: %{
+        type: "object",
+        properties: %{
+          userId: %{type: "string"},
+          orgId: %{type: "string"},
+          url: %{type: "string"},
+          title: %{type: "string"},
+          description: %{type: "string"}
+        },
+        required: ["userId", "url"]
       }
     }
   ]
@@ -184,7 +213,49 @@ defmodule MinhaCasaAiWeb.McpController do
     end
   end
 
+  defp call_tool("list_saved_links", %{"userId" => user_id} = args) do
+    profile = saved_link_profile(user_id, Map.get(args, "orgId"))
+
+    links =
+      SavedLinks.list_links(profile)
+      |> SavedLinkJSON.links()
+
+    encode(%{links: links})
+  end
+
+  defp call_tool("create_saved_link", %{"userId" => user_id, "url" => url} = args) do
+    profile = saved_link_profile(user_id, Map.get(args, "orgId"))
+
+    title =
+      case Map.get(args, "title") do
+        t when is_binary(t) ->
+          trimmed = String.trim(t)
+          if trimmed != "", do: trimmed, else: SavedLinks.fallback_title_from_url(url)
+
+        _ ->
+          SavedLinks.fallback_title_from_url(url)
+      end
+
+    attrs = %{
+      title: title,
+      url: url,
+      description: Map.get(args, "description")
+    }
+
+    case SavedLinks.create_link(profile, attrs) do
+      {:ok, link} -> encode(%{link: SavedLinkJSON.link(link)})
+      {:error, %Ecto.Changeset{} = cs} -> error_result(inspect(cs.errors))
+      {:error, reason} -> error_result(inspect(reason))
+    end
+  end
+
   defp call_tool(_name, _args), do: error_result("unknown tool")
+
+  defp saved_link_profile(user_id, org_id) when is_binary(org_id) and org_id != "" do
+    %{user_id: nil, org_id: org_id}
+  end
+
+  defp saved_link_profile(user_id, _), do: %{user_id: user_id, org_id: nil}
 
   defp encode(map), do: %{content: [%{type: "text", text: Jason.encode!(map)}]}
 

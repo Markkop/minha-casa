@@ -1,16 +1,8 @@
-import { NextRequest } from "next/server"
-import { and, eq } from "drizzle-orm"
-import { getDb, savedLinks } from "@/lib/db"
-import {
-  handleApiError,
-  NotFoundError,
-  successResponse,
-} from "@/lib/errors"
-import { resolveSavedLinkMetadata } from "@/lib/saved-link-enrichment"
-import {
-  getWorkspaceProfile,
-  profileWhere,
-} from "@/lib/workspace/profile"
+import { NextRequest, NextResponse } from "next/server"
+import { getServerSession } from "@/lib/auth-server"
+import { proxyBackendRequest } from "@/lib/backend-api"
+import { handleApiError } from "@/lib/errors"
+import { getWorkspaceProfile } from "@/lib/workspace/profile"
 
 export const maxDuration = 60
 
@@ -20,47 +12,31 @@ interface RouteParams {
 
 export async function POST(request: NextRequest, { params }: RouteParams) {
   try {
+    const session = await getServerSession()
+    if (!session?.user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+
     const { id } = await params
     const body = await request.json().catch(() => ({}))
-    const profile = await getWorkspaceProfile(
+    await getWorkspaceProfile(
       typeof body === "object" && body && "orgId" in body
         ? (body.orgId as string | null)
         : null
     )
 
-    const db = getDb()
-    const [existing] = await db
-      .select()
-      .from(savedLinks)
-      .where(and(eq(savedLinks.id, id), profileWhere(savedLinks, profile)))
-      .limit(1)
+    const response = await proxyBackendRequest(`/api/saved-links/${id}/enrich`, {
+      method: "POST",
+      userId: session.user.id,
+      orgId:
+        typeof body === "object" && body && "orgId" in body
+          ? (body.orgId as string | null)
+          : null,
+      body: typeof body === "object" && body ? body : {},
+    })
 
-    if (!existing) {
-      throw new NotFoundError("Saved link")
-    }
-
-    let title = existing.title
-    let description = existing.description
-
-    try {
-      const resolved = await resolveSavedLinkMetadata(existing.url)
-      title = resolved.title
-      description = resolved.description
-    } catch (error) {
-      console.error("[POST /api/workspace/saved-links/[id]/enrich] enrichment failed:", error)
-    }
-
-    const [link] = await db
-      .update(savedLinks)
-      .set({ title, description })
-      .where(and(eq(savedLinks.id, id), profileWhere(savedLinks, profile)))
-      .returning()
-
-    if (!link) {
-      throw new NotFoundError("Saved link")
-    }
-
-    return successResponse({ link })
+    const payload = await response.json().catch(() => ({}))
+    return NextResponse.json(payload, { status: response.status })
   } catch (error) {
     return handleApiError(error, "POST /api/workspace/saved-links/[id]/enrich")
   }
