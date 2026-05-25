@@ -3,7 +3,8 @@ defmodule MinhaCasaAi.Assistant.PendingHandler do
   Handles in-chat pending flows: duplicates, multi-import, callbacks.
   """
 
-  alias MinhaCasaAi.Channel.ReplyFormatter
+  alias MinhaCasaAi.Assistant.PendingChoices
+  alias MinhaCasaAi.Channel.{Inbound, ReplyFormatter}
   alias MinhaCasaAi.Chat.{Conversation, Pending}
   alias MinhaCasaAi.Ingestion.Complete
   alias MinhaCasaAi.Listings
@@ -27,12 +28,14 @@ defmodule MinhaCasaAi.Assistant.PendingHandler do
     handle_callback(channel, data, user_id, conversation_id, pending, inbound)
   end
 
-  defp dispatch(channel, %{text: text}, user_id, conversation_id, pending) when is_binary(text) do
-    handle_text(channel, String.trim(text), user_id, conversation_id, pending)
-  end
+  defp dispatch(channel, inbound, user_id, conversation_id, pending) do
+    case Inbound.text(inbound) do
+      text when is_binary(text) ->
+        handle_text(channel, text, user_id, conversation_id, pending)
 
-  defp dispatch(_channel, _inbound, _user_id, _conversation_id, _pending) do
-    {:ok, ReplyFormatter.error(:invalid_pending_reply)}
+      _ ->
+        {:ok, ReplyFormatter.error(:invalid_pending_reply)}
+    end
   end
 
   defp handle_callback(_channel, "multi:all", user_id, conversation_id, %{"type" => "multi_import"} = pending, _inbound) do
@@ -61,26 +64,23 @@ defmodule MinhaCasaAi.Assistant.PendingHandler do
   end
 
   defp handle_text(channel, text, user_id, conversation_id, %{"type" => "duplicate_resolution"} = pending) do
-    action =
-      case text do
-        "1" -> :save
-        "2" -> :skip
-        "3" -> :view
-        _ -> nil
-      end
+    case PendingChoices.duplicate_action(text) do
+      :cancel ->
+        Pending.clear!(conversation_id)
+        {:ok, "Ação cancelada."}
 
-    if action do
-      index = Map.get(pending, "current_index", 0)
-      resolve_duplicate(user_id, conversation_id, pending, index, action)
-    else
-      reply = ReplyFormatter.error(:invalid_pending_reply)
-      {:ok, reply, duplicate_markup(channel, pending)}
+      action when action in [:save, :skip, :view] ->
+        index = Map.get(pending, "current_index", 0)
+        resolve_duplicate(user_id, conversation_id, pending, index, action)
+
+      _ ->
+        {:ok, ReplyFormatter.error(:invalid_pending_reply), duplicate_markup(channel, pending)}
     end
   end
 
   defp handle_text(_channel, text, user_id, conversation_id, %{"type" => "multi_import"} = pending) do
     cond do
-      String.downcase(text) in ["cancelar", "cancel"] ->
+      PendingChoices.cancelled?(text) ->
         Pending.clear!(conversation_id)
         {:ok, "Importação cancelada."}
 

@@ -33,6 +33,7 @@ defmodule MinhaCasaAi.WhatsApp.Payload do
         phone: Map.get(message, "from"),
         message_id: Map.get(message, "id"),
         type: Map.get(message, "type"),
+        text: message_text(message),
         timestamp: Map.get(message, "timestamp"),
         phone_number_id: phone_number_id,
         profile_name: profile_name,
@@ -40,6 +41,10 @@ defmodule MinhaCasaAi.WhatsApp.Payload do
       }
     end)
   end
+
+  defp message_text(%{"type" => "text", "text" => %{"body" => body}}) when is_binary(body), do: body
+  defp message_text(%{"text" => %{"body" => body}}) when is_binary(body), do: body
+  defp message_text(_), do: nil
 
   defp extract_change(_), do: []
 end

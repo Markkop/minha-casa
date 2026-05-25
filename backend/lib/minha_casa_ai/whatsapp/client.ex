@@ -56,5 +56,18 @@ defmodule MinhaCasaAi.WhatsApp.Client do
   defp normalize_to(phone) do
     phone
     |> String.replace(~r/\D/, "")
+    |> maybe_insert_br_mobile_ninth()
   end
+
+  # Meta often returns Brazilian mobiles without the extra 9 after the area code
+  # (e.g. wa_id 554896792216) while Graph API send requires 5548996792216.
+  defp maybe_insert_br_mobile_ninth(<<"55", area::binary-size(2), local::binary-size(8)>>) do
+    if String.match?(local, ~r/^[6-9]/) do
+      "55" <> area <> "9" <> local
+    else
+      "55" <> area <> local
+    end
+  end
+
+  defp maybe_insert_br_mobile_ninth(digits), do: digits
 end

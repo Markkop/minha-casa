@@ -22,12 +22,23 @@ defmodule MinhaCasaAi.WhatsApp.Router do
 
   def handle(_), do: {:error, :missing_wa_id}
 
+  defp send_or_log(phone, body) do
+    case Client.send_text(phone, body) do
+      :ok ->
+        :ok
+
+      {:error, reason} ->
+        require Logger
+        Logger.warning("[whatsapp] send failed to=#{phone}: #{inspect(reason)}")
+        {:error, reason}
+    end
+  end
+
   defp handle_unlinked(wa_id, phone) do
     case LinkCodes.create_for_wa_id(wa_id, phone) do
       {:ok, %{code: code}} ->
         body = Templates.welcome_with_link(code)
-        Client.send_text(phone, body)
-        :ok
+        send_or_log(phone, body)
 
       {:error, reason} ->
         {:error, reason}
