@@ -59,6 +59,9 @@ services:
       dockerfile: Dockerfile
     container_name: minha-casa-phoenix-api-1
     restart: unless-stopped
+    env_file:
+      - ../../.env
+      - ../../.env.local
     depends_on:
       postgres:
         condition: service_healthy
@@ -71,9 +74,7 @@ services:
       DATABASE_POOL_MAX: ${DATABASE_POOL_MAX:-10}
       SECRET_KEY_BASE: ${PHOENIX_SECRET_KEY_BASE:-local-secret-key-base-local-secret-key-base-local-secret-key-base-local-secret-key-base}
       INTERNAL_API_SECRET: ${INTERNAL_API_SECRET:-local-internal-api-secret}
-      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
-      SCRAPINGANT_API_KEY: ${SCRAPINGANT_API_KEY:-}
-      BRAVE_SEARCH_API_KEY: ${BRAVE_SEARCH_API_KEY:-}
+      # OPENAI / Brave / Google keys come from env_file (.env + .env.local) — do not set empty defaults here
       MINIO_ENDPOINT: ${MINIO_ENDPOINT:-http://minio:9000}
       MINIO_BUCKET: ${MINIO_BUCKET:-minha-casa-ai}
       MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:-minhacasa}

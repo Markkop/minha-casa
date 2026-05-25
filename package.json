@@ -13,7 +13,8 @@
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
-    "db:set-plus-stripe-live": "node scripts/sync-plus-stripe-live.mjs"
+    "db:set-plus-stripe-live": "node scripts/sync-plus-stripe-live.mjs",
+    "setup:analise": "bash scripts/setup-analise-local.sh"
   },
   "dependencies": {
     "@radix-ui/react-icons": "^1.3.2",

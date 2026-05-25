@@ -3,6 +3,7 @@ defmodule MinhaCasaAi.Config do
   def openai_api_key, do: get(:openai_api_key)
   def scrapingant_api_key, do: get(:scrapingant_api_key)
   def brave_search_api_key, do: get(:brave_search_api_key)
+  def google_maps_server_api_key, do: get(:google_maps_server_api_key)
   def minio_endpoint, do: get(:minio_endpoint)
   def minio_bucket, do: get(:minio_bucket)
   def minio_access_key, do: get(:minio_access_key)
@@ -28,6 +29,7 @@ defmodule MinhaCasaAi.Config do
   def configured?(:openai), do: present?(openai_api_key())
   def configured?(:scrapingant), do: present?(scrapingant_api_key())
   def configured?(:brave_search), do: present?(brave_search_api_key())
+  def configured?(:google_maps), do: present?(google_maps_server_api_key())
 
   def configured?(:minio) do
     Enum.all?(

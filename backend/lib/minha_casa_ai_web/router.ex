@@ -41,5 +41,9 @@ defmodule MinhaCasaAiWeb.Router do
     put "/saved-links/:id", SavedLinkController, :update
     delete "/saved-links/:id", SavedLinkController, :delete
     post "/saved-links/:id/enrich", SavedLinkController, :enrich
+    post "/property-analyses", PropertyAnalysisController, :create
+    get "/property-analyses/:id", PropertyAnalysisController, :show
+    get "/listings/:listing_id/analyses/latest", PropertyAnalysisController, :latest
+    get "/listings/:listing_id/nearby", ListingNearbyController, :show
   end
 end

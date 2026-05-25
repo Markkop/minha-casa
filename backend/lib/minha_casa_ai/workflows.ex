@@ -40,6 +40,10 @@ defmodule MinhaCasaAi.Workflows do
     update!(run, %{status: "failed", error: Exception.message(error)})
   end
 
+  def update_result!(%WorkflowRun{} = run, result) when is_map(result) do
+    update!(run, %{result: result, status: "extracting"})
+  end
+
   def list_recent(limit \\ 50) do
     WorkflowRun
     |> order_by(desc: :inserted_at)

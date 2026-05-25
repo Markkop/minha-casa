@@ -30,6 +30,9 @@ config :minha_casa_ai, MinhaCasaAi.Config,
   openai_api_key: System.get_env("OPENAI_API_KEY"),
   scrapingant_api_key: System.get_env("SCRAPINGANT_API_KEY"),
   brave_search_api_key: System.get_env("BRAVE_SEARCH_API_KEY"),
+  google_maps_server_api_key:
+    System.get_env("GOOGLE_MAPS_SERVER_API_KEY") ||
+      System.get_env("NEXT_PUBLIC_GOOGLE_MAPS_API_KEY"),
   minio_endpoint: System.get_env("MINIO_ENDPOINT"),
   minio_bucket: System.get_env("MINIO_BUCKET"),
   minio_access_key: System.get_env("MINIO_ACCESS_KEY"),
@@ -42,4 +45,14 @@ config :minha_casa_ai, MinhaCasaAi.Config,
   telegram_webhook_secret: System.get_env("TELEGRAM_WEBHOOK_SECRET"),
   app_public_url:
     System.get_env("APP_PUBLIC_URL") || System.get_env("NEXT_PUBLIC_APP_URL") || "http://localhost:3000",
-  assistant_llm_enabled: System.get_env("ASSISTANT_LLM_ENABLED", "true") not in ["false", "0"]
+  assistant_llm_enabled: System.get_env("ASSISTANT_LLM_ENABLED", "true") not in ["false", "0"],
+  property_agent_chat_model: System.get_env("PROPERTY_AGENT_CHAT_MODEL", "gpt-4o-mini"),
+  property_agent_vision_model: System.get_env("PROPERTY_AGENT_VISION_MODEL", "gpt-4o"),
+  property_analysis_max_agent_concurrency:
+    String.to_integer(System.get_env("PROPERTY_ANALYSIS_MAX_AGENT_CONCURRENCY") || "2"),
+  property_analysis_max_spaces:
+    String.to_integer(System.get_env("PROPERTY_ANALYSIS_MAX_SPACES") || "10"),
+  property_analysis_max_images:
+    String.to_integer(System.get_env("PROPERTY_ANALYSIS_MAX_IMAGES") || "40"),
+  property_analysis_photo_concurrency:
+    String.to_integer(System.get_env("PROPERTY_ANALYSIS_PHOTO_CONCURRENCY") || "4")

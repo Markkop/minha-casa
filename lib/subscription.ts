@@ -27,6 +27,7 @@ export const SUBSCRIPTION_REQUIRED_ROUTES = [
   "/visao-geral",
   "/anuncios",
   "/comparacao",
+  "/analise",
   "/financiamento",
   "/casa",
   "/links",

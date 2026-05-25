@@ -380,6 +380,44 @@ export const listings = pgTable(
   ]
 )
 
+export type ListingAnalysisStatus = "queued" | "running" | "completed" | "failed"
+
+export interface ListingAnalysisResult {
+  schemaVersion: number
+  completedSteps: string[]
+  geocode?: Record<string, unknown>
+  nearby?: Record<string, unknown>
+  market?: Record<string, unknown>
+  photos?: Record<string, unknown>
+  viewingTips?: Record<string, unknown>
+}
+
+export const listingAnalyses = pgTable(
+  "listing_analyses",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    listingId: uuid("listing_id")
+      .notNull()
+      .references(() => listings.id, { onDelete: "cascade" }),
+    workflowRunId: uuid("workflow_run_id"),
+    userId: uuid("user_id").references(() => users.id, { onDelete: "cascade" }),
+    orgId: uuid("org_id").references(() => organizations.id, { onDelete: "cascade" }),
+    status: text("status").$type<ListingAnalysisStatus>().notNull().default("queued"),
+    input: jsonb("input").$type<Record<string, unknown>>().notNull().default({}),
+    result: jsonb("result").$type<ListingAnalysisResult | null>(),
+    error: text("error"),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    index("listing_analyses_listing_id_idx").on(table.listingId),
+    index("listing_analyses_user_id_idx").on(table.userId),
+    index("listing_analyses_org_id_idx").on(table.orgId),
+    index("listing_analyses_status_idx").on(table.status),
+    index("listing_analyses_listing_status_idx").on(table.listingId, table.status),
+  ]
+)
+
 // ============================================================================
 // Workspace Decision Data
 // ============================================================================

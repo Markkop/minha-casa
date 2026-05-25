@@ -43,6 +43,13 @@
       "when": 1779307200000,
       "tag": "0006_workspace_decision_data",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1779846000000,
+      "tag": "0010_listing_analyses",
+      "breakpoints": true
     }
   ]
 }

@@ -26,6 +26,7 @@ describe("subscription utilities", () => {
       expect(SUBSCRIPTION_REQUIRED_ROUTES).toContain("/anuncios")
       expect(SUBSCRIPTION_REQUIRED_ROUTES).toContain("/casa")
       expect(SUBSCRIPTION_REQUIRED_ROUTES).toContain("/floodrisk")
+      expect(SUBSCRIPTION_REQUIRED_ROUTES).toContain("/analise")
     })
 
     it("exports subscription page path", () => {
