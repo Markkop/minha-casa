@@ -156,49 +156,6 @@ export function NavBar() {
     >
       <div className="border-b border-app-border">
         <div className="mx-auto flex h-14 max-w-[1500px] items-center gap-3 px-4">
-          {showWorkspaceNav && (
-            <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
-              <SheetTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="shrink-0 text-app-fg hover:bg-app-surface-muted md:hidden"
-                  aria-label="Abrir navegação"
-                >
-                  <Menu className="h-5 w-5" />
-                </Button>
-              </SheetTrigger>
-              <SheetContent
-                side="left"
-                showCloseButton={false}
-                className="w-[min(85vw,280px)] gap-0 p-0 pb-[env(safe-area-inset-bottom)]"
-              >
-                <SheetHeader className="flex flex-row items-center justify-between gap-0 border-b border-app-border p-0 px-4 py-3">
-                  <SheetTitle className="text-base">Navegação</SheetTitle>
-                  <SheetClose asChild>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-9 w-9 shrink-0 text-app-muted hover:text-app-fg"
-                      aria-label="Fechar navegação"
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
-                  </SheetClose>
-                  <SheetDescription className="sr-only">
-                    Seções do workspace
-                  </SheetDescription>
-                </SheetHeader>
-                <nav
-                  className="flex flex-col gap-0 overflow-y-auto px-2 py-2"
-                  aria-label="Navegação do workspace"
-                >
-                  {workspaceDrawerLinks}
-                </nav>
-              </SheetContent>
-            </Sheet>
-          )}
-
           <Link
             href={logoHref}
             className="flex shrink-0 items-center gap-2 text-sm font-semibold text-app-fg hover:text-app-fg"
@@ -217,6 +174,48 @@ export function NavBar() {
             )}
 
             <div className="flex shrink-0 items-center gap-2">
+              {showWorkspaceNav && (
+                <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
+                  <SheetTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="shrink-0 text-app-fg hover:bg-app-surface-muted md:hidden"
+                      aria-label="Abrir navegação"
+                    >
+                      <Menu className="h-5 w-5" />
+                    </Button>
+                  </SheetTrigger>
+                  <SheetContent
+                    side="right"
+                    showCloseButton={false}
+                    className="w-[min(85vw,280px)] gap-0 p-0 pb-[env(safe-area-inset-bottom)]"
+                  >
+                    <SheetHeader className="flex flex-row items-center justify-between gap-0 border-b border-app-border p-0 px-4 py-3">
+                      <SheetTitle className="text-base">Navegação</SheetTitle>
+                      <SheetClose asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-9 w-9 shrink-0 text-app-muted hover:text-app-fg"
+                          aria-label="Fechar navegação"
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </SheetClose>
+                      <SheetDescription className="sr-only">
+                        Seções do workspace
+                      </SheetDescription>
+                    </SheetHeader>
+                    <nav
+                      className="flex flex-col gap-0 overflow-y-auto px-2 py-2"
+                      aria-label="Navegação do workspace"
+                    >
+                      {workspaceDrawerLinks}
+                    </nav>
+                  </SheetContent>
+                </Sheet>
+              )}
               {isLoggedIn ? (
               <Popover>
                 <PopoverTrigger asChild>
