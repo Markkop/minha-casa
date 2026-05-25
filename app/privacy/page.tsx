@@ -19,6 +19,10 @@ export default function PrivacyPage() {
           <li>Conteúdo criado no app, como coleções, anúncios, organizações, preferências e dados importados pelo usuário.</li>
           <li>Dados de assinatura e pagamento necessários para processar planos, cobranças e acesso a recursos pagos.</li>
           <li>Cookies e tokens de sessão usados para manter o usuário autenticado e proteger rotas privadas.</li>
+          <li>
+            Dados do assistente WhatsApp (Meta), como identificador WhatsApp, número de telefone, mensagens
+            enviadas ao bot e eventos de webhook, quando você conecta ou usa o canal.
+          </li>
           <li>Logs técnicos, métricas operacionais e eventos de erro usados para segurança, suporte e estabilidade.</li>
         </ul>
       </section>
@@ -37,8 +41,9 @@ export default function PrivacyPage() {
       <section className="space-y-3">
         <h2 className="text-xl font-semibold">Serviços terceiros</h2>
         <p className="text-muted-foreground">
-          Podemos usar provedores como Google OAuth para login, Vercel para hospedagem, Postgres em VPS ou provedor gerenciado para banco de dados,
-          Stripe ou outro processador de pagamento, Google Maps e provedores de IA/APIs externas quando recursos específicos forem usados.
+          Podemos usar provedores como Google OAuth para login, Meta (WhatsApp Cloud API) para o bot de mensagens,
+          Vercel para hospedagem, Postgres em VPS ou provedor gerenciado para banco de dados, Stripe ou outro
+          processador de pagamento, Google Maps e provedores de IA/APIs externas quando recursos específicos forem usados.
           Cada provedor processa dados conforme suas próprias políticas.
         </p>
       </section>
@@ -47,7 +52,15 @@ export default function PrivacyPage() {
         <h2 className="text-xl font-semibold">Retenção, exclusão e contato</h2>
         <p className="text-muted-foreground">
           Mantemos dados pelo tempo necessário para operar o serviço, cumprir obrigações legais e resolver disputas.
-          Para solicitar exportação, correção ou exclusão de dados, entre em contato pelo canal de suporte informado no produto.
+          Para solicitar exportação, correção ou exclusão de dados, siga as instruções em{" "}
+          <Link className="text-app-accent hover:underline" href="/data-deletion">
+            Exclusão de dados
+          </Link>{" "}
+          ou escreva para{" "}
+          <a className="text-app-accent hover:underline" href="mailto:me@markkop.dev">
+            me@markkop.dev
+          </a>
+          .
         </p>
       </section>
 

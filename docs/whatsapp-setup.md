@@ -25,6 +25,11 @@ Webhook endpoint: `https://<API_HOSTNAME>/webhooks/whatsapp`
    - Subscribe to **messages**
 5. **App Secret** (App → Settings → Basic) → `WHATSAPP_APP_SECRET` (validates `X-Hub-Signature-256` on POST).
 6. Add a **payment method** on the business account for production messaging limits.
+7. **User data deletion** (App → Settings → Basic → User data deletion):
+   - Choose **Data deletion instructions URL** (not the signed callback unless you implement it).
+   - URL: `https://<APP_PUBLIC_DOMAIN>/data-deletion` (production: `https://casas.markkop.dev/data-deletion`)
+   - Privacy Policy URL on the same screen: `https://<APP_PUBLIC_DOMAIN>/privacy`
+   - The public page explains how users request deletion of WhatsApp and account data via `me@markkop.dev`.
 
 ### Test number (before SIM)
 

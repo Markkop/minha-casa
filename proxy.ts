@@ -16,6 +16,7 @@ const PUBLIC_ROUTES = [
   "/signup",
   "/privacy",
   "/terms",
+  "/data-deletion",
   "/conectar-whatsapp",
   "/conectar-telegram",
 ]

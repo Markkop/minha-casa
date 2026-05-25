@@ -56,7 +56,15 @@ export default function TermsPage() {
         <h2 className="text-xl font-semibold">Privacidade e encerramento</h2>
         <p className="text-muted-foreground">
           O tratamento de dados está descrito na <Link className="text-app-accent hover:underline" href="/privacy">Política de Privacidade</Link>.
-          Para solicitar exclusão de conta ou dados, use o canal de suporte informado no produto.
+          Para solicitar exclusão de conta ou dados, consulte{" "}
+          <Link className="text-app-accent hover:underline" href="/data-deletion">
+            Exclusão de dados
+          </Link>{" "}
+          ou envie um email para{" "}
+          <a className="text-app-accent hover:underline" href="mailto:me@markkop.dev">
+            me@markkop.dev
+          </a>
+          .
         </p>
       </section>
     </main>
