@@ -79,6 +79,7 @@ type ListingStatus =
   | "em_espera"
   | "descartando"
   | "descartado"
+  | "vendido"
 type ListingsTableColumn = "image" | "property" | "status" | "price" | "area" | "value" | "rooms" | "bathrooms" | "dates"
 
 interface SortState {
@@ -108,9 +109,16 @@ const LISTING_STATUS_OPTIONS: { value: ListingStatus; label: string; className: 
   { value: "em_espera", label: "Em espera", className: "border-slate-500/30 bg-slate-500/10 text-slate-700" },
   { value: "descartando", label: "Descartando", className: "border-orange-500/30 bg-orange-500/10 text-orange-700" },
   { value: "descartado", label: "Descartado", className: "border-destructive/30 bg-destructive/10 text-destructive" },
+  { value: "vendido", label: "Vendido", className: "border-slate-500/30 bg-slate-500/10 text-slate-600" },
 ]
 
 const LISTING_STATUS_VALUES = new Set<ListingStatus>(LISTING_STATUS_OPTIONS.map((option) => option.value))
+
+const STRIKETHROUGH_STATUSES = new Set<ListingStatus>(["descartado", "vendido"])
+
+function isStrikethroughStatus(status: ListingStatus): boolean {
+  return STRIKETHROUGH_STATUSES.has(status)
+}
 
 const COLUMN_STORAGE_KEY = "minha-casa:listings-table-visible-columns"
 const IMAGE_COLUMN_VIEW_KEY = "minha-casa:listings-table-image-column-view"
@@ -659,7 +667,7 @@ export function ListingsTable({ listings, onListingsChange, hasApiKey = true }: 
     try {
       await apiUpdateListing(id, {
         listingStatus: nextStatus,
-        strikethrough: nextStatus === "descartado",
+        strikethrough: isStrikethroughStatus(nextStatus),
         visited: nextStatus === "visitado",
       })
       onListingsChange()
