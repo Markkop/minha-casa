@@ -355,6 +355,7 @@ function legacyLabelsFromObservation(
     o.walls,
     o.ceiling,
     o.baseboard,
+    o.layoutAnchors,
     o.wetAreaFixtures,
   ]
     .filter((s): s is string => typeof s === "string" && s.trim() !== "")
@@ -385,6 +386,7 @@ function PhotoObservationDetail({
     ["Esquadrias", o.openings ?? o.windows],
     ["Áreas molhadas", o.wetArea ?? o.fixtures],
     ["Louças e metais", o.wetAreaFixtures],
+    ["Móveis e layout", o.layoutAnchors],
   ]
 
   return (
