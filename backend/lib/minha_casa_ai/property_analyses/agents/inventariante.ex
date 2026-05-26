@@ -13,8 +13,7 @@ defmodule MinhaCasaAi.PropertyAnalyses.Agents.Inventariante do
   PROIBIDO:
   - Inferir defeitos, riscos, custos ou estado subjetivo ("bom", "ruim", "moderno").
   - Sugerir perguntas para visita ou sinais a investigar.
-  - Comentar preço, corretor ou opinião sobre staging/decoração.
-  - Avaliar gosto, marca de decoração ou “estilo” da mobília.
+  - Comentar preço, corretor, mobília decorativa ou staging.
 
   OBRIGATÓRIO:
   - Português do Brasil.
@@ -22,12 +21,7 @@ defmodule MinhaCasaAi.PropertyAnalyses.Agents.Inventariante do
   - materialsSpotted: lista curta de materiais identificáveis.
   - spaceHint: tipo funcional visível (quarto, suite, banheiro, escritorio, dependencia, etc.)
   - distinctivenessNotes: pistas visuais que diferenciam este ambiente de outro similar na mesma casa
-    (ex.: janela maior, piso distinto, cor de parede, vista diferente) — só fatos, 1–2 frases curtas ou null.
-  - layoutAnchors: móveis, eletros embutidos e elementos de layout VISÍVEIS que ajudam a separar ambientes
-    semelhantes (ex.: dois quartos, duas salas, dois escritórios). Registre tipo, cor/material aparente,
-    posição relativa e quantidade quando der (sofá, mesa, cama, armários embutidos, ilha de cozinha,
-    fogão/forno, TV na parede, estante, lareira, rack). Ignore objetos pequenos decorativos (vasos, quadros).
-    Se a foto não mostrar móveis relevantes: null.
+    (ex.: janela maior, piso distinto, cor de parede) — só fatos, 1–2 frases curtas ou null.
 
   ACABAMENTOS E SUPERFÍCIES (todos os ambientes — texto rico nos campos abaixo):
   - floor: tipo (cerâmica, porcelanato, madeira/laminado, cimento, pedra…), cor aparente, padrão/formato quando visível.
@@ -49,21 +43,14 @@ defmodule MinhaCasaAi.PropertyAnalyses.Agents.Inventariante do
   - Array de 3 a 8 strings curtas (ideal 2–4 palavras, máx. ~28 caracteres cada).
   - Cada item = keyword única de um fato visível (material, cor, sistema): ex. "Porcelanato cinza", "Forro gesso",
     "Rodapé MDF", "Pia inox", "Box vidro".
-  - Resuma o essencial de floor, walls, ceiling, baseboard, openings, wetArea, louças e layoutAnchors quando visíveis.
+  - Resuma o essencial de floor, walls, ceiling, baseboard, openings, wetArea e louças quando visíveis.
   - Sem frases narrativas nem repetir materialsSpotted inteiro; se nada identificável: [].
-
-  SALAS, QUARTOS E ESCRITÓRIOS (quando scene/spaceHint for sala, quarto, suite ou escritorio):
-  - layoutAnchors é crítico: duas salas na mesma casa costumam ter pisos/paredes parecidos — use móveis
-    (sofá, mesa, TV, estantes, cama, guarda-roupa) e aberturas para tornar cada ambiente identificável.
-  - Em salas: descreva sofá (formato/cor), mesa de centro/jantar, TV/rack, lareira, cortinas visíveis.
-  - Em quartos: cama (tamanho aparente), cabeceira, criados-mudos, guarda-roupa embutido ou solto.
 
   Responda APENAS JSON válido:
   {
     "scene": "cozinha | sala | fachada | banheiro | varanda | quarto | área externa | garagem | indefinido",
     "spaceHint": "quarto | suite | banheiro | escritorio | dependencia | lavanderia | garagem | social | indefinido",
     "distinctivenessNotes": "string curta ou null",
-    "layoutAnchors": "móveis e elementos de layout visíveis ou null",
     "structure": "estrutura/envelope visível ou null",
     "floor": "piso observável ou null",
     "walls": "paredes/revestimento observável ou null",
@@ -102,7 +89,6 @@ defmodule MinhaCasaAi.PropertyAnalyses.Agents.Inventariante do
     |> Map.put("materialsSpotted", string_list(Map.get(obs, "materialsSpotted")))
     |> Map.put("spaceHint", normalize_space_hint(Map.get(obs, "spaceHint")))
     |> Map.put("distinctivenessNotes", string_or_nil(Map.get(obs, "distinctivenessNotes")))
-    |> Map.put("layoutAnchors", string_or_nil(Map.get(obs, "layoutAnchors")))
     |> Map.put("wetAreaFixtures", string_or_nil(Map.get(obs, "wetAreaFixtures")))
     |> Map.put("baseboard", string_or_nil(Map.get(obs, "baseboard")))
     |> Map.put("inventoryLabels", dedupe_labels(string_list(Map.get(obs, "inventoryLabels"))))

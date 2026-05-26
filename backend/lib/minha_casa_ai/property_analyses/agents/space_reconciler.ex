@@ -18,8 +18,6 @@ defmodule MinhaCasaAi.PropertyAnalyses.Agents.SpaceReconciler do
 
   TAREFAS:
   1. Decida quais espaços provisórios são o MESMO lugar físico (fundir) ou ambientes distintos (manter separados).
-     Use piso, paredes, teto, esquadrias, louças (banheiros) e layoutAnchors/móveis visíveis — duas salas ou
-     quartos com acabamento parecido mas móveis ou aberturas diferentes devem permanecer separados (sala-1 vs sala-2).
   2. Compare anúncio vs evidência fotográfica com julgamento FLEXÍVEL:
      - Ex.: anúncio diz 4 quartos, fotos mostram 3 quartos + 2 escritórios → explique em reflections/missing/extra
      - NÃO force regra fixa "suíte = quarto" nem "suíte = banheiro": interprete pelo inventário
@@ -134,7 +132,6 @@ defmodule MinhaCasaAi.PropertyAnalyses.Agents.SpaceReconciler do
       Map.get(obs, "openings"),
       Map.get(obs, "wetArea"),
       Map.get(obs, "wetAreaFixtures"),
-      Map.get(obs, "layoutAnchors"),
       Map.get(obs, "distinctivenessNotes")
     ]
     |> Enum.filter(&(is_binary(&1) and String.trim(&1) != ""))

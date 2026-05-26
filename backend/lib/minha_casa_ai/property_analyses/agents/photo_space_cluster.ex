@@ -15,16 +15,12 @@ defmodule MinhaCasaAi.PropertyAnalyses.Agents.PhotoSpaceCluster do
 
   TAREFAS:
   1. Agrupe fotos que mostram o MESMO ambiente físico (mesmo cômodo visto de ângulos diferentes).
-  2. Separe ambientes distintos do mesmo tipo (quarto-1 vs quarto-2, sala-1 vs sala-2, banheiro social vs suíte).
-     Compare floor, walls, ceiling, baseboard, openings, layoutAnchors, wetAreaFixtures e distinctivenessNotes
-     entre fotos do mesmo scene — acabamentos OU móveis/layout diferentes indicam ambientes físicos diferentes.
+  2. Separe ambientes distintos do mesmo tipo (quarto-1 vs quarto-2, banheiro social vs banheiro da suíte).
+     Compare floor, walls, ceiling, baseboard, openings, wetAreaFixtures e distinctivenessNotes entre fotos
+     do mesmo scene — acabamentos diferentes indicam ambientes físicos diferentes.
      Para BANHEIROS: NUNCA funda dois banheiros em um só. Compare pia (tipo/cor/material), louças,
      revestimento de parede/piso, janelas (quantidade e tipo) e distinctivenessNotes.
-     Para SALAS (scene social/sala): NUNCA funda duas salas distintas em uma só. Pisos e paredes podem ser
-     idênticos — use layoutAnchors (sofá, mesa, TV/rack, estantes, lareira), openings (janelas/portas) e
-     distinctivenessNotes para criar sala-1, sala-2, etc. quando as fotos mostrarem cômodos claramente diferentes.
-     Para QUARTOS e ESCRITÓRIOS: aplique a mesma lógica (cama, guarda-roupa, mesa de trabalho, layoutAnchors).
-  3. Atribua spaceId estável em kebab-case ASCII (ex.: quarto-1, sala-1, sala-2, banheiro-social, garagem).
+  3. Atribua spaceId estável em kebab-case ASCII (ex.: quarto-1, banheiro-social, area-externa, garagem).
   4. listingRole é apenas pista opcional da foto (dormitorio, suite, banheiro, social, externo, servico, indefinido)
      — não force contagem de quartos do anúncio.
   5. NÃO invente defeitos; apenas mapeamento fotográfico.
@@ -85,7 +81,6 @@ defmodule MinhaCasaAi.PropertyAnalyses.Agents.PhotoSpaceCluster do
       "scene" => Map.get(obs, "scene"),
       "spaceHint" => Map.get(obs, "spaceHint"),
       "distinctivenessNotes" => Map.get(obs, "distinctivenessNotes"),
-      "layoutAnchors" => Map.get(obs, "layoutAnchors"),
       "materialsSpotted" => Map.get(obs, "materialsSpotted", []) |> Enum.take(10),
       "floor" => Map.get(obs, "floor"),
       "walls" => Map.get(obs, "walls"),

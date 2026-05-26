@@ -171,8 +171,6 @@ export interface PhotoObservation {
   scene?: string | null
   spaceHint?: string | null
   distinctivenessNotes?: string | null
-  /** Visible furniture and layout elements used to distinguish similar rooms */
-  layoutAnchors?: string | null
   structure?: string | null
   floor?: string | null
   walls?: string | null
