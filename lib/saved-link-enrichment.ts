@@ -3,6 +3,7 @@
  * (`MinhaCasaAi.Integrations.SavedLinkMetadata`). Scripts under `scripts/` may still import this module.
  */
 import OpenAI from "openai"
+import { responsesJson } from "@/lib/openai-responses"
 import {
   extractPageMetadataFromHtml,
   scrapeUrlPage,
@@ -829,24 +830,28 @@ async function generateMetadataWithAi(
 
   try {
     const openai = new OpenAI({ apiKey })
-    const response = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
-      messages: [
-        { role: "system", content: FINAL_METADATA_SYSTEM },
-        { role: "user", content: JSON.stringify(payload, null, 2) },
-      ],
-      temperature: 0.2,
-      max_tokens: 400,
-      response_format: { type: "json_object" },
-    })
-
-    const content = response.choices[0]?.message?.content
-    if (!content) return null
-
-    const parsed = JSON.parse(content) as {
+    const parsed = await responsesJson<{
       title?: unknown
       description?: unknown
-    }
+    }>(openai, {
+      instructions: FINAL_METADATA_SYSTEM,
+      input: JSON.stringify(payload, null, 2),
+      reasoningEffort: "low",
+      maxOutputTokens: 400,
+      timeoutMs: 45_000,
+      schema: {
+        name: "saved_link_metadata",
+        schema: {
+          type: "object",
+          properties: {
+            title: { type: "string" },
+            description: { type: ["string", "null"] },
+          },
+          required: ["title", "description"],
+          additionalProperties: false,
+        },
+      },
+    })
     const title =
       typeof parsed.title === "string" ? parsed.title.trim() : ""
     if (!title) return null

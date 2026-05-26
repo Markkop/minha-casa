@@ -60,7 +60,10 @@ defmodule MinhaCasaAi.PropertyAnalyses.Agents.PhotoSpaceCluster do
           "ingestMaxImages" => Limits.ingest_max_images()
         })
 
-      case PropertyLlm.chat_json(@system_prompt, payload, temperature: 0.2, max_tokens: 2_400) do
+      case PropertyLlm.chat_json(@system_prompt, payload,
+             reasoning_effort: "low",
+             max_tokens: 2_400
+           ) do
         {:ok, map} -> {:ok, normalize_cluster(map, photo_summaries)}
         {:error, reason} -> {:error, reason}
       end

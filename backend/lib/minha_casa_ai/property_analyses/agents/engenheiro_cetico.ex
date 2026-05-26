@@ -35,7 +35,10 @@ defmodule MinhaCasaAi.PropertyAnalyses.Agents.EngenheiroCetico do
         "listing" => listing_summary(listing_data)
       })
 
-    case PropertyLlm.chat_json(@system_prompt, payload, temperature: 0.35, max_tokens: 2_200) do
+    case PropertyLlm.chat_json(@system_prompt, payload,
+           reasoning_effort: "medium",
+           max_tokens: 2_200
+         ) do
       {:ok, %{"blindSpots" => spots}} when is_list(spots) ->
         {:ok, normalize_blind_spots(spots)}
 

@@ -76,7 +76,10 @@ defmodule MinhaCasaAi.PropertyAnalyses.Agents.SpaceReconciler do
           "locationContext" => location_summary(location_context)
         })
 
-      case PropertyLlm.chat_json(@system_prompt, payload, temperature: 0.3, max_tokens: 3_200) do
+      case PropertyLlm.chat_json(@system_prompt, payload,
+             reasoning_effort: "medium",
+             max_tokens: 3_200
+           ) do
         {:ok, map} -> {:ok, normalize_result(map, space_contexts)}
         {:error, reason} -> {:error, reason}
       end

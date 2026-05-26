@@ -5,7 +5,7 @@ defmodule MinhaCasaAi.Integrations.SavedLinkMetadata do
   """
 
   alias MinhaCasaAi.Config
-  alias MinhaCasaAi.Integrations.{BraveSearch, ScrapingAnt}
+  alias MinhaCasaAi.Integrations.{BraveSearch, OpenAIResponses, OpenAISchemas, ScrapingAnt}
   alias MinhaCasaAi.Integrations.SavedLinkMetadata.Deconstruct
 
   @title_max 60
@@ -366,46 +366,30 @@ defmodule MinhaCasaAi.Integrations.SavedLinkMetadata do
 
   defp generate_metadata_with_ai(payload) do
     if Config.configured?(:openai) do
-      body = %{
-        model: "gpt-4o-mini",
-        messages: [
-          %{role: "system", content: @metadata_system_prompt},
-          %{role: "user", content: Jason.encode!(payload)}
-        ],
-        temperature: 0.2,
-        max_tokens: 400,
-        response_format: %{type: "json_object"}
-      }
-
-      url = "https://api.openai.com/v1/chat/completions"
-      headers = [{"content-type", "application/json"}, {"authorization", "Bearer #{Config.openai_api_key()}"}]
-
-      case :hackney.post(url, headers, Jason.encode!(body),
-             with_body: true,
-             recv_timeout: 45_000,
-             pool: :default
+      case OpenAIResponses.json(
+             @metadata_system_prompt,
+             Jason.encode!(payload),
+             reasoning_effort: "low",
+             max_output_tokens: 400,
+             timeout: 45_000,
+             schema: %{name: "saved_link_metadata", schema: OpenAISchemas.saved_link_metadata_schema()}
            ) do
-        {:ok, status, _, resp} when status in 200..299 and is_binary(resp) ->
-          with {:ok, %{"choices" => [%{"message" => %{"content" => content}} | _]}} <- Jason.decode(resp),
-               {:ok, parsed} <- Jason.decode(content) do
-            title = Map.get(parsed, "title") |> normalize_string()
+        {:ok, parsed} ->
+          title = Map.get(parsed, "title") |> normalize_string()
 
-            if is_binary(title) and String.trim(title) != "" do
-              description =
-                case Map.get(parsed, "description") do
-                  d when is_binary(d) ->
-                    d |> String.trim() |> tighten_ai_description() |> sanitize_description()
+          if is_binary(title) and String.trim(title) != "" do
+            description =
+              case Map.get(parsed, "description") do
+                d when is_binary(d) ->
+                  d |> String.trim() |> tighten_ai_description() |> sanitize_description()
 
-                  _ ->
-                    nil
-                end
+                _ ->
+                  nil
+              end
 
-              {:ok, %{title: title, description: description}}
-            else
-              :error
-            end
+            {:ok, %{title: title, description: description}}
           else
-            _ -> :error
+            :error
           end
 
         _ ->

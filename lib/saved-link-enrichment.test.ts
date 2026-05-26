@@ -19,20 +19,15 @@ vi.mock("@/lib/scrapingant", () => ({
 
 vi.mock("openai", () => {
   const create = vi.fn().mockResolvedValue({
-    choices: [
-      {
-        message: {
-          content: JSON.stringify({
-            title: "Título IA",
-            description: "Descrição nominal curta.",
-          }),
-        },
-      },
-    ],
+    status: "completed",
+    output_text: JSON.stringify({
+      title: "Título IA",
+      description: "Descrição nominal curta.",
+    }),
   })
   return {
     default: class MockOpenAI {
-      chat = { completions: { create } }
+      responses = { create }
     },
   }
 })

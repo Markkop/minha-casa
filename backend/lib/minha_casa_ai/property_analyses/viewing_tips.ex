@@ -2,6 +2,8 @@ defmodule MinhaCasaAi.PropertyAnalyses.ViewingTips do
   @moduledoc false
 
   alias MinhaCasaAi.Config
+  alias MinhaCasaAi.Integrations.OpenAIResponses
+  alias MinhaCasaAi.Integrations.OpenAISchemas
 
   @system_prompt """
   Você prepara um comprador para visitar um imóvel no Brasil, com foco técnico (estrutura e acabamento).
@@ -47,38 +49,19 @@ defmodule MinhaCasaAi.PropertyAnalyses.ViewingTips do
   end
 
   defp chat(context) do
-    api_key = Config.openai_api_key()
     user = Jason.encode!(enrich_context(context))
 
-    body = %{
-      model: "gpt-4o-mini",
-      messages: [
-        %{role: "system", content: @system_prompt},
-        %{role: "user", content: user}
-      ],
-      temperature: 0.35,
-      max_tokens: 3_500,
-      response_format: %{type: "json_object"}
-    }
-
-    url = "https://api.openai.com/v1/chat/completions"
-    headers = [{"content-type", "application/json"}, {"authorization", "Bearer #{api_key}"}]
-
-    case :hackney.post(url, headers, Jason.encode!(body),
-           with_body: true,
-           recv_timeout: 55_000,
-           pool: :default
-         ) do
-      {:ok, status, _, resp} when status in 200..299 and is_binary(resp) ->
-        with {:ok, %{"choices" => [%{"message" => %{"content" => content}} | _]}} <- Jason.decode(resp),
-             {:ok, map} <- Jason.decode(content) do
-          {:ok, map}
-        else
-          _ -> {:error, :empty}
-        end
-
-      _ ->
-        {:error, :openai}
+    OpenAIResponses.json(
+      @system_prompt,
+      user,
+      reasoning_effort: "medium",
+      max_output_tokens: 3_500,
+      timeout: 55_000,
+      schema: %{name: "viewing_tips", schema: OpenAISchemas.viewing_tips_schema()}
+    )
+    |> case do
+      {:ok, map} -> {:ok, map}
+      {:error, _} -> {:error, :openai}
     end
   end
 

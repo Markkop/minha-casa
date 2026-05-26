@@ -72,11 +72,16 @@ class MockAPIError extends Error {
 
 class MockOpenAI {
   static APIError = MockAPIError
-  
-  chat = {
-    completions: {
-      create: mockCreate,
-    },
+
+  responses = {
+    create: mockCreate,
+  }
+}
+
+function mockResponsesOutput(content: unknown) {
+  return {
+    status: "completed",
+    output_text: JSON.stringify(content),
   }
 }
 
@@ -131,9 +136,7 @@ describe("Parse API - POST /api/parse", () => {
       sourceUrl: "https://www.vivareal.com.br/imovel/test",
     })
 
-    mockCreate.mockResolvedValue({
-      choices: [{ message: { content: JSON.stringify(mockParsedResponse) } }],
-    })
+    mockCreate.mockResolvedValue(mockResponsesOutput(mockParsedResponse))
 
     const { POST } = await import("./route")
     const request = new NextRequest("http://localhost/api/parse", {
@@ -232,15 +235,7 @@ describe("Parse API - POST /api/parse", () => {
     const { getServerSession } = await import("@/lib/auth-server")
     vi.mocked(getServerSession).mockResolvedValue(mockSession)
 
-    mockCreate.mockResolvedValue({
-      choices: [
-        {
-          message: {
-            content: JSON.stringify(mockParsedResponse),
-          },
-        },
-      ],
-    })
+    mockCreate.mockResolvedValue(mockResponsesOutput(mockParsedResponse))
 
     const { POST } = await import("./route")
     const request = new NextRequest("http://localhost/api/parse", {
@@ -290,13 +285,8 @@ describe("Parse API - POST /api/parse", () => {
     vi.mocked(getServerSession).mockResolvedValue(mockSession)
 
     mockCreate.mockResolvedValue({
-      choices: [
-        {
-          message: {
-            content: null,
-          },
-        },
-      ],
+      status: "completed",
+      output_text: "",
     })
 
     const { POST } = await import("./route")
@@ -317,13 +307,8 @@ describe("Parse API - POST /api/parse", () => {
     vi.mocked(getServerSession).mockResolvedValue(mockSession)
 
     mockCreate.mockResolvedValue({
-      choices: [
-        {
-          message: {
-            content: "This is not valid JSON",
-          },
-        },
-      ],
+      status: "completed",
+      output_text: "This is not valid JSON",
     })
 
     const { POST } = await import("./route")
@@ -344,20 +329,14 @@ describe("Parse API - POST /api/parse", () => {
     vi.mocked(getServerSession).mockResolvedValue(mockSession)
 
     // Response with minimal data
-    mockCreate.mockResolvedValue({
-      choices: [
-        {
-          message: {
-            content: JSON.stringify({
-              titulo: null,
-              endereco: null,
-              quartos: 2,
-              preco: 300000,
-            }),
-          },
-        },
-      ],
-    })
+    mockCreate.mockResolvedValue(
+      mockResponsesOutput({
+        titulo: null,
+        endereco: null,
+        quartos: 2,
+        preco: 300000,
+      })
+    )
 
     const { POST } = await import("./route")
     const request = new NextRequest("http://localhost/api/parse", {
@@ -417,9 +396,7 @@ describe("Parse API - POST /api/parse", () => {
     const { getServerSession } = await import("@/lib/auth-server")
     vi.mocked(getServerSession).mockResolvedValue(mockSession)
 
-    mockCreate.mockResolvedValue({
-      choices: [{ message: { content: JSON.stringify(mockParsedResponse) } }],
-    })
+    mockCreate.mockResolvedValue(mockResponsesOutput(mockParsedResponse))
 
     const { POST } = await import("./route")
     const request = new NextRequest("http://localhost/api/parse", {
@@ -439,26 +416,20 @@ describe("Parse API - POST /api/parse", () => {
     const { getServerSession } = await import("@/lib/auth-server")
     vi.mocked(getServerSession).mockResolvedValue(mockSession)
 
-    mockCreate.mockResolvedValue({
-      choices: [
-        {
-          message: {
-            content: JSON.stringify({
-              listings: [
-                mockParsedResponse,
-                {
-                  titulo: "Apartamento Centro",
-                  endereco: "Centro, Florianópolis - SC",
-                  preco: 650000,
-                  quartos: 2,
-                  tipoImovel: "apartamento",
-                },
-              ],
-            }),
+    mockCreate.mockResolvedValue(
+      mockResponsesOutput({
+        listings: [
+          mockParsedResponse,
+          {
+            titulo: "Apartamento Centro",
+            endereco: "Centro, Florianópolis - SC",
+            preco: 650000,
+            quartos: 2,
+            tipoImovel: "apartamento",
           },
-        },
-      ],
-    })
+        ],
+      })
+    )
 
     const { POST } = await import("./route")
     const request = new NextRequest("http://localhost/api/parse", {
@@ -480,9 +451,7 @@ describe("Parse API - POST /api/parse", () => {
     const { getServerSession } = await import("@/lib/auth-server")
     vi.mocked(getServerSession).mockResolvedValue(mockSession)
 
-    mockCreate.mockResolvedValue({
-      choices: [{ message: { content: JSON.stringify({ listings: [] }) } }],
-    })
+    mockCreate.mockResolvedValue(mockResponsesOutput({ listings: [] }))
 
     const { POST } = await import("./route")
     const request = new NextRequest("http://localhost/api/parse", {
@@ -501,21 +470,15 @@ describe("Parse API - POST /api/parse", () => {
     const { getServerSession } = await import("@/lib/auth-server")
     vi.mocked(getServerSession).mockResolvedValue(mockSession)
 
-    mockCreate.mockResolvedValue({
-      choices: [
-        {
-          message: {
-            content: JSON.stringify({
-              titulo: "Apartamento Centro",
-              endereco: "Centro, São Paulo",
-              tipoImovel: "apartamento",
-              quartos: 2,
-              preco: 500000,
-            }),
-          },
-        },
-      ],
-    })
+    mockCreate.mockResolvedValue(
+      mockResponsesOutput({
+        titulo: "Apartamento Centro",
+        endereco: "Centro, São Paulo",
+        tipoImovel: "apartamento",
+        quartos: 2,
+        preco: 500000,
+      })
+    )
 
     const { POST } = await import("./route")
     const request = new NextRequest("http://localhost/api/parse", {

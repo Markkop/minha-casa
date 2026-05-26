@@ -1,6 +1,8 @@
 defmodule MinhaCasaAi.Config do
   def internal_api_secret, do: get(:internal_api_secret)
   def openai_api_key, do: get(:openai_api_key)
+  def openai_model, do: get(:openai_model) || "gpt-5.4-mini"
+  def openai_reasoning_effort, do: get(:openai_reasoning_effort) || "low"
   def scrapingant_api_key, do: get(:scrapingant_api_key)
   def brave_search_api_key, do: get(:brave_search_api_key)
   def google_maps_server_api_key, do: get(:google_maps_server_api_key)

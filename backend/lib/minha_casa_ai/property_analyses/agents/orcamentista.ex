@@ -39,7 +39,10 @@ defmodule MinhaCasaAi.PropertyAnalyses.Agents.Orcamentista do
           "listingM2" => listing_m2(listing_data)
         })
 
-      case PropertyLlm.chat_json(@system_prompt, payload, temperature: 0.3, max_tokens: 2_000) do
+      case PropertyLlm.chat_json(@system_prompt, payload,
+             reasoning_effort: "medium",
+             max_tokens: 2_000
+           ) do
         {:ok, %{"estimates" => estimates}} when is_list(estimates) ->
           {:ok, normalize_estimates(estimates)}
 

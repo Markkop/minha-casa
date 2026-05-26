@@ -46,8 +46,21 @@ config :minha_casa_ai, MinhaCasaAi.Config,
   app_public_url:
     System.get_env("APP_PUBLIC_URL") || System.get_env("NEXT_PUBLIC_APP_URL") || "http://localhost:3000",
   assistant_llm_enabled: System.get_env("ASSISTANT_LLM_ENABLED", "true") not in ["false", "0"],
-  property_agent_chat_model: System.get_env("PROPERTY_AGENT_CHAT_MODEL", "gpt-4o-mini"),
-  property_agent_vision_model: System.get_env("PROPERTY_AGENT_VISION_MODEL", "gpt-4o"),
+  openai_model:
+    System.get_env("OPENAI_MODEL") ||
+      System.get_env("PROPERTY_AGENT_CHAT_MODEL") ||
+      System.get_env("PROPERTY_AGENT_VISION_MODEL") ||
+      "gpt-5.4-mini",
+  openai_reasoning_effort: System.get_env("OPENAI_REASONING_EFFORT", "low"),
+  # Deprecated: use OPENAI_MODEL. Kept for backward-compatible deploys.
+  property_agent_chat_model:
+    System.get_env("PROPERTY_AGENT_CHAT_MODEL") ||
+      System.get_env("OPENAI_MODEL") ||
+      "gpt-5.4-mini",
+  property_agent_vision_model:
+    System.get_env("PROPERTY_AGENT_VISION_MODEL") ||
+      System.get_env("OPENAI_MODEL") ||
+      "gpt-5.4-mini",
   property_analysis_max_agent_concurrency:
     String.to_integer(System.get_env("PROPERTY_ANALYSIS_MAX_AGENT_CONCURRENCY") || "2"),
   property_analysis_max_spaces:

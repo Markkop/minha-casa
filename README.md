@@ -15,7 +15,7 @@ Minha Casa helps users manage and organize real estate listings with AI-powered 
 - **Database**: PostgreSQL (`pg` pool) — production on VPS, local via Docker or VPS tunnel
 - **ORM**: Drizzle ORM
 - **Authentication**: BetterAuth
-- **AI**: OpenAI SDK (gpt-4o-mini)
+- **AI**: OpenAI Responses API (`gpt-5.4-mini` via `OPENAI_MODEL`)
 - **AI Backend**: Phoenix/Elixir service in `backend/` for parsing, workflows, chat, MCP, WhatsApp/Telegram webhooks, and MinIO attachments
 - **Maps**: Leaflet + Google Maps (dual provider)
 - **Testing**: Vitest + React Testing Library

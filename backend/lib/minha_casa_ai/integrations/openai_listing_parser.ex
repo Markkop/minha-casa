@@ -1,5 +1,6 @@
 defmodule MinhaCasaAi.Integrations.OpenAIListingParser do
   alias MinhaCasaAi.Config
+  alias MinhaCasaAi.Integrations.OpenAIResponses
 
   @max_listings 25
   @base_max_tokens 500
@@ -27,127 +28,61 @@ defmodule MinhaCasaAi.Integrations.OpenAIListingParser do
   @vision_prompt "Extraia todos os dados dos anúncios de imóveis visíveis nesta imagem. Se houver vários imóveis distintos, use o formato com array listings. Retorne apenas JSON."
 
   def parse_text(raw_text) when is_binary(raw_text) do
-    with {:ok, api_key} <- require_key(),
-         {:ok, content} <-
-           chat_completion(
-             api_key,
-             "gpt-4o-mini",
-             text_messages(raw_text),
-             compute_max_tokens(raw_text, false)
+    with :ok <- require_key(),
+         {:ok, map} <-
+           OpenAIResponses.json(
+             @system_prompt,
+             raw_text,
+             reasoning_effort: "low",
+             max_output_tokens: compute_max_tokens(raw_text, false),
+             timeout: 45_000
            ) do
-      decode_listings(content)
+      decode_listings_map(map)
     end
   end
 
   def parse_image(base64, mime_type) when is_binary(base64) and is_binary(mime_type) do
-    with {:ok, api_key} <- require_key(),
+    with :ok <- require_key(),
          :ok <- validate_image_type(mime_type),
-         {:ok, content} <-
-           chat_completion(
-             api_key,
-             "gpt-4o",
-             image_messages(base64, mime_type),
-             compute_max_tokens("vision", true)
+         {:ok, map} <-
+           OpenAIResponses.vision_json(
+             @system_prompt,
+             data_url(base64, mime_type),
+             @vision_prompt,
+             reasoning_effort: "low",
+             max_output_tokens: compute_max_tokens("vision", true),
+             timeout: 45_000
            ) do
-      decode_listings(content)
+      decode_listings_map(map)
     end
   end
 
   defp require_key do
-    if Config.configured?(:openai) do
-      {:ok, Config.openai_api_key()}
-    else
-      {:error, :openai_not_configured}
-    end
+    if Config.configured?(:openai), do: :ok, else: {:error, :openai_not_configured}
   end
 
-  defp text_messages(raw_text) do
-    [
-      %{role: "system", content: @system_prompt},
-      %{role: "user", content: raw_text}
-    ]
-  end
-
-  defp image_messages(base64, mime_type) do
+  defp data_url(base64, mime_type) do
     cleaned = Regex.replace(~r/^data:[^;]+;base64,/, base64, "")
-    data_url = "data:#{mime_type};base64,#{cleaned}"
-
-    [
-      %{role: "system", content: @system_prompt},
-      %{
-        role: "user",
-        content: [
-          %{type: "text", text: @vision_prompt},
-          %{type: "image_url", image_url: %{url: data_url}}
-        ]
-      }
-    ]
+    "data:#{mime_type};base64,#{cleaned}"
   end
 
-  defp chat_completion(api_key, model, messages, max_tokens) do
-    body = %{
-      model: model,
-      messages: messages,
-      temperature: 0.1,
-      max_tokens: max_tokens,
-      response_format: %{type: "json_object"}
-    }
+  defp decode_listings_map(%{"listings" => listings}) when is_list(listings) do
+    normalized =
+      listings
+      |> Enum.filter(&valid_listing?/1)
+      |> Enum.map(&build_listing/1)
+      |> Enum.take(@max_listings)
 
-    url = "https://api.openai.com/v1/chat/completions"
-    headers = [{"content-type", "application/json"}, {"authorization", "Bearer #{api_key}"}]
-    encoded = Jason.encode!(body)
-
-    case :hackney.post(url, headers, encoded,
-           with_body: true,
-           recv_timeout: 45_000,
-           pool: :default
-         ) do
-      {:ok, status, _resp_headers, body} when status in 200..299 and is_binary(body) ->
-        with {:ok, %{"choices" => [%{"message" => %{"content" => content}} | _]}} <-
-               Jason.decode(body),
-             true <- is_binary(content) do
-          {:ok, content}
-        else
-          _ -> {:error, :empty_ai_response}
-        end
-
-      {:ok, 401, _, _} ->
-        {:error, :openai_unauthorized}
-
-      {:ok, 429, _, _} ->
-        {:error, :openai_rate_limited}
-
-      {:ok, status, _, _} when status >= 500 ->
-        {:error, :openai_unavailable}
-
-      {:ok, _, _, _} ->
-        {:error, :empty_ai_response}
-
-      {:error, _reason} ->
-        {:error, :openai_network_error}
-    end
+    if normalized == [], do: {:error, :invalid_ai_json}, else: {:ok, normalized}
   end
 
-  defp decode_listings(content) do
-    case Jason.decode(content) do
-      {:ok, %{"listings" => listings}} when is_list(listings) ->
-        normalized =
-          listings
-          |> Enum.filter(&valid_listing?/1)
-          |> Enum.map(&build_listing/1)
-          |> Enum.take(@max_listings)
-
-        if normalized == [], do: {:error, :invalid_ai_json}, else: {:ok, normalized}
-
-      {:ok, listing} when is_map(listing) ->
-        if valid_listing?(listing),
-          do: {:ok, [build_listing(listing)]},
-          else: {:error, :invalid_ai_json}
-
-      _ ->
-        {:error, :invalid_ai_json}
-    end
+  defp decode_listings_map(listing) when is_map(listing) do
+    if valid_listing?(listing),
+      do: {:ok, [build_listing(listing)]},
+      else: {:error, :invalid_ai_json}
   end
+
+  defp decode_listings_map(_), do: {:error, :invalid_ai_json}
 
   defp valid_listing?(listing) when is_map(listing) do
     present?(listing["titulo"]) || present?(listing["endereco"]) ||

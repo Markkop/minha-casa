@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "@/lib/auth-server"
 import OpenAI from "openai"
+import { responsesJson, responsesVisionJson } from "@/lib/openai-responses"
 import { scrapeUrlPage, ScrapingAntError } from "@/lib/scrapingant"
 import type { ListingData } from "@/lib/db/schema"
 
@@ -363,26 +364,20 @@ async function parseWithTextModel(
   openai: OpenAI,
   rawText: string
 ): Promise<ListingData[]> {
-  const response = await openai.chat.completions.create({
-    model: "gpt-4o-mini",
-    messages: [
-      { role: "system", content: SYSTEM_PROMPT },
-      { role: "user", content: rawText },
-    ],
-    temperature: 0.1,
-    max_tokens: computeMaxTokens(rawText.length, false),
-    response_format: { type: "json_object" },
-  })
-
-  const content = response.choices[0]?.message?.content
-  if (!content) {
-    throw new Error("EMPTY_AI_RESPONSE")
-  }
-
   try {
-    return normalizeParseResponse(JSON.parse(content))
+    const parsed = await responsesJson<Record<string, unknown>>(openai, {
+      instructions: SYSTEM_PROMPT,
+      input: rawText,
+      reasoningEffort: "low",
+      maxOutputTokens: computeMaxTokens(rawText.length, false),
+      timeoutMs: 45_000,
+    })
+    return normalizeParseResponse(parsed)
   } catch (error) {
     if (error instanceof Error && error.message === "INVALID_AI_JSON") {
+      throw error
+    }
+    if (error instanceof Error && error.message === "EMPTY_AI_RESPONSE") {
       throw error
     }
     throw new Error("INVALID_AI_JSON")
@@ -396,32 +391,22 @@ async function parseWithVision(
 ): Promise<ListingData[]> {
   const dataUrl = `data:${mimeType};base64,${base64.replace(/^data:[^;]+;base64,/, "")}`
 
-  const response = await openai.chat.completions.create({
-    model: "gpt-4o",
-    messages: [
-      { role: "system", content: SYSTEM_PROMPT },
-      {
-        role: "user",
-        content: [
-          { type: "text", text: VISION_USER_PROMPT },
-          { type: "image_url", image_url: { url: dataUrl } },
-        ],
-      },
-    ],
-    temperature: 0.1,
-    max_tokens: computeMaxTokens(2000, true),
-    response_format: { type: "json_object" },
-  })
-
-  const content = response.choices[0]?.message?.content
-  if (!content) {
-    throw new Error("EMPTY_AI_RESPONSE")
-  }
-
   try {
-    return normalizeParseResponse(JSON.parse(content))
+    const parsed = await responsesVisionJson<Record<string, unknown>>(openai, {
+      instructions: SYSTEM_PROMPT,
+      input: VISION_USER_PROMPT,
+      userText: VISION_USER_PROMPT,
+      imageDataUrl: dataUrl,
+      reasoningEffort: "low",
+      maxOutputTokens: computeMaxTokens(2000, true),
+      timeoutMs: 45_000,
+    })
+    return normalizeParseResponse(parsed)
   } catch (error) {
     if (error instanceof Error && error.message === "INVALID_AI_JSON") {
+      throw error
+    }
+    if (error instanceof Error && error.message === "EMPTY_AI_RESPONSE") {
       throw error
     }
     throw new Error("INVALID_AI_JSON")

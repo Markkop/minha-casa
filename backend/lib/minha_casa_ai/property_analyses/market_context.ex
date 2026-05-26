@@ -5,6 +5,8 @@ defmodule MinhaCasaAi.PropertyAnalyses.MarketContext do
 
   alias MinhaCasaAi.Integrations.BraveSearch
   alias MinhaCasaAi.Config
+  alias MinhaCasaAi.Integrations.OpenAIResponses
+  alias MinhaCasaAi.Integrations.OpenAISchemas
   alias MinhaCasaAi.Repo
   alias MinhaCasaAi.Workspace.{Profile, Region}
 
@@ -168,40 +170,17 @@ defmodule MinhaCasaAi.PropertyAnalyses.MarketContext do
   end
 
   defp chat_mini(user_content) do
-    api_key = Config.openai_api_key()
-
-    body = %{
-      model: "gpt-4o-mini",
-      messages: [
-        %{
-          role: "system",
-          content: "Você resume pesquisa de mercado imobiliário com cautela e cita incertezas."
-        },
-        %{role: "user", content: user_content}
-      ],
-      temperature: 0.3,
-      max_tokens: 400,
-      response_format: %{type: "json_object"}
-    }
-
-    url = "https://api.openai.com/v1/chat/completions"
-    headers = [{"content-type", "application/json"}, {"authorization", "Bearer #{api_key}"}]
-
-    case :hackney.post(url, headers, Jason.encode!(body),
-           with_body: true,
-           recv_timeout: 30_000,
-           pool: :default
-         ) do
-      {:ok, status, _, resp} when status in 200..299 and is_binary(resp) ->
-        with {:ok, %{"choices" => [%{"message" => %{"content" => content}} | _]}} <- Jason.decode(resp),
-             {:ok, map} <- Jason.decode(content) do
-          {:ok, map}
-        else
-          _ -> {:error, :empty}
-        end
-
-      _ ->
-        {:error, :openai}
+    OpenAIResponses.json(
+      "Você resume pesquisa de mercado imobiliário com cautela e cita incertezas.",
+      user_content,
+      reasoning_effort: "low",
+      max_output_tokens: 400,
+      timeout: 30_000,
+      schema: %{name: "market_summary", schema: OpenAISchemas.market_summary_schema()}
+    )
+    |> case do
+      {:ok, map} -> {:ok, map}
+      {:error, _} -> {:error, :empty}
     end
   end
 end
