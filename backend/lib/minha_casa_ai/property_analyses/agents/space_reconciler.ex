@@ -5,7 +5,7 @@ defmodule MinhaCasaAi.PropertyAnalyses.Agents.SpaceReconciler do
   """
 
   alias MinhaCasaAi.Integrations.PropertyLlm
-  alias MinhaCasaAi.PropertyAnalyses.{ListingFacts, SpaceSlug}
+  alias MinhaCasaAi.PropertyAnalyses.{ListingFacts, SpaceGuard, SpaceSlug}
 
   @system_prompt """
   Você é o Reconciliador de Ambientes: após inventário fotográfico e agrupamento provisório,
@@ -17,16 +17,19 @@ defmodule MinhaCasaAi.PropertyAnalyses.Agents.SpaceReconciler do
   - Contexto local opcional
 
   TAREFAS:
-  1. Decida quais espaços provisórios são o MESMO lugar físico (fundir) ou ambientes distintos (manter separados).
-     Use piso, paredes, teto, esquadrias, louças (banheiros) e layoutAnchors/móveis visíveis — duas salas ou
-     quartos com acabamento parecido mas móveis ou aberturas diferentes devem permanecer separados (sala-1 vs sala-2).
+  1. Preserve a contagem de ambientes distintos que as fotos suportam. Fusão é EXCEÇÃO e exige evidência forte
+     de que dois spaceIds provisórios são o mesmo cômodo (mesmas fotos repetidas ou inventário quase idêntico).
+     PROIBIDO fundir quarto-1+quarto-2, banheiro-1+banheiro-2 ou sala-1+sala-2 só porque piso/parede são parecidos.
+     Na dúvida, MANTENHA separado — especialmente para quartos e banheiros.
   2. Compare anúncio vs evidência fotográfica com julgamento FLEXÍVEL:
      - Ex.: anúncio diz 4 quartos, fotos mostram 3 quartos + 2 escritórios → explique em reflections/missing/extra
      - NÃO force regra fixa "suíte = quarto" nem "suíte = banheiro": interprete pelo inventário
        (suíte pode ser dormitório com banheiro integrado, ou banheiro de quarto, etc.)
   3. Emita displaySpaces: SOMENTE ambientes com imageIndices não vazios E inventário útil nas fotos.
      Nunca inclua cartão vazio (sem fotos ou sem descrição factual).
-  4. Pode renomear labels, reassignar imageIndices entre spaceIds, fundir ou dividir spaceIds.
+  4. Pode renomear labels e reassignar imageIndices; dividir spaceIds quando fotos indicarem cômodos extras.
+     Evite ações "merge" salvo certeza — se o anúncio lista 2 quartos e 2 banheiros e as fotos mostram inventários
+     diferentes, mantenha pelo menos 2 spaceIds por tipo.
   5. spaceActions documenta fusões/divisões/ocultações para auditoria (opcional).
   6. NÃO liste riscos nem custos — apenas mapeamento e reconciliação.
 
@@ -78,8 +81,11 @@ defmodule MinhaCasaAi.PropertyAnalyses.Agents.SpaceReconciler do
           "locationContext" => location_summary(location_context)
         })
 
+      provisional_spaces = normalize_provisional_spaces(spaces, inventory)
+
       case PropertyLlm.chat_json(@system_prompt, payload, temperature: 0.3, max_tokens: 3_200) do
-        {:ok, map} -> {:ok, normalize_result(map, space_contexts)}
+        {:ok, map} ->
+          {:ok, normalize_result(map, space_contexts, provisional_spaces, listing_facts, inventory)}
         {:error, reason} -> {:error, reason}
       end
     end
@@ -147,18 +153,62 @@ defmodule MinhaCasaAi.PropertyAnalyses.Agents.SpaceReconciler do
 
   defp location_summary(_), do: nil
 
-  defp normalize_result(map, space_contexts) do
+  defp normalize_provisional_spaces(spaces, inventory) do
+    photos = photo_summaries_from_inventory(inventory)
+
+    spaces
+    |> Enum.filter(&is_map/1)
+    |> Enum.map(fn space ->
+      %{
+        "spaceId" => SpaceSlug.slug(Map.get(space, "spaceId") || "indefinido"),
+        "label" => Map.get(space, "label"),
+        "scene" => Map.get(space, "scene"),
+        "listingRole" => Map.get(space, "listingRole"),
+        "imageIndices" => Map.get(space, "imageIndices") || [],
+        "visible" => true
+      }
+    end)
+    |> SpaceGuard.refine_spaces(photos, nil, %{})
+  end
+
+  defp photo_summaries_from_inventory(inventory) do
+    (Map.get(inventory, "images") || [])
+    |> Enum.filter(&analyzable?/1)
+    |> Enum.map(fn img ->
+      obs = Map.get(img, "observations", %{})
+
+      %{
+        "index" => Map.get(img, "index"),
+        "scene" => Map.get(obs, "scene"),
+        "spaceHint" => Map.get(obs, "spaceHint"),
+        "distinctivenessNotes" => Map.get(obs, "distinctivenessNotes"),
+        "layoutAnchors" => Map.get(obs, "layoutAnchors"),
+        "materialsSpotted" => Map.get(obs, "materialsSpotted", []) |> Enum.take(10),
+        "floor" => Map.get(obs, "floor"),
+        "walls" => Map.get(obs, "walls"),
+        "ceiling" => Map.get(obs, "ceiling"),
+        "baseboard" => Map.get(obs, "baseboard"),
+        "openings" => Map.get(obs, "openings"),
+        "wetArea" => Map.get(obs, "wetArea"),
+        "wetAreaFixtures" => Map.get(obs, "wetAreaFixtures")
+      }
+    end)
+  end
+
+  defp normalize_result(map, space_contexts, provisional_spaces, listing_facts, inventory) do
     valid_indices =
       space_contexts
       |> Enum.flat_map(&Map.get(&1, "imageIndices", []))
       |> MapSet.new()
+
+    photos = photo_summaries_from_inventory(inventory)
 
     display_spaces =
       (Map.get(map, "displaySpaces") || Map.get(map, "spaces") || [])
       |> Enum.filter(&is_map/1)
       |> Enum.map(&normalize_display_space(&1, valid_indices))
       |> Enum.reject(fn s -> (Map.get(s, "imageIndices") || []) == [] end)
-      |> Enum.uniq_by(&Map.get(&1, "spaceId"))
+      |> SpaceGuard.refine_spaces(photos, provisional_spaces, listing_facts)
 
     reconciliation = normalize_reconciliation(Map.get(map, "reconciliation") || %{})
     space_actions = normalize_space_actions(Map.get(map, "spaceActions") || [])
