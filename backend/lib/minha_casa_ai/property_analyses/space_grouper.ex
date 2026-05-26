@@ -90,6 +90,7 @@ defmodule MinhaCasaAi.PropertyAnalyses.SpaceGrouper do
       Map.get(obs, "openings"),
       Map.get(obs, "wetArea"),
       Map.get(obs, "wetAreaFixtures"),
+      Map.get(obs, "layoutAnchors"),
       Map.get(obs, "distinctivenessNotes")
     ]
     |> Enum.filter(&(is_binary(&1) and String.trim(&1) != ""))
