@@ -64,15 +64,16 @@ export function ListingSelector({
         <span className="truncate text-xs font-medium text-app-fg">
           {selected.titulo}
         </span>
-        <PageToolbarButton
-          variant="ghost"
-          size="default"
-          onClick={() => setOpen(true)}
-          className="shrink-0"
-        >
-          Trocar imóvel
-        </PageToolbarButton>
         <Popover open={open} onOpenChange={setOpen}>
+          <PopoverTrigger asChild>
+            <PageToolbarButton
+              variant="ghost"
+              size="default"
+              className="shrink-0"
+            >
+              Trocar imóvel
+            </PageToolbarButton>
+          </PopoverTrigger>
           <PopoverContent className="w-80 p-2" align="start">
             <ListingList
               filtered={filtered}
