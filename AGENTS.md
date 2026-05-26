@@ -1,5 +1,6 @@
 <INSTRUCTIONS>
-Don't run build unless asked to.
+Don't run frontend builds unless asked to.
+Docker builds/recreates are allowed after code changes when needed to verify or run the updated app.
 
 Never commit API keys, tokens, or secrets in source files (including tests and one-off scripts).
 Use `.env`, `.env.local`, or env examples with placeholders only. Rotate any key that was ever committed.
