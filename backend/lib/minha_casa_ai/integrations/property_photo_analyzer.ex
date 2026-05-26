@@ -64,8 +64,6 @@ defmodule MinhaCasaAi.Integrations.PropertyPhotoAnalyzer do
     |> Map.put("materialsSpotted", string_list(Map.get(obs, "materialsSpotted")))
     |> Map.put("spaceHint", normalize_space_hint(Map.get(obs, "spaceHint")))
     |> Map.put("distinctivenessNotes", string_or_nil(Map.get(obs, "distinctivenessNotes")))
-    |> Map.put("layoutAnchors", string_or_nil(Map.get(obs, "layoutAnchors")))
-    |> Map.put("wetAreaFixtures", string_or_nil(Map.get(obs, "wetAreaFixtures")))
     |> Map.put("baseboard", string_or_nil(Map.get(obs, "baseboard")))
     |> Map.put("inventoryLabels", string_list(Map.get(obs, "inventoryLabels")))
     |> Map.put("signalsToInvestigate", string_list(Map.get(obs, "signalsToInvestigate")))
