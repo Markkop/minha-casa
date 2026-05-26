@@ -50,15 +50,24 @@ function textFormat(schema?: ResponsesJsonOptions["schema"]): TextFormat {
   return { type: "json_object" }
 }
 
+/** OpenAI requires the word "json" in input when using json_object format. */
+function inputForJsonObjectFormat(input: string): string {
+  if (/json/i.test(input)) return input
+  return `Analyze the listing below and respond with valid json.\n\n${input}`
+}
+
 export async function responsesJson<T extends Record<string, unknown>>(
   openai: OpenAI,
   opts: ResponsesJsonOptions
 ): Promise<T> {
+  const input =
+    opts.schema != null ? opts.input : inputForJsonObjectFormat(opts.input)
+
   const response = await openai.responses.create(
     {
       model: getOpenAIModel(),
       instructions: opts.instructions,
-      input: opts.input,
+      input,
       store: false,
       reasoning: { effort: opts.reasoningEffort ?? getOpenAIReasoningEffort() },
       max_output_tokens: opts.maxOutputTokens ?? 2500,

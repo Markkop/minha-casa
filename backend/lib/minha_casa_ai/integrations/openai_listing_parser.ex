@@ -1,6 +1,6 @@
 defmodule MinhaCasaAi.Integrations.OpenAIListingParser do
   alias MinhaCasaAi.Config
-  alias MinhaCasaAi.Integrations.OpenAIResponses
+  alias MinhaCasaAi.Integrations.{OpenAIResponses, OpenAISchemas}
 
   @max_listings 25
   @base_max_tokens 500
@@ -35,7 +35,8 @@ defmodule MinhaCasaAi.Integrations.OpenAIListingParser do
              raw_text,
              reasoning_effort: "low",
              max_output_tokens: compute_max_tokens(raw_text, false),
-             timeout: 45_000
+             timeout: 45_000,
+             schema: %{name: "listing_parse", schema: OpenAISchemas.listing_parse_schema()}
            ) do
       decode_listings_map(map)
     end
@@ -51,7 +52,8 @@ defmodule MinhaCasaAi.Integrations.OpenAIListingParser do
              @vision_prompt,
              reasoning_effort: "low",
              max_output_tokens: compute_max_tokens("vision", true),
-             timeout: 45_000
+             timeout: 45_000,
+             schema: %{name: "listing_parse", schema: OpenAISchemas.listing_parse_schema()}
            ) do
       decode_listings_map(map)
     end
