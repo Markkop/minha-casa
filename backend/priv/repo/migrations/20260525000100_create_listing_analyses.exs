@@ -12,7 +12,7 @@ defmodule MinhaCasaAi.Repo.Migrations.CreateListingAnalyses do
       add(:input, :map, null: false, default: %{})
       add(:result, :map)
       add(:error, :text)
-      timestamps(type: :utc_datetime)
+      timestamps(inserted_at: :created_at, type: :utc_datetime)
     end
 
     create(index(:listing_analyses, [:listing_id]))

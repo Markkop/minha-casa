@@ -13,13 +13,10 @@ defmodule MinhaCasaAi.PropertyAnalyses.ListingAnalysis do
     field :input, :map, default: %{}
     field :result, :map
     field :error, :string
-    field :created_at, :utc_datetime
-    field :updated_at, :utc_datetime
+    timestamps(inserted_at: :created_at, type: :utc_datetime)
   end
 
   def changeset(analysis, attrs) do
-    now = DateTime.utc_now() |> DateTime.truncate(:second)
-
     analysis
     |> cast(attrs, [
       :listing_id,
@@ -31,8 +28,6 @@ defmodule MinhaCasaAi.PropertyAnalyses.ListingAnalysis do
       :result,
       :error
     ])
-    |> put_change(:created_at, Map.get(attrs, :created_at) || analysis.created_at || now)
-    |> put_change(:updated_at, now)
     |> validate_required([:listing_id, :status, :input])
     |> validate_inclusion(:status, ["queued", "running", "completed", "failed"])
   end
