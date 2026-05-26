@@ -4,31 +4,31 @@ defmodule MinhaCasaAi.PropertyAnalyses.Agents.PhotoSpaceCluster do
   """
 
   alias MinhaCasaAi.Integrations.PropertyLlm
-  alias MinhaCasaAi.PropertyAnalyses.{Limits, ListingFacts, SpaceGuard, SpaceSlug}
+  alias MinhaCasaAi.PropertyAnalyses.{Limits, SpaceSlug}
 
   @system_prompt """
   Você é o Agrupador Fotográfico de Ambientes: analisa inventário fotográfico de um imóvel no Brasil
   e relaciona cada foto a um ambiente físico distinto (quarto 1, quarto 2, banheiro A, etc.).
 
-  Você recebe resumos factuais de cada foto (scene, spaceHint, materiais, acabamentos) e listingHints opcionais.
-  Agrupe e separe com base nas fotos; listingHints só orientam contagem esperada, sem forçar fusão.
+  Você recebe apenas resumos factuais de cada foto (scene, spaceHint, materiais, acabamentos).
+  NÃO compare com dados do anúncio nesta etapa — só agrupe e separe com base nas fotos.
 
   TAREFAS:
   1. Agrupe fotos que mostram o MESMO ambiente físico (mesmo cômodo visto de ângulos diferentes).
-  2. Separe ambientes distintos do mesmo tipo (quarto-1 vs quarto-2, sala-1 vs sala-2, banheiro-1 vs banheiro-2).
+  2. Separe ambientes distintos do mesmo tipo (quarto-1 vs quarto-2, sala-1 vs sala-2, banheiro social vs suíte).
      Compare floor, walls, ceiling, baseboard, openings, layoutAnchors, wetAreaFixtures e distinctivenessNotes
-     entre fotos — qualquer diferença factual relevante indica cômodos físicos DIFERENTES.
-     REGRA DE OURO: só agrupe fotos do MESMO cômodo físico; na dúvida, SEPARE (quarto-1/quarto-2), não funda.
-     Para QUARTOS e SUÍTES: NUNCA coloque fotos de quartos diferentes no mesmo spaceId. Numere quarto-1, quarto-2…
-     Para BANHEIROS: NUNCA funda dois banheiros em um só. Compare pia, louças, revestimento, janelas e layoutAnchors.
-     Para SALAS: NUNCA funda duas salas distintas — pisos/paredes iguais são comuns; use móveis (layoutAnchors) e aberturas.
-  3. Atribua spaceId estável em kebab-case ASCII com sufixo numérico quando houver mais de um do mesmo tipo
-     (quarto-1, quarto-2, banheiro-1, banheiro-2, sala-1, garagem).
-  4. listingHints (quartos/banheiros do anúncio) são pista fraca: se as fotos mostram N ambientes distintos do mesmo tipo,
-     reflita N spaceIds mesmo quando o acabamento for parecido — não reduza tudo a um único "quarto" ou "banheiro".
-  5. listingRole é apenas pista opcional da foto (dormitorio, suite, banheiro, social, externo, servico, indefinido).
-  6. NÃO invente defeitos; apenas mapeamento fotográfico.
-  7. Omita ambientes sem nenhuma foto atribuída.
+     entre fotos do mesmo scene — acabamentos OU móveis/layout diferentes indicam ambientes físicos diferentes.
+     Para BANHEIROS: NUNCA funda dois banheiros em um só. Compare pia (tipo/cor/material), louças,
+     revestimento de parede/piso, janelas (quantidade e tipo) e distinctivenessNotes.
+     Para SALAS (scene social/sala): NUNCA funda duas salas distintas em uma só. Pisos e paredes podem ser
+     idênticos — use layoutAnchors (sofá, mesa, TV/rack, estantes, lareira), openings (janelas/portas) e
+     distinctivenessNotes para criar sala-1, sala-2, etc. quando as fotos mostrarem cômodos claramente diferentes.
+     Para QUARTOS e ESCRITÓRIOS: aplique a mesma lógica (cama, guarda-roupa, mesa de trabalho, layoutAnchors).
+  3. Atribua spaceId estável em kebab-case ASCII (ex.: quarto-1, sala-1, sala-2, banheiro-social, garagem).
+  4. listingRole é apenas pista opcional da foto (dormitorio, suite, banheiro, social, externo, servico, indefinido)
+     — não force contagem de quartos do anúncio.
+  5. NÃO invente defeitos; apenas mapeamento fotográfico.
+  6. Omita ambientes sem nenhuma foto atribuída.
 
   Responda APENAS JSON válido em português:
   {
@@ -44,7 +44,7 @@ defmodule MinhaCasaAi.PropertyAnalyses.Agents.PhotoSpaceCluster do
   }
   """
 
-  def cluster(inventory, listing_data \\ %{}, location_context \\ %{}) do
+  def cluster(inventory, _listing_data \\ %{}, location_context \\ %{}) do
     images = Map.get(inventory, "images") || []
 
     photo_summaries =
@@ -55,12 +55,9 @@ defmodule MinhaCasaAi.PropertyAnalyses.Agents.PhotoSpaceCluster do
     if photo_summaries == [] do
       {:ok, skipped_audit("no_analyzable_photos")}
     else
-      listing_facts = ListingFacts.from_listing_data(listing_data)
-
       payload =
         Jason.encode!(%{
           "photos" => photo_summaries,
-          "listingHints" => listing_facts,
           "locationContext" => location_summary(location_context),
           "photoCount" => length(photo_summaries),
           "maxPhotosAnalyzed" => Limits.max_images(),
@@ -68,7 +65,7 @@ defmodule MinhaCasaAi.PropertyAnalyses.Agents.PhotoSpaceCluster do
         })
 
       case PropertyLlm.chat_json(@system_prompt, payload, temperature: 0.2, max_tokens: 2_400) do
-        {:ok, map} -> {:ok, normalize_cluster(map, photo_summaries, listing_facts)}
+        {:ok, map} -> {:ok, normalize_cluster(map, photo_summaries)}
         {:error, reason} -> {:error, reason}
       end
     end
@@ -106,7 +103,7 @@ defmodule MinhaCasaAi.PropertyAnalyses.Agents.PhotoSpaceCluster do
 
   defp location_summary(_), do: nil
 
-  defp normalize_cluster(map, photo_summaries, listing_facts \\ %{}) do
+  defp normalize_cluster(map, photo_summaries) do
     valid_indices =
       photo_summaries
       |> Enum.map(&Map.get(&1, "index"))
@@ -118,7 +115,8 @@ defmodule MinhaCasaAi.PropertyAnalyses.Agents.PhotoSpaceCluster do
       |> Enum.filter(&is_map/1)
       |> Enum.map(&normalize_space(&1, valid_indices))
       |> Enum.reject(fn s -> (Map.get(s, "imageIndices") || []) == [] end)
-      |> SpaceGuard.refine_spaces(photo_summaries, nil, listing_facts)
+      |> Enum.uniq_by(&Map.get(&1, "spaceId"))
+      |> Enum.take(max_spaces())
 
     %{
       "spaces" => spaces,
@@ -202,4 +200,8 @@ defmodule MinhaCasaAi.PropertyAnalyses.Agents.PhotoSpaceCluster do
     |> Enum.map_join(" ", &String.capitalize/1)
   end
 
+  defp max_spaces do
+    Application.get_env(:minha_casa_ai, MinhaCasaAi.Config, [])
+    |> Keyword.get(:property_analysis_max_spaces, 10)
+  end
 end
