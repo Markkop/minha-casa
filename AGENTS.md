@@ -1,6 +1,9 @@
 <INSTRUCTIONS>
+Property deep analysis results use schema v6 (`clima`, `riscos`, `mercado`, `ambientes`, `idade`, per-card `xray` with blind spots and orçamento). Ambiente inventory uses structured `{tipo, material?, detalhe?}` items from controlled vocabularies (estruturais, instalações, móveis, materiais) — no color in inventory output. Pre-v6 rows are not migrated; users must re-run analysis.
+
 Don't run frontend builds unless asked to.
 Docker builds/recreates are allowed after code changes when needed to verify or run the updated app.
+Do rebuild Phoenix in local docker after code changes
 
 Never commit API keys, tokens, or secrets in source files (including tests and one-off scripts).
 Use `.env`, `.env.local`, or env examples with placeholders only. Rotate any key that was ever committed.

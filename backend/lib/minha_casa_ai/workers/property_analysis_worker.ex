@@ -4,14 +4,11 @@ defmodule MinhaCasaAi.Workers.PropertyAnalysisWorker do
     max_attempts: 2,
     unique: [period: 120, fields: [:args, :worker]]
 
-  alias MinhaCasaAi.Integrations.PropertyPhotoAnalyzer
+  alias MinhaCasaAi.Config
   alias MinhaCasaAi.Listings
   alias MinhaCasaAi.PropertyAnalyses
-  alias MinhaCasaAi.Config
-  alias MinhaCasaAi.PropertyAnalyses.Agents.{PhotoSpaceCluster, SpaceReconciler}
-  alias MinhaCasaAi.PropertyAnalyses.{GeocodeStep, LocationContext, MarketContext, RiskXrayPipeline}
+  alias MinhaCasaAi.PropertyAnalyses.HermesPipeline
   alias MinhaCasaAi.Workflows
-  alias MinhaCasaAi.Workspace.Profile
 
   @impl Oban.Worker
   def perform(%Oban.Job{args: %{"analysis_id" => analysis_id}}) do
@@ -39,29 +36,22 @@ defmodule MinhaCasaAi.Workers.PropertyAnalysisWorker do
   end
 
   defp run_pipeline(analysis, listing) do
-    data = listing.data || %{}
-    input = analysis.input || %{}
-    profile = profile_from_analysis(analysis)
+    cond do
+      not Config.configured?(:hermes) ->
+        PropertyAnalyses.mark_failed!(analysis, "Hermes não configurado (HERMES_API_URL / HERMES_API_KEY)")
+        {:error, :hermes_not_configured}
 
-    analysis =
-      analysis
-      |> step_geocode(data, input)
-      |> step_market_context(data, profile)
-      |> step_inventory(listing.id, data)
-      |> step_photo_cluster(data)
-      |> step_space_reconciliation(data)
-      |> step_risk_xray(data)
+      not Config.configured?(:openai) ->
+        PropertyAnalyses.mark_failed!(
+          analysis,
+          "OPENAI_API_KEY ausente — necessário para o Hermes executar as etapas de análise."
+        )
 
-    PropertyAnalyses.mark_completed!(analysis)
-    PropertyAnalyses.sync_workflow_result!(analysis)
+        {:error, :openai_not_configured}
 
-    run = Workflows.get_run(analysis.workflow_run_id)
-
-    if run do
-      Workflows.mark_ready!(run, analysis.result || %{})
+      true ->
+        run_hermes_pipeline(analysis, listing)
     end
-
-    :ok
   rescue
     e ->
       analysis = PropertyAnalyses.get!(analysis.id)
@@ -70,188 +60,26 @@ defmodule MinhaCasaAi.Workers.PropertyAnalysisWorker do
       {:error, e}
   end
 
-  defp step_geocode(analysis, data, input) do
-    run_step(analysis, "geocode", fn ->
-      case GeocodeStep.run(data, input) do
-        {:ok, geocode} -> geocode
-        {:error, reason} -> %{"skipped" => true, "reason" => to_string(reason)}
-      end
-    end)
-  end
+  defp run_hermes_pipeline(analysis, listing) do
+    case HermesPipeline.run(analysis, listing) do
+      {:ok, _result} ->
+        analysis = PropertyAnalyses.get!(analysis.id)
+        PropertyAnalyses.mark_completed!(analysis)
+        PropertyAnalyses.sync_workflow_result!(analysis)
 
-  defp step_market_context(analysis, data, profile) do
-    geocode = Map.get(analysis.result || %{}, "geocode") || %{}
-
-    market =
-      try do
-        MarketContext.build(data, profile, data["regionId"])
-      rescue
-        e -> %{"skipped" => true, "reason" => "step_error", "error" => Exception.message(e)}
-      end
-
-    analysis = run_step(analysis, "market", fn -> market end)
-    location_ctx = LocationContext.build(geocode, data, market)
-
-    run_step(analysis, "locationContext", fn -> location_ctx end)
-  end
-
-  defp step_inventory(analysis, listing_id, data) do
-    run_step(analysis, "inventory", fn ->
-      PropertyPhotoAnalyzer.analyze_listing_images(listing_id, data)
-    end)
-  end
-
-  defp step_photo_cluster(analysis, data) do
-    analysis = PropertyAnalyses.get!(analysis.id)
-    inventory = Map.get(analysis.result || %{}, "inventory") || %{}
-    location_context = Map.get(analysis.result || %{}, "locationContext") || %{}
-
-    if Map.get(inventory, "skipped") == true do
-      audit = skipped_cluster_audit(Map.get(inventory, "reason") || "no_images")
-      analysis = PropertyAnalyses.apply_space_audit!(analysis, audit)
-      mark_cluster_steps_complete!(analysis)
-    else
-      audit =
-        if Config.configured?(:openai) do
-          case PhotoSpaceCluster.cluster(inventory, data, location_context) do
-            {:ok, result} -> result
-            {:error, _} -> skipped_cluster_audit("photo_cluster_failed")
-          end
-        else
-          skipped_cluster_audit("openai_not_configured")
+        if run = Workflows.get_run(analysis.workflow_run_id) do
+          Workflows.mark_ready!(run, analysis.result || %{})
         end
 
-      analysis = PropertyAnalyses.apply_space_audit!(analysis, audit)
-      mark_cluster_steps_complete!(analysis)
-    end
-  end
+        :ok
 
-  defp step_space_reconciliation(analysis, data) do
-    analysis = PropertyAnalyses.get!(analysis.id)
-    result = analysis.result || %{}
-    inventory = Map.get(result, "inventory") || %{}
-    space_audit = Map.get(result, "spaceAudit") || %{}
-    location_context = Map.get(result, "locationContext") || %{}
+      {:error, {:all_steps_failed, message}} ->
+        analysis = PropertyAnalyses.get!(analysis.id)
+        PropertyAnalyses.mark_failed!(analysis, message)
+        {:error, :all_steps_failed}
 
-    reconciled =
-      cond do
-        Map.get(space_audit, "skipped") == true ->
-          space_audit
-
-        Map.get(inventory, "skipped") == true ->
-          skipped_reconciliation_audit("no_inventory")
-
-        Config.configured?(:openai) ->
-          case SpaceReconciler.reconcile(inventory, data, space_audit, location_context) do
-            {:ok, result} -> result
-            {:error, _} -> fallback_reconciliation(space_audit)
-          end
-
-        true ->
-          fallback_reconciliation(space_audit)
-      end
-
-    analysis = PropertyAnalyses.apply_reconciliation!(analysis, reconciled)
-    PropertyAnalyses.mark_step_complete!(analysis, "spaceReconciliation")
-  end
-
-  defp step_risk_xray(analysis, data) do
-    analysis = PropertyAnalyses.get!(analysis.id)
-    analysis = PropertyAnalyses.init_risk_xray!(analysis)
-    location_context = Map.get(analysis.result || %{}, "locationContext") || %{}
-
-    RiskXrayPipeline.run(analysis, data, location_context)
-
-    analysis = PropertyAnalyses.get!(analysis.id)
-    risk_data = Map.get(analysis.result || %{}, "riskXray") || %{}
-
-    run_step(analysis, "riskXray", fn -> risk_data end)
-  end
-
-  defp mark_cluster_steps_complete!(analysis) do
-    analysis
-    |> PropertyAnalyses.mark_step_complete!("photoCluster")
-    |> PropertyAnalyses.mark_step_complete!("spaceMapping")
-  end
-
-  defp skipped_cluster_audit(reason) do
-    %{
-      "spaces" => [],
-      "displaySpaces" => [],
-      "reconciliation" => %{
-        "matchStatus" => "insufficient_photos",
-        "reflections" => [],
-        "missing" => [],
-        "extra" => [],
-        "reason" => reason
-      },
-      "skipped" => true,
-      "reason" => reason,
-      "provisional" => true
-    }
-  end
-
-  defp skipped_reconciliation_audit(reason) do
-    %{
-      "displaySpaces" => [],
-      "spaces" => [],
-      "reconciliation" => %{
-        "matchStatus" => "insufficient_photos",
-        "reflections" => [],
-        "missing" => [],
-        "extra" => [],
-        "reason" => reason
-      },
-      "spaceActions" => [],
-      "provisional" => false
-    }
-  end
-
-  defp fallback_reconciliation(space_audit) do
-    spaces = Map.get(space_audit, "spaces") || []
-
-    display =
-      Enum.filter(spaces, fn s ->
-        is_map(s) and (Map.get(s, "imageIndices") || []) != []
-      end)
-
-    %{
-      "displaySpaces" => display,
-      "spaces" => display,
-      "reconciliation" =>
-        Map.get(space_audit, "reconciliation") ||
-          %{
-            "matchStatus" => "partial_mismatch",
-            "reflections" => ["Reconciliação automática indisponível; usando agrupamento provisório."],
-            "missing" => [],
-            "extra" => []
-          },
-      "spaceActions" => [],
-      "provisional" => false
-    }
-  end
-
-  defp run_step(analysis, step_key, fun) when is_function(fun, 0) do
-    step_data =
-      try do
-        fun.()
-      rescue
-        e ->
-          %{
-            "skipped" => true,
-            "reason" => "step_error",
-            "error" => Exception.message(e)
-          }
-      end
-
-    PropertyAnalyses.merge_step!(analysis, step_key, step_data)
-  end
-
-  defp profile_from_analysis(%{user_id: uid, org_id: oid}) do
-    Profile.profile_from_headers(uid, oid)
-    |> case do
-      {:error, _} -> %{user_id: uid, org_id: nil}
-      profile -> profile
+      {:error, reason} ->
+        raise "Hermes analysis failed: #{inspect(reason)}"
     end
   end
 end

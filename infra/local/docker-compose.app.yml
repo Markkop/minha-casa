@@ -62,10 +62,14 @@ services:
     env_file:
       - ../../.env
       - ../../.env.local
+      # Local Docker overrides (Hermes, DB ports, etc.) — see infra/local/.env.local.example
+      - .env.local
     depends_on:
       postgres:
         condition: service_healthy
       minio:
+        condition: service_started
+      hermes-agent:
         condition: service_started
     environment:
       PORT: 4000
@@ -87,6 +91,14 @@ services:
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
       TELEGRAM_WEBHOOK_SECRET: ${TELEGRAM_WEBHOOK_SECRET:-}
       ASSISTANT_LLM_ENABLED: ${ASSISTANT_LLM_ENABLED:-true}
+      # Defaults match infra/local/.env.local.example; host env can override via infra/local/.env
+      HERMES_API_URL: ${HERMES_API_URL:-http://hermes-agent:8642}
+      HERMES_API_KEY: ${HERMES_API_KEY:-local-hermes-api-key}
+      HERMES_JOBS_DIR: /work/hermes-jobs
+      HERMES_ANALYSIS_TIMEOUT_MS: ${HERMES_ANALYSIS_TIMEOUT_MS:-1800000}
+      PROPERTY_ANALYSIS_ENGINE: ${PROPERTY_ANALYSIS_ENGINE:-hermes}
+    volumes:
+      - minha_casa_local_hermes_jobs:/work/hermes-jobs
     ports:
       - "${PHOENIX_PUBLIC_PORT:-4000}:4000"
     healthcheck:
@@ -94,6 +106,45 @@ services:
       interval: 10s
       timeout: 5s
       retries: 20
+    networks:
+      - minha_casa_local
+
+  hermes-agent:
+    image: nousresearch/hermes-agent:latest
+    container_name: minha-casa-hermes-agent-1
+    restart: unless-stopped
+    env_file:
+      - ../../.env
+      - ../../.env.local
+      - .env.local
+    command:
+      - /bin/sh
+      - -lc
+      - |
+        sed -i -E "s|^([[:space:]]*)default: .*|\1default: \"$${HERMES_INFERENCE_MODEL:-gpt-5.4-mini}\"|; s|^([[:space:]]*)provider: .*|\1provider: \"$${HERMES_INFERENCE_PROVIDER:-custom}\"|; s|^([[:space:]]*)base_url: .*|\1base_url: \"$${CUSTOM_BASE_URL:-https://api.openai.com/v1}\"|" /opt/data/config.yaml 2>/dev/null || true
+        if [ -n "$$OPENAI_API_KEY" ] && [ -f /opt/data/.env ]; then
+          if grep -q '^OPENAI_API_KEY=' /opt/data/.env; then
+            sed -i "s|^OPENAI_API_KEY=.*|OPENAI_API_KEY=$$OPENAI_API_KEY|" /opt/data/.env
+          else
+            printf '\nOPENAI_API_KEY=%s\n' "$$OPENAI_API_KEY" >> /opt/data/.env
+          fi
+        fi
+        /opt/hermes/.venv/bin/hermes gateway run
+    environment:
+      API_SERVER_ENABLED: "true"
+      API_SERVER_HOST: 0.0.0.0
+      API_SERVER_PORT: 8642
+      API_SERVER_KEY: ${HERMES_API_KEY:-local-hermes-api-key}
+      HERMES_INFERENCE_PROVIDER: ${HERMES_INFERENCE_PROVIDER:-custom}
+      HERMES_INFERENCE_MODEL: ${HERMES_INFERENCE_MODEL:-gpt-5.4-mini}
+      HERMES_MODEL: ${HERMES_INFERENCE_MODEL:-gpt-5.4-mini}
+      CUSTOM_BASE_URL: ${HERMES_CUSTOM_BASE_URL:-https://api.openai.com/v1}
+      # OPENAI_API_KEY comes from env_file — do not set empty defaults here
+    expose:
+      - "8642"
+    volumes:
+      - minha_casa_local_hermes_data:/opt/data
+      - minha_casa_local_hermes_jobs:/work/hermes-jobs
     networks:
       - minha_casa_local
 
@@ -134,3 +185,5 @@ volumes:
   minha_casa_app_pgdata:
   minha_casa_local_minio:
   minha_casa_local_pnpm_store:
+  minha_casa_local_hermes_data:
+  minha_casa_local_hermes_jobs:

@@ -28,6 +28,12 @@ config :minha_casa_ai, MinhaCasaAiWeb.Endpoint,
 config :minha_casa_ai, MinhaCasaAi.Config,
   internal_api_secret: System.get_env("INTERNAL_API_SECRET"),
   openai_api_key: System.get_env("OPENAI_API_KEY"),
+  hermes_api_url: System.get_env("HERMES_API_URL"),
+  hermes_api_key: System.get_env("HERMES_API_KEY"),
+  hermes_jobs_dir: System.get_env("HERMES_JOBS_DIR") || "/work/hermes-jobs",
+  hermes_analysis_timeout_ms:
+    String.to_integer(System.get_env("HERMES_ANALYSIS_TIMEOUT_MS") || "1800000"),
+  property_analysis_engine: System.get_env("PROPERTY_ANALYSIS_ENGINE"),
   scrapingant_api_key: System.get_env("SCRAPINGANT_API_KEY"),
   brave_search_api_key: System.get_env("BRAVE_SEARCH_API_KEY"),
   google_maps_server_api_key:
@@ -44,7 +50,8 @@ config :minha_casa_ai, MinhaCasaAi.Config,
   telegram_bot_token: System.get_env("TELEGRAM_BOT_TOKEN"),
   telegram_webhook_secret: System.get_env("TELEGRAM_WEBHOOK_SECRET"),
   app_public_url:
-    System.get_env("APP_PUBLIC_URL") || System.get_env("NEXT_PUBLIC_APP_URL") || "http://localhost:3000",
+    System.get_env("APP_PUBLIC_URL") || System.get_env("NEXT_PUBLIC_APP_URL") ||
+      "http://localhost:3000",
   assistant_llm_enabled: System.get_env("ASSISTANT_LLM_ENABLED", "true") not in ["false", "0"],
   openai_model:
     System.get_env("OPENAI_MODEL") ||

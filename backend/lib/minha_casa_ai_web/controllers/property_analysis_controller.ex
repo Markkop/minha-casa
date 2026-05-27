@@ -2,6 +2,7 @@ defmodule MinhaCasaAiWeb.PropertyAnalysisController do
   use MinhaCasaAiWeb, :controller
 
   alias MinhaCasaAi.PropertyAnalyses
+  alias MinhaCasaAi.Workers.{PropertyAnalysisCardXrayWorker, PropertyAnalysisStepWorker}
   alias MinhaCasaAi.Workflows
   alias MinhaCasaAi.Workspace.Profile
 
@@ -37,6 +38,93 @@ defmodule MinhaCasaAiWeb.PropertyAnalysisController do
 
       {:error, reason} ->
         conn |> put_status(:unprocessable_entity) |> json(%{error: inspect(reason)})
+    end
+  end
+
+  def retry_step(conn, %{"id" => id, "step" => step}) do
+    case profile(conn) do
+      {:ok, profile} ->
+        cond do
+          step == "xray" ->
+            conn
+            |> put_status(:bad_request)
+            |> json(%{error: "Use POST .../ambientes/:ambiente_id/xray/retry para reexecutar o x-ray."})
+
+          PropertyAnalyses.valid_pipeline_step?(step) ->
+            do_retry_step(conn, id, step, profile)
+
+          true ->
+            conn |> put_status(:bad_request) |> json(%{error: "Invalid step: #{step}"})
+        end
+
+      {:error, status, message} ->
+        error(conn, status, message)
+    end
+  end
+
+  defp do_retry_step(conn, id, step, profile) do
+    case PropertyAnalyses.get_for_profile(id, profile) do
+      {:ok, analysis} ->
+        if analysis.status in ["queued", "running"] do
+          conn
+          |> put_status(:conflict)
+          |> json(%{error: "Análise completa em andamento; aguarde ou atualize a página."})
+        else
+          analysis = PropertyAnalyses.mark_step_running!(analysis.id, step)
+
+          %{analysis_id: analysis.id, step: step}
+          |> PropertyAnalysisStepWorker.new()
+          |> Oban.insert!()
+
+          conn
+          |> put_status(:accepted)
+          |> json(%{analysis: analysis_json(analysis)})
+        end
+
+      {:error, :not_found} ->
+        conn |> put_status(:not_found) |> json(%{error: "Analysis not found"})
+    end
+  end
+
+  def retry_card_xray(conn, %{"id" => id, "ambiente_id" => ambiente_id}) do
+    case profile(conn) do
+      {:ok, profile} ->
+        do_retry_card_xray(conn, id, ambiente_id, profile)
+
+      {:error, status, message} ->
+        error(conn, status, message)
+    end
+  end
+
+  defp do_retry_card_xray(conn, id, ambiente_id, profile) do
+    case PropertyAnalyses.get_for_profile(id, profile) do
+      {:ok, analysis} ->
+        if analysis.status in ["queued", "running"] do
+          conn
+          |> put_status(:conflict)
+          |> json(%{error: "Análise completa em andamento; aguarde ou atualize a página."})
+        else
+          card = PropertyAnalyses.get_ambiente_card(analysis, ambiente_id)
+
+          if is_nil(card) do
+            conn |> put_status(:not_found) |> json(%{error: "Ambiente não encontrado"})
+          else
+            PropertyAnalyses.mark_ambiente_xray_running!(analysis.id, ambiente_id)
+
+            %{analysis_id: analysis.id, ambiente_id: ambiente_id}
+            |> PropertyAnalysisCardXrayWorker.new()
+            |> Oban.insert!()
+
+            analysis = PropertyAnalyses.get!(analysis.id)
+
+            conn
+            |> put_status(:accepted)
+            |> json(%{analysis: analysis_json(analysis)})
+          end
+        end
+
+      {:error, :not_found} ->
+        conn |> put_status(:not_found) |> json(%{error: "Analysis not found"})
     end
   end
 

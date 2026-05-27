@@ -1,134 +1,161 @@
 export type ListingAnalysisStatus = "queued" | "running" | "completed" | "failed"
 
+/** Saved analyse result contract (Hermes multi-step pipeline, schema v6). */
+export const LISTING_ANALYSIS_SCHEMA_VERSION = 6 as const
+
+export const LISTING_ANALYSIS_PIPELINE_STEPS = [
+  "clima",
+  "riscos",
+  "mercado",
+  "ambientes",
+  "idade",
+  "xray",
+] as const
+
+export type ListingAnalysisPipelineStep =
+  (typeof LISTING_ANALYSIS_PIPELINE_STEPS)[number]
+
+export type AmbienteCategoria =
+  | "sala"
+  | "cozinha"
+  | "quarto"
+  | "banheiro"
+  | "areaServico"
+  | "varanda"
+  | "areaExterna"
+  | "garagem"
+  | "fachada"
+  | "areaComum"
+  | "circulacao"
+  | "escritorio"
+  | "closet"
+  | "deposito"
+  | "vista"
+
+export const MULTI_AMBIENTE_CATEGORIES: AmbienteCategoria[] = [
+  "sala",
+  "quarto",
+  "banheiro",
+  "varanda",
+  "areaComum",
+  "circulacao",
+  "escritorio",
+]
+
+export type AmbienteXrayStatus = "waiting" | "pending" | "done" | "failed"
+
+export interface ClimaRange {
+  minC?: number
+  maxC?: number
+  descricao: string
+}
+
+export interface UmidadeRange {
+  minPct?: number
+  maxPct?: number
+  descricao: string
+}
+
+export interface ChuvaInfo {
+  descricao: string
+  mmAnualEstimado?: number
+}
+
+export interface ClimaSection {
+  resumo: string
+  temperaturas: ClimaRange
+  umidade: UmidadeRange
+  chuva: ChuvaInfo
+  skipped?: boolean
+  reason?: string
+}
+
+export interface RiscosSection {
+  paragrafo: string
+  tags?: string[]
+  skipped?: boolean
+  reason?: string
+}
+
+export interface MercadoSection {
+  paragrafo: string
+  precoRegiaoM2?: number
+  precoSimilaresM2?: number
+  precoCidadeM2?: number
+  precoAnuncioM2?: number
+  skipped?: boolean
+  reason?: string
+}
+
+export interface IdadeSection {
+  estimativaAnos?: number
+  faixaAnos?: { min: number; max: number }
+  resumo: string
+  sinaisVistos: string[]
+  skipped?: boolean
+  reason?: string
+}
+
+export interface InventoryItem {
+  tipo: string
+  material?: string
+  detalhe?: string
+}
+
+export interface PontoAtencao {
+  id: string
+  titulo: string
+  descricao: string
+  custoMinBrl: number
+  custoMaxBrl: number
+  detalhes?: string
+}
+
+export interface AmbienteCard {
+  id: string
+  categoria: AmbienteCategoria
+  ordinal?: number
+  rotulo: string
+  imageIndices: number[]
+  /** Internal / optional; not shown in UI */
+  resumo?: string
+  estrutura: InventoryItem[]
+  instalacoes: InventoryItem[]
+  moveis: InventoryItem[]
+  xrayStatus?: AmbienteXrayStatus
+  xrayError?: string
+  pontosAtencao?: PontoAtencao[]
+}
+
+export interface AmbientesSection {
+  resumoGeral: string
+  cards: AmbienteCard[]
+  semCategoria?: { imageIndices: number[] }
+  skipped?: boolean
+  reason?: string
+}
+
+export interface ListingAnalysisStepError {
+  reason: string
+  occurredAt: string
+}
+
 export interface ListingAnalysisResult {
-  schemaVersion: number
-  completedSteps: string[]
-  geocode?: GeocodeSection
-  nearby?: NearbySection
-  market?: MarketSection
-  locationContext?: LocationContextSection
-  inventory?: InventorySection
-  spaceAudit?: SpaceAuditSection
-  riskXray?: RiskXraySection
-  /** @deprecated schema v1 */
-  photos?: PhotosSection
-  /** @deprecated schema v1 */
-  viewingTips?: ViewingTipsSection
+  schemaVersion: typeof LISTING_ANALYSIS_SCHEMA_VERSION
+  completedSteps: ListingAnalysisPipelineStep[]
+  failedSteps?: ListingAnalysisPipelineStep[]
+  runningSteps?: ListingAnalysisPipelineStep[]
+  stepErrors?: Partial<
+    Record<ListingAnalysisPipelineStep, ListingAnalysisStepError>
+  >
+  clima?: ClimaSection
+  riscos?: RiscosSection
+  mercado?: MercadoSection
+  ambientes?: AmbientesSection
+  idade?: IdadeSection
 }
 
-export interface LocationContextSection {
-  summary?: string
-  city?: string | null
-  neighborhood?: string | null
-  formattedAddress?: string | null
-}
-
-export interface InventorySection {
-  images?: PhotoAnalysisItem[]
-  skipped?: boolean
-  reason?: string
-}
-
-export type SpaceMatchStatus =
-  | "match"
-  | "partial_mismatch"
-  | "insufficient_photos"
-  | "pending"
-
-export interface SpaceReconciliationGap {
-  type?: string
-  label?: string
-  note?: string | null
-}
-
-export interface SpaceAction {
-  action?: "merge" | "split" | "reassign_photos" | "hide" | string
-  fromSpaceId?: string | null
-  toSpaceIds?: string[]
-  imageIndices?: number[]
-  note?: string | null
-}
-
-export interface SpaceReconciliation {
-  listingSummary?: string | null
-  detectedSummary?: string | null
-  matchStatus?: SpaceMatchStatus
-  reflections?: string[]
-  missing?: SpaceReconciliationGap[]
-  extra?: SpaceReconciliationGap[]
-  photoCoverage?: string | null
-  reason?: string | null
-  spaceActions?: SpaceAction[]
-}
-
-export interface MappedSpace {
-  spaceId: string
-  label: string
-  scene: string
-  imageIndices: number[]
-  listingRole?: string | null
-  visible?: boolean
-}
-
-export interface SpaceAuditSection {
-  spaces?: MappedSpace[]
-  /** Final spaces for UI after reconciliation (schema v3) */
-  displaySpaces?: MappedSpace[]
-  reconciliation?: SpaceReconciliation
-  skipped?: boolean
-  reason?: string
-  provisional?: boolean
-}
-
-export interface RiskCostEstimate {
-  solution?: string | null
-  costMinBrl?: number | null
-  costMaxBrl?: number | null
-  notes?: string | null
-}
-
-export interface BlindSpot {
-  title: string
-  whyCheck: string
-  visitQuestion: string
-  estimate?: RiskCostEstimate | null
-}
-
-export interface EnvironmentRiskXray {
-  spaceId?: string
-  scene: string
-  label: string
-  imageIndices: number[]
-  listingRole?: string | null
-  status?: "pending" | "running" | "completed" | "failed" | "skipped"
-  inventory?: { items?: string[] }
-  blindSpots?: BlindSpot[]
-  agents?: {
-    inventariante?: string
-    engenheiroCetico?: string
-    orcamentista?: string
-  }
-}
-
-export interface RiskXraySection {
-  environments?: EnvironmentRiskXray[]
-  totals?: { costMinBrl?: number; costMaxBrl?: number }
-  skipped?: boolean
-  reason?: string
-}
-
-export interface GeocodeSection {
-  lat?: number
-  lng?: number
-  formattedAddress?: string
-  source?: string
-  skipped?: boolean
-  reason?: string
-  query?: string
-  hint?: string | null
-  priorReason?: string
-}
-
+/** Proximidades (endpoint separado; não faz parte do JSON da análise profunda). */
 export interface NearbyPlace {
   name: string
   rating?: number | null
@@ -148,75 +175,6 @@ export interface NearbySection {
   skipped?: boolean
   reason?: string
   hint?: string | null
-  /** @deprecated only on legacy analyses that ran nearby inside the pipeline */
-  error?: string
-}
-
-export interface MarketSection {
-  listingPriceM2?: number | null
-  regionBenchmark?: {
-    id?: string
-    neighborhood?: string
-    city?: string
-    propertyType?: string
-    pricePerM2?: number
-    notes?: string | null
-  } | null
-  deltaPercent?: number | null
-  braveSummary?: string | null
-  sources?: { title: string; url: string; description?: string | null }[]
-}
-
-export interface PhotoObservation {
-  scene?: string | null
-  spaceHint?: string | null
-  distinctivenessNotes?: string | null
-  structure?: string | null
-  floor?: string | null
-  walls?: string | null
-  ceiling?: string | null
-  baseboard?: string | null
-  /** Short UI chips; rich fields (floor, walls, …) feed downstream agents */
-  inventoryLabels?: string[]
-  openings?: string | null
-  wetArea?: string | null
-  wetAreaFixtures?: string | null
-  /** @deprecated legacy fields from older analyses */
-  windows?: string | null
-  fixtures?: string | null
-  conditionNotes?: string | null
-  materialsSpotted?: string[]
-  signalsToInvestigate?: string[]
-  questionsForVisit?: string[]
-}
-
-export interface PhotoAnalysisItem {
-  index: number
-  url?: string | null
-  spaceId?: string | null
-  observations?: PhotoObservation
-  error?: string
-}
-
-export interface PhotosSection {
-  images?: PhotoAnalysisItem[]
-  skipped?: boolean
-  reason?: string
-}
-
-export interface ViewingQuestion {
-  area: string
-  question: string
-  why: string
-  expectedAnswers: string[]
-  priority: "high" | "medium" | "low"
-  /** 0-based listing image indices (1–3) that illustrate this question */
-  imageIndices?: number[]
-}
-
-export interface ViewingTipsSection {
-  questions?: ViewingQuestion[]
-  fallback?: boolean
 }
 
 export interface ListingAnalysis {
@@ -229,4 +187,49 @@ export interface ListingAnalysis {
   error: string | null
   insertedAt: string
   updatedAt: string
+}
+
+export function isListingAnalysisV6(
+  result: ListingAnalysisResult | null | undefined
+): result is ListingAnalysisResult {
+  return result?.schemaVersion === LISTING_ANALYSIS_SCHEMA_VERSION
+}
+
+/** @deprecated Use isListingAnalysisV6 */
+export function isListingAnalysisV5(
+  result: ListingAnalysisResult | null | undefined
+): boolean {
+  return isListingAnalysisV6(result)
+}
+
+/** @deprecated Use isListingAnalysisV6 */
+export function isListingAnalysisV4(
+  result: ListingAnalysisResult | null | undefined
+): boolean {
+  return isListingAnalysisV6(result)
+}
+
+export function sumAmbienteXrayTotals(cards: AmbienteCard[]): {
+  totalMinBrl: number
+  totalMaxBrl: number
+} {
+  return cards.reduce(
+    (acc, card) => {
+      if (card.xrayStatus !== "done" || !card.pontosAtencao?.length) {
+        return acc
+      }
+      for (const p of card.pontosAtencao) {
+        acc.totalMinBrl += p.custoMinBrl ?? 0
+        acc.totalMaxBrl += p.custoMaxBrl ?? 0
+      }
+      return acc
+    },
+    { totalMinBrl: 0, totalMaxBrl: 0 }
+  )
+}
+
+export function hasPendingAmbienteXray(
+  cards: AmbienteCard[] | undefined
+): boolean {
+  return (cards ?? []).some((c) => c.xrayStatus === "pending")
 }

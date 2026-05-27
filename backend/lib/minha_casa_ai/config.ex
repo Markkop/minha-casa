@@ -3,6 +3,24 @@ defmodule MinhaCasaAi.Config do
   def openai_api_key, do: get(:openai_api_key)
   def openai_model, do: get(:openai_model) || "gpt-5.4-mini"
   def openai_reasoning_effort, do: get(:openai_reasoning_effort) || "low"
+  def hermes_api_url, do: get(:hermes_api_url)
+  def hermes_api_key, do: get(:hermes_api_key)
+  def hermes_analysis_timeout_ms, do: get(:hermes_analysis_timeout_ms) || 1_800_000
+  def hermes_jobs_dir, do: get(:hermes_jobs_dir) || "/work/hermes-jobs"
+
+  def property_analysis_engine do
+    case get(:property_analysis_engine) do
+      value when is_binary(value) ->
+        if String.trim(value) == "", do: default_property_analysis_engine(), else: value
+
+      nil ->
+        default_property_analysis_engine()
+
+      value ->
+        to_string(value)
+    end
+  end
+
   def scrapingant_api_key, do: get(:scrapingant_api_key)
   def brave_search_api_key, do: get(:brave_search_api_key)
   def google_maps_server_api_key, do: get(:google_maps_server_api_key)
@@ -17,6 +35,7 @@ defmodule MinhaCasaAi.Config do
   def telegram_bot_token, do: get(:telegram_bot_token)
   def telegram_webhook_secret, do: get(:telegram_webhook_secret)
   def app_public_url, do: get(:app_public_url)
+
   def assistant_llm_enabled? do
     case get(:assistant_llm_enabled) do
       false -> false
@@ -29,6 +48,7 @@ defmodule MinhaCasaAi.Config do
   def configured?(:assistant_llm), do: assistant_llm_enabled?() and configured?(:openai)
 
   def configured?(:openai), do: present?(openai_api_key())
+  def configured?(:hermes), do: present?(hermes_api_url()) and present?(hermes_api_key())
   def configured?(:scrapingant), do: present?(scrapingant_api_key())
   def configured?(:brave_search), do: present?(brave_search_api_key())
   def configured?(:google_maps), do: present?(google_maps_server_api_key())
@@ -54,4 +74,8 @@ defmodule MinhaCasaAi.Config do
 
   defp get(key), do: Application.get_env(:minha_casa_ai, __MODULE__, []) |> Keyword.get(key)
   defp present?(value), do: is_binary(value) && String.trim(value) != ""
+
+  defp default_property_analysis_engine do
+    if configured?(:hermes), do: "hermes", else: "legacy"
+  end
 end

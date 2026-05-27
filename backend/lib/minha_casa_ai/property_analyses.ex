@@ -11,7 +11,11 @@ defmodule MinhaCasaAi.PropertyAnalyses do
   alias MinhaCasaAi.Workspace.Profile
 
   @active_statuses ["queued", "running"]
-  @schema_version 3
+  @schema_version 6
+  @pipeline_steps ~w(clima riscos mercado ambientes idade xray)
+
+  def valid_pipeline_step?(step) when is_binary(step), do: step in @pipeline_steps
+  def valid_pipeline_step?(_), do: false
 
   def create(listing_id, opts) do
     user_id = Keyword.get(opts, :user_id)
@@ -20,7 +24,8 @@ defmodule MinhaCasaAi.PropertyAnalyses do
 
     force? = force_new_run?(input)
 
-    with {:ok, listing} <- Listings.get_listing_by_id(listing_id, user_id: user_id, org_id: org_id),
+    with {:ok, listing} <-
+           Listings.get_listing_by_id(listing_id, user_id: user_id, org_id: org_id),
          {:ok, profile} <- profile_tuple(user_id, org_id),
          {:ok, decision} <-
            if(force?, do: {:ok, :proceed}, else: ensure_not_running(listing_id, profile)) do
@@ -132,6 +137,357 @@ defmodule MinhaCasaAi.PropertyAnalyses do
     update_analysis!(analysis, %{status: "failed", error: to_string(message)})
   end
 
+  def replace_result!(%ListingAnalysis{} = analysis, result) when is_map(result) do
+    analysis = update_analysis!(analysis, %{result: result})
+    sync_workflow_result!(analysis)
+    analysis
+  end
+
+  @doc """
+  Atomically merges one pipeline step section into the analysis result (row-locked).
+  """
+  def patch_result!(analysis_id, step_key, step_data)
+      when is_binary(analysis_id) and is_binary(step_key) and is_map(step_data) do
+    {:ok, analysis} =
+      Repo.transaction(fn ->
+        locked =
+          from(a in ListingAnalysis, where: a.id == ^analysis_id, lock: "FOR UPDATE")
+          |> Repo.one!()
+
+        result = locked.result || initial_result()
+        completed = result["completedSteps"] || []
+
+        completed =
+          if step_key in completed, do: completed, else: completed ++ [step_key]
+
+        failed = result["failedSteps"] || []
+        failed = Enum.reject(failed, &(&1 == step_key))
+
+        merged =
+          result
+          |> Map.put(step_key, step_data)
+          |> Map.put("completedSteps", completed)
+          |> Map.put("failedSteps", failed)
+          |> clear_step_running(step_key)
+          |> delete_step_error(step_key)
+          |> Map.put("schemaVersion", @schema_version)
+
+        locked |> update_analysis!(%{result: merged})
+      end)
+
+    sync_workflow_result!(analysis)
+    analysis
+  end
+
+  def mark_step_running!(analysis_id, step_key)
+      when is_binary(analysis_id) and is_binary(step_key) do
+    {:ok, analysis} =
+      Repo.transaction(fn ->
+        locked =
+          from(a in ListingAnalysis, where: a.id == ^analysis_id, lock: "FOR UPDATE")
+          |> Repo.one!()
+
+        result = locked.result || initial_result()
+        running = result["runningSteps"] || []
+
+        running =
+          if step_key in running, do: running, else: running ++ [step_key]
+
+        failed = result["failedSteps"] || []
+        failed = Enum.reject(failed, &(&1 == step_key))
+
+        merged =
+          result
+          |> Map.put("runningSteps", running)
+          |> Map.put("failedSteps", failed)
+          |> Map.put("schemaVersion", @schema_version)
+
+        locked |> update_analysis!(%{result: merged})
+      end)
+
+    sync_workflow_result!(analysis)
+    analysis
+  end
+
+  def clear_step_running!(analysis_id, step_key)
+      when is_binary(analysis_id) and is_binary(step_key) do
+    {:ok, analysis} =
+      Repo.transaction(fn ->
+        locked =
+          from(a in ListingAnalysis, where: a.id == ^analysis_id, lock: "FOR UPDATE")
+          |> Repo.one!()
+
+        result = locked.result || initial_result()
+
+        merged =
+          result
+          |> clear_step_running(step_key)
+          |> Map.put("schemaVersion", @schema_version)
+
+        locked |> update_analysis!(%{result: merged})
+      end)
+
+    sync_workflow_result!(analysis)
+    analysis
+  end
+
+  def mark_step_failed!(analysis_id, step_key, reason)
+      when is_binary(analysis_id) and is_binary(step_key) do
+    {:ok, analysis} =
+      Repo.transaction(fn ->
+        locked =
+          from(a in ListingAnalysis, where: a.id == ^analysis_id, lock: "FOR UPDATE")
+          |> Repo.one!()
+
+        result = locked.result || initial_result()
+        failed = result["failedSteps"] || []
+
+        failed =
+          if step_key in failed, do: failed, else: failed ++ [step_key]
+
+        merged =
+          result
+          |> Map.put("failedSteps", failed)
+          |> put_step_error(step_key, reason)
+          |> clear_step_running(step_key)
+          |> Map.put("schemaVersion", @schema_version)
+
+        locked |> update_analysis!(%{result: merged})
+      end)
+
+    sync_workflow_result!(analysis)
+    analysis
+  end
+
+  @doc """
+  Formats Hermes/pipeline errors into a short user-facing string for stepErrors.
+  """
+  @doc """
+  Row-locked: writes x-ray pontos on one ambiente card and marks xrayStatus done.
+  """
+  def patch_ambiente_xray!(analysis_id, ambiente_id, pontos)
+      when is_binary(analysis_id) and is_binary(ambiente_id) and is_list(pontos) do
+    {:ok, analysis} =
+      Repo.transaction(fn ->
+        locked =
+          from(a in ListingAnalysis, where: a.id == ^analysis_id, lock: "FOR UPDATE")
+          |> Repo.one!()
+
+        result = locked.result || initial_result()
+        ambientes = Map.get(result, "ambientes", %{})
+        cards = Map.get(ambientes, "cards", [])
+
+        cards =
+          Enum.map(cards, fn card ->
+            if Map.get(card, "id") == ambiente_id do
+              card
+              |> Map.put("pontosAtencao", pontos)
+              |> Map.put("xrayStatus", "done")
+              |> Map.delete("xrayError")
+            else
+              card
+            end
+          end)
+
+        ambientes = Map.put(ambientes, "cards", cards)
+        merged = merge_xray_step_completion(result, ambientes)
+
+        locked |> update_analysis!(%{result: merged})
+      end)
+
+    sync_workflow_result!(analysis)
+    analysis
+  end
+
+  def mark_ambiente_xray_running!(analysis_id, ambiente_id)
+      when is_binary(analysis_id) and is_binary(ambiente_id) do
+    update_ambiente_xray_status!(analysis_id, ambiente_id, "pending", nil)
+  end
+
+  def mark_ambiente_xray_failed!(analysis_id, ambiente_id, reason)
+      when is_binary(analysis_id) and is_binary(ambiente_id) do
+    msg = format_step_reason(reason)
+    update_ambiente_xray_status!(analysis_id, ambiente_id, "failed", msg)
+  end
+
+  def reset_ambiente_xrays!(analysis_id) when is_binary(analysis_id) do
+    {:ok, analysis} =
+      Repo.transaction(fn ->
+        locked =
+          from(a in ListingAnalysis, where: a.id == ^analysis_id, lock: "FOR UPDATE")
+          |> Repo.one!()
+
+        result = locked.result || initial_result()
+        ambientes = Map.get(result, "ambientes", %{})
+
+        cards =
+          (Map.get(ambientes, "cards") || [])
+          |> Enum.map(fn card ->
+            card
+            |> Map.put("xrayStatus", "waiting")
+            |> Map.put("pontosAtencao", [])
+            |> Map.delete("xrayError")
+          end)
+
+        ambientes = Map.put(ambientes, "cards", cards)
+
+        merged =
+          result
+          |> Map.put("ambientes", ambientes)
+          |> remove_xray_from_completed()
+
+        locked |> update_analysis!(%{result: merged})
+      end)
+
+    sync_workflow_result!(analysis)
+    analysis
+  end
+
+  def get_ambiente_card(%ListingAnalysis{} = analysis, ambiente_id) do
+    cards = get_in(analysis.result || %{}, ["ambientes", "cards"]) || []
+
+    Enum.find(cards, fn card -> Map.get(card, "id") == ambiente_id end)
+  end
+
+  defp update_ambiente_xray_status!(analysis_id, ambiente_id, status, error_msg) do
+    {:ok, analysis} =
+      Repo.transaction(fn ->
+        locked =
+          from(a in ListingAnalysis, where: a.id == ^analysis_id, lock: "FOR UPDATE")
+          |> Repo.one!()
+
+        result = locked.result || initial_result()
+        ambientes = Map.get(result, "ambientes", %{})
+        cards = Map.get(ambientes, "cards", [])
+
+        cards =
+          Enum.map(cards, fn card ->
+            if Map.get(card, "id") == ambiente_id do
+              card =
+                card
+                |> Map.put("xrayStatus", status)
+                |> Map.put("pontosAtencao", [])
+
+              if error_msg do
+                Map.put(card, "xrayError", error_msg)
+              else
+                Map.delete(card, "xrayError")
+              end
+            else
+              card
+            end
+          end)
+
+        ambientes = Map.put(ambientes, "cards", cards)
+        merged = Map.put(result, "ambientes", ambientes) |> Map.put("schemaVersion", @schema_version)
+
+        locked |> update_analysis!(%{result: merged})
+      end)
+
+    sync_workflow_result!(analysis)
+    analysis
+  end
+
+  defp merge_xray_step_completion(result, ambientes) do
+    cards = Map.get(ambientes, "cards", [])
+
+    all_done? =
+      cards != [] and Enum.all?(cards, fn c -> Map.get(c, "xrayStatus") == "done" end)
+
+    result =
+      result
+      |> Map.put("ambientes", ambientes)
+      |> Map.put("schemaVersion", @schema_version)
+
+    if all_done? do
+      completed = result["completedSteps"] || []
+
+      completed =
+        if "xray" in completed, do: completed, else: completed ++ ["xray"]
+
+      failed = result["failedSteps"] || []
+      failed = Enum.reject(failed, &(&1 == "xray"))
+
+      result
+      |> Map.put("completedSteps", completed)
+      |> Map.put("failedSteps", failed)
+      |> delete_step_error("xray")
+    else
+      any_failed? = Enum.any?(cards, fn c -> Map.get(c, "xrayStatus") == "failed" end)
+
+      if any_failed? do
+        failed = result["failedSteps"] || []
+        failed = if "xray" in failed, do: failed, else: failed ++ ["xray"]
+        Map.put(result, "failedSteps", failed)
+      else
+        result |> remove_xray_from_completed()
+      end
+    end
+  end
+
+  defp remove_xray_from_completed(result) do
+    completed = result["completedSteps"] || []
+    Map.put(result, "completedSteps", Enum.reject(completed, &(&1 == "xray")))
+  end
+
+  def format_step_reason(reason) do
+    case reason do
+      :hermes_timeout ->
+        "Tempo excedido aguardando o Hermes."
+
+      :hermes_not_configured ->
+        "Hermes não configurado (HERMES_API_URL / HERMES_API_KEY)."
+
+      :invalid_hermes_json ->
+        "Resposta não-JSON do Hermes."
+
+      :hermes_run_cancelled ->
+        "Execução cancelada no Hermes."
+
+      {:hermes_run_failed, msg} ->
+        "Hermes: #{truncate_reason(msg)}"
+
+      {:hermes_http_error, status, body} ->
+        "HTTP #{status}: #{truncate_reason(body)}"
+
+      {:hermes_network_error, err} ->
+        "Erro de rede: #{truncate_reason(err)}"
+
+      {:missing_hermes_output, _} ->
+        "Hermes não retornou saída estruturada."
+
+      {:invalid_hermes_create_response, _} ->
+        "Resposta inválida ao criar execução no Hermes."
+
+      {:invalid_hermes_run_response, _} ->
+        "Resposta inválida ao consultar execução no Hermes."
+
+      %{"skipped" => true, "reason" => r} when is_binary(r) ->
+        r
+
+      other when is_binary(other) ->
+        String.trim(other)
+
+      other ->
+        other |> inspect(limit: 400) |> truncate_reason()
+    end
+  end
+
+  def finalize_result!(%ListingAnalysis{} = analysis) do
+    result = analysis.result || initial_result()
+
+    merged =
+      result
+      |> Map.put("schemaVersion", @schema_version)
+      |> then(fn r ->
+        if r["completedSteps"], do: r, else: Map.put(r, "completedSteps", [])
+      end)
+
+    analysis = update_analysis!(analysis, %{result: merged})
+    sync_workflow_result!(analysis)
+    analysis
+  end
+
   def merge_step!(%ListingAnalysis{} = analysis, step_key, step_data) when is_binary(step_key) do
     result = analysis.result || initial_result()
     completed = result["completedSteps"] || []
@@ -166,7 +522,10 @@ defmodule MinhaCasaAi.PropertyAnalyses do
           |> Repo.one!()
 
         result = locked.result || initial_result()
-        risk_xray = Map.get(result, "riskXray") || %{"environments" => [], "totals" => default_totals()}
+
+        risk_xray =
+          Map.get(result, "riskXray") || %{"environments" => [], "totals" => default_totals()}
+
         environments = Map.get(risk_xray, "environments") || []
 
         env_attrs =
@@ -359,7 +718,10 @@ defmodule MinhaCasaAi.PropertyAnalyses do
 
   defp scope_analysis(query, _), do: where(query, [a], false)
 
-  defp analysis_owned_by?(%ListingAnalysis{user_id: uid, org_id: nil}, %{user_id: puid, org_id: nil}) do
+  defp analysis_owned_by?(%ListingAnalysis{user_id: uid, org_id: nil}, %{
+         user_id: puid,
+         org_id: nil
+       }) do
     uid == puid
   end
 
@@ -399,8 +761,41 @@ defmodule MinhaCasaAi.PropertyAnalyses do
   end
 
   defp initial_result do
-    %{"schemaVersion" => @schema_version, "completedSteps" => []}
+    %{
+      "schemaVersion" => @schema_version,
+      "completedSteps" => [],
+      "failedSteps" => [],
+      "runningSteps" => [],
+      "stepErrors" => %{}
+    }
   end
+
+  defp clear_step_running(result, step_key) when is_map(result) do
+    running = result["runningSteps"] || []
+    Map.put(result, "runningSteps", Enum.reject(running, &(&1 == step_key)))
+  end
+
+  defp put_step_error(result, step_key, reason) when is_map(result) do
+    errors = result["stepErrors"] || %{}
+
+    entry = %{
+      "reason" => format_step_reason(reason),
+      "occurredAt" => DateTime.utc_now() |> DateTime.to_iso8601()
+    }
+
+    Map.put(result, "stepErrors", Map.put(errors, step_key, entry))
+  end
+
+  defp delete_step_error(result, step_key) when is_map(result) do
+    errors = result["stepErrors"] || %{}
+    Map.put(result, "stepErrors", Map.delete(errors, step_key))
+  end
+
+  defp truncate_reason(msg) when is_binary(msg) do
+    if String.length(msg) > 400, do: String.slice(msg, 0, 397) <> "...", else: msg
+  end
+
+  defp truncate_reason(msg), do: msg |> inspect(limit: 400) |> truncate_reason()
 
   defp result_schema_version(%{"schemaVersion" => v}) when is_integer(v) and v >= @schema_version,
     do: v
@@ -420,8 +815,8 @@ defmodule MinhaCasaAi.PropertyAnalyses do
         max_c = Map.get(est, "costMaxBrl")
 
         {
-          acc_min + (if is_integer(min_c), do: min_c, else: 0),
-          acc_max + (if is_integer(max_c), do: max_c, else: 0)
+          acc_min + if(is_integer(min_c), do: min_c, else: 0),
+          acc_max + if(is_integer(max_c), do: max_c, else: 0)
         }
       end)
 

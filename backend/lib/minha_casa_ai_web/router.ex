@@ -43,6 +43,11 @@ defmodule MinhaCasaAiWeb.Router do
     post "/saved-links/:id/enrich", SavedLinkController, :enrich
     post "/property-analyses", PropertyAnalysisController, :create
     get "/property-analyses/:id", PropertyAnalysisController, :show
+    post "/property-analyses/:id/steps/:step/retry", PropertyAnalysisController, :retry_step
+
+    post "/property-analyses/:id/ambientes/:ambiente_id/xray/retry",
+         PropertyAnalysisController,
+         :retry_card_xray
     get "/listings/:listing_id/analyses/latest", PropertyAnalysisController, :latest
     get "/listings/:listing_id/nearby", ListingNearbyController, :show
   end

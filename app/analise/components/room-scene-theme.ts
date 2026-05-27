@@ -111,6 +111,22 @@ export function themeForScene(scene?: string | null): SceneTheme {
   return SCENE_THEMES[key] ?? DEFAULT_THEME
 }
 
+const CATEGORIA_SCENE_MAP: Record<string, string> = {
+  areaServico: "lavanderia",
+  areaExterna: "area externa",
+  areaComum: "sala",
+  circulacao: "indefinido",
+  escritorio: "sala",
+  closet: "quarto",
+  deposito: "indefinido",
+  vista: "varanda",
+}
+
+export function themeForCategoria(categoria?: string | null): SceneTheme {
+  const scene = CATEGORIA_SCENE_MAP[categoria ?? ""] ?? categoria ?? "indefinido"
+  return themeForScene(scene)
+}
+
 export function sceneGroupKey(scene?: string | null, _listingRole?: string | null): string {
   return normalizeScene(scene)
 }

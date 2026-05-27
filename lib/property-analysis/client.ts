@@ -1,4 +1,4 @@
-import type { ListingAnalysis } from "./types"
+import type { ListingAnalysis, ListingAnalysisPipelineStep } from "./types"
 
 export async function fetchLatestListingAnalysis(
   listingId: string,
@@ -37,6 +37,42 @@ export async function startListingAnalysis(
   if (!res.ok) {
     const payload = (await res.json().catch(() => ({}))) as { error?: string }
     throw new Error(payload.error ?? "Failed to start analysis")
+  }
+  const data = (await res.json()) as { analysis: ListingAnalysis }
+  return data.analysis
+}
+
+export async function retryAmbienteXray(
+  analysisId: string,
+  ambienteId: string,
+  orgId?: string | null
+): Promise<ListingAnalysis> {
+  const params = orgId ? `?orgId=${encodeURIComponent(orgId)}` : ""
+  const res = await fetch(
+    `/api/property-analyses/${analysisId}/ambientes/${encodeURIComponent(ambienteId)}/xray/retry${params}`,
+    { method: "POST" }
+  )
+  if (!res.ok) {
+    const payload = (await res.json().catch(() => ({}))) as { error?: string }
+    throw new Error(payload.error ?? "Failed to retry ambiente x-ray")
+  }
+  const data = (await res.json()) as { analysis: ListingAnalysis }
+  return data.analysis
+}
+
+export async function retryAnalysisStep(
+  analysisId: string,
+  step: ListingAnalysisPipelineStep,
+  orgId?: string | null
+): Promise<ListingAnalysis> {
+  const params = orgId ? `?orgId=${encodeURIComponent(orgId)}` : ""
+  const res = await fetch(
+    `/api/property-analyses/${analysisId}/steps/${step}/retry${params}`,
+    { method: "POST" }
+  )
+  if (!res.ok) {
+    const payload = (await res.json().catch(() => ({}))) as { error?: string }
+    throw new Error(payload.error ?? "Failed to retry analysis step")
   }
   const data = (await res.json()) as { analysis: ListingAnalysis }
   return data.analysis

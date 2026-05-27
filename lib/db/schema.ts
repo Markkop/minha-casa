@@ -382,14 +382,22 @@ export const listings = pgTable(
 
 export type ListingAnalysisStatus = "queued" | "running" | "completed" | "failed"
 
+export interface ListingAnalysisStepError {
+  reason: string
+  occurredAt: string
+}
+
 export interface ListingAnalysisResult {
-  schemaVersion: number
+  schemaVersion: 6
   completedSteps: string[]
-  geocode?: Record<string, unknown>
-  nearby?: Record<string, unknown>
-  market?: Record<string, unknown>
-  photos?: Record<string, unknown>
-  viewingTips?: Record<string, unknown>
+  failedSteps?: string[]
+  runningSteps?: string[]
+  stepErrors?: Record<string, ListingAnalysisStepError>
+  clima?: Record<string, unknown>
+  riscos?: Record<string, unknown>
+  mercado?: Record<string, unknown>
+  ambientes?: Record<string, unknown>
+  idade?: Record<string, unknown>
 }
 
 export const listingAnalyses = pgTable(

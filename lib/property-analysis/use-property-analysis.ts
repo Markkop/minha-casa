@@ -4,13 +4,35 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import {
   fetchLatestListingAnalysis,
   fetchPropertyAnalysis,
+  retryAmbienteXray,
+  retryAnalysisStep,
   startListingAnalysis,
 } from "./client"
-import type { ListingAnalysis } from "./types"
+import type { ListingAnalysis, ListingAnalysisPipelineStep } from "./types"
+import { hasPendingAmbienteXray } from "./types"
 
 const POLL_MS = 2000
 /** Allow long runs when many photos are inventoried (up to ~40 vision calls). */
 const POLL_MAX_MS = 600_000
+
+function hasRunningSteps(analysis: ListingAnalysis | null | undefined): boolean {
+  return (analysis?.result?.runningSteps?.length ?? 0) > 0
+}
+
+function shouldPollAnalysis(analysis: ListingAnalysis): boolean {
+  if (analysis.status === "queued" || analysis.status === "running") {
+    return true
+  }
+  if (hasRunningSteps(analysis)) return true
+  if (hasPendingAmbienteXray(analysis.result?.ambientes?.cards)) return true
+  return false
+}
+
+function isPollTerminal(analysis: ListingAnalysis): boolean {
+  if (hasRunningSteps(analysis)) return false
+  if (hasPendingAmbienteXray(analysis.result?.ambientes?.cards)) return false
+  return analysis.status === "completed" || analysis.status === "failed"
+}
 
 export function usePropertyAnalysis(
   listingId: string | null,
@@ -72,10 +94,7 @@ export function usePropertyAnalysis(
           try {
             const data = await fetchPropertyAnalysis(analysisId, orgId)
             setAnalysis(data.analysis)
-            if (
-              data.analysis.status === "completed" ||
-              data.analysis.status === "failed"
-            ) {
+            if (isPollTerminal(data.analysis)) {
               stopPolling()
             }
           } catch {
@@ -101,7 +120,7 @@ export function usePropertyAnalysis(
           force: true,
         })
         setAnalysis(started)
-        if (started.status === "queued" || started.status === "running") {
+        if (shouldPollAnalysis(started)) {
           startPolling(started.id)
         }
       } catch (err) {
@@ -113,6 +132,44 @@ export function usePropertyAnalysis(
     [listingId, orgId, startPolling, stopPolling]
   )
 
+  const retryStep = useCallback(
+    async (step: ListingAnalysisPipelineStep) => {
+      if (!analysis?.id) return
+      setError(null)
+      try {
+        const updated = await retryAnalysisStep(analysis.id, step, orgId)
+        setAnalysis(updated)
+        if (shouldPollAnalysis(updated)) {
+          startPolling(updated.id)
+        }
+      } catch (err) {
+        setError(
+          err instanceof Error ? err.message : "Erro ao reexecutar etapa"
+        )
+      }
+    },
+    [analysis?.id, orgId, startPolling]
+  )
+
+  const retryAmbienteXrayStep = useCallback(
+    async (ambienteId: string) => {
+      if (!analysis?.id) return
+      setError(null)
+      try {
+        const updated = await retryAmbienteXray(analysis.id, ambienteId, orgId)
+        setAnalysis(updated)
+        if (shouldPollAnalysis(updated)) {
+          startPolling(updated.id)
+        }
+      } catch (err) {
+        setError(
+          err instanceof Error ? err.message : "Erro ao reexecutar x-ray do ambiente"
+        )
+      }
+    },
+    [analysis?.id, orgId, startPolling]
+  )
+
   useEffect(() => {
     stopPolling()
     setAnalysis(null)
@@ -122,11 +179,7 @@ export function usePropertyAnalysis(
   }, [listingId, orgId, refresh, stopPolling])
 
   useEffect(() => {
-    if (
-      analysis &&
-      (analysis.status === "queued" || analysis.status === "running") &&
-      !pollRef.current
-    ) {
+    if (analysis && shouldPollAnalysis(analysis) && !pollRef.current) {
       startPolling(analysis.id)
     }
   }, [analysis, startPolling])
@@ -142,5 +195,7 @@ export function usePropertyAnalysis(
     error,
     refresh,
     runAnalysis,
+    retryStep,
+    retryAmbienteXray: retryAmbienteXrayStep,
   }
 }

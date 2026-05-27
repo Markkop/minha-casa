@@ -8,7 +8,10 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { usePropertyAnalysis } from "@/lib/property-analysis/use-property-analysis"
-import { isStaleConfigResult } from "@/lib/property-analysis/stale-result"
+import {
+  isLegacyAnalysisResult,
+  isStaleConfigResult,
+} from "@/lib/property-analysis/stale-result"
 import { AnalysisSections } from "./analysis-sections"
 import { cn } from "@/lib/utils"
 
@@ -34,6 +37,8 @@ export function DeepAnalysisPanel({ listing, orgId }: DeepAnalysisPanelProps) {
     error,
     runAnalysis,
     refresh,
+    retryStep,
+    retryAmbienteXray,
   } = usePropertyAnalysis(listing.id, orgId)
 
   const needsAddress = !hasGeocodableAddress(listing)
@@ -43,6 +48,9 @@ export function DeepAnalysisPanel({ listing, orgId }: DeepAnalysisPanelProps) {
   const staleResult =
     analysis?.status === "completed" &&
     isStaleConfigResult(analysis.result ?? null)
+
+  const legacyResult =
+    analysis?.result != null && isLegacyAnalysisResult(analysis.result)
 
   const handleRun = () => {
     const override =
@@ -60,9 +68,9 @@ export function DeepAnalysisPanel({ listing, orgId }: DeepAnalysisPanelProps) {
               Análise profunda
             </h2>
             <p className="mt-1 max-w-xl text-sm text-app-muted">
-              Pipeline de agentes por ambiente: inventário factual das fotos, riscos ocultos
-              (pontos cegos) e faixas de custo de reparo para negociar e planejar o bolso
-              pós-compra. Resultados aparecem conforme cada etapa termina.
+              Pesquisa de clima, riscos naturais e mercado; reconhecimento dos ambientes
+              pelas fotos; estimativa de idade e orçamento por ponto de atenção. Os cards
+              aparecem conforme cada etapa termina.
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
@@ -128,14 +136,15 @@ export function DeepAnalysisPanel({ listing, orgId }: DeepAnalysisPanelProps) {
           </div>
         )}
 
-        {staleResult && !isRunning && (
+        {(staleResult || legacyResult) && !isRunning && (
           <p
             className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950"
             role="status"
           >
-            Este resultado foi gerado antes das chaves de API estarem ativas no servidor.
-            Clique em <strong>Executar nova análise</strong> para refazer com geocodificação,
-            proximidades e leitura das fotos.
+            {legacyResult
+              ? "Este resultado usa o formato antigo da análise."
+              : "Este resultado foi gerado antes das chaves de API estarem ativas no servidor."}{" "}
+            Clique em <strong>Executar nova análise</strong> para refazer.
           </p>
         )}
 
@@ -155,6 +164,8 @@ export function DeepAnalysisPanel({ listing, orgId }: DeepAnalysisPanelProps) {
         isRunning={isRunning}
         listing={listing}
         className={cn(isLoading && !analysis && "opacity-60")}
+        onRetryStep={(step) => void retryStep(step)}
+        onRetryAmbienteXray={(ambienteId) => void retryAmbienteXray(ambienteId)}
       />
     </div>
   )

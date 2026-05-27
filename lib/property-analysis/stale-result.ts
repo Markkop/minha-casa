@@ -1,23 +1,17 @@
 import type { ListingAnalysisResult } from "./types"
+import {
+  isListingAnalysisV6,
+  LISTING_ANALYSIS_SCHEMA_VERSION,
+} from "./types"
 
-/** Results saved before API keys were loaded on Phoenix. */
-export function isStaleConfigResult(result: ListingAnalysisResult | null | undefined): boolean {
+/** True when the saved result is not v6 (pre-redesign or missing API config). */
+export function isStaleConfigResult(result: ListingAnalysisResult | null): boolean {
   if (!result) return false
+  if (result.schemaVersion !== LISTING_ANALYSIS_SCHEMA_VERSION) return true
+  return !isListingAnalysisV6(result)
+}
 
-  if (result.geocode?.reason === "google_not_configured") return true
-
-  const images =
-    result.inventory?.images ?? result.photos?.images ?? []
-  if (
-    images.length > 0 &&
-    images.every(
-      (img) =>
-        img.error === "openai_not_configured" ||
-        String(img.error ?? "").includes("openai_not_configured")
-    )
-  ) {
-    return true
-  }
-
-  return false
+export function isLegacyAnalysisResult(result: ListingAnalysisResult | null): boolean {
+  if (!result) return false
+  return result.schemaVersion !== LISTING_ANALYSIS_SCHEMA_VERSION
 }
