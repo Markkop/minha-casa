@@ -117,3 +117,7 @@ export function buildListingMarkdown(imovel: Imovel): string {
 
   return lines.join("\n")
 }
+
+export function buildListingsMarkdown(listings: Imovel[]): string {
+  return listings.map(buildListingMarkdown).join("\n\n---\n\n")
+}

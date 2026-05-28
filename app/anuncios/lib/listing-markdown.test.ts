@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 import type { Imovel } from "./api"
-import { buildListingMarkdown } from "./listing-markdown"
+import { buildListingMarkdown, buildListingsMarkdown } from "./listing-markdown"
 
 function makeListing(overrides: Partial<Imovel> = {}): Imovel {
   return {
@@ -129,5 +129,18 @@ Garagem: 0 vagas`)
     expect(markdown).not.toContain("region-1")
     expect(markdown).not.toContain("secret-storage-key")
     expect(markdown).not.toContain("https://example.com/fachada.jpg")
+  })
+
+  it("builds a multi-listing markdown document with separators", () => {
+    expect(
+      buildListingsMarkdown([
+        makeListing({ titulo: "Casa A", link: "https://example.com/a" }),
+        makeListing({ titulo: "Casa B", link: "https://example.com/b" }),
+      ])
+    ).toContain(`Link do anúncio: https://example.com/a
+
+---
+
+## Casa B`)
   })
 })

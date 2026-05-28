@@ -60,7 +60,7 @@ import {
   type ListingsPropertyDisplayPrefs,
 } from "@/app/anuncios/lib/listings-display-prefs"
 import { buildWhatsAppUrl } from "@/app/anuncios/lib/listings-contact"
-import { buildListingMarkdown } from "@/app/anuncios/lib/listing-markdown"
+import { buildListingMarkdown, buildListingsMarkdown } from "@/app/anuncios/lib/listing-markdown"
 
 // ============================================================================
 // TYPES
@@ -589,6 +589,7 @@ export function ListingsTable({ listings, onListingsChange, hasApiKey = true }: 
   const [quickReparseChanges, setQuickReparseChanges] = useState<FieldChange[] | null>(null)
   const [quickReparseListing, setQuickReparseListing] = useState<Imovel | null>(null)
   const [copiedMarkdownListingId, setCopiedMarkdownListingId] = useState<string | null>(null)
+  const [copiedVisibleMarkdown, setCopiedVisibleMarkdown] = useState(false)
   const [visibleColumns, setVisibleColumns] = useState<Record<ListingsTableColumn, boolean>>({ ...DEFAULT_VISIBLE_COLUMNS })
   const [visibleColumnsLoaded, setVisibleColumnsLoaded] = useState(false)
   const [propertyDisplay, setPropertyDisplay] = useState<ListingsPropertyDisplayPrefs>({ ...DEFAULT_PROPERTY_DISPLAY })
@@ -1191,6 +1192,18 @@ export function ListingsTable({ listings, onListingsChange, hasApiKey = true }: 
     })
   }, [listings, searchQuery, sort, propertyTypeFilter, showStrikethrough])
 
+  const handleCopyVisibleListingsMarkdown = async () => {
+    if (filteredAndSortedListings.length === 0) return
+
+    try {
+      await navigator.clipboard.writeText(buildListingsMarkdown(filteredAndSortedListings))
+      setCopiedVisibleMarkdown(true)
+      window.setTimeout(() => setCopiedVisibleMarkdown(false), 2000)
+    } catch (error) {
+      console.error("Failed to copy visible listings markdown:", error)
+    }
+  }
+
   if (listings.length === 0) {
     return (
       <Card className="border-app-border bg-app-surface">
@@ -1273,6 +1286,25 @@ export function ListingsTable({ listings, onListingsChange, hasApiKey = true }: 
               </TooltipContent>
             </Tooltip>
           )}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <PageToolbarIconButton
+                variant={copiedVisibleMarkdown ? "active" : "secondary"}
+                onClick={() => void handleCopyVisibleListingsMarkdown()}
+                disabled={filteredAndSortedListings.length === 0}
+                aria-label={copiedVisibleMarkdown ? "Resultados copiados" : "Copiar resultados visíveis em Markdown"}
+              >
+                {copiedVisibleMarkdown ? <Check /> : <Copy />}
+              </PageToolbarIconButton>
+            </TooltipTrigger>
+            <TooltipContent
+              side="bottom"
+              sideOffset={4}
+              className="border border-app-border bg-app-surface text-app-fg"
+            >
+              {copiedVisibleMarkdown ? "Copiado!" : "Copiar resultados visíveis em Markdown"}
+            </TooltipContent>
+          </Tooltip>
           <Popover>
             <Tooltip>
               <TooltipTrigger asChild>
