@@ -1,28 +1,115 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+/* eslint-disable @next/next/no-img-element */
+
+import { useEffect, useMemo, useState, type ReactNode } from "react"
 import Link from "next/link"
-import { Save } from "lucide-react"
+import {
+  ArrowDown,
+  ArrowUp,
+  ExternalLink,
+  Home,
+  Pencil,
+  Pin,
+  Save,
+  Star,
+} from "lucide-react"
 import { Button } from "@/components/ui/button"
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 import { WorkspacePage, WorkspacePanel } from "@/app/components/workspace-ui"
 import { useCollections } from "@/app/anuncios/lib/use-collections"
+import type { Imovel } from "@/app/anuncios/lib/api"
 import {
   fetchComparisonNotes,
-  fetchRegions,
   saveComparisonNote,
   type ComparisonNote,
-  type Region,
 } from "@/lib/workspace/client"
 import { useWorkspaceProfile } from "@/lib/workspace/use-workspace-profile"
+import { cn } from "@/lib/utils"
+import {
+  buildRecalculationTooltip,
+  calculateFeatureAdjustedPrice,
+  calculateTotalPricePerM2,
+  compareNumericValues,
+  COMPARISON_FEATURE_ADJUSTMENT_BRL,
+  formatArea,
+  formatCurrency,
+  formatExtraValue,
+  getVisibleComparisonExtraRows,
+  formatGarage,
+  formatInteger,
+  formatPricePerM2,
+  formatShortListingName,
+  getAvailableListingsForSlot,
+  getSlotListings,
+  initializeComparisonSlots,
+  normalizeComparisonSlots,
+  replaceComparisonSlot,
+  type ComparisonSlot,
+  type TrendDirection,
+} from "./comparison-helpers"
 
-function formatCurrency(value: number | null | undefined) {
-  if (value === null || value === undefined) return "—"
-  return new Intl.NumberFormat("pt-BR", {
-    style: "currency",
-    currency: "BRL",
-    maximumFractionDigits: 0,
-  }).format(value)
+const EMPTY_SLOT_VALUE = "__empty__"
+const COMPARISON_SELECTION_STORAGE_PREFIX = "minha-casa:comparison-selection"
+
+type Draft = { pros: string; cons: string; notes: string }
+type NumericRowKey =
+  | "price"
+  | "totalArea"
+  | "privateArea"
+  | "rooms"
+  | "bathrooms"
+  | "garage"
+
+type FixedCell = {
+  rowKey: NumericRowKey
+  slotIndex: number
 }
+
+type MatrixRow = {
+  key: string
+  label: string
+  numericKey?: NumericRowKey
+  render: (listing: Imovel, context: MatrixContext) => CellValue
+}
+
+type MatrixContext = {
+  currentSlotIndex: number
+  fixedCell: FixedCell | null
+  fixedListing: Imovel | null
+  isFixedCell: boolean
+  isFixedRow: boolean
+}
+
+type CellValue = {
+  value: string
+  valuePrefix?: string
+  valueSuffix?: string
+  rawValue?: number | null
+  compareTo?: number | null
+  recalculated?: boolean
+  recalculationTooltip?: string
+  href?: string | null
+}
+
+const NUMERIC_ROW_KEYS = new Set<NumericRowKey>([
+  "price",
+  "totalArea",
+  "privateArea",
+  "rooms",
+  "bathrooms",
+  "garage",
+])
 
 function linesToList(value: string) {
   return value.split("\n").map((line) => line.trim()).filter(Boolean)
@@ -32,36 +119,409 @@ function listToLines(value: string[] | undefined) {
   return (value ?? []).join("\n")
 }
 
+function formatSlotSummary(listing: Imovel) {
+  return listing.endereco || "—"
+}
+
+function calculatePrivatePricePerM2(listing: Pick<Imovel, "preco" | "m2Privado">): number | null {
+  if (!listing.preco || !listing.m2Privado || listing.m2Privado <= 0) return null
+  return Math.round(listing.preco / listing.m2Privado)
+}
+
+function calculatePricePerM2ForAreaKey(listing: Imovel | null, rowKey: "totalArea" | "privateArea"): number | null {
+  if (!listing) return null
+  return rowKey === "totalArea" ? calculateTotalPricePerM2(listing) : calculatePrivatePricePerM2(listing)
+}
+
+function getAreaForKey(listing: Imovel, rowKey: "totalArea" | "privateArea"): number | null {
+  return rowKey === "totalArea" ? listing.m2Totais : listing.m2Privado
+}
+
+function getFeatureValue(listing: Imovel, rowKey: "rooms" | "bathrooms" | "garage"): number | null {
+  if (rowKey === "rooms") return listing.quartos
+  if (rowKey === "bathrooms") return listing.banheiros
+  return listing.garagem
+}
+
+function isFeatureRowKey(rowKey: NumericRowKey): rowKey is "rooms" | "bathrooms" | "garage" {
+  return rowKey === "rooms" || rowKey === "bathrooms" || rowKey === "garage"
+}
+
+function formatAreaWithPricePerM2(area: number | null | undefined, pricePerM2: number | null): string {
+  if (area === null || area === undefined) return "—"
+  return `${formatArea(area)} (${formatPricePerM2(pricePerM2)})`
+}
+
+function renderAreaCell(
+  listing: Imovel,
+  rowKey: "totalArea" | "privateArea",
+  context: MatrixContext
+): CellValue {
+  const baselinePricePerM2 = calculatePricePerM2ForAreaKey(listing, rowKey)
+  const currentPricePerM2 = getAreaPricePerM2(listing, rowKey, context)
+  const area = getAreaForKey(listing, rowKey)
+  const recalculated = Boolean(
+    context.fixedCell &&
+    !context.isFixedCell &&
+    context.fixedCell.rowKey === "price" &&
+    currentPricePerM2 !== null &&
+    baselinePricePerM2 !== null &&
+    currentPricePerM2 !== baselinePricePerM2
+  )
+
+  if (area === null || area === undefined) {
+    return { value: "—" }
+  }
+
+  return {
+    value: formatAreaWithPricePerM2(area, currentPricePerM2),
+    valuePrefix: `${formatArea(area)} `,
+    valueSuffix: `(${formatPricePerM2(currentPricePerM2)})`,
+    rawValue: currentPricePerM2,
+    compareTo: recalculated ? baselinePricePerM2 : null,
+    recalculated,
+    recalculationTooltip: recalculated && context.fixedListing
+      ? buildRecalculationTooltip({
+        target: "areaPricePerM2",
+        fixedRowKey: context.fixedCell!.rowKey,
+        fixedListing: context.fixedListing,
+        areaRowKey: rowKey,
+        featureAdjustmentBrl: COMPARISON_FEATURE_ADJUSTMENT_BRL,
+      })
+      : undefined,
+  }
+}
+
+function formatRoomsSuites(listing: Pick<Imovel, "quartos" | "suites">): string {
+  const rooms = formatInteger(listing.quartos)
+  if (!listing.suites || listing.suites <= 0) return rooms
+  return `${rooms} (${formatInteger(listing.suites)} suíte${listing.suites === 1 ? "" : "s"})`
+}
+
+function getComparisonSelectionStorageKey(collectionId: string) {
+  return `${COMPARISON_SELECTION_STORAGE_PREFIX}:${collectionId}`
+}
+
+function resolveFixedCell(slots: ComparisonSlot[], fixedCell: FixedCell | null): FixedCell | null {
+  if (!fixedCell) return null
+  if (!NUMERIC_ROW_KEYS.has(fixedCell.rowKey)) return null
+  if (fixedCell.slotIndex < 0 || fixedCell.slotIndex >= slots.length) return null
+  if (!slots[fixedCell.slotIndex]) return null
+  return fixedCell
+}
+
+function initializeFallbackComparisonSlots(listings: Imovel[]): ComparisonSlot[] {
+  const favoriteListings = listings.filter((listing) => listing.starred && !listing.strikethrough)
+  return initializeComparisonSlots(favoriteListings.length > 0 ? favoriteListings : listings)
+}
+
+function fillBlankSlotsWithFavorites(slots: ComparisonSlot[], listings: Imovel[]): ComparisonSlot[] {
+  const usedIds = new Set(slots.filter((slot): slot is string => Boolean(slot)))
+  const availableFavorites = listings.filter((listing) => (
+    listing.starred &&
+    !listing.strikethrough &&
+    !usedIds.has(listing.id)
+  ))
+  let favoriteIndex = 0
+
+  return slots.map((slot) => {
+    if (slot) return slot
+
+    const favorite = availableFavorites[favoriteIndex]
+    favoriteIndex += 1
+    if (!favorite) return null
+
+    usedIds.add(favorite.id)
+    return favorite.id
+  })
+}
+
+function readStoredComparisonSelection(
+  collectionId: string,
+  listings: Imovel[]
+): { slots: ComparisonSlot[]; fixedCell: FixedCell | null } | null {
+  if (typeof window === "undefined") return null
+
+  try {
+    const raw = window.localStorage.getItem(getComparisonSelectionStorageKey(collectionId))
+    if (!raw) return null
+
+    const parsed = JSON.parse(raw) as { slots?: unknown; fixedCell?: unknown }
+    if (!Array.isArray(parsed.slots)) return null
+
+    const slots = fillBlankSlotsWithFavorites(
+      normalizeComparisonSlots(
+        parsed.slots.map((slot) => (typeof slot === "string" ? slot : null)),
+        listings
+      ),
+      listings
+    )
+    if (!slots.some(Boolean)) return null
+
+    const rawFixedCell = parsed.fixedCell as Partial<FixedCell> | null
+    const fixedCell =
+      rawFixedCell &&
+      typeof rawFixedCell === "object" &&
+      typeof rawFixedCell.rowKey === "string" &&
+      typeof rawFixedCell.slotIndex === "number"
+        ? resolveFixedCell(slots, {
+          rowKey: rawFixedCell.rowKey as NumericRowKey,
+          slotIndex: rawFixedCell.slotIndex,
+        })
+        : null
+
+    return {
+      slots,
+      fixedCell,
+    }
+  } catch {
+    return null
+  }
+}
+
+function calculateFixedCellPrice(listing: Imovel, context: MatrixContext): number | null {
+  const { fixedCell, fixedListing, isFixedCell, isFixedRow } = context
+  if (!fixedCell || !fixedListing || isFixedCell || isFixedRow || context.currentSlotIndex === fixedCell.slotIndex) {
+    return listing.preco
+  }
+
+  if (fixedCell.rowKey === "totalArea" || fixedCell.rowKey === "privateArea") {
+    const fixedPricePerM2 = calculatePricePerM2ForAreaKey(fixedListing, fixedCell.rowKey)
+    const currentArea = getAreaForKey(listing, fixedCell.rowKey)
+    if (!fixedPricePerM2 || !currentArea || currentArea <= 0) return listing.preco
+    return Math.round(fixedPricePerM2 * currentArea)
+  }
+
+  if (fixedCell.rowKey === "rooms" || fixedCell.rowKey === "bathrooms" || fixedCell.rowKey === "garage") {
+    const fixedValue = getFeatureValue(fixedListing, fixedCell.rowKey)
+    const currentValue = getFeatureValue(listing, fixedCell.rowKey)
+    if (fixedValue === null || currentValue === null) return listing.preco
+    const adjusted = calculateFeatureAdjustedPrice(
+      listing.preco,
+      fixedValue,
+      currentValue,
+      COMPARISON_FEATURE_ADJUSTMENT_BRL
+    )
+    return adjusted ?? listing.preco
+  }
+
+  return listing.preco
+}
+
+function getAreaPricePerM2(listing: Imovel, rowKey: "totalArea" | "privateArea", context: MatrixContext): number | null {
+  const { fixedCell, fixedListing, isFixedCell } = context
+  if (!fixedCell || !fixedListing) return calculatePricePerM2ForAreaKey(listing, rowKey)
+  if (
+    isFixedCell ||
+    fixedCell.rowKey === rowKey ||
+    context.currentSlotIndex === fixedCell.slotIndex
+  ) {
+    return calculatePricePerM2ForAreaKey(listing, rowKey)
+  }
+
+  if (fixedCell.rowKey === "price") {
+    const area = getAreaForKey(listing, rowKey)
+    if (!fixedListing.preco || !area || area <= 0) return null
+    return Math.round(fixedListing.preco / area)
+  }
+
+  return calculatePricePerM2ForAreaKey(listing, rowKey)
+}
+
+function buildExtraMatrixRows(
+  extras: ReturnType<typeof getVisibleComparisonExtraRows>
+): MatrixRow[] {
+  return extras.map((extra) => ({
+    key: extra.key,
+    label: extra.label,
+    render: (listing: Imovel) => ({
+      value: formatExtraValue(listing[extra.key]),
+    }),
+  }))
+}
+
+const NUMERIC_MATRIX_ROWS: MatrixRow[] = [
+  {
+    key: "price",
+    label: "Preço",
+    numericKey: "price",
+    render: (listing, context) => {
+      const value = calculateFixedCellPrice(listing, context)
+      const recalculated = Boolean(
+        context.fixedCell &&
+        context.fixedCell.rowKey !== "price" &&
+        !context.isFixedCell &&
+        !context.isFixedRow &&
+        value !== listing.preco
+      )
+      return {
+        value: formatCurrency(value),
+        rawValue: value,
+        compareTo: recalculated ? listing.preco : null,
+        recalculated: recalculated && value !== null,
+        recalculationTooltip: recalculated && context.fixedListing
+          ? buildRecalculationTooltip({
+            target: "price",
+            fixedRowKey: context.fixedCell!.rowKey,
+            fixedListing: context.fixedListing,
+            fixedFeatureValue: isFeatureRowKey(context.fixedCell!.rowKey)
+              ? getFeatureValue(context.fixedListing, context.fixedCell!.rowKey)
+              : undefined,
+            currentFeatureValue: isFeatureRowKey(context.fixedCell!.rowKey)
+              ? getFeatureValue(listing, context.fixedCell!.rowKey)
+              : undefined,
+            featureAdjustmentBrl: COMPARISON_FEATURE_ADJUSTMENT_BRL,
+          })
+          : undefined,
+      }
+    },
+  },
+  {
+    key: "totalArea",
+    label: "Área total",
+    numericKey: "totalArea",
+    render: (listing, context) => renderAreaCell(listing, "totalArea", context),
+  },
+  {
+    key: "privateArea",
+    label: "Área privativa",
+    numericKey: "privateArea",
+    render: (listing, context) => renderAreaCell(listing, "privateArea", context),
+  },
+  {
+    key: "rooms",
+    label: "Quartos",
+    numericKey: "rooms",
+    render: (listing) => ({
+      value: formatRoomsSuites(listing),
+      rawValue: listing.quartos,
+    }),
+  },
+  {
+    key: "bathrooms",
+    label: "Banheiros",
+    numericKey: "bathrooms",
+    render: (listing) => ({
+      value: formatInteger(listing.banheiros),
+      rawValue: listing.banheiros,
+    }),
+  },
+  {
+    key: "garage",
+    label: "Garagem",
+    numericKey: "garage",
+    render: (listing) => ({
+      value: formatGarage(listing.garagem),
+      rawValue: listing.garagem,
+    }),
+  },
+]
+
+const MATRIX_ROWS_TAIL: MatrixRow[] = [
+  {
+    key: "neighborhood",
+    label: "Bairro",
+    render: (listing) => ({ value: listing.bairro || "—" }),
+  },
+  {
+    key: "address",
+    label: "Endereço",
+    render: (listing) => ({ value: listing.endereco || "—" }),
+  },
+  {
+    key: "link",
+    label: "Link",
+    render: (listing) => ({
+      value: listing.link ? "Abrir anúncio" : "—",
+      href: listing.link,
+    }),
+  },
+]
+
 export function ComparisonClient() {
   const { orgId } = useWorkspaceProfile()
-  const { listings, activeCollection, isLoadingListings } = useCollections()
-  const [regions, setRegions] = useState<Region[]>([])
+  const { listings, activeCollection, isLoadingListings, updateListing } = useCollections()
   const [notes, setNotes] = useState<ComparisonNote[]>([])
-  const [drafts, setDrafts] = useState<Record<string, { pros: string; cons: string; notes: string }>>({})
+  const [drafts, setDrafts] = useState<Record<string, Draft>>({})
   const [savingId, setSavingId] = useState<string | null>(null)
+  const [slotIds, setSlotIds] = useState<ComparisonSlot[]>(() => initializeComparisonSlots([]))
+  const [fixedCell, setFixedCell] = useState<FixedCell | null>(null)
+  const [initializedCollectionId, setInitializedCollectionId] = useState<string | null>(null)
 
   useEffect(() => {
     async function loadWorkspaceData() {
-      const [regionsData, notesData] = await Promise.all([
-        fetchRegions(orgId),
-        fetchComparisonNotes(orgId),
-      ])
-      setRegions(regionsData.regions)
+      const notesData = await fetchComparisonNotes(orgId)
       setNotes(notesData.notes)
     }
 
     void loadWorkspaceData()
   }, [orgId])
 
-  const shortlist = useMemo(
-    () => listings.filter((listing) => listing.starred && !listing.strikethrough),
-    [listings]
+  useEffect(() => {
+    const collectionId = activeCollection?.id ?? null
+    if (!collectionId) {
+      setSlotIds(initializeComparisonSlots([]))
+      setFixedCell(null)
+      setInitializedCollectionId(null)
+      return
+    }
+
+    setSlotIds((current) => {
+      if (initializedCollectionId !== collectionId) {
+        const storedSelection = readStoredComparisonSelection(collectionId, listings)
+        if (storedSelection) {
+          setFixedCell(storedSelection.fixedCell)
+          return storedSelection.slots
+        }
+
+        const fallbackSlots = initializeFallbackComparisonSlots(listings)
+        setFixedCell(null)
+        return fallbackSlots
+      }
+
+      const next = fillBlankSlotsWithFavorites(normalizeComparisonSlots(current, listings), listings)
+      setFixedCell((currentFixedCell) => resolveFixedCell(next, currentFixedCell))
+      return next
+    })
+    setInitializedCollectionId(collectionId)
+  }, [activeCollection?.id, initializedCollectionId, listings])
+
+  useEffect(() => {
+    const collectionId = activeCollection?.id ?? null
+    if (!collectionId || initializedCollectionId !== collectionId) return
+
+    window.localStorage.setItem(
+      getComparisonSelectionStorageKey(collectionId),
+      JSON.stringify({
+        slots: slotIds,
+        fixedCell: resolveFixedCell(slotIds, fixedCell),
+      })
+    )
+  }, [activeCollection?.id, fixedCell, initializedCollectionId, slotIds])
+
+  const selectedListings = useMemo(
+    () => getSlotListings(slotIds, listings),
+    [slotIds, listings]
   )
+  const selectedFilledListings = useMemo(
+    () => selectedListings.filter((listing): listing is Imovel => Boolean(listing)),
+    [selectedListings]
+  )
+  const matrixRows = useMemo(
+    () => [
+      ...NUMERIC_MATRIX_ROWS,
+      ...buildExtraMatrixRows(getVisibleComparisonExtraRows(selectedFilledListings)),
+      ...MATRIX_ROWS_TAIL,
+    ],
+    [selectedFilledListings]
+  )
+  const resolvedFixedCell = resolveFixedCell(slotIds, fixedCell)
+  const fixedListing = resolvedFixedCell === null ? null : selectedListings[resolvedFixedCell.slotIndex]
 
   useEffect(() => {
     setDrafts((current) => {
       const next = { ...current }
-      for (const listing of shortlist) {
+      for (const listing of selectedFilledListings) {
         if (next[listing.id]) continue
         const note = notes.find((item) => item.listingId === listing.id)
         next[listing.id] = {
@@ -72,7 +532,7 @@ export function ComparisonClient() {
       }
       return next
     })
-  }, [shortlist, notes])
+  }, [selectedFilledListings, notes])
 
   const save = async (listingId: string) => {
     const draft = drafts[listingId]
@@ -94,111 +554,477 @@ export function ComparisonClient() {
     }
   }
 
+  const handleReplaceSlot = (slotIndex: number, value: string) => {
+    const listingId = value === EMPTY_SLOT_VALUE ? null : value
+    setSlotIds((current) => {
+      const next = replaceComparisonSlot(current, slotIndex, listingId)
+      setFixedCell((currentFixedCell) => resolveFixedCell(next, currentFixedCell))
+      return next
+    })
+  }
+
+  const handleToggleStar = async (listingId: string, currentStarred: boolean | undefined) => {
+    try {
+      await updateListing(listingId, { starred: !currentStarred })
+    } catch (error) {
+      console.error("Failed to toggle star:", error)
+    }
+  }
+
+  const handleToggleFixedCell = (nextFixedCell: FixedCell) => {
+    setFixedCell((current) => (
+      current?.rowKey === nextFixedCell.rowKey && current.slotIndex === nextFixedCell.slotIndex
+        ? null
+        : nextFixedCell
+    ))
+  }
+
   return (
     <WorkspacePage>
-      <WorkspacePanel>
+      <WorkspacePanel className="overflow-hidden">
         {!activeCollection ? (
           <p className="p-6 text-sm text-app-muted">
             Crie uma coleção em <Link href="/anuncios" className="font-medium text-app-fg underline">Anúncios</Link> para começar.
           </p>
         ) : isLoadingListings ? (
-          <p className="p-6 text-sm text-app-muted">Carregando favoritos...</p>
-        ) : shortlist.length === 0 ? (
+          <p className="p-6 text-sm text-app-muted">Carregando imóveis...</p>
+        ) : listings.length === 0 ? (
           <p className="p-6 text-sm text-app-muted">
-            Marque imóveis como favoritos em Anúncios para montar a comparação.
+            Adicione imóveis em <Link href="/anuncios" className="font-medium text-app-fg underline">Anúncios</Link> para montar a comparação.
           </p>
         ) : (
-          <div className="overflow-x-auto">
-            <div className="grid min-w-[980px] auto-cols-[minmax(300px,1fr)] grid-flow-col gap-0 divide-x divide-slate-200">
-              {shortlist.map((listing) => {
-                const region = regions.find((item) => item.id === listing.regionId)
-                const area = listing.m2Privado ?? listing.m2Totais
-                const listingPriceM2 = listing.preco && area ? Math.round(listing.preco / area) : null
-                const delta =
-                  listingPriceM2 && region?.pricePerM2
-                    ? Math.round(((listingPriceM2 - region.pricePerM2) / region.pricePerM2) * 100)
-                    : null
-                const draft = drafts[listing.id] ?? { pros: "", cons: "", notes: "" }
-
-                return (
-                  <article key={listing.id} className="p-4">
-                    <div className="space-y-3">
-                      <div>
-                        <h2 className="line-clamp-2 font-semibold text-app-fg">{listing.titulo}</h2>
-                        <p className="mt-1 line-clamp-2 text-xs text-app-muted">{listing.endereco}</p>
-                      </div>
-                      <div className="grid grid-cols-2 gap-2 text-sm">
-                        <Metric label="Preço" value={formatCurrency(listing.preco)} />
-                        <Metric label="m²" value={area ? `${area} m²` : "—"} />
-                        <Metric label="Preço/m²" value={formatCurrency(listingPriceM2)} />
-                        <Metric label="Quartos" value={listing.quartos?.toString() ?? "—"} />
-                      </div>
-                      <div className="rounded-md bg-app-bg p-3 text-sm">
-                        <div className="font-medium text-app-fg">
-                          {region ? `${region.neighborhood}, ${region.city}` : "Sem região vinculada"}
-                        </div>
-                        <div className="mt-1 text-xs text-app-muted">
-                          {delta === null
-                            ? "Vincule uma região no anúncio para comparar o m²."
-                            : `${Math.abs(delta)}% ${delta <= 0 ? "abaixo" : "acima"} da referência manual.`}
-                        </div>
-                      </div>
-                      <TextArea
-                        label="Vantagens"
-                        value={draft.pros}
-                        onChange={(value) =>
-                          setDrafts((current) => ({
-                            ...current,
-                            [listing.id]: { ...draft, pros: value },
-                          }))
-                        }
-                      />
-                      <TextArea
-                        label="Desvantagens"
-                        value={draft.cons}
-                        onChange={(value) =>
-                          setDrafts((current) => ({
-                            ...current,
-                            [listing.id]: { ...draft, cons: value },
-                          }))
-                        }
-                      />
-                      <TextArea
-                        label="Notas"
-                        value={draft.notes}
-                        onChange={(value) =>
-                          setDrafts((current) => ({
-                            ...current,
-                            [listing.id]: { ...draft, notes: value },
-                          }))
-                        }
-                      />
-                      <Button
-                        size="sm"
-                        onClick={() => void save(listing.id)}
-                        disabled={savingId === listing.id}
-                        className="w-full bg-app-action text-app-action-foreground hover:bg-app-action-hover"
+          <>
+            <TooltipProvider>
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[1120px] table-fixed border-collapse text-sm">
+                <colgroup>
+                  <col className="w-[172px]" />
+                  {slotIds.map((_, index) => (
+                    <col key={index} className="w-[236px]" />
+                  ))}
+                </colgroup>
+                <thead>
+                  <tr className="border-b border-app-border">
+                    <th
+                      aria-hidden
+                      className="sticky left-0 z-20 bg-app-surface px-3 py-3 text-left align-bottom"
+                    />
+                    {selectedListings.map((listing, index) => (
+                      <th
+                        key={index}
+                        className={cn(
+                          "border-l border-app-border bg-app-surface p-3 align-top"
+                        )}
                       >
-                        <Save className="h-4 w-4" />
-                        {savingId === listing.id ? "Salvando..." : "Salvar comparação"}
-                      </Button>
-                    </div>
-                  </article>
-                )
-              })}
+                        <ComparisonSlotHeader
+                          slotIndex={index}
+                          listing={listing}
+                          listings={listings}
+                          slots={slotIds}
+                          onReplace={handleReplaceSlot}
+                          onToggleStar={handleToggleStar}
+                        />
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {matrixRows.map((row) => (
+                    <tr key={row.key} className="border-b border-app-border last:border-b-0">
+                      <th className="sticky left-0 z-10 bg-app-surface px-3 py-3 text-left align-middle text-xs font-medium uppercase tracking-wide text-app-muted">
+                        {row.label}
+                      </th>
+                      {selectedListings.map((listing, index) => {
+                        const isFixedColumn = Boolean(
+                          resolvedFixedCell && resolvedFixedCell.slotIndex === index
+                        )
+                        const isFixedCell = Boolean(
+                          resolvedFixedCell &&
+                          resolvedFixedCell.slotIndex === index &&
+                          resolvedFixedCell.rowKey === row.numericKey
+                        )
+                        const isFixedRow = Boolean(
+                          resolvedFixedCell &&
+                          row.numericKey === resolvedFixedCell.rowKey
+                        )
+                        const context = {
+                          currentSlotIndex: index,
+                          fixedCell: resolvedFixedCell,
+                          fixedListing,
+                          isFixedCell,
+                          isFixedRow,
+                        }
+                        const cell = listing ? row.render(listing, context) : null
+                        const trend = !isFixedCell && cell?.recalculated
+                          ? compareNumericValues(cell.rawValue, cell.compareTo)
+                          : null
+                        return (
+                          <td
+                            key={`${row.key}-${index}`}
+                            className={cn(
+                              "border-l border-app-border px-3 py-3 align-middle",
+                              isFixedCell && "bg-app-action/15"
+                            )}
+                          >
+                            {cell ? (
+                              <MatrixCell
+                                cell={cell}
+                                trend={trend}
+                                isFixed={isFixedCell}
+                                fixedLabel={`${row.label} de ${formatShortListingName(listing)}`}
+                                hideFixButton={!isFixedCell}
+                                onToggleFixed={
+                                  listing && row.numericKey
+                                    ? () => handleToggleFixedCell({ rowKey: row.numericKey, slotIndex: index })
+                                    : undefined
+                                }
+                              />
+                            ) : (
+                              <span className="text-app-subtle">—</span>
+                            )}
+                          </td>
+                        )
+                      })}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
-          </div>
+            </TooltipProvider>
+          </>
         )}
       </WorkspacePanel>
+
+      {selectedFilledListings.length > 0 && (
+        <WorkspacePanel className="mt-4 p-4">
+          <div className="mb-3">
+            <h2 className="font-semibold text-app-fg">Notas da comparação</h2>
+            <p className="text-sm text-app-muted">Vantagens, desvantagens e observações dos imóveis selecionados nos slots.</p>
+          </div>
+          <div className="grid gap-3 lg:grid-cols-2">
+            {selectedFilledListings.map((listing) => {
+              const draft = drafts[listing.id] ?? { pros: "", cons: "", notes: "" }
+              return (
+                <article key={listing.id} className="rounded-lg border border-app-border bg-app-surface p-3">
+                  <div className="mb-3 min-w-0">
+                    <h3 className="truncate font-medium text-app-fg">{formatShortListingName(listing)}</h3>
+                    <p className="truncate text-xs text-app-muted">{listing.endereco}</p>
+                  </div>
+                  <div className="grid gap-3 md:grid-cols-3">
+                    <TextArea
+                      label="Vantagens"
+                      value={draft.pros}
+                      onChange={(value) =>
+                        setDrafts((current) => ({
+                          ...current,
+                          [listing.id]: { ...draft, pros: value },
+                        }))
+                      }
+                    />
+                    <TextArea
+                      label="Desvantagens"
+                      value={draft.cons}
+                      onChange={(value) =>
+                        setDrafts((current) => ({
+                          ...current,
+                          [listing.id]: { ...draft, cons: value },
+                        }))
+                      }
+                    />
+                    <TextArea
+                      label="Notas"
+                      value={draft.notes}
+                      onChange={(value) =>
+                        setDrafts((current) => ({
+                          ...current,
+                          [listing.id]: { ...draft, notes: value },
+                        }))
+                      }
+                    />
+                  </div>
+                  <Button
+                    size="sm"
+                    onClick={() => void save(listing.id)}
+                    disabled={savingId === listing.id}
+                    className="mt-3 w-full bg-app-action text-app-action-foreground hover:bg-app-action-hover"
+                  >
+                    <Save className="h-4 w-4" />
+                    {savingId === listing.id ? "Salvando..." : "Salvar notas"}
+                  </Button>
+                </article>
+              )
+            })}
+          </div>
+        </WorkspacePanel>
+      )}
     </WorkspacePage>
   )
 }
 
-function Metric({ label, value }: { label: string; value: string }) {
+function ComparisonSlotHeader({
+  slotIndex,
+  listing,
+  listings,
+  slots,
+  onReplace,
+  onToggleStar,
+}: {
+  slotIndex: number
+  listing: Imovel | null
+  listings: Imovel[]
+  slots: ComparisonSlot[]
+  onReplace: (slotIndex: number, value: string) => void
+  onToggleStar: (listingId: string, currentStarred: boolean | undefined) => void
+}) {
+  const availableListings = getAvailableListingsForSlot(listings, slots, slotIndex)
+
   return (
-    <div className="rounded-md border border-app-border p-2">
-      <div className="text-[11px] font-medium uppercase tracking-wide text-app-muted">{label}</div>
-      <div className="mt-1 font-semibold text-app-fg">{value}</div>
+    <div className="flex min-h-[204px] flex-col text-left">
+      <div
+        className={cn(
+          "group relative flex min-h-[196px] flex-col rounded-md border p-2 text-left transition-colors",
+          listing
+            ? "border-app-border bg-app-surface"
+            : "border-dashed border-app-border bg-app-bg text-app-muted"
+        )}
+      >
+        <div className="absolute right-3 top-3 z-10 flex items-center gap-1">
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                className="h-7 w-7 border-app-border bg-app-surface/90 backdrop-blur hover:bg-app-bg"
+                aria-label={`Editar imóvel do slot ${slotIndex + 1}`}
+              >
+                <Pencil className="h-3.5 w-3.5" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent align="end" sideOffset={8} className="w-64 border-app-border bg-app-surface p-3">
+              <label className="flex flex-col gap-1.5 text-left">
+                <span className="text-xs font-medium uppercase tracking-wide text-app-muted">
+                  Imóvel do slot
+                </span>
+                <select
+                  aria-label={`Selecionar imóvel do slot ${slotIndex + 1}`}
+                  value={listing?.id ?? EMPTY_SLOT_VALUE}
+                  onChange={(event) => onReplace(slotIndex, event.target.value)}
+                  className="h-9 min-w-0 rounded-md border border-app-border bg-app-bg px-2 text-sm text-app-fg outline-none focus:border-app-border-strong"
+                >
+                  <option value={EMPTY_SLOT_VALUE}>
+                    {listing ? "Remover este anúncio" : "Selecionar imóvel"}
+                  </option>
+                  {availableListings.map((option) => (
+                    <option key={option.id} value={option.id}>
+                      {formatShortListingName(option)}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </PopoverContent>
+          </Popover>
+        </div>
+        <div className="aspect-square w-full overflow-hidden rounded border border-app-border bg-app-bg">
+          {listing?.imageUrl ? (
+            <img
+              src={listing.imageUrl}
+              alt={listing.titulo}
+              className="h-full w-full object-cover"
+            />
+          ) : (
+            <div className="flex h-full w-full items-center justify-center">
+              <Home className="h-8 w-8 text-app-subtle" />
+            </div>
+          )}
+        </div>
+        <div className="mt-2 min-w-0">
+          <div className="flex min-w-0 items-center gap-1.5">
+            {listing && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    type="button"
+                    onClick={() => onToggleStar(listing.id, listing.starred)}
+                    className={cn(
+                      "shrink-0 rounded p-0.5 transition-colors",
+                      listing.starred
+                        ? "text-yellow hover:text-yellow/80"
+                        : "text-app-subtle hover:text-yellow"
+                    )}
+                    aria-label={listing.starred ? "Remover dos favoritos" : "Adicionar aos favoritos"}
+                  >
+                    <Star
+                      className="h-3.5 w-3.5"
+                      fill={listing.starred ? "currentColor" : "none"}
+                    />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent
+                  side="bottom"
+                  sideOffset={4}
+                  className="w-max max-w-[min(100vw-2rem,16rem)] whitespace-normal text-wrap px-2.5 py-1 leading-snug"
+                >
+                  {listing.starred ? "Remover dos favoritos" : "Adicionar aos favoritos"}
+                </TooltipContent>
+              </Tooltip>
+            )}
+            <span className="min-w-0 flex-1 truncate text-sm font-semibold text-app-fg">
+              {listing ? formatShortListingName(listing) : `Imóvel ${slotIndex + 1}`}
+            </span>
+          </div>
+          <div className="mt-1 truncate text-xs font-normal text-app-muted">
+            {listing ? formatSlotSummary(listing) : "Escolha um anúncio"}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function TrendArrow({
+  trend,
+  className,
+}: {
+  trend: TrendDirection
+  className?: string
+}) {
+  const iconClassName = cn("h-2.5 w-2.5 shrink-0", className)
+  if (trend === "up") {
+    return <ArrowUp className={iconClassName} aria-hidden />
+  }
+  if (trend === "down") {
+    return <ArrowDown className={iconClassName} aria-hidden />
+  }
+  return null
+}
+
+function RecalculatedValue({
+  tooltip,
+  className,
+  ariaLabel,
+  children,
+}: {
+  tooltip?: string
+  className?: string
+  ariaLabel?: string
+  children: ReactNode
+}) {
+  if (!tooltip) {
+    return (
+      <span className={className} aria-label={ariaLabel}>
+        {children}
+      </span>
+    )
+  }
+
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <span className={cn(className, "cursor-help")} aria-label={ariaLabel}>
+          {children}
+        </span>
+      </TooltipTrigger>
+      <TooltipContent
+        side="top"
+        sideOffset={4}
+        className="w-max max-w-[min(100vw-2rem,16rem)] whitespace-normal text-wrap px-2.5 py-1 leading-snug"
+      >
+        {tooltip}
+      </TooltipContent>
+    </Tooltip>
+  )
+}
+
+function MatrixCell({
+  cell,
+  trend,
+  isFixed = false,
+  fixedLabel,
+  hideFixButton = false,
+  onToggleFixed,
+}: {
+  cell: CellValue
+  trend: TrendDirection
+  isFixed?: boolean
+  fixedLabel?: string
+  hideFixButton?: boolean
+  onToggleFixed?: () => void
+}) {
+  if (cell.href) {
+    return (
+      <a
+        href={cell.href}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="inline-flex min-w-0 items-center gap-1 text-sm font-medium text-app-accent hover:underline"
+      >
+        <span className="truncate">{cell.value}</span>
+        <ExternalLink className="h-3.5 w-3.5 shrink-0" />
+      </a>
+    )
+  }
+
+  const trendLabel =
+    trend === "up"
+      ? "valor acima da referência"
+      : trend === "down"
+        ? "valor abaixo da referência"
+        : undefined
+  const trendClassName = cn(
+    trend === "up" && "text-app-danger",
+    trend === "down" && "text-green"
+  )
+  const showTrend = trend === "up" || trend === "down"
+
+  return (
+    <div className="group/cell flex min-w-0 items-center justify-between gap-2">
+      <span className="min-w-0 truncate font-mono text-sm tabular-nums text-app-fg">
+        {cell.valueSuffix ? (
+          <>
+            {cell.valuePrefix}
+            <span className="inline-flex items-center gap-0.5">
+              <RecalculatedValue
+                tooltip={cell.recalculationTooltip}
+                className={trendClassName}
+                ariaLabel={trendLabel}
+              >
+                {cell.valueSuffix}
+              </RecalculatedValue>
+              {showTrend && <TrendArrow trend={trend} className={trendClassName} />}
+            </span>
+          </>
+        ) : (
+          <span className="inline-flex items-center gap-0.5">
+            <RecalculatedValue
+              tooltip={cell.recalculationTooltip}
+              className={trendClassName}
+              ariaLabel={trendLabel}
+            >
+              {cell.value}
+            </RecalculatedValue>
+            {showTrend && <TrendArrow trend={trend} className={trendClassName} />}
+          </span>
+        )}
+      </span>
+      <span className="flex shrink-0 items-center gap-1">
+        {onToggleFixed && (
+          <button
+            type="button"
+            onClick={onToggleFixed}
+            className={cn(
+              "inline-flex h-6 w-6 items-center justify-center rounded border transition-colors",
+              isFixed
+                ? "border-app-action bg-app-action text-app-action-foreground"
+                : "border-transparent text-app-subtle hover:border-app-border hover:text-app-fg",
+              hideFixButton && "opacity-0 group-hover/cell:opacity-100 focus-visible:opacity-100"
+            )}
+            aria-label={isFixed ? `Remover célula fixa: ${fixedLabel}` : `Fixar ${fixedLabel}`}
+          >
+            <Pin className={cn("h-3.5 w-3.5", isFixed && "fill-current")} />
+          </button>
+        )}
+      </span>
     </div>
   )
 }
@@ -213,7 +1039,7 @@ function TextArea({
   onChange: (value: string) => void
 }) {
   return (
-    <label className="block">
+    <label className="block min-w-0">
       <span className="text-xs font-medium text-app-muted">{label}</span>
       <textarea
         className="mt-1 min-h-20 w-full rounded-md border border-app-border bg-app-surface px-3 py-2 text-sm outline-none focus:border-app-border-strong"
