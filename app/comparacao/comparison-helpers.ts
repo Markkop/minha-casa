@@ -5,7 +5,9 @@ export type ComparisonSlot = string | null
 export type TrendDirection = "up" | "down" | "equal" | null
 
 export function initializeComparisonSlots(listings: Pick<Imovel, "id">[]): ComparisonSlot[] {
-  const initial = listings.slice(0, COMPARISON_SLOT_COUNT).map((listing) => listing.id)
+  const initial: ComparisonSlot[] = listings
+    .slice(0, COMPARISON_SLOT_COUNT)
+    .map((listing) => listing.id)
   while (initial.length < COMPARISON_SLOT_COUNT) initial.push(null)
   return initial
 }

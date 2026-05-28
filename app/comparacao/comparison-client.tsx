@@ -655,6 +655,7 @@ export function ComparisonClient() {
                           isFixedRow,
                         }
                         const cell = listing ? row.render(listing, context) : null
+                        const numericRowKey = row.numericKey
                         const trend = !isFixedCell && cell?.recalculated
                           ? compareNumericValues(cell.rawValue, cell.compareTo)
                           : null
@@ -666,7 +667,7 @@ export function ComparisonClient() {
                               isFixedCell && "bg-app-action/15"
                             )}
                           >
-                            {cell ? (
+                            {cell && listing ? (
                               <MatrixCell
                                 cell={cell}
                                 trend={trend}
@@ -674,8 +675,8 @@ export function ComparisonClient() {
                                 fixedLabel={`${row.label} de ${formatShortListingName(listing)}`}
                                 hideFixButton={!isFixedCell}
                                 onToggleFixed={
-                                  listing && row.numericKey
-                                    ? () => handleToggleFixedCell({ rowKey: row.numericKey, slotIndex: index })
+                                  numericRowKey
+                                    ? () => handleToggleFixedCell({ rowKey: numericRowKey, slotIndex: index })
                                     : undefined
                                 }
                               />
