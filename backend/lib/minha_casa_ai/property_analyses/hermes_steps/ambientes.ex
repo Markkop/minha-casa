@@ -24,6 +24,9 @@ defmodule MinhaCasaAi.PropertyAnalyses.HermesSteps.Ambientes do
 
   @multi_categories ~w(sala quarto banheiro varanda areaComum circulacao escritorio)
 
+  def categories, do: @categories
+  def multi_categories, do: @multi_categories
+
   @canonical_by_slug %{
     "sala" => "sala",
     "cozinha" => "cozinha",
@@ -67,70 +70,9 @@ defmodule MinhaCasaAi.PropertyAnalyses.HermesSteps.Ambientes do
 
   @impl true
   def prompt(bundle, _address, _opts) do
-    input_path = Map.get(bundle, :input_path)
-    images_dir = Path.join(Map.get(bundle, :root), "images")
-    facts = Step.facts_text(bundle) || "n/d"
-    catalog = Map.get(bundle, :catalog_count, 0)
-    max_cards = min(catalog, 14)
-
-    """
-    Analise TODAS as fotos do imóvel e classifique cada ambiente físico distinto.
-
-    Leia #{input_path} e as imagens em #{images_dir}.
-    Use os índices de imagem exatamente como em input.json.
-
-    Dados do anúncio: #{facts}
-
-    IMPORTANTE: NÃO gere pontos de atenção neste passo — outro agente (x-ray) fará isso depois.
-    Produza apenas reconhecimento de ambiente, inventário estrutural e de móveis.
-
-    Categorias permitidas (campo categoria, use EXATAMENTE uma destas strings):
-    #{Enum.join(@categories, ", ")}
-
-    Definições:
-    - sala: estar, TV, jantar integrada, living, ambientes sociais internos.
-    - cozinha: fechada, americana, ilha, copa integrada.
-    - quarto: dormitório, suíte (suíte é atributo, não categoria separada).
-    - banheiro: social, suíte, lavabo.
-    - areaServico: lavanderia, tanque, máquina, varal técnico.
-    - varanda: sacada, terraço privativo, churrasqueira na varanda.
-    - areaExterna: jardim, quintal, piscina privativa, deck, churrasqueira externa.
-    - garagem: vaga, box, estacionamento coberto/descoberto.
-    - fachada: frente, portão, vista externa do edifício.
-    - areaComum: hall do prédio, portaria, salão de festas, academia do condomínio, piscina/quadra do condomínio.
-    - circulacao: corredor, escada, mezanino, passagens internas.
-    - escritorio: home office, estudo, biblioteca.
-    - closet, deposito, vista: conforme uso usual.
-
-    Regras de separação (obrigatório — só para agrupar fotos em cards, NÃO vai no inventário):
-    - Separe ambientes distintos pelo PISO e pelas PAREDES: cor do piso, cor das paredes, material do piso,
-      sentido das tábuas/rejunte, móveis FIXOS (cama, pia, bancada) e layout.
-    - Use cor de piso e parede apenas para decidir se duas fotos são o mesmo ambiente; não descreva cor no inventário.
-    - Se a mesma cama/piso/cabeceira aparece em duas fotos, é o MESMO quarto — uma única card.
-    - Múltiplos cards só para: #{Enum.join(@multi_categories, ", ")}.
-    - Demais categorias: no máximo UM card (ex.: uma Cozinha, uma Garagem).
-    - Máximo #{max_cards} cards no total.
-    - Categorize pelo menos 90% das fotos; só use semCategoria para fotos realmente ambíguas.
-    - Se não couber em nenhuma categoria, coloque os índices em semCategoria — NÃO invente categoria.
-
-    Para cada card:
-    - id: slug estável (ex.: quarto-1, cozinha)
-    - categoria: uma das permitidas
-    - ordinal: número quando múltiplo permitido
-    - rotulo: "Quarto 1" ou "Cozinha" (número só quando múltiplo)
-    - imageIndices: índices das fotos deste ambiente
-    - resumo: 1 frase interna (opcional)
-    - estrutura: itens estruturais visíveis (array de {tipo, material?, detalhe?})
-    - instalacoes: instalações fixas visíveis (array de {tipo, material?, detalhe?})
-    - moveis: mobiliário visível (array de {tipo, material?, detalhe?})
-
-    #{InventoryVocab.prompt_block()}
-
-  #{Step.pt_rules()}
-
-    Formato JSON minificado em uma linha:
-    {"resumoGeral":"...","cards":[...],"semCategoria":{"imageIndices":[]}}
-    """
+    bundle
+    |> MinhaCasaAi.PropertyAnalyses.HermesSteps.PromptTemplates.ambientes()
+    |> elem(0)
   end
 
   @impl true

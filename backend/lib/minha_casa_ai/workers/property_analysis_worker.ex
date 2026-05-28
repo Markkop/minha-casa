@@ -11,7 +11,7 @@ defmodule MinhaCasaAi.Workers.PropertyAnalysisWorker do
   alias MinhaCasaAi.Workflows
 
   @impl Oban.Worker
-  def perform(%Oban.Job{args: %{"analysis_id" => analysis_id}}) do
+  def perform(%Oban.Job{args: %{"analysis_id" => analysis_id} = args}) do
     analysis = PropertyAnalyses.get!(analysis_id)
     PropertyAnalyses.mark_running!(analysis)
 
@@ -27,7 +27,7 @@ defmodule MinhaCasaAi.Workers.PropertyAnalysisWorker do
              user_id: analysis.user_id,
              org_id: analysis.org_id
            ) do
-      run_pipeline(analysis, listing)
+      run_pipeline(analysis, listing, trace_id: args["trace_id"])
     else
       {:error, :listing_not_found} ->
         PropertyAnalyses.mark_failed!(analysis, "Imóvel não encontrado")
@@ -35,7 +35,7 @@ defmodule MinhaCasaAi.Workers.PropertyAnalysisWorker do
     end
   end
 
-  defp run_pipeline(analysis, listing) do
+  defp run_pipeline(analysis, listing, opts) do
     cond do
       not Config.configured?(:hermes) ->
         PropertyAnalyses.mark_failed!(analysis, "Hermes não configurado (HERMES_API_URL / HERMES_API_KEY)")
@@ -50,7 +50,7 @@ defmodule MinhaCasaAi.Workers.PropertyAnalysisWorker do
         {:error, :openai_not_configured}
 
       true ->
-        run_hermes_pipeline(analysis, listing)
+        run_hermes_pipeline(analysis, listing, opts)
     end
   rescue
     e ->
@@ -60,8 +60,8 @@ defmodule MinhaCasaAi.Workers.PropertyAnalysisWorker do
       {:error, e}
   end
 
-  defp run_hermes_pipeline(analysis, listing) do
-    case HermesPipeline.run(analysis, listing) do
+  defp run_hermes_pipeline(analysis, listing, opts) do
+    case HermesPipeline.run(analysis, listing, trace_id: Keyword.get(opts, :trace_id)) do
       {:ok, _result} ->
         analysis = PropertyAnalyses.get!(analysis.id)
         PropertyAnalyses.mark_completed!(analysis)

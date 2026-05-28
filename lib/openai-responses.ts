@@ -29,6 +29,13 @@ type JsonSchemaFormat = {
 
 type TextFormat = { type: "json_object" } | JsonSchemaFormat
 
+export type LangfuseCallContext = {
+  traceId: string
+  name: string
+  metadata?: Record<string, unknown>
+  promptRef?: { name: string; version: number }
+}
+
 export type ResponsesJsonOptions = {
   instructions: string
   input: string
@@ -36,6 +43,7 @@ export type ResponsesJsonOptions = {
   reasoningEffort?: ReasoningEffort
   timeoutMs?: number
   schema?: { name: string; schema: Record<string, unknown> }
+  langfuse?: LangfuseCallContext | null
 }
 
 function textFormat(schema?: ResponsesJsonOptions["schema"]): TextFormat {

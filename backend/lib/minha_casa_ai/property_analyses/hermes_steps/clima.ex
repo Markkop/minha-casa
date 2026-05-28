@@ -8,24 +8,9 @@ defmodule MinhaCasaAi.PropertyAnalyses.HermesSteps.Clima do
 
   @impl true
   def prompt(bundle, address, _opts) do
-    ctx = Jason.encode!(Step.location_context(bundle, address))
-
-    """
-    Pesquise o clima típico da região do imóvel e retorne JSON no formato abaixo.
-
-    Contexto: #{ctx}
-    #{facts_line(bundle)}
-
-    #{Step.pt_rules()}
-
-    Formato de saída:
-    {
-      "resumo": "uma frase curta sobre o clima local",
-      "temperaturas": { "minC": number, "maxC": number, "descricao": "frase sobre variação e estações" },
-      "umidade": { "minPct": number, "maxPct": number, "descricao": "frase sobre umidade" },
-      "chuva": { "descricao": "frase sobre chuvas", "mmAnualEstimado": number opcional }
-    }
-    """
+    bundle
+    |> MinhaCasaAi.PropertyAnalyses.HermesSteps.PromptTemplates.clima(address)
+    |> elem(0)
   end
 
   @impl true

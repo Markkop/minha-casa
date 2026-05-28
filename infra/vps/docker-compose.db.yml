@@ -75,6 +75,7 @@ services:
       - |
         until mc alias set local http://minio:9000 "$${MINIO_ACCESS_KEY}" "$${MINIO_SECRET_KEY}"; do sleep 2; done
         mc mb --ignore-existing "local/$${MINIO_BUCKET}"
+        mc mb --ignore-existing "local/$${LANGFUSE_S3_BUCKET:-langfuse-events}"
     networks:
       - minha_casa_internal
 
@@ -121,6 +122,12 @@ services:
       HERMES_JOBS_DIR: /work/hermes-jobs
       HERMES_ANALYSIS_TIMEOUT_MS: ${HERMES_ANALYSIS_TIMEOUT_MS:-1800000}
       PROPERTY_ANALYSIS_ENGINE: ${PROPERTY_ANALYSIS_ENGINE:-}
+      LANGFUSE_HOST: ${LANGFUSE_HOST:-http://langfuse-web:3000}
+      LANGFUSE_PUBLIC_KEY: ${LANGFUSE_PUBLIC_KEY:-}
+      LANGFUSE_SECRET_KEY: ${LANGFUSE_SECRET_KEY:-}
+      LANGFUSE_ENABLED: ${LANGFUSE_ENABLED:-false}
+      LANGFUSE_ENV: ${LANGFUSE_ENV:-production}
+      LANGFUSE_PROMPT_LABEL: ${LANGFUSE_PROMPT_LABEL:-production}
     volumes:
       - minha_casa_hermes_jobs:/work/hermes-jobs
     healthcheck:

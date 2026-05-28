@@ -1,3 +1,5 @@
+name: minha-casa-db
+
 services:
   minha-casa-local-db:
     image: postgres:17-alpine

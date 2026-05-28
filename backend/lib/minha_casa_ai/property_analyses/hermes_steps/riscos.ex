@@ -8,22 +8,9 @@ defmodule MinhaCasaAi.PropertyAnalyses.HermesSteps.Riscos do
 
   @impl true
   def prompt(bundle, address, _opts) do
-    ctx = Jason.encode!(Step.location_context(bundle, address))
-
-    """
-    Pesquise riscos naturais relevantes para a região do imóvel (enchentes, deslizamentos, ventos fortes, etc.).
-    Use no máximo uma busca rápida na web; não use extração de URL nem ferramentas de terminal/código/navegador.
-    Responda em um único objeto JSON minificado em uma linha, sem Markdown.
-
-    Contexto: #{ctx}
-    #{facts_line(bundle)}
-
-    #{Step.pt_rules()}
-
-    Formato obrigatório (campos em português):
-    {"paragrafo":"parágrafo curto em português sobre riscos naturais da região","tags":["rótulo opcional"]}
-    tags é opcional. Se não puder concluir: {"skipped":true,"reason":"motivo curto"}
-    """
+    bundle
+    |> MinhaCasaAi.PropertyAnalyses.HermesSteps.PromptTemplates.riscos(address)
+    |> elem(0)
   end
 
   @impl true

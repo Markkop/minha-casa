@@ -8,66 +8,35 @@ defmodule MinhaCasaAi.PropertyAnalyses.HermesSteps.Xray do
 
   @pontos_count 3
 
+  def pontos_count, do: @pontos_count
+
+  def image_paths_for_indices(indices, bundle) when is_list(indices) do
+    root = Map.get(bundle, :root)
+    images_dir = if root, do: Path.join(root, "images"), else: ""
+
+    Enum.map(indices, fn idx ->
+      Path.join(images_dir, "#{idx}.jpg")
+    end)
+  end
+
   def key, do: "xray"
 
-  def run_for_card(bundle, address, card, context) do
+  def run_for_card(bundle, address, card, context, prompt_text \\ nil, opts \\ []) do
     ambiente_id = Map.get(card, "id", "unknown")
     session_id = "#{Map.get(bundle, :analysis_id)}:xray:#{ambiente_id}"
 
+    prompt_text = prompt_text || prompt_for_card(bundle, address, card, context)
+
     with {:ok, raw} <-
-           HermesAgent.run(
-             prompt_for_card(bundle, address, card, context),
-             session_id: session_id
-           ) do
+           HermesAgent.run(prompt_text, Keyword.merge([session_id: session_id], opts)) do
       {:ok, normalize_pontos(raw, ambiente_id)}
     end
   end
 
   def prompt_for_card(bundle, address, card, context) do
-    ctx = Jason.encode!(Step.location_context(bundle, address))
-    clima = Jason.encode!(Map.get(context, :clima, %{}))
-    riscos = Jason.encode!(Map.get(context, :riscos, %{}))
-    idade = Jason.encode!(Map.get(context, :idade, %{}))
-    facts = Step.facts_text(bundle) || "n/d"
-
-    image_paths =
-      card
-      |> Map.get("imageIndices", [])
-      |> image_paths_for_indices(bundle)
-
-    card_json = Jason.encode!(card)
-
-    """
-    Você é o agente x-ray de um ambiente específico do imóvel. Com base nas fotos deste ambiente,
-    no inventário estrutural/móveis e no contexto regional, liste EXATAMENTE #{@pontos_count} pontos
-    de atenção (blind spots) com estimativa de custo de reparo/melhoria em BRL.
-
-    Contexto regional: #{ctx}
-    Clima: #{clima}
-    Riscos naturais: #{riscos}
-    Idade do imóvel: #{idade}
-    Dados do anúncio: #{facts}
-
-    Ambiente (card):
-    #{card_json}
-
-    Fotos deste ambiente (caminhos locais):
-    #{Enum.join(image_paths, "\n")}
-
-    Regras dos pontos:
-    - Exatamente #{@pontos_count} itens — nem mais, nem menos.
-    - Foque em riscos materiais/construtivos ligados ao contexto: umidade alta, salinidade, idade,
-      madeira, rejuntes, vedação, infiltração, esquadrias, área molhada, exposição solar, riscos locais.
-    - NÃO comente decoração, estilo, heterogeneidade visual, conforto estético, layout subjetivo.
-    - Use os `material` listados no card para sugerir riscos materiais coerentes; não comente cor.
-    - Cada ponto: titulo curto, descricao objetiva (o que verificar e por quê), custoMinBrl, custoMaxBrl,
-      detalhes opcional (trabalho previsto).
-
-    #{Step.pt_rules()}
-
-    Formato JSON minificado em uma linha:
-    {"pontosAtencao":[{"id":"...","titulo":"...","descricao":"...","custoMinBrl":0,"custoMaxBrl":0,"detalhes":"..."}]}
-    """
+    bundle
+    |> MinhaCasaAi.PropertyAnalyses.HermesSteps.PromptTemplates.xray_card(address, card, context)
+    |> elem(0)
   end
 
   @doc false
@@ -128,12 +97,4 @@ defmodule MinhaCasaAi.PropertyAnalyses.HermesSteps.Xray do
     pontos ++ placeholders
   end
 
-  defp image_paths_for_indices(indices, bundle) do
-    root = Map.get(bundle, :root)
-    images_dir = if root, do: Path.join(root, "images"), else: ""
-
-    Enum.map(indices, fn idx ->
-      Path.join(images_dir, "#{idx}.jpg")
-    end)
-  end
 end

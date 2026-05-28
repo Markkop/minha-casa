@@ -11,6 +11,7 @@ defmodule MinhaCasaAi.Application do
       {Finch, name: MinhaCasaAi.Finch},
       {Phoenix.PubSub, name: MinhaCasaAi.PubSub},
       {Oban, Application.fetch_env!(:minha_casa_ai, Oban)},
+      MinhaCasaAi.Integrations.Langfuse.IngestionBuffer,
       MinhaCasaAiWeb.Endpoint
     ]
 

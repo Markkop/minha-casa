@@ -5,6 +5,7 @@ defmodule MinhaCasaAi.Integrations.SavedLinkMetadata do
   """
 
   alias MinhaCasaAi.Config
+  alias MinhaCasaAi.Integrations.Langfuse.PromptHelpers
   alias MinhaCasaAi.Integrations.{BraveSearch, OpenAIResponses, OpenAISchemas, ScrapingAnt}
   alias MinhaCasaAi.Integrations.SavedLinkMetadata.Deconstruct
 
@@ -43,13 +44,6 @@ defmodule MinhaCasaAi.Integrations.SavedLinkMetadata do
     "lagoa da conceicao",
     "barra da lagoa"
   ]
-
-  @metadata_system_prompt """
-  Você gera título e descrição curtos para links salvos em pesquisa de imóveis no Brasil.
-  Use só o JSON de contexto (URL decomposta, fetch, Brave ou ScrapingAnt). Não invente filtros nem cidades que não estejam no contexto.
-  Responda APENAS JSON: { "title": string, "description": string | null }
-  Título máx. #{@title_max} caracteres. Descrição máx. #{@description_max}, preferir 45–95 caracteres, nominal e telegráfica.
-  """
 
   def resolve(url) when is_binary(url) do
     trimmed = String.trim(url)
@@ -366,13 +360,22 @@ defmodule MinhaCasaAi.Integrations.SavedLinkMetadata do
 
   defp generate_metadata_with_ai(payload) do
     if Config.configured?(:openai) do
+      {instructions, prompt_ref} =
+        PromptHelpers.compile("saved-link-metadata/system", %{
+          "title_max" => Integer.to_string(@title_max),
+          "description_max" => Integer.to_string(@description_max)
+        })
+
+      lf = PromptHelpers.langfuse_ctx("saved-link-metadata", prompt_ref)
+
       case OpenAIResponses.json(
-             @metadata_system_prompt,
+             instructions,
              Jason.encode!(payload),
              reasoning_effort: "low",
              max_output_tokens: 400,
              timeout: 45_000,
-             schema: %{name: "saved_link_metadata", schema: OpenAISchemas.saved_link_metadata_schema()}
+             schema: %{name: "saved_link_metadata", schema: OpenAISchemas.saved_link_metadata_schema()},
+             langfuse: lf
            ) do
         {:ok, parsed} ->
           title = Map.get(parsed, "title") |> normalize_string()

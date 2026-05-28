@@ -75,4 +75,10 @@ config :minha_casa_ai, MinhaCasaAi.Config,
   property_analysis_max_images:
     String.to_integer(System.get_env("PROPERTY_ANALYSIS_MAX_IMAGES") || "40"),
   property_analysis_photo_concurrency:
-    String.to_integer(System.get_env("PROPERTY_ANALYSIS_PHOTO_CONCURRENCY") || "4")
+    String.to_integer(System.get_env("PROPERTY_ANALYSIS_PHOTO_CONCURRENCY") || "4"),
+  langfuse_host: System.get_env("LANGFUSE_HOST"),
+  langfuse_public_key: System.get_env("LANGFUSE_PUBLIC_KEY"),
+  langfuse_secret_key: System.get_env("LANGFUSE_SECRET_KEY"),
+  langfuse_enabled: System.get_env("LANGFUSE_ENABLED", "false") not in ["false", "0"],
+  langfuse_env: System.get_env("LANGFUSE_ENV", "local"),
+  langfuse_prompt_label: System.get_env("LANGFUSE_PROMPT_LABEL", "production")

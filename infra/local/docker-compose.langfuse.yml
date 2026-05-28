@@ -1,0 +1,161 @@
+# Langfuse v3 for local development. Run alongside the app stack:
+#
+#   docker compose -f infra/local/docker-compose.app.yml \
+#     -f infra/local/docker-compose.langfuse.yml up -d
+#
+# UI: http://localhost:3100
+# Reuses app Postgres (database `langfuse`) and MinIO (bucket `langfuse-events`).
+
+services:
+  langfuse-db-init:
+    image: postgres:17-alpine
+    container_name: minha-casa-langfuse-db-init-1
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      PGPASSWORD: ${POSTGRES_PASSWORD:-minhacasa_local_password}
+      PGUSER: ${POSTGRES_USER:-minhacasa}
+      PGHOST: postgres
+    entrypoint:
+      - /bin/sh
+      - -lc
+      - |
+        psql -d postgres -tc "SELECT 1 FROM pg_database WHERE datname = 'langfuse'" | grep -q 1 \
+          || psql -d postgres -c "CREATE DATABASE langfuse"
+    networks:
+      - minha_casa_local
+
+  langfuse-clickhouse:
+    # Match Langfuse upstream image (non-alpine avoids wget/IPv6 healthcheck quirks).
+    image: clickhouse/clickhouse-server:24.8
+    container_name: minha-casa-langfuse-clickhouse-1
+    restart: unless-stopped
+    user: "101:101"
+    environment:
+      CLICKHOUSE_DB: default
+      CLICKHOUSE_USER: ${LANGFUSE_CLICKHOUSE_USER:-clickhouse}
+      CLICKHOUSE_PASSWORD: ${LANGFUSE_CLICKHOUSE_PASSWORD:-clickhouse_local}
+      TZ: UTC
+    volumes:
+      - minha_casa_local_langfuse_clickhouse:/var/lib/clickhouse
+    healthcheck:
+      # Use 127.0.0.1 — `localhost` often resolves to ::1 while CH listens on IPv4 only.
+      test:
+        [
+          "CMD-SHELL",
+          "wget --no-verbose --tries=1 --spider http://127.0.0.1:8123/ping || exit 1",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    networks:
+      - minha_casa_local
+
+  langfuse-redis:
+    image: redis:7-alpine
+    container_name: minha-casa-langfuse-redis-1
+    restart: unless-stopped
+    command: >
+      redis-server
+      --requirepass ${LANGFUSE_REDIS_PASSWORD:-langfuse_redis_local}
+      --maxmemory-policy noeviction
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "redis-cli",
+          "-a",
+          "${LANGFUSE_REDIS_PASSWORD:-langfuse_redis_local}",
+          "ping",
+        ]
+      interval: 3s
+      timeout: 10s
+      retries: 10
+    networks:
+      - minha_casa_local
+
+  langfuse-web:
+    image: langfuse/langfuse:3
+    container_name: minha-casa-langfuse-web-1
+    restart: unless-stopped
+    depends_on:
+      langfuse-db-init:
+        condition: service_completed_successfully
+      langfuse-clickhouse:
+        condition: service_healthy
+      langfuse-redis:
+        condition: service_healthy
+      minio:
+        condition: service_started
+    ports:
+      - "${LANGFUSE_PUBLIC_PORT:-3100}:3000"
+    environment: &langfuse_env
+      NEXTAUTH_URL: ${LANGFUSE_NEXTAUTH_URL:-http://localhost:3100}
+      NEXTAUTH_SECRET: ${LANGFUSE_NEXTAUTH_SECRET:-local-langfuse-nextauth-secret-change-me}
+      SALT: ${LANGFUSE_SALT:-local-langfuse-salt-change-me}
+      ENCRYPTION_KEY: ${LANGFUSE_ENCRYPTION_KEY:-0000000000000000000000000000000000000000000000000000000000000000}
+      TELEMETRY_ENABLED: ${LANGFUSE_TELEMETRY_ENABLED:-false}
+      LANGFUSE_ENABLE_EXPERIMENTAL_FEATURES: "false"
+      DATABASE_URL: postgresql://${POSTGRES_USER:-minhacasa}:${POSTGRES_PASSWORD:-minhacasa_local_password}@postgres:5432/langfuse
+      CLICKHOUSE_MIGRATION_URL: clickhouse://langfuse-clickhouse:9000
+      CLICKHOUSE_URL: http://langfuse-clickhouse:8123
+      CLICKHOUSE_USER: ${LANGFUSE_CLICKHOUSE_USER:-clickhouse}
+      CLICKHOUSE_PASSWORD: ${LANGFUSE_CLICKHOUSE_PASSWORD:-clickhouse_local}
+      CLICKHOUSE_CLUSTER_ENABLED: "false"
+      REDIS_HOST: langfuse-redis
+      REDIS_PORT: "6379"
+      REDIS_AUTH: ${LANGFUSE_REDIS_PASSWORD:-langfuse_redis_local}
+      REDIS_TLS_ENABLED: "false"
+      LANGFUSE_S3_EVENT_UPLOAD_BUCKET: ${LANGFUSE_S3_BUCKET:-langfuse-events}
+      LANGFUSE_S3_EVENT_UPLOAD_REGION: auto
+      LANGFUSE_S3_EVENT_UPLOAD_ACCESS_KEY_ID: ${MINIO_ACCESS_KEY:-minhacasa}
+      LANGFUSE_S3_EVENT_UPLOAD_SECRET_ACCESS_KEY: ${MINIO_SECRET_KEY:-minhacasa_local_password}
+      LANGFUSE_S3_EVENT_UPLOAD_ENDPOINT: http://minio:9000
+      LANGFUSE_S3_EVENT_UPLOAD_FORCE_PATH_STYLE: "true"
+      LANGFUSE_S3_EVENT_UPLOAD_PREFIX: events/
+      LANGFUSE_S3_MEDIA_UPLOAD_BUCKET: ${LANGFUSE_S3_BUCKET:-langfuse-events}
+      LANGFUSE_S3_MEDIA_UPLOAD_REGION: auto
+      LANGFUSE_S3_MEDIA_UPLOAD_ACCESS_KEY_ID: ${MINIO_ACCESS_KEY:-minhacasa}
+      LANGFUSE_S3_MEDIA_UPLOAD_SECRET_ACCESS_KEY: ${MINIO_SECRET_KEY:-minhacasa_local_password}
+      LANGFUSE_S3_MEDIA_UPLOAD_ENDPOINT: http://minio:9000
+      LANGFUSE_S3_MEDIA_UPLOAD_FORCE_PATH_STYLE: "true"
+      LANGFUSE_S3_MEDIA_UPLOAD_PREFIX: media/
+      # All LANGFUSE_INIT_* are ignored unless ORG_ID is set (see Langfuse logs).
+      LANGFUSE_INIT_ORG_ID: ${LANGFUSE_INIT_ORG_ID:-minha-casa-local-org}
+      LANGFUSE_INIT_ORG_NAME: ${LANGFUSE_INIT_ORG_NAME:-Minha Casa Local}
+      LANGFUSE_INIT_PROJECT_ID: ${LANGFUSE_INIT_PROJECT_ID:-minha-casa-local-project}
+      LANGFUSE_INIT_PROJECT_NAME: ${LANGFUSE_INIT_PROJECT_NAME:-minha-casa-local}
+      LANGFUSE_INIT_PROJECT_PUBLIC_KEY: ${LANGFUSE_INIT_PROJECT_PUBLIC_KEY:-pk-lf-local-minha-casa}
+      LANGFUSE_INIT_PROJECT_SECRET_KEY: ${LANGFUSE_INIT_PROJECT_SECRET_KEY:-sk-lf-local-minha-casa}
+      LANGFUSE_INIT_USER_EMAIL: ${LANGFUSE_INIT_USER_EMAIL:-admin@example.com}
+      LANGFUSE_INIT_USER_NAME: ${LANGFUSE_INIT_USER_NAME:-Admin}
+      LANGFUSE_INIT_USER_PASSWORD: ${LANGFUSE_INIT_USER_PASSWORD:-langfuse-local-admin}
+    networks:
+      - minha_casa_local
+
+  langfuse-worker:
+    image: langfuse/langfuse-worker:3
+    container_name: minha-casa-langfuse-worker-1
+    restart: unless-stopped
+    depends_on:
+      langfuse-db-init:
+        condition: service_completed_successfully
+      langfuse-clickhouse:
+        condition: service_healthy
+      langfuse-redis:
+        condition: service_healthy
+      minio:
+        condition: service_started
+    environment:
+      <<: *langfuse_env
+    networks:
+      - minha_casa_local
+
+networks:
+  minha_casa_local:
+    external: true
+
+volumes:
+  minha_casa_local_langfuse_clickhouse:

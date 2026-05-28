@@ -10,7 +10,7 @@ defmodule MinhaCasaAi.Workers.PropertyAnalysisCardXrayWorker do
   alias MinhaCasaAi.PropertyAnalyses.HermesPipeline
 
   @impl Oban.Worker
-  def perform(%Oban.Job{args: %{"analysis_id" => analysis_id, "ambiente_id" => ambiente_id}}) do
+  def perform(%Oban.Job{args: %{"analysis_id" => analysis_id, "ambiente_id" => ambiente_id} = args}) do
     analysis = PropertyAnalyses.get!(analysis_id)
     listing_id = analysis.input["listingId"] || analysis.listing_id
 
@@ -19,7 +19,7 @@ defmodule MinhaCasaAi.Workers.PropertyAnalysisCardXrayWorker do
              user_id: analysis.user_id,
              org_id: analysis.org_id
            ) do
-      run_xray(analysis, listing, ambiente_id)
+      run_xray(analysis, listing, ambiente_id, trace_id: args["trace_id"])
     else
       {:error, :listing_not_found} ->
         PropertyAnalyses.mark_ambiente_xray_failed!(
@@ -32,7 +32,7 @@ defmodule MinhaCasaAi.Workers.PropertyAnalysisCardXrayWorker do
     end
   end
 
-  defp run_xray(analysis, listing, ambiente_id) do
+  defp run_xray(analysis, listing, ambiente_id, opts) do
     cond do
       not Config.configured?(:hermes) ->
         PropertyAnalyses.mark_ambiente_xray_failed!(
@@ -53,7 +53,9 @@ defmodule MinhaCasaAi.Workers.PropertyAnalysisCardXrayWorker do
         {:error, :openai_not_configured}
 
       true ->
-        case HermesPipeline.run_card_xray(analysis, listing, ambiente_id) do
+        case HermesPipeline.run_card_xray(analysis, listing, ambiente_id,
+               trace_id: Keyword.get(opts, :trace_id)
+             ) do
           {:ok, _pontos} -> :ok
           {:error, :ambiente_not_found} -> {:cancel, "ambiente not found"}
           {:error, reason} -> {:error, reason}

@@ -17,6 +17,7 @@
     "setup:analise": "bash scripts/setup-analise-local.sh"
   },
   "dependencies": {
+    "@langfuse/client": "^5.4.0",
     "@radix-ui/react-icons": "^1.3.2",
     "@radix-ui/react-label": "^2.1.8",
     "@radix-ui/react-popover": "^1.1.15",

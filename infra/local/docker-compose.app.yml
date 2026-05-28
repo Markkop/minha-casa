@@ -1,3 +1,7 @@
+# Isolated project name so `docker compose … --remove-orphans` does not remove
+# containers from infra/local/docker-compose.db.yml (separate project).
+name: minha-casa-app
+
 services:
   postgres:
     image: postgres:17-alpine
@@ -50,6 +54,7 @@ services:
       - |
         until mc alias set local http://minio:9000 "$${MINIO_ACCESS_KEY}" "$${MINIO_SECRET_KEY}"; do sleep 2; done
         mc mb --ignore-existing "local/$${MINIO_BUCKET}"
+        mc mb --ignore-existing "local/$${LANGFUSE_S3_BUCKET:-langfuse-events}"
     networks:
       - minha_casa_local
 
@@ -97,6 +102,12 @@ services:
       HERMES_JOBS_DIR: /work/hermes-jobs
       HERMES_ANALYSIS_TIMEOUT_MS: ${HERMES_ANALYSIS_TIMEOUT_MS:-1800000}
       PROPERTY_ANALYSIS_ENGINE: ${PROPERTY_ANALYSIS_ENGINE:-hermes}
+      LANGFUSE_HOST: ${LANGFUSE_HOST:-http://langfuse-web:3000}
+      LANGFUSE_PUBLIC_KEY: ${LANGFUSE_PUBLIC_KEY:-}
+      LANGFUSE_SECRET_KEY: ${LANGFUSE_SECRET_KEY:-}
+      LANGFUSE_ENABLED: ${LANGFUSE_ENABLED:-false}
+      LANGFUSE_ENV: ${LANGFUSE_ENV:-local}
+      LANGFUSE_PROMPT_LABEL: ${LANGFUSE_PROMPT_LABEL:-production}
     volumes:
       - minha_casa_local_hermes_jobs:/work/hermes-jobs
     ports:
@@ -161,16 +172,19 @@ services:
       DATABASE_SSL: ${DATABASE_SSL:-false}
       BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:-local-better-auth-secret}
       BETTER_AUTH_URL: ${BETTER_AUTH_URL:-http://localhost:3000}
-      BETTER_AUTH_TRUSTED_ORIGINS: ${BETTER_AUTH_TRUSTED_ORIGINS:-http://localhost:3000}
+      BETTER_AUTH_TRUSTED_ORIGINS: ${BETTER_AUTH_TRUSTED_ORIGINS:-http://localhost:3000,http://localhost:3001}
       NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-http://localhost:3000}
       INTERNAL_BACKEND_URL: http://phoenix-api:4000
       BACKEND_API_URL: ${BACKEND_API_URL:-http://localhost:4000}
       INTERNAL_API_SECRET: ${INTERNAL_API_SECRET:-local-internal-api-secret}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       SCRAPINGANT_API_KEY: ${SCRAPINGANT_API_KEY:-}
+    # Anonymous node_modules/.next so Alpine gets linux-musl native deps (not host macOS binaries).
     command: sh -lc "corepack enable && pnpm install --frozen-lockfile && pnpm dev"
     volumes:
       - ../..:/app
+      - /app/node_modules
+      - /app/.next
       - minha_casa_local_pnpm_store:/root/.local/share/pnpm/store
     ports:
       - "${NEXT_PUBLIC_PORT:-3000}:3000"
@@ -179,6 +193,7 @@ services:
 
 networks:
   minha_casa_local:
+    name: minha_casa_local
     driver: bridge
 
 volumes:

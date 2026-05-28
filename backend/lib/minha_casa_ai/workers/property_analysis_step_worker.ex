@@ -10,7 +10,7 @@ defmodule MinhaCasaAi.Workers.PropertyAnalysisStepWorker do
   alias MinhaCasaAi.PropertyAnalyses.HermesPipeline
 
   @impl Oban.Worker
-  def perform(%Oban.Job{args: %{"analysis_id" => analysis_id, "step" => step}}) do
+  def perform(%Oban.Job{args: %{"analysis_id" => analysis_id, "step" => step} = args}) do
     analysis = PropertyAnalyses.get!(analysis_id)
     listing_id = analysis.input["listingId"] || analysis.listing_id
 
@@ -19,7 +19,7 @@ defmodule MinhaCasaAi.Workers.PropertyAnalysisStepWorker do
              user_id: analysis.user_id,
              org_id: analysis.org_id
            ) do
-      run_step(analysis, listing, step)
+      run_step(analysis, listing, step, trace_id: args["trace_id"])
     else
       {:error, :listing_not_found} ->
         PropertyAnalyses.mark_step_failed!(analysis_id, step, "Imóvel não encontrado")
@@ -27,7 +27,7 @@ defmodule MinhaCasaAi.Workers.PropertyAnalysisStepWorker do
     end
   end
 
-  defp run_step(analysis, listing, step) do
+  defp run_step(analysis, listing, step, opts) do
     cond do
       not Config.configured?(:hermes) ->
         PropertyAnalyses.mark_step_failed!(
@@ -51,7 +51,9 @@ defmodule MinhaCasaAi.Workers.PropertyAnalysisStepWorker do
         {:cancel, "invalid step"}
 
       true ->
-        case HermesPipeline.run_single_step(analysis, listing, step) do
+        case HermesPipeline.run_single_step(analysis, listing, step,
+               trace_id: Keyword.get(opts, :trace_id)
+             ) do
           {:ok, _section} ->
             :ok
 

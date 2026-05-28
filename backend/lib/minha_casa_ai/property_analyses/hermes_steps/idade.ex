@@ -8,36 +8,9 @@ defmodule MinhaCasaAi.PropertyAnalyses.HermesSteps.Idade do
 
   @impl true
   def prompt(bundle, address, opts) do
-    ambientes = Keyword.get(opts, :ambientes, %{})
-    ambientes_path = Map.get(bundle, :ambientes_path)
-    ctx = Jason.encode!(Step.location_context(bundle, address))
-
-    ambientes_json =
-      if is_binary(ambientes_path) and File.exists?(ambientes_path) do
-        File.read!(ambientes_path)
-      else
-        Jason.encode!(ambientes)
-      end
-
-    facts = Step.facts_text(bundle) || "n/d"
-
-    """
-    Estime a idade do imóvel com base nas fotos dos ambientes e nos metadados do anúncio.
-
-    Contexto: #{ctx}
-    Dados do anúncio: #{facts}
-    Ambientes analisados: #{ambientes_json}
-
-    #{Step.pt_rules()}
-
-    Formato:
-    {
-      "estimativaAnos": number,
-      "faixaAnos": { "min": number, "max": number },
-      "resumo": "parágrafo curto",
-      "sinaisVistos": ["sinal 1", "sinal 2"]
-    }
-    """
+    bundle
+    |> MinhaCasaAi.PropertyAnalyses.HermesSteps.PromptTemplates.idade(address, opts)
+    |> elem(0)
   end
 
   @impl true

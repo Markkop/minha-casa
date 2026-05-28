@@ -72,6 +72,25 @@ defmodule MinhaCasaAi.Config do
     present?(telegram_bot_token())
   end
 
+  def langfuse_host, do: get(:langfuse_host)
+  def langfuse_public_key, do: get(:langfuse_public_key)
+  def langfuse_secret_key, do: get(:langfuse_secret_key)
+  def langfuse_env, do: get(:langfuse_env) || "local"
+  def langfuse_prompt_label, do: get(:langfuse_prompt_label) || "production"
+
+  def langfuse_enabled? do
+    case get(:langfuse_enabled) do
+      false -> false
+      "false" -> false
+      "0" -> false
+      _ -> configured?(:langfuse)
+    end
+  end
+
+  def configured?(:langfuse) do
+    present?(langfuse_host()) and present?(langfuse_public_key()) and present?(langfuse_secret_key())
+  end
+
   defp get(key), do: Application.get_env(:minha_casa_ai, __MODULE__, []) |> Keyword.get(key)
   defp present?(value), do: is_binary(value) && String.trim(value) != ""
 

@@ -47,8 +47,22 @@
     {
       "idx": 6,
       "version": "7",
-      "when": 1779846000000,
-      "tag": "0010_listing_analyses",
+      "when": 1779400000000,
+      "tag": "0007_whatsapp_linking",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1779500000000,
+      "tag": "0008_telegram_linking",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1779600000000,
+      "tag": "0009_listing_short_links",
       "breakpoints": true
     }
   ]

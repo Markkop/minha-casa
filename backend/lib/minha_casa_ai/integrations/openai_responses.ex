@@ -4,6 +4,7 @@ defmodule MinhaCasaAi.Integrations.OpenAIResponses do
   """
 
   alias MinhaCasaAi.Config
+  alias MinhaCasaAi.Integrations.Langfuse.OpenAI, as: LangfuseOpenAI
 
   @api_url "https://api.openai.com/v1/responses"
 
@@ -15,7 +16,16 @@ defmodule MinhaCasaAi.Integrations.OpenAIResponses do
         |> Map.put(:input, user_content)
         |> put_text_format(opts)
 
-      post_and_decode_json(api_key, body, Keyword.get(opts, :timeout, 55_000))
+      timeout = Keyword.get(opts, :timeout, 55_000)
+      model = body.model
+
+      LangfuseOpenAI.wrap(
+        Keyword.get(opts, :langfuse),
+        model,
+        instructions,
+        user_content,
+        fn -> post_and_decode_json(api_key, body, timeout) end
+      )
     end
   end
 
@@ -41,7 +51,16 @@ defmodule MinhaCasaAi.Integrations.OpenAIResponses do
         |> Map.put(:input, input)
         |> put_text_format(opts)
 
-      post_and_decode_json(api_key, body, Keyword.get(opts, :timeout, 90_000))
+      timeout = Keyword.get(opts, :timeout, 90_000)
+      model = body.model
+
+      LangfuseOpenAI.wrap(
+        Keyword.get(opts, :langfuse),
+        model,
+        instructions,
+        %{user_text: text, image: "[image]"},
+        fn -> post_and_decode_json(api_key, body, timeout) end
+      )
     end
   end
 
@@ -54,10 +73,21 @@ defmodule MinhaCasaAi.Integrations.OpenAIResponses do
         |> Map.put(:tools, tools)
         |> Map.put(:tool_choice, Keyword.get(opts, :tool_choice, "auto"))
 
-      case post(api_key, body, Keyword.get(opts, :timeout, 55_000)) do
-        {:ok, resp} -> {:ok, resp}
-        error -> error
-      end
+      timeout = Keyword.get(opts, :timeout, 55_000)
+      model = body.model
+
+      LangfuseOpenAI.wrap(
+        Keyword.get(opts, :langfuse),
+        model,
+        instructions,
+        user_content,
+        fn ->
+          case post(api_key, body, timeout) do
+            {:ok, resp} -> {:ok, resp, resp}
+            error -> error
+          end
+        end
+      )
     end
   end
 
@@ -137,7 +167,7 @@ defmodule MinhaCasaAi.Integrations.OpenAIResponses do
     with {:ok, resp} <- post(api_key, body, timeout),
          {:ok, content} <- extract_output_text(resp),
          {:ok, map} <- decode_json_object(content) do
-      {:ok, map}
+      {:ok, map, resp}
     end
   end
 

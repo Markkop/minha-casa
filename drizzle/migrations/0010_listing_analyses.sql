@@ -1,3 +1,5 @@
+-- Superseded by Phoenix migration 20260525000100 (needs ai_workflow_runs first).
+-- Not registered in drizzle/migrations/meta/_journal.json — do not add back without coordination.
 CREATE TABLE IF NOT EXISTS "listing_analyses" (
   "id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
   "listing_id" uuid NOT NULL REFERENCES "listings"("id") ON DELETE CASCADE,

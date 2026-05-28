@@ -5,6 +5,7 @@ defmodule MinhaCasaAi.PropertyAnalyses.HermesPipeline do
 
   alias MinhaCasaAi.Config
   alias MinhaCasaAi.Integrations.HermesAgent
+  alias MinhaCasaAi.Integrations.Langfuse.Trace
   alias MinhaCasaAi.PropertyAnalyses
   alias MinhaCasaAi.PropertyAnalyses.{GeocodeStep, HermesBundle}
 
@@ -13,6 +14,7 @@ defmodule MinhaCasaAi.PropertyAnalyses.HermesPipeline do
     Clima,
     Idade,
     Mercado,
+    PromptTemplates,
     Riscos,
     Xray
   }
@@ -28,12 +30,13 @@ defmodule MinhaCasaAi.PropertyAnalyses.HermesPipeline do
     "idade" => Idade
   }
 
-  def run(analysis, listing) do
+  def run(analysis, listing, opts \\ []) do
     bundle = HermesBundle.prepare!(analysis, listing)
     address = resolve_address(listing, analysis.input || %{})
+    trace_ctx = analysis_trace(analysis, opts)
 
     try do
-      phase_1_results = run_phase(analysis, bundle, address, @phase_1, [])
+      phase_1_results = run_phase(analysis, bundle, address, @phase_1, [], trace_ctx)
 
       ambientes_result =
         phase_1_results
@@ -44,10 +47,10 @@ defmodule MinhaCasaAi.PropertyAnalyses.HermesPipeline do
 
       if ambientes_result && Map.get(ambientes_result, "skipped") != true do
         bundle = HermesBundle.write_ambientes_snapshot!(bundle, ambientes_result)
-        run_phase(analysis, bundle, address, @phase_2, ambientes: ambientes_result)
+        run_phase(analysis, bundle, address, @phase_2, [ambientes: ambientes_result], trace_ctx)
 
         analysis = PropertyAnalyses.get!(analysis.id)
-        run_phase_3_xray(analysis, bundle, address)
+        run_phase_3_xray(analysis, bundle, address, trace_ctx)
       end
 
       PropertyAnalyses.finalize_result!(analysis)
@@ -65,22 +68,23 @@ defmodule MinhaCasaAi.PropertyAnalyses.HermesPipeline do
   @doc """
   Re-runs a single pipeline step for an existing analysis (used by per-card refresh).
   """
-  def run_single_step(analysis, listing, step_key) when is_binary(step_key) do
+  def run_single_step(analysis, listing, step_key, opts \\ []) when is_binary(step_key) do
     if step_key == "xray" do
       {:error, :use_per_card_xray}
     else
       with {:ok, step_module} <- step_module(step_key) do
         bundle = HermesBundle.prepare!(analysis, listing)
         address = resolve_address(listing, analysis.input || %{})
+        trace_ctx = analysis_trace(analysis, opts)
 
         try do
-          opts = single_step_opts(analysis, step_key)
+          step_opts = single_step_opts(analysis, step_key)
           bundle = maybe_write_ambientes_snapshot!(bundle, analysis, step_key)
 
           PropertyAnalyses.mark_step_running!(analysis.id, step_key)
 
           result =
-            run_step(analysis, bundle, address, step_module, opts,
+            run_step(analysis, bundle, address, step_module, step_opts, trace_ctx,
               track_running: false
             )
 
@@ -109,7 +113,7 @@ defmodule MinhaCasaAi.PropertyAnalyses.HermesPipeline do
   @doc """
   Re-runs x-ray (blind spots + orçamento) for one ambiente card.
   """
-  def run_card_xray(analysis, listing, ambiente_id) when is_binary(ambiente_id) do
+  def run_card_xray(analysis, listing, ambiente_id, opts \\ []) when is_binary(ambiente_id) do
     analysis = PropertyAnalyses.get!(analysis.id)
     card = PropertyAnalyses.get_ambiente_card(analysis, ambiente_id)
 
@@ -124,8 +128,14 @@ defmodule MinhaCasaAi.PropertyAnalyses.HermesPipeline do
         PropertyAnalyses.mark_ambiente_xray_running!(analysis.id, ambiente_id)
 
         context = xray_context(analysis)
+        trace_ctx = analysis_trace(analysis, opts)
+        {prompt_text, prompt_ref} = PromptTemplates.xray_card(bundle, address, card, context)
 
-        case Xray.run_for_card(bundle, address, card, context) do
+        lf_opts = [
+          langfuse: hermes_langfuse_ctx(trace_ctx, "xray:#{ambiente_id}", prompt_ref)
+        ]
+
+        case Xray.run_for_card(bundle, address, card, context, prompt_text, lf_opts) do
           {:ok, pontos} ->
             PropertyAnalyses.patch_ambiente_xray!(analysis.id, ambiente_id, pontos)
             {:ok, pontos}
@@ -176,13 +186,13 @@ defmodule MinhaCasaAi.PropertyAnalyses.HermesPipeline do
     end
   end
 
-  defp run_phase(analysis, bundle, address, steps, opts) do
+  defp run_phase(analysis, bundle, address, steps, opts, trace_ctx) do
     timeout = Config.hermes_analysis_timeout_ms()
 
     steps
     |> Task.async_stream(
       fn step_module ->
-        run_step(analysis, bundle, address, step_module, opts)
+        run_step(analysis, bundle, address, step_module, opts, trace_ctx)
       end,
       max_concurrency: length(steps),
       ordered: false,
@@ -194,7 +204,7 @@ defmodule MinhaCasaAi.PropertyAnalyses.HermesPipeline do
     end)
   end
 
-  defp run_phase_3_xray(analysis, bundle, address) do
+  defp run_phase_3_xray(analysis, bundle, address, trace_ctx) do
     analysis = PropertyAnalyses.get!(analysis.id)
     cards = get_in(analysis.result || %{}, ["ambientes", "cards"]) || []
     context = xray_context(analysis)
@@ -208,7 +218,13 @@ defmodule MinhaCasaAi.PropertyAnalyses.HermesPipeline do
         try do
           PropertyAnalyses.mark_ambiente_xray_running!(analysis.id, ambiente_id)
 
-          case Xray.run_for_card(bundle, address, card, context) do
+          {prompt_text, prompt_ref} = PromptTemplates.xray_card(bundle, address, card, context)
+
+          lf_opts = [
+            langfuse: hermes_langfuse_ctx(trace_ctx, "xray:#{ambiente_id}", prompt_ref)
+          ]
+
+          case Xray.run_for_card(bundle, address, card, context, prompt_text, lf_opts) do
             {:ok, pontos} ->
               PropertyAnalyses.patch_ambiente_xray!(analysis.id, ambiente_id, pontos)
               {:ok, ambiente_id}
@@ -245,7 +261,7 @@ defmodule MinhaCasaAi.PropertyAnalyses.HermesPipeline do
     }
   end
 
-  defp run_step(analysis, bundle, address, step_module, opts, run_opts \\ []) do
+  defp run_step(analysis, bundle, address, step_module, opts, trace_ctx, run_opts \\ []) do
     key = step_module.key()
     session_id = "#{analysis.id}:#{key}"
     track_running? = Keyword.get(run_opts, :track_running, true)
@@ -254,12 +270,15 @@ defmodule MinhaCasaAi.PropertyAnalyses.HermesPipeline do
 
     try do
       hermes_opts = hermes_opts_for_step(key)
+      {prompt_text, prompt_ref} = PromptTemplates.for_step(step_module, bundle, address, opts)
 
-      with {:ok, raw} <-
-             HermesAgent.run(
-               step_module.prompt(bundle, address, opts),
-               Keyword.merge([session_id: session_id], hermes_opts)
-             ),
+      hermes_opts =
+        Keyword.merge(hermes_opts, [
+          session_id: session_id,
+          langfuse: hermes_langfuse_ctx(trace_ctx, key, prompt_ref)
+        ])
+
+      with {:ok, raw} <- HermesAgent.run(prompt_text, hermes_opts),
            section <- step_module.normalize(raw, bundle) do
         PropertyAnalyses.patch_result!(analysis.id, key, section)
         {:ok, key, section}
@@ -282,6 +301,42 @@ defmodule MinhaCasaAi.PropertyAnalyses.HermesPipeline do
   end
 
   defp hermes_opts_for_step(_), do: []
+
+  defp analysis_trace(analysis, opts) do
+    metadata = %{
+      analysis_id: analysis.id,
+      org_id: analysis.org_id,
+      listing_id: analysis.listing_id || get_in(analysis.input || %{}, ["listingId"])
+    }
+
+    case Keyword.get(opts, :trace_id) do
+      trace_id when is_binary(trace_id) ->
+        Trace.resume_trace(trace_id,
+          name: "property_analysis",
+          metadata: metadata,
+          user_id: analysis.user_id,
+          session_id: analysis.id
+        )
+
+      _ ->
+        Trace.new_trace("property_analysis",
+          metadata: metadata,
+          user_id: analysis.user_id,
+          session_id: analysis.id,
+          tags: ["hermes", "property_analysis"]
+        )
+    end
+  end
+
+  defp hermes_langfuse_ctx(trace_ctx, step_name, prompt_ref) do
+    %{
+      trace_id: trace_ctx[:trace_id],
+      parent_observation_id: trace_ctx[:observation_id],
+      name: "hermes:#{step_name}",
+      metadata: Map.merge(trace_ctx[:metadata] || %{}, %{step: step_name}),
+      prompt_ref: prompt_ref
+    }
+  end
 
   defp pipeline_outcome(result) when is_map(result) do
     completed = Map.get(result, "completedSteps", [])

@@ -1,0 +1,67 @@
+{
+  "assistant/instructions": {
+    "prompt": "Você é o assistente do Minha Casa (imóveis). Responda em português do Brasil. Use ferramentas quando o usuário pedir coleções, imóveis ou favoritos. Seja breve.",
+    "type": "text",
+    "version": 1
+  },
+  "hermes/global-instructions": {
+    "prompt": "Você é o motor interno da análise imobiliária Minha Casa.\nResponda somente JSON válido, sem Markdown, sem comentários e sem texto fora do objeto JSON.",
+    "type": "text",
+    "version": 1
+  },
+  "hermes/inventory-vocab-block": {
+    "prompt": "Vocabulário controlado do inventário (use SOMENTE estas strings em `tipo` e `material`):\n\nRegras do inventário (obrigatório):\n- Cada item: {\"tipo\": \"...\", \"material\": \"...\" (opcional), \"detalhe\": \"...\" (opcional)}.\n- `tipo` deve vir da lista correspondente ao array (estrutura → estruturais; instalacoes → instalações; moveis → móveis).\n- `material`, quando presente, deve vir da lista de materiais.\n- NUNCA inclua cor, tom ou acabamento cromático em tipo, material ou detalhe\n  (proibido: branco, preto, cinza, bege, marrom, azul, verde, amarelo, etc.).\n- `detalhe` é opcional, curto (≤ 4 palavras), só características construtivas\n  (ex.: \"americana\", \"60x60\", \"embutido\"). Nunca cor.\n\nEstruturais (array estrutura):\n{{estruturais}}\n\nInstalações (array instalacoes):\n{{instalacoes}}\n\nMóveis (array moveis):\n{{moveis}}\n\nMateriais (campo material):\n{{materiais}}",
+    "type": "text",
+    "version": 1
+  },
+  "hermes/pt-rules": {
+    "prompt": "Regras gerais:\n- Todo texto visível ao usuário em português do Brasil.\n- Responda SOMENTE JSON válido, sem Markdown.\n- Se não puder concluir, retorne skipped=true e reason explicando.\n- Não inclua segredos, tokens ou URLs internas autenticadas.",
+    "type": "text",
+    "version": 1
+  },
+  "hermes/step/ambientes": {
+    "prompt": "Analise TODAS as fotos do imóvel e classifique cada ambiente físico distinto.\n\nLeia {{input_path}} e as imagens em {{images_dir}}.\nUse os índices de imagem exatamente como em input.json.\n\nDados do anúncio: {{facts}}\n\nIMPORTANTE: NÃO gere pontos de atenção neste passo — outro agente (x-ray) fará isso depois.\nProduza apenas reconhecimento de ambiente, inventário estrutural e de móveis.\n\nCategorias permitidas (campo categoria, use EXATAMENTE uma destas strings):\n{{categories}}\n\nDefinições:\n- sala: estar, TV, jantar integrada, living, ambientes sociais internos.\n- cozinha: fechada, americana, ilha, copa integrada.\n- quarto: dormitório, suíte (suíte é atributo, não categoria separada).\n- banheiro: social, suíte, lavabo.\n- areaServico: lavanderia, tanque, máquina, varal técnico.\n- varanda: sacada, terraço privativo, churrasqueira na varanda.\n- areaExterna: jardim, quintal, piscina privativa, deck, churrasqueira externa.\n- garagem: vaga, box, estacionamento coberto/descoberto.\n- fachada: frente, portão, vista externa do edifício.\n- areaComum: hall do prédio, portaria, salão de festas, academia do condomínio, piscina/quadra do condomínio.\n- circulacao: corredor, escada, mezanino, passagens internas.\n- escritorio: home office, estudo, biblioteca.\n- closet, deposito, vista: conforme uso usual.\n\nRegras de separação (obrigatório — só para agrupar fotos em cards, NÃO vai no inventário):\n- Separe ambientes distintos pelo PISO e pelas PAREDES: cor do piso, cor das paredes, material do piso,\n  sentido das tábuas/rejunte, móveis FIXOS (cama, pia, bancada) e layout.\n- Use cor de piso e parede apenas para decidir se duas fotos são o mesmo ambiente; não descreva cor no inventário.\n- Se a mesma cama/piso/cabeceira aparece em duas fotos, é o MESMO quarto — uma única card.\n- Múltiplos cards só para: {{multi_categories}}.\n- Demais categorias: no máximo UM card (ex.: uma Cozinha, uma Garagem).\n- Máximo {{max_cards}} cards no total.\n- Categorize pelo menos 90% das fotos; só use semCategoria para fotos realmente ambíguas.\n- Se não couber em nenhuma categoria, coloque os índices em semCategoria — NÃO invente categoria.\n\nPara cada card:\n- id: slug estável (ex.: quarto-1, cozinha)\n- categoria: uma das permitidas\n- ordinal: número quando múltiplo permitido\n- rotulo: \"Quarto 1\" ou \"Cozinha\" (número só quando múltiplo)\n- imageIndices: índices das fotos deste ambiente\n- resumo: 1 frase interna (opcional)\n- estrutura: itens estruturais visíveis (array de {tipo, material?, detalhe?})\n- instalacoes: instalações fixas visíveis (array de {tipo, material?, detalhe?})\n- moveis: mobiliário visível (array de {tipo, material?, detalhe?})\n\n{{inventory_vocab}}\n\n{{pt_rules}}\n\nFormato JSON minificado em uma linha:\n{\"resumoGeral\":\"...\",\"cards\":[...],\"semCategoria\":{\"imageIndices\":[]}}",
+    "type": "text",
+    "version": 1
+  },
+  "hermes/step/clima": {
+    "prompt": "Pesquise o clima típico da região do imóvel e retorne JSON no formato abaixo.\n\nContexto: {{ctx}}\n{{facts}}\n\n{{pt_rules}}\n\nFormato de saída:\n{\n  \"resumo\": \"uma frase curta sobre o clima local\",\n  \"temperaturas\": { \"minC\": number, \"maxC\": number, \"descricao\": \"frase sobre variação e estações\" },\n  \"umidade\": { \"minPct\": number, \"maxPct\": number, \"descricao\": \"frase sobre umidade\" },\n  \"chuva\": { \"descricao\": \"frase sobre chuvas\", \"mmAnualEstimado\": number opcional }\n}",
+    "type": "text",
+    "version": 1
+  },
+  "hermes/step/idade": {
+    "prompt": "Estime a idade do imóvel com base nas fotos dos ambientes e nos metadados do anúncio.\n\nContexto: {{ctx}}\nDados do anúncio: {{facts}}\nAmbientes analisados: {{ambientes_json}}\n\n{{pt_rules}}\n\nFormato:\n{\n  \"estimativaAnos\": number,\n  \"faixaAnos\": { \"min\": number, \"max\": number },\n  \"resumo\": \"parágrafo curto\",\n  \"sinaisVistos\": [\"sinal 1\", \"sinal 2\"]\n}",
+    "type": "text",
+    "version": 1
+  },
+  "hermes/step/mercado": {
+    "prompt": "Pesquise o mercado imobiliário da região: preço médio/m² no bairro, em bairros similares e na cidade.\nCompare com o anúncio quando possível.\n\nContexto: {{ctx}}\nDados de preço/m² do anúncio: {{price_hint}}\nregionId: {{region_id}}\n{{facts}}\n\n{{pt_rules}}\n\nFormato:\n{\n  \"paragrafo\": \"parágrafo curto em português\",\n  \"precoRegiaoM2\": number,\n  \"precoSimilaresM2\": number,\n  \"precoCidadeM2\": number,\n  \"precoAnuncioM2\": number\n}\nNúmeros são opcionais mas desejáveis; use null se desconhecido.",
+    "type": "text",
+    "version": 1
+  },
+  "hermes/step/riscos": {
+    "prompt": "Pesquise riscos naturais relevantes para a região do imóvel (enchentes, deslizamentos, ventos fortes, etc.).\nUse no máximo uma busca rápida na web; não use extração de URL nem ferramentas de terminal/código/navegador.\nResponda em um único objeto JSON minificado em uma linha, sem Markdown.\n\nContexto: {{ctx}}\n{{facts}}\n\n{{pt_rules}}\n\nFormato obrigatório (campos em português):\n{\"paragrafo\":\"parágrafo curto em português sobre riscos naturais da região\",\"tags\":[\"rótulo opcional\"]}\ntags é opcional. Se não puder concluir: {\"skipped\":true,\"reason\":\"motivo curto\"}",
+    "type": "text",
+    "version": 1
+  },
+  "hermes/step/xray-card": {
+    "prompt": "Você é o agente x-ray de um ambiente específico do imóvel. Com base nas fotos deste ambiente,\nno inventário estrutural/móveis e no contexto regional, liste EXATAMENTE {{pontos_count}} pontos\nde atenção (blind spots) com estimativa de custo de reparo/melhoria em BRL.\n\nContexto regional: {{ctx}}\nClima: {{clima}}\nRiscos naturais: {{riscos}}\nIdade do imóvel: {{idade}}\nDados do anúncio: {{facts}}\n\nAmbiente (card):\n{{card_json}}\n\nFotos deste ambiente (caminhos locais):\n{{image_paths}}\n\nRegras dos pontos:\n- Exatamente {{pontos_count}} itens — nem mais, nem menos.\n- Foque em riscos materiais/construtivos ligados ao contexto: umidade alta, salinidade, idade,\n  madeira, rejuntes, vedação, infiltração, esquadrias, área molhada, exposição solar, riscos locais.\n- NÃO comente decoração, estilo, heterogeneidade visual, conforto estético, layout subjetivo.\n- Use os `material` listados no card para sugerir riscos materiais coerentes; não comente cor.\n- Cada ponto: titulo curto, descricao objetiva (o que verificar e por quê), custoMinBrl, custoMaxBrl,\n  detalhes opcional (trabalho previsto).\n\n{{pt_rules}}\n\nFormato JSON minificado em uma linha:\n{\"pontosAtencao\":[{\"id\":\"...\",\"titulo\":\"...\",\"descricao\":\"...\",\"custoMinBrl\":0,\"custoMaxBrl\":0,\"detalhes\":\"...\"}]}",
+    "type": "text",
+    "version": 1
+  },
+  "listing-parser/system": {
+    "prompt": "Você é um especialista em extrair dados estruturados de anúncios de imóveis brasileiros.\n\nExtraia: titulo, endereco, bairro, cidade, m2Totais, m2Privado, quartos, suites, banheiros,\ngaragem, preco, piscina, porteiro24h, academia, vistaLivre, piscinaTermica, tipoImovel,\ncondominiumName, contactName, contactNumber, sitePublishedAt e siteUpdatedAt.\n\nRegras:\n- Retorne SEMPRE um JSON válido e nada além do JSON.\n- Use null para campos não encontrados.\n- Para números, retorne apenas o valor numérico.\n- tipoImovel deve ser \"casa\", \"apartamento\" ou null.\n- Normalize contactNumber com apenas dígitos e remova prefixo 55 quando existir.\n- Datas devem ser YYYY-MM-DD quando explícitas.\n- Se houver vários imóveis distintos, retorne {\"listings\": [...]}.\n- Se houver apenas um imóvel, retorne o objeto plano.\n- Não duplique o mesmo imóvel. Limite máximo de {{max_listings}} imóveis.",
+    "type": "text",
+    "version": 1
+  },
+  "listing-parser/vision-user": {
+    "prompt": "Extraia todos os dados dos anúncios de imóveis visíveis nesta imagem. Se houver vários imóveis distintos, use o formato com array listings. Retorne apenas JSON.",
+    "type": "text",
+    "version": 1
+  },
+  "saved-link-metadata/system": {
+    "prompt": "Você gera título e descrição curtos para links salvos em pesquisa de imóveis no Brasil.\nUse só o JSON de contexto (URL decomposta, fetch, Brave ou ScrapingAnt). Não invente filtros nem cidades que não estejam no contexto.\nResponda APENAS JSON: { \"title\": string, \"description\": string | null }\nTítulo máx. {{title_max}} caracteres. Descrição máx. {{description_max}}, preferir 45–95 caracteres, nominal e telegráfica.",
+    "type": "text",
+    "version": 1
+  }
+}

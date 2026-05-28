@@ -1,59 +1,52 @@
 defmodule MinhaCasaAi.Integrations.OpenAIListingParser do
   alias MinhaCasaAi.Config
+  alias MinhaCasaAi.Integrations.Langfuse.PromptHelpers
   alias MinhaCasaAi.Integrations.{OpenAIResponses, OpenAISchemas}
 
   @max_listings 25
   @base_max_tokens 500
   @multi_max_tokens_cap 4_000
 
-  @system_prompt """
-  Você é um especialista em extrair dados estruturados de anúncios de imóveis brasileiros.
-
-  Extraia: titulo, endereco, bairro, cidade, m2Totais, m2Privado, quartos, suites, banheiros,
-  garagem, preco, piscina, porteiro24h, academia, vistaLivre, piscinaTermica, tipoImovel,
-  condominiumName, contactName, contactNumber, sitePublishedAt e siteUpdatedAt.
-
-  Regras:
-  - Retorne SEMPRE um JSON válido e nada além do JSON.
-  - Use null para campos não encontrados.
-  - Para números, retorne apenas o valor numérico.
-  - tipoImovel deve ser "casa", "apartamento" ou null.
-  - Normalize contactNumber com apenas dígitos e remova prefixo 55 quando existir.
-  - Datas devem ser YYYY-MM-DD quando explícitas.
-  - Se houver vários imóveis distintos, retorne {"listings": [...]}.
-  - Se houver apenas um imóvel, retorne o objeto plano.
-  - Não duplique o mesmo imóvel. Limite máximo de #{@max_listings} imóveis.
-  """
-
-  @vision_prompt "Extraia todos os dados dos anúncios de imóveis visíveis nesta imagem. Se houver vários imóveis distintos, use o formato com array listings. Retorne apenas JSON."
-
   def parse_text(raw_text) when is_binary(raw_text) do
+    {instructions, prompt_ref} =
+      PromptHelpers.compile("listing-parser/system", %{"max_listings" => Integer.to_string(@max_listings)})
+
+    lf = PromptHelpers.langfuse_ctx("listing-parser/text", prompt_ref)
+
     with :ok <- require_key(),
          {:ok, map} <-
            OpenAIResponses.json(
-             @system_prompt,
+             instructions,
              raw_text,
              reasoning_effort: "low",
              max_output_tokens: compute_max_tokens(raw_text, false),
              timeout: 45_000,
-             schema: %{name: "listing_parse", schema: OpenAISchemas.listing_parse_schema()}
+             schema: %{name: "listing_parse", schema: OpenAISchemas.listing_parse_schema()},
+             langfuse: lf
            ) do
       decode_listings_map(map)
     end
   end
 
   def parse_image(base64, mime_type) when is_binary(base64) and is_binary(mime_type) do
+    {instructions, prompt_ref} =
+      PromptHelpers.compile("listing-parser/system", %{"max_listings" => Integer.to_string(@max_listings)})
+
+    {vision_user, vision_ref} = PromptHelpers.compile("listing-parser/vision-user", %{})
+    lf = PromptHelpers.langfuse_ctx("listing-parser/vision", prompt_ref || vision_ref)
+
     with :ok <- require_key(),
          :ok <- validate_image_type(mime_type),
          {:ok, map} <-
            OpenAIResponses.vision_json(
-             @system_prompt,
+             instructions,
              data_url(base64, mime_type),
-             @vision_prompt,
+             vision_user,
              reasoning_effort: "low",
              max_output_tokens: compute_max_tokens("vision", true),
              timeout: 45_000,
-             schema: %{name: "listing_parse", schema: OpenAISchemas.listing_parse_schema()}
+             schema: %{name: "listing_parse", schema: OpenAISchemas.listing_parse_schema()},
+             langfuse: lf
            ) do
       decode_listings_map(map)
     end

@@ -5,11 +5,8 @@ defmodule MinhaCasaAi.Assistant.LLM do
 
   alias MinhaCasaAi.Assistant.Tools
   alias MinhaCasaAi.Config
+  alias MinhaCasaAi.Integrations.Langfuse.PromptHelpers
   alias MinhaCasaAi.Integrations.OpenAIResponses
-
-  @instructions """
-  Você é o assistente do Minha Casa (imóveis). Responda em português do Brasil. Use ferramentas quando o usuário pedir coleções, imóveis ou favoritos. Seja breve.
-  """
 
   @tools [
     %{
@@ -59,10 +56,18 @@ defmodule MinhaCasaAi.Assistant.LLM do
   end
 
   defp do_run(user_id, text, ctx) do
-    case OpenAIResponses.with_tools(@instructions, text, @tools,
+    {instructions, prompt_ref} = PromptHelpers.compile("assistant/instructions", %{})
+    lf =
+      case PromptHelpers.langfuse_ctx("assistant/llm", prompt_ref) do
+        nil -> nil
+        ctx -> Map.put(ctx, :metadata, Map.merge(ctx[:metadata] || %{}, %{user_id: user_id}))
+      end
+
+    case OpenAIResponses.with_tools(instructions, text, @tools,
            reasoning_effort: "low",
            max_output_tokens: 1_500,
-           timeout: 55_000
+           timeout: 55_000,
+           langfuse: lf
          ) do
       {:ok, resp} ->
         case OpenAIResponses.extract_function_call(resp) do

@@ -4,6 +4,8 @@ defmodule MinhaCasaAi.Integrations.HermesAgent do
   """
 
   alias MinhaCasaAi.Config
+  alias MinhaCasaAi.Integrations.Langfuse.Trace
+  alias MinhaCasaAi.PropertyAnalyses.HermesSteps.PromptTemplates
 
   @poll_interval_ms 1_000
 
@@ -11,13 +13,19 @@ defmodule MinhaCasaAi.Integrations.HermesAgent do
     base_url = Keyword.get(opts, :base_url, Config.hermes_api_url())
     api_key = Keyword.get(opts, :api_key, Config.hermes_api_key())
     timeout_ms = Keyword.get(opts, :timeout_ms, Config.hermes_analysis_timeout_ms())
+    lf_ctx = Keyword.get(opts, :langfuse)
+    started_at = DateTime.utc_now()
 
-    with :ok <- require_config(base_url, api_key),
-         {:ok, run_id} <- create_run(input, base_url, api_key, opts),
-         {:ok, run} <- poll_run(run_id, base_url, api_key, timeout_ms, opts),
-         {:ok, result} <- extract_result(run) do
-      {:ok, result}
-    end
+    result =
+      with :ok <- require_config(base_url, api_key),
+           {:ok, run_id} <- create_run(input, base_url, api_key, opts),
+           {:ok, run} <- poll_run(run_id, base_url, api_key, timeout_ms, opts),
+           {:ok, result} <- extract_result(run) do
+        {:ok, result}
+      end
+
+    maybe_emit_hermes_generation(lf_ctx, input, result, started_at)
+    result
   end
 
   def create_run(input, base_url, api_key, opts \\ []) do
@@ -204,9 +212,39 @@ defmodule MinhaCasaAi.Integrations.HermesAgent do
   end
 
   defp instructions do
-    """
-    Você é o motor interno da análise imobiliária Minha Casa.
-    Responda somente JSON válido, sem Markdown, sem comentários e sem texto fora do objeto JSON.
-    """
+    PromptTemplates.hermes_global_instructions() |> elem(0)
+  end
+
+  defp maybe_emit_hermes_generation(nil, _input, _result, _started), do: :ok
+
+  defp maybe_emit_hermes_generation(lf_ctx, input, result, started_at) do
+    ended_at = DateTime.utc_now()
+
+    output =
+      case result do
+        {:ok, map} when is_map(map) -> Jason.encode!(map)
+        {:ok, other} -> inspect(other, limit: 4000)
+        {:error, reason} -> inspect(reason, limit: 2000)
+      end
+
+    level = if match?({:error, _}, result), do: "ERROR", else: "DEFAULT"
+
+    Trace.generation(
+      lf_ctx,
+      %{
+        name: Map.get(lf_ctx, :name, "hermes"),
+        model: "hermes-agent",
+        input: input,
+        output: output,
+        level: level,
+        status_message: if(level == "ERROR", do: output, else: nil),
+        start_time: iso(started_at),
+        end_time: iso(ended_at)
+      }
+    )
+  end
+
+  defp iso(%DateTime{} = dt) do
+    dt |> DateTime.truncate(:millisecond) |> DateTime.to_iso8601()
   end
 end

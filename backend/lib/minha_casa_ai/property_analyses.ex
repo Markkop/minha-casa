@@ -88,7 +88,10 @@ defmodule MinhaCasaAi.PropertyAnalyses do
         })
         |> Repo.insert!()
 
-      %{analysis_id: analysis.id}
+      worker_args = %{"analysis_id" => analysis.id}
+      worker_args = maybe_put_trace_id(worker_args)
+
+      worker_args
       |> PropertyAnalysisWorker.new()
       |> Oban.insert!()
 
@@ -821,5 +824,13 @@ defmodule MinhaCasaAi.PropertyAnalyses do
       end)
 
     %{"costMinBrl" => min_sum, "costMaxBrl" => max_sum}
+  end
+
+  defp maybe_put_trace_id(args) do
+    if MinhaCasaAi.Config.langfuse_enabled?() do
+      Map.put(args, "trace_id", MinhaCasaAi.Integrations.Langfuse.Trace.unique_id())
+    else
+      args
+    end
   end
 end
