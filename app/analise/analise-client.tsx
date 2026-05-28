@@ -15,7 +15,6 @@ import { useWorkspaceProfile } from "@/lib/workspace/use-workspace-profile"
 import { AnaliseQuerySync } from "./components/analise-query-sync"
 import { DeepAnalysisPanel } from "./components/deep-analysis-panel"
 import { ListingSelector } from "./components/listing-selector"
-import { NearbyPlacesPanel } from "./components/nearby-places-panel"
 import { PropertyDossier } from "./components/property-dossier"
 
 function AnaliseClientInner() {
@@ -112,8 +111,8 @@ function AnaliseClientInner() {
             <PropertyDossier
               listing={selectedListing}
               collectionId={activeCollection.id}
+              orgId={orgId}
             />
-            <NearbyPlacesPanel listing={selectedListing} orgId={orgId} />
             <DeepAnalysisPanel listing={selectedListing} orgId={orgId} />
           </>
         )}

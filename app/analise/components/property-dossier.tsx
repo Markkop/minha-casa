@@ -4,8 +4,13 @@ import Link from "next/link"
 import type { Imovel } from "@/app/anuncios/lib/api"
 import { ListingLocationMiniMap } from "@/app/anuncios/components/listing-location-mini-map"
 import { WorkspacePanel } from "@/app/components/workspace-ui"
+import {
+  ListingDecisionNotesProvider,
+  ListingNotesCard,
+  ListingProsConsCard,
+} from "./listing-decision-notes"
+import { NearbyPlacesPanel } from "./nearby-places-panel"
 import { PropertyImageGallery } from "./property-image-gallery"
-import { cn } from "@/lib/utils"
 
 function formatCurrency(value: number | null | undefined) {
   if (value === null || value === undefined) return "—"
@@ -30,7 +35,7 @@ function FieldRow({ label, value }: { label: string; value: React.ReactNode }) {
   )
 }
 
-function FieldSection({
+function DossierCard({
   title,
   children,
 }: {
@@ -38,23 +43,24 @@ function FieldSection({
   children: React.ReactNode
 }) {
   return (
-    <div>
+    <WorkspacePanel className="p-4">
       <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-app-muted">
         {title}
       </h3>
       <table className="w-full">
         <tbody>{children}</tbody>
       </table>
-    </div>
+    </WorkspacePanel>
   )
 }
 
 interface PropertyDossierProps {
   listing: Imovel
   collectionId?: string | null
+  orgId?: string | null
 }
 
-export function PropertyDossier({ listing, collectionId }: PropertyDossierProps) {
+export function PropertyDossier({ listing, collectionId, orgId }: PropertyDossierProps) {
   const area = listing.m2Privado ?? listing.m2Totais
 
   return (
@@ -118,46 +124,64 @@ export function PropertyDossier({ listing, collectionId }: PropertyDossierProps)
         </WorkspacePanel>
       </div>
 
-      <WorkspacePanel className="p-4">
-        <div className="grid gap-6 md:grid-cols-2">
-          <FieldSection title="Localização">
-            <FieldRow label="Endereço" value={listing.endereco} />
-            <FieldRow label="Bairro" value={listing.bairro} />
-            <FieldRow label="Cidade" value={listing.cidade} />
-            <FieldRow
-              label="Coordenadas"
-              value={
-                listing.customLat != null && listing.customLng != null
-                  ? `${listing.customLat}, ${listing.customLng}`
-                  : null
-              }
-            />
-          </FieldSection>
-          <FieldSection title="Contato">
-            <FieldRow label="Nome" value={listing.contactName} />
-            <FieldRow label="Telefone" value={listing.contactNumber} />
-            <FieldRow label="Condomínio" value={listing.condominiumName} />
-            <FieldRow label="Link" value={listing.link ? (
-              <a href={listing.link} target="_blank" rel="noreferrer" className="underline">
-                Abrir anúncio
-              </a>
-            ) : null} />
-          </FieldSection>
-          <FieldSection title="Comodidades">
-            <FieldRow label="Piscina" value={boolLabel(listing.piscina)} />
-            <FieldRow label="Porteiro 24h" value={boolLabel(listing.porteiro24h)} />
-            <FieldRow label="Academia" value={boolLabel(listing.academia)} />
-            <FieldRow label="Vista livre" value={boolLabel(listing.vistaLivre)} />
-            <FieldRow label="Piscina térmica" value={boolLabel(listing.piscinaTermica)} />
-          </FieldSection>
-          <FieldSection title="Status">
-            <FieldRow label="Favorito" value={listing.starred ? "Sim" : "Não"} />
-            <FieldRow label="Visitado" value={listing.visited ? "Sim" : "Não"} />
-            <FieldRow label="Descartado" value={listing.strikethrough ? "Sim" : "Não"} />
-            <FieldRow label="Status" value={listing.listingStatus} />
-          </FieldSection>
+      <ListingDecisionNotesProvider listingId={listing.id} orgId={orgId}>
+        <div className="grid gap-4 md:grid-cols-2">
+          <div className="flex flex-col gap-4">
+            <DossierCard title="Localização">
+              <FieldRow label="Endereço" value={listing.endereco} />
+              <FieldRow label="Bairro" value={listing.bairro} />
+              <FieldRow label="Cidade" value={listing.cidade} />
+              <FieldRow
+                label="Coordenadas"
+                value={
+                  listing.customLat != null && listing.customLng != null
+                    ? `${listing.customLat}, ${listing.customLng}`
+                    : null
+                }
+              />
+            </DossierCard>
+
+            <DossierCard title="Contato">
+              <FieldRow label="Nome" value={listing.contactName} />
+              <FieldRow label="Telefone" value={listing.contactNumber} />
+              <FieldRow label="Condomínio" value={listing.condominiumName} />
+              <FieldRow
+                label="Link"
+                value={
+                  listing.link ? (
+                    <a href={listing.link} target="_blank" rel="noreferrer" className="underline">
+                      Abrir anúncio
+                    </a>
+                  ) : null
+                }
+              />
+            </DossierCard>
+
+            <NearbyPlacesPanel listing={listing} orgId={orgId} className="flex-1" />
+          </div>
+
+          <div className="flex flex-col gap-4">
+            <DossierCard title="Comodidades">
+              <FieldRow label="Piscina" value={boolLabel(listing.piscina)} />
+              <FieldRow label="Porteiro 24h" value={boolLabel(listing.porteiro24h)} />
+              <FieldRow label="Academia" value={boolLabel(listing.academia)} />
+              <FieldRow label="Vista livre" value={boolLabel(listing.vistaLivre)} />
+              <FieldRow label="Piscina térmica" value={boolLabel(listing.piscinaTermica)} />
+            </DossierCard>
+
+            <DossierCard title="Status">
+              <FieldRow label="Favorito" value={listing.starred ? "Sim" : "Não"} />
+              <FieldRow label="Visitado" value={listing.visited ? "Sim" : "Não"} />
+              <FieldRow label="Descartado" value={listing.strikethrough ? "Sim" : "Não"} />
+              <FieldRow label="Status" value={listing.listingStatus} />
+            </DossierCard>
+
+            <ListingProsConsCard />
+          </div>
         </div>
-      </WorkspacePanel>
+
+        <ListingNotesCard />
+      </ListingDecisionNotesProvider>
     </div>
   )
 }

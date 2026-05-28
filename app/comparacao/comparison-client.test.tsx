@@ -7,20 +7,8 @@ import type { Collection, Imovel } from "@/app/anuncios/lib/api"
 
 const mockUseCollections = vi.fn()
 const mockUpdateListing = vi.fn()
-const mockFetchComparisonNotes = vi.fn()
-const mockSaveComparisonNote = vi.fn()
-
 vi.mock("@/app/anuncios/lib/use-collections", () => ({
   useCollections: () => mockUseCollections(),
-}))
-
-vi.mock("@/lib/workspace/use-workspace-profile", () => ({
-  useWorkspaceProfile: () => ({ orgId: "org-1" }),
-}))
-
-vi.mock("@/lib/workspace/client", () => ({
-  fetchComparisonNotes: (...args: unknown[]) => mockFetchComparisonNotes(...args),
-  saveComparisonNote: (...args: unknown[]) => mockSaveComparisonNote(...args),
 }))
 
 const mockCollection: Collection = {
@@ -157,18 +145,6 @@ describe("ComparisonClient", () => {
   beforeEach(() => {
     vi.clearAllMocks()
     window.localStorage.clear()
-    mockFetchComparisonNotes.mockResolvedValue({ notes: [] })
-    mockSaveComparisonNote.mockResolvedValue({
-      note: {
-        id: "note-1",
-        listingId: "listing-1",
-        pros: ["boa planta"],
-        cons: [],
-        notes: null,
-        createdAt: "2026-01-01T00:00:00Z",
-        updatedAt: "2026-01-01T00:00:00Z",
-      },
-    })
   })
 
   it("toggles favorite from the slot header star", async () => {
@@ -378,23 +354,4 @@ describe("ComparisonClient", () => {
     expect(screen.queryByText("Suítes")).not.toBeInTheDocument()
   })
 
-  it("saves notes for selected slot listings", async () => {
-    setup()
-
-    const vantagens = await screen.findAllByLabelText("Vantagens")
-    fireEvent.change(vantagens[0], { target: { value: "boa planta" } })
-    fireEvent.click(screen.getAllByRole("button", { name: "Salvar notas" })[0])
-
-    await waitFor(() => {
-      expect(mockSaveComparisonNote).toHaveBeenCalledWith(
-        {
-          listingId: "listing-1",
-          pros: ["boa planta"],
-          cons: [],
-          notes: "",
-        },
-        "org-1"
-      )
-    })
-  })
 })

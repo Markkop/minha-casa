@@ -2,10 +2,17 @@
 
 import { Loader2 } from "lucide-react"
 import type { Imovel } from "@/app/anuncios/lib/api"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { WorkspacePanel } from "@/app/components/workspace-ui"
 import { useListingNearby } from "@/lib/listing-nearby/use-listing-nearby"
-import type { NearbyCategory, NearbySection } from "@/lib/property-analysis/types"
+import type { NearbyPlace, NearbySection } from "@/lib/property-analysis/types"
 import { cn } from "@/lib/utils"
+import { buildGeneralNearbyPreview } from "./nearby-places-helpers"
+
+const GENERAL_TAB_ID = "general"
+
+const pillTabTriggerClassName =
+  "inline-flex h-5 w-auto flex-none rounded-full border border-app-border bg-app-bg px-2 py-0 text-[10px] font-medium leading-5 text-app-muted shadow-none data-[state=active]:border-app-fg data-[state=active]:bg-app-fg data-[state=active]:text-app-bg dark:data-[state=active]:text-app-fg"
 
 interface NearbyPlacesPanelProps {
   listing: Imovel
@@ -20,21 +27,72 @@ export function NearbyPlacesPanel({
 }: NearbyPlacesPanelProps) {
   const { nearby, isLoading, error } = useListingNearby(listing.id, orgId)
 
+  const showTabs = !error && !isLoading && nearby && !nearby.skipped && (nearby.categories?.length ?? 0) > 0
+
   return (
-    <WorkspacePanel className={cn("p-4", className)}>
-      <div className="mb-2 flex items-center gap-2">
-        <h3 className="text-sm font-semibold text-app-fg">Proximidades</h3>
+    <WorkspacePanel className={cn("overflow-hidden p-0", className)}>
+      <div className="flex items-center gap-2 px-4 pt-4 pb-2">
+        <h3 className="text-xs font-semibold uppercase tracking-wide text-app-muted">
+          Proximidades
+        </h3>
         {isLoading && <Loader2 className="size-3.5 animate-spin text-app-muted" />}
       </div>
-      <p className="mb-2 text-xs text-app-muted">
-        Referência do entorno (cache de 7 dias). Não faz parte da análise profunda.
-      </p>
-      {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
-      {!error && !isLoading && <NearbyPlacesContent data={nearby} />}
+
+      {error && (
+        <p className="px-4 pb-4 text-sm text-red-600 dark:text-red-400">{error}</p>
+      )}
+
       {!error && isLoading && !nearby && (
-        <p className="text-sm text-app-muted">Carregando lugares próximos...</p>
+        <p className="px-4 pb-4 text-sm text-app-muted">Carregando lugares próximos...</p>
+      )}
+
+      {!error && !isLoading && !showTabs && (
+        <div className="px-4 pb-4">
+          <NearbyPlacesContent data={nearby} />
+        </div>
+      )}
+
+      {!error && showTabs && nearby && (
+        <NearbyPlacesTabs data={nearby} />
       )}
     </WorkspacePanel>
+  )
+}
+
+function NearbyPlacesTabs({ data }: { data: NearbySection }) {
+  const categories = data.categories ?? []
+  const generalPreview = buildGeneralNearbyPreview(categories)
+
+  return (
+    <Tabs defaultValue={GENERAL_TAB_ID} className="gap-0">
+      <TabsList className="h-auto w-full flex flex-wrap content-start justify-start gap-1 rounded-none bg-transparent px-4 pb-2">
+        <TabsTrigger value={GENERAL_TAB_ID} className={pillTabTriggerClassName}>
+          Geral
+        </TabsTrigger>
+        {categories.map((cat) => (
+          <TabsTrigger key={cat.id} value={cat.id} className={pillTabTriggerClassName}>
+            {cat.label}
+          </TabsTrigger>
+        ))}
+      </TabsList>
+
+      <TabsContent value={GENERAL_TAB_ID} className="px-4 pb-3 pt-0">
+        {generalPreview.length === 0 ? (
+          <p className="text-sm text-app-muted">Nenhum lugar encontrado.</p>
+        ) : (
+          <NearbyPlacesList places={generalPreview.map(({ place }) => place)} />
+        )}
+      </TabsContent>
+
+      {categories.map((cat) => (
+        <TabsContent key={cat.id} value={cat.id} className="px-4 pb-3 pt-0">
+          <NearbyPlacesList
+            places={cat.places ?? []}
+            emptyMessage="Nenhum lugar nesta categoria."
+          />
+        </TabsContent>
+      ))}
+    </Tabs>
   )
 }
 
@@ -58,41 +116,58 @@ export function NearbyPlacesContent({ data }: { data?: NearbySection | null }) {
       </div>
     )
   }
+
   const categories = data.categories ?? []
   if (categories.length === 0) {
     return <p className="text-sm text-app-muted">Nenhum lugar encontrado.</p>
   }
+
+  return null
+}
+
+function NearbyPlacesList({
+  places,
+  emptyMessage = "Nenhum lugar encontrado.",
+}: {
+  places: NearbyPlace[]
+  emptyMessage?: string
+}) {
+  if (places.length === 0) {
+    return <p className="text-sm text-app-muted">{emptyMessage}</p>
+  }
+
   return (
-    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-      {categories.map((cat: NearbyCategory) => (
-        <div key={cat.id}>
-          <h4 className="text-xs font-medium text-app-muted">{cat.label}</h4>
-          <ul className="mt-1 space-y-0.5">
-            {(cat.places ?? []).map((place, i) => (
-              <li key={i} className="text-xs text-app-fg">
-                {place.mapsUrl ? (
-                  <a
-                    href={place.mapsUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="underline"
-                  >
-                    {place.name}
-                  </a>
-                ) : (
-                  place.name
-                )}
-                {place.vicinity && (
-                  <span className="text-app-muted"> — {place.vicinity}</span>
-                )}
-                {place.rating != null && (
-                  <span className="text-app-muted"> · ★ {place.rating}</span>
-                )}
-              </li>
-            ))}
-          </ul>
-        </div>
+    <ul className="space-y-0.5">
+      {places.map((place, i) => (
+        <li key={i} className="text-xs text-app-fg">
+          <NearbyPlaceRow place={place} />
+        </li>
       ))}
-    </div>
+    </ul>
+  )
+}
+
+function NearbyPlaceRow({ place }: { place: NearbyPlace }) {
+  return (
+    <>
+      {place.mapsUrl ? (
+        <a
+          href={place.mapsUrl}
+          target="_blank"
+          rel="noreferrer"
+          className="underline"
+        >
+          {place.name}
+        </a>
+      ) : (
+        place.name
+      )}
+      {place.vicinity && (
+        <span className="text-app-muted"> — {place.vicinity}</span>
+      )}
+      {place.rating != null && (
+        <span className="text-app-muted"> · ★ {place.rating}</span>
+      )}
+    </>
   )
 }

@@ -11,7 +11,6 @@ import {
   Home,
   Pencil,
   Pin,
-  Save,
   Star,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -29,12 +28,6 @@ import {
 import { WorkspacePage, WorkspacePanel } from "@/app/components/workspace-ui"
 import { useCollections } from "@/app/anuncios/lib/use-collections"
 import type { Imovel } from "@/app/anuncios/lib/api"
-import {
-  fetchComparisonNotes,
-  saveComparisonNote,
-  type ComparisonNote,
-} from "@/lib/workspace/client"
-import { useWorkspaceProfile } from "@/lib/workspace/use-workspace-profile"
 import { cn } from "@/lib/utils"
 import {
   buildRecalculationTooltip,
@@ -62,7 +55,6 @@ import {
 const EMPTY_SLOT_VALUE = "__empty__"
 const COMPARISON_SELECTION_STORAGE_PREFIX = "minha-casa:comparison-selection"
 
-type Draft = { pros: string; cons: string; notes: string }
 type NumericRowKey =
   | "price"
   | "totalArea"
@@ -110,14 +102,6 @@ const NUMERIC_ROW_KEYS = new Set<NumericRowKey>([
   "bathrooms",
   "garage",
 ])
-
-function linesToList(value: string) {
-  return value.split("\n").map((line) => line.trim()).filter(Boolean)
-}
-
-function listToLines(value: string[] | undefined) {
-  return (value ?? []).join("\n")
-}
 
 function formatSlotSummary(listing: Imovel) {
   return listing.endereco || "—"
@@ -439,23 +423,10 @@ const MATRIX_ROWS_TAIL: MatrixRow[] = [
 ]
 
 export function ComparisonClient() {
-  const { orgId } = useWorkspaceProfile()
   const { listings, activeCollection, isLoadingListings, updateListing } = useCollections()
-  const [notes, setNotes] = useState<ComparisonNote[]>([])
-  const [drafts, setDrafts] = useState<Record<string, Draft>>({})
-  const [savingId, setSavingId] = useState<string | null>(null)
   const [slotIds, setSlotIds] = useState<ComparisonSlot[]>(() => initializeComparisonSlots([]))
   const [fixedCell, setFixedCell] = useState<FixedCell | null>(null)
   const [initializedCollectionId, setInitializedCollectionId] = useState<string | null>(null)
-
-  useEffect(() => {
-    async function loadWorkspaceData() {
-      const notesData = await fetchComparisonNotes(orgId)
-      setNotes(notesData.notes)
-    }
-
-    void loadWorkspaceData()
-  }, [orgId])
 
   useEffect(() => {
     const collectionId = activeCollection?.id ?? null
@@ -517,42 +488,6 @@ export function ComparisonClient() {
   )
   const resolvedFixedCell = resolveFixedCell(slotIds, fixedCell)
   const fixedListing = resolvedFixedCell === null ? null : selectedListings[resolvedFixedCell.slotIndex]
-
-  useEffect(() => {
-    setDrafts((current) => {
-      const next = { ...current }
-      for (const listing of selectedFilledListings) {
-        if (next[listing.id]) continue
-        const note = notes.find((item) => item.listingId === listing.id)
-        next[listing.id] = {
-          pros: listToLines(note?.pros),
-          cons: listToLines(note?.cons),
-          notes: note?.notes ?? "",
-        }
-      }
-      return next
-    })
-  }, [selectedFilledListings, notes])
-
-  const save = async (listingId: string) => {
-    const draft = drafts[listingId]
-    if (!draft) return
-    setSavingId(listingId)
-    try {
-      const result = await saveComparisonNote({
-        listingId,
-        pros: linesToList(draft.pros),
-        cons: linesToList(draft.cons),
-        notes: draft.notes,
-      }, orgId)
-      setNotes((current) => [
-        ...current.filter((item) => item.listingId !== listingId),
-        result.note,
-      ])
-    } finally {
-      setSavingId(null)
-    }
-  }
 
   const handleReplaceSlot = (slotIndex: number, value: string) => {
     const listingId = value === EMPTY_SLOT_VALUE ? null : value
@@ -695,69 +630,6 @@ export function ComparisonClient() {
           </>
         )}
       </WorkspacePanel>
-
-      {selectedFilledListings.length > 0 && (
-        <WorkspacePanel className="mt-4 p-4">
-          <div className="mb-3">
-            <h2 className="font-semibold text-app-fg">Notas da comparação</h2>
-            <p className="text-sm text-app-muted">Vantagens, desvantagens e observações dos imóveis selecionados nos slots.</p>
-          </div>
-          <div className="grid gap-3 lg:grid-cols-2">
-            {selectedFilledListings.map((listing) => {
-              const draft = drafts[listing.id] ?? { pros: "", cons: "", notes: "" }
-              return (
-                <article key={listing.id} className="rounded-lg border border-app-border bg-app-surface p-3">
-                  <div className="mb-3 min-w-0">
-                    <h3 className="truncate font-medium text-app-fg">{formatShortListingName(listing)}</h3>
-                    <p className="truncate text-xs text-app-muted">{listing.endereco}</p>
-                  </div>
-                  <div className="grid gap-3 md:grid-cols-3">
-                    <TextArea
-                      label="Vantagens"
-                      value={draft.pros}
-                      onChange={(value) =>
-                        setDrafts((current) => ({
-                          ...current,
-                          [listing.id]: { ...draft, pros: value },
-                        }))
-                      }
-                    />
-                    <TextArea
-                      label="Desvantagens"
-                      value={draft.cons}
-                      onChange={(value) =>
-                        setDrafts((current) => ({
-                          ...current,
-                          [listing.id]: { ...draft, cons: value },
-                        }))
-                      }
-                    />
-                    <TextArea
-                      label="Notas"
-                      value={draft.notes}
-                      onChange={(value) =>
-                        setDrafts((current) => ({
-                          ...current,
-                          [listing.id]: { ...draft, notes: value },
-                        }))
-                      }
-                    />
-                  </div>
-                  <Button
-                    size="sm"
-                    onClick={() => void save(listing.id)}
-                    disabled={savingId === listing.id}
-                    className="mt-3 w-full bg-app-action text-app-action-foreground hover:bg-app-action-hover"
-                  >
-                    <Save className="h-4 w-4" />
-                    {savingId === listing.id ? "Salvando..." : "Salvar notas"}
-                  </Button>
-                </article>
-              )
-            })}
-          </div>
-        </WorkspacePanel>
-      )}
     </WorkspacePage>
   )
 }
@@ -1030,24 +902,3 @@ function MatrixCell({
   )
 }
 
-function TextArea({
-  label,
-  value,
-  onChange,
-}: {
-  label: string
-  value: string
-  onChange: (value: string) => void
-}) {
-  return (
-    <label className="block min-w-0">
-      <span className="text-xs font-medium text-app-muted">{label}</span>
-      <textarea
-        className="mt-1 min-h-20 w-full rounded-md border border-app-border bg-app-surface px-3 py-2 text-sm outline-none focus:border-app-border-strong"
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        placeholder="Uma linha por item"
-      />
-    </label>
-  )
-}
