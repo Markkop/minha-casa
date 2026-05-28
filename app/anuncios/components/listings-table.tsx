@@ -35,7 +35,7 @@ import type { Imovel } from "../lib/api"
 import type { ListingData } from "@/lib/db/schema"
 import { cn } from "@/lib/utils"
 import { ArrowDownIcon, ArrowUpIcon, MagnifyingGlassIcon } from "@radix-ui/react-icons"
-import { PencilIcon, TrashIcon, Star, FolderIcon, Strikethrough, Waves, Shield, Dumbbell, Mountain, Flag, Home, Building, RefreshCw, Car, WavesLadder, BedDouble, Bath, Check, Loader2, Columns3, ImageIcon } from "lucide-react"
+import { PencilIcon, TrashIcon, Star, FolderIcon, Strikethrough, Waves, Shield, Dumbbell, Mountain, Flag, Home, Building, RefreshCw, Car, WavesLadder, BedDouble, Bath, Check, Loader2, Columns3, ImageIcon, Copy } from "lucide-react"
 import { ListingLocationMiniMap } from "./listing-location-mini-map"
 import { FaWhatsapp } from "react-icons/fa"
 import { EditModal } from "./edit-modal"
@@ -60,6 +60,7 @@ import {
   type ListingsPropertyDisplayPrefs,
 } from "@/app/anuncios/lib/listings-display-prefs"
 import { buildWhatsAppUrl } from "@/app/anuncios/lib/listings-contact"
+import { buildListingMarkdown } from "@/app/anuncios/lib/listing-markdown"
 
 // ============================================================================
 // TYPES
@@ -555,6 +556,7 @@ function StackedSortHeader({
 type PropertyTypeFilter = "all" | "casa" | "apartamento"
 
 const STATUS_TRIGGER_WIDTH = "w-[128px]"
+const ROW_ACTIONS_WIDTH = "w-[148px]"
 const ROW_ACTION_BTN_CLASS = "flex-shrink-0 p-0.5 transition-colors"
 const ROW_ACTION_ICON_CLASS = "h-3.5 w-3.5"
 
@@ -586,6 +588,7 @@ export function ListingsTable({ listings, onListingsChange, hasApiKey = true }: 
   const [quickReparseError, setQuickReparseError] = useState<string | null>(null)
   const [quickReparseChanges, setQuickReparseChanges] = useState<FieldChange[] | null>(null)
   const [quickReparseListing, setQuickReparseListing] = useState<Imovel | null>(null)
+  const [copiedMarkdownListingId, setCopiedMarkdownListingId] = useState<string | null>(null)
   const [visibleColumns, setVisibleColumns] = useState<Record<ListingsTableColumn, boolean>>({ ...DEFAULT_VISIBLE_COLUMNS })
   const [visibleColumnsLoaded, setVisibleColumnsLoaded] = useState(false)
   const [propertyDisplay, setPropertyDisplay] = useState<ListingsPropertyDisplayPrefs>({ ...DEFAULT_PROPERTY_DISPLAY })
@@ -895,6 +898,18 @@ export function ListingsTable({ listings, onListingsChange, hasApiKey = true }: 
     setQuickReparsePopoverOpen(listing.id)
   }
 
+  const handleCopyListingMarkdown = async (listing: Imovel) => {
+    try {
+      await navigator.clipboard.writeText(buildListingMarkdown(listing))
+      setCopiedMarkdownListingId(listing.id)
+      window.setTimeout(() => {
+        setCopiedMarkdownListingId((current) => current === listing.id ? null : current)
+      }, 2000)
+    } catch (error) {
+      console.error("Failed to copy listing markdown:", error)
+    }
+  }
+
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const handleCopyToCollection = async (listingId: string, targetCollectionId: string) => {
     // Copy to collection feature is disabled until backend supports it
@@ -908,15 +923,6 @@ export function ListingsTable({ listings, onListingsChange, hasApiKey = true }: 
       key,
       direction: prev.key === key && prev.direction === "desc" ? "asc" : "desc",
     }))
-  }
-
-  const formatCurrency = (value: number | null) => {
-    if (value === null) return "—"
-    return new Intl.NumberFormat("pt-BR", {
-      style: "currency",
-      currency: "BRL",
-      maximumFractionDigits: 0,
-    }).format(value)
   }
 
   const formatNumber = (value: number | null, suffix = "") => {
@@ -1874,7 +1880,7 @@ export function ListingsTable({ listings, onListingsChange, hasApiKey = true }: 
                       const option = getListingStatusOption(status)
 
                       return (
-                        <TableCell className="min-w-[132px] align-middle">
+                        <TableCell className="min-w-[154px] align-middle">
                           <div className="flex flex-col items-center justify-center gap-1">
                             <Select
                               value={status}
@@ -1905,7 +1911,7 @@ export function ListingsTable({ listings, onListingsChange, hasApiKey = true }: 
                             <div
                               className={cn(
                                 "flex flex-nowrap items-center justify-between",
-                                STATUS_TRIGGER_WIDTH
+                                ROW_ACTIONS_WIDTH
                               )}
                             >
                               <Tooltip>
@@ -1934,6 +1940,33 @@ export function ListingsTable({ listings, onListingsChange, hasApiKey = true }: 
                                   className="border border-app-border bg-app-surface text-app-fg"
                                 >
                                   Buscar no Google
+                                </TooltipContent>
+                              </Tooltip>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <button
+                                    type="button"
+                                    onClick={() => void handleCopyListingMarkdown(imovel)}
+                                    className={cn(
+                                      ROW_ACTION_BTN_CLASS,
+                                      copiedMarkdownListingId === imovel.id
+                                        ? "text-app-accent"
+                                        : "text-muted-foreground hover:text-app-accent"
+                                    )}
+                                  >
+                                    {copiedMarkdownListingId === imovel.id ? (
+                                      <Check className={ROW_ACTION_ICON_CLASS} />
+                                    ) : (
+                                      <Copy className={ROW_ACTION_ICON_CLASS} />
+                                    )}
+                                  </button>
+                                </TooltipTrigger>
+                                <TooltipContent
+                                  side="bottom"
+                                  sideOffset={4}
+                                  className="bg-app-surface border border-app-border text-app-fg"
+                                >
+                                  {copiedMarkdownListingId === imovel.id ? "Copiado!" : "Copiar resumo em Markdown"}
                                 </TooltipContent>
                               </Tooltip>
                               {(() => {
