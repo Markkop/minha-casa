@@ -22,9 +22,8 @@ import {
   type PortalSearchRun,
   type ShortListing,
 } from "@/lib/portal-search"
-import { parseListing } from "@/app/anuncios/lib/api"
-import { useCollections } from "@/app/anuncios/lib/use-collections"
 import { useSession } from "@/lib/auth-client"
+import { useWorkspaceProfile } from "@/lib/workspace/use-workspace-profile"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { FilterBuilder } from "./components/filter-builder"
@@ -33,7 +32,7 @@ import { MatrixViewer } from "./components/matrix"
 export function ExplorarClient() {
   const searchParams = useSearchParams()
   const { data: session } = useSession()
-  const { orgContext, activeCollection, addListing } = useCollections()
+  const { orgId } = useWorkspaceProfile()
 
   const isAdmin = (session?.user as { isAdmin?: boolean } | undefined)?.isAdmin === true
 
@@ -49,15 +48,14 @@ export function ExplorarClient() {
   const [error, setError] = useState<string | null>(null)
   const [targets, setTargets] = useState<Array<Record<string, unknown>>>([])
 
-  const orgId =
-    orgContext.type === "organization" ? orgContext.organizationId : undefined
-
   useEffect(() => {
     const savedUrl = searchParams.get("fromLink")
     if (savedUrl) {
       const { filterSet: next, enabledPortals: portals } = filterSetFromSavedLink(savedUrl)
-      setFilterSet(next)
-      if (portals.length) setEnabledPortals(portals)
+      queueMicrotask(() => {
+        setFilterSet(next)
+        if (portals.length) setEnabledPortals(portals)
+      })
     }
   }, [searchParams])
 
@@ -177,21 +175,6 @@ export function ExplorarClient() {
     [targets]
   )
 
-  const handlePromote = async (listing: ShortListing) => {
-    if (!listing.sourceUrl || !activeCollection) {
-      setError("Selecione uma coleção em Anúncios para promover.")
-      return
-    }
-    try {
-      const parsed = await parseListing({ kind: "url", url: listing.sourceUrl })
-      if (parsed[0]) {
-        await addListing(parsed[0])
-      }
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Erro ao promover anúncio")
-    }
-  }
-
   return (
     <div className="mx-auto max-w-7xl space-y-6 px-4 py-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
@@ -290,7 +273,7 @@ export function ExplorarClient() {
             </div>
           )}
 
-          <MatrixViewer listings={cards} onPromote={handlePromote} />
+          <MatrixViewer listings={cards} />
 
           <div className="rounded-xl border border-app-border bg-app-surface p-4">
             <h2 className="mb-3 text-sm font-medium">Anúncios ({cards.length})</h2>
@@ -303,16 +286,11 @@ export function ExplorarClient() {
                       {card.portal} · {card.bairro ?? "—"} · {card.precoM2?.toLocaleString("pt-BR") ?? "—"} R$/m²
                     </p>
                   </div>
-                  <div className="flex gap-2">
-                    {card.sourceUrl && (
-                      <a href={card.sourceUrl} target="_blank" rel="noreferrer" className="underline">
-                        Ver
-                      </a>
-                    )}
-                    <button type="button" className="underline" onClick={() => handlePromote(card)}>
-                      Promover
-                    </button>
-                  </div>
+                  {card.sourceUrl && (
+                    <a href={card.sourceUrl} target="_blank" rel="noreferrer" className="underline">
+                      Ver
+                    </a>
+                  )}
                 </li>
               ))}
             </ul>

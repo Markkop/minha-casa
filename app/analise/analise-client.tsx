@@ -1,14 +1,12 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useMemo, useState } from "react"
 import Link from "next/link"
 import { Suspense } from "react"
-import { CollectionSelector } from "@/app/anuncios/components/collection-selector"
 import { useCollections } from "@/app/anuncios/lib/use-collections"
 import type { Imovel } from "@/app/anuncios/lib/api"
 import {
   PageToolbar,
-  PageToolbarEnd,
   PageToolbarStart,
 } from "@/app/components/page-toolbar"
 import { useWorkspaceProfile } from "@/lib/workspace/use-workspace-profile"
@@ -24,7 +22,7 @@ function AnaliseClientInner() {
     activeCollection,
     isLoadingListings,
   } = useCollections()
-  const [selectedListing, setSelectedListing] = useState<Imovel | null>(null)
+  const [selectedListingId, setSelectedListingId] = useState<string | null>(null)
 
   const sortedListings = useMemo(
     () =>
@@ -34,20 +32,17 @@ function AnaliseClientInner() {
     [listings]
   )
 
-  useEffect(() => {
-    if (selectedListing && !listings.some((l) => l.id === selectedListing.id)) {
-      setSelectedListing(null)
-    }
-  }, [listings, selectedListing])
-
-  useEffect(() => {
-    if (!selectedListing && sortedListings.length > 0 && !isLoadingListings) {
-      setSelectedListing(sortedListings[0])
-    }
-  }, [sortedListings, selectedListing, isLoadingListings])
+  const selectedListing = useMemo(() => {
+    if (isLoadingListings) return null
+    return (
+      sortedListings.find((listing) => listing.id === selectedListingId) ||
+      sortedListings[0] ||
+      null
+    )
+  }, [isLoadingListings, selectedListingId, sortedListings])
 
   const handleListingSelect = useCallback((listing: Imovel) => {
-    setSelectedListing(listing)
+    setSelectedListingId(listing.id)
   }, [])
 
   const toolbarCompact = Boolean(selectedListing)
@@ -74,14 +69,6 @@ function AnaliseClientInner() {
               />
             )}
           </PageToolbarStart>
-          <PageToolbarEnd className="md:order-2 md:shrink-0">
-            <CollectionSelector
-              onCollectionChange={() => setSelectedListing(null)}
-              onCreateCollection={() => {}}
-              onEditCollection={() => {}}
-              onDeleteCollection={() => {}}
-            />
-          </PageToolbarEnd>
         </div>
       </PageToolbar>
 

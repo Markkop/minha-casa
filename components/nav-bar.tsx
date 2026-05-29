@@ -30,6 +30,7 @@ import { getFlag } from "@/lib/feature-flags"
 import { useAddons } from "@/lib/use-addons"
 import { useSubscriptionAccess } from "@/lib/subscription-context"
 import { Button } from "@/components/ui/button"
+import { GlobalCollectionToolbar } from "@/app/anuncios/components/global-collection-toolbar"
 import {
   Popover,
   PopoverContent,
@@ -113,7 +114,7 @@ export function NavBar() {
     isLoggedIn && subscriptionReady && hasActiveSubscription
 
   useEffect(() => {
-    setMenuOpen(false)
+    queueMicrotask(() => setMenuOpen(false))
   }, [pathname])
 
   const handleLogout = async () => {
@@ -172,6 +173,11 @@ export function NavBar() {
             {isLoggedIn && (
               <div className="hidden xl:block">
                 <OrganizationSwitcher />
+              </div>
+            )}
+            {showWorkspaceNav && (
+              <div className="hidden min-w-0 max-w-[420px] shrink md:flex">
+                <GlobalCollectionToolbar />
               </div>
             )}
 

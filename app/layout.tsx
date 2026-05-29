@@ -5,6 +5,7 @@ import { NavBar } from "@/components/nav-bar";
 import { AddonsProvider } from "@/lib/use-addons";
 import { SubscriptionProvider } from "@/lib/subscription-context";
 import { SubscriptionCookieSync } from "@/components/subscription-cookie-sync";
+import { WorkspaceCollectionsShell } from "@/app/components/workspace-collections-shell";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -43,8 +44,10 @@ export default function RootLayout({
         <AddonsProvider>
           <SubscriptionProvider>
             <SubscriptionCookieSync />
-            <NavBar />
-            {children}
+            <WorkspaceCollectionsShell>
+              <NavBar />
+              {children}
+            </WorkspaceCollectionsShell>
           </SubscriptionProvider>
         </AddonsProvider>
       </body>

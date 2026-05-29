@@ -1,5 +1,4 @@
 import type { Metadata } from "next"
-import { CollectionsProvider } from "@/app/anuncios/lib/use-collections"
 import { ComparisonClient } from "./comparison-client"
 
 export const metadata: Metadata = {
@@ -7,9 +6,5 @@ export const metadata: Metadata = {
 }
 
 export default function ComparacaoPage() {
-  return (
-    <CollectionsProvider>
-      <ComparisonClient />
-    </CollectionsProvider>
-  )
+  return <ComparisonClient />
 }

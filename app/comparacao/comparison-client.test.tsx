@@ -20,6 +20,12 @@ const mockCollection: Collection = {
   isPublic: false,
 }
 
+const secondCollection: Collection = {
+  ...mockCollection,
+  id: "collection-2",
+  label: "Outra coleção",
+}
+
 function makeListing(overrides: Partial<Imovel> = {}): Imovel {
   return {
     id: "listing-1",
@@ -179,6 +185,29 @@ describe("ComparisonClient", () => {
     expect(screen.getAllByText("Casa · Córrego Grande").length).toBeGreaterThan(0)
     expect(screen.getAllByText("Apto · Trindade").length).toBeGreaterThan(0)
     expect(screen.queryByText("Casa · Lagoa")).not.toBeInTheDocument()
+  })
+
+  it("reloads comparison slots when the shared active collection changes", async () => {
+    mockUseCollections.mockReturnValue({
+      listings,
+      activeCollection: mockCollection,
+      isLoadingListings: false,
+      updateListing: mockUpdateListing,
+    })
+    const rendered = render(<ComparisonClient />)
+
+    expect((await screen.findAllByText("Casa · Itacorubi")).length).toBeGreaterThan(0)
+
+    mockUseCollections.mockReturnValue({
+      listings: [makeListing({ id: "listing-6", titulo: "Casa Zeta", bairro: "Jurerê" })],
+      activeCollection: secondCollection,
+      isLoadingListings: false,
+      updateListing: mockUpdateListing,
+    })
+    rendered.rerender(<ComparisonClient />)
+
+    expect((await screen.findAllByText("Casa · Jurerê")).length).toBeGreaterThan(0)
+    expect(screen.queryAllByText("Casa · Itacorubi")).toHaveLength(0)
   })
 
   it("restores saved comparison slot selections locally", async () => {

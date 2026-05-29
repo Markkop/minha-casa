@@ -121,9 +121,44 @@ const CollectionsContext = createContext<CollectionsContextValue | null>(null)
 
 interface CollectionsProviderProps {
   children: ReactNode
+  enabled?: boolean
 }
 
-export function CollectionsProvider({ children }: CollectionsProviderProps) {
+const ACTIVE_COLLECTION_STORAGE_PREFIX = "minha-casa:active-collection"
+
+export function getActiveCollectionStorageKey(
+  orgContext: OrganizationContext
+): string {
+  if (orgContext.type === "organization") {
+    return `${ACTIVE_COLLECTION_STORAGE_PREFIX}:org:${orgContext.organizationId ?? "unknown"}`
+  }
+  return `${ACTIVE_COLLECTION_STORAGE_PREFIX}:personal`
+}
+
+function readStoredActiveCollectionId(
+  orgContext: OrganizationContext
+): string | null {
+  if (typeof window === "undefined") return null
+  return window.localStorage.getItem(getActiveCollectionStorageKey(orgContext))
+}
+
+function storeActiveCollectionId(
+  orgContext: OrganizationContext,
+  collection: Collection | null
+): void {
+  if (typeof window === "undefined") return
+  const key = getActiveCollectionStorageKey(orgContext)
+  if (collection) {
+    window.localStorage.setItem(key, collection.id)
+  } else {
+    window.localStorage.removeItem(key)
+  }
+}
+
+export function CollectionsProvider({
+  children,
+  enabled = true,
+}: CollectionsProviderProps) {
   // Organization context
   const [orgContext, setOrgContextState] = useState<OrganizationContext>({ type: "personal" })
   const [orgContextInitialized, setOrgContextInitialized] = useState(false)
@@ -174,23 +209,37 @@ export function CollectionsProvider({ children }: CollectionsProviderProps) {
       const fetchedCollections = await fetchCollections(orgId)
       setCollections(fetchedCollections)
 
-      // If there's no active collection, set the default one
+      const getFallbackCollection = () => {
+        const storedId = readStoredActiveCollectionId(orgContext)
+        return (
+          fetchedCollections.find((c) => c.id === storedId) ||
+          fetchedCollections.find((c) => c.isDefault) ||
+          fetchedCollections[0] ||
+          null
+        )
+      }
+
+      // If there's no active collection, set the stored/default one
       if (!activeCollection && fetchedCollections.length > 0) {
-        const defaultCollection =
-          fetchedCollections.find((c) => c.isDefault) || fetchedCollections[0]
-        setActiveCollectionState(defaultCollection)
+        const nextCollection = getFallbackCollection()
+        setActiveCollectionState(nextCollection)
+        storeActiveCollectionId(orgContext, nextCollection)
+      } else if (!activeCollection) {
+        storeActiveCollectionId(orgContext, null)
       } else if (activeCollection) {
         // Update the active collection in case it changed
         const updated = fetchedCollections.find((c) => c.id === activeCollection.id)
         if (updated) {
           setActiveCollectionState(updated)
+          storeActiveCollectionId(orgContext, updated)
         } else if (fetchedCollections.length > 0) {
           // Active collection was deleted, fall back to default
-          const defaultCollection =
-            fetchedCollections.find((c) => c.isDefault) || fetchedCollections[0]
-          setActiveCollectionState(defaultCollection)
+          const nextCollection = getFallbackCollection()
+          setActiveCollectionState(nextCollection)
+          storeActiveCollectionId(orgContext, nextCollection)
         } else {
           setActiveCollectionState(null)
+          storeActiveCollectionId(orgContext, null)
         }
       }
     } catch (err) {
@@ -205,8 +254,9 @@ export function CollectionsProvider({ children }: CollectionsProviderProps) {
   const setActiveCollection = useCallback(
     (collection: Collection | null) => {
       setActiveCollectionState(collection)
+      storeActiveCollectionId(orgContext, collection)
     },
-    []
+    [orgContext]
   )
 
   const createCollection = useCallback(
@@ -226,7 +276,11 @@ export function CollectionsProvider({ children }: CollectionsProviderProps) {
         }
         return [...prev, newCollection]
       })
-      setActiveCollectionState((prev) => prev ?? newCollection)
+      setActiveCollectionState((prev) => {
+        if (prev) return prev
+        storeActiveCollectionId(orgContext, newCollection)
+        return newCollection
+      })
       triggerRefresh()
       return newCollection
     },
@@ -247,6 +301,7 @@ export function CollectionsProvider({ children }: CollectionsProviderProps) {
           return [...prev, newCollection]
         })
         setActiveCollectionState(newCollection)
+        storeActiveCollectionId(orgContext, newCollection)
       }
 
       triggerRefresh()
@@ -276,11 +331,12 @@ export function CollectionsProvider({ children }: CollectionsProviderProps) {
       // Update active collection if it was updated
       if (activeCollection?.id === id) {
         setActiveCollectionState(updatedCollection)
+        storeActiveCollectionId(orgContext, updatedCollection)
       }
       triggerRefresh()
       return updatedCollection
     },
-    [activeCollection, triggerRefresh]
+    [activeCollection, triggerRefresh, orgContext]
   )
 
   const deleteCollection = useCallback(
@@ -293,12 +349,16 @@ export function CollectionsProvider({ children }: CollectionsProviderProps) {
           const defaultCollection =
             remaining.find((c) => c.isDefault) || remaining[0]
           setActiveCollectionState(defaultCollection)
+          storeActiveCollectionId(orgContext, defaultCollection)
+        }
+        if (activeCollection?.id === id && remaining.length === 0) {
+          storeActiveCollectionId(orgContext, null)
         }
         return remaining
       })
       triggerRefresh()
     },
-    [activeCollection, triggerRefresh]
+    [activeCollection, triggerRefresh, orgContext]
   )
 
   const setDefaultCollection = useCallback(
@@ -319,11 +379,12 @@ export function CollectionsProvider({ children }: CollectionsProviderProps) {
       // Update active collection if it was the one set as default
       if (activeCollection?.id === id) {
         setActiveCollectionState(updatedCollection)
+        storeActiveCollectionId(orgContext, updatedCollection)
       }
       triggerRefresh()
       return updatedCollection
     },
-    [activeCollection, triggerRefresh]
+    [activeCollection, triggerRefresh, orgContext]
   )
 
   // Copy a collection to another profile (personal or organization)
@@ -409,11 +470,12 @@ export function CollectionsProvider({ children }: CollectionsProviderProps) {
       )
       if (activeCollection?.id === collectionId) {
         setActiveCollectionState(updatedCollection)
+        storeActiveCollectionId(orgContext, updatedCollection)
       }
       triggerRefresh()
       return updatedCollection
     },
-    [activeCollection, triggerRefresh]
+    [activeCollection, triggerRefresh, orgContext]
   )
 
   // ============================================================================
@@ -540,13 +602,14 @@ export function CollectionsProvider({ children }: CollectionsProviderProps) {
   // Load collections on mount and when org context changes
   // Only load after org context has been initialized from localStorage
   useEffect(() => {
-    if (orgContextInitialized) {
+    if (enabled && orgContextInitialized) {
       loadCollections()
     }
-  }, [orgContext, orgContextInitialized]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [enabled, orgContext, orgContextInitialized]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Load listings when active collection changes
   useEffect(() => {
+    if (!enabled) return
     if (activeCollection) {
       if (listingsCollectionId !== activeCollection.id) {
         setListings([])
@@ -556,7 +619,7 @@ export function CollectionsProvider({ children }: CollectionsProviderProps) {
       setListings([])
       setListingsCollectionId(null)
     }
-  }, [activeCollection?.id]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [enabled, activeCollection?.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Poll ingesting listings individually (max ~2 min)
   const ingestingListingIdsKey = listings

@@ -26,6 +26,12 @@ vi.mock("@/components/organization-switcher", () => ({
   ),
 }))
 
+vi.mock("@/app/anuncios/components/global-collection-toolbar", () => ({
+  GlobalCollectionToolbar: () => (
+    <div data-testid="global-collection-toolbar">Collection Toolbar</div>
+  ),
+}))
+
 const mockGetFlag = vi.fn()
 vi.mock("@/lib/feature-flags", () => ({
   getFlag: (flag: string) => mockGetFlag(flag),
@@ -104,6 +110,20 @@ describe("NavBar", () => {
     expect(screen.getByRole("link", { name: /contatos/i })).toHaveAttribute("href", "/contatos")
     expect(screen.getByRole("link", { name: /regiões/i })).toHaveAttribute("href", "/regioes")
     expect(screen.getByRole("link", { name: /condomínios/i })).toHaveAttribute("href", "/condominios")
+  })
+
+  it("places the collection toolbar before the user menu", () => {
+    mockUseSession.mockReturnValue({
+      data: { user: { id: "user-1", name: "Test User", email: "test@example.com" } },
+    })
+
+    render(<NavBar />)
+
+    const toolbar = screen.getByTestId("global-collection-toolbar")
+    const userMenu = screen.getByRole("button", { name: /menu do usuario/i })
+    expect(
+      toolbar.compareDocumentPosition(userMenu) & Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy()
   })
 
   it("hides workspace navigation when subscription is inactive", () => {

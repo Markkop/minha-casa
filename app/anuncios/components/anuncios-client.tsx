@@ -4,10 +4,8 @@ import { Suspense, useState, useCallback, useEffect } from "react"
 import { ListingsTable } from "./listings-table"
 import { ListingsMap } from "./listings-map"
 import { ImportExportActions } from "./data-management"
-import { CollectionSelector } from "./collection-selector"
-import { CollectionModal } from "./collection-modal"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { CollectionsProvider, useCollections } from "../lib/use-collections"
+import { useCollections } from "../lib/use-collections"
 import { getDefaultFirstCollectionName } from "../lib/default-first-collection-name"
 import { cn } from "@/lib/utils"
 import type { Collection, Imovel } from "../lib/api"
@@ -32,8 +30,6 @@ function AnunciosClientInner() {
     orgContext,
   } = useCollections()
 
-  const [showCollectionModal, setShowCollectionModal] = useState(false)
-  const [editingCollection, setEditingCollection] = useState<Collection | null>(null)
   const [showShareConfirm, setShowShareConfirm] = useState(false)
   const [shareData, setShareData] = useState<{ collection: Collection; listings: Imovel[] } | null>(null)
   const [isCreatingFirstCollection, setIsCreatingFirstCollection] = useState(false)
@@ -49,22 +45,15 @@ function AnunciosClientInner() {
     triggerRefresh()
   }, [loadListings, triggerRefresh])
 
-  const handleCollectionChange = useCallback(
-    (collection: Collection | null) => {
-      setActiveCollection(collection)
-    },
-    [setActiveCollection]
-  )
-
   const handleSwitchToCollection = useCallback(
     (collectionId: string) => {
       const collection = collections.find((c) => c.id === collectionId)
       if (collection) {
-        handleCollectionChange(collection)
+        setActiveCollection(collection)
         triggerRefresh()
       }
     },
-    [collections, handleCollectionChange, triggerRefresh]
+    [collections, setActiveCollection, triggerRefresh]
   )
 
   const handleCreateCollection = useCallback(async () => {
@@ -85,29 +74,12 @@ function AnunciosClientInner() {
       return
     }
 
-    setEditingCollection(null)
-    setShowCollectionModal(true)
+    return
   }, [
     collections.length,
     createCollection,
     triggerRefresh,
   ])
-
-  const handleEditCollection = useCallback((collection: Collection) => {
-    setEditingCollection(collection)
-    setShowCollectionModal(true)
-  }, [])
-
-  const handleDeleteCollection = useCallback((collection: Collection) => {
-    setEditingCollection(collection)
-    setShowCollectionModal(true)
-  }, [])
-
-  const handleCollectionModalClose = useCallback(() => {
-    setShowCollectionModal(false)
-    setEditingCollection(null)
-    triggerRefresh()
-  }, [triggerRefresh])
 
   const handleShareImport = useCallback(() => {
     if (!shareData) return
@@ -208,13 +180,6 @@ function AnunciosClientInner() {
     <div className="min-h-[calc(100vh-104px)] bg-app-bg text-app-fg">
       <PageToolbar>
         <PageToolbarEnd className="w-full md:w-auto">
-          <CollectionSelector
-            onCollectionChange={handleCollectionChange}
-            onCreateCollection={handleCreateCollection}
-            onEditCollection={handleEditCollection}
-            onDeleteCollection={handleDeleteCollection}
-            refreshTrigger={refreshTrigger}
-          />
           <ImportExportActions
             onDataChange={handleListingsChange}
             listingsCount={listings.length}
@@ -223,14 +188,6 @@ function AnunciosClientInner() {
           />
         </PageToolbarEnd>
       </PageToolbar>
-
-      {/* Collection Modal */}
-      <CollectionModal
-        isOpen={showCollectionModal}
-        onClose={handleCollectionModalClose}
-        collection={editingCollection}
-        onCollectionChange={handleListingsChange}
-      />
 
       {/* Share Import Confirmation Modal */}
       {showShareConfirm && shareData && (
@@ -317,11 +274,11 @@ function AnunciosClientInner() {
 
 export function AnunciosClient() {
   return (
-    <CollectionsProvider>
+    <>
       <Suspense fallback={null}>
         <AnunciosQuerySync />
       </Suspense>
       <AnunciosClientInner />
-    </CollectionsProvider>
+    </>
   )
 }

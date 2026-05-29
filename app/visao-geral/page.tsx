@@ -1,5 +1,4 @@
 import type { Metadata } from "next"
-import { CollectionsProvider } from "@/app/anuncios/lib/use-collections"
 import { OverviewClient } from "./overview-client"
 
 export const metadata: Metadata = {
@@ -7,9 +6,5 @@ export const metadata: Metadata = {
 }
 
 export default function VisaoGeralPage() {
-  return (
-    <CollectionsProvider>
-      <OverviewClient />
-    </CollectionsProvider>
-  )
+  return <OverviewClient />
 }

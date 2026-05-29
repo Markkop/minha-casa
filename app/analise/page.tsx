@@ -1,5 +1,4 @@
 import type { Metadata } from "next"
-import { CollectionsProvider } from "@/app/anuncios/lib/use-collections"
 import { AnaliseClient } from "./analise-client"
 
 export const metadata: Metadata = {
@@ -8,9 +7,5 @@ export const metadata: Metadata = {
 }
 
 export default function AnalisePage() {
-  return (
-    <CollectionsProvider>
-      <AnaliseClient />
-    </CollectionsProvider>
-  )
+  return <AnaliseClient />
 }

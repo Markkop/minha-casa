@@ -3,7 +3,11 @@
 import { act, renderHook, waitFor } from "@testing-library/react"
 import type { ReactNode } from "react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
-import { CollectionsProvider, useCollections } from "./use-collections"
+import {
+  CollectionsProvider,
+  getActiveCollectionStorageKey,
+  useCollections,
+} from "./use-collections"
 import type { ApiListing, Collection, Imovel } from "./api"
 import type { ListingData } from "@/lib/db/schema"
 
@@ -133,6 +137,7 @@ async function renderLoadedCollections(initialListings: Imovel[]) {
 
 beforeEach(() => {
   vi.useRealTimers()
+  window.localStorage.clear()
   apiMocks.fetchCollections.mockReset()
   apiMocks.fetchListings.mockReset()
   apiMocks.fetchListing.mockReset()
@@ -146,6 +151,74 @@ afterEach(() => {
 })
 
 describe("useCollections listing refresh behavior", () => {
+  it("loads the persisted active collection for the current profile", async () => {
+    const secondCollection: Collection = {
+      ...collection,
+      id: "collection-2",
+      label: "Segunda coleção",
+      isDefault: false,
+    }
+    window.localStorage.setItem(
+      getActiveCollectionStorageKey({ type: "personal" }),
+      secondCollection.id
+    )
+    apiMocks.fetchCollections.mockResolvedValue([collection, secondCollection])
+    apiMocks.fetchListings.mockResolvedValue([])
+
+    const rendered = renderHook(() => useCollections(), { wrapper })
+
+    await waitFor(() => {
+      expect(rendered.result.current.activeCollection?.id).toBe(secondCollection.id)
+    })
+    expect(apiMocks.fetchListings).toHaveBeenCalledWith(secondCollection.id)
+  })
+
+  it("falls back to the default collection when the persisted id is unavailable", async () => {
+    window.localStorage.setItem(
+      getActiveCollectionStorageKey({ type: "personal" }),
+      "missing-collection"
+    )
+    apiMocks.fetchCollections.mockResolvedValue([collection])
+    apiMocks.fetchListings.mockResolvedValue([])
+
+    const rendered = renderHook(() => useCollections(), { wrapper })
+
+    await waitFor(() => {
+      expect(rendered.result.current.activeCollection?.id).toBe(collection.id)
+    })
+    expect(
+      window.localStorage.getItem(
+        getActiveCollectionStorageKey({ type: "personal" })
+      )
+    ).toBe(collection.id)
+  })
+
+  it("persists active collection changes", async () => {
+    const secondCollection: Collection = {
+      ...collection,
+      id: "collection-2",
+      label: "Segunda coleção",
+      isDefault: false,
+    }
+    apiMocks.fetchCollections.mockResolvedValue([collection, secondCollection])
+    apiMocks.fetchListings.mockResolvedValue([])
+    const rendered = renderHook(() => useCollections(), { wrapper })
+
+    await waitFor(() => {
+      expect(rendered.result.current.activeCollection?.id).toBe(collection.id)
+    })
+
+    await act(async () => {
+      rendered.result.current.setActiveCollection(secondCollection)
+    })
+
+    expect(
+      window.localStorage.getItem(
+        getActiveCollectionStorageKey({ type: "personal" })
+      )
+    ).toBe(secondCollection.id)
+  })
+
   it("refreshListing updates only the target listing without reloading the table", async () => {
     const first = listing({ id: "listing-1", imageIngestionStatus: "pending" })
     const second = listing({ id: "listing-2", titulo: "Casa 2" })
