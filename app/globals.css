@@ -91,6 +91,17 @@
   --color-footer: var(--app-muted);
   --color-offWhite: var(--app-bg);
   --color-yellow: var(--app-action);
+
+  --animate-listing-image-ingest: listing-image-ingest 1.25s ease-in-out infinite;
+
+  @keyframes listing-image-ingest {
+    0% {
+      transform: translateX(-120%);
+    }
+    100% {
+      transform: translateX(420%);
+    }
+  }
 }
 
 :root {

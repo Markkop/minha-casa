@@ -3,7 +3,6 @@
 import { Suspense, useState, useCallback, useEffect } from "react"
 import { ListingsTable } from "./listings-table"
 import { ListingsMap } from "./listings-map"
-import { ParserModal } from "./parser-modal"
 import { ImportExportActions } from "./data-management"
 import { CollectionSelector } from "./collection-selector"
 import { CollectionModal } from "./collection-modal"
@@ -33,7 +32,6 @@ function AnunciosClientInner() {
     orgContext,
   } = useCollections()
 
-  const [showParser, setShowParser] = useState(false)
   const [showCollectionModal, setShowCollectionModal] = useState(false)
   const [editingCollection, setEditingCollection] = useState<Collection | null>(null)
   const [showShareConfirm, setShowShareConfirm] = useState(false)
@@ -234,12 +232,6 @@ function AnunciosClientInner() {
         onCollectionChange={handleListingsChange}
       />
 
-      {/* Parser Modal */}
-      <ParserModal
-        isOpen={showParser}
-        onClose={() => setShowParser(false)}
-      />
-
       {/* Share Import Confirmation Modal */}
       {showShareConfirm && shareData && (
         <div className="fixed inset-0 z-[1000] flex items-center justify-center">
@@ -313,7 +305,6 @@ function AnunciosClientInner() {
           <ListingsTable
             listings={listings}
             refreshTrigger={refreshTrigger}
-            onOpenParser={() => setShowParser(true)}
           />
         )}
 

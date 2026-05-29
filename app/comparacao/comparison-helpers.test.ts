@@ -10,8 +10,11 @@ import {
   formatExtraValue,
   getVisibleComparisonExtraRows,
   formatPricePerM2,
+  fillBlankComparisonSlots,
   getAvailableListingsForSlot,
+  getComparisonAutoFillCandidates,
   initializeComparisonSlots,
+  initializeComparisonSlotsFromAutoFill,
   normalizeComparisonSlots,
   removeComparisonSlot,
   replaceComparisonSlot,
@@ -70,6 +73,49 @@ describe("comparison helpers", () => {
       null,
       null,
     ])
+  })
+
+  it("orders auto-fill candidates with favorites first and excludes strikethrough", () => {
+    const listings = [
+      makeListing({ id: "a", starred: false }),
+      makeListing({ id: "b", starred: true }),
+      makeListing({ id: "c", starred: false, strikethrough: true }),
+      makeListing({ id: "d", starred: false }),
+    ]
+
+    expect(getComparisonAutoFillCandidates(listings).map((listing) => listing.id)).toEqual([
+      "b",
+      "a",
+      "d",
+    ])
+  })
+
+  it("fills blank slots from favorites then other eligible listings", () => {
+    const listings = [
+      makeListing({ id: "a", starred: true }),
+      makeListing({ id: "b", starred: false }),
+      makeListing({ id: "c", starred: false }),
+      makeListing({ id: "d", starred: false }),
+    ]
+
+    expect(fillBlankComparisonSlots(["b", null, null, null], listings)).toEqual([
+      "b",
+      "a",
+      "c",
+      "d",
+    ])
+  })
+
+  it("initializes slots from auto-fill candidates", () => {
+    const listings = [
+      makeListing({ id: "a", starred: true }),
+      makeListing({ id: "b", starred: false }),
+      makeListing({ id: "c", starred: false }),
+      makeListing({ id: "d", starred: false }),
+      makeListing({ id: "e", starred: false }),
+    ]
+
+    expect(initializeComparisonSlotsFromAutoFill(listings)).toEqual(["a", "b", "c", "d"])
   })
 
   it("normalizes invalid and duplicate slots", () => {

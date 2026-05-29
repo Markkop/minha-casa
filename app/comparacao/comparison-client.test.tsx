@@ -159,8 +159,10 @@ describe("ComparisonClient", () => {
       expect(mockUpdateListing).toHaveBeenCalledWith("listing-1", { starred: false })
     })
 
+    const slot2Header = (await screen.findByRole("button", { name: "Editar imóvel do slot 2" })).closest("th")
+    expect(slot2Header).not.toBeNull()
     fireEvent.click(
-      screen.getByRole("button", { name: "Adicionar aos favoritos" })
+      within(slot2Header!).getByRole("button", { name: "Adicionar aos favoritos" })
     )
 
     await waitFor(() => {
@@ -168,12 +170,15 @@ describe("ComparisonClient", () => {
     })
   })
 
-  it("falls back to favorited listings when there is no saved comparison selection", async () => {
+  it("auto-fills comparison slots with favorites first then other listings", async () => {
     setup()
 
     expect(await screen.findByText("Preço")).toBeInTheDocument()
     expect(screen.getAllByText("Casa · Itacorubi").length).toBeGreaterThan(0)
-    expect(screen.queryByText("Casa · Centro")).not.toBeInTheDocument()
+    expect(screen.getAllByText("Casa · Centro").length).toBeGreaterThan(0)
+    expect(screen.getAllByText("Casa · Córrego Grande").length).toBeGreaterThan(0)
+    expect(screen.getAllByText("Apto · Trindade").length).toBeGreaterThan(0)
+    expect(screen.queryByText("Casa · Lagoa")).not.toBeInTheDocument()
   })
 
   it("restores saved comparison slot selections locally", async () => {
@@ -185,13 +190,27 @@ describe("ComparisonClient", () => {
     expect(screen.getAllByText("Casa · Córrego Grande").length).toBeGreaterThan(0)
   })
 
-  it("fills persisted blank slots with favorites", async () => {
+  it("fills persisted blank slots with favorites then other listings", async () => {
     saveStoredComparison(["listing-2", null, null, null])
     setup()
 
     expect(await screen.findByText("Preço")).toBeInTheDocument()
     expect(screen.getAllByText("Casa · Centro").length).toBeGreaterThan(0)
     expect(screen.getAllByText("Casa · Itacorubi").length).toBeGreaterThan(0)
+    expect(screen.getAllByText("Casa · Córrego Grande").length).toBeGreaterThan(0)
+    expect(screen.getAllByText("Apto · Trindade").length).toBeGreaterThan(0)
+  })
+
+  it("auto-fills all slots from collection order when there are no favorites", async () => {
+    const listingsWithoutFavorites = listings.map((listing) => ({ ...listing, starred: false }))
+    setup(listingsWithoutFavorites)
+
+    expect(await screen.findByText("Preço")).toBeInTheDocument()
+    expect(screen.getAllByText("Casa · Itacorubi").length).toBeGreaterThan(0)
+    expect(screen.getAllByText("Casa · Centro").length).toBeGreaterThan(0)
+    expect(screen.getAllByText("Casa · Córrego Grande").length).toBeGreaterThan(0)
+    expect(screen.getAllByText("Apto · Trindade").length).toBeGreaterThan(0)
+    expect(screen.queryByText("Casa · Lagoa")).not.toBeInTheDocument()
   })
 
   it("restores a saved fixed cell locally", async () => {
@@ -294,7 +313,12 @@ describe("ComparisonClient", () => {
     expect(
       (await screen.findAllByText((_, element) => element?.textContent === "R$ 3.250.000")).length
     ).toBeGreaterThan(0)
-    expect(screen.getByText("5 (2 suítes)")).not.toHaveAttribute("aria-label")
+
+    const quartosRow = screen.getByText("Quartos").closest("tr")
+    expect(quartosRow).not.toBeNull()
+    const slot2RoomsCell = quartosRow!.querySelectorAll("td")[1]
+    expect(slot2RoomsCell).toHaveTextContent("5 (2 suítes)")
+    expect(slot2RoomsCell?.querySelector("span")).not.toHaveAttribute("aria-label")
   })
 
   it("uses a fixed bathroom cell to adjust each listing price by R$50k per bathroom", async () => {

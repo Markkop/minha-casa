@@ -48,6 +48,31 @@ function usedNeighborhoodOnlyQuery(listing: Imovel, query: string | null): boole
   return Boolean(bairro) && query.includes(bairro)
 }
 
+function isPlaceholderListingTitle(titulo: string | null | undefined): boolean {
+  const trimmed = titulo?.trim() ?? ""
+  return trimmed.length === 0 || trimmed.toLowerCase() === "sem título"
+}
+
+/** Title for compact UI; falls back to bairro/cidade or endereço when titulo is missing. */
+export function formatListingTitleOrShortLocation(
+  listing: Pick<Imovel, "titulo" | "bairro" | "cidade" | "endereco">
+): string {
+  if (!isPlaceholderListingTitle(listing.titulo)) {
+    return listing.titulo.trim()
+  }
+
+  const neighborhoodCity = [listing.bairro, listing.cidade]
+    .filter((value): value is string => Boolean(value?.trim()))
+    .map((value) => value.trim())
+    .join(", ")
+  if (neighborhoodCity) return neighborhoodCity
+
+  const endereco = listing.endereco?.trim()
+  if (endereco) return endereco
+
+  return listing.titulo?.trim() || "Sem título"
+}
+
 /**
  * Best-effort geocode query for a listing.
  */

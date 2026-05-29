@@ -25,6 +25,10 @@ import {
 } from "../lib/api"
 import { getDefaultFirstCollectionName } from "../lib/default-first-collection-name"
 import {
+  formatDuplicateReason,
+  listingDataForLinkDuplicateCheck,
+} from "../lib/duplicate-reason"
+import {
   buildParseRequestFromFile,
   readClipboardFile,
 } from "../lib/parse-input"
@@ -92,7 +96,8 @@ export function ParserModal({
   const [isDragOver, setIsDragOver] = useState(false)
   const [duplicateConflict, setDuplicateConflict] = useState<{
     collectionId: string
-    data: ListingData
+    data?: ListingData
+    parseInput?: ParseRequest
     candidates: { listingId: string; reason: string }[]
   } | null>(null)
   const linkInputRef = useRef<HTMLInputElement>(null)
@@ -230,8 +235,30 @@ export function ParserModal({
       const collectionId = await resolveTargetCollectionId()
       setTargetCollectionId(collectionId)
       const parseInput = await buildParseInput()
+
       if (parseInput.kind === "url") {
-        setLoadingLabel("Extraindo dados...")
+        setLoadingLabel("Verificando duplicidade...")
+        const urlDuplicates = await checkDuplicateCandidates(
+          collectionId,
+          listingDataForLinkDuplicateCheck(parseInput.url)
+        )
+        if (urlDuplicates.length > 0) {
+          setDuplicateConflict({
+            collectionId,
+            parseInput,
+            candidates: urlDuplicates.map((d) => ({
+              listingId: d.listingId,
+              reason: d.reason,
+            })),
+          })
+          setPhase("duplicate")
+          return
+        }
+        setLoadingLabel("Buscando página...")
+      }
+
+      if (parseInput.kind !== "url") {
+        setLoadingLabel("Lendo...")
       }
       const listings = await parseListingInput(parseInput)
 
@@ -247,6 +274,7 @@ export function ParserModal({
           setDuplicateConflict({
             collectionId,
             data: parsedData,
+            parseInput,
             candidates: duplicates.map((d) => ({
               listingId: d.listingId,
               reason: d.reason,
@@ -302,10 +330,32 @@ export function ParserModal({
     setIsLoading(true)
     setError(null)
     try {
+      let parsedData = duplicateConflict.data
+      const parseInput = duplicateConflict.parseInput
+
+      if (!parsedData && parseInput) {
+        setLoadingLabel(parseInput.kind === "url" ? "Buscando página..." : "Lendo...")
+        const listings = await parseListingInput(parseInput)
+        if (listings.length === 0) {
+          throw new Error("Nenhum imóvel encontrado no conteúdo")
+        }
+        if (listings.length > 1) {
+          setPendingListings(listings.map((data) => ({ data, selected: true })))
+          setPhase("review")
+          setDuplicateConflict(null)
+          return
+        }
+        parsedData = listings[0]
+      }
+
+      if (!parsedData) {
+        throw new Error("Erro ao processar anúncio")
+      }
+
       await finishSingleImport(
         duplicateConflict.collectionId,
-        duplicateConflict.data,
-        { kind: "text", rawText: "" }
+        parsedData,
+        parseInput ?? { kind: "text", rawText: "" }
       )
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erro ao salvar imóvel")
@@ -562,7 +612,7 @@ export function ParserModal({
               <p className="text-app-muted">
                 Já existe um imóvel parecido nesta coleção
                 {duplicateConflict.candidates[0]?.reason
-                  ? ` (${duplicateConflict.candidates[0].reason})`
+                  ? ` (${formatDuplicateReason(duplicateConflict.candidates[0].reason)})`
                   : ""}
                 .
               </p>

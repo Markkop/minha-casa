@@ -43,9 +43,11 @@ import {
   formatInteger,
   formatPricePerM2,
   formatShortListingName,
+  fillBlankComparisonSlots,
   getAvailableListingsForSlot,
   getSlotListings,
   initializeComparisonSlots,
+  initializeComparisonSlotsFromAutoFill,
   normalizeComparisonSlots,
   replaceComparisonSlot,
   type ComparisonSlot,
@@ -194,32 +196,6 @@ function resolveFixedCell(slots: ComparisonSlot[], fixedCell: FixedCell | null):
   return fixedCell
 }
 
-function initializeFallbackComparisonSlots(listings: Imovel[]): ComparisonSlot[] {
-  const favoriteListings = listings.filter((listing) => listing.starred && !listing.strikethrough)
-  return initializeComparisonSlots(favoriteListings.length > 0 ? favoriteListings : listings)
-}
-
-function fillBlankSlotsWithFavorites(slots: ComparisonSlot[], listings: Imovel[]): ComparisonSlot[] {
-  const usedIds = new Set(slots.filter((slot): slot is string => Boolean(slot)))
-  const availableFavorites = listings.filter((listing) => (
-    listing.starred &&
-    !listing.strikethrough &&
-    !usedIds.has(listing.id)
-  ))
-  let favoriteIndex = 0
-
-  return slots.map((slot) => {
-    if (slot) return slot
-
-    const favorite = availableFavorites[favoriteIndex]
-    favoriteIndex += 1
-    if (!favorite) return null
-
-    usedIds.add(favorite.id)
-    return favorite.id
-  })
-}
-
 function readStoredComparisonSelection(
   collectionId: string,
   listings: Imovel[]
@@ -233,7 +209,7 @@ function readStoredComparisonSelection(
     const parsed = JSON.parse(raw) as { slots?: unknown; fixedCell?: unknown }
     if (!Array.isArray(parsed.slots)) return null
 
-    const slots = fillBlankSlotsWithFavorites(
+    const slots = fillBlankComparisonSlots(
       normalizeComparisonSlots(
         parsed.slots.map((slot) => (typeof slot === "string" ? slot : null)),
         listings
@@ -445,12 +421,12 @@ export function ComparisonClient() {
           return storedSelection.slots
         }
 
-        const fallbackSlots = initializeFallbackComparisonSlots(listings)
+        const fallbackSlots = initializeComparisonSlotsFromAutoFill(listings)
         setFixedCell(null)
         return fallbackSlots
       }
 
-      const next = fillBlankSlotsWithFavorites(normalizeComparisonSlots(current, listings), listings)
+      const next = fillBlankComparisonSlots(normalizeComparisonSlots(current, listings), listings)
       setFixedCell((currentFixedCell) => resolveFixedCell(next, currentFixedCell))
       return next
     })

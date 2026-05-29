@@ -3,7 +3,7 @@
 /* eslint-disable @next/next/no-img-element */
 
 import { memo, useEffect, useState } from "react"
-import { Home, Building, Loader2, ImageIcon } from "lucide-react"
+import { Home, Building, Loader2 } from "lucide-react"
 import type { Imovel } from "../lib/api"
 import { cn } from "@/lib/utils"
 import { isListingImageIngesting } from "@/lib/listing-images"
@@ -100,6 +100,59 @@ export const ROW_ACTIONS_WIDTH = "w-[148px]"
 export const ROW_ACTION_BTN_CLASS = "flex-shrink-0 p-0.5 transition-colors"
 export const ROW_ACTION_ICON_CLASS = "h-3.5 w-3.5"
 
+function ListingImageIngestionProgressBar() {
+  return (
+    <div
+      className="pointer-events-none absolute inset-x-0 bottom-0 z-20 flex flex-col overflow-hidden rounded-b border-t border-app-border bg-app-surface-muted"
+      role="status"
+      aria-live="polite"
+      aria-label="Carregando imagens"
+    >
+      <span className="px-1 py-0.5 text-center text-[6px] font-medium leading-none text-app-muted">
+        Carregando imagens...
+      </span>
+      <div className="relative h-1 overflow-hidden bg-app-border">
+        <div className="absolute inset-y-0 w-2/5 bg-app-accent animate-listing-image-ingest" />
+      </div>
+    </div>
+  )
+}
+
+function ListingImageIngestingThumbnail({
+  imovel,
+  onOpenImageModal,
+}: {
+  imovel: Imovel
+  onOpenImageModal: () => void
+}) {
+  return (
+    <div className={cn("relative z-10", LISTING_THUMB_SIZE_CLASS)}>
+      <button
+        type="button"
+        onClick={onOpenImageModal}
+        className="relative block h-full w-full cursor-pointer overflow-hidden rounded border border-app-border transition-opacity hover:opacity-80"
+        title="Imagens sendo baixadas…"
+      >
+        <ListingLocationMiniMap
+          listing={imovel}
+          variant="thumbnail"
+          fallback={
+            <div
+              className={cn(
+                "flex items-center justify-center bg-app-surface-muted",
+                LISTING_THUMB_SIZE_CLASS
+              )}
+            >
+              <Home className="h-3 w-3 text-app-subtle" />
+            </div>
+          }
+        />
+        <ListingImageIngestionProgressBar />
+      </button>
+    </div>
+  )
+}
+
 function ListingImageColumnCell({
   imovel,
   view,
@@ -111,7 +164,6 @@ function ListingImageColumnCell({
 }) {
   const ingesting = isListingImageIngesting(imovel.imageIngestionStatus)
   const hasImage = Boolean(imovel.imageUrl)
-  const showImageShortcut = view === "map" && (hasImage || ingesting)
   const [imageLoading, setImageLoading] = useState(Boolean(imovel.imageUrl))
   const [imageLoadFailed, setImageLoadFailed] = useState(false)
 
@@ -139,6 +191,12 @@ function ListingImageColumnCell({
     </button>
   )
 
+  if (ingesting) {
+    return (
+      <ListingImageIngestingThumbnail imovel={imovel} onOpenImageModal={onOpenImageModal} />
+    )
+  }
+
   if (view === "map") {
     return (
       <div className={cn("relative z-10", LISTING_THUMB_SIZE_CLASS)}>
@@ -147,37 +205,7 @@ function ListingImageColumnCell({
           variant="thumbnail"
           fallback={placeholderButton}
         />
-        {showImageShortcut && (
-          <button
-            type="button"
-            onClick={onOpenImageModal}
-            className="absolute bottom-0.5 right-0.5 z-20 rounded bg-app-fg/70 p-0.5 text-app-surface hover:bg-app-fg/90 transition-colors"
-            title={ingesting ? "Imagens sendo baixadas…" : "Ver/editar imagem"}
-          >
-            {ingesting ? (
-              <Loader2 className="h-3 w-3 animate-spin" />
-            ) : (
-              <ImageIcon className="h-3 w-3" />
-            )}
-          </button>
-        )}
       </div>
-    )
-  }
-
-  if (ingesting) {
-    return (
-      <button
-        type="button"
-        onClick={onOpenImageModal}
-        className={cn(
-          "relative z-10 flex cursor-pointer items-center justify-center rounded border border-app-border bg-app-surface-muted hover:opacity-80 transition-opacity",
-          LISTING_THUMB_SIZE_CLASS
-        )}
-        title="Imagens sendo baixadas…"
-      >
-        <Loader2 className="h-6 w-6 animate-spin text-app-accent" />
-      </button>
     )
   }
 

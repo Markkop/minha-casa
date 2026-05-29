@@ -1,11 +1,19 @@
 "use client"
 
-/* eslint-disable @next/next/no-img-element */
-
-import { useCallback, useEffect, useMemo, useState } from "react"
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ClipboardEvent,
+  type DragEvent,
+  type ReactNode,
+} from "react"
 import {
   Table,
   TableBody,
+  TableCell,
   TableHead,
   TableHeader,
   TableRow,
@@ -27,11 +35,21 @@ import type { Imovel } from "../lib/api"
 import type { ListingData } from "@/lib/db/schema"
 import { cn } from "@/lib/utils"
 import { ArrowDownIcon, ArrowUpIcon, MagnifyingGlassIcon } from "@radix-ui/react-icons"
-import { Strikethrough, Home, Check, Copy, Columns3, Plus, ImageIcon, MapPinned } from "lucide-react"
+import { Strikethrough, Home, Check, Copy, Columns3, Plus, ImageIcon, MapPinned, Upload, Clipboard, ClipboardPaste, Loader2, TriangleAlert, X } from "lucide-react"
+import {
+  formatDuplicateReason,
+  listingDataForLinkDuplicateCheck,
+} from "../lib/duplicate-reason"
+import type { MetricVariant } from "@/app/anuncios/lib/listings-display-prefs"
+import { calculatePrecoM2, formatCurrency } from "./map-shared"
+import { AreaM2Stack, PricePerM2Stack } from "./listings-metric-stacks"
 import { EditModal } from "./edit-modal"
 import { ImageModal } from "./image-modal"
 import { QuickReparseModal, type FieldChange } from "./quick-reparse-modal"
-import { parseListingWithAI } from "../lib/api"
+import {
+  checkDuplicateCandidates,
+  parseListingWithAI,
+} from "../lib/api"
 import { PageToolbarButton, PageToolbarIconButton } from "@/app/components/page-toolbar"
 import { ListingsDisplayPopover } from "./listings-display-popover"
 import {
@@ -49,6 +67,15 @@ import {
 import { buildListingsMarkdown } from "@/app/anuncios/lib/listing-markdown"
 import { ListingTableRow } from "./listing-table-row"
 import type { ImageColumnView, ListingsTableColumn } from "./listings-table-shared"
+import {
+  buildParseRequestFromFile,
+  readClipboardFile,
+  type ParseRequest,
+} from "../lib/parse-input"
+import {
+  ParserReviewList,
+  type PendingParsedListing,
+} from "./parser-review-list"
 
 export {
   getListingStatus,
@@ -208,7 +235,20 @@ interface ListingsTableProps {
   onListingsChange?: () => void
   refreshTrigger?: number
   hasApiKey?: boolean // Deprecated: API key is now managed server-side
-  onOpenParser?: () => void
+}
+
+type PendingAddStatus = "processing" | "review" | "duplicate" | "saving" | "error"
+
+interface PendingAddRow {
+  id: string
+  status: PendingAddStatus
+  message?: string
+  parseInput?: ParseRequest
+  parsedData?: ListingData
+  duplicateCandidates?: { listingId: string; reason: string }[]
+  reviewItems?: PendingParsedListing[]
+  retryValue?: string
+  retryFiles?: File[]
 }
 
 // ============================================================================
@@ -395,16 +435,319 @@ function StackedSortHeader({
   )
 }
 
+function normalizeUrlInput(value: string): string {
+  const trimmed = value.trim()
+  if (!trimmed) return ""
+  if (/^https?:\/\//i.test(trimmed)) return trimmed
+  return `https://${trimmed}`
+}
+
+function looksLikeUrl(value: string): boolean {
+  const trimmed = value.trim()
+  if (!trimmed || /\s/.test(trimmed)) return false
+  return /^https?:\/\//i.test(trimmed) || /^[\w.-]+\.[a-z]{2,}(\/.*)?$/i.test(trimmed)
+}
+
+async function readClipboardForAdd(): Promise<{ text: string; files: File[] }> {
+  const clipboard = navigator.clipboard
+  if (!clipboard) {
+    throw new Error("Clipboard unavailable")
+  }
+
+  try {
+    if ("read" in clipboard && typeof clipboard.read === "function") {
+      const items = await clipboard.read()
+      for (const item of items) {
+        const fileType = item.types.find(
+          (type) => type.startsWith("image/") || type === "application/pdf"
+        )
+        if (!fileType) continue
+
+        const blob = await item.getType(fileType)
+        const extension =
+          fileType === "application/pdf"
+            ? "pdf"
+            : fileType === "image/png"
+              ? "png"
+              : fileType === "image/webp"
+                ? "webp"
+                : "jpg"
+        const file = new File([blob], `clipboard.${extension}`, { type: fileType })
+        return { text: "", files: [file] }
+      }
+    }
+  } catch {
+    // Fall through to text when file read is denied or unsupported.
+  }
+
+  const text = await clipboard.readText()
+  return { text: text.trim(), files: [] }
+}
+
+function createPendingId() {
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
+    return crypto.randomUUID()
+  }
+  return `pending-${Date.now()}-${Math.random().toString(36).slice(2)}`
+}
+
+function InlineSkeleton({ className }: { className?: string }) {
+  return (
+    <span
+      className={cn(
+        "inline-block h-3 animate-pulse rounded bg-app-surface-muted",
+        className
+      )}
+    />
+  )
+}
+
+function calculatePrecoM2Privado(preco: number | null, m2Privado: number | null) {
+  if (preco === null || m2Privado === null || m2Privado === 0) return null
+  return Math.round(preco / m2Privado)
+}
+
+const PENDING_DUPLICATE_METRIC_CLASS =
+  "font-mono text-sm text-app-subtle opacity-45 [&_span]:text-inherit [&_.text-app-muted]:text-app-subtle/80"
+
+function PendingDuplicateMetricCell({
+  children,
+  className,
+}: {
+  children: ReactNode
+  className?: string
+}) {
+  return (
+    <div className={cn(PENDING_DUPLICATE_METRIC_CLASS, className)}>
+      {children}
+    </div>
+  )
+}
+
+function PendingAddTableRow({
+  row,
+  visibleColumns,
+  enabledMetricVariants,
+  activeMetricVariant,
+  onConfirmDuplicate,
+  onReject,
+  onRetry,
+  onToggleReviewItem,
+  onSelectAllReview,
+  onDeselectAllReview,
+  onImportReview,
+}: {
+  row: PendingAddRow
+  visibleColumns: Record<ListingsTableColumn, boolean>
+  enabledMetricVariants: Set<MetricVariant>
+  activeMetricVariant: MetricVariant | null
+  onConfirmDuplicate: (rowId: string) => void
+  onReject: (rowId: string) => void
+  onRetry: (rowId: string) => void
+  onToggleReviewItem: (rowId: string, index: number) => void
+  onSelectAllReview: (rowId: string) => void
+  onDeselectAllReview: (rowId: string) => void
+  onImportReview: (rowId: string) => void
+}) {
+  const isBusy = row.status === "processing" || row.status === "saving"
+  const duplicateReasonLabel =
+    row.status === "duplicate"
+      ? formatDuplicateReason(row.duplicateCandidates?.[0]?.reason ?? row.message)
+      : null
+  const isDuplicatePreview = row.status === "duplicate" && row.parsedData
+  const parsedPreview = row.parsedData
+
+  return (
+    <TableRow className="border-app-border bg-app-action/5 hover:bg-app-action/10">
+      {visibleColumns.image && (
+        <TableCell className="sticky left-0 z-20 w-[5.5rem] bg-app-surface p-2">
+          <div className="flex h-20 w-20 items-center justify-center rounded border border-app-border bg-app-surface-muted">
+            {isBusy ? (
+              <Loader2 className="h-5 w-5 animate-spin text-app-accent" />
+            ) : (
+              <Home className="h-4 w-4 text-app-subtle" />
+            )}
+          </div>
+        </TableCell>
+      )}
+      {visibleColumns.property && (
+        <TableCell className="min-w-[320px]">
+          {row.status === "review" && row.reviewItems ? (
+            <div className="w-[min(560px,70vw)] whitespace-normal py-1">
+              <ParserReviewList
+                items={row.reviewItems}
+                onToggle={(index) => onToggleReviewItem(row.id, index)}
+                onSelectAll={() => onSelectAllReview(row.id)}
+                onDeselectAll={() => onDeselectAllReview(row.id)}
+                onImport={() => onImportReview(row.id)}
+                onCancel={() => onReject(row.id)}
+              />
+            </div>
+          ) : row.status === "duplicate" ? (
+            <div className="flex min-w-0 flex-col gap-1.5 whitespace-normal py-1">
+              <div className="min-w-0">
+                <div className="flex min-w-0 items-center gap-1">
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span
+                        className="flex-shrink-0 p-1 text-muted-foreground"
+                        role="img"
+                        aria-label="Aviso de possível duplicado"
+                      >
+                        <TriangleAlert className="h-4 w-4" />
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent
+                      side="bottom"
+                      sideOffset={4}
+                      className="border border-app-border bg-app-surface text-app-fg"
+                    >
+                      Possível duplicado
+                    </TooltipContent>
+                  </Tooltip>
+                  <span className="min-w-0 flex-1 font-medium leading-snug text-app-fg">
+                    Possível duplicado
+                  </span>
+                </div>
+              </div>
+              {duplicateReasonLabel ? (
+                <p className="max-w-md text-xs text-app-muted">
+                  Motivo: {duplicateReasonLabel}
+                </p>
+              ) : null}
+              <p className="text-xs text-app-muted">
+                <button
+                  type="button"
+                  onClick={() => onConfirmDuplicate(row.id)}
+                  aria-label="Aceitar imóvel duplicado"
+                  className="cursor-pointer font-medium text-emerald-700 hover:underline"
+                >
+                  Aceitar
+                </button>
+                {" ou "}
+                <button
+                  type="button"
+                  onClick={() => onReject(row.id)}
+                  aria-label="Rejeitar imóvel duplicado"
+                  className="cursor-pointer font-medium text-destructive hover:underline"
+                >
+                  Rejeitar
+                </button>
+              </p>
+            </div>
+          ) : (
+            <div className="flex min-w-0 flex-col gap-2">
+              <div className="flex items-center gap-2">
+                <span className="font-medium text-app-fg">
+                  {row.status === "error" ? "Erro ao adicionar" : "Processando..."}
+                </span>
+              </div>
+              <p className="max-w-md truncate text-xs text-app-muted">
+                {row.message || "Verificando..."}
+              </p>
+            </div>
+          )}
+        </TableCell>
+      )}
+      {visibleColumns.price && (
+        <TableCell className="text-right">
+          {isDuplicatePreview && parsedPreview ? (
+            <PendingDuplicateMetricCell>
+              {formatCurrency(parsedPreview.preco)}
+            </PendingDuplicateMetricCell>
+          ) : (
+            <InlineSkeleton className="w-20" />
+          )}
+        </TableCell>
+      )}
+      {visibleColumns.area && (
+        <TableCell className="text-right">
+          {isDuplicatePreview && parsedPreview ? (
+            <PendingDuplicateMetricCell>
+              <AreaM2Stack
+                total={parsedPreview.m2Totais}
+                privado={parsedPreview.m2Privado}
+                activeVariant={activeMetricVariant}
+                enabledVariants={enabledMetricVariants}
+              />
+            </PendingDuplicateMetricCell>
+          ) : (
+            <InlineSkeleton className="w-14" />
+          )}
+        </TableCell>
+      )}
+      {visibleColumns.value && (
+        <TableCell className="text-right">
+          {isDuplicatePreview && parsedPreview ? (
+            <PendingDuplicateMetricCell>
+              <PricePerM2Stack
+                total={calculatePrecoM2(parsedPreview.preco, parsedPreview.m2Totais)}
+                privado={calculatePrecoM2Privado(parsedPreview.preco, parsedPreview.m2Privado)}
+                activeVariant={activeMetricVariant}
+                enabledVariants={enabledMetricVariants}
+              />
+            </PendingDuplicateMetricCell>
+          ) : (
+            <InlineSkeleton className="w-16" />
+          )}
+        </TableCell>
+      )}
+      {visibleColumns.rooms && (
+        <TableCell className="text-center">
+          <InlineSkeleton className="w-8" />
+        </TableCell>
+      )}
+      {visibleColumns.bathrooms && (
+        <TableCell className="text-center">
+          <InlineSkeleton className="w-8" />
+        </TableCell>
+      )}
+      {visibleColumns.dates && (
+        <TableCell className="text-right">
+          <InlineSkeleton className="w-24" />
+        </TableCell>
+      )}
+      {visibleColumns.status && (
+        <TableCell className="min-w-[154px] align-middle">
+          <div className="flex items-center justify-center gap-1.5">
+            {row.status === "error" && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => onRetry(row.id)}
+                  className="inline-flex h-7 items-center justify-center rounded bg-app-action px-2 text-xs font-medium text-app-action-foreground hover:bg-app-action-hover"
+                >
+                  Tentar
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onReject(row.id)}
+                  aria-label="Dispensar erro"
+                  className="inline-flex h-7 items-center justify-center rounded border border-app-border px-2 text-xs font-medium text-app-muted hover:text-app-fg"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              </>
+            )}
+          </div>
+        </TableCell>
+      )}
+    </TableRow>
+  )
+}
+
 // ============================================================================
 // MAIN COMPONENT
 // ============================================================================
 
 type PropertyTypeFilter = "all" | "casa" | "apartamento"
 
-export function ListingsTable({ listings, hasApiKey = true, onOpenParser }: ListingsTableProps) {
+export function ListingsTable({ listings, hasApiKey = true }: ListingsTableProps) {
   const {
     collections,
     activeCollection,
+    parseListingInput,
+    addListing,
     updateListing: apiUpdateListing,
     removeListing: apiRemoveListing,
   } = useCollections()
@@ -426,6 +769,14 @@ export function ListingsTable({ listings, hasApiKey = true, onOpenParser }: List
   const [propertyDisplayLoaded, setPropertyDisplayLoaded] = useState(false)
   const [imageColumnView, setImageColumnView] = useState<ImageColumnView>("image")
   const [imageColumnViewLoaded, setImageColumnViewLoaded] = useState(false)
+  const [showAddInput, setShowAddInput] = useState(false)
+  const [addInputValue, setAddInputValue] = useState("")
+  const [addFiles, setAddFiles] = useState<File[]>([])
+  const [isSubmittingAdd, setIsSubmittingAdd] = useState(false)
+  const [clipboardAddError, setClipboardAddError] = useState<string | null>(null)
+  const [pendingAddRows, setPendingAddRows] = useState<PendingAddRow[]>([])
+  const addInputRef = useRef<HTMLInputElement>(null)
+  const addFileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     setVisibleColumns(getInitialVisibleColumns())
@@ -450,6 +801,378 @@ export function ListingsTable({ listings, hasApiKey = true, onOpenParser }: List
     if (!imageColumnViewLoaded) return
     window.localStorage.setItem(IMAGE_COLUMN_VIEW_KEY, imageColumnView)
   }, [imageColumnView, imageColumnViewLoaded])
+
+  useEffect(() => {
+    if (!clipboardAddError) return
+    const timeoutId = window.setTimeout(() => setClipboardAddError(null), 4000)
+    return () => window.clearTimeout(timeoutId)
+  }, [clipboardAddError])
+
+  const updatePendingRow = useCallback((rowId: string, updates: Partial<PendingAddRow>) => {
+    setPendingAddRows((current) =>
+      current.map((row) => (row.id === rowId ? { ...row, ...updates } : row))
+    )
+  }, [])
+
+  const removePendingRow = useCallback((rowId: string) => {
+    setPendingAddRows((current) => current.filter((row) => row.id !== rowId))
+  }, [])
+
+  const openAddInput = useCallback(() => {
+    setShowAddInput(true)
+    window.setTimeout(() => addInputRef.current?.focus(), 0)
+  }, [])
+
+  const toggleAddInput = useCallback(() => {
+    if (showAddInput) {
+      setShowAddInput(false)
+      setAddInputValue("")
+      setAddFiles([])
+      if (addFileInputRef.current) addFileInputRef.current.value = ""
+      return
+    }
+    openAddInput()
+  }, [openAddInput, showAddInput])
+
+  const buildInlineParseInput = useCallback(async (value: string, file: File | null): Promise<ParseRequest> => {
+    if (file) return buildParseRequestFromFile(file)
+
+    const trimmed = value.trim()
+    if (!trimmed) {
+      throw new Error("Cole um link, texto ou arquivo")
+    }
+
+    if (looksLikeUrl(trimmed)) {
+      return { kind: "url", url: normalizeUrlInput(trimmed) }
+    }
+
+    return { kind: "text", rawText: trimmed }
+  }, [])
+
+  const finishPendingListing = useCallback(
+    async (
+      rowId: string,
+      parsedData: ListingData,
+      parseInput: ParseRequest,
+      options?: { skipDuplicateCheck?: boolean }
+    ) => {
+      if (!activeCollection?.id) {
+        throw new Error("Selecione uma coleção antes de adicionar")
+      }
+
+      updatePendingRow(rowId, {
+        status: "processing",
+        message: "Verificando duplicidade...",
+        parsedData,
+        parseInput,
+      })
+
+      if (!options?.skipDuplicateCheck) {
+        const duplicates = await checkDuplicateCandidates(activeCollection.id, parsedData)
+        if (duplicates.length > 0) {
+          updatePendingRow(rowId, {
+            status: "duplicate",
+            message: duplicates[0]?.reason,
+            parsedData,
+            parseInput,
+            duplicateCandidates: duplicates.map((duplicate) => ({
+              listingId: duplicate.listingId,
+              reason: duplicate.reason,
+            })),
+          })
+          return
+        }
+      }
+
+      updatePendingRow(rowId, {
+        status: "saving",
+        message: "Salvando imóvel...",
+        parsedData,
+        parseInput,
+      })
+
+      await addListing(parsedData)
+      removePendingRow(rowId)
+    },
+    [activeCollection?.id, addListing, removePendingRow, updatePendingRow]
+  )
+
+  const submitInlineAdd = useCallback(
+    async (value: string = addInputValue, files: File[] = addFiles) => {
+      if (isSubmittingAdd) return
+      const selectedFiles = files.filter(Boolean)
+      if (!value.trim() && selectedFiles.length === 0) return
+
+      const jobs =
+        selectedFiles.length > 0
+          ? selectedFiles.map((file) => ({
+              rowId: createPendingId(),
+              value: "",
+              file,
+            }))
+          : [
+              {
+                rowId: createPendingId(),
+                value,
+                file: null,
+              },
+            ]
+      setPendingAddRows((current) => [
+        ...jobs.map(({ rowId, file }) => ({
+          id: rowId,
+          status: "processing",
+          message: file ? `Lendo ${file.name}...` : "Verificando...",
+          retryValue: file ? "" : value,
+          retryFiles: file ? [file] : [],
+        } satisfies PendingAddRow)),
+        ...current,
+      ])
+      setIsSubmittingAdd(true)
+      setAddInputValue("")
+      setAddFiles([])
+      if (addFileInputRef.current) addFileInputRef.current.value = ""
+
+      try {
+        await Promise.all(
+          jobs.map(async ({ rowId, value: jobValue, file }) => {
+            try {
+              const parseInput = await buildInlineParseInput(jobValue, file)
+
+              if (parseInput.kind === "url" && activeCollection?.id) {
+                updatePendingRow(rowId, {
+                  parseInput,
+                  message: "Verificando duplicidade...",
+                })
+                const urlDuplicates = await checkDuplicateCandidates(
+                  activeCollection.id,
+                  listingDataForLinkDuplicateCheck(parseInput.url)
+                )
+                if (urlDuplicates.length > 0) {
+                  updatePendingRow(rowId, {
+                    status: "duplicate",
+                    message: urlDuplicates[0]?.reason,
+                    parseInput,
+                    duplicateCandidates: urlDuplicates.map((duplicate) => ({
+                      listingId: duplicate.listingId,
+                      reason: duplicate.reason,
+                    })),
+                  })
+                  return
+                }
+              }
+
+              updatePendingRow(rowId, {
+                parseInput,
+                message: parseInput.kind === "url" ? "Buscando página..." : "Lendo...",
+              })
+              const parsedListings = await parseListingInput(parseInput)
+
+              if (parsedListings.length === 0) {
+                throw new Error("Nenhum imóvel encontrado no conteúdo")
+              }
+
+              if (parsedListings.length === 1) {
+                await finishPendingListing(rowId, parsedListings[0], parseInput)
+                return
+              }
+
+              updatePendingRow(rowId, {
+                status: "review",
+                message: `${parsedListings.length} imóveis encontrados`,
+                parseInput,
+                reviewItems: parsedListings.map((data) => ({ data, selected: true })),
+              })
+            } catch (error) {
+              updatePendingRow(rowId, {
+                status: "error",
+                message: error instanceof Error ? error.message : "Erro ao processar anúncio",
+              })
+            }
+          })
+        )
+      } finally {
+        setIsSubmittingAdd(false)
+      }
+    },
+    [
+      activeCollection?.id,
+      addFiles,
+      addInputValue,
+      buildInlineParseInput,
+      finishPendingListing,
+      isSubmittingAdd,
+      parseListingInput,
+      updatePendingRow,
+    ]
+  )
+
+  const addFromClipboard = useCallback(async () => {
+    if (isSubmittingAdd) return
+
+    try {
+      const { text, files } = await readClipboardForAdd()
+      if (!text && files.length === 0) {
+        setClipboardAddError("Nada na área de transferência para adicionar.")
+        return
+      }
+      setClipboardAddError(null)
+      void submitInlineAdd(text, files)
+    } catch {
+      setClipboardAddError(
+        "Não foi possível ler a área de transferência. Permita o acesso ou use o campo manual."
+      )
+    }
+  }, [isSubmittingAdd, submitInlineAdd])
+
+  const handleConfirmDuplicate = useCallback(
+    (rowId: string) => {
+      const row = pendingAddRows.find((item) => item.id === rowId)
+      if (!row?.parseInput) return
+
+      void (async () => {
+        try {
+          let parsedData = row.parsedData
+          if (!parsedData) {
+            updatePendingRow(rowId, {
+              status: "processing",
+              message:
+                row.parseInput!.kind === "url" ? "Buscando página..." : "Lendo...",
+            })
+            const parsedListings = await parseListingInput(row.parseInput!)
+            if (parsedListings.length === 0) {
+              throw new Error("Nenhum imóvel encontrado no conteúdo")
+            }
+            if (parsedListings.length > 1) {
+              updatePendingRow(rowId, {
+                status: "review",
+                message: `${parsedListings.length} imóveis encontrados`,
+                parseInput: row.parseInput,
+                reviewItems: parsedListings.map((data) => ({ data, selected: true })),
+              })
+              return
+            }
+            parsedData = parsedListings[0]
+          }
+
+          await finishPendingListing(rowId, parsedData, row.parseInput!, {
+            skipDuplicateCheck: true,
+          })
+        } catch (error) {
+          updatePendingRow(rowId, {
+            status: "error",
+            message: error instanceof Error ? error.message : "Erro ao salvar imóvel",
+          })
+        }
+      })()
+    },
+    [finishPendingListing, parseListingInput, pendingAddRows, updatePendingRow]
+  )
+
+  const handleRetryPending = useCallback(
+    (rowId: string) => {
+      const row = pendingAddRows.find((item) => item.id === rowId)
+      if (!row) return
+      removePendingRow(rowId)
+      void submitInlineAdd(row.retryValue || "", row.retryFiles || [])
+    },
+    [pendingAddRows, removePendingRow, submitInlineAdd]
+  )
+
+  const handleToggleReviewItem = useCallback(
+    (rowId: string, index: number) => {
+      setPendingAddRows((current) =>
+        current.map((row) => {
+          if (row.id !== rowId || !row.reviewItems) return row
+          return {
+            ...row,
+            reviewItems: row.reviewItems.map((item, itemIndex) =>
+              itemIndex === index ? { ...item, selected: !item.selected } : item
+            ),
+          }
+        })
+      )
+    },
+    []
+  )
+
+  const handleSelectAllReview = useCallback((rowId: string) => {
+    setPendingAddRows((current) =>
+      current.map((row) =>
+        row.id === rowId && row.reviewItems
+          ? {
+              ...row,
+              reviewItems: row.reviewItems.map((item) => ({ ...item, selected: true })),
+            }
+          : row
+      )
+    )
+  }, [])
+
+  const handleDeselectAllReview = useCallback((rowId: string) => {
+    setPendingAddRows((current) =>
+      current.map((row) =>
+        row.id === rowId && row.reviewItems
+          ? {
+              ...row,
+              reviewItems: row.reviewItems.map((item) => ({ ...item, selected: false })),
+            }
+          : row
+      )
+    )
+  }, [])
+
+  const handleImportReview = useCallback(
+    (rowId: string) => {
+      const row = pendingAddRows.find((item) => item.id === rowId)
+      if (!row?.reviewItems || !row.parseInput) return
+
+      const selected = row.reviewItems.filter((item) => item.selected)
+      if (selected.length === 0) return
+
+      removePendingRow(rowId)
+      const rows = selected.map((item) => ({
+        id: createPendingId(),
+        status: "processing" as const,
+        message: "Preparando importação...",
+        parseInput: row.parseInput,
+        parsedData: item.data,
+      }))
+      setPendingAddRows((current) => [...rows, ...current])
+
+      for (const pendingRow of rows) {
+        void finishPendingListing(
+          pendingRow.id,
+          pendingRow.parsedData,
+          pendingRow.parseInput
+        ).catch((error) => {
+          updatePendingRow(pendingRow.id, {
+            status: "error",
+            message: error instanceof Error ? error.message : "Erro ao salvar imóvel",
+          })
+        })
+      }
+    },
+    [finishPendingListing, pendingAddRows, removePendingRow, updatePendingRow]
+  )
+
+  const handleInlinePaste = useCallback((event: ClipboardEvent<HTMLInputElement>) => {
+    const file = readClipboardFile(event)
+    if (!file) return
+
+    event.preventDefault()
+    setAddFiles((current) => [...current, file])
+    setAddInputValue("")
+  }, [])
+
+  const handleInlineDrop = useCallback((event: DragEvent<HTMLInputElement>) => {
+    const files = Array.from(event.dataTransfer.files)
+    if (files.length === 0) return
+
+    event.preventDefault()
+    setAddFiles((current) => [...current, ...files])
+    setAddInputValue("")
+    openAddInput()
+  }, [openAddInput])
 
   const enabledMetricVariants = useMemo(
     () => getEnabledMetricVariants(propertyDisplay),
@@ -689,7 +1412,140 @@ export function ListingsTable({ listings, hasApiKey = true, onOpenParser }: List
     }
   }
 
-  if (listings.length === 0) {
+  const addListingToolbarButtons = (large = false) => (
+    <div className="flex shrink-0 flex-col items-start gap-0.5">
+      <div className="flex items-center gap-1">
+        <PageToolbarIconButton
+          variant="secondary"
+          onClick={() => void addFromClipboard()}
+          disabled={isSubmittingAdd}
+          aria-label="Adicionar da área de transferência"
+          title="Adicionar da área de transferência"
+          className={large ? "h-9 w-9" : undefined}
+        >
+          <ClipboardPaste />
+        </PageToolbarIconButton>
+        <PageToolbarIconButton
+          variant="primary"
+          onClick={toggleAddInput}
+          aria-label={showAddInput ? "Fechar adição de imóvel" : "Adicionar imóvel"}
+          title={showAddInput ? "Fechar adição de imóvel" : "Adicionar imóvel"}
+          className={large ? "h-9 w-9" : undefined}
+        >
+          {showAddInput ? <X /> : <Plus />}
+        </PageToolbarIconButton>
+      </div>
+      {clipboardAddError ? (
+        <p className="max-w-48 text-[10px] leading-tight text-destructive">{clipboardAddError}</p>
+      ) : null}
+    </div>
+  )
+
+  const addInputControl = (
+    <div
+      className={cn(
+        "grid min-w-0 transition-[grid-template-columns,opacity,transform] duration-300 ease-out",
+        showAddInput
+          ? "grid-cols-[1fr] opacity-100 translate-x-0"
+          : "grid-cols-[0fr] opacity-0 -translate-x-2 pointer-events-none"
+      )}
+      aria-hidden={!showAddInput}
+    >
+      <div className="min-w-0 overflow-hidden">
+        <div className="relative min-w-0">
+          <Clipboard className="absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-app-accent" />
+          <Input
+            ref={addInputRef}
+            type="text"
+            value={addFiles.length > 0 ? "" : addInputValue}
+            onChange={(event) => {
+              if (addFiles.length > 0) return
+              setAddInputValue(event.target.value)
+            }}
+            onPaste={handleInlinePaste}
+            onDrop={handleInlineDrop}
+            onDragOver={(event) => event.preventDefault()}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                event.preventDefault()
+                void submitInlineAdd()
+              }
+            }}
+            placeholder="Cole link, texto ou arquivo aqui..."
+            disabled={!showAddInput || isSubmittingAdd}
+            readOnly={addFiles.length > 0}
+            className="h-7 border-app-border bg-app-surface py-0 pl-7 pr-20 text-xs text-app-fg placeholder:text-app-subtle"
+          />
+          {addFiles.length > 0 && (
+            <div className="pointer-events-none absolute left-7 right-20 top-1/2 flex -translate-y-1/2 items-center gap-1 overflow-hidden">
+              {addFiles.map((file, index) => (
+                <span
+                  key={`${file.name}-${file.size}-${index}`}
+                  className="pointer-events-auto inline-flex max-w-[7.5rem] items-center gap-1 rounded-full border border-app-border bg-app-surface-muted px-1.5 py-0.5 text-[10px] leading-none text-app-fg"
+                  title={file.name}
+                >
+                  <span className="truncate">{file.name}</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAddFiles((current) =>
+                        current.filter((_, fileIndex) => fileIndex !== index)
+                      )
+                      window.setTimeout(() => addInputRef.current?.focus(), 0)
+                    }}
+                    className="shrink-0 rounded-full text-app-muted hover:text-destructive"
+                    aria-label={`Remover ${file.name}`}
+                  >
+                    <X className="h-2.5 w-2.5" />
+                  </button>
+                </span>
+              ))}
+            </div>
+          )}
+          <input
+            ref={addFileInputRef}
+            type="file"
+            multiple
+            className="hidden"
+            onChange={(event) => {
+              const files = Array.from(event.target.files ?? [])
+              if (files.length > 0) {
+                setAddFiles((current) => [...current, ...files])
+                setAddInputValue("")
+                window.setTimeout(() => addInputRef.current?.focus(), 0)
+              }
+            }}
+          />
+          <button
+            type="button"
+            onClick={() => addFileInputRef.current?.click()}
+            disabled={!showAddInput || isSubmittingAdd}
+            className="absolute right-[3.85rem] top-1/2 flex h-5 w-5 -translate-y-1/2 items-center justify-center rounded text-app-muted transition-colors hover:bg-app-surface-muted hover:text-app-fg disabled:opacity-50"
+            aria-label="Selecionar arquivo"
+            title="Selecionar arquivo"
+          >
+            <Upload className="h-3.5 w-3.5" />
+          </button>
+          <button
+            type="button"
+            onClick={() => void submitInlineAdd()}
+            disabled={!showAddInput || isSubmittingAdd || (!addInputValue.trim() && addFiles.length === 0)}
+            className="absolute right-1.5 top-1/2 flex h-5 -translate-y-1/2 items-center justify-center rounded bg-app-action px-2 text-[11px] font-medium leading-none text-app-action-foreground transition-colors hover:bg-app-action-hover disabled:cursor-not-allowed disabled:opacity-40"
+            aria-label="Enviar imóvel"
+            title="Enviar imóvel"
+          >
+            {isSubmittingAdd ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              "Enviar"
+            )}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+
+  if (listings.length === 0 && pendingAddRows.length === 0) {
     return (
       <Card className="border-app-border bg-app-surface">
         <CardContent className="py-12 text-center space-y-6">
@@ -702,19 +1558,22 @@ export function ListingsTable({ listings, hasApiKey = true, onOpenParser }: List
               Cole um link de anúncio, texto ou arquivo para importar automaticamente.
             </p>
           </div>
-          <button
-            type="button"
-            onClick={() => onOpenParser?.()}
-            className={cn(
-              "px-6 py-3 rounded-lg text-sm font-medium transition-all",
-              "bg-app-action text-app-action-foreground",
-              "hover:bg-app-action-hover",
-              "flex items-center gap-2 mx-auto"
-            )}
-          >
-            <Plus className="h-4 w-4" />
-            <span>Adicionar imóvel</span>
-          </button>
+          <div className="mx-auto flex w-full max-w-xl items-center gap-2">
+            {addListingToolbarButtons(true)}
+            <div className="min-w-0 flex-1 text-left">
+              {showAddInput ? (
+                addInputControl
+              ) : (
+                <button
+                  type="button"
+                  onClick={openAddInput}
+                  className="h-9 w-full rounded-md border border-app-border bg-app-surface-muted px-3 text-left text-sm text-app-muted transition-colors hover:border-app-border-strong hover:text-app-fg"
+                >
+                  Cole link, texto ou arquivo aqui...
+                </button>
+              )}
+            </div>
+          </div>
         </CardContent>
       </Card>
     )
@@ -727,23 +1586,36 @@ export function ListingsTable({ listings, hasApiKey = true, onOpenParser }: List
     <Card className={LISTINGS_PANEL_CARD_CLASS}>
       <CardHeader className={LISTINGS_PANEL_TOOLBAR_CLASS}>
         <div className="flex min-w-0 items-center gap-1.5 overflow-x-auto">
-          <PageToolbarIconButton
-            variant="primary"
-            onClick={onOpenParser}
-            aria-label="Adicionar imóvel"
-            title="Adicionar imóvel"
+          {addListingToolbarButtons()}
+          <div
+            className={cn(
+              "flex min-w-[280px] flex-1 items-center",
+              showAddInput ? "gap-1.5" : "gap-0"
+            )}
           >
-            <Plus />
-          </PageToolbarIconButton>
-          <div className="relative min-w-0 flex-1">
-            <MagnifyingGlassIcon className="absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              type="text"
-              placeholder="Buscar por título ou endereço..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="h-7 border-app-border bg-app-surface py-0 pl-7 text-xs text-app-fg placeholder:text-app-subtle"
-            />
+            <div
+              className={cn(
+                "min-w-0 transition-[flex-basis,width] duration-300 ease-out",
+                showAddInput ? "basis-1/2" : "w-0 basis-0"
+              )}
+            >
+              {addInputControl}
+            </div>
+            <div
+              className={cn(
+                "relative min-w-0 transition-[flex-basis] duration-300 ease-out",
+                showAddInput ? "basis-1/2" : "basis-full"
+              )}
+            >
+              <MagnifyingGlassIcon className="absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                type="text"
+                placeholder="Buscar por título ou endereço..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="h-7 border-app-border bg-app-surface py-0 pl-7 text-xs text-app-fg placeholder:text-app-subtle"
+              />
+            </div>
           </div>
           {showTypeFilters && (
             <>
@@ -853,7 +1725,7 @@ export function ListingsTable({ listings, hasApiKey = true, onOpenParser }: List
       </CardHeader>
 
       <CardContent className="p-0">
-        {filteredAndSortedListings.length === 0 ? (
+        {filteredAndSortedListings.length === 0 && pendingAddRows.length === 0 ? (
           <div className="py-8 text-center">
             <p className="text-muted-foreground">
               Nenhum imóvel encontrado para &quot;{searchQuery}&quot;
@@ -933,6 +1805,22 @@ export function ListingsTable({ listings, hasApiKey = true, onOpenParser }: List
                 </TableRow>
               </TableHeader>
               <TableBody>
+                {pendingAddRows.map((row) => (
+                  <PendingAddTableRow
+                    key={row.id}
+                    row={row}
+                    visibleColumns={visibleColumns}
+                    enabledMetricVariants={enabledMetricVariants}
+                    activeMetricVariant={activeMetricVariant}
+                    onConfirmDuplicate={handleConfirmDuplicate}
+                    onReject={removePendingRow}
+                    onRetry={handleRetryPending}
+                    onToggleReviewItem={handleToggleReviewItem}
+                    onSelectAllReview={handleSelectAllReview}
+                    onDeselectAllReview={handleDeselectAllReview}
+                    onImportReview={handleImportReview}
+                  />
+                ))}
                 {filteredAndSortedListings.map((imovel) => (
                   <ListingTableRow
                     key={imovel.id}

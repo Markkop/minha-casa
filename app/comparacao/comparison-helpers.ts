@@ -27,6 +27,36 @@ export function normalizeComparisonSlots(
   return next
 }
 
+export function getComparisonAutoFillCandidates(listings: Imovel[]): Imovel[] {
+  const eligible = listings.filter((listing) => !listing.strikethrough)
+  const favorites = eligible.filter((listing) => listing.starred)
+  const nonFavorites = eligible.filter((listing) => !listing.starred)
+  return [...favorites, ...nonFavorites]
+}
+
+export function fillBlankComparisonSlots(slots: ComparisonSlot[], listings: Imovel[]): ComparisonSlot[] {
+  const usedIds = new Set(slots.filter((slot): slot is string => Boolean(slot)))
+  const availableCandidates = getComparisonAutoFillCandidates(listings).filter(
+    (listing) => !usedIds.has(listing.id)
+  )
+  let candidateIndex = 0
+
+  return slots.map((slot) => {
+    if (slot) return slot
+
+    const candidate = availableCandidates[candidateIndex]
+    candidateIndex += 1
+    if (!candidate) return null
+
+    usedIds.add(candidate.id)
+    return candidate.id
+  })
+}
+
+export function initializeComparisonSlotsFromAutoFill(listings: Imovel[]): ComparisonSlot[] {
+  return initializeComparisonSlots(getComparisonAutoFillCandidates(listings))
+}
+
 export function replaceComparisonSlot(
   slots: ComparisonSlot[],
   slotIndex: number,

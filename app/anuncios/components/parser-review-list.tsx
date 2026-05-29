@@ -2,6 +2,7 @@
 
 import { CheckIcon } from "lucide-react"
 import type { ListingData } from "@/lib/db/schema"
+import { formatListingTitleOrShortLocation } from "@/app/anuncios/lib/listing-location"
 import { cn } from "@/lib/utils"
 
 export interface PendingParsedListing {
@@ -14,6 +15,8 @@ interface ParserReviewListProps {
   onToggle: (index: number) => void
   onSelectAll: () => void
   onDeselectAll: () => void
+  onImport?: () => void
+  onCancel?: () => void
 }
 
 function formatPrice(value: number | null): string {
@@ -31,7 +34,7 @@ function formatTipo(tipo: ListingData["tipoImovel"]): string | null {
   return null
 }
 
-function buildMetricsLine(data: ListingData): string {
+function buildCompactMetrics(data: ListingData): string | null {
   const parts: string[] = []
 
   if (data.m2Privado != null || data.m2Totais != null) {
@@ -50,13 +53,7 @@ function buildMetricsLine(data: ListingData): string {
 
   if (data.garagem != null) parts.push(`${data.garagem} vaga${data.garagem !== 1 ? "s" : ""}`)
 
-  const location = [data.bairro, data.cidade].filter(Boolean).join(", ")
-  if (location) parts.push(location)
-  else if (data.endereco) parts.push(data.endereco)
-
-  if (data.condominiumName) parts.push(data.condominiumName)
-
-  return parts.join(" · ") || "Sem detalhes adicionais"
+  return parts.length > 0 ? parts.join(" · ") : null
 }
 
 export function ParserReviewList({
@@ -64,6 +61,8 @@ export function ParserReviewList({
   onToggle,
   onSelectAll,
   onDeselectAll,
+  onImport,
+  onCancel,
 }: ParserReviewListProps) {
   const selectedCount = items.filter((i) => i.selected).length
 
@@ -77,7 +76,7 @@ export function ParserReviewList({
             <span className="text-app-accent"> · {selectedCount} selecionado{selectedCount === 1 ? "" : "s"}</span>
           )}
         </p>
-        <div className="flex shrink-0 gap-2 text-xs">
+        <div className="flex shrink-0 flex-wrap items-center justify-end gap-2 text-xs">
           <button
             type="button"
             onClick={onSelectAll}
@@ -93,12 +92,43 @@ export function ParserReviewList({
           >
             Desmarcar todos
           </button>
+          {onImport ? (
+            <>
+              <span className="text-muted-foreground">|</span>
+              <button
+                type="button"
+                onClick={onImport}
+                disabled={selectedCount === 0}
+                className="font-medium text-app-accent hover:underline disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Importar ({selectedCount})
+              </button>
+            </>
+          ) : null}
+          {onCancel ? (
+            <>
+              <span className="text-muted-foreground">|</span>
+              <button
+                type="button"
+                onClick={onCancel}
+                className="text-app-muted hover:text-app-fg hover:underline"
+              >
+                Cancelar
+              </button>
+            </>
+          ) : null}
         </div>
       </div>
 
-      <div className="max-h-[min(50vh,400px)] space-y-1.5 overflow-y-auto pr-0.5">
+      <div
+        className={cn(
+          "space-y-1.5",
+          items.length > 3 && "max-h-[9.75rem] overflow-y-auto pr-0.5"
+        )}
+      >
         {items.map((item, index) => {
           const tipo = formatTipo(item.data.tipoImovel)
+          const compactMetrics = buildCompactMetrics(item.data)
           return (
             <div
               key={index}
@@ -131,22 +161,24 @@ export function ParserReviewList({
                 )}
               </div>
               <div className="min-w-0 flex-1">
-                <div className="flex items-baseline gap-1.5">
+                <div className="flex min-w-0 items-baseline gap-1.5">
                   <span className="min-w-0 flex-1 truncate text-sm font-medium text-app-fg">
-                    {item.data.titulo}
+                    {formatListingTitleOrShortLocation(item.data)}
                   </span>
+                  {compactMetrics ? (
+                    <span className="shrink-0 truncate text-[11px] leading-snug text-muted-foreground">
+                      {compactMetrics}
+                    </span>
+                  ) : null}
                   <span className="shrink-0 text-xs font-semibold text-app-accent">
                     {formatPrice(item.data.preco)}
                   </span>
-                  {tipo && (
+                  {tipo ? (
                     <span className="shrink-0 rounded bg-app-surface-muted px-1 py-0.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
                       {tipo}
                     </span>
-                  )}
+                  ) : null}
                 </div>
-                <p className="mt-0.5 truncate text-[11px] leading-snug text-muted-foreground">
-                  {buildMetricsLine(item.data)}
-                </p>
               </div>
             </div>
           )

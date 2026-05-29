@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest"
 import type { Imovel } from "./api"
 import {
   buildListingGeocodeQuery,
+  formatListingTitleOrShortLocation,
   inferLocationPrecision,
 } from "./listing-location"
 import { getMiniMapZoom, getZoomForPrecision } from "../components/map-shared"
@@ -29,6 +30,32 @@ function makeListing(overrides: Partial<Imovel> = {}): Imovel {
     ...overrides,
   }
 }
+
+describe("formatListingTitleOrShortLocation", () => {
+  it("keeps a real title", () => {
+    expect(
+      formatListingTitleOrShortLocation(
+        makeListing({ titulo: "Casa com vista", bairro: "Centro", cidade: "Florianópolis" })
+      )
+    ).toBe("Casa com vista")
+  })
+
+  it("uses bairro and cidade when titulo is the placeholder", () => {
+    expect(
+      formatListingTitleOrShortLocation(
+        makeListing({ titulo: "Sem título", bairro: "Centro", cidade: "Florianópolis" })
+      )
+    ).toBe("Centro, Florianópolis")
+  })
+
+  it("falls back to endereco when location fields are missing", () => {
+    expect(
+      formatListingTitleOrShortLocation(
+        makeListing({ titulo: "Sem título", endereco: "Rua das Flores, 123" })
+      )
+    ).toBe("Rua das Flores, 123")
+  })
+})
 
 describe("buildListingGeocodeQuery", () => {
   it("prefers endereco when present", () => {
