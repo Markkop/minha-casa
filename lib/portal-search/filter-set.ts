@@ -94,5 +94,3 @@ export function parseFilterSet(input: unknown): FilterSet {
     estagio,
   }
 }
-
-export { DEFAULT_FILTER_SET }
