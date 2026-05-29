@@ -4,7 +4,7 @@ import { Suspense, useState, useCallback, useEffect } from "react"
 import { ListingsTable } from "./listings-table"
 import { ListingsMap } from "./listings-map"
 import { ParserModal } from "./parser-modal"
-import { DataManagement } from "./data-management"
+import { ImportExportActions } from "./data-management"
 import { CollectionSelector } from "./collection-selector"
 import { CollectionModal } from "./collection-modal"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -13,7 +13,7 @@ import { getDefaultFirstCollectionName } from "../lib/default-first-collection-n
 import { cn } from "@/lib/utils"
 import type { Collection, Imovel } from "../lib/api"
 import { syncSubscriptionCookie } from "@/lib/sync-subscription-cookie"
-import { PageToolbar } from "@/app/components/page-toolbar"
+import { PageToolbar, PageToolbarEnd } from "@/app/components/page-toolbar"
 import { Download, FolderOpen, Link2, Loader2, Plus } from "lucide-react"
 import { ModalCloseButton } from "./modal-chrome"
 import { AnunciosQuerySync } from "./anuncios-query-sync"
@@ -209,26 +209,21 @@ function AnunciosClientInner() {
   return (
     <div className="min-h-[calc(100vh-104px)] bg-app-bg text-app-fg">
       <PageToolbar>
-        <div className="flex w-full min-w-0 flex-col gap-1.5 md:flex-row md:items-center md:justify-between md:gap-x-4">
-          <div className="flex w-full min-w-0 flex-nowrap items-center gap-1.5 md:order-2 md:w-auto md:shrink-0">
-            <CollectionSelector
-              onCollectionChange={handleCollectionChange}
-              onCreateCollection={handleCreateCollection}
-              onEditCollection={handleEditCollection}
-              onDeleteCollection={handleDeleteCollection}
-              refreshTrigger={refreshTrigger}
-            />
-          </div>
-          <div className="flex w-full min-w-0 flex-nowrap items-center gap-2 md:order-1 md:min-w-0 md:flex-1">
-            <DataManagement
-              onDataChange={handleListingsChange}
-              listingsCount={listings.length}
-              onOpenParser={() => setShowParser(true)}
-              onImportSuccess={triggerRefresh}
-              onSwitchToCollection={handleSwitchToCollection}
-            />
-          </div>
-        </div>
+        <PageToolbarEnd className="w-full md:w-auto">
+          <CollectionSelector
+            onCollectionChange={handleCollectionChange}
+            onCreateCollection={handleCreateCollection}
+            onEditCollection={handleEditCollection}
+            onDeleteCollection={handleDeleteCollection}
+            refreshTrigger={refreshTrigger}
+          />
+          <ImportExportActions
+            onDataChange={handleListingsChange}
+            listingsCount={listings.length}
+            onImportSuccess={triggerRefresh}
+            onSwitchToCollection={handleSwitchToCollection}
+          />
+        </PageToolbarEnd>
       </PageToolbar>
 
       {/* Collection Modal */}
@@ -315,7 +310,11 @@ function AnunciosClientInner() {
             </CardContent>
           </Card>
         ) : (
-          <ListingsTable listings={listings} refreshTrigger={refreshTrigger} />
+          <ListingsTable
+            listings={listings}
+            refreshTrigger={refreshTrigger}
+            onOpenParser={() => setShowParser(true)}
+          />
         )}
 
         {/* Map View */}

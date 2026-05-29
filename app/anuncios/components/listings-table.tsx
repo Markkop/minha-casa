@@ -27,7 +27,7 @@ import type { Imovel } from "../lib/api"
 import type { ListingData } from "@/lib/db/schema"
 import { cn } from "@/lib/utils"
 import { ArrowDownIcon, ArrowUpIcon, MagnifyingGlassIcon } from "@radix-ui/react-icons"
-import { Strikethrough, Home, Check, Copy, Columns3 } from "lucide-react"
+import { Strikethrough, Home, Check, Copy, Columns3, Plus, ImageIcon, MapPinned } from "lucide-react"
 import { EditModal } from "./edit-modal"
 import { ImageModal } from "./image-modal"
 import { QuickReparseModal, type FieldChange } from "./quick-reparse-modal"
@@ -157,33 +157,42 @@ function ImageColumnHeaderToggle({
   value: ImageColumnView
   onChange: (value: ImageColumnView) => void
 }) {
-  const options: { value: ImageColumnView; label: string }[] = [
-    { value: "image", label: "Image" },
-    { value: "map", label: "Map" },
+  const options: {
+    value: ImageColumnView
+    label: string
+    icon: typeof ImageIcon
+  }[] = [
+    { value: "image", label: "Imagem", icon: ImageIcon },
+    { value: "map", label: "Mapa", icon: MapPinned },
   ]
 
   return (
     <div
       role="group"
       aria-label="Alternar entre imagem e mapa na coluna"
-      className="inline-flex h-5 w-full max-w-[5.25rem] rounded border border-app-border bg-app-surface-muted p-px text-[8px] font-medium leading-none"
+      className="inline-flex h-5 w-20 shrink-0 rounded border border-app-border bg-app-surface-muted p-px"
     >
-      {options.map((option) => (
-        <button
-          key={option.value}
-          type="button"
-          aria-pressed={value === option.value}
-          onClick={() => onChange(option.value)}
-          className={cn(
-            "flex min-w-0 flex-1 items-center justify-center rounded-[3px] px-0.5 transition-colors",
-            value === option.value
-              ? "bg-app-action text-app-action-foreground"
-              : "text-app-muted hover:text-app-fg"
-          )}
-        >
-          {option.label}
-        </button>
-      ))}
+      {options.map((option) => {
+        const Icon = option.icon
+        return (
+          <button
+            key={option.value}
+            type="button"
+            aria-pressed={value === option.value}
+            aria-label={option.label}
+            title={option.label}
+            onClick={() => onChange(option.value)}
+            className={cn(
+              "flex min-w-0 flex-1 items-center justify-center rounded-[3px] transition-colors",
+              value === option.value
+                ? "bg-app-surface text-app-fg shadow-sm"
+                : "text-app-subtle hover:text-app-muted"
+            )}
+          >
+            <Icon className="h-3 w-3" />
+          </button>
+        )
+      })}
     </div>
   )
 }
@@ -199,6 +208,7 @@ interface ListingsTableProps {
   onListingsChange?: () => void
   refreshTrigger?: number
   hasApiKey?: boolean // Deprecated: API key is now managed server-side
+  onOpenParser?: () => void
 }
 
 // ============================================================================
@@ -391,7 +401,7 @@ function StackedSortHeader({
 
 type PropertyTypeFilter = "all" | "casa" | "apartamento"
 
-export function ListingsTable({ listings, hasApiKey = true }: ListingsTableProps) {
+export function ListingsTable({ listings, hasApiKey = true, onOpenParser }: ListingsTableProps) {
   const {
     collections,
     activeCollection,
@@ -682,14 +692,29 @@ export function ListingsTable({ listings, hasApiKey = true }: ListingsTableProps
   if (listings.length === 0) {
     return (
       <Card className="border-app-border bg-app-surface">
-        <CardContent className="py-12 text-center">
-          <Home className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-          <p className="text-app-muted">
-            Nenhum imóvel cadastrado ainda.
-          </p>
-          <p className="text-sm text-muted-foreground mt-2">
-            Cole um anúncio no painel ao lado para começar.
-          </p>
+        <CardContent className="py-12 text-center space-y-6">
+          <Home className="h-12 w-12 mx-auto text-muted-foreground" />
+          <div className="space-y-2">
+            <h2 className="text-lg font-semibold text-app-fg">
+              Adicione seu primeiro imóvel
+            </h2>
+            <p className="mx-auto max-w-sm text-sm text-app-muted">
+              Cole um link de anúncio, texto ou arquivo para importar automaticamente.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => onOpenParser?.()}
+            className={cn(
+              "px-6 py-3 rounded-lg text-sm font-medium transition-all",
+              "bg-app-action text-app-action-foreground",
+              "hover:bg-app-action-hover",
+              "flex items-center gap-2 mx-auto"
+            )}
+          >
+            <Plus className="h-4 w-4" />
+            <span>Adicionar imóvel</span>
+          </button>
         </CardContent>
       </Card>
     )
@@ -702,10 +727,14 @@ export function ListingsTable({ listings, hasApiKey = true }: ListingsTableProps
     <Card className={LISTINGS_PANEL_CARD_CLASS}>
       <CardHeader className={LISTINGS_PANEL_TOOLBAR_CLASS}>
         <div className="flex min-w-0 items-center gap-1.5 overflow-x-auto">
-          <ListingsDisplayPopover
-            prefs={propertyDisplay}
-            onChange={setPropertyDisplay}
-          />
+          <PageToolbarIconButton
+            variant="primary"
+            onClick={onOpenParser}
+            aria-label="Adicionar imóvel"
+            title="Adicionar imóvel"
+          >
+            <Plus />
+          </PageToolbarIconButton>
           <div className="relative min-w-0 flex-1">
             <MagnifyingGlassIcon className="absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
             <Input
@@ -780,6 +809,10 @@ export function ListingsTable({ listings, hasApiKey = true }: ListingsTableProps
               {copiedVisibleMarkdown ? "Copiado!" : "Copiar resultados visíveis em Markdown"}
             </TooltipContent>
           </Tooltip>
+          <ListingsDisplayPopover
+            prefs={propertyDisplay}
+            onChange={setPropertyDisplay}
+          />
           <Popover>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -831,7 +864,7 @@ export function ListingsTable({ listings, hasApiKey = true }: ListingsTableProps
               <TableHeader>
                 <TableRow className="border-app-border hover:bg-transparent">
                   {visibleColumns.image && (
-                    <TableHead className="sticky left-0 z-20 w-[5.5rem] bg-app-surface p-1">
+                    <TableHead className="sticky left-0 z-20 w-[5.5rem] bg-app-surface p-2">
                       <ImageColumnHeaderToggle
                         value={imageColumnView}
                         onChange={setImageColumnView}

@@ -1,20 +1,29 @@
 "use client"
 
 import { useState } from "react"
-import { Download, Plus, Upload } from "lucide-react"
-import { PageToolbarButton } from "@/app/components/page-toolbar"
+import { Download, Upload } from "lucide-react"
+import { PageToolbarIconButton } from "@/app/components/page-toolbar"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 import { ExportModal } from "./export-modal"
 import { ImportModal } from "./import-modal"
 
-interface DataManagementProps {
+interface ImportExportActionsProps {
   onDataChange: () => void
   listingsCount: number
-  onOpenParser: () => void
   onImportSuccess?: () => void
   onSwitchToCollection?: (collectionId: string) => void
 }
 
-export function DataManagement({ onDataChange, listingsCount, onOpenParser, onImportSuccess, onSwitchToCollection }: DataManagementProps) {
+export function ImportExportActions({
+  onDataChange,
+  listingsCount,
+  onImportSuccess,
+  onSwitchToCollection,
+}: ImportExportActionsProps) {
   const [showExportModal, setShowExportModal] = useState(false)
   const [showImportModal, setShowImportModal] = useState(false)
 
@@ -24,32 +33,50 @@ export function DataManagement({ onDataChange, listingsCount, onOpenParser, onIm
 
   return (
     <>
-      <PageToolbarButton variant="primary" onClick={onOpenParser}>
-        <Plus />
-        <span className="hidden sm:inline">Adicionar</span>
-        <span className="sm:hidden">Novo</span>
-      </PageToolbarButton>
+      <div className="flex shrink-0 items-center gap-1">
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <PageToolbarIconButton
+              onClick={() => setShowExportModal(true)}
+              disabled={listingsCount === 0}
+              aria-label="Exportar"
+            >
+              <Download />
+            </PageToolbarIconButton>
+          </TooltipTrigger>
+          <TooltipContent
+            side="bottom"
+            sideOffset={4}
+            className="border border-app-border bg-app-surface text-app-fg"
+          >
+            Exportar
+          </TooltipContent>
+        </Tooltip>
 
-      <PageToolbarButton
-        onClick={() => setShowExportModal(true)}
-        disabled={listingsCount === 0}
-      >
-        <Download />
-        Exportar
-      </PageToolbarButton>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <PageToolbarIconButton
+              onClick={() => setShowImportModal(true)}
+              aria-label="Importar"
+            >
+              <Upload />
+            </PageToolbarIconButton>
+          </TooltipTrigger>
+          <TooltipContent
+            side="bottom"
+            sideOffset={4}
+            className="border border-app-border bg-app-surface text-app-fg"
+          >
+            Importar
+          </TooltipContent>
+        </Tooltip>
+      </div>
 
-      <PageToolbarButton onClick={() => setShowImportModal(true)}>
-        <Upload />
-        Importar
-      </PageToolbarButton>
-
-      {/* Export Modal */}
       <ExportModal
         isOpen={showExportModal}
         onClose={() => setShowExportModal(false)}
       />
 
-      {/* Import Modal */}
       <ImportModal
         isOpen={showImportModal}
         onClose={() => setShowImportModal(false)}

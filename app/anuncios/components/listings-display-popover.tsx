@@ -1,6 +1,6 @@
 "use client"
 
-import { Info } from "lucide-react"
+import { Menu } from "lucide-react"
 import {
   Popover,
   PopoverContent,
@@ -42,7 +42,7 @@ export function ListingsDisplayPopover({
         <TooltipTrigger asChild>
           <PopoverTrigger asChild>
             <PageToolbarIconButton variant="secondary" aria-label="Exibição do imóvel">
-              <Info />
+              <Menu />
             </PageToolbarIconButton>
           </PopoverTrigger>
         </TooltipTrigger>
