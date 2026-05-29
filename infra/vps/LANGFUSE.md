@@ -28,6 +28,18 @@ langfuse.casas.markkop.dev {
 
 Reload Caddy: `docker exec caddy-caddy-1 caddy reload --config /etc/caddy/Caddyfile`
 
+### DNS (required)
+
+`casas.markkop.dev` uses **Vercel DNS**. Add an **A** record (same as `api` / `s3` / `minio`):
+
+| Type | Name | Value |
+|------|------|--------|
+| A | `langfuse` | `72.61.75.8` |
+
+Vercel: Project → Domains → `casas.markkop.dev` → DNS Records → Add.
+
+Until this exists, the browser shows `DNS_PROBE_FINISHED_NXDOMAIN` even when Caddy and Langfuse are healthy on the VPS.
+
 ## First-time secrets
 
 On the VPS, generate and paste into `.env.prod`:

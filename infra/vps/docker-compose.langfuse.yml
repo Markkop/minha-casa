@@ -87,6 +87,8 @@ services:
       minio:
         condition: service_started
     environment: &langfuse_env
+      # Next.js binds to container hostname by default; on dual networks Caddy hits caddy_net IP and gets 502.
+      HOSTNAME: "0.0.0.0"
       NEXTAUTH_URL: ${LANGFUSE_NEXTAUTH_URL:?set LANGFUSE_NEXTAUTH_URL}
       NEXTAUTH_SECRET: ${LANGFUSE_NEXTAUTH_SECRET:?set LANGFUSE_NEXTAUTH_SECRET}
       SALT: ${LANGFUSE_SALT:?set LANGFUSE_SALT}

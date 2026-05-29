@@ -92,6 +92,7 @@ services:
     ports:
       - "${LANGFUSE_PUBLIC_PORT:-3100}:3000"
     environment: &langfuse_env
+      HOSTNAME: "0.0.0.0"
       NEXTAUTH_URL: ${LANGFUSE_NEXTAUTH_URL:-http://localhost:3100}
       NEXTAUTH_SECRET: ${LANGFUSE_NEXTAUTH_SECRET:-local-langfuse-nextauth-secret-change-me}
       SALT: ${LANGFUSE_SALT:-local-langfuse-salt-change-me}
