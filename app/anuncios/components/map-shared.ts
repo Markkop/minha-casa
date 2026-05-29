@@ -16,7 +16,6 @@ export type { MapViewport } from "../lib/map-viewport"
 
 export interface MapViewProps {
   geocodedListings: GeocodedListing[]
-  onListingsChange: () => void
   minPreco: number
   maxPreco: number
   mapViewport: MapViewport

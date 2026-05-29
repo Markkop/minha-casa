@@ -144,7 +144,7 @@ export function RegionsClient() {
   const [saving, setSaving] = useState(false)
   const { editingId, draft, startEdit, cancelEdit, isEditing, updateDraft } = useInlineRowEdit<Region>()
   const load = async () => {
-    setLoading(true)
+    setLoading(regions.length === 0)
     setError(null)
     try {
       const data = await fetchRegions(orgId)
@@ -169,7 +169,7 @@ export function RegionsClient() {
     setSaving(true)
     setError(null)
     try {
-      await saveRegion(
+      const { region } = await saveRegion(
         {
           city: draft.city,
           neighborhood: draft.neighborhood,
@@ -181,7 +181,17 @@ export function RegionsClient() {
         editingId
       )
       cancelEdit()
-      await load()
+      setRegions((prev) =>
+        prev.map((row) =>
+          row.id === editingId
+            ? {
+                ...region,
+                listingCount: row.listingCount,
+                favoriteAveragePricePerM2: row.favoriteAveragePricePerM2,
+              }
+            : row
+        )
+      )
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erro ao salvar região")
     } finally {
@@ -193,7 +203,7 @@ export function RegionsClient() {
     setSaving(true)
     setError(null)
     try {
-      await saveRegion(
+      const { region } = await saveRegion(
         {
           city: addDraft.city,
           neighborhood: addDraft.neighborhood,
@@ -204,7 +214,10 @@ export function RegionsClient() {
         orgId
       )
       setAddDraft(emptyAdd)
-      await load()
+      setRegions((prev) => [
+        { ...region, listingCount: 0, favoriteAveragePricePerM2: null },
+        ...prev,
+      ])
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erro ao salvar região")
     } finally {
@@ -267,7 +280,11 @@ export function RegionsClient() {
                       <WorkspaceTableIconButton
                         title="Excluir"
                         disabled={editingId !== null}
-                        onClick={() => void deleteRegion(region.id, orgId).then(load)}
+                        onClick={() => {
+                          void deleteRegion(region.id, orgId).then(() => {
+                            setRegions((prev) => prev.filter((row) => row.id !== region.id))
+                          })
+                        }}
                       >
                         <Trash2 className="h-4 w-4" />
                       </WorkspaceTableIconButton>

@@ -78,6 +78,20 @@ defmodule MinhaCasaAi.Config do
   def langfuse_env, do: get(:langfuse_env) || "local"
   def langfuse_prompt_label, do: get(:langfuse_prompt_label) || "production"
 
+  def portal_search_cache_ttl_days do
+    case get(:portal_search_cache_ttl_days) do
+      n when is_integer(n) -> n
+      n when is_binary(n) ->
+        case Integer.parse(n) do
+          {i, _} -> i
+          :error -> 30
+        end
+
+      _ ->
+        30
+    end
+  end
+
   def langfuse_enabled? do
     case get(:langfuse_enabled) do
       false -> false

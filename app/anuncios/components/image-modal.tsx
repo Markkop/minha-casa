@@ -34,7 +34,7 @@ interface ImageModalProps {
   isOpen: boolean
   onClose: () => void
   listing: Imovel | null
-  onListingUpdated: () => void
+  onListingUpdated?: () => void
 }
 
 export function ImageModal({
@@ -43,7 +43,7 @@ export function ImageModal({
   listing,
   onListingUpdated,
 }: ImageModalProps) {
-  const { updateListing: apiUpdateListing } = useCollections()
+  const { updateListing: apiUpdateListing, refreshListing } = useCollections()
   const [imageUrls, setImageUrls] = useState<string[]>([])
   const [currentIndex, setCurrentIndex] = useState(0)
   const [error, setError] = useState<string | null>(null)
@@ -98,7 +98,7 @@ export function ImageModal({
         imageUrls: synced.imageUrls,
         imageUrl: synced.imageUrl,
       })
-      onListingUpdated()
+      onListingUpdated?.()
       onClose()
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erro ao salvar alterações")
@@ -161,13 +161,14 @@ export function ImageModal({
     setConfirmPullOpen(false)
     try {
       await enqueueListingImageIngestion(listing.id)
-      onListingUpdated()
+      await refreshListing(listing.id)
+      onListingUpdated?.()
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erro ao buscar imagens")
     } finally {
       setIsPulling(false)
     }
-  }, [listing, onListingUpdated])
+  }, [listing, onListingUpdated, refreshListing])
 
   if (!isOpen || !listing) return null
 

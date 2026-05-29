@@ -47,7 +47,7 @@ type ParserPhase = "input" | "review" | "success" | "duplicate"
 interface ParserModalProps {
   isOpen: boolean
   onClose: () => void
-  onListingAdded: () => void
+  onListingAdded?: () => void
   hasApiKey?: boolean
   onOpenSettings?: () => void
 }
@@ -60,12 +60,11 @@ export function ParserModal({
   const {
     parseListingInput,
     updateListing,
+    addListing,
     activeCollection,
     collections,
     createCollection,
     setActiveCollection,
-    loadListings,
-    triggerRefresh,
   } = useCollections()
 
   const [phase, setPhase] = useState<ParserPhase>("input")
@@ -278,13 +277,10 @@ export function ParserModal({
     parsedData: ListingData,
     parseInput: ParseRequest
   ) => {
-    const newListing = await apiCreateListing(collectionId, parsedData)
-
-    if (collectionId === activeCollection?.id) {
-      await loadListings()
-    } else {
-      triggerRefresh()
-    }
+    const newListing =
+      collectionId === activeCollection?.id
+        ? await addListing(parsedData)
+        : await apiCreateListing(collectionId, parsedData)
 
     setLastParsed({ id: newListing.id, data: parsedData })
     setImportedCount(1)
@@ -294,7 +290,7 @@ export function ParserModal({
         ""
     )
     setPhase("success")
-    onListingAdded()
+    onListingAdded?.()
     setUrlValue("")
     setRawText("")
     clearFile()
@@ -359,19 +355,17 @@ export function ParserModal({
 
     try {
       for (const item of selected) {
-        await apiCreateListing(collectionId, item.data)
-      }
-
-      if (collectionId === activeCollection?.id) {
-        await loadListings()
-      } else {
-        triggerRefresh()
+        if (collectionId === activeCollection?.id) {
+          await addListing(item.data)
+        } else {
+          await apiCreateListing(collectionId, item.data)
+        }
       }
 
       setImportedCount(selected.length)
       setPendingListings([])
       setPhase("success")
-      onListingAdded()
+      onListingAdded?.()
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erro ao importar imóveis")
     } finally {
@@ -411,7 +405,7 @@ export function ParserModal({
     try {
       if (Object.keys(updates).length > 0) {
         await updateListing(lastParsed.id, updates)
-        onListingAdded()
+        onListingAdded?.()
       }
       onClose()
     } catch (err) {

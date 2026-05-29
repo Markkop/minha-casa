@@ -39,8 +39,6 @@ type ImportMode = "new" | "existing"
 export function ImportModal({
   isOpen,
   onClose,
-  onImportSuccess,
-  onDataChange,
   onSwitchToCollection,
 }: ImportModalProps) {
   const { createCollection, addListing, setActiveCollection, collections, activeCollection, loadListings } = useCollections()
@@ -197,11 +195,10 @@ export function ImportModal({
         for (const listing of validListings) {
           const listingData = parseListingData(listing)
           
-          if (importMode === "existing" && selectedCollectionId) {
-            // Use API directly for existing collection to avoid state issues
-            await apiCreateListing(collectionId, listingData)
-          } else {
+          if (collectionId === activeCollection?.id) {
             await addListing(listingData)
+          } else {
+            await apiCreateListing(collectionId, listingData)
           }
           totalImported++
         }
@@ -216,16 +213,13 @@ export function ImportModal({
         throw new Error("Nenhum imóvel válido encontrado no arquivo")
       }
 
-      // Refresh listings if importing to existing collection
-      if (importMode === "existing" && selectedCollectionId) {
-        await loadListings(selectedCollectionId)
+      if (targetCollectionId && targetCollectionId !== activeCollection?.id) {
+        await loadListings(targetCollectionId, { silent: true })
       }
 
       if (targetCollectionId) {
         onSwitchToCollection?.(targetCollectionId)
       }
-      onDataChange?.()
-      onImportSuccess?.()
       
       const collectionMsg = collectionsToImport.length > 1 
         ? ` em ${collectionsToImport.length} coleções`

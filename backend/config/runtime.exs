@@ -81,4 +81,6 @@ config :minha_casa_ai, MinhaCasaAi.Config,
   langfuse_secret_key: System.get_env("LANGFUSE_SECRET_KEY"),
   langfuse_enabled: System.get_env("LANGFUSE_ENABLED", "false") not in ["false", "0"],
   langfuse_env: System.get_env("LANGFUSE_ENV", "local"),
-  langfuse_prompt_label: System.get_env("LANGFUSE_PROMPT_LABEL", "production")
+  langfuse_prompt_label: System.get_env("LANGFUSE_PROMPT_LABEL", "production"),
+  portal_search_cache_ttl_days:
+    String.to_integer(System.get_env("PORTAL_SEARCH_CACHE_TTL_DAYS") || "30")

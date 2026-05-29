@@ -111,6 +111,45 @@ defmodule MinhaCasaAi.Integrations.OpenAISchemas do
     }
   end
 
+  def portal_search_card_properties do
+    %{
+      "title" => %{"type" => ["string", "null"]},
+      "neighborhood" => %{"type" => ["string", "null"]},
+      "city" => %{"type" => ["string", "null"]},
+      "uf" => %{"type" => ["string", "null"]},
+      "propertyType" => %{"type" => ["string", "null"]},
+      "bedrooms" => %{"type" => ["integer", "null"]},
+      "bathrooms" => %{"type" => ["integer", "null"]},
+      "parkingSpots" => %{"type" => ["integer", "null"]},
+      "suites" => %{"type" => ["integer", "null"]},
+      "areaTotal" => %{"type" => ["number", "null"]},
+      "areaPrivate" => %{"type" => ["number", "null"]},
+      "price" => %{"type" => ["number", "null"]},
+      "condoFee" => %{"type" => ["number", "null"]},
+      "amenities" => %{"type" => "array", "items" => %{"type" => "string"}},
+      "thumbnailUrl" => %{"type" => ["string", "null"]},
+      "listingUrl" => %{"type" => ["string", "null"]}
+    }
+  end
+
+  def portal_search_results_schema do
+    card = %{
+      "type" => "object",
+      "properties" => portal_search_card_properties(),
+      "required" => Map.keys(portal_search_card_properties()),
+      "additionalProperties" => false
+    }
+
+    %{
+      "type" => "object",
+      "properties" => %{
+        "cards" => %{"type" => "array", "items" => card}
+      },
+      "required" => ["cards"],
+      "additionalProperties" => false
+    }
+  end
+
   def viewing_tips_schema do
     question = %{
       "type" => "object",

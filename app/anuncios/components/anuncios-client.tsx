@@ -243,7 +243,6 @@ function AnunciosClientInner() {
       <ParserModal
         isOpen={showParser}
         onClose={() => setShowParser(false)}
-        onListingAdded={handleListingsChange}
       />
 
       {/* Share Import Confirmation Modal */}
@@ -309,22 +308,18 @@ function AnunciosClientInner() {
 
       <main className="max-w-7xl mx-auto space-y-4 px-4 py-4">
         {/* Main Content - Full Width Table */}
-        {isLoadingListings ? (
+        {isLoadingListings && listings.length === 0 ? (
           <Card className="border-app-border bg-app-surface">
             <CardContent className="py-12 text-center">
               <p className="text-app-muted">Carregando imóveis...</p>
             </CardContent>
           </Card>
         ) : (
-          <ListingsTable
-            listings={listings}
-            onListingsChange={handleListingsChange}
-            refreshTrigger={refreshTrigger}
-          />
+          <ListingsTable listings={listings} refreshTrigger={refreshTrigger} />
         )}
 
         {/* Map View */}
-        <ListingsMap listings={listings} onListingsChange={handleListingsChange} />
+        <ListingsMap listings={listings} />
       </main>
     </div>
   )

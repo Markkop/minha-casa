@@ -50,5 +50,14 @@ defmodule MinhaCasaAiWeb.Router do
          :retry_card_xray
     get "/listings/:listing_id/analyses/latest", PropertyAnalysisController, :latest
     get "/listings/:listing_id/nearby", ListingNearbyController, :show
+    get "/portal-searches", PortalSearchController, :index
+    post "/portal-searches", PortalSearchController, :create
+    get "/portal-searches/:id", PortalSearchController, :show
+    patch "/portal-searches/:id", PortalSearchController, :update
+    post "/portal-searches/:id/runs", PortalSearchController, :create_run
+    get "/portal-searches/:id/runs/:run_id", PortalSearchController, :show_run
+    get "/portal-searches/:id/runs/:run_id/cards", PortalSearchController, :list_cards
+    get "/portal-searches/:id/runs/:run_id/cost", PortalSearchController, :run_cost
+    get "/portal-searches/:id/runs/:run_id/stream", PortalSearchController, :stream
   end
 end

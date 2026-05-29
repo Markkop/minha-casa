@@ -126,7 +126,7 @@ export function ContactsClient() {
   const [saving, setSaving] = useState(false)
   const { editingId, draft, startEdit, cancelEdit, isEditing, updateDraft } = useInlineRowEdit<Contact>()
   const load = async () => {
-    setLoading(true)
+    setLoading(contacts.length === 0)
     setError(null)
     try {
       const data = await fetchContacts(orgId)
@@ -151,13 +151,19 @@ export function ContactsClient() {
     setSaving(true)
     setError(null)
     try {
-      await saveContact(
+      const { contact } = await saveContact(
         { name: draft.name, phone: draft.phone, email: draft.email, notes: draft.notes },
         orgId,
         editingId
       )
       cancelEdit()
-      await load()
+      setContacts((prev) =>
+        prev.map((row) =>
+          row.id === editingId
+            ? { ...contact, listings: row.listings }
+            : row
+        )
+      )
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erro ao salvar contato")
     } finally {
@@ -169,9 +175,9 @@ export function ContactsClient() {
     setSaving(true)
     setError(null)
     try {
-      await saveContact(addDraft, orgId)
+      const { contact } = await saveContact(addDraft, orgId)
       setAddDraft(emptyAdd)
-      await load()
+      setContacts((prev) => [{ ...contact, listings: [] }, ...prev])
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erro ao salvar contato")
     } finally {
@@ -246,7 +252,11 @@ export function ContactsClient() {
                       <WorkspaceTableIconButton
                         title="Excluir"
                         disabled={editingId !== null}
-                        onClick={() => void deleteContact(contact.id, orgId).then(load)}
+                        onClick={() => {
+                          void deleteContact(contact.id, orgId).then(() => {
+                            setContacts((prev) => prev.filter((row) => row.id !== contact.id))
+                          })
+                        }}
                       >
                         <Trash2 className="h-4 w-4" />
                       </WorkspaceTableIconButton>

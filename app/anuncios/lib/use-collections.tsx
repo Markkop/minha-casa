@@ -11,6 +11,7 @@ import {
 import {
   fetchCollections,
   fetchListings,
+  fetchListing,
   createCollection as apiCreateCollection,
   updateCollection as apiUpdateCollection,
   deleteCollection as apiDeleteCollection,
@@ -91,7 +92,8 @@ interface CollectionsContextValue {
   toggleCollectionPublic: (collectionId: string, isPublic: boolean) => Promise<Collection>
 
   // Listing actions
-  loadListings: (collectionId?: string) => Promise<void>
+  loadListings: (collectionId?: string, options?: { silent?: boolean }) => Promise<void>
+  refreshListing: (listingId: string) => Promise<Imovel | null>
   addListing: (listingData: ListingData) => Promise<Imovel>
   updateListing: (listingId: string, updates: Partial<Imovel>) => Promise<Imovel>
   removeListing: (listingId: string) => Promise<void>
@@ -135,6 +137,7 @@ export function CollectionsProvider({ children }: CollectionsProviderProps) {
   // Listings state
   const [listings, setListings] = useState<Imovel[]>([])
   const [isLoadingListings, setIsLoadingListings] = useState(false)
+  const [listingsCollectionId, setListingsCollectionId] = useState<string | null>(null)
 
   // Refresh trigger for legacy component compatibility
   const [refreshTrigger, setRefreshTrigger] = useState(0)
@@ -156,6 +159,7 @@ export function CollectionsProvider({ children }: CollectionsProviderProps) {
     setCollections([])
     setActiveCollectionState(null)
     setListings([])
+    setListingsCollectionId(null)
   }, [])
 
   // ============================================================================
@@ -417,25 +421,57 @@ export function CollectionsProvider({ children }: CollectionsProviderProps) {
   // ============================================================================
 
   const loadListings = useCallback(
-    async (collectionId?: string) => {
+    async (collectionId?: string, options?: { silent?: boolean }) => {
       const targetId = collectionId || activeCollection?.id
       if (!targetId) {
         setListings([])
+        setListingsCollectionId(null)
         return
       }
 
-      setIsLoadingListings(true)
+      const silent = options?.silent ?? false
+      const shouldShowLoading =
+        !silent && (listingsCollectionId !== targetId || listings.length === 0)
+      if (shouldShowLoading) {
+        setIsLoadingListings(true)
+      }
       try {
         const fetchedListings = await fetchListings(targetId)
         setListings(fetchedListings)
+        setListingsCollectionId(targetId)
       } catch (err) {
         console.error("Failed to load listings:", err)
-        setListings([])
+        if (!silent && listingsCollectionId !== targetId) {
+          setListings([])
+          setListingsCollectionId(null)
+        }
       } finally {
-        setIsLoadingListings(false)
+        if (shouldShowLoading) {
+          setIsLoadingListings(false)
+        }
       }
     },
-    [activeCollection]
+    [activeCollection, listings, listingsCollectionId]
+  )
+
+  const refreshListing = useCallback(
+    async (listingId: string): Promise<Imovel | null> => {
+      if (!activeCollection?.id) {
+        return null
+      }
+
+      try {
+        const updatedListing = await fetchListing(activeCollection.id, listingId)
+        setListings((prev) =>
+          prev.map((l) => (l.id === listingId ? updatedListing : l))
+        )
+        return updatedListing
+      } catch (err) {
+        console.error("Failed to refresh listing:", err)
+        return null
+      }
+    },
+    [activeCollection?.id]
   )
 
   const addListing = useCallback(
@@ -446,10 +482,9 @@ export function CollectionsProvider({ children }: CollectionsProviderProps) {
 
       const newListing = await apiCreateListing(activeCollection.id, listingData)
       setListings((prev) => [newListing, ...prev])
-      triggerRefresh()
       return newListing
     },
-    [activeCollection, triggerRefresh]
+    [activeCollection]
   )
 
   const updateListing = useCallback(
@@ -466,10 +501,9 @@ export function CollectionsProvider({ children }: CollectionsProviderProps) {
       setListings((prev) =>
         prev.map((l) => (l.id === listingId ? updatedListing : l))
       )
-      triggerRefresh()
       return updatedListing
     },
-    [activeCollection, triggerRefresh]
+    [activeCollection]
   )
 
   const removeListing = useCallback(
@@ -480,9 +514,8 @@ export function CollectionsProvider({ children }: CollectionsProviderProps) {
 
       await apiDeleteListing(activeCollection.id, listingId)
       setListings((prev) => prev.filter((l) => l.id !== listingId))
-      triggerRefresh()
     },
-    [activeCollection, triggerRefresh]
+    [activeCollection]
   )
 
   // ============================================================================
@@ -515,19 +548,26 @@ export function CollectionsProvider({ children }: CollectionsProviderProps) {
   // Load listings when active collection changes
   useEffect(() => {
     if (activeCollection) {
+      if (listingsCollectionId !== activeCollection.id) {
+        setListings([])
+      }
       loadListings(activeCollection.id)
     } else {
       setListings([])
+      setListingsCollectionId(null)
     }
   }, [activeCollection?.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Poll while any listing is ingesting images (max ~2 min)
-  useEffect(() => {
-    const hasIngesting = listings.some((listing) =>
-      isListingImageIngesting(listing.imageIngestionStatus)
-    )
-    if (!hasIngesting || !activeCollection?.id) return
+  // Poll ingesting listings individually (max ~2 min)
+  const ingestingListingIdsKey = listings
+    .filter((listing) => isListingImageIngesting(listing.imageIngestionStatus))
+    .map((listing) => listing.id)
+    .join(",")
 
+  useEffect(() => {
+    if (!ingestingListingIdsKey || !activeCollection?.id) return
+
+    const ingestingIds = ingestingListingIdsKey.split(",")
     let ticks = 0
     const intervalId = window.setInterval(() => {
       ticks += 1
@@ -535,11 +575,11 @@ export function CollectionsProvider({ children }: CollectionsProviderProps) {
         window.clearInterval(intervalId)
         return
       }
-      void loadListings(activeCollection.id)
+      void Promise.all(ingestingIds.map((id) => refreshListing(id)))
     }, 3000)
 
     return () => window.clearInterval(intervalId)
-  }, [listings, activeCollection?.id, loadListings])
+  }, [ingestingListingIdsKey, activeCollection?.id, refreshListing])
 
   // ============================================================================
   // CONTEXT VALUE
@@ -583,6 +623,7 @@ export function CollectionsProvider({ children }: CollectionsProviderProps) {
 
     // Listing actions
     loadListings,
+    refreshListing,
     addListing,
     updateListing,
     removeListing,

@@ -4,6 +4,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest"
 import { render, screen, fireEvent, waitFor } from "@testing-library/react"
 import { ExportModal } from "./export-modal"
 import { ImportModal } from "./import-modal"
+import { createListing as apiCreateListing } from "../lib/api"
 import type { Collection, Imovel } from "../lib/api"
 
 // Mock the useCollections hook
@@ -159,11 +160,13 @@ describe("ImportModal", () => {
   const mockAddListing = vi.fn()
   const mockSetActiveCollection = vi.fn()
   const mockLoadListings = vi.fn()
+  const mockApiCreateListing = vi.mocked(apiCreateListing)
 
   beforeEach(() => {
     vi.clearAllMocks()
     mockCreateCollection.mockResolvedValue({ id: "new-col", label: "New Collection" })
     mockAddListing.mockResolvedValue({ id: "new-listing" })
+    mockApiCreateListing.mockResolvedValue({ id: "new-listing" } as Imovel)
     
     mockUseCollections.mockReturnValue({
       collections: [mockCollection],
@@ -238,7 +241,8 @@ describe("ImportModal", () => {
     })
     
     await waitFor(() => {
-      expect(mockAddListing).toHaveBeenCalled()
+      expect(mockApiCreateListing).toHaveBeenCalled()
+      expect(mockLoadListings).toHaveBeenCalledWith("new-col", { silent: true })
     })
   })
 
@@ -341,14 +345,14 @@ describe("ImportModal", () => {
     fireEvent.click(importButton)
     
     await waitFor(() => {
-      expect(mockAddListing).toHaveBeenCalledTimes(3)
+      expect(mockApiCreateListing).toHaveBeenCalledTimes(3)
     })
     
     // Check that tipoImovel was correctly parsed
-    const calls = mockAddListing.mock.calls
-    expect(calls[0][0].tipoImovel).toBe("apartamento")
-    expect(calls[1][0].tipoImovel).toBe("casa")
-    expect(calls[2][0].tipoImovel).toBe(null) // Invalid value should be null
+    const calls = mockApiCreateListing.mock.calls
+    expect(calls[0][1].tipoImovel).toBe("apartamento")
+    expect(calls[1][1].tipoImovel).toBe("casa")
+    expect(calls[2][1].tipoImovel).toBe(null) // Invalid value should be null
   })
 
   it("should disable import button when no text is provided", () => {

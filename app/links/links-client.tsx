@@ -1,7 +1,8 @@
 "use client"
 
 import { useCallback, useEffect, useState } from "react"
-import { Check, Copy, ExternalLink, Trash2, X } from "lucide-react"
+import Link from "next/link"
+import { Check, Copy, ExternalLink, Trash2, X, Compass } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
@@ -229,13 +230,19 @@ export function LinksClient() {
     setSaving(true)
     setError(null)
     try {
-      await updateSavedLink(
+      const { link } = await updateSavedLink(
         editingId,
         { title: draft.title, url: draft.url, description: draft.description },
         orgId
       )
       cancelEdit()
-      await loadLinks()
+      setLinks((prev) =>
+        prev.map((row) =>
+          row.id === editingId
+            ? { ...link, enriching: false, enrichError: null }
+            : row
+        )
+      )
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erro ao salvar link")
     } finally {
@@ -415,6 +422,13 @@ export function LinksClient() {
                           url={link.url}
                           disabled={editingId !== null || isRowBusy(link)}
                         />
+                        <Link
+                          href={`/explorar?fromLink=${encodeURIComponent(link.url)}`}
+                          className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-app-border text-app-muted hover:text-app-fg"
+                          title="Abrir no Explorar"
+                        >
+                          <Compass className="h-4 w-4" />
+                        </Link>
                         <WorkspaceEditButton
                           onClick={() => startEdit(link)}
                           disabled={editingId !== null || isRowBusy(link)}
@@ -422,9 +436,11 @@ export function LinksClient() {
                         <WorkspaceTableIconButton
                           title="Excluir"
                           disabled={editingId !== null || link.id.startsWith("pending-")}
-                          onClick={() =>
-                            void deleteSavedLink(link.id, orgId).then(loadLinks)
-                          }
+                          onClick={() => {
+                            void deleteSavedLink(link.id, orgId).then(() => {
+                              setLinks((prev) => prev.filter((row) => row.id !== link.id))
+                            })
+                          }}
                         >
                           <Trash2 className="h-4 w-4" />
                         </WorkspaceTableIconButton>

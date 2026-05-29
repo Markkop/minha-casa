@@ -38,13 +38,11 @@ interface CustomMarkerProps {
   color: string
   minPreco: number
   maxPreco: number
-  onListingsChange: () => void
 }
 
 function CustomMarker({ 
   geocodedListing, 
   color,
-  onListingsChange,
 }: CustomMarkerProps) {
   const { updateListing: apiUpdateListing } = useCollections()
   const [markerRef, marker] = useAdvancedMarkerRef()
@@ -62,11 +60,10 @@ function CustomMarker({
         customLat: e.latLng.lat(),
         customLng: e.latLng.lng(),
       })
-      onListingsChange()
     } catch (error) {
       console.error("Failed to update location:", error)
     }
-  }, [listing.id, apiUpdateListing, onListingsChange])
+  }, [listing.id, apiUpdateListing])
 
   const handleResetLocation = useCallback(async () => {
     try {
@@ -78,12 +75,11 @@ function CustomMarker({
       
       // Re-geocode the address
       await geocodeAddress(listing.endereco)
-      onListingsChange()
       setShowInfo(false)
     } catch (error) {
       console.error("Failed to reset location:", error)
     }
-  }, [listing.id, listing.endereco, apiUpdateListing, onListingsChange])
+  }, [listing.id, listing.endereco, apiUpdateListing])
 
   // Render star marker for starred listings
   if (listing.starred) {
@@ -364,7 +360,6 @@ interface GoogleMapsContentProps extends MapViewProps {
 
 function GoogleMapsContent({
   geocodedListings,
-  onListingsChange,
   minPreco,
   maxPreco,
   mapViewport,
@@ -508,7 +503,6 @@ function GoogleMapsContent({
               color={color}
               minPreco={minPreco}
               maxPreco={maxPreco}
-              onListingsChange={onListingsChange}
             />
           )
         })}
@@ -523,7 +517,6 @@ function GoogleMapsContent({
 
 export function GoogleMapsView({
   geocodedListings,
-  onListingsChange,
   minPreco,
   maxPreco,
   mapViewport,
@@ -591,7 +584,6 @@ export function GoogleMapsView({
   return (
     <GoogleMapsContent
       geocodedListings={geocodedListings}
-      onListingsChange={onListingsChange}
       minPreco={minPreco}
       maxPreco={maxPreco}
       mapViewport={mapViewport}

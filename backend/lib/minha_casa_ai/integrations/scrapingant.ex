@@ -28,24 +28,74 @@ defmodule MinhaCasaAi.Integrations.ScrapingAnt do
   def scrape_url(raw_url) when is_binary(raw_url) do
     with {:ok, api_key} <- require_key(),
          {:ok, uri} <- validate_url(raw_url),
-         {:ok, html} <- fetch_html(uri, api_key, false) do
+         {:ok, html} <- fetch_with_browser_strategy(uri, api_key) do
       {:ok, build_result(uri, html)}
-    else
-      {:short, uri, api_key} ->
-        if js_heavy?(uri.host) do
-          with {:ok, html} <- fetch_html(uri, api_key, true) do
-            {:ok, build_result(uri, html)}
-          else
-            {:short, _uri, _api_key} -> {:error, :scraped_content_too_short}
-            other -> other
-          end
+    end
+  end
+
+  def blocked_page?(html) when is_binary(html) do
+    text = html_to_listing_text(html)
+    blob = String.downcase(text)
+
+    String.contains?(blob, [
+      "cloudflare",
+      "error 1101",
+      "attention required",
+      "you have been blocked",
+      "please enable cookies",
+      "worker threw exception"
+    ])
+  end
+
+  def blocked_page?(_), do: false
+
+  defp fetch_with_browser_strategy(uri, api_key) do
+    case fetch_html(uri, api_key, false) do
+      {:ok, html} ->
+        if scrape_ok?(html) do
+          {:ok, html}
         else
-          {:error, :scraped_content_too_short}
+          retry_with_browser(uri, api_key, html)
         end
+
+      {:short, _uri, _api_key} ->
+        retry_with_browser(uri, api_key, nil)
+
+      {:error, :scrapingant_request_failed} ->
+        retry_with_browser(uri, api_key, nil, :scrapingant_request_failed)
 
       other ->
         other
     end
+  end
+
+  defp retry_with_browser(uri, api_key, first_html, fallback \\ :scraped_content_too_short) do
+    if js_heavy?(uri.host) do
+      case fetch_html(uri, api_key, true) do
+        {:ok, html} ->
+          if scrape_ok?(html), do: {:ok, html}, else: scrape_error(html, fallback)
+
+        {:short, _uri, _api_key} ->
+          scrape_error(first_html, fallback)
+
+        other ->
+          other
+      end
+    else
+      scrape_error(first_html, fallback)
+    end
+  end
+
+  defp scrape_ok?(html) when is_binary(html) do
+    not blocked_page?(html) and String.length(html_to_listing_text(html)) >= @min_text_length
+  end
+
+  defp scrape_ok?(_), do: false
+
+  defp scrape_error(nil, fallback), do: {:error, fallback}
+
+  defp scrape_error(html, _fallback) when is_binary(html) do
+    if blocked_page?(html), do: {:error, :portal_blocked}, else: {:error, :scraped_content_too_short}
   end
 
   defp build_result(uri, html) do
@@ -287,6 +337,123 @@ defmodule MinhaCasaAi.Integrations.ScrapingAnt do
     case normalize_image_url(raw) do
       nil -> nil
       url -> if blocked_image_url?(url), do: nil, else: url
+    end
+  end
+
+  def extract_listing_urls_from_html(html, portal, source_url \\ nil)
+
+  def extract_listing_urls_from_html(html, portal, source_url) when is_binary(html) do
+    base_uri = if is_binary(source_url), do: URI.parse(source_url), else: nil
+
+    html
+    |> extract_hrefs()
+    |> Enum.map(&normalize_listing_href(&1, base_uri))
+    |> Enum.reject(&is_nil/1)
+    |> Enum.filter(&listing_url_for_portal?(&1, portal))
+    |> Enum.uniq()
+    |> Enum.take(120)
+  end
+
+  def extract_listing_urls_from_html(_, _, _), do: []
+
+  defp extract_hrefs(html) do
+    ~r/href=["']([^"']+)["']/i
+    |> Regex.scan(html)
+    |> Enum.map(fn [_, href] -> href end)
+  end
+
+  defp normalize_listing_href(href, base_uri) when is_binary(href) do
+    href =
+      href
+      |> String.trim()
+      |> String.replace("&amp;", "&")
+
+    cond do
+      href == "" ->
+        nil
+
+      String.starts_with?(href, "http://") or String.starts_with?(href, "https://") ->
+        href
+
+      String.starts_with?(href, "//") ->
+        "https:" <> href
+
+      String.starts_with?(href, "/") and match?(%URI{host: host} when is_binary(host), base_uri) ->
+        scheme = base_uri.scheme || "https"
+        "#{scheme}://#{base_uri.host}#{href}"
+
+      true ->
+        nil
+    end
+  end
+
+  defp normalize_listing_href(_, _), do: nil
+
+  defp listing_url_for_portal?(url, portal) do
+    uri = URI.parse(url)
+    host = String.downcase(uri.host || "")
+
+    host_matches?(host, portal) and path_looks_like_listing?(url, portal)
+  end
+
+  defp host_matches?(host, portal) do
+    case portal do
+      "zap" -> String.contains?(host, "zapimoveis.com.br")
+      "vivareal" -> String.contains?(host, "vivareal.com.br")
+      "olx" -> String.contains?(host, "olx.com.br")
+      "chavesnamao" -> String.contains?(host, "chavesnamao.com.br")
+      "imovelweb" -> String.contains?(host, "imovelweb.com.br")
+      _ -> false
+    end
+  end
+
+  defp path_looks_like_listing?(url, portal) do
+    lower = String.downcase(url)
+
+    if asset_url?(lower) do
+      false
+    else
+      search_like? =
+        String.contains?(lower, "pagina=") or
+          String.contains?(lower, "page=") or
+          String.contains?(lower, "ordem=") or
+          String.contains?(lower, "viewport=") or
+          String.contains?(lower, "/busca") or
+          String.contains?(lower, "/search")
+
+      if search_like?, do: false, else: portal_listing_path?(lower, portal)
+    end
+  end
+
+  defp asset_url?(lower) do
+    String.contains?(lower, "/imn/") or
+      Regex.match?(~r/\.(jpg|jpeg|png|webp|gif|svg|ico)(\?|$)/, lower)
+  end
+
+  defp portal_listing_path?(url, portal) do
+    case portal do
+      "zap" ->
+        Regex.match?(~r/zapimoveis\.com\.br\/imovel\//, url) or
+          Regex.match?(~r/zapimoveis\.com\.br\/[^\/]+\/[^\/]+\/[^\/]+\/\d+/, url)
+
+      "vivareal" ->
+        Regex.match?(~r/vivareal\.com\.br\/imovel\//, url)
+
+      "olx" ->
+        Regex.match?(~r/olx\.com\.br\/[^\/]+\/imoveis\/[^\/]+-\d+/, url) or
+          Regex.match?(~r/olx\.com\.br\/imoveis\/[^\/]+\/[^\/]+-\d+/, url) or
+          Regex.match?(~r/olx\.com\.br\/anuncio\//, url)
+
+      "chavesnamao" ->
+        Regex.match?(~r/chavesnamao\.com\.br\/imovel\//, url) or
+          Regex.match?(~r/chavesnamao\.com\.br\/[^\/]+\/[^\/]+\/\d+\/?$/, url)
+
+      "imovelweb" ->
+        Regex.match?(~r/imovelweb\.com\.br\/[^\/]+-\d+\.html/, url) or
+          Regex.match?(~r/imovelweb\.com\.br\/propiedades\//, url)
+
+      _ ->
+        false
     end
   end
 

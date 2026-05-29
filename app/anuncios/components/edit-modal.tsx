@@ -35,7 +35,7 @@ interface EditModalProps {
   onClose: () => void
   listing: Imovel | null
   focusImageUrl?: boolean
-  onListingUpdated: () => void
+  onListingUpdated?: () => void
   hasApiKey?: boolean
   uniqueContacts?: UniqueContact[]
 }
@@ -210,7 +210,7 @@ export function EditModal({
 
     try {
       await apiUpdateListing(listing.id, formData)
-      onListingUpdated()
+      onListingUpdated?.()
       onClose()
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erro ao salvar alterações")

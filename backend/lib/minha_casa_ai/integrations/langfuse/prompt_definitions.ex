@@ -15,7 +15,8 @@ defmodule MinhaCasaAi.Integrations.Langfuse.PromptDefinitions do
       %{"name" => "hermes/step/mercado", "type" => "text", "prompt" => step_mercado()},
       %{"name" => "hermes/step/idade", "type" => "text", "prompt" => step_idade()},
       %{"name" => "hermes/step/ambientes", "type" => "text", "prompt" => step_ambientes()},
-      %{"name" => "hermes/step/xray-card", "type" => "text", "prompt" => step_xray_card()}
+      %{"name" => "hermes/step/xray-card", "type" => "text", "prompt" => step_xray_card()},
+      %{"name" => "portal_search/results_extractor", "type" => "text", "prompt" => portal_search_results_extractor()}
     ]
   end
 
@@ -279,6 +280,34 @@ defmodule MinhaCasaAi.Integrations.Langfuse.PromptDefinitions do
 
     Formato JSON minificado em uma linha:
     {"pontosAtencao":[{"id":"...","titulo":"...","descricao":"...","custoMinBrl":0,"custoMaxBrl":0,"detalhes":"..."}]}
+    """
+  end
+
+  defp portal_search_results_extractor do
+    """
+    Você extrai anúncios de imóveis a partir do texto visível de uma página de resultados de busca.
+
+    Portal: {{portal}}
+    URL da busca: {{source_url}}
+
+    Conteúdo da página (texto renderizado):
+    {{page_text}}
+
+    Regras:
+    - Extraia SOMENTE os cards visíveis na página de resultados — NÃO invente anúncios.
+    - NÃO entre em cada anúncio; use apenas o que aparece no card da listagem.
+    - Retorne JSON válido e nada além do JSON.
+    - Use null para campos ausentes no card.
+    - listingUrl: associe cada card ao link correspondente da lista abaixo (por ordem, endereço, preço ou metragem). Se não houver correspondência, omita o card.
+    - propertyType: apartamento, casa, sobrado, cobertura, kitnet, studio, loft, flat, terreno, sala_comercial ou null.
+    - price, areaTotal, areaPrivate, condoFee: números em BRL/m² sem formatação.
+    - amenities: array de strings em português (ex: piscina, academia).
+
+    Links de anúncios extraídos do HTML (use para listingUrl):
+    {{listing_urls}}
+
+    Formato:
+    {"cards":[{"title":"...","neighborhood":"...","city":"...","uf":"...","propertyType":"apartamento","bedrooms":2,"bathrooms":1,"parkingSpots":1,"suites":0,"areaTotal":80,"areaPrivate":70,"price":650000,"condoFee":800,"amenities":["piscina"],"thumbnailUrl":"...","listingUrl":"..."}]}
     """
   end
 end

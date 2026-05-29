@@ -182,7 +182,6 @@ function createMarkerIcon(
 
 export function LeafletMapView({
   geocodedListings,
-  onListingsChange,
   minPreco,
   maxPreco,
   mapViewport,
@@ -238,7 +237,6 @@ export function LeafletMapView({
               customLat: position.lat,
               customLng: position.lng,
             })
-            onListingsChange()
           } catch (error) {
             console.error("Failed to update location:", error)
           }
@@ -254,7 +252,6 @@ export function LeafletMapView({
             
             // Re-geocode the address
             await geocodeAddress(gl.listing.endereco)
-            onListingsChange()
           } catch (error) {
             console.error("Failed to reset location:", error)
           }

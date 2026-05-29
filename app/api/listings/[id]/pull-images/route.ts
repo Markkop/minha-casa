@@ -79,9 +79,6 @@ export async function POST(_request: NextRequest, { params }: RouteParams) {
     const pendingData: Partial<ListingData> = {
       imageIngestionStatus: "pending",
       imageIngestionError: null,
-      imageStorageKeys: [],
-      imageUrls: [],
-      imageUrl: null,
     }
 
     await db

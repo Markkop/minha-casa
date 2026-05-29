@@ -44,7 +44,6 @@ import { mapPriceColors } from "@/lib/theme/colors"
 
 interface ListingsMapProps {
   listings: Imovel[]
-  onListingsChange: () => void
 }
 
 function MapPriceM2Legend() {
@@ -71,7 +70,7 @@ function MapPriceM2Legend() {
   )
 }
 
-export function ListingsMap({ listings, onListingsChange }: ListingsMapProps) {
+export function ListingsMap({ listings }: ListingsMapProps) {
   const [geocodedListings, setGeocodedListings] = useState<GeocodedListing[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [progress, setProgress] = useState({ completed: 0, total: 0 })
@@ -251,7 +250,6 @@ export function ListingsMap({ listings, onListingsChange }: ListingsMapProps) {
 
   const mapViewProps = {
     geocodedListings,
-    onListingsChange,
     minPreco,
     maxPreco,
     mapViewport,

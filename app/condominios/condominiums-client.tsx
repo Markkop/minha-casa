@@ -170,7 +170,7 @@ export function CondominiumsClient() {
   const [saving, setSaving] = useState(false)
   const { editingId, draft, startEdit, cancelEdit, isEditing, updateDraft } = useInlineRowEdit<Condominium>()
   const load = async () => {
-    setLoading(true)
+    setLoading(condominiums.length === 0)
     setError(null)
     try {
       const data = await fetchCondominiums(orgId)
@@ -204,7 +204,7 @@ export function CondominiumsClient() {
     setSaving(true)
     setError(null)
     try {
-      await saveCondominium(
+      const { condominium } = await saveCondominium(
         {
           name: draft.name,
           city: draft.city,
@@ -218,7 +218,17 @@ export function CondominiumsClient() {
         editingId
       )
       handleCancelEdit()
-      await load()
+      setCondominiums((prev) =>
+        prev.map((row) =>
+          row.id === editingId
+            ? {
+                ...condominium,
+                listingCount: row.listingCount,
+                listings: row.listings,
+              }
+            : row
+        )
+      )
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erro ao salvar condomínio")
     } finally {
@@ -230,7 +240,7 @@ export function CondominiumsClient() {
     setSaving(true)
     setError(null)
     try {
-      await saveCondominium(
+      const { condominium } = await saveCondominium(
         {
           name: addDraft.name,
           city: addDraft.city,
@@ -244,7 +254,10 @@ export function CondominiumsClient() {
       )
       setAddDraft(emptyAdd)
       setAddAmenities("")
-      await load()
+      setCondominiums((prev) => [
+        { ...condominium, listingCount: 0, listings: [] },
+        ...prev,
+      ])
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erro ao salvar condomínio")
     } finally {
@@ -328,7 +341,13 @@ export function CondominiumsClient() {
                       <WorkspaceTableIconButton
                         title="Excluir"
                         disabled={editingId !== null}
-                        onClick={() => void deleteCondominium(condominium.id, orgId).then(load)}
+                        onClick={() => {
+                          void deleteCondominium(condominium.id, orgId).then(() => {
+                            setCondominiums((prev) =>
+                              prev.filter((row) => row.id !== condominium.id)
+                            )
+                          })
+                        }}
                       >
                         <Trash2 className="h-4 w-4" />
                       </WorkspaceTableIconButton>

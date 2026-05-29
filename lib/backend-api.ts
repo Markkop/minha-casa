@@ -14,10 +14,18 @@ export function getInternalApiSecret(): string | undefined {
   return raw.replace(/^["']+|["']+$/g, "")
 }
 
-export function backendHeaders(userId: string, orgId?: string | null): Record<string, string> {
+export function backendHeaders(
+  userId: string,
+  orgId?: string | null,
+  isAdmin?: boolean
+): Record<string, string> {
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
     "x-minha-casa-user-id": userId,
+  }
+
+  if (isAdmin) {
+    headers["x-minha-casa-is-admin"] = "true"
   }
 
   if (orgId) {
@@ -36,6 +44,7 @@ export type BackendProxyOptions = {
   method: string
   userId: string
   orgId?: string | null
+  isAdmin?: boolean
   body?: unknown
   searchParams?: Record<string, string | null | undefined>
 }
@@ -67,7 +76,7 @@ export async function proxyBackendRequest(
 
   const init: RequestInit = {
     method: options.method,
-    headers: backendHeaders(options.userId, options.orgId ?? null),
+    headers: backendHeaders(options.userId, options.orgId ?? null, options.isAdmin),
   }
 
   if (options.body !== undefined && options.method !== "GET" && options.method !== "HEAD") {
