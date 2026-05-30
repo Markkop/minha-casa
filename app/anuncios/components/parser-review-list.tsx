@@ -1,8 +1,12 @@
 "use client"
 
+import { useMemo } from "react"
 import { CheckIcon } from "lucide-react"
 import type { ListingData } from "@/lib/db/schema"
-import { formatListingTitleOrShortLocation } from "@/app/anuncios/lib/listing-location"
+import {
+  buildListingDisplayTitles,
+  resolveListingDisplayTitle,
+} from "@/lib/listing-display-title"
 import { cn } from "@/lib/utils"
 
 export interface PendingParsedListing {
@@ -65,6 +69,15 @@ export function ParserReviewList({
   onCancel,
 }: ParserReviewListProps) {
   const selectedCount = items.filter((i) => i.selected).length
+
+  const reviewTitles = useMemo(() => {
+    return buildListingDisplayTitles(
+      items.map((item, index) => ({
+        id: `review-${index}`,
+        ...item.data,
+      }))
+    )
+  }, [items])
 
   return (
     <div className="flex flex-col gap-2">
@@ -163,7 +176,10 @@ export function ParserReviewList({
               <div className="min-w-0 flex-1">
                 <div className="flex min-w-0 items-baseline gap-1.5">
                   <span className="min-w-0 flex-1 truncate text-sm font-medium text-app-fg">
-                    {formatListingTitleOrShortLocation(item.data)}
+                    {resolveListingDisplayTitle(
+                      { id: `review-${index}`, ...item.data },
+                      reviewTitles
+                    )}
                   </span>
                   {compactMetrics ? (
                     <span className="shrink-0 truncate text-[11px] leading-snug text-muted-foreground">

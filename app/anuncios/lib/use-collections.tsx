@@ -26,11 +26,18 @@ import {
   fetchSharedCollection as apiFetchSharedCollection,
   fetchPublicCollections as apiFetchPublicCollections,
   fetchPublicCollectionListings as apiFetchPublicCollectionListings,
+  syncCollectionListingTitles as apiSyncCollectionListingTitles,
   type Collection,
   type Imovel,
   type ShareInfo,
 } from "./api"
 import type { ListingData } from "@/lib/db/schema"
+import {
+  collectionNeedsTitleSync,
+  listingTitleRegenFieldChanged,
+  prepareListingDataForCreate,
+} from "@/lib/listing-display-title"
+import { useListingDisplayTitles } from "@/lib/hooks/use-listing-display-titles"
 import { isListingImageIngesting } from "@/lib/listing-images"
 import {
   getStoredOrgContext,
@@ -97,6 +104,7 @@ interface CollectionsContextValue {
   addListing: (listingData: ListingData) => Promise<Imovel>
   updateListing: (listingId: string, updates: Partial<Imovel>) => Promise<Imovel>
   removeListing: (listingId: string) => Promise<void>
+  getListingDisplayTitle: (listing: Imovel) => string
   
   // AI parsing
   parseListing: (rawText: string) => Promise<ListingData[]>
@@ -180,6 +188,9 @@ export function CollectionsProvider({
   const triggerRefresh = useCallback(() => {
     setRefreshTrigger((prev) => prev + 1)
   }, [])
+
+  const { getDisplayTitle: getListingDisplayTitle } =
+    useListingDisplayTitles(listings)
 
   // Initialize org context from storage on mount
   useEffect(() => {
@@ -498,7 +509,14 @@ export function CollectionsProvider({
         setIsLoadingListings(true)
       }
       try {
-        const fetchedListings = await fetchListings(targetId)
+        let fetchedListings = await fetchListings(targetId)
+        if (collectionNeedsTitleSync(fetchedListings)) {
+          try {
+            fetchedListings = await apiSyncCollectionListingTitles(targetId)
+          } catch (syncErr) {
+            console.error("Failed to sync listing titles:", syncErr)
+          }
+        }
         setListings(fetchedListings)
         setListingsCollectionId(targetId)
       } catch (err) {
@@ -542,11 +560,13 @@ export function CollectionsProvider({
         throw new Error("No active collection")
       }
 
-      const newListing = await apiCreateListing(activeCollection.id, listingData)
-      setListings((prev) => [newListing, ...prev])
-      return newListing
+      const prepared = prepareListingDataForCreate(listingData, listings)
+      const newListing = await apiCreateListing(activeCollection.id, prepared)
+      const synced = await apiSyncCollectionListingTitles(activeCollection.id)
+      setListings(synced)
+      return synced.find((l) => l.id === newListing.id) ?? newListing
     },
-    [activeCollection]
+    [activeCollection, listings]
   )
 
   const updateListing = useCallback(
@@ -555,11 +575,15 @@ export function CollectionsProvider({
         throw new Error("No active collection")
       }
 
-      const updatedListing = await updateApiListing(
-        activeCollection.id,
-        listingId,
-        updates
-      )
+      await updateApiListing(activeCollection.id, listingId, updates)
+
+      if (listingTitleRegenFieldChanged(updates)) {
+        const synced = await apiSyncCollectionListingTitles(activeCollection.id)
+        setListings(synced)
+        return synced.find((l) => l.id === listingId) ?? (await fetchListing(activeCollection.id, listingId))
+      }
+
+      const updatedListing = await fetchListing(activeCollection.id, listingId)
       setListings((prev) =>
         prev.map((l) => (l.id === listingId ? updatedListing : l))
       )
@@ -575,7 +599,8 @@ export function CollectionsProvider({
       }
 
       await apiDeleteListing(activeCollection.id, listingId)
-      setListings((prev) => prev.filter((l) => l.id !== listingId))
+      const synced = await apiSyncCollectionListingTitles(activeCollection.id)
+      setListings(synced)
     },
     [activeCollection]
   )
@@ -690,6 +715,7 @@ export function CollectionsProvider({
     addListing,
     updateListing,
     removeListing,
+    getListingDisplayTitle,
 
     // AI parsing
     parseListing,

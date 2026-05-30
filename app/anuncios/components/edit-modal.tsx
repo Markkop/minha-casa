@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/select"
 import { useCollections } from "../lib/use-collections"
 import type { Imovel } from "../lib/api"
+import { buildBaseListingTitle } from "@/lib/listing-display-title"
 import { cn } from "@/lib/utils"
 import { PencilIcon, Save, SparklesIcon } from "lucide-react"
 import { ModalCloseButton } from "./modal-chrome"
@@ -49,7 +50,7 @@ export function EditModal({
   hasApiKey = true, // API key is now managed server-side, always allow parsing
   uniqueContacts = [],
 }: EditModalProps) {
-  const { updateListing: apiUpdateListing } = useCollections()
+  const { updateListing: apiUpdateListing, getListingDisplayTitle } = useCollections()
   const { orgId } = useWorkspaceProfile()
   const [isReparseOpen, setIsReparseOpen] = useState(false)
   const [contactSelectorOpen, setContactSelectorOpen] = useState(false)
@@ -57,6 +58,7 @@ export function EditModal({
   const [condominiums, setCondominiums] = useState<Condominium[]>([])
   const [formData, setFormData] = useState<Partial<Imovel>>({
     titulo: "",
+    tituloManual: null,
     endereco: "",
     bairro: null,
     cidade: null,
@@ -95,6 +97,7 @@ export function EditModal({
       // eslint-disable-next-line react-hooks/set-state-in-effect -- Sync state from props on modal open
       setFormData({
         titulo: listing.titulo,
+        tituloManual: listing.tituloManual ?? null,
         endereco: listing.endereco,
         bairro: listing.bairro,
         cidade: listing.cidade,
@@ -198,18 +201,18 @@ export function EditModal({
     if (!listing) return
 
     // Validate required fields
-    if (!formData.titulo?.trim()) {
-      setError("Título é obrigatório")
-      return
-    }
-
     if (!formData.endereco?.trim()) {
       setError("Endereço é obrigatório")
       return
     }
 
     try {
-      await apiUpdateListing(listing.id, formData)
+      const tituloManual = formData.tituloManual?.trim() || null
+      await apiUpdateListing(listing.id, {
+        ...formData,
+        tituloManual,
+        titulo: tituloManual ?? formData.titulo ?? listing.titulo,
+      })
       onListingUpdated?.()
       onClose()
     } catch (err) {
@@ -264,17 +267,38 @@ export function EditModal({
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Título */}
             <div className="md:col-span-2 space-y-2">
-              <Label htmlFor="titulo" className="text-sm text-app-muted">
-                Título *
+              <Label className="text-sm text-app-muted">Título automático</Label>
+              <p className="text-sm text-app-fg">
+                {listing
+                  ? getListingDisplayTitle({
+                      ...listing,
+                      ...formData,
+                      tituloManual: null,
+                    })
+                  : buildBaseListingTitle(formData)}
+              </p>
+              <Label htmlFor="tituloManual" className="text-sm text-app-muted">
+                Título personalizado (opcional)
               </Label>
               <Input
-                id="titulo"
+                id="tituloManual"
                 type="text"
-                value={formData.titulo || ""}
-                onChange={(e) => handleInputChange("titulo", e.target.value)}
-                placeholder="Ex: Casa Padrão - Itacorubi"
+                value={formData.tituloManual || ""}
+                onChange={(e) =>
+                  handleInputChange("tituloManual", e.target.value || null)
+                }
+                placeholder="Substitui o título automático"
                 className="bg-app-surface-muted border-app-border text-app-fg placeholder:text-muted-foreground"
               />
+              {formData.tituloManual?.trim() ? (
+                <button
+                  type="button"
+                  className="text-xs text-app-accent hover:underline"
+                  onClick={() => handleInputChange("tituloManual", null)}
+                >
+                  Usar título automático
+                </button>
+              ) : null}
             </div>
 
             {/* Endereço */}

@@ -32,28 +32,43 @@ function makeListing(overrides: Partial<Imovel> = {}): Imovel {
 }
 
 describe("formatListingTitleOrShortLocation", () => {
-  it("keeps a real title", () => {
+  it("builds generated title from listing fields", () => {
     expect(
       formatListingTitleOrShortLocation(
-        makeListing({ titulo: "Casa com vista", bairro: "Centro", cidade: "Florianópolis" })
+        makeListing({
+          titulo: "ignored",
+          tipoImovel: "casa",
+          quartos: 3,
+          bairro: "Centro",
+          cidade: "Florianópolis",
+        })
       )
-    ).toBe("Casa com vista")
+    ).toBe("Casa com 3 quartos em Centro")
   })
 
-  it("uses bairro and cidade when titulo is the placeholder", () => {
+  it("uses manual title when set", () => {
     expect(
       formatListingTitleOrShortLocation(
-        makeListing({ titulo: "Sem título", bairro: "Centro", cidade: "Florianópolis" })
+        makeListing({
+          titulo: "Meu título",
+          tituloManual: "Meu título",
+          bairro: "Centro",
+        })
       )
-    ).toBe("Centro, Florianópolis")
+    ).toBe("Meu título")
   })
 
-  it("falls back to endereco when location fields are missing", () => {
+  it("uses street label when bairro is missing", () => {
     expect(
       formatListingTitleOrShortLocation(
-        makeListing({ titulo: "Sem título", endereco: "Rua das Flores, 123" })
+        makeListing({
+          titulo: "Sem título",
+          tipoImovel: "casa",
+          quartos: 2,
+          endereco: "Rua das Flores, 123",
+        })
       )
-    ).toBe("Rua das Flores, 123")
+    ).toBe("Casa com 2 quartos em Das Flores")
   })
 })
 

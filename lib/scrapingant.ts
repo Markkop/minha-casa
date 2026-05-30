@@ -443,31 +443,39 @@ function buildScrapeResult(sourceUrl: string, html: string): ScrapePageResult {
   }
 }
 
+function isBlockedPortalPage(text: string): boolean {
+  const blob = text.toLowerCase()
+  return (
+    blob.includes("cloudflare") ||
+    blob.includes("error 1101") ||
+    blob.includes("attention required") ||
+    blob.includes("you have been blocked") ||
+    blob.includes("please enable cookies") ||
+    blob.includes("worker threw exception")
+  )
+}
+
 /**
- * Fetches listing page via ScrapingAnt general endpoint.
- * Uses browser=false first; retries with browser=true on JS-heavy portals when text is too short.
+ * Fetches a listing page via ScrapingAnt (browser=false only).
+ * Portal search pages may use a separate flow with browser fallback.
  */
 export async function scrapeUrlPage(rawUrl: string): Promise<ScrapePageResult> {
   const parsed = validatePublicHttpUrl(rawUrl)
   const apiKey = getApiKey()
-  const hostname = parsed.hostname
-  const useBrowserRetry = isJsHeavyListingPortal(hostname)
   const sourceUrl = parsed.toString()
 
   const first = await fetchGeneralHtmlFromScrapingAnt(parsed, apiKey, false)
   const firstText = htmlToListingText(first.html)
 
-  if (firstText.length >= MIN_SCRAPED_PAGE_TEXT_LENGTH) {
-    return buildScrapeResult(sourceUrl, first.html)
+  if (isBlockedPortalPage(firstText)) {
+    throw new ScrapingAntError(
+      "O portal bloqueou o acesso automatizado. Cole o texto do anúncio ou tente outro link.",
+      400
+    )
   }
 
-  if (useBrowserRetry) {
-    console.info("[scrapingant] retrying with browser=true", { hostname })
-    const second = await fetchGeneralHtmlFromScrapingAnt(parsed, apiKey, true)
-    const secondText = htmlToListingText(second.html)
-    if (secondText.length >= MIN_SCRAPED_PAGE_TEXT_LENGTH) {
-      return buildScrapeResult(sourceUrl, second.html)
-    }
+  if (firstText.length >= MIN_SCRAPED_PAGE_TEXT_LENGTH) {
+    return buildScrapeResult(sourceUrl, first.html)
   }
 
   throw new ScrapingAntError(

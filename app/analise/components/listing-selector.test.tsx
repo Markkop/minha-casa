@@ -63,6 +63,7 @@ function mockCollections(listings: Imovel[], isLoadingListings = false) {
   mockUseCollections.mockReturnValue({
     listings,
     isLoadingListings,
+    getListingDisplayTitle: (item: Imovel) => item.titulo ?? "",
   })
 }
 
@@ -113,13 +114,13 @@ describe("AnaliseListingBreadcrumb", () => {
 
     render(<AnaliseListingBreadcrumb />)
     expect(screen.getByRole("button", { name: /selecionar imóvel/i })).toHaveTextContent(
-      /R\$\s800\.000.*3\s*2\s*1/
+      "Casa Beta"
     )
     expect(document.querySelectorAll('img[src="/beta.jpg"]').length).toBe(1)
     fireEvent.click(screen.getByRole("button", { name: /selecionar imóvel/i }))
 
-    expect(screen.getByRole("button", { name: /rua alpha/i })).toBeInTheDocument()
-    expect(screen.getAllByRole("button", { name: /rua beta/i }).length).toBeGreaterThan(0)
+    expect(screen.getByRole("button", { name: /casa alpha/i })).toBeInTheDocument()
+    expect(screen.getAllByRole("button", { name: /casa beta/i }).length).toBeGreaterThan(0)
     expect(screen.getByText("Rua Beta")).toBeInTheDocument()
     expect(document.querySelectorAll('img[src="/beta.jpg"]').length).toBe(2)
 
@@ -127,8 +128,8 @@ describe("AnaliseListingBreadcrumb", () => {
       target: { value: "Beta" },
     })
 
-    expect(screen.queryByRole("button", { name: /rua alpha/i })).not.toBeInTheDocument()
-    expect(screen.getAllByRole("button", { name: /rua beta/i }).length).toBeGreaterThan(0)
+    expect(screen.queryByRole("button", { name: /casa alpha/i })).not.toBeInTheDocument()
+    expect(screen.getAllByRole("button", { name: /casa beta/i }).length).toBeGreaterThan(0)
   })
 
   it("updates the listing query param while preserving existing params", () => {
@@ -140,7 +141,7 @@ describe("AnaliseListingBreadcrumb", () => {
 
     render(<AnaliseListingBreadcrumb />)
     fireEvent.click(screen.getByRole("button", { name: /selecionar imóvel/i }))
-    fireEvent.click(screen.getByRole("button", { name: /rua beta/i }))
+    fireEvent.click(screen.getByRole("button", { name: /casa beta/i }))
 
     expect(mockPush).toHaveBeenCalledWith(
       "/analise?collection=collection-1&view=map&listing=listing-2",

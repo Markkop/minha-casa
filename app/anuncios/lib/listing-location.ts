@@ -1,4 +1,5 @@
 import type { Imovel } from "./api"
+import { resolveListingDisplayTitle } from "@/lib/listing-display-title"
 import {
   geocodeAddress,
   isCondominiumAddress,
@@ -53,23 +54,27 @@ function isPlaceholderListingTitle(titulo: string | null | undefined): boolean {
   return trimmed.length === 0 || trimmed.toLowerCase() === "sem título"
 }
 
-/** Title for compact UI; falls back to bairro/cidade or endereço when titulo is missing. */
+/** Title for compact UI (generated or manual). */
 export function formatListingTitleOrShortLocation(
-  listing: Pick<Imovel, "titulo" | "bairro" | "cidade" | "endereco">
+  listing: Pick<
+    Imovel,
+    | "titulo"
+    | "tituloManual"
+    | "tipoImovel"
+    | "quartos"
+    | "bairro"
+    | "cidade"
+    | "endereco"
+    | "preco"
+    | "m2Totais"
+    | "andar"
+    | "condominiumName"
+  >
 ): string {
-  if (!isPlaceholderListingTitle(listing.titulo)) {
-    return listing.titulo.trim()
+  const generated = resolveListingDisplayTitle(listing)
+  if (!isPlaceholderListingTitle(generated)) {
+    return generated
   }
-
-  const neighborhoodCity = [listing.bairro, listing.cidade]
-    .filter((value): value is string => Boolean(value?.trim()))
-    .map((value) => value.trim())
-    .join(", ")
-  if (neighborhoodCity) return neighborhoodCity
-
-  const endereco = listing.endereco?.trim()
-  if (endereco) return endereco
-
   return listing.titulo?.trim() || "Sem título"
 }
 

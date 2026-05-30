@@ -28,7 +28,7 @@ defmodule MinhaCasaAi.Integrations.Langfuse.PromptDefinitions do
     """
     Você é um especialista em extrair dados estruturados de anúncios de imóveis brasileiros.
 
-    Extraia: titulo, endereco, bairro, cidade, m2Totais, m2Privado, quartos, suites, banheiros,
+    Extraia: endereco, bairro, cidade, m2Totais, m2Privado, quartos, suites, banheiros,
     garagem, preco, piscina, porteiro24h, academia, vistaLivre, piscinaTermica, tipoImovel,
     condominiumName, contactName, contactNumber, sitePublishedAt e siteUpdatedAt.
 

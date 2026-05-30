@@ -27,7 +27,11 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover"
+import { compactListingDisplayTitle } from "@/lib/listing-display-title"
 import { cn } from "@/lib/utils"
+
+const LISTING_SELECTOR_POPOVER_CLASS = "w-96 p-2.5"
+const LISTING_SELECTOR_BREADCRUMB_MAX_WIDTH_CLASS = "max-w-[min(100%,48rem)]"
 
 function formatPrice(value: number | null | undefined) {
   if (value === null || value === undefined) return "—"
@@ -38,35 +42,28 @@ function formatPrice(value: number | null | undefined) {
   }).format(value)
 }
 
-function formatListingSummaryLabel(listing: Imovel) {
-  const garagem = listing.garagem ?? 0
-  const quartos = listing.quartos ?? 0
-  const banheiros = listing.banheiros ?? 0
-  const parts = [
-    formatPrice(listing.preco),
-    `${quartos} quartos`,
-    `${banheiros} banheiros`,
-    `${garagem} vagas`,
-  ]
-
-  if (listing.tipoImovel === "apartamento") {
-    parts.push(`andar ${listing.andar === 10 ? "10+" : (listing.andar ?? 0)}`)
-  }
-  if (listing.piscina === true) parts.push("piscina")
-  if (listing.piscinaTermica === true) parts.push("piscina térmica")
-  if (listing.porteiro24h === true) parts.push("porteiro 24h")
-  if (listing.academia === true) parts.push("academia")
-  if (listing.vistaLivre === true) parts.push("vista livre")
-
-  return parts.join(" - ")
-}
-
 function formatListingAddress(listing: Imovel) {
   return listing.endereco?.trim() || "Endereço não informado"
 }
 
 function getListingThumbUrl(listing: Imovel) {
   return listing.imageUrl || listing.imageUrls?.[0] || null
+}
+
+function ListingOptionThumb({ listing }: { listing: Imovel }) {
+  const url = getListingThumbUrl(listing)
+
+  return (
+    <div className="w-14 shrink-0 self-stretch overflow-hidden rounded-md border border-app-border bg-app-surface-muted">
+      {url ? (
+        <img src={url} alt="" className="size-full object-cover" />
+      ) : (
+        <div className="flex size-full min-h-[3.25rem] items-center justify-center text-app-muted">
+          <Home className="size-4" />
+        </div>
+      )}
+    </div>
+  )
 }
 
 function ListingSummary({ listing }: { listing: Imovel }) {
@@ -149,10 +146,12 @@ export function ListingSelector({
   onSelect,
   compact = false,
 }: ListingSelectorProps) {
+  const { getListingDisplayTitle } = useCollections()
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState("")
 
   const selected = listings.find((l) => l.id === selectedId) ?? null
+  const selectedTitle = selected ? getListingDisplayTitle(selected) : null
 
   const filtered = useMemo(() => {
     return filterListings(listings, query)
@@ -162,7 +161,7 @@ export function ListingSelector({
     return (
       <div className="flex min-w-0 flex-1 items-center gap-2">
         <span className="truncate text-xs font-medium text-app-fg">
-          {selected.titulo}
+          {selectedTitle}
         </span>
         <Popover open={open} onOpenChange={setOpen}>
           <PopoverTrigger asChild>
@@ -174,7 +173,7 @@ export function ListingSelector({
               Trocar imóvel
             </PageToolbarButton>
           </PopoverTrigger>
-          <PopoverContent className="w-80 p-2" align="start">
+          <PopoverContent className={LISTING_SELECTOR_POPOVER_CLASS} align="start">
             <ListingList
               filtered={filtered}
               query={query}
@@ -196,15 +195,15 @@ export function ListingSelector({
       <PopoverTrigger asChild>
         <PageToolbarButton
           variant="secondary"
-          className="min-w-[200px] max-w-full justify-between"
+          className="min-w-[15rem] max-w-full justify-between"
         >
           <span className="truncate">
-            {selected ? selected.titulo : "Selecionar imóvel"}
+            {selectedTitle ?? "Selecionar imóvel"}
           </span>
           <ChevronDown className="opacity-60" />
         </PageToolbarButton>
       </PopoverTrigger>
-      <PopoverContent className="w-80 p-2" align="start">
+      <PopoverContent className={LISTING_SELECTOR_POPOVER_CLASS} align="start">
         <ListingList
           filtered={filtered}
           query={query}
@@ -228,7 +227,7 @@ export function AnaliseListingBreadcrumb({
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
-  const { listings, isLoadingListings } = useCollections()
+  const { listings, isLoadingListings, getListingDisplayTitle } = useCollections()
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState("")
 
@@ -243,6 +242,11 @@ export function AnaliseListingBreadcrumb({
   const fallbackLabel = isLoadingListings
     ? "Carregando..."
     : "Nenhum imóvel"
+
+  const selectedTitle = selected
+    ? compactListingDisplayTitle(getListingDisplayTitle(selected))
+    : null
+  const selectedTriggerLabel = selectedTitle ?? fallbackLabel
 
   const handleSelect = (listing: Imovel) => {
     const params = new URLSearchParams(searchParams.toString())
@@ -260,18 +264,19 @@ export function AnaliseListingBreadcrumb({
         <button
           type="button"
           className={cn(
-            "inline-flex h-8 min-w-0 max-w-[38vw] items-center gap-1.5 rounded-md px-2 text-sm font-medium leading-none text-app-fg transition-colors hover:bg-app-surface-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-accent disabled:pointer-events-none disabled:opacity-60 md:max-w-[360px] [&_svg]:size-3.5",
+            "inline-flex min-h-8 min-w-0 items-center gap-2 rounded-md px-2.5 py-1 text-sm font-medium leading-snug text-app-fg transition-colors hover:bg-app-surface-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-accent disabled:pointer-events-none disabled:opacity-60 [&_svg]:size-3.5",
+            LISTING_SELECTOR_BREADCRUMB_MAX_WIDTH_CLASS,
             className
           )}
           aria-label={
-            selected
-              ? `Selecionar imóvel: ${formatListingSummaryLabel(selected)}`
+            selectedTitle
+              ? `Selecionar imóvel: ${selectedTitle}`
               : "Selecionar imóvel"
           }
           disabled={isLoadingListings}
         >
           {selected && getListingThumbUrl(selected) ? (
-            <span className="size-5 shrink-0 overflow-hidden rounded border border-app-border bg-app-surface-muted">
+            <span className="size-6 shrink-0 overflow-hidden rounded-md border border-app-border bg-app-surface-muted">
               <img
                 src={getListingThumbUrl(selected)!}
                 alt=""
@@ -279,15 +284,15 @@ export function AnaliseListingBreadcrumb({
               />
             </span>
           ) : (
-            <Home className="size-3.5 shrink-0 text-app-muted" />
+            <Home className="size-4 shrink-0 text-app-muted" />
           )}
-          <span className="min-w-0 truncate">
-            {selected ? <ListingSummary listing={selected} /> : fallbackLabel}
+          <span className="min-w-0 text-left break-words">
+            {selectedTriggerLabel}
           </span>
           <ChevronDown className="size-3.5 shrink-0 text-app-muted" />
         </button>
       </PopoverTrigger>
-      <PopoverContent className="w-80 p-2" align="start">
+      <PopoverContent className={LISTING_SELECTOR_POPOVER_CLASS} align="start">
         <ListingList
           filtered={filtered}
           query={query}
@@ -313,6 +318,8 @@ export function ListingList({
   selectedId: string | null
   onSelect: (listing: Imovel) => void
 }) {
+  const { getListingDisplayTitle } = useCollections()
+
   return (
     <div className="space-y-2">
       <div className="relative">
@@ -334,28 +341,19 @@ export function ListingList({
                 type="button"
                 onClick={() => onSelect(listing)}
                 className={cn(
-                  "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs transition-colors hover:bg-app-bg",
+                  "flex w-full items-start gap-2.5 rounded-md px-2 py-1.5 text-left text-xs transition-colors hover:bg-app-bg",
                   selectedId === listing.id && "bg-app-bg font-medium"
                 )}
               >
-                <div className="size-8 shrink-0 overflow-hidden rounded border border-app-border bg-app-surface-muted">
-                  {getListingThumbUrl(listing) ? (
-                    <img
-                      src={getListingThumbUrl(listing)!}
-                      alt=""
-                      className="h-full w-full object-cover"
-                    />
-                  ) : (
-                    <div className="flex h-full w-full items-center justify-center text-app-muted">
-                      <Home className="size-3.5" />
-                    </div>
-                  )}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="truncate font-medium text-app-fg">
+                <ListingOptionThumb listing={listing} />
+                <div className="min-w-0 flex-1 space-y-0.5">
+                  <div className="break-words font-medium leading-snug text-app-fg">
+                    {compactListingDisplayTitle(getListingDisplayTitle(listing))}
+                  </div>
+                  <div className="text-[11px] font-normal leading-4 text-app-muted">
                     <ListingSummary listing={listing} />
                   </div>
-                  <div className="truncate text-[11px] font-normal leading-4 text-app-muted">
+                  <div className="break-words text-[11px] font-normal leading-4 text-app-muted">
                     {formatListingAddress(listing)}
                   </div>
                 </div>

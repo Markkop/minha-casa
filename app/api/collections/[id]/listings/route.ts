@@ -3,6 +3,7 @@ import { getServerSession } from "@/lib/auth-server"
 import { getDb, collections, listings, organizationMembers, type ListingData } from "@/lib/db"
 import { eq, and } from "drizzle-orm"
 import { enqueueListingImageIngestionOnBackend } from "@/lib/backend-listing-images"
+import { persistCollectionListingTitulos } from "@/lib/sync-collection-listing-titulos"
 
 interface RouteParams {
   params: Promise<{ id: string }>
@@ -188,8 +189,15 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       )
     }
 
+    await persistCollectionListingTitulos(id)
+
+    const [refreshedListing] = await db
+      .select()
+      .from(listings)
+      .where(eq(listings.id, newListing.id))
+
     return NextResponse.json(
-      { listing: newListing },
+      { listing: refreshedListing ?? newListing },
       { status: 201 }
     )
   } catch (error) {

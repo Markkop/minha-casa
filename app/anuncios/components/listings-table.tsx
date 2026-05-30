@@ -750,6 +750,7 @@ export function ListingsTable({ listings, hasApiKey = true }: ListingsTableProps
     addListing,
     updateListing: apiUpdateListing,
     removeListing: apiRemoveListing,
+    getListingDisplayTitle,
   } = useCollections()
 
   // State for search, sort, and property type filter
@@ -1846,6 +1847,7 @@ export function ListingsTable({ listings, hasApiKey = true }: ListingsTableProps
                     openEditListing={openEditListing}
                     onQuickReparseRequest={handleQuickReparseRequest}
                     onQuickReparseDetected={handleQuickReparseDetected}
+                    displayTitle={getListingDisplayTitle(imovel)}
                   />
                 ))}
               </TableBody>

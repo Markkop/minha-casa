@@ -192,7 +192,8 @@ export function LeafletMapView({
   mapViewport,
   colorByPrice,
 }: MapViewProps) {
-  const { updateListing: apiUpdateListing, activeCollection } = useCollections()
+  const { updateListing: apiUpdateListing, activeCollection, getListingDisplayTitle } =
+    useCollections()
   const [leafletLoaded, setLeafletLoaded] = useState(false)
 
   useEffect(() => {
@@ -299,6 +300,7 @@ export function LeafletMapView({
                 <h3 className="mb-1 font-bold text-gray-900">
                   <ListingTitleLinks
                     listing={gl.listing}
+                    displayTitle={getListingDisplayTitle(gl.listing)}
                     collectionId={activeCollection?.id}
                     maxTitleLength={80}
                     titleClassName="hover:text-app-accent"

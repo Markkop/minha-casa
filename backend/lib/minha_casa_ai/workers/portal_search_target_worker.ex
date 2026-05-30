@@ -136,7 +136,7 @@ defmodule MinhaCasaAi.Workers.PortalSearchTargetWorker do
           )
         end
 
-      result = ScrapingAnt.scrape_url(target.url)
+      result = ScrapingAnt.scrape_url_with_browser_fallback(target.url)
 
       if span do
         case result do

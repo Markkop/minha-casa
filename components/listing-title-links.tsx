@@ -24,6 +24,8 @@ type ListingTitleLinksListing = {
 
 interface ListingTitleLinksProps {
   listing: ListingTitleLinksListing
+  /** When set, shown instead of listing.titulo (e.g. collection-aware title). */
+  displayTitle?: string
   collectionId?: string | null
   className?: string
   titleClassName?: string
@@ -33,27 +35,29 @@ interface ListingTitleLinksProps {
 
 export function ListingTitleLinks({
   listing,
+  displayTitle: displayTitleProp,
   collectionId,
   className,
   titleClassName,
   maxTitleLength = 50,
   showExternalIcon = true,
 }: ListingTitleLinksProps) {
-  const displayTitle = truncateListingTitle(listing.titulo, maxTitleLength)
+  const resolvedTitle = displayTitleProp ?? listing.titulo
+  const displayTitle = truncateListingTitle(resolvedTitle, maxTitleLength)
   const analiseHref = buildListingAnaliseHref(listing.id, collectionId)
   const hasExternalLink =
     showExternalIcon && typeof listing.link === "string" && listing.link.trim() !== ""
 
   return (
-    <span className={cn("flex min-w-0 flex-1 items-center gap-1", className)}>
+    <span className={cn("flex min-w-0 max-w-full flex-1 items-center gap-1", className)}>
       <Link
         href={analiseHref}
         className={cn(
-          "min-w-0 flex-1 truncate font-medium leading-snug text-app-fg transition-colors hover:text-app-accent",
+          "min-w-0 shrink truncate font-medium leading-snug text-app-fg transition-colors hover:text-app-accent",
           listing.strikethrough && "line-through opacity-50",
           titleClassName
         )}
-        title={`Ver análise: ${listing.titulo}`}
+        title={`Ver análise: ${resolvedTitle}`}
       >
         {displayTitle}
       </Link>

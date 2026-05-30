@@ -28,6 +28,33 @@ defmodule MinhaCasaAi.Integrations.ScrapingAnt do
   def scrape_url(raw_url) when is_binary(raw_url) do
     with {:ok, api_key} <- require_key(),
          {:ok, uri} <- validate_url(raw_url),
+         {:ok, html} <- fetch_html(uri, api_key, false) do
+      cond do
+        blocked_page?(html) ->
+          {:error, :portal_blocked}
+
+        String.length(html_to_listing_text(html)) < @min_text_length ->
+          {:error, :scraped_content_too_short}
+
+        true ->
+          {:ok, build_result(uri, html)}
+      end
+    else
+      {:short, _uri, _api_key} ->
+        {:error, :scraped_content_too_short}
+
+      other ->
+        other
+    end
+  end
+
+  @doc """
+  Scrape with browser=false first; on JS-heavy portals retries with browser=true when text is too short.
+  Used for portal search pages, not single listing URLs.
+  """
+  def scrape_url_with_browser_fallback(raw_url) when is_binary(raw_url) do
+    with {:ok, api_key} <- require_key(),
+         {:ok, uri} <- validate_url(raw_url),
          {:ok, html} <- fetch_with_browser_strategy(uri, api_key) do
       {:ok, build_result(uri, html)}
     end
@@ -140,16 +167,22 @@ defmodule MinhaCasaAi.Integrations.ScrapingAnt do
     case Req.get(@general_url,
            params: params,
            finch: MinhaCasaAi.Finch,
-           receive_timeout: 55_000
+           receive_timeout: 55_000,
+           decode_body: false
          ) do
-      {:ok, %{status: status, body: body}} when status in 200..299 and is_binary(body) ->
-        html = String.trim(body)
-        text = html_to_listing_text(html)
+      {:ok, %{status: status, body: body}} when status in 200..299 ->
+        html = body_to_html_string(body)
 
-        if String.length(text) >= @min_text_length do
-          {:ok, html}
-        else
+        if html == "" do
           {:short, uri, api_key}
+        else
+          text = html_to_listing_text(html)
+
+          if String.length(text) >= @min_text_length do
+            {:ok, html}
+          else
+            {:short, uri, api_key}
+          end
         end
 
       {:ok, %{status: 401}} ->
@@ -161,15 +194,44 @@ defmodule MinhaCasaAi.Integrations.ScrapingAnt do
       {:ok, %{status: 429}} ->
         {:error, :scrapingant_rate_limited}
 
-      {:ok, %{status: status}} when status >= 500 ->
+      {:ok, %{status: status, body: body}} when status >= 500 ->
+        log_scrapingant_failure(uri, browser?, status, body)
         {:error, :scrapingant_unavailable}
 
-      {:ok, _} ->
+      {:ok, %{status: status, body: body}} ->
+        log_scrapingant_failure(uri, browser?, status, body)
         {:error, :scrapingant_request_failed}
 
-      {:error, _reason} ->
+      {:error, reason} ->
+        require Logger
+
+        Logger.warning("[scrapingant] network error host=#{uri.host} browser=#{browser?} reason=#{inspect(reason)}")
         {:error, :scrapingant_network_error}
     end
+  end
+
+  defp body_to_html_string(body) when is_binary(body), do: String.trim(body)
+
+  defp body_to_html_string(body) when is_map(body) do
+    case Map.get(body, "content") || Map.get(body, "html") do
+      value when is_binary(value) -> String.trim(value)
+      _ -> body |> Jason.encode!() |> String.trim()
+    end
+  end
+
+  defp body_to_html_string(_), do: ""
+
+  defp log_scrapingant_failure(uri, browser?, status, body) do
+    require Logger
+
+    preview =
+      body
+      |> body_to_html_string()
+      |> String.slice(0, 200)
+
+    Logger.warning(
+      "[scrapingant] request failed host=#{uri.host} browser=#{browser?} status=#{status} preview=#{inspect(preview)}"
+    )
   end
 
   def html_to_listing_text(html) when is_binary(html) do

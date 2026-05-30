@@ -94,6 +94,7 @@ export interface ListingTableRowProps {
     | { outcome: "error"; message: string }
   >
   onQuickReparseDetected: (listing: Imovel, changes: FieldChange[]) => void
+  displayTitle: string
 }
 
 function formatNumber(value: number | null, suffix = "") {
@@ -270,6 +271,7 @@ function ListingTableRowInner({
   openEditListing,
   onQuickReparseRequest,
   onQuickReparseDetected,
+  displayTitle,
 }: ListingTableRowProps) {
   const [tipoImovelPopoverOpen, setTipoImovelPopoverOpen] = useState(false)
   const [contactPopoverOpen, setContactPopoverOpen] = useState(false)
@@ -539,6 +541,7 @@ function ListingTableRowInner({
                               </Tooltip>
                               <ListingTitleLinks
                                 listing={imovel}
+                                displayTitle={displayTitle}
                                 collectionId={activeCollectionId}
                               />
                             </div>
@@ -1396,7 +1399,8 @@ function listingTableRowPropsAreEqual(
     prev.openImageModal === next.openImageModal &&
     prev.openEditListing === next.openEditListing &&
     prev.onQuickReparseRequest === next.onQuickReparseRequest &&
-    prev.onQuickReparseDetected === next.onQuickReparseDetected
+    prev.onQuickReparseDetected === next.onQuickReparseDetected &&
+    prev.displayTitle === next.displayTitle
   )
 }
 

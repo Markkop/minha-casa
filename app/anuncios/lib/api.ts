@@ -63,6 +63,7 @@ export interface Collection {
 export interface Imovel {
   id: string
   titulo: string
+  tituloManual?: string | null
   endereco: string
   bairro?: string | null
   cidade?: string | null
@@ -140,6 +141,7 @@ export function toImovel(apiListing: ApiListing): Imovel {
   return {
     id: apiListing.id,
     titulo: apiListing.data.titulo,
+    tituloManual: apiListing.data.tituloManual,
     endereco: apiListing.data.endereco,
     bairro: apiListing.data.bairro,
     cidade: apiListing.data.cidade,
@@ -192,6 +194,7 @@ export function toListingData(imovel: Partial<Imovel>): Partial<ListingData> {
   const data: Partial<ListingData> = {}
 
   if (imovel.titulo !== undefined) data.titulo = imovel.titulo
+  if (imovel.tituloManual !== undefined) data.tituloManual = imovel.tituloManual
   if (imovel.endereco !== undefined) data.endereco = imovel.endereco
   if (imovel.bairro !== undefined) data.bairro = imovel.bairro
   if (imovel.cidade !== undefined) data.cidade = imovel.cidade
@@ -362,6 +365,20 @@ export async function copyCollection(
  */
 export async function fetchListings(collectionId: string): Promise<Imovel[]> {
   const response = await fetch(`/api/collections/${collectionId}/listings`)
+  const data = await handleResponse<{ listings: ApiListing[] }>(response)
+  return data.listings.map(toImovel)
+}
+
+/**
+ * Regenerate auto titles for every listing in a collection.
+ */
+export async function syncCollectionListingTitles(
+  collectionId: string
+): Promise<Imovel[]> {
+  const response = await fetch(
+    `/api/collections/${collectionId}/sync-listing-titles`,
+    { method: "POST" }
+  )
   const data = await handleResponse<{ listings: ApiListing[] }>(response)
   return data.listings.map(toImovel)
 }

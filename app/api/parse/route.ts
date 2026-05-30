@@ -4,6 +4,7 @@ import OpenAI from "openai"
 import { responsesJson, responsesVisionJson } from "@/lib/openai-responses"
 import { scrapeUrlPage, ScrapingAntError } from "@/lib/scrapingant"
 import type { ListingData } from "@/lib/db/schema"
+import { applyGeneratedTitlesToListingData } from "@/lib/listing-display-title"
 
 export const maxDuration = 60
 
@@ -12,7 +13,7 @@ export const maxDuration = 60
 // ============================================================================
 
 interface ParsedListingData {
-  titulo: string
+  titulo?: string | null
   endereco: string
   bairro: string | null
   cidade: string | null
@@ -98,7 +99,17 @@ async function proxyParseToBackend(
       ? await response.json().catch(() => ({ error: "Invalid backend response" }))
       : { error: await response.text().catch(() => "Invalid backend response") }
 
-    return NextResponse.json(payload, { status: response.status })
+    const enriched =
+      response.ok && payload && typeof payload === "object" && "listings" in payload
+        ? {
+            ...payload,
+            listings: applyGeneratedTitlesToListingData(
+              (payload as { listings: ListingData[] }).listings
+            ),
+          }
+        : payload
+
+    return NextResponse.json(enriched, { status: response.status })
   } catch (error) {
     console.error("[parse] backend proxy failed", { backendUrl, error })
     return NextResponse.json(
@@ -116,12 +127,11 @@ const SYSTEM_PROMPT = `Você é um especialista em extrair dados estruturados de
 
 Dado um texto de anúncio de imóvel (pode vir de sites como ZAP, OLX, VivaReal, QuintoAndar, etc.), extraia os seguintes dados:
 
-1. **titulo**: Título ou descrição principal do imóvel
-2. **endereco**: Endereço completo ou localização (bairro, cidade)
-3. **bairro**: Bairro quando explícito ou inferível com alta confiança
-4. **cidade**: Cidade quando explícita ou inferível com alta confiança
-5. **m2Totais**: Área total do imóvel em metros quadrados (pode aparecer como "área total", "terreno", etc.)
-6. **m2Privado**: Área privativa/útil em metros quadrados (pode aparecer como "área útil", "área privativa", etc.)
+1. **endereco**: Endereço completo ou localização (bairro, cidade)
+2. **bairro**: Bairro quando explícito ou inferível com alta confiança
+3. **cidade**: Cidade quando explícita ou inferível com alta confiança
+4. **m2Totais**: Área total do imóvel em metros quadrados (pode aparecer como "área total", "terreno", etc.)
+5. **m2Privado**: Área privativa/útil em metros quadrados (pode aparecer como "área útil", "área privativa", etc.)
 7. **quartos**: Número de quartos/dormitórios
 8. **suites**: Número de suítes
 9. **banheiros**: Número de banheiros
@@ -173,7 +183,6 @@ Responda APENAS com o JSON, sem explicações adicionais.
 
 Exemplo de resposta (um imóvel):
 {
-  "titulo": "Casa 3 quartos no Campeche",
   "endereco": "Campeche, Florianópolis - SC",
   "bairro": "Campeche",
   "cidade": "Florianópolis",
@@ -200,8 +209,8 @@ Exemplo de resposta (um imóvel):
 Exemplo de resposta (vários imóveis):
 {
   "listings": [
-    { "titulo": "Casa 3 quartos no Campeche", "endereco": "Campeche, Florianópolis - SC", "preco": 1500000, "quartos": 3 },
-    { "titulo": "Apartamento 2 quartos Centro", "endereco": "Centro, Florianópolis - SC", "preco": 650000, "quartos": 2 }
+    { "endereco": "Campeche, Florianópolis - SC", "bairro": "Campeche", "preco": 1500000, "quartos": 3, "tipoImovel": "casa" },
+    { "endereco": "Centro, Florianópolis - SC", "bairro": "Centro", "preco": 650000, "quartos": 2, "tipoImovel": "apartamento" }
   ]
 }`
 
@@ -285,10 +294,9 @@ function logParseSuccess(kind: string, listingCount: number, durationMs: number)
 }
 
 function isValidParsedListing(parsed: ParsedListingData): boolean {
-  const hasTitulo = Boolean(parsed.titulo?.trim())
   const hasEndereco = Boolean(parsed.endereco?.trim())
   const hasPreco = parsed.preco != null && parsed.preco > 0
-  return hasTitulo || hasEndereco || hasPreco
+  return hasEndereco || hasPreco
 }
 
 function normalizeParseResponse(parsed: unknown): ListingData[] {
@@ -310,14 +318,14 @@ function normalizeParseResponse(parsed: unknown): ListingData[] {
     if (listings.length === 0) {
       throw new Error("INVALID_AI_JSON")
     }
-    return listings
+    return applyGeneratedTitlesToListingData(listings)
   }
 
   const single = buildListingData(parsed as ParsedListingData)
   if (!isValidParsedListing(parsed as ParsedListingData)) {
     throw new Error("INVALID_AI_JSON")
   }
-  return [single]
+  return applyGeneratedTitlesToListingData([single])
 }
 
 function computeMaxTokens(inputLength: number, isVision: boolean): number {
@@ -332,7 +340,7 @@ function computeMaxTokens(inputLength: number, isVision: boolean): number {
 
 function buildListingData(parsed: ParsedListingData): ListingData {
   return {
-    titulo: parsed.titulo || "Sem título",
+    titulo: "",
     endereco: parsed.endereco || "Endereço não informado",
     bairro: parsed.bairro,
     cidade: parsed.cidade,

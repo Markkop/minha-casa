@@ -31,6 +31,7 @@ import type { Imovel } from "@/app/anuncios/lib/api"
 import { resolveShareListingImages } from "@/lib/listing-images"
 import { FaWhatsapp } from "react-icons/fa"
 import type { ListingData } from "@/lib/db/schema"
+import { buildListingDisplayTitles, resolveListingDisplayTitle } from "@/lib/listing-display-title"
 import { PageToolbarButton } from "@/app/components/page-toolbar"
 import { ListingsDisplayPopover } from "@/app/anuncios/components/listings-display-popover"
 import {
@@ -315,6 +316,11 @@ export function ShareClient({ token }: ShareClientProps) {
     () => getEnabledMetricVariants(propertyDisplay),
     [propertyDisplay]
   )
+
+  const displayTitles = useMemo(() => {
+    if (!data?.listings?.length) return new Map<string, string>()
+    return buildListingDisplayTitles(data.listings)
+  }, [data?.listings])
 
   useEffect(() => {
     const fetchData = async () => {
@@ -713,6 +719,10 @@ export function ShareClient({ token }: ShareClientProps) {
                                 </span>
                                 <ListingTitleLinks
                                   listing={imovel}
+                                  displayTitle={resolveListingDisplayTitle(
+                                    imovel,
+                                    displayTitles
+                                  )}
                                   collectionId={data?.collection.id}
                                 />
                               </div>

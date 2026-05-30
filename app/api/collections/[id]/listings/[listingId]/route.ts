@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "@/lib/auth-server"
 import { getDb, collections, listings, organizationMembers, type ListingData } from "@/lib/db"
 import { eq, and } from "drizzle-orm"
+import { persistCollectionListingTitulos } from "@/lib/sync-collection-listing-titulos"
+import { listingTitleRegenFieldChanged } from "@/lib/listing-display-title"
 
 interface RouteParams {
   params: Promise<{ id: string; listingId: string }>
@@ -184,6 +186,15 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       .set({ data: updatedData })
       .where(eq(listings.id, listingId))
       .returning()
+
+    if (listingTitleRegenFieldChanged(data)) {
+      await persistCollectionListingTitulos(id)
+      const [refreshed] = await db
+        .select()
+        .from(listings)
+        .where(eq(listings.id, listingId))
+      return NextResponse.json({ listing: refreshed ?? updatedListing })
+    }
 
     return NextResponse.json({ listing: updatedListing })
   } catch (error) {

@@ -76,5 +76,21 @@ defmodule MinhaCasaAiWeb.ParseController do
   defp map_error(:scrapingant_unauthorized),
     do: {:service_unavailable, "Chave da API de extração inválida ou sem permissão."}
 
+  defp map_error(:scrapingant_unavailable),
+    do: {:bad_gateway, "Serviço de extração temporariamente indisponível. Tente novamente."}
+
+  defp map_error(:scrapingant_network_error),
+    do: {:bad_gateway, "Falha de rede ao buscar o anúncio. Tente novamente."}
+
+  defp map_error(:scrapingant_request_failed),
+    do:
+      {:bad_gateway,
+       "Não foi possível acessar o link do anúncio. Verifique a URL ou cole o texto do anúncio."}
+
+  defp map_error(:portal_blocked),
+    do:
+      {:bad_request,
+       "O site bloqueou a extração automática. Cole o texto do anúncio ou use captura de tela."}
+
   defp map_error(reason), do: {:internal_server_error, "Failed to parse listing: #{reason}"}
 end

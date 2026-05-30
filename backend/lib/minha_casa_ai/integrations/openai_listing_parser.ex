@@ -67,28 +67,34 @@ defmodule MinhaCasaAi.Integrations.OpenAIListingParser do
       |> Enum.filter(&valid_listing?/1)
       |> Enum.map(&build_listing/1)
       |> Enum.take(@max_listings)
+      |> MinhaCasaAi.Listings.DisplayTitle.apply_to_listings()
 
     if normalized == [], do: {:error, :invalid_ai_json}, else: {:ok, normalized}
   end
 
   defp decode_listings_map(listing) when is_map(listing) do
-    if valid_listing?(listing),
-      do: {:ok, [build_listing(listing)]},
-      else: {:error, :invalid_ai_json}
+    if valid_listing?(listing) do
+      [built] =
+        [build_listing(listing)]
+        |> MinhaCasaAi.Listings.DisplayTitle.apply_to_listings()
+
+      {:ok, [built]}
+    else
+      {:error, :invalid_ai_json}
+    end
   end
 
   defp decode_listings_map(_), do: {:error, :invalid_ai_json}
 
   defp valid_listing?(listing) when is_map(listing) do
-    present?(listing["titulo"]) || present?(listing["endereco"]) ||
-      positive_number?(listing["preco"])
+    present?(listing["endereco"]) || positive_number?(listing["preco"])
   end
 
   defp valid_listing?(_), do: false
 
   defp build_listing(parsed) do
     %{
-      "titulo" => parsed["titulo"] || "Sem título",
+      "titulo" => "",
       "endereco" => parsed["endereco"] || "Endereço não informado",
       "bairro" => parsed["bairro"],
       "cidade" => parsed["cidade"],

@@ -104,35 +104,25 @@ describe("scrapeUrlPage", () => {
     expect(vi.mocked(fetch)).toHaveBeenCalledTimes(1)
   })
 
-  it("retries with browser=true on JS-heavy portals when first scrape is short", async () => {
+  it("uses only browser=false on JS-heavy portals (no browser retry for listings)", async () => {
     const shortHtml = "<html><body>x</body></html>"
-    const longHtml =
-      "<html><body><h1>Apartamento</h1>" +
-      "a".repeat(MIN_SCRAPED_PAGE_TEXT_LENGTH) +
-      "</body></html>"
 
-    vi.mocked(fetch)
-      .mockResolvedValueOnce(
-        new Response(shortHtml, {
-          status: 200,
-          headers: { "Content-Type": "text/html" },
-        })
-      )
-      .mockResolvedValueOnce(
-        new Response(longHtml, {
-          status: 200,
-          headers: { "Content-Type": "text/html" },
-        })
-      )
-
-    const result = await scrapeUrlPage(
-      "https://www.vivareal.com.br/imovel/apartamento-venda"
+    vi.mocked(fetch).mockResolvedValueOnce(
+      new Response(shortHtml, {
+        status: 200,
+        headers: { "Content-Type": "text/html" },
+      })
     )
 
-    expect(result.text).toContain("Apartamento")
-    expect(vi.mocked(fetch)).toHaveBeenCalledTimes(2)
+    await expect(
+      scrapeUrlPage("https://www.vivareal.com.br/imovel/apartamento-venda")
+    ).rejects.toMatchObject({
+      statusCode: 400,
+      message: expect.stringContaining("conteúdo suficiente"),
+    })
+
+    expect(vi.mocked(fetch)).toHaveBeenCalledTimes(1)
     expect(String(vi.mocked(fetch).mock.calls[0][0])).toContain("browser=false")
-    expect(String(vi.mocked(fetch).mock.calls[1][0])).toContain("browser=true")
   })
 
   it("detects JS-heavy listing portals", () => {

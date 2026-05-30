@@ -216,7 +216,7 @@ function MarkerInfoContent({
   customLoc, 
   onResetLocation 
 }: MarkerInfoContentProps) {
-  const { activeCollection } = useCollections()
+  const { activeCollection, getListingDisplayTitle } = useCollections()
 
   return (
     <div className="text-sm min-w-[200px] max-w-[280px]">
@@ -237,6 +237,7 @@ function MarkerInfoContent({
       <h3 className="mb-1 font-bold text-gray-900">
         <ListingTitleLinks
           listing={listing}
+          displayTitle={getListingDisplayTitle(listing)}
           collectionId={activeCollection?.id}
           maxTitleLength={80}
           titleClassName="hover:text-blue-600"

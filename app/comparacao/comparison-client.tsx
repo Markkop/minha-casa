@@ -718,10 +718,10 @@ function ComparisonSlotHeader({
           )}
           <div className="min-w-0 flex-1">
             {listing ? (
-              <div className="flex min-w-0 items-start gap-1">
+              <div className="flex min-w-0 max-w-full items-start gap-1">
                 <Link
                   href={buildListingAnaliseHref(listing.id, collectionId)}
-                  className="min-w-0 flex-1 text-xs font-semibold leading-snug text-white line-clamp-2 hover:underline"
+                  className="min-w-0 shrink text-xs font-semibold leading-snug text-white line-clamp-2 hover:underline"
                 >
                   {formatShortListingName(listing)}
                 </Link>

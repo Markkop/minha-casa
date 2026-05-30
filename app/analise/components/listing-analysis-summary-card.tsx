@@ -46,14 +46,9 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
+import { useCollections } from "@/app/anuncios/lib/use-collections"
 
 const METRIC_VARIANTS = new Set(["total", "privado"] as const)
-
-function truncateTitle(title: string, wordCount = 5) {
-  const words = title.trim().split(/\s+/).filter(Boolean)
-  if (words.length <= wordCount) return title.trim()
-  return `${words.slice(0, wordCount).join(" ")}...`
-}
 
 function MetricCell({
   label,
@@ -88,6 +83,8 @@ export function ListingAnalysisSummaryCard({
   updateListing,
   removeListing,
 }: ListingAnalysisSummaryCardProps) {
+  const { getListingDisplayTitle } = useCollections()
+  const displayTitle = getListingDisplayTitle(listing)
   const [copiedMarkdown, setCopiedMarkdown] = useState(false)
   const amenityItems = useMemo(() => buildListingAmenityItems(listing), [listing])
   const status = getListingStatus(listing)
@@ -138,7 +135,7 @@ export function ListingAnalysisSummaryCard({
   const whatsappUrl = buildWhatsAppUrl(listing.contactNumber)
   const mapsUrl = listing.endereco ? buildGoogleMapsUrl(listing.endereco) : null
   const googleSearchUrl = buildGoogleSearchUrl(
-    listing.titulo,
+    displayTitle,
     listing.endereco,
     listing.m2Totais,
     listing.quartos,
@@ -187,9 +184,9 @@ export function ListingAnalysisSummaryCard({
                   "min-w-0 flex-1 text-lg font-semibold leading-snug text-app-fg transition-colors hover:underline",
                   listing.strikethrough && "line-through opacity-50"
                 )}
-                title={listing.titulo}
+                title={displayTitle}
               >
-                {truncateTitle(listing.titulo)}
+                {displayTitle}
               </a>
             ) : (
               <h2
@@ -197,9 +194,8 @@ export function ListingAnalysisSummaryCard({
                   "min-w-0 flex-1 text-lg font-semibold leading-snug text-app-fg",
                   listing.strikethrough && "line-through opacity-50"
                 )}
-                title={listing.titulo}
               >
-                {truncateTitle(listing.titulo)}
+                {displayTitle}
               </h2>
             )}
           </div>

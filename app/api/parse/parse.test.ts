@@ -258,7 +258,7 @@ describe("Parse API - POST /api/parse", () => {
 
     expect(response.status).toBe(200)
     expect(json.listings).toHaveLength(1)
-    expect(json.listings[0].titulo).toBe("Casa 3 quartos no Campeche")
+    expect(json.listings[0].titulo).toBe("Casa com 3 quartos em Campeche")
     expect(json.listings[0].endereco).toBe("Campeche, Florianópolis - SC")
     expect(json.listings[0].bairro).toBe("Campeche")
     expect(json.listings[0].cidade).toBe("Florianópolis")
@@ -349,7 +349,7 @@ describe("Parse API - POST /api/parse", () => {
 
     expect(response.status).toBe(200)
     expect(json.listings).toHaveLength(1)
-    expect(json.listings[0].titulo).toBe("Sem título")
+    expect(json.listings[0].titulo).toBe("Imóvel com 2 quartos em Sem local")
     expect(json.listings[0].endereco).toBe("Endereço não informado")
     expect(json.listings[0].quartos).toBe(2)
   })
@@ -409,7 +409,7 @@ describe("Parse API - POST /api/parse", () => {
 
     expect(response.status).toBe(200)
     expect(json.listings).toHaveLength(1)
-    expect(json.listings[0].titulo).toBe("Casa 3 quartos no Campeche")
+    expect(json.listings[0].titulo).toBe("Casa com 3 quartos em Campeche")
   })
 
   it("parses multiple listings when AI returns listings array", async () => {
@@ -442,8 +442,9 @@ describe("Parse API - POST /api/parse", () => {
 
     expect(response.status).toBe(200)
     expect(json.listings).toHaveLength(2)
-    expect(json.listings[0].titulo).toBe("Casa 3 quartos no Campeche")
-    expect(json.listings[1].titulo).toBe("Apartamento Centro")
+    expect(json.listings[0].titulo).toBe("Casa com 3 quartos em Campeche")
+    expect(json.listings[1].titulo).toContain("Apartamento")
+    expect(json.listings[1].titulo).toContain("2 quartos")
     expect(json.listings[1].tipoImovel).toBe("apartamento")
   })
 
@@ -491,6 +492,6 @@ describe("Parse API - POST /api/parse", () => {
 
     expect(response.status).toBe(200)
     expect(json.listings).toHaveLength(1)
-    expect(json.listings[0].titulo).toBe("Apartamento Centro")
+    expect(json.listings[0].titulo).toMatch(/Apartamento com 2 quartos em/)
   })
 })

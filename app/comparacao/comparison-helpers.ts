@@ -1,4 +1,5 @@
 import type { Imovel } from "@/app/anuncios/lib/api"
+import { resolveListingDisplayTitle } from "@/lib/listing-display-title"
 
 export const COMPARISON_LABEL_COL_WIDTH_PX = 104
 export const COMPARISON_SLOT_COL_WIDTH_PX = 198
@@ -219,10 +220,23 @@ export function getVisibleComparisonExtraRows(
   )
 }
 
-export function formatShortListingName(listing: Pick<Imovel, "tipoImovel" | "bairro" | "titulo">): string {
-  const type = listing.tipoImovel === "apartamento" ? "Apto" : listing.tipoImovel === "casa" ? "Casa" : null
-  if (type && listing.bairro) return `${type} · ${listing.bairro}`
-  return listing.titulo
+export function formatShortListingName(
+  listing: Pick<
+    Imovel,
+    | "tipoImovel"
+    | "bairro"
+    | "titulo"
+    | "tituloManual"
+    | "quartos"
+    | "endereco"
+    | "cidade"
+    | "preco"
+    | "m2Totais"
+    | "andar"
+    | "condominiumName"
+  >
+): string {
+  return resolveListingDisplayTitle(listing)
 }
 
 export type ComparisonFixedRowKey =

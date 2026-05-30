@@ -330,6 +330,8 @@ export type ListingImageCategoryKey =
 
 export interface ListingData {
   titulo: string
+  /** When set, auto title generation is skipped; titulo mirrors this value. */
+  tituloManual?: string | null
   endereco: string
   bairro?: string | null
   cidade?: string | null

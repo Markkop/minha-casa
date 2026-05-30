@@ -5,11 +5,15 @@ import { Download, FolderOpen, Upload } from "lucide-react"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { useCollections } from "../lib/use-collections"
-import { createListing as apiCreateListing } from "../lib/api"
+import {
+  createListing as apiCreateListing,
+  syncCollectionListingTitles,
+} from "../lib/api"
 import { CollectionDestinationPicker } from "./collection-destination-picker"
 import { ModalCloseButton, ModalHeaderTitle, LoadingLabel } from "./modal-chrome"
 import { cn } from "@/lib/utils"
 import type { ListingData } from "@/lib/db/schema"
+import { applyGeneratedTitlesToListingData } from "@/lib/listing-display-title"
 
 interface ImportModalProps {
   isOpen: boolean
@@ -191,16 +195,23 @@ export function ImportModal({
           }
         }
 
-        // Import all listings
-        for (const listing of validListings) {
-          const listingData = parseListingData(listing)
-          
+        const parsedBatch = applyGeneratedTitlesToListingData(
+          validListings.map((listing) => parseListingData(listing))
+        )
+
+        let usedDirectApi = false
+        for (const listingData of parsedBatch) {
           if (collectionId === activeCollection?.id) {
             await addListing(listingData)
           } else {
             await apiCreateListing(collectionId, listingData)
+            usedDirectApi = true
           }
           totalImported++
+        }
+
+        if (usedDirectApi) {
+          await syncCollectionListingTitles(collectionId)
         }
 
         // If importing to existing collection, set it as target
