@@ -9,6 +9,10 @@ import {
 } from "@/components/ui/tooltip"
 import { buildListingAnaliseHref } from "@/lib/listing-analise-url"
 import { cn } from "@/lib/utils"
+import {
+  LISTING_MOBILE_ICON_BTN_CLASS,
+  LISTING_MOBILE_ICON_CLASS,
+} from "@/app/anuncios/components/listings-table-shared"
 
 export function truncateListingTitle(title: string, maxLength = 50) {
   if (title.length <= maxLength) return title
@@ -31,6 +35,12 @@ interface ListingTitleLinksProps {
   titleClassName?: string
   maxTitleLength?: number
   showExternalIcon?: boolean
+  /** White text/icons for text on top of a photo (mobile card). */
+  overlayOnMedia?: boolean
+  /** Full title with line breaks; no ellipsis. */
+  wrapTitle?: boolean
+  /** When false, show full title on one line without CSS ellipsis. */
+  truncateTitle?: boolean
 }
 
 export function ListingTitleLinks({
@@ -41,19 +51,39 @@ export function ListingTitleLinks({
   titleClassName,
   maxTitleLength = 50,
   showExternalIcon = true,
+  overlayOnMedia = false,
+  wrapTitle = false,
+  truncateTitle = true,
 }: ListingTitleLinksProps) {
   const resolvedTitle = displayTitleProp ?? listing.titulo
-  const displayTitle = truncateListingTitle(resolvedTitle, maxTitleLength)
+  const displayTitle =
+    wrapTitle || !truncateTitle
+      ? resolvedTitle
+      : truncateListingTitle(resolvedTitle, maxTitleLength)
   const analiseHref = buildListingAnaliseHref(listing.id, collectionId)
   const hasExternalLink =
     showExternalIcon && typeof listing.link === "string" && listing.link.trim() !== ""
 
   return (
-    <span className={cn("flex min-w-0 max-w-full flex-1 items-center gap-1", className)}>
+    <span
+      className={cn(
+        "flex min-w-0 max-w-full gap-1",
+        wrapTitle ? "items-start" : "flex-1 items-center",
+        className
+      )}
+    >
       <Link
         href={analiseHref}
         className={cn(
-          "min-w-0 shrink truncate font-medium leading-snug text-app-fg transition-colors hover:text-app-accent",
+          "font-medium transition-colors",
+          wrapTitle
+            ? "block min-w-0 whitespace-normal break-words leading-tight"
+            : !truncateTitle
+              ? "min-w-0 whitespace-nowrap leading-snug"
+              : "min-w-0 shrink truncate leading-snug",
+          overlayOnMedia
+            ? "text-white hover:text-white/90"
+            : "text-app-fg hover:text-app-accent",
           listing.strikethrough && "line-through opacity-50",
           titleClassName
         )}
@@ -69,13 +99,18 @@ export function ListingTitleLinks({
               target="_blank"
               rel="noopener noreferrer"
               className={cn(
-                "shrink-0 rounded p-1 text-muted-foreground transition-colors hover:text-app-accent",
-                listing.strikethrough && "opacity-50"
+                overlayOnMedia
+                  ? cn(LISTING_MOBILE_ICON_BTN_CLASS, "text-white/80 hover:text-white")
+                  : "shrink-0 rounded p-1 text-muted-foreground transition-colors hover:text-app-accent",
+                !overlayOnMedia && listing.strikethrough && "opacity-50",
+                overlayOnMedia && listing.strikethrough && "opacity-50"
               )}
               aria-label="Abrir anúncio original"
               onClick={(event) => event.stopPropagation()}
             >
-              <ExternalLink className="h-3.5 w-3.5" />
+              <ExternalLink
+                className={overlayOnMedia ? LISTING_MOBILE_ICON_CLASS : "h-3.5 w-3.5"}
+              />
             </a>
           </TooltipTrigger>
           <TooltipContent

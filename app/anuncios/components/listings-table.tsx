@@ -66,6 +66,7 @@ import {
 } from "@/app/anuncios/lib/listings-display-prefs"
 import { buildListingsMarkdown } from "@/app/anuncios/lib/listing-markdown"
 import { ListingTableRow } from "./listing-table-row"
+import { ListingMobileCard } from "./listing-mobile-card"
 import type { ImageColumnView, ListingsTableColumn } from "./listings-table-shared"
 import {
   buildParseRequestFromFile,
@@ -731,6 +732,103 @@ function PendingAddTableRow({
         </TableCell>
       )}
     </TableRow>
+  )
+}
+
+function PendingAddMobileRow({
+  row,
+  onConfirmDuplicate,
+  onReject,
+  onRetry,
+  onToggleReviewItem,
+  onSelectAllReview,
+  onDeselectAllReview,
+  onImportReview,
+}: {
+  row: PendingAddRow
+  onConfirmDuplicate: (rowId: string) => void
+  onReject: (rowId: string) => void
+  onRetry: (rowId: string) => void
+  onToggleReviewItem: (rowId: string, index: number) => void
+  onSelectAllReview: (rowId: string) => void
+  onDeselectAllReview: (rowId: string) => void
+  onImportReview: (rowId: string) => void
+}) {
+  const duplicateReasonLabel =
+    row.status === "duplicate"
+      ? formatDuplicateReason(row.duplicateCandidates?.[0]?.reason ?? row.message)
+      : null
+
+  return (
+    <article className="border-b border-app-border bg-app-action/5 px-3 py-3">
+      {row.status === "review" && row.reviewItems ? (
+        <ParserReviewList
+          items={row.reviewItems}
+          onToggle={(index) => onToggleReviewItem(row.id, index)}
+          onSelectAll={() => onSelectAllReview(row.id)}
+          onDeselectAll={() => onDeselectAllReview(row.id)}
+          onImport={() => onImportReview(row.id)}
+          onCancel={() => onReject(row.id)}
+        />
+      ) : row.status === "duplicate" ? (
+        <div className="space-y-2">
+          <div className="flex items-center gap-2">
+            <TriangleAlert className="h-4 w-4 shrink-0 text-muted-foreground" />
+            <span className="font-medium text-app-fg">Possível duplicado</span>
+          </div>
+          {duplicateReasonLabel ? (
+            <p className="text-xs text-app-muted">Motivo: {duplicateReasonLabel}</p>
+          ) : null}
+          <p className="text-xs text-app-muted">
+            <button
+              type="button"
+              onClick={() => onConfirmDuplicate(row.id)}
+              className="cursor-pointer font-medium text-emerald-700 hover:underline"
+            >
+              Aceitar
+            </button>
+            {" ou "}
+            <button
+              type="button"
+              onClick={() => onReject(row.id)}
+              className="cursor-pointer font-medium text-destructive hover:underline"
+            >
+              Rejeitar
+            </button>
+          </p>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          <div className="flex items-center gap-2">
+            {row.status === "processing" || row.status === "saving" ? (
+              <Loader2 className="h-4 w-4 animate-spin text-app-accent" />
+            ) : null}
+            <span className="font-medium text-app-fg">
+              {row.status === "error" ? "Erro ao adicionar" : "Processando..."}
+            </span>
+          </div>
+          <p className="text-xs text-app-muted">{row.message || "Verificando..."}</p>
+          {row.status === "error" && (
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => onRetry(row.id)}
+                className="inline-flex h-7 items-center justify-center rounded bg-app-action px-3 text-xs font-medium text-app-action-foreground hover:bg-app-action-hover"
+              >
+                Tentar
+              </button>
+              <button
+                type="button"
+                onClick={() => onReject(row.id)}
+                className="inline-flex h-7 items-center justify-center rounded border border-app-border px-3 text-xs font-medium text-app-muted hover:text-app-fg"
+              >
+                Dispensar
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+    </article>
   )
 }
 
@@ -1738,7 +1836,45 @@ export function ListingsTable({ listings, hasApiKey = true }: ListingsTableProps
             </p>
           </div>
         ) : (
-          <Table>
+          <>
+          <div className="divide-y divide-app-border md:hidden" data-testid="listings-mobile-list">
+            {pendingAddRows.map((row) => (
+              <PendingAddMobileRow
+                key={row.id}
+                row={row}
+                onConfirmDuplicate={handleConfirmDuplicate}
+                onReject={removePendingRow}
+                onRetry={handleRetryPending}
+                onToggleReviewItem={handleToggleReviewItem}
+                onSelectAllReview={handleSelectAllReview}
+                onDeselectAllReview={handleDeselectAllReview}
+                onImportReview={handleImportReview}
+              />
+            ))}
+            {filteredAndSortedListings.map((imovel) => (
+              <ListingMobileCard
+                key={imovel.id}
+                imovel={imovel}
+                visibleColumns={visibleColumns}
+                imageColumnView={imageColumnView}
+                enabledMetricVariants={enabledMetricVariants}
+                propertyDisplay={propertyDisplay}
+                activeMetricVariant={activeMetricVariant}
+                uniqueContacts={uniqueContacts}
+                hasOtherCollections={hasOtherCollections}
+                collections={collections}
+                activeCollectionId={activeCollection?.id ?? null}
+                updateListing={apiUpdateListing}
+                removeListing={apiRemoveListing}
+                openImageModal={openImageModal}
+                openEditListing={openEditListing}
+                onQuickReparseRequest={handleQuickReparseRequest}
+                onQuickReparseDetected={handleQuickReparseDetected}
+                displayTitle={getListingDisplayTitle(imovel)}
+              />
+            ))}
+          </div>
+          <Table className="hidden md:table" data-testid="listings-desktop-table">
               <TableHeader>
                 <TableRow className="border-app-border hover:bg-transparent">
                   {visibleColumns.image && (
@@ -1851,6 +1987,7 @@ export function ListingsTable({ listings, hasApiKey = true }: ListingsTableProps
                 ))}
               </TableBody>
             </Table>
+          </>
         )}
       </div>
 

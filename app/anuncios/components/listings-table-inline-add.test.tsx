@@ -1,6 +1,6 @@
 "use client"
 
-import { fireEvent, render, screen, waitFor } from "@testing-library/react"
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react"
 import { memo } from "react"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { ListingsTable } from "./listings-table"
@@ -32,6 +32,7 @@ vi.mock("../lib/use-collections", () => ({
     addListing: mocks.addListing,
     updateListing: mocks.updateListing,
     removeListing: mocks.removeListing,
+    getListingDisplayTitle: (listing: Imovel) => listing.titulo,
   }),
 }))
 
@@ -50,6 +51,12 @@ vi.mock("./image-modal", () => ({
 
 vi.mock("./quick-reparse-modal", () => ({
   QuickReparseModal: () => null,
+}))
+
+vi.mock("./listing-mobile-card", () => ({
+  ListingMobileCard: memo(function MockListingMobileCard({ imovel }: { imovel: Imovel }) {
+    return <div data-testid={`mobile-${imovel.id}`} />
+  }),
 }))
 
 vi.mock("./listing-table-row", () => ({
@@ -125,6 +132,14 @@ function parsedListing(overrides: Partial<ListingData> = {}): ListingData {
   }
 }
 
+function mobileList() {
+  return within(screen.getByTestId("listings-mobile-list"))
+}
+
+function desktopTable() {
+  return within(screen.getByTestId("listings-desktop-table"))
+}
+
 function mockClipboard(text = "") {
   Object.defineProperty(navigator, "clipboard", {
     configurable: true,
@@ -182,7 +197,7 @@ describe("ListingsTable inline add flow", () => {
     fireEvent.click(screen.getByLabelText("Adicionar da área de transferência"))
 
     await waitFor(() => expect(clipboard.readText).toHaveBeenCalled())
-    expect(await screen.findByText("Processando...")).toBeInTheDocument()
+    expect(await mobileList().findByText("Processando...")).toBeInTheDocument()
     const addInput = screen.queryByPlaceholderText("Cole link, texto ou arquivo aqui...")
     expect(addInput).toHaveValue("")
 
@@ -247,7 +262,7 @@ describe("ListingsTable inline add flow", () => {
     fireEvent.change(addInput, { target: { value: "example.com/ad" } })
     fireEvent.keyDown(addInput, { key: "Enter" })
 
-    expect(await screen.findByText("Processando...")).toBeInTheDocument()
+    expect(await mobileList().findByText("Processando...")).toBeInTheDocument()
     resolveParse([data])
     await waitFor(() => {
       expect(mocks.parseListingInput).toHaveBeenCalledWith({
@@ -272,8 +287,8 @@ describe("ListingsTable inline add flow", () => {
     fireEvent.change(addInput, { target: { value: "https://example.com/existing" } })
     fireEvent.click(screen.getByLabelText("Enviar imóvel"))
 
-    expect(await screen.findByText("Possível duplicado")).toBeInTheDocument()
-    expect(screen.getByText("Motivo: mesmo link")).toBeInTheDocument()
+    expect(await mobileList().findByText("Possível duplicado")).toBeInTheDocument()
+    expect(mobileList().getByText("Motivo: mesmo link")).toBeInTheDocument()
     expect(mocks.checkDuplicateCandidates).toHaveBeenCalledWith(
       "collection-1",
       expect.objectContaining({ link: "https://example.com/existing" })
@@ -305,10 +320,10 @@ describe("ListingsTable inline add flow", () => {
     fireEvent.change(addInput, { target: { value: "Texto do anúncio" } })
     fireEvent.click(screen.getByLabelText("Enviar imóvel"))
 
-    expect(await screen.findByText("Possível duplicado")).toBeInTheDocument()
-    expect(screen.getByText("Motivo: mesmo link")).toBeInTheDocument()
-    expect(screen.getByText("R$ 750.000")).toBeInTheDocument()
-    expect(screen.getByText("120 m²")).toBeInTheDocument()
+    expect(await mobileList().findByText("Possível duplicado")).toBeInTheDocument()
+    expect(mobileList().getByText("Motivo: mesmo link")).toBeInTheDocument()
+    expect(desktopTable().getByText("R$ 750.000")).toBeInTheDocument()
+    expect(desktopTable().getByText("120 m²")).toBeInTheDocument()
     expect(screen.getByLabelText("Aceitar imóvel duplicado")).toBeInTheDocument()
     expect(screen.getByLabelText("Rejeitar imóvel duplicado")).toBeInTheDocument()
     expect(screen.queryByLabelText("Confirmar imóvel duplicado")).not.toBeInTheDocument()
@@ -330,11 +345,10 @@ describe("ListingsTable inline add flow", () => {
     fireEvent.change(addInput, { target: { value: "Dois anúncios" } })
     fireEvent.keyDown(addInput, { key: "Enter" })
 
-    expect(await screen.findByText("2 imóveis encontrados")).toBeInTheDocument()
-    expect(screen.getByText("Casa A")).toBeInTheDocument()
-    expect(screen.getByText("Casa B")).toBeInTheDocument()
+    expect(await mobileList().findByText("2 imóveis encontrados")).toBeInTheDocument()
+    expect(mobileList().getByRole("button", { name: "Importar (2)" })).toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole("button", { name: "Importar (2)" }))
+    fireEvent.click(mobileList().getByRole("button", { name: "Importar (2)" }))
 
     await waitFor(() => {
       expect(mocks.addListing).toHaveBeenCalledTimes(2)

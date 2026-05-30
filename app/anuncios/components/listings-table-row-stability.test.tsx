@@ -29,6 +29,7 @@ vi.mock("../lib/use-collections", () => ({
     activeCollection: mocks.collection,
     updateListing: mocks.updateListing,
     removeListing: mocks.removeListing,
+    getListingDisplayTitle: (listing: Imovel) => listing.titulo,
   }),
 }))
 
@@ -42,6 +43,12 @@ vi.mock("./image-modal", () => ({
 
 vi.mock("./quick-reparse-modal", () => ({
   QuickReparseModal: () => null,
+}))
+
+vi.mock("./listing-mobile-card", () => ({
+  ListingMobileCard: memo(function MockListingMobileCard({ imovel }: { imovel: Imovel }) {
+    return <div data-testid={`mobile-${imovel.id}`} />
+  }),
 }))
 
 vi.mock("./listing-table-row", () => ({

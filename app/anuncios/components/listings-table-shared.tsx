@@ -58,7 +58,7 @@ export function isStrikethroughStatus(status: ListingStatus): boolean {
   return STRIKETHROUGH_STATUSES.has(status)
 }
 
-const LISTING_THUMB_SIZE_CLASS = "h-20 w-20 flex-shrink-0 aspect-square"
+export const LISTING_THUMB_SIZE_CLASS = "h-20 w-20 flex-shrink-0 aspect-square"
 
 export type TipoImovelValue = "casa" | "apartamento" | null
 
@@ -100,7 +100,15 @@ export const ROW_ACTIONS_WIDTH = "w-[148px]"
 export const ROW_ACTION_BTN_CLASS = "flex-shrink-0 p-0.5 transition-colors"
 export const ROW_ACTION_ICON_CLASS = "h-3.5 w-3.5"
 
-function ListingImageIngestionProgressBar() {
+/** Mobile listing card: edge inset (matches image overlays) and compact toolbars. */
+export const LISTING_MOBILE_EDGE_INSET_CLASS = "p-1"
+export const LISTING_MOBILE_ROW_GAP_CLASS = "gap-0.5"
+export const LISTING_MOBILE_TOOLBAR_GAP_CLASS = "gap-0.5"
+export const LISTING_MOBILE_ICON_BTN_CLASS =
+  "flex h-6 w-6 shrink-0 items-center justify-center transition-colors"
+export const LISTING_MOBILE_ICON_CLASS = "h-3.5 w-3.5 shrink-0 stroke-[1.5]"
+
+export function ListingImageIngestionProgressBar() {
   return (
     <div
       className="pointer-events-none absolute inset-x-0 bottom-0 z-20 flex flex-col overflow-hidden rounded-b border-t border-app-border bg-app-surface-muted"
@@ -125,8 +133,9 @@ function ListingImageIngestingThumbnail({
   imovel: Imovel
   onOpenImageModal: () => void
 }) {
+  const thumbClass = LISTING_THUMB_SIZE_CLASS
   return (
-    <div className={cn("relative z-10", LISTING_THUMB_SIZE_CLASS)}>
+    <div className={cn("relative z-10", thumbClass)}>
       <button
         type="button"
         onClick={onOpenImageModal}
@@ -139,8 +148,8 @@ function ListingImageIngestingThumbnail({
           fallback={
             <div
               className={cn(
-                "flex items-center justify-center bg-app-surface-muted",
-                LISTING_THUMB_SIZE_CLASS
+                "flex h-full w-full items-center justify-center bg-app-surface-muted",
+                thumbClass
               )}
             >
               <Home className="h-3 w-3 text-app-subtle" />
@@ -162,6 +171,7 @@ function ListingImageColumnCell({
   view: ImageColumnView
   onOpenImageModal: () => void
 }) {
+  const thumbClass = LISTING_THUMB_SIZE_CLASS
   const ingesting = isListingImageIngesting(imovel.imageIngestionStatus)
   const hasImage = Boolean(imovel.imageUrl)
   const [imageLoading, setImageLoading] = useState(Boolean(imovel.imageUrl))
@@ -182,8 +192,8 @@ function ListingImageColumnCell({
       type="button"
       onClick={onOpenImageModal}
       className={cn(
-        "flex items-center justify-center rounded border border-app-border bg-app-bg cursor-pointer hover:opacity-80 transition-opacity",
-        LISTING_THUMB_SIZE_CLASS
+        "flex h-full w-full items-center justify-center rounded border border-app-border bg-app-bg cursor-pointer hover:opacity-80 transition-opacity",
+        thumbClass
       )}
       title="Clique para ver/editar imagem"
     >
@@ -193,13 +203,16 @@ function ListingImageColumnCell({
 
   if (ingesting) {
     return (
-      <ListingImageIngestingThumbnail imovel={imovel} onOpenImageModal={onOpenImageModal} />
+      <ListingImageIngestingThumbnail
+        imovel={imovel}
+        onOpenImageModal={onOpenImageModal}
+      />
     )
   }
 
   if (view === "map") {
     return (
-      <div className={cn("relative z-10", LISTING_THUMB_SIZE_CLASS)}>
+      <div className={cn("relative z-10", thumbClass)}>
         <ListingLocationMiniMap
           listing={imovel}
           variant="thumbnail"
@@ -220,7 +233,7 @@ function ListingImageColumnCell({
         <div
           className={cn(
             "relative overflow-hidden rounded border border-app-border",
-            LISTING_THUMB_SIZE_CLASS
+            thumbClass
           )}
         >
           {imageLoading && (

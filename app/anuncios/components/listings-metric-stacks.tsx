@@ -203,3 +203,126 @@ export function PricePerM2Stack({
     />
   )
 }
+
+function isDimmedVariant(
+  label: MetricVariant,
+  activeVariant: MetricVariant | null | undefined,
+  emphasizeWhenSorted: boolean
+) {
+  return (
+    emphasizeWhenSorted &&
+    activeVariant !== null &&
+    activeVariant !== undefined &&
+    activeVariant !== label
+  )
+}
+
+function MobileMetricPair({
+  area,
+  pricePerM2,
+  variant,
+  activeVariant,
+  emphasizeWhenSorted,
+}: {
+  area: number | null
+  pricePerM2: number | null
+  variant: MetricVariant
+  activeVariant?: MetricVariant | null
+  emphasizeWhenSorted: boolean
+}) {
+  const dimmed = isDimmedVariant(variant, activeVariant, emphasizeWhenSorted)
+  return (
+    <span
+      className={cn(
+        "whitespace-nowrap tabular-nums transition-opacity",
+        dimmed && "opacity-35"
+      )}
+    >
+      {formatM2Value(area)}{" "}
+      <span className="text-app-muted">({formatPrecoM2Value(pricePerM2)})</span>
+    </span>
+  )
+}
+
+export function ListingMobileMetricRow({
+  area,
+  pricePerM2,
+  variant,
+  activeVariant,
+  emphasizeWhenSorted = false,
+  className,
+  "data-testid": dataTestId,
+}: {
+  area: number | null
+  pricePerM2: number | null
+  variant: MetricVariant
+  activeVariant?: MetricVariant | null
+  emphasizeWhenSorted?: boolean
+  className?: string
+  "data-testid"?: string
+}) {
+  return (
+    <div
+      data-testid={dataTestId}
+      className={cn(
+        "flex items-center leading-none font-mono text-xs text-app-fg",
+        className
+      )}
+    >
+      <MobileMetricPair
+        area={area}
+        pricePerM2={pricePerM2}
+        variant={variant}
+        activeVariant={activeVariant}
+        emphasizeWhenSorted={emphasizeWhenSorted}
+      />
+    </div>
+  )
+}
+
+export function ListingMobileMetricsLine({
+  m2Totais,
+  m2Privado,
+  precoM2Total,
+  precoM2Privado,
+  activeVariant,
+  enabledVariants,
+  emphasizeWhenSorted = false,
+  className,
+}: {
+  m2Totais: number | null
+  m2Privado: number | null
+  precoM2Total: number | null
+  precoM2Privado: number | null
+  activeVariant?: MetricVariant | null
+  enabledVariants: Set<MetricVariant>
+  emphasizeWhenSorted?: boolean
+  className?: string
+}) {
+  const showTotal = enabledVariants.has("total")
+  const showPrivado = enabledVariants.has("privado")
+
+  const pairs: { variant: MetricVariant; area: number | null; price: number | null }[] = []
+  if (showTotal) pairs.push({ variant: "total", area: m2Totais, price: precoM2Total })
+  if (showPrivado) pairs.push({ variant: "privado", area: m2Privado, price: precoM2Privado })
+
+  if (pairs.length === 0) return null
+
+  return (
+    <div
+      data-testid="listing-mobile-metrics"
+      className={cn("flex flex-col gap-2 font-mono text-xs leading-snug text-app-fg", className)}
+    >
+      {pairs.map((pair) => (
+        <MobileMetricPair
+          key={pair.variant}
+          area={pair.area}
+          pricePerM2={pair.price}
+          variant={pair.variant}
+          activeVariant={activeVariant}
+          emphasizeWhenSorted={emphasizeWhenSorted}
+        />
+      ))}
+    </div>
+  )
+}
