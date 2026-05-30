@@ -40,6 +40,8 @@ export interface CollectionExportData {
     imageUrl?: string | null
     imageUrls?: string[] | null
     imageStorageKeys?: string[] | null
+    imageCoverIndex?: number | null
+    imageCategories?: Record<string, string> | null
     imageIngestionStatus?: string | null
     imageIngestionError?: string | null
     contactName?: string | null

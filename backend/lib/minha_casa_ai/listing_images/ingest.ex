@@ -1,7 +1,6 @@
 defmodule MinhaCasaAi.ListingImages.Ingest do
   alias MinhaCasaAi.Integrations.ScrapingAnt
   alias MinhaCasaAi.ListingImages.Storage
-  alias MinhaCasaAi.ListingImages.VisualAnalysis
   alias MinhaCasaAi.Listings
   alias MinhaCasaAi.Listings.Listing
   alias MinhaCasaAi.Repo
@@ -46,7 +45,7 @@ defmodule MinhaCasaAi.ListingImages.Ingest do
                 {:error, :no_images_found}
 
               true ->
-                {keys, paths, visual_analysis} = download_and_store(listing_id, urls)
+                {keys, paths} = download_and_store(listing_id, urls)
 
                 if keys == [] do
                   mark_failed(
@@ -57,7 +56,7 @@ defmodule MinhaCasaAi.ListingImages.Ingest do
 
                   {:error, :download_failed}
                 else
-                  persist_success(collection_id, listing_id, keys, paths, visual_analysis)
+                  persist_success(collection_id, listing_id, keys, paths)
                   :ok
                 end
             end
@@ -73,7 +72,7 @@ defmodule MinhaCasaAi.ListingImages.Ingest do
     end
   end
 
-  defp top_image_urls(urls, og_url \\ nil) when is_list(urls) do
+  defp top_image_urls(urls, og_url) when is_list(urls) do
     sorted = Enum.sort_by(urls, &ScrapingAnt.image_url_score/1, :desc)
 
     ordered =
@@ -98,10 +97,10 @@ defmodule MinhaCasaAi.ListingImages.Ingest do
   defp normalize_og_url(_), do: nil
 
   defp download_and_store(listing_id, urls) do
-    {keys, paths, visual_entries} =
+    {keys, paths} =
       urls
       |> Enum.with_index()
-      |> Enum.reduce({[], [], []}, fn {url, _source_index}, {keys, paths, entries} ->
+      |> Enum.reduce({[], []}, fn {url, _source_index}, {keys, paths} ->
         case download_image(url) do
           {:ok, bytes, content_type} ->
             gallery_index = length(keys)
@@ -110,23 +109,19 @@ defmodule MinhaCasaAi.ListingImages.Ingest do
               {:ok, key} ->
                 {
                   keys ++ [key],
-                  paths ++ [build_image_path(listing_id, gallery_index)],
-                  entries ++ [%{index: gallery_index, bytes: bytes}]
+                  paths ++ [build_image_path(listing_id, gallery_index)]
                 }
 
               {:error, _} ->
-                {keys, paths, entries}
+                {keys, paths}
             end
 
           :error ->
-            {keys, paths, entries}
+            {keys, paths}
         end
       end)
 
-    visual_analysis =
-      VisualAnalysis.analyze_images(visual_entries, count: length(keys), cover_index: 0)
-
-    {keys, paths, visual_analysis}
+    {keys, paths}
   end
 
   defp download_image(url) when is_binary(url) do
@@ -191,31 +186,25 @@ defmodule MinhaCasaAi.ListingImages.Ingest do
   end
 
   @doc false
-  def success_updates(keys, paths, visual_analysis \\ nil) do
+  def success_updates(keys, paths) do
     %{
       "imageStorageKeys" => keys,
       "imageUrls" => paths,
       "imageUrl" => List.first(paths),
       "imageCoverIndex" => 0,
+      "imageCategories" => nil,
       "imageIngestionStatus" => "ready",
       "imageIngestionError" => nil
     }
-    |> maybe_put_visual_analysis(visual_analysis)
   end
 
-  defp persist_success(collection_id, listing_id, keys, paths, visual_analysis) do
+  defp persist_success(collection_id, listing_id, keys, paths) do
     Listings.update_listing(
       collection_id,
       listing_id,
-      success_updates(keys, paths, visual_analysis)
+      success_updates(keys, paths)
     )
   end
-
-  defp maybe_put_visual_analysis(updates, %{"schemaVersion" => 1} = visual_analysis) do
-    Map.put(updates, "imageVisualAnalysis", visual_analysis)
-  end
-
-  defp maybe_put_visual_analysis(updates, _), do: updates
 
   @doc false
   def compact_download_indexes_for_test(urls, download_fun, store_fun)

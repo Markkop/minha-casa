@@ -22,6 +22,7 @@ function AnaliseClientInner() {
     listings,
     activeCollection,
     isLoadingListings,
+    updateListing,
   } = useCollections()
 
   const sortedListings = useMemo(
@@ -72,6 +73,7 @@ function AnaliseClientInner() {
               listing={selectedListing}
               collectionId={activeCollection.id}
               orgId={orgId}
+              updateListing={updateListing}
             />
             <DeepAnalysisPanel listing={selectedListing} orgId={orgId} />
           </>

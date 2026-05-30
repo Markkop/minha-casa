@@ -33,13 +33,7 @@ export interface Imovel {
   imageUrls?: string[] | null
   imageStorageKeys?: string[] | null
   imageCoverIndex?: number | null
-  imageVisualAnalysis?: {
-    schemaVersion: 1
-    engine: string
-    generatedAt: string
-    order: number[]
-    features: Array<Record<string, unknown>>
-  } | null
+  imageCategories?: Record<string, ListingImageCategoryKey> | null
   imageIngestionStatus?: string | null
   imageIngestionError?: string | null
   contactName?: string | null
@@ -58,6 +52,13 @@ export interface Imovel {
   sitePublishedAt?: string | null
   siteUpdatedAt?: string | null
 }
+
+export type ListingImageCategoryKey =
+  | `quarto-${number}`
+  | `banheiro-${number}`
+  | "sala"
+  | "fachada"
+  | "areaExterna"
 
 export interface Collection {
   id: string
@@ -791,6 +792,8 @@ const KEY_MAP: Record<string, string> = {
   link: "lk",
   imageUrl: "iu",
   imageUrls: "ius",
+  imageCoverIndex: "ici",
+  imageCategories: "ict",
   contactName: "cn",
   contactNumber: "cnu",
   condominiumName: "con",
@@ -913,6 +916,8 @@ const IMOVEL_KEYS_ORDER: (keyof Imovel)[] = [
   "link",
   "imageUrl",
   "imageUrls",
+  "imageCoverIndex",
+  "imageCategories",
   "contactName",
   "contactNumber",
   "condominiumName",

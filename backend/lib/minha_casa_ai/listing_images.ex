@@ -10,7 +10,8 @@ defmodule MinhaCasaAi.ListingImages do
     user_id = Keyword.get(opts, :user_id)
     org_id = Keyword.get(opts, :org_id)
 
-    with {:ok, %Listing{}} <- Listings.get_listing(collection_id, listing_id, user_id: user_id, org_id: org_id),
+    with {:ok, %Listing{}} <-
+           Listings.get_listing(collection_id, listing_id, user_id: user_id, org_id: org_id),
          {:ok, _} <- mark_pending(collection_id, listing_id, overwrite) do
       args = %{
         "listing_id" => listing_id,
@@ -25,7 +26,8 @@ defmodule MinhaCasaAi.ListingImages do
     end
   end
 
-  def serve_image(listing_id, index) when is_binary(listing_id) and is_integer(index) and index >= 0 do
+  def serve_image(listing_id, index)
+      when is_binary(listing_id) and is_integer(index) and index >= 0 do
     with %Listing{data: data} <- Repo.get(Listing, listing_id),
          keys when is_list(keys) <- Map.get(data || %{}, "imageStorageKeys", []),
          key when is_binary(key) <- Enum.at(keys, index),
@@ -55,7 +57,9 @@ defmodule MinhaCasaAi.ListingImages do
     Map.merge(updates, %{
       "imageStorageKeys" => [],
       "imageUrls" => [],
-      "imageUrl" => nil
+      "imageUrl" => nil,
+      "imageCoverIndex" => nil,
+      "imageCategories" => nil
     })
   end
 

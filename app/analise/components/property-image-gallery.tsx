@@ -3,19 +3,25 @@
 /* eslint-disable @next/next/no-img-element */
 
 import { useCallback, useEffect, useMemo, useState } from "react"
-import { ChevronLeft, ChevronRight, X } from "lucide-react"
+import { ChevronLeft, ChevronRight, Star, X } from "lucide-react"
 import type { Imovel } from "@/app/anuncios/lib/api"
 import { resolveListingImages } from "@/lib/listing-images"
+import type { ListingImageCategoryKey } from "@/lib/db/schema"
 import { cn } from "@/lib/utils"
 
 interface PropertyImageGalleryProps {
   listing: Imovel
+  updateListing?: (listingId: string, updates: Partial<Imovel>) => Promise<Imovel>
 }
 
 interface GalleryImage {
   url: string
   originalIndex: number
 }
+
+type CategorySelectValue = ListingImageCategoryKey | "none"
+
+const CATEGORY_ORDER = ["quarto", "banheiro", "sala", "fachada", "areaExterna"] as const
 
 function normalizeCoverIndex(index: number | null | undefined, length: number) {
   return typeof index === "number" &&
@@ -26,43 +32,68 @@ function normalizeCoverIndex(index: number | null | undefined, length: number) {
     : 0
 }
 
-function resolveVisualOrder(
-  order: number[] | null | undefined,
-  length: number
-): number[] | null {
-  if (!Array.isArray(order) || order.length !== length) return null
+function positiveCount(value: number | null | undefined) {
+  return typeof value === "number" && Number.isFinite(value) && value > 0
+    ? Math.trunc(value)
+    : 0
+}
 
-  const seen = new Set<number>()
-  for (const index of order) {
-    if (
-      !Number.isInteger(index) ||
-      index < 0 ||
-      index >= length ||
-      seen.has(index)
-    ) {
-      return null
-    }
-    seen.add(index)
+function buildCategoryOptions(listing: Imovel) {
+  const quartos = Array.from({ length: positiveCount(listing.quartos) }, (_, index) => ({
+    value: `quarto-${index + 1}` as ListingImageCategoryKey,
+    label: `Quarto ${index + 1}`,
+  }))
+  const banheiros = Array.from({ length: positiveCount(listing.banheiros) }, (_, index) => ({
+    value: `banheiro-${index + 1}` as ListingImageCategoryKey,
+    label: `Banheiro ${index + 1}`,
+  }))
+
+  return [
+    { value: "none" as const, label: "Sem categoria" },
+    ...quartos,
+    ...banheiros,
+    { value: "sala" as const, label: "Sala" },
+    { value: "fachada" as const, label: "Fachada" },
+    { value: "areaExterna" as const, label: "Área externa" },
+  ]
+}
+
+function categorySortTuple(category: ListingImageCategoryKey | undefined) {
+  if (!category) return [CATEGORY_ORDER.length, 0] as const
+  if (category.startsWith("quarto-")) {
+    return [0, Number(category.slice("quarto-".length)) || 0] as const
   }
-
-  return order
+  if (category.startsWith("banheiro-")) {
+    return [1, Number(category.slice("banheiro-".length)) || 0] as const
+  }
+  const rank = CATEGORY_ORDER.indexOf(category as (typeof CATEGORY_ORDER)[number])
+  return [rank >= 0 ? rank : CATEGORY_ORDER.length, 0] as const
 }
 
 function resolveGalleryImages(
   imageUrls: string[],
-  order: number[] | null | undefined
+  coverIndex: number,
+  categories: Record<string, ListingImageCategoryKey> | null | undefined
 ): GalleryImage[] {
-  const visualOrder =
-    resolveVisualOrder(order, imageUrls.length) ??
-    imageUrls.map((_url, index) => index)
+  if (imageUrls.length === 0) return []
 
-  return visualOrder.map((originalIndex) => ({
+  const originalOrder = imageUrls.map((_url, index) => index)
+  const cover = normalizeCoverIndex(coverIndex, imageUrls.length)
+  const rest = originalOrder
+    .filter((index) => index !== cover)
+    .sort((left, right) => {
+      const [leftRank, leftOrdinal] = categorySortTuple(categories?.[String(left)])
+      const [rightRank, rightOrdinal] = categorySortTuple(categories?.[String(right)])
+      return leftRank - rightRank || leftOrdinal - rightOrdinal || left - right
+    })
+
+  return [cover, ...rest].map((originalIndex) => ({
     originalIndex,
     url: imageUrls[originalIndex],
   }))
 }
 
-export function PropertyImageGallery({ listing }: PropertyImageGalleryProps) {
+export function PropertyImageGallery({ listing, updateListing }: PropertyImageGalleryProps) {
   const { imageUrls } = useMemo(
     () =>
       resolveListingImages({
@@ -70,33 +101,37 @@ export function PropertyImageGallery({ listing }: PropertyImageGalleryProps) {
         imageUrl: listing.imageUrl,
         imageUrls: listing.imageUrls,
         imageStorageKeys: listing.imageStorageKeys,
+        imageCoverIndex: listing.imageCoverIndex,
       }),
-    [listing.id, listing.imageStorageKeys, listing.imageUrl, listing.imageUrls]
+    [
+      listing.id,
+      listing.imageCoverIndex,
+      listing.imageStorageKeys,
+      listing.imageUrl,
+      listing.imageUrls,
+    ]
   )
   const coverIndex = normalizeCoverIndex(listing.imageCoverIndex, imageUrls.length)
   const galleryImages = useMemo(
-    () => resolveGalleryImages(imageUrls, listing.imageVisualAnalysis?.order),
-    [imageUrls, listing.imageVisualAnalysis?.order]
+    () => resolveGalleryImages(imageUrls, coverIndex, listing.imageCategories),
+    [coverIndex, imageUrls, listing.imageCategories]
   )
-  const coverDisplayIndex = Math.max(
-    galleryImages.findIndex((image) => image.originalIndex === coverIndex),
-    0
-  )
-  const [selectedIndex, setSelectedIndex] = useState(coverDisplayIndex)
+  const [selectedOriginalIndex, setSelectedOriginalIndex] = useState(coverIndex)
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null)
+  const [isSaving, setIsSaving] = useState(false)
 
   const close = useCallback(() => setLightboxIndex(null), [])
 
   useEffect(() => {
-    setSelectedIndex(coverDisplayIndex)
+    setSelectedOriginalIndex(coverIndex)
     setLightboxIndex(null)
-  }, [coverDisplayIndex, listing.id])
+  }, [coverIndex, listing.id])
 
   useEffect(() => {
-    if (selectedIndex >= galleryImages.length) {
-      setSelectedIndex(Math.max(galleryImages.length - 1, 0))
+    if (!galleryImages.some((image) => image.originalIndex === selectedOriginalIndex)) {
+      setSelectedOriginalIndex(galleryImages[0]?.originalIndex ?? 0)
     }
-  }, [galleryImages.length, selectedIndex])
+  }, [galleryImages, selectedOriginalIndex])
 
   useEffect(() => {
     if (lightboxIndex === null) return
@@ -113,38 +148,119 @@ export function PropertyImageGallery({ listing }: PropertyImageGalleryProps) {
     return () => window.removeEventListener("keydown", onKey)
   }, [lightboxIndex, galleryImages.length, close])
 
+  const categoryOptions = useMemo(() => buildCategoryOptions(listing), [listing])
+
+  const selectedDisplayIndex = Math.max(
+    galleryImages.findIndex((image) => image.originalIndex === selectedOriginalIndex),
+    0
+  )
+  const selectedImage = galleryImages[selectedDisplayIndex]
+
+  const persistListingUpdate = async (updates: Partial<Imovel>) => {
+    if (!updateListing) return
+    setIsSaving(true)
+    try {
+      await updateListing(listing.id, updates)
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  const handleSetCover = () => {
+    if (!selectedImage || selectedImage.originalIndex === coverIndex) return
+    void persistListingUpdate({ imageCoverIndex: selectedImage.originalIndex })
+  }
+
+  const handleCategoryChange = (value: CategorySelectValue) => {
+    if (!selectedImage) return
+    const next = { ...(listing.imageCategories ?? {}) }
+    const key = String(selectedImage.originalIndex)
+
+    if (value === "none") {
+      delete next[key]
+    } else {
+      next[key] = value
+    }
+
+    void persistListingUpdate({
+      imageCategories: Object.keys(next).length > 0 ? next : null,
+    })
+  }
+
   if (imageUrls.length === 0) {
     return (
       <p className="text-sm text-app-muted">Sem imagens para este imóvel.</p>
     )
   }
 
-  const selectedDisplayIndex = galleryImages[selectedIndex] ? selectedIndex : 0
-  const selectedImage = galleryImages[selectedDisplayIndex]
   const selectedImageNumber = selectedImage.originalIndex + 1
+  const selectedCategory = listing.imageCategories?.[String(selectedImage.originalIndex)]
+  const selectedCategoryValue: CategorySelectValue = selectedCategory ?? "none"
+  const isCover = selectedImage.originalIndex === coverIndex
 
   return (
     <>
       <div className="space-y-2">
-        <button
-          type="button"
-          onClick={() => setLightboxIndex(selectedDisplayIndex)}
-          className="relative aspect-[4/3] w-full overflow-hidden rounded-md border border-app-border bg-app-bg"
-          aria-label={`Abrir imagem ${selectedImageNumber}`}
-        >
-          <img
-            src={selectedImage.url}
-            alt={`Foto ${selectedImageNumber} do imóvel`}
-            className="h-full w-full object-cover"
-          />
-        </button>
+        <div className="relative aspect-[4/3] w-full overflow-hidden rounded-md border border-app-border bg-app-bg">
+          <button
+            type="button"
+            onClick={() => setLightboxIndex(selectedDisplayIndex)}
+            className="h-full w-full"
+            aria-label={`Abrir imagem ${selectedImageNumber}`}
+          >
+            <img
+              src={selectedImage.url}
+              alt={`Foto ${selectedImageNumber} do imóvel`}
+              className="h-full w-full object-cover"
+            />
+          </button>
+
+          <div className="absolute right-2 top-2 flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handleSetCover}
+              disabled={isSaving || isCover || !updateListing}
+              className={cn(
+                "inline-flex h-8 items-center gap-1 rounded-md border px-2 text-xs font-medium shadow-sm backdrop-blur",
+                isCover
+                  ? "border-amber-300 bg-amber-100/90 text-amber-950"
+                  : "border-white/30 bg-black/55 text-white hover:bg-black/70",
+                (isSaving || !updateListing) && "cursor-not-allowed opacity-70"
+              )}
+              aria-label={
+                isCover
+                  ? `Imagem ${selectedImageNumber} é a capa`
+                  : `Definir imagem ${selectedImageNumber} como capa`
+              }
+            >
+              <Star className={cn("size-3.5", isCover && "fill-current")} />
+              {isCover ? "Capa" : "Capa"}
+            </button>
+
+            <select
+              value={selectedCategoryValue}
+              onChange={(event) =>
+                handleCategoryChange(event.target.value as CategorySelectValue)
+              }
+              disabled={isSaving || !updateListing}
+              aria-label={`Categoria da imagem ${selectedImageNumber}`}
+              className="h-8 max-w-40 rounded-md border border-white/30 bg-black/55 px-2 text-xs font-medium text-white shadow-sm backdrop-blur hover:bg-black/70 disabled:cursor-not-allowed disabled:opacity-70"
+            >
+              {categoryOptions.map((option) => (
+                <option key={option.value} value={option.value} className="bg-app-surface text-app-fg">
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
 
         <div className="flex gap-2 overflow-x-auto pb-1">
           {galleryImages.map((image, index) => (
             <button
               key={`${image.url}-${image.originalIndex}`}
               type="button"
-              onClick={() => setSelectedIndex(index)}
+              onClick={() => setSelectedOriginalIndex(image.originalIndex)}
               className={cn(
                 "relative h-16 w-20 shrink-0 overflow-hidden rounded-md border bg-app-surface transition",
                 index === selectedDisplayIndex

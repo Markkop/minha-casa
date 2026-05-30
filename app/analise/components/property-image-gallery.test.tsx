@@ -1,7 +1,7 @@
 "use client"
 
-import { fireEvent, render, screen, within } from "@testing-library/react"
-import { describe, expect, it } from "vitest"
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react"
+import { describe, expect, it, vi } from "vitest"
 import type { Imovel } from "@/app/anuncios/lib/api"
 import { PropertyImageGallery } from "./property-image-gallery"
 
@@ -37,7 +37,7 @@ function listing(overrides: Partial<Imovel> = {}): Imovel {
     imageUrls,
     imageStorageKeys: null,
     imageCoverIndex: null,
-    imageVisualAnalysis: null,
+    imageCategories: null,
     imageIngestionStatus: null,
     imageIngestionError: null,
     starred: false,
@@ -48,9 +48,15 @@ function listing(overrides: Partial<Imovel> = {}): Imovel {
   }
 }
 
+function renderGallery(overrides: Partial<Imovel> = {}) {
+  const updateListing = vi.fn().mockResolvedValue(listing(overrides))
+  render(<PropertyImageGallery listing={listing(overrides)} updateListing={updateListing} />)
+  return { updateListing }
+}
+
 describe("PropertyImageGallery", () => {
   it("renders the first image as selected by default", () => {
-    render(<PropertyImageGallery listing={listing()} />)
+    renderGallery()
 
     expect(
       screen.getByRole("button", { name: "Abrir imagem 1" })
@@ -62,10 +68,16 @@ describe("PropertyImageGallery", () => {
     expect(
       screen.getByRole("button", { name: "Selecionar imagem 1" })
     ).toHaveAttribute("aria-current", "true")
+    expect(
+      screen.getByRole("button", { name: "Imagem 1 é a capa" })
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole("combobox", { name: "Categoria da imagem 1" })
+    ).toHaveValue("none")
   })
 
   it("changes the selected image when a thumbnail is clicked", () => {
-    render(<PropertyImageGallery listing={listing()} />)
+    renderGallery()
 
     fireEvent.click(screen.getByRole("button", { name: "Selecionar imagem 2" }))
 
@@ -82,7 +94,7 @@ describe("PropertyImageGallery", () => {
   })
 
   it("opens the lightbox at the selected image", () => {
-    render(<PropertyImageGallery listing={listing()} />)
+    renderGallery()
 
     fireEvent.click(screen.getByRole("button", { name: "Selecionar imagem 3" }))
     fireEvent.click(screen.getByRole("button", { name: "Abrir imagem 3" }))
@@ -96,7 +108,7 @@ describe("PropertyImageGallery", () => {
   })
 
   it("uses the cover image as the initial selected image", () => {
-    render(<PropertyImageGallery listing={listing({ imageCoverIndex: 2 })} />)
+    renderGallery({ imageCoverIndex: 2 })
 
     expect(
       screen.getByRole("button", { name: "Abrir imagem 3" })
@@ -110,21 +122,57 @@ describe("PropertyImageGallery", () => {
     ).toHaveAttribute("aria-current", "true")
   })
 
-  it("orders thumbnails by visual analysis while preserving original image labels", () => {
-    render(
-      <PropertyImageGallery
-        listing={listing({
-          imageCoverIndex: 2,
-          imageVisualAnalysis: {
-            schemaVersion: 1,
-            engine: "test",
-            generatedAt: "2026-01-01T00:00:00Z",
-            order: [2, 0, 1],
-            features: [],
-          },
-        })}
-      />
-    )
+  it("persists the selected image as cover", async () => {
+    const { updateListing } = renderGallery()
+
+    fireEvent.click(screen.getByRole("button", { name: "Selecionar imagem 2" }))
+    fireEvent.click(screen.getByRole("button", { name: "Definir imagem 2 como capa" }))
+
+    await waitFor(() => {
+      expect(updateListing).toHaveBeenCalledWith("listing-1", {
+        imageCoverIndex: 1,
+      })
+    })
+  })
+
+  it("persists the selected image category", async () => {
+    const { updateListing } = renderGallery()
+
+    fireEvent.click(screen.getByRole("button", { name: "Selecionar imagem 2" }))
+    fireEvent.change(screen.getByRole("combobox", { name: "Categoria da imagem 2" }), {
+      target: { value: "quarto-2" },
+    })
+
+    await waitFor(() => {
+      expect(updateListing).toHaveBeenCalledWith("listing-1", {
+        imageCategories: { "1": "quarto-2" },
+      })
+    })
+  })
+
+  it("removes the selected image category", async () => {
+    const { updateListing } = renderGallery({ imageCategories: { "1": "quarto-2" } })
+
+    fireEvent.click(screen.getByRole("button", { name: "Selecionar imagem 2" }))
+    fireEvent.change(screen.getByRole("combobox", { name: "Categoria da imagem 2" }), {
+      target: { value: "none" },
+    })
+
+    await waitFor(() => {
+      expect(updateListing).toHaveBeenCalledWith("listing-1", {
+        imageCategories: null,
+      })
+    })
+  })
+
+  it("orders thumbnails by cover and manual categories while preserving original image labels", () => {
+    renderGallery({
+      imageCoverIndex: 2,
+      imageCategories: {
+        "0": "banheiro-1",
+        "1": "quarto-1",
+      },
+    })
 
     const thumbnailLabels = screen
       .getAllByRole("button", { name: /Selecionar imagem/ })
@@ -132,28 +180,20 @@ describe("PropertyImageGallery", () => {
 
     expect(thumbnailLabels).toEqual([
       "Selecionar imagem 3",
-      "Selecionar imagem 1",
       "Selecionar imagem 2",
+      "Selecionar imagem 1",
     ])
     expect(
       screen.getByRole("button", { name: "Selecionar imagem 3" })
     ).toHaveAttribute("aria-current", "true")
   })
 
-  it("falls back to the original order when visual analysis order is invalid", () => {
-    render(
-      <PropertyImageGallery
-        listing={listing({
-          imageVisualAnalysis: {
-            schemaVersion: 1,
-            engine: "test",
-            generatedAt: "2026-01-01T00:00:00Z",
-            order: [2, 0],
-            features: [],
-          },
-        })}
-      />
-    )
+  it("places uncategorized images after categorized images", () => {
+    renderGallery({
+      imageCategories: {
+        "2": "sala",
+      },
+    })
 
     const thumbnailLabels = screen
       .getAllByRole("button", { name: /Selecionar imagem/ })
@@ -161,32 +201,25 @@ describe("PropertyImageGallery", () => {
 
     expect(thumbnailLabels).toEqual([
       "Selecionar imagem 1",
-      "Selecionar imagem 2",
       "Selecionar imagem 3",
+      "Selecionar imagem 2",
     ])
   })
 
-  it("navigates the lightbox by visual order", () => {
-    render(
-      <PropertyImageGallery
-        listing={listing({
-          imageCoverIndex: 2,
-          imageVisualAnalysis: {
-            schemaVersion: 1,
-            engine: "test",
-            generatedAt: "2026-01-01T00:00:00Z",
-            order: [2, 0, 1],
-            features: [],
-          },
-        })}
-      />
-    )
+  it("navigates the lightbox by manual order", () => {
+    renderGallery({
+      imageCoverIndex: 2,
+      imageCategories: {
+        "0": "banheiro-1",
+        "1": "quarto-1",
+      },
+    })
 
     fireEvent.click(screen.getByRole("button", { name: "Abrir imagem 3" }))
     fireEvent.click(screen.getByRole("button", { name: "Próxima" }))
 
     const dialog = screen.getByRole("dialog")
 
-    expect(dialog.querySelector("img")).toHaveAttribute("src", imageUrls[0])
+    expect(dialog.querySelector("img")).toHaveAttribute("src", imageUrls[1])
   })
 })

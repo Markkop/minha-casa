@@ -321,23 +321,12 @@ export const organizationAddons = pgTable(
 // ============================================================================
 // Listings
 // ============================================================================
-export interface ImageVisualFeature {
-  index: number
-  dhash: string
-  hashSizeBits?: number
-  dominantColor?: number[] | null
-  palette?: number[][] | null
-  width?: number | null
-  height?: number | null
-}
-
-export interface ImageVisualAnalysis {
-  schemaVersion: 1
-  engine: string
-  generatedAt: string
-  order: number[]
-  features: ImageVisualFeature[]
-}
+export type ListingImageCategoryKey =
+  | `quarto-${number}`
+  | `banheiro-${number}`
+  | "sala"
+  | "fachada"
+  | "areaExterna"
 
 export interface ListingData {
   titulo: string
@@ -364,7 +353,7 @@ export interface ListingData {
   imageUrls?: string[] | null
   imageStorageKeys?: string[] | null
   imageCoverIndex?: number | null
-  imageVisualAnalysis?: ImageVisualAnalysis | null
+  imageCategories?: Record<string, ListingImageCategoryKey> | null
   imageIngestionStatus?: "idle" | "pending" | "processing" | "ready" | "failed" | null
   imageIngestionError?: string | null
   contactName?: string | null

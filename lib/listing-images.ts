@@ -21,6 +21,20 @@ export function buildSharedListingImagePath(
   return `/api/shared/${token}/listings/${listingId}/images/${index}`
 }
 
+function normalizeCoverIndex(index: number | null | undefined, length: number): number {
+  return typeof index === "number" &&
+    Number.isInteger(index) &&
+    index >= 0 &&
+    index < length
+    ? index
+    : 0
+}
+
+function imageUrlForCover(urls: string[], coverIndex?: number | null): string | null {
+  if (urls.length === 0) return null
+  return urls[normalizeCoverIndex(coverIndex, urls.length)] ?? urls[0] ?? null
+}
+
 /**
  * Resolves image URLs for a public share view (token-scoped paths).
  */
@@ -31,6 +45,7 @@ export function resolveShareListingImages(
     imageUrl?: string | null
     imageUrls?: string[] | null
     imageStorageKeys?: string[] | null
+    imageCoverIndex?: number | null
   }
 ): { imageUrls: string[]; imageUrl: string | null } {
   const keys = (data.imageStorageKeys ?? []).filter(
@@ -41,7 +56,7 @@ export function resolveShareListingImages(
     const urls = keys.map((_, index) =>
       buildSharedListingImagePath(token, listingId, index)
     )
-    return { imageUrls: urls, imageUrl: urls[0] ?? null }
+    return { imageUrls: urls, imageUrl: imageUrlForCover(urls, data.imageCoverIndex) }
   }
 
   const fromList = (data.imageUrls ?? []).filter(
@@ -58,7 +73,10 @@ export function resolveShareListingImages(
       }
       return url
     })
-    return { imageUrls: rewritten, imageUrl: rewritten[0] ?? null }
+    return {
+      imageUrls: rewritten,
+      imageUrl: imageUrlForCover(rewritten, data.imageCoverIndex),
+    }
   }
 
   if (data.imageUrl?.trim()) {
@@ -98,6 +116,7 @@ export function resolveListingImages(data: {
   imageUrl?: string | null
   imageUrls?: string[] | null
   imageStorageKeys?: string[] | null
+  imageCoverIndex?: number | null
 }): { imageUrls: string[]; imageUrl: string | null } {
   const keys = (data.imageStorageKeys ?? []).filter(
     (key): key is string => typeof key === "string" && key.trim() !== ""
@@ -107,14 +126,14 @@ export function resolveListingImages(data: {
     const urls = keys.map((_, index) =>
       buildListingImagePath(data.listingId!, index)
     )
-    return { imageUrls: urls, imageUrl: urls[0] ?? null }
+    return { imageUrls: urls, imageUrl: imageUrlForCover(urls, data.imageCoverIndex) }
   }
 
   const fromList = (data.imageUrls ?? []).filter(
     (url): url is string => typeof url === "string" && url.trim() !== ""
   )
   if (fromList.length > 0) {
-    return { imageUrls: fromList, imageUrl: fromList[0] ?? null }
+    return { imageUrls: fromList, imageUrl: imageUrlForCover(fromList, data.imageCoverIndex) }
   }
   if (data.imageUrl?.trim()) {
     return {

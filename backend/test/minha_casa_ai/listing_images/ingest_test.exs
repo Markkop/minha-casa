@@ -76,25 +76,17 @@ defmodule MinhaCasaAi.ListingImages.IngestTest do
     end
   end
 
-  describe "success_updates/3" do
-    test "persists cover and visual analysis metadata" do
-      visual_analysis = %{
-        "schemaVersion" => 1,
-        "engine" => "test",
-        "generatedAt" => "2026-01-01T00:00:00Z",
-        "order" => [0, 1],
-        "features" => []
-      }
-
+  describe "success_updates/2" do
+    test "persists cover and clears manual categories without visual analysis metadata" do
       updates =
         Ingest.success_updates(
           ["listings/id/0.jpg", "listings/id/1.jpg"],
-          ["/api/listings/id/images/0", "/api/listings/id/images/1"],
-          visual_analysis
+          ["/api/listings/id/images/0", "/api/listings/id/images/1"]
         )
 
       assert updates["imageCoverIndex"] == 0
-      assert updates["imageVisualAnalysis"] == visual_analysis
+      assert updates["imageCategories"] == nil
+      refute Map.has_key?(updates, "imageVisualAnalysis")
       assert updates["imageIngestionStatus"] == "ready"
     end
   end

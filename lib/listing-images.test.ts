@@ -22,6 +22,19 @@ describe("resolveListingImages", () => {
     expect(result.imageUrl).toBe("https://a.com/1.jpg")
   })
 
+  it("uses the cover index as the resolved thumbnail", () => {
+    const result = resolveListingImages({
+      imageUrls: ["https://a.com/1.jpg", "https://a.com/2.jpg"],
+      imageCoverIndex: 1,
+    })
+
+    expect(result.imageUrls).toEqual([
+      "https://a.com/1.jpg",
+      "https://a.com/2.jpg",
+    ])
+    expect(result.imageUrl).toBe("https://a.com/2.jpg")
+  })
+
   it("falls back to imageUrl", () => {
     const result = resolveListingImages({
       imageUrl: "https://a.com/only.jpg",
@@ -34,21 +47,23 @@ describe("resolveListingImages", () => {
     const result = resolveListingImages({
       listingId: "abc-123",
       imageStorageKeys: ["listings/abc-123/0.jpg", "listings/abc-123/1.jpg"],
+      imageCoverIndex: 1,
     })
     expect(result.imageUrls).toEqual([
       "/api/listings/abc-123/images/0",
       "/api/listings/abc-123/images/1",
     ])
-    expect(result.imageUrl).toBe("/api/listings/abc-123/images/0")
+    expect(result.imageUrl).toBe("/api/listings/abc-123/images/1")
   })
 })
 
 describe("resolveShareListingImages", () => {
   it("uses token-scoped paths for storage keys", () => {
     const result = resolveShareListingImages("tok", "lid", {
-      imageStorageKeys: ["listings/lid/0.jpg"],
+      imageStorageKeys: ["listings/lid/0.jpg", "listings/lid/1.jpg"],
+      imageCoverIndex: 1,
     })
-    expect(result.imageUrl).toBe("/api/shared/tok/listings/lid/images/0")
+    expect(result.imageUrl).toBe("/api/shared/tok/listings/lid/images/1")
   })
 })
 

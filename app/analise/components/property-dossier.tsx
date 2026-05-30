@@ -58,16 +58,22 @@ interface PropertyDossierProps {
   listing: Imovel
   collectionId?: string | null
   orgId?: string | null
+  updateListing?: (listingId: string, updates: Partial<Imovel>) => Promise<Imovel>
 }
 
-export function PropertyDossier({ listing, collectionId, orgId }: PropertyDossierProps) {
+export function PropertyDossier({
+  listing,
+  collectionId,
+  orgId,
+  updateListing,
+}: PropertyDossierProps) {
   const area = listing.m2Privado ?? listing.m2Totais
 
   return (
     <div className="space-y-4">
       <div className="grid gap-4 lg:grid-cols-2">
         <WorkspacePanel className="p-3">
-          <PropertyImageGallery listing={listing} />
+          <PropertyImageGallery listing={listing} updateListing={updateListing} />
         </WorkspacePanel>
 
         <WorkspacePanel className="p-4">
