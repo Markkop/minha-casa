@@ -9,6 +9,11 @@ import {
   PageToolbar,
   PageToolbarStart,
 } from "@/app/components/page-toolbar"
+import {
+  WORKSPACE_CONTENT_CLASS,
+  WORKSPACE_STACK_CLASS,
+  WorkspaceLoadingState,
+} from "@/app/components/workspace-ui"
 import { useWorkspaceProfile } from "@/lib/workspace/use-workspace-profile"
 import { AnaliseQuerySync } from "./components/analise-query-sync"
 import { DeepAnalysisPanel } from "./components/deep-analysis-panel"
@@ -48,7 +53,7 @@ function AnaliseClientInner() {
   const toolbarCompact = Boolean(selectedListing)
 
   return (
-    <div className="min-h-[calc(100vh-var(--nav-height,3.5rem))] bg-app-bg text-app-fg">
+    <div className="min-h-[calc(100vh-var(--nav-height,2.75rem))] bg-app-bg text-app-fg">
       <AnaliseQuerySync onListingSelect={handleListingSelect} />
 
       <PageToolbar maxWidthClassName="max-w-[1500px]">
@@ -72,7 +77,7 @@ function AnaliseClientInner() {
         </div>
       </PageToolbar>
 
-      <div className="mx-auto w-full max-w-[1500px] space-y-6 px-4 py-4">
+      <div className={`${WORKSPACE_CONTENT_CLASS} ${WORKSPACE_STACK_CLASS}`}>
         {!activeCollection ? (
           <p className="text-sm text-app-muted">
             Crie uma coleção em{" "}
@@ -110,7 +115,7 @@ function AnaliseClientInner() {
 
 export function AnaliseClient() {
   return (
-    <Suspense fallback={<div className="p-4 text-sm text-app-muted">Carregando...</div>}>
+    <Suspense fallback={<WorkspaceLoadingState />}>
       <AnaliseClientInner />
     </Suspense>
   )

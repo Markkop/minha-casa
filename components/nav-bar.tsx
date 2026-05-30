@@ -64,6 +64,11 @@ import { signOut, useSession } from "@/lib/auth-client"
 import { useAddons } from "@/lib/use-addons"
 import { useSubscriptionAccess } from "@/lib/subscription-context"
 import { cn } from "@/lib/utils"
+import {
+  WORKSPACE_NAV_HEIGHT,
+  workspaceChromeRowClass,
+  workspaceTopBarControlClass,
+} from "@/lib/workspace-chrome"
 
 interface NavLink {
   href: string
@@ -110,16 +115,30 @@ function getUserInitials(user?: SessionUser | null) {
 const workspaceHeaderControlClass =
   "inline-flex h-10 min-w-0 items-center gap-2 text-sm leading-none"
 
-function BrandLink({ href }: { href: string }) {
+function BrandLink({
+  href,
+  className,
+  logoClassName,
+}: {
+  href: string
+  className?: string
+  logoClassName?: string
+}) {
   return (
     <Link
       href={href}
       className={cn(
         workspaceHeaderControlClass,
-        "rounded-md px-0 font-semibold text-app-fg hover:text-app-fg"
+        "rounded-md px-0 font-semibold text-app-fg hover:text-app-fg",
+        className
       )}
     >
-      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-app-action text-app-action-foreground">
+      <span
+        className={cn(
+          "flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-app-action text-app-action-foreground",
+          logoClassName
+        )}
+      >
         <Home className="h-4 w-4" />
       </span>
       <span className="truncate">Minha Casa</span>
@@ -269,8 +288,12 @@ function WorkspaceSidebar({
 }) {
   return (
     <Sidebar>
-      <SidebarHeader className="border-b border-app-border">
-        <BrandLink href={logoHref} />
+      <SidebarHeader className={workspaceChromeRowClass}>
+        <BrandLink
+          href={logoHref}
+          className="h-8 gap-2 leading-none"
+          logoClassName="size-8 [&_svg]:size-4"
+        />
       </SidebarHeader>
       <SidebarContent>
         <WorkspaceNavLinks pathname={pathname} />
@@ -292,22 +315,65 @@ function WorkspaceSidebar({
 
 function WorkspaceTopBar() {
   return (
-    <header className="sticky top-0 z-30 flex h-14 min-w-0 items-center gap-2 border-b border-app-border bg-app-surface/95 px-3 backdrop-blur sm:px-4">
-      <SidebarTrigger aria-label="Alternar navegação" />
-      <Breadcrumb className="flex min-w-0 items-center">
-        <BreadcrumbList className="flex-nowrap items-center gap-1 sm:gap-2">
-          <BreadcrumbItem className="flex h-10 min-w-0 items-center">
-            <OrganizationBreadcrumbDropdown />
-          </BreadcrumbItem>
-          <BreadcrumbSeparator className="flex h-10 items-center text-app-subtle">
-            <span className="text-sm leading-none">/</span>
-          </BreadcrumbSeparator>
-          <BreadcrumbItem className="flex h-10 min-w-0 items-center">
-            <GlobalCollectionBreadcrumb />
-          </BreadcrumbItem>
-        </BreadcrumbList>
-      </Breadcrumb>
+    <header
+      id="page-header"
+      className="sticky top-0 z-30 w-full"
+    >
+      <div className={cn(workspaceChromeRowClass, "min-w-0 gap-3")}>
+        <SidebarTrigger
+          aria-label="Alternar navegação"
+          className="size-8 shrink-0 text-app-muted hover:text-app-fg [&_svg]:size-4"
+        />
+        <Breadcrumb className="flex min-h-0 min-w-0 flex-1 items-center">
+          <BreadcrumbList className="flex-nowrap items-center gap-3">
+            <BreadcrumbItem className="min-w-0">
+              <OrganizationBreadcrumbDropdown
+                className={cn(
+                  workspaceTopBarControlClass,
+                  "max-w-[38vw] md:max-w-[260px]"
+                )}
+              />
+            </BreadcrumbItem>
+            <BreadcrumbSeparator className="text-app-subtle">
+              <span className="text-sm leading-none">/</span>
+            </BreadcrumbSeparator>
+            <BreadcrumbItem className="min-w-0">
+              <GlobalCollectionBreadcrumb
+                className={cn(
+                  workspaceTopBarControlClass,
+                  "max-w-[44vw] md:max-w-[340px]"
+                )}
+              />
+            </BreadcrumbItem>
+          </BreadcrumbList>
+        </Breadcrumb>
+      </div>
     </header>
+  )
+}
+
+function SessionPendingTopChrome({ children }: { children?: ReactNode }) {
+  return (
+    <>
+      <header
+        className="sticky top-0 z-50 w-full"
+        style={{ "--nav-height": WORKSPACE_NAV_HEIGHT } as React.CSSProperties}
+      >
+        <div
+          className={cn(
+            workspaceChromeRowClass,
+            "mx-auto max-w-[1500px] gap-3"
+          )}
+        >
+          <BrandLink
+            href="/"
+            className="h-8 gap-2 leading-none"
+            logoClassName="size-8 [&_svg]:size-4"
+          />
+        </div>
+      </header>
+      {children}
+    </>
   )
 }
 
@@ -330,12 +396,21 @@ function SimpleTopNav({
 }) {
   return (
     <>
-      <nav
-        className="sticky top-0 z-50 border-b border-app-border bg-app-surface/95 backdrop-blur"
-        style={{ "--nav-height": "3.5rem" } as React.CSSProperties}
+      <header
+        className="sticky top-0 z-50 w-full"
+        style={{ "--nav-height": WORKSPACE_NAV_HEIGHT } as React.CSSProperties}
       >
-        <div className="mx-auto flex h-14 max-w-[1500px] items-center gap-3 px-4">
-          <BrandLink href={logoHref} />
+        <div
+          className={cn(
+            workspaceChromeRowClass,
+            "mx-auto max-w-[1500px] gap-3"
+          )}
+        >
+          <BrandLink
+            href={logoHref}
+            className="h-8 gap-2 leading-none"
+            logoClassName="size-8 [&_svg]:size-4"
+          />
           <div className="ml-auto flex min-w-0 shrink-0 items-center gap-3">
             {isLoggedIn && (
               <div className="hidden sm:block">
@@ -348,19 +423,19 @@ function SimpleTopNav({
                 isAdmin={isAdmin}
                 hasFloodRisk={hasFloodRisk}
                 onLogout={onLogout}
-                triggerClassName="w-auto border border-app-border bg-app-surface px-3"
+                triggerClassName="h-8 min-h-0 w-auto max-w-[min(100%,14rem)] gap-2 border border-app-border bg-app-surface px-2 py-0"
               />
             ) : (
               <Link
                 href="/login"
-                className="rounded-md bg-app-action px-4 py-2 text-sm font-medium text-app-action-foreground transition-colors hover:bg-app-action-hover"
+                className="inline-flex h-8 items-center rounded-md bg-app-action px-3 text-sm font-medium text-app-action-foreground transition-colors hover:bg-app-action-hover"
               >
                 Entrar
               </Link>
             )}
           </div>
         </div>
-      </nav>
+      </header>
       {children}
     </>
   )
@@ -369,7 +444,7 @@ function SimpleTopNav({
 export function NavBar({ children }: { children?: ReactNode }) {
   const pathname = usePathname()
   const router = useRouter()
-  const { data: session } = useSession()
+  const { data: session, isPending: sessionPending } = useSession()
   const { hasAddon } = useAddons()
   const { hasActiveSubscription, subscriptionReady } = useSubscriptionAccess()
   const user = session?.user as SessionUser | undefined
@@ -378,6 +453,7 @@ export function NavBar({ children }: { children?: ReactNode }) {
   const hasFloodRisk = hasAddon("flood")
   const showWorkspaceNav =
     isLoggedIn && subscriptionReady && hasActiveSubscription
+  const showPendingWorkspaceNav = isLoggedIn && !subscriptionReady
 
   const handleLogout = async () => {
     await signOut()
@@ -387,11 +463,15 @@ export function NavBar({ children }: { children?: ReactNode }) {
 
   const logoHref = !isLoggedIn
     ? "/"
-    : showWorkspaceNav
+    : showWorkspaceNav || showPendingWorkspaceNav
       ? "/visao-geral"
       : "/subscribe"
 
-  if (!showWorkspaceNav) {
+  if (sessionPending) {
+    return <SessionPendingTopChrome>{children}</SessionPendingTopChrome>
+  }
+
+  if (!showWorkspaceNav && !showPendingWorkspaceNav) {
     return (
       <SimpleTopNav
         logoHref={logoHref}
@@ -408,7 +488,7 @@ export function NavBar({ children }: { children?: ReactNode }) {
 
   return (
     <SidebarProvider
-      style={{ "--nav-height": "3.5rem" } as React.CSSProperties}
+      style={{ "--nav-height": WORKSPACE_NAV_HEIGHT } as React.CSSProperties}
     >
       <WorkspaceSidebar
         pathname={pathname}

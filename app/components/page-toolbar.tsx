@@ -5,6 +5,7 @@ import { cva, type VariantProps } from "class-variance-authority"
 import { type ButtonHTMLAttributes, type ReactNode } from "react"
 
 import { cn } from "@/lib/utils"
+import { workspacePageToolbarRowClass } from "@/lib/workspace-chrome"
 
 const pageToolbarButtonVariants = cva(
   "inline-flex shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-md text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-3.5 [&_svg]:shrink-0",
@@ -43,15 +44,11 @@ export function PageToolbar({
   maxWidthClassName?: string
 }) {
   return (
-    <header
-      className={cn(
-        "border-b border-app-border bg-app-surface",
-        className
-      )}
-    >
+    <header className={cn("w-full", className)}>
       <div
         className={cn(
-          "mx-auto flex flex-wrap items-center justify-between gap-x-4 gap-y-1.5 px-4 py-1.5",
+          "mx-auto justify-between",
+          workspacePageToolbarRowClass,
           maxWidthClassName
         )}
       >

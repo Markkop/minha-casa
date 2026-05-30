@@ -23,7 +23,7 @@ export default function Home() {
   })
 
   return (
-    <div className="min-h-[calc(100vh-var(--nav-height,3.5rem))] bg-app-bg text-app-fg">
+    <div className="min-h-[calc(100vh-var(--nav-height,2.75rem))] bg-app-bg text-app-fg">
       <main className="max-w-5xl mx-auto px-4 py-16 sm:py-24">
         {/* Hero Section */}
         <div className="text-center mb-16">

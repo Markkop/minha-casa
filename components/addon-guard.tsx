@@ -5,6 +5,7 @@ import Link from "next/link"
 import { useAddons, useAddonsLoading } from "@/lib/use-addons"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import { WorkspaceLoadingState } from "@/app/components/workspace-ui"
 
 // ============================================================================
 // Types
@@ -30,11 +31,7 @@ export interface AddonGuardProps {
 // ============================================================================
 
 function DefaultLoadingComponent() {
-  return (
-    <div className="flex min-h-screen items-center justify-center bg-app-bg text-app-fg">
-      <p className="text-app-muted">Verificando acesso...</p>
-    </div>
-  )
+  return <WorkspaceLoadingState label="Verificando acesso..." />
 }
 
 // ============================================================================
@@ -52,8 +49,8 @@ interface AccessDeniedProps {
 
 function DefaultAccessDeniedComponent({ addonName, orgContext }: AccessDeniedProps) {
   return (
-    <div className="min-h-screen bg-app-bg text-app-fg">
-      <div className="max-w-2xl mx-auto px-4 py-16">
+    <div className="min-h-[calc(100vh-var(--nav-height,2.75rem))] bg-app-bg text-app-fg">
+      <div className="mx-auto w-full max-w-2xl p-2 sm:p-3">
         <Card className="border-app-border bg-app-surface">
           <CardHeader className="text-center">
             <div className="text-6xl mb-4">🔒</div>

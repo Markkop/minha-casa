@@ -289,15 +289,15 @@ export function OrganizationBreadcrumbDropdown({
       <DropdownMenuTrigger asChild>
         <button
           className={cn(
-            "inline-flex h-10 min-w-0 max-w-[38vw] items-center gap-2 rounded-md px-2 text-sm font-medium leading-none text-app-fg transition-colors hover:bg-app-surface-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-accent md:max-w-[260px]",
+            "inline-flex h-8 min-w-0 max-w-[38vw] items-center gap-1.5 rounded-md px-2 text-sm font-medium leading-none text-app-fg transition-colors hover:bg-app-surface-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-accent md:max-w-[260px] [&_svg]:size-3.5",
             className
           )}
           aria-label="Selecionar organização"
           disabled={loading}
         >
-          <CurrentIcon className="h-4 w-4 shrink-0 text-app-muted" />
+          <CurrentIcon className="size-3.5 shrink-0 text-app-muted" />
           <span className="truncate">{label}</span>
-          <ChevronDown className="h-4 w-4 shrink-0 text-app-muted" />
+          <ChevronDown className="size-3.5 shrink-0 text-app-muted" />
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-64">

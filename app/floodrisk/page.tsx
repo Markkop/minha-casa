@@ -9,8 +9,8 @@ const FloodRiskClient = dynamic(
   { 
     ssr: false,
     loading: () => (
-      <div className="h-[calc(100vh-3.5rem)] w-full flex items-center justify-center bg-app-fg">
-        <div className="text-app-fg">Carregando visualização 3D...</div>
+      <div className="flex h-[calc(100vh-var(--nav-height,2.75rem))] w-full items-center justify-center bg-app-bg">
+        <div className="text-app-muted">Carregando visualização 3D...</div>
       </div>
     )
   }
@@ -19,10 +19,10 @@ const FloodRiskClient = dynamic(
 export default function FloodRiskPage() {
   return (
     <AddonGuard addonSlug="flood" addonName="Risco de Enchente">
-      <div className="h-[calc(100vh-3.5rem)] w-full overflow-hidden">
+      <div className="h-[calc(100vh-var(--nav-height,2.75rem))] w-full overflow-hidden">
         <Suspense fallback={
-          <div className="h-full w-full flex items-center justify-center bg-app-fg">
-            <div className="text-app-fg">Carregando...</div>
+          <div className="flex h-full w-full items-center justify-center bg-app-bg">
+            <div className="text-app-muted">Carregando...</div>
           </div>
         }>
           <FloodRiskClient />
@@ -31,4 +31,3 @@ export default function FloodRiskPage() {
     </AddonGuard>
   );
 }
-

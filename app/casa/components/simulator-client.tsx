@@ -20,6 +20,11 @@ import {
   PageToolbar,
   PageToolbarEnd,
 } from "@/app/components/page-toolbar"
+import {
+  WORKSPACE_CONTENT_CLASS,
+  WORKSPACE_STACK_CLASS,
+  WorkspaceLoadingState,
+} from "@/app/components/workspace-ui"
 import { SettingsButton, SettingsPanel } from "./settings-panel"
 import {
   DEFAULTS,
@@ -464,15 +469,11 @@ export const SimulatorClient = () => {
 
   // Show loading state until settings are loaded
   if (!isLoaded) {
-    return (
-      <div className="min-h-screen bg-app-bg text-app-fg flex items-center justify-center">
-        <p className="text-app-muted">Carregando...</p>
-      </div>
-    )
+    return <WorkspaceLoadingState />
   }
 
   return (
-    <div className="min-h-screen bg-app-bg text-app-fg">
+    <div className="min-h-[calc(100vh-var(--nav-height,2.75rem))] bg-app-bg text-app-fg">
       <PageToolbar>
         <PageToolbarEnd className="w-full">
           <SettingsButton onClick={() => setShowSettings(true)} />
@@ -482,7 +483,7 @@ export const SimulatorClient = () => {
       {/* Settings Panel */}
       <SettingsPanel isOpen={showSettings} onClose={() => setShowSettings(false)} />
 
-      <main className="max-w-7xl mx-auto space-y-4 px-4 py-4">
+      <main className={`${WORKSPACE_CONTENT_CLASS} ${WORKSPACE_STACK_CLASS}`}>
         <AdjustmentPanel
           params={{ ...params, ...computedParams }}
           recursosMeta={recursosMeta}

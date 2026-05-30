@@ -128,20 +128,20 @@ export function GlobalCollectionBreadcrumb({
         <DropdownMenuTrigger asChild>
           <button
             className={cn(
-              "inline-flex h-10 min-w-0 max-w-[44vw] items-center gap-2 rounded-md px-2 text-sm font-medium leading-none text-app-fg transition-colors hover:bg-app-surface-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-accent md:max-w-[340px]",
+              "inline-flex h-8 min-w-0 max-w-[44vw] items-center gap-1.5 rounded-md px-2 text-sm font-medium leading-none text-app-fg transition-colors hover:bg-app-surface-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-accent md:max-w-[340px] [&_svg]:size-3.5",
               className
             )}
             aria-label="Selecionar coleção"
             disabled={isLoading}
           >
-            <FolderOpen className="h-4 w-4 shrink-0 text-app-muted" />
+            <FolderOpen className="size-3.5 shrink-0 text-app-muted" />
             <span className="truncate">{label}</span>
             {activeCollection && (
               <span className="shrink-0 text-xs leading-none text-app-muted">
                 ({listings.length})
               </span>
             )}
-            <ChevronDown className="h-4 w-4 shrink-0 text-app-muted" />
+            <ChevronDown className="size-3.5 shrink-0 text-app-muted" />
           </button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start" className="w-72">

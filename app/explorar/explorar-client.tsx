@@ -26,6 +26,10 @@ import { useSession } from "@/lib/auth-client"
 import { useWorkspaceProfile } from "@/lib/workspace/use-workspace-profile"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import {
+  WORKSPACE_CONTENT_CLASS,
+  WORKSPACE_STACK_CLASS,
+} from "@/app/components/workspace-ui"
 import { FilterBuilder } from "./components/filter-builder"
 import { MatrixViewer } from "./components/matrix"
 
@@ -176,7 +180,7 @@ export function ExplorarClient() {
   )
 
   return (
-    <div className="mx-auto max-w-7xl space-y-6 px-4 py-6">
+    <div className={`${WORKSPACE_CONTENT_CLASS} ${WORKSPACE_STACK_CLASS}`}>
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold">Explorar mercado</h1>
@@ -205,7 +209,7 @@ export function ExplorarClient() {
         </p>
       )}
 
-      <div className="grid gap-6 lg:grid-cols-[360px_1fr]">
+      <div className="grid gap-3 lg:grid-cols-[360px_1fr]">
         <FilterBuilder
           filterSet={filterSet}
           enabledPortals={enabledPortals}
@@ -216,7 +220,7 @@ export function ExplorarClient() {
           onMaxPagesChange={setMaxPages}
         />
 
-        <div className="space-y-4">
+        <div className={WORKSPACE_STACK_CLASS}>
           <div className="flex flex-wrap gap-2">
             <Button onClick={() => handleSearch(false)} disabled={loading || enabledPortals.length === 0}>
               {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}

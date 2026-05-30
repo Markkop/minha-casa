@@ -5,7 +5,7 @@ import { Loader2 } from "lucide-react"
 function SubscribeLoading() {
   return (
     <div
-      className="flex min-h-[calc(100vh-var(--nav-height,3.5rem))] items-center justify-center bg-app-bg"
+      className="flex min-h-[calc(100vh-var(--nav-height,2.75rem))] items-center justify-center bg-app-bg"
       role="status"
       aria-label="Carregando"
     >

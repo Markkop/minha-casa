@@ -13,6 +13,11 @@ import { Download, FolderOpen, Link2, Loader2, Plus } from "lucide-react"
 import { ModalCloseButton } from "./modal-chrome"
 import { AnunciosQuerySync } from "./anuncios-query-sync"
 import { LISTINGS_PAGE_CLASS } from "./listings-panel-layout"
+import {
+  WORKSPACE_CONTENT_CLASS,
+  WorkspaceErrorState,
+  WorkspaceLoadingState,
+} from "@/app/components/workspace-ui"
 
 function AnunciosClientInner() {
   const {
@@ -77,22 +82,20 @@ function AnunciosClientInner() {
 
   // Show loading state until data is loaded
   if (isLoading) {
-    return (
-      <div className="flex min-h-[calc(100vh-var(--nav-height,3.5rem))] items-center justify-center bg-app-bg text-app-fg">
-        <p className="text-app-muted">Carregando...</p>
-      </div>
-    )
+    return <WorkspaceLoadingState />
   }
 
   // Show error state
   if (error) {
     return (
-      <div className="flex min-h-[calc(100vh-var(--nav-height,3.5rem))] items-center justify-center bg-app-bg text-app-fg">
-        <div className="text-center">
-          <p className="text-destructive mb-2">Erro ao carregar dados</p>
-          <p className="text-sm text-app-muted">{error}</p>
-        </div>
-      </div>
+      <WorkspaceErrorState
+        message={
+          <>
+            <p className="mb-2">Erro ao carregar dados</p>
+            <p className="text-sm text-app-muted">{error}</p>
+          </>
+        }
+      />
     )
   }
 
@@ -103,11 +106,8 @@ function AnunciosClientInner() {
     const defaultCollectionName = getDefaultFirstCollectionName()
 
     return (
-      <div className="min-h-[calc(100vh-var(--nav-height,3.5rem))] bg-app-bg text-app-fg">
-        {/* Header */}
-
-        {/* Empty State */}
-        <main className="max-w-7xl mx-auto px-4 py-12">
+      <div className="min-h-[calc(100vh-var(--nav-height,2.75rem))] bg-app-bg text-app-fg">
+        <main className={WORKSPACE_CONTENT_CLASS}>
           <Card className="mx-auto max-w-lg border-app-border bg-app-surface">
             <CardContent className="py-12 text-center space-y-6">
               <FolderOpen className="h-16 w-16 mx-auto text-muted-foreground" />
@@ -157,7 +157,7 @@ function AnunciosClientInner() {
   }
 
   return (
-    <div className="min-h-[calc(100vh-var(--nav-height,3.5rem))] bg-app-bg text-app-fg">
+    <div className="min-h-[calc(100vh-var(--nav-height,2.75rem))] bg-app-bg text-app-fg">
       {/* Share Import Confirmation Modal */}
       {showShareConfirm && shareData && (
         <div className="fixed inset-0 z-[1000] flex items-center justify-center">

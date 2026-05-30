@@ -6,6 +6,7 @@ import { useAddons, useAddonsLoading } from "@/lib/use-addons"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { CreditCard, Home, Lock, User, Users } from "lucide-react"
+import { WorkspaceLoadingState } from "@/app/components/workspace-ui"
 
 interface AddonAccessGuardProps {
   /** The addon slug to check for access */
@@ -36,11 +37,7 @@ export function AddonAccessGuard({
 
   // Show loading state while checking addon access
   if (isLoading) {
-    return (
-      <div className="min-h-screen bg-app-bg text-app-fg flex items-center justify-center">
-        <p className="text-app-muted">Verificando acesso...</p>
-      </div>
-    )
+    return <WorkspaceLoadingState label="Verificando acesso..." />
   }
 
   // Check if user or org has access to the addon
@@ -48,8 +45,8 @@ export function AddonAccessGuard({
 
   if (!hasAccess) {
     return (
-      <div className="min-h-screen bg-app-bg text-app-fg">
-        <div className="max-w-2xl mx-auto px-4 py-16">
+      <div className="min-h-[calc(100vh-var(--nav-height,2.75rem))] bg-app-bg text-app-fg">
+        <div className="mx-auto w-full max-w-2xl p-2 sm:p-3">
           <Card className="bg-app-surface border-app-border">
             <CardHeader className="text-center">
               <Lock className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />

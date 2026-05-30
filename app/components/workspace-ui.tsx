@@ -15,6 +15,10 @@ export const WORKSPACE_TABLE_ACTIONS_WIDTH = "96px"
 
 /** Fits 3 icon buttons (e.g. open + edit + delete) */
 export const WORKSPACE_TABLE_ACTIONS_WIDTH_WIDE = "140px"
+export const WORKSPACE_MAX_WIDTH_CLASS = "max-w-[1500px]"
+export const WORKSPACE_CONTENT_CLASS =
+  "mx-auto w-full max-w-[1500px] p-2 sm:p-3"
+export const WORKSPACE_STACK_CLASS = "space-y-3"
 
 const tableCellClass = "px-3 py-1.5 align-middle min-w-0"
 const tableHeadClass =
@@ -23,19 +27,76 @@ const tableHeadClass =
 export function WorkspacePage({
   toolbar,
   children,
+  className,
+  contentClassName,
 }: {
   toolbar?: ReactNode
   children: ReactNode
+  className?: string
+  contentClassName?: string
 }) {
   return (
-    <main className="min-h-[calc(100vh-var(--nav-height,3.5rem))] bg-app-bg text-app-fg">
+    <main
+      className={cn(
+        "min-h-[calc(100vh-var(--nav-height,2.75rem))] bg-app-bg text-app-fg",
+        className
+      )}
+    >
       {toolbar && (
-        <PageToolbar maxWidthClassName="max-w-[1500px]">
+        <PageToolbar maxWidthClassName={WORKSPACE_MAX_WIDTH_CLASS}>
           <PageToolbarEnd className="w-full">{toolbar}</PageToolbarEnd>
         </PageToolbar>
       )}
-      <div className="mx-auto w-full max-w-[1500px] px-4 py-4">{children}</div>
+      <div className={cn(WORKSPACE_CONTENT_CLASS, contentClassName)}>
+        {children}
+      </div>
     </main>
+  )
+}
+
+export function WorkspaceState({
+  children,
+  className,
+}: {
+  children: ReactNode
+  className?: string
+}) {
+  return (
+    <WorkspacePage>
+      <WorkspacePanel
+        className={cn(
+          "flex min-h-[220px] items-center justify-center p-6 text-center text-sm text-app-muted",
+          className
+        )}
+      >
+        {children}
+      </WorkspacePanel>
+    </WorkspacePage>
+  )
+}
+
+export function WorkspaceLoadingState({
+  label = "Carregando...",
+}: {
+  label?: string
+}) {
+  return <WorkspaceState>{label}</WorkspaceState>
+}
+
+export function WorkspaceErrorState({
+  message,
+  action,
+}: {
+  message: ReactNode
+  action?: ReactNode
+}) {
+  return (
+    <WorkspaceState>
+      <div className="space-y-3">
+        <div className="text-destructive">{message}</div>
+        {action}
+      </div>
+    </WorkspaceState>
   )
 }
 

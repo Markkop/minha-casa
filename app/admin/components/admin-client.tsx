@@ -31,6 +31,12 @@ import { Input } from "@/components/ui/input"
 import { UserDetailsModal } from "./user-details-modal"
 import { OrgAddonsTable } from "./org-addons-table"
 import { GrantAddonModal } from "./grant-addon-modal"
+import {
+  WORKSPACE_STACK_CLASS,
+  WorkspaceErrorState,
+  WorkspaceLoadingState,
+  WorkspacePage,
+} from "@/app/components/workspace-ui"
 
 interface Plan {
   id: string
@@ -699,32 +705,20 @@ export function AdminClient() {
   }
 
   if (loading) {
-    return (
-      <div className="container mx-auto py-8 px-4">
-        <div className="flex items-center justify-center min-h-[400px]">
-          <div className="text-muted-foreground">Carregando...</div>
-        </div>
-      </div>
-    )
+    return <WorkspaceLoadingState />
   }
 
   if (error) {
     return (
-      <div className="container mx-auto py-8 px-4">
-        <Card>
-          <CardContent className="pt-6">
-            <div className="text-center text-destructive">{error}</div>
-            <div className="text-center mt-4">
-              <Button onClick={fetchData}>Tentar novamente</Button>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      <WorkspaceErrorState
+        message={error}
+        action={<Button onClick={fetchData}>Tentar novamente</Button>}
+      />
     )
   }
 
   return (
-    <div className="container mx-auto py-8 px-4 space-y-8">
+    <WorkspacePage contentClassName={WORKSPACE_STACK_CLASS}>
       {/* Stats Cards */}
       {stats && (
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
@@ -1677,6 +1671,6 @@ export function AdminClient() {
         onClose={() => setGrantAddonModalOpen(false)}
         onGranted={fetchData}
       />
-    </div>
+    </WorkspacePage>
   )
 }

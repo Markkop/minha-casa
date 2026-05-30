@@ -174,7 +174,7 @@ function SidebarHeader({
   return (
     <div
       data-slot="sidebar-header"
-      className={cn("flex h-14 shrink-0 items-center px-3", className)}
+      className={cn("box-border flex shrink-0 items-center px-3", className)}
       {...props}
     />
   )

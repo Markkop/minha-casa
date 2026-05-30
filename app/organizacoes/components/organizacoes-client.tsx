@@ -28,6 +28,12 @@ import {
 } from "@/components/ui/select"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import {
+  WORKSPACE_STACK_CLASS,
+  WorkspaceErrorState,
+  WorkspaceLoadingState,
+  WorkspacePage,
+} from "@/app/components/workspace-ui"
 
 interface Organization {
   id: string
@@ -378,32 +384,20 @@ export function OrganizacoesClient() {
   }
 
   if (sessionLoading || loading) {
-    return (
-      <div className="container mx-auto py-8 px-4">
-        <div className="flex items-center justify-center min-h-[400px]">
-          <div className="text-muted-foreground">Carregando...</div>
-        </div>
-      </div>
-    )
+    return <WorkspaceLoadingState />
   }
 
   if (error) {
     return (
-      <div className="container mx-auto py-8 px-4">
-        <Card>
-          <CardContent className="pt-6">
-            <div className="text-center text-destructive">{error}</div>
-            <div className="text-center mt-4">
-              <Button onClick={fetchOrganizations}>Tentar novamente</Button>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      <WorkspaceErrorState
+        message={error}
+        action={<Button onClick={fetchOrganizations}>Tentar novamente</Button>}
+      />
     )
   }
 
   return (
-    <div className="container mx-auto py-8 px-4 space-y-8">
+    <WorkspacePage contentClassName={WORKSPACE_STACK_CLASS}>
       <div className="flex flex-col md:flex-row md:items-center md:justify-end gap-4">
         <Button onClick={() => setCreateModalOpen(true)}>
           Criar Organizacao
@@ -832,6 +826,6 @@ export function OrganizacoesClient() {
           </Card>
         </div>
       )}
-    </div>
+    </WorkspacePage>
   )
 }
