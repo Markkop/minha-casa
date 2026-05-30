@@ -39,7 +39,7 @@ export function PropertyTypeFilterCycleButton({
     <Tooltip>
       <TooltipTrigger asChild>
         <PageToolbarIconButton
-          variant="active"
+          variant="secondary"
           aria-label={label}
           onClick={() => onChange(cyclePropertyTypeFilter(value))}
         >
