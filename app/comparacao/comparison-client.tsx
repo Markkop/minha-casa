@@ -4,11 +4,20 @@
 
 import { useEffect, useMemo, useState, type ReactNode } from "react"
 import Link from "next/link"
+import type { LucideIcon } from "lucide-react"
 import {
   ArrowDown,
   ArrowUp,
+  Bath,
+  BedDouble,
+  Car,
+  CircleDollarSign,
+  DollarSign,
   ExternalLink,
   Home,
+  MapPin,
+  MapPinned,
+  Maximize2,
   Pencil,
   Pin,
   Star,
@@ -30,6 +39,7 @@ import { useCollections } from "@/app/anuncios/lib/use-collections"
 import type { Imovel } from "@/app/anuncios/lib/api"
 import { buildGoogleMapsUrl } from "@/app/anuncios/lib/listing-maps-url"
 import { buildListingAnaliseHref } from "@/lib/listing-analise-url"
+import { comparisonMobileSlotListingLabel } from "@/lib/listing-display-title"
 import { cn } from "@/lib/utils"
 import {
   buildRecalculationTooltip,
@@ -52,10 +62,15 @@ import {
   initializeComparisonSlotsFromAutoFill,
   normalizeComparisonSlots,
   replaceComparisonSlot,
+  formatCompactPricePerM2,
+  getComparisonLabelColWidthPx,
+  getComparisonSlotColWidthPx,
+  getComparisonSlotHeaderHeightPx,
   getComparisonTableMinWidthPx,
   type ComparisonSlot,
   type TrendDirection,
 } from "./comparison-helpers"
+import { useComparisonMobileLayout } from "./use-comparison-mobile-layout"
 import { useComparisonVisibleSlotCount } from "./use-comparison-visible-slot-count"
 
 const EMPTY_SLOT_VALUE = "__empty__"
@@ -78,6 +93,7 @@ type MatrixRow = {
   key: string
   label: string
   labelDetail?: string
+  icon: LucideIcon
   numericKey?: NumericRowKey
   render: (listing: Imovel, context: MatrixContext) => CellValue
 }
@@ -88,6 +104,7 @@ type MatrixContext = {
   fixedListing: Imovel | null
   isFixedCell: boolean
   isFixedRow: boolean
+  isMobileLayout: boolean
 }
 
 type CellValue = {
@@ -109,10 +126,6 @@ const NUMERIC_ROW_KEYS = new Set<NumericRowKey>([
   "bathrooms",
   "garage",
 ])
-
-/** Matches aspect-[4/5] at the slot column width so a colspan header stays the same height. */
-const COMPARISON_SLOT_HEADER_HEIGHT_PX =
-  (198 * 5) / 4
 
 function formatSlotSummary(listing: Imovel) {
   return listing.endereco || "—"
@@ -142,9 +155,14 @@ function isFeatureRowKey(rowKey: NumericRowKey): rowKey is "rooms" | "bathrooms"
   return rowKey === "rooms" || rowKey === "bathrooms" || rowKey === "garage"
 }
 
-function formatAreaWithPricePerM2(area: number | null | undefined, pricePerM2: number | null): string {
+function formatAreaWithPricePerM2(
+  area: number | null | undefined,
+  pricePerM2: number | null,
+  compact = false
+): string {
   if (area === null || area === undefined) return "—"
-  return `${formatArea(area)} (${formatPricePerM2(pricePerM2)})`
+  const priceLabel = compact ? formatCompactPricePerM2(pricePerM2) : formatPricePerM2(pricePerM2)
+  return `${formatArea(area)} (${priceLabel})`
 }
 
 function renderAreaCell(
@@ -168,10 +186,67 @@ function renderAreaCell(
     return { value: "—" }
   }
 
+  const areaLabel = formatArea(area)
+  const pricePerM2Label = formatPricePerM2(currentPricePerM2)
+
   return {
-    value: formatAreaWithPricePerM2(area, currentPricePerM2),
-    valuePrefix: `${formatArea(area)} `,
-    valueSuffix: `(${formatPricePerM2(currentPricePerM2)})`,
+    value: formatAreaWithPricePerM2(area, currentPricePerM2, false),
+    valuePrefix: `${areaLabel} `,
+    valueSuffix: `(${pricePerM2Label})`,
+    rawValue: currentPricePerM2,
+    compareTo: recalculated ? baselinePricePerM2 : null,
+    recalculated,
+    recalculationTooltip: recalculated && context.fixedListing
+      ? buildRecalculationTooltip({
+        target: "areaPricePerM2",
+        fixedRowKey: context.fixedCell!.rowKey,
+        fixedListing: context.fixedListing,
+        areaRowKey: rowKey,
+        featureAdjustmentBrl: COMPARISON_FEATURE_ADJUSTMENT_BRL,
+      })
+      : undefined,
+  }
+}
+
+function renderAreaOnlyCell(
+  listing: Imovel,
+  rowKey: "totalArea" | "privateArea"
+): CellValue {
+  const area = getAreaForKey(listing, rowKey)
+  if (area === null || area === undefined) {
+    return { value: "—" }
+  }
+
+  return {
+    value: formatArea(area),
+    rawValue: area,
+  }
+}
+
+function renderAreaValueCell(
+  listing: Imovel,
+  rowKey: "totalArea" | "privateArea",
+  context: MatrixContext
+): CellValue {
+  const baselinePricePerM2 = calculatePricePerM2ForAreaKey(listing, rowKey)
+  const currentPricePerM2 = getAreaPricePerM2(listing, rowKey, context)
+  const recalculated = Boolean(
+    context.fixedCell &&
+    !context.isFixedCell &&
+    context.fixedCell.rowKey === "price" &&
+    currentPricePerM2 !== null &&
+    baselinePricePerM2 !== null &&
+    currentPricePerM2 !== baselinePricePerM2
+  )
+
+  if (currentPricePerM2 === null) {
+    return { value: "—" }
+  }
+
+  const priceLabel = formatCompactPricePerM2(currentPricePerM2)
+
+  return {
+    value: priceLabel,
     rawValue: currentPricePerM2,
     compareTo: recalculated ? baselinePricePerM2 : null,
     recalculated,
@@ -307,16 +382,18 @@ function buildExtraMatrixRows(
   return extras.map((extra) => ({
     key: extra.key,
     label: extra.label,
+    icon: extra.icon,
     render: (listing: Imovel) => ({
       value: formatExtraValue(listing[extra.key]),
     }),
   }))
 }
 
-const NUMERIC_MATRIX_ROWS: MatrixRow[] = [
+const DESKTOP_NUMERIC_MATRIX_ROWS: MatrixRow[] = [
   {
     key: "price",
     label: "Preço",
+    icon: DollarSign,
     numericKey: "price",
     render: (listing, context) => {
       const value = calculateFixedCellPrice(listing, context)
@@ -353,6 +430,7 @@ const NUMERIC_MATRIX_ROWS: MatrixRow[] = [
     key: "totalArea",
     label: "Área",
     labelDetail: "total",
+    icon: Maximize2,
     numericKey: "totalArea",
     render: (listing, context) => renderAreaCell(listing, "totalArea", context),
   },
@@ -360,12 +438,14 @@ const NUMERIC_MATRIX_ROWS: MatrixRow[] = [
     key: "privateArea",
     label: "Área",
     labelDetail: "privativa",
+    icon: Maximize2,
     numericKey: "privateArea",
     render: (listing, context) => renderAreaCell(listing, "privateArea", context),
   },
   {
     key: "rooms",
     label: "Quartos",
+    icon: BedDouble,
     numericKey: "rooms",
     render: (listing) => ({
       value: formatRoomsSuites(listing),
@@ -375,6 +455,7 @@ const NUMERIC_MATRIX_ROWS: MatrixRow[] = [
   {
     key: "bathrooms",
     label: "Banheiros",
+    icon: Bath,
     numericKey: "bathrooms",
     render: (listing) => ({
       value: formatInteger(listing.banheiros),
@@ -384,6 +465,7 @@ const NUMERIC_MATRIX_ROWS: MatrixRow[] = [
   {
     key: "garage",
     label: "Garagem",
+    icon: Car,
     numericKey: "garage",
     render: (listing) => ({
       value: formatGarage(listing.garagem),
@@ -392,15 +474,56 @@ const NUMERIC_MATRIX_ROWS: MatrixRow[] = [
   },
 ]
 
+const MOBILE_NUMERIC_MATRIX_ROWS: MatrixRow[] = [
+  DESKTOP_NUMERIC_MATRIX_ROWS[0],
+  {
+    key: "totalArea",
+    label: "Área",
+    labelDetail: "total",
+    icon: Maximize2,
+    render: (listing) => renderAreaOnlyCell(listing, "totalArea"),
+  },
+  {
+    key: "privateArea",
+    label: "Área",
+    labelDetail: "privativa",
+    icon: Maximize2,
+    render: (listing) => renderAreaOnlyCell(listing, "privateArea"),
+  },
+  {
+    key: "totalValor",
+    label: "Valor",
+    labelDetail: "total",
+    icon: CircleDollarSign,
+    numericKey: "totalArea",
+    render: (listing, context) => renderAreaValueCell(listing, "totalArea", context),
+  },
+  {
+    key: "privateValor",
+    label: "Valor",
+    labelDetail: "privativa",
+    icon: CircleDollarSign,
+    numericKey: "privateArea",
+    render: (listing, context) => renderAreaValueCell(listing, "privateArea", context),
+  },
+  ...DESKTOP_NUMERIC_MATRIX_ROWS.slice(3),
+]
+
+function getNumericMatrixRows(isMobileLayout: boolean): MatrixRow[] {
+  return isMobileLayout ? MOBILE_NUMERIC_MATRIX_ROWS : DESKTOP_NUMERIC_MATRIX_ROWS
+}
+
 const MATRIX_ROWS_TAIL: MatrixRow[] = [
   {
     key: "neighborhood",
     label: "Bairro",
+    icon: MapPinned,
     render: (listing) => ({ value: listing.bairro || "—" }),
   },
   {
     key: "address",
     label: "Endereço",
+    icon: MapPin,
     render: (listing) => {
       const value = listing.endereco || "—"
       const trimmed = listing.endereco?.trim()
@@ -410,15 +533,86 @@ const MATRIX_ROWS_TAIL: MatrixRow[] = [
       }
     },
   },
+  {
+    key: "listingLink",
+    label: "Anúncio",
+    icon: ExternalLink,
+    render: (listing) => {
+      const trimmed = listing.link?.trim()
+      if (!trimmed) {
+        return { value: "—" }
+      }
+
+      return {
+        value: "Abrir anúncio",
+        href: trimmed,
+      }
+    },
+  },
 ]
 
 function getMatrixRowAccessibleLabel(row: MatrixRow) {
   return row.labelDetail ? `${row.label} ${row.labelDetail}` : row.label
 }
 
+function ComparisonMatrixRowLabel({
+  row,
+  isMobileLayout,
+}: {
+  row: MatrixRow
+  isMobileLayout: boolean
+}) {
+  const accessibleLabel = getMatrixRowAccessibleLabel(row)
+  const Icon = row.icon
+
+  if (!isMobileLayout) {
+    if (row.labelDetail) {
+      return (
+        <span className="inline-flex items-baseline gap-1 leading-none">
+          <span className="uppercase tracking-wide">{row.label}</span>
+          <span className="text-[8px] font-normal normal-case leading-none text-app-muted">
+            {row.labelDetail}
+          </span>
+        </span>
+      )
+    }
+
+    return <span className="uppercase tracking-wide">{row.label}</span>
+  }
+
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <span
+          className="mx-auto flex flex-col items-center justify-center gap-0.5 leading-none"
+          aria-label={accessibleLabel}
+        >
+          <Icon className="h-4 w-4 shrink-0 text-app-muted" aria-hidden />
+          {row.labelDetail ? (
+            <span className="text-[8px] font-normal normal-case text-app-muted">
+              {row.labelDetail}
+            </span>
+          ) : null}
+        </span>
+      </TooltipTrigger>
+      <TooltipContent
+        side="right"
+        sideOffset={4}
+        className="w-max max-w-[min(100vw-2rem,16rem)] whitespace-normal text-wrap px-2.5 py-1 leading-snug"
+      >
+        {accessibleLabel}
+      </TooltipContent>
+    </Tooltip>
+  )
+}
+
 export function ComparisonClient() {
   const { listings, activeCollection, isLoadingListings, updateListing } = useCollections()
   const visibleSlotCount = useComparisonVisibleSlotCount()
+  const isMobileLayout = useComparisonMobileLayout()
+  const labelColWidthPx = getComparisonLabelColWidthPx(isMobileLayout)
+  const slotColWidthPx = getComparisonSlotColWidthPx(isMobileLayout)
+  const slotHeaderHeightPx = getComparisonSlotHeaderHeightPx(slotColWidthPx)
   const [slotIds, setSlotIds] = useState<ComparisonSlot[]>(() => initializeComparisonSlots([]))
   const [fixedCell, setFixedCell] = useState<FixedCell | null>(null)
   const [initializedCollectionId, setInitializedCollectionId] = useState<string | null>(null)
@@ -479,11 +673,11 @@ export function ComparisonClient() {
     [selectedListings]
   )
   const matrixRows = useMemo((): MatrixRow[] => [
-      ...NUMERIC_MATRIX_ROWS,
+      ...getNumericMatrixRows(isMobileLayout),
       ...buildExtraMatrixRows(getVisibleComparisonExtraRows(selectedFilledListings)),
       ...MATRIX_ROWS_TAIL,
     ],
-    [selectedFilledListings]
+    [isMobileLayout, selectedFilledListings]
   )
   const resolvedFixedCell = resolveFixedCell(slotIds, fixedCell, visibleSlotCount)
   if (
@@ -538,12 +732,16 @@ export function ComparisonClient() {
             <div className="overflow-x-auto">
               <table
                 className="w-full table-fixed border-collapse text-xs"
-                style={{ minWidth: getComparisonTableMinWidthPx(visibleSlotCount) }}
+                style={{
+                  minWidth: getComparisonTableMinWidthPx(visibleSlotCount, {
+                    mobile: isMobileLayout,
+                  }),
+                }}
               >
                 <colgroup>
-                  <col className="w-[104px]" />
+                  <col style={{ width: labelColWidthPx }} />
                   {Array.from({ length: visibleSlotCount }, (_, index) => (
-                    <col key={index} className="w-[198px]" />
+                    <col key={index} style={{ width: slotColWidthPx }} />
                   ))}
                 </colgroup>
                 <thead>
@@ -563,6 +761,8 @@ export function ComparisonClient() {
                           listings={listings}
                           slots={slotIds}
                           collectionId={activeCollection?.id ?? null}
+                          headerHeightPx={slotHeaderHeightPx}
+                          isMobileLayout={isMobileLayout}
                           onReplace={handleReplaceSlot}
                           onToggleStar={handleToggleStar}
                         />
@@ -573,15 +773,15 @@ export function ComparisonClient() {
                 <tbody>
                   {matrixRows.map((row) => (
                     <tr key={row.key} className="border-b border-app-border last:border-b-0">
-                      <th className="sticky left-0 z-10 bg-app-surface px-1.5 py-1.5 text-left align-middle text-[10px] font-medium text-app-muted">
-                        {row.labelDetail ? (
-                          <span className="inline-flex items-baseline gap-1 leading-none">
-                            <span className="uppercase tracking-wide">{row.label}</span>
-                            <span className="text-[8px] font-normal normal-case leading-none text-app-muted">{row.labelDetail}</span>
-                          </span>
-                        ) : (
-                          <span className="uppercase tracking-wide">{row.label}</span>
+                      <th
+                        className={cn(
+                          "sticky left-0 z-10 bg-app-surface align-middle text-[10px] font-medium text-app-muted",
+                          isMobileLayout
+                            ? "px-0.5 py-1 text-center"
+                            : "px-1.5 py-1.5 text-left"
                         )}
+                      >
+                        <ComparisonMatrixRowLabel row={row} isMobileLayout={isMobileLayout} />
                       </th>
                       {selectedListings.map((listing, index) => {
                         const isFixedCell = Boolean(
@@ -599,6 +799,7 @@ export function ComparisonClient() {
                           fixedListing,
                           isFixedCell,
                           isFixedRow,
+                          isMobileLayout,
                         }
                         const cell = listing ? row.render(listing, context) : null
                         const numericRowKey = row.numericKey
@@ -609,7 +810,10 @@ export function ComparisonClient() {
                           <td
                             key={`${row.key}-${index}`}
                             className={cn(
-                              "border-l border-app-border px-2 py-1.5 align-middle",
+                              "border-l border-app-border align-middle",
+                              isMobileLayout
+                                ? "max-w-0 overflow-hidden px-1.5 py-0.5"
+                                : "px-2 py-1.5",
                               isFixedCell && "bg-app-action/15"
                             )}
                           >
@@ -618,6 +822,7 @@ export function ComparisonClient() {
                                 cell={cell}
                                 trend={trend}
                                 isFixed={isFixedCell}
+                                isMobileLayout={isMobileLayout}
                                 fixedLabel={`${getMatrixRowAccessibleLabel(row)} de ${formatShortListingName(listing)}`}
                                 hideFixButton={!isFixedCell}
                                 onToggleFixed={
@@ -651,6 +856,8 @@ function ComparisonSlotHeader({
   listings,
   slots,
   collectionId,
+  headerHeightPx,
+  isMobileLayout,
   onReplace,
   onToggleStar,
 }: {
@@ -659,6 +866,8 @@ function ComparisonSlotHeader({
   listings: Imovel[]
   slots: ComparisonSlot[]
   collectionId: string | null
+  headerHeightPx: number
+  isMobileLayout: boolean
   onReplace: (slotIndex: number, value: string) => void
   onToggleStar: (listingId: string, currentStarred: boolean | undefined) => void
 }) {
@@ -667,7 +876,7 @@ function ComparisonSlotHeader({
   return (
     <div
       className="group relative w-full min-w-0 overflow-hidden bg-app-bg text-left"
-      style={{ height: COMPARISON_SLOT_HEADER_HEIGHT_PX }}
+      style={{ height: headerHeightPx }}
     >
       {listing?.imageUrl ? (
         <img
@@ -682,69 +891,70 @@ function ComparisonSlotHeader({
       )}
 
       <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/50 to-transparent px-2 pb-2 pt-10">
-        <div className="flex min-w-0 items-start gap-1">
-          {listing ? (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button
-                  type="button"
-                  onClick={() => onToggleStar(listing.id, listing.starred)}
-                  className={cn(
-                    "mt-0.5 shrink-0 rounded p-0.5 transition-colors",
-                    listing.starred
-                      ? "text-yellow hover:text-yellow/80"
-                      : "text-white/70 hover:text-yellow"
-                  )}
-                  aria-label={listing.starred ? "Remover dos favoritos" : "Adicionar aos favoritos"}
-                >
-                  <Star
-                    className="h-3.5 w-3.5"
-                    fill={listing.starred ? "currentColor" : "none"}
-                  />
-                </button>
-              </TooltipTrigger>
-              <TooltipContent
-                side="bottom"
-                sideOffset={4}
-                className="w-max max-w-[min(100vw-2rem,16rem)] whitespace-normal text-wrap px-2.5 py-1 leading-snug"
-              >
-                {listing.starred ? "Remover dos favoritos" : "Adicionar aos favoritos"}
-              </TooltipContent>
-            </Tooltip>
-          ) : (
-            <Star className="mt-0.5 h-3.5 w-3.5 shrink-0 text-white/30" aria-hidden />
-          )}
-          <div className="min-w-0 flex-1">
+        <div className="flex min-w-0 flex-col gap-0.5">
+          <div className="flex min-w-0 items-center gap-1">
             {listing ? (
-              <div className="flex min-w-0 max-w-full items-start gap-1">
-                <Link
-                  href={buildListingAnaliseHref(listing.id, collectionId)}
-                  className="min-w-0 shrink text-xs font-semibold leading-snug text-white line-clamp-2 hover:underline"
-                >
-                  {formatShortListingName(listing)}
-                </Link>
-                {listing.link ? (
-                  <a
-                    href={listing.link}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="mt-0.5 shrink-0 rounded p-0.5 text-white/80 hover:text-white"
-                    aria-label="Abrir anúncio original"
-                    onClick={(event) => event.stopPropagation()}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    type="button"
+                    onClick={() => onToggleStar(listing.id, listing.starred)}
+                    className={cn(
+                      "shrink-0 rounded p-0.5 transition-colors",
+                      listing.starred
+                        ? "text-yellow hover:text-yellow/80"
+                        : "text-white/70 hover:text-yellow"
+                    )}
+                    aria-label={listing.starred ? "Remover dos favoritos" : "Adicionar aos favoritos"}
                   >
-                    <ExternalLink className="h-3 w-3" />
-                  </a>
-                ) : null}
-              </div>
+                    <Star
+                      className="h-3.5 w-3.5"
+                      fill={listing.starred ? "currentColor" : "none"}
+                    />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent
+                  side="bottom"
+                  sideOffset={4}
+                  className="w-max max-w-[min(100vw-2rem,16rem)] whitespace-normal text-wrap px-2.5 py-1 leading-snug"
+                >
+                  {listing.starred ? "Remover dos favoritos" : "Adicionar aos favoritos"}
+                </TooltipContent>
+              </Tooltip>
             ) : (
-              <p className="text-xs font-semibold leading-snug text-white line-clamp-2">
+              <Star className="h-3.5 w-3.5 shrink-0 text-white/30" aria-hidden />
+            )}
+            {listing ? (
+              <Link
+                href={buildListingAnaliseHref(listing.id, collectionId)}
+                className={cn(
+                  "min-w-0 flex-1 font-semibold leading-snug text-white line-clamp-2 hover:underline",
+                  isMobileLayout ? "text-[10px]" : "text-xs"
+                )}
+              >
+                {isMobileLayout
+                  ? comparisonMobileSlotListingLabel(listing)
+                  : formatShortListingName(listing)}
+              </Link>
+            ) : (
+              <p
+                className={cn(
+                  "min-w-0 flex-1 font-semibold leading-snug text-white line-clamp-2",
+                  isMobileLayout ? "text-[10px]" : "text-xs"
+                )}
+              >
                 {`Imóvel ${slotIndex + 1}`}
               </p>
             )}
-            <p className="mt-0.5 text-[10px] font-normal leading-snug text-white/80 line-clamp-2">
-              {listing ? formatSlotSummary(listing) : "Escolha um anúncio"}
-            </p>
           </div>
+          <p
+            className={cn(
+              "min-w-0 font-normal leading-snug text-white/80 line-clamp-2",
+              isMobileLayout ? "text-[9px]" : "text-[10px]"
+            )}
+          >
+            {listing ? formatSlotSummary(listing) : "Escolha um anúncio"}
+          </p>
         </div>
       </div>
 
@@ -843,10 +1053,39 @@ function RecalculatedValue({
   )
 }
 
+function MatrixCellTruncatedText({
+  text,
+  tooltip,
+  className,
+  ariaLabel,
+}: {
+  text: string
+  tooltip?: string
+  className?: string
+  ariaLabel?: string
+}) {
+  const truncated = (
+    <span className={cn("block min-w-0 truncate", className)} title={!tooltip ? text : undefined}>
+      {text}
+    </span>
+  )
+
+  if (!tooltip) {
+    return <span aria-label={ariaLabel}>{truncated}</span>
+  }
+
+  return (
+    <RecalculatedValue tooltip={tooltip} className="min-w-0 flex-1" ariaLabel={ariaLabel}>
+      {truncated}
+    </RecalculatedValue>
+  )
+}
+
 function MatrixCell({
   cell,
   trend,
   isFixed = false,
+  isMobileLayout = false,
   fixedLabel,
   hideFixButton = false,
   onToggleFixed,
@@ -854,20 +1093,28 @@ function MatrixCell({
   cell: CellValue
   trend: TrendDirection
   isFixed?: boolean
+  isMobileLayout?: boolean
   fixedLabel?: string
   hideFixButton?: boolean
   onToggleFixed?: () => void
 }) {
+  const cellTextClass = isMobileLayout ? "text-[10px]" : "text-xs"
+  const pinButtonClass = isMobileLayout ? "h-5 w-5" : "h-6 w-6"
+  const pinIconClass = isMobileLayout ? "h-3 w-3" : "h-3.5 w-3.5"
+
   if (cell.href) {
     return (
       <a
         href={cell.href}
         target="_blank"
         rel="noopener noreferrer"
-        className="inline-flex min-w-0 items-center gap-1 text-xs font-medium text-app-accent hover:underline"
+        className={cn(
+          "flex min-w-0 items-center gap-0.5 font-medium text-app-accent hover:underline",
+          cellTextClass
+        )}
+        title={cell.value}
       >
-        <span className="truncate">{cell.value}</span>
-        <ExternalLink className="h-3.5 w-3.5 shrink-0" />
+        <span className="min-w-0 flex-1 truncate">{cell.value}</span>
       </a>
     )
   }
@@ -883,60 +1130,91 @@ function MatrixCell({
     trend === "down" && "text-green"
   )
   const showTrend = trend === "up" || trend === "down"
+  const valueTooltip = cell.recalculationTooltip ?? cell.value
 
-  return (
-    <div className="group/cell flex min-w-0 items-center justify-between gap-1.5">
-      <span className="min-w-0 font-mono text-xs tabular-nums text-app-fg">
-        {cell.valueSuffix ? (
-          <span className="inline-flex flex-wrap items-center gap-x-1 gap-y-0.5">
-            <span className="whitespace-nowrap">{cell.valuePrefix}</span>
-            <span className="inline-flex items-center gap-0.5 whitespace-nowrap">
-              <RecalculatedValue
-                tooltip={cell.recalculationTooltip}
-                className={trendClassName}
-                ariaLabel={trendLabel}
-              >
-                {cell.valueSuffix}
-              </RecalculatedValue>
-              {showTrend && <TrendArrow trend={trend} className={trendClassName} />}
-            </span>
-          </span>
-        ) : (
-          <span
-            className={cn(
-              "inline-flex min-w-0 items-center gap-0.5",
-              cell.rawValue !== undefined ? "whitespace-nowrap" : "flex-wrap break-words"
-            )}
-          >
-            <RecalculatedValue
-              tooltip={cell.recalculationTooltip}
-              className={trendClassName}
-              ariaLabel={trendLabel}
-            >
-              {cell.value}
-            </RecalculatedValue>
-            {showTrend && <TrendArrow trend={trend} className={trendClassName} />}
-          </span>
-        )}
-      </span>
-      <span className="flex shrink-0 items-center gap-1">
-        {onToggleFixed && (
+  if (isMobileLayout) {
+    return (
+      <div className="group/cell flex min-w-0 items-center gap-0.5">
+        <span
+          className={cn(
+            "flex min-w-0 flex-1 items-center gap-0.5 overflow-hidden font-mono tabular-nums text-app-fg",
+            cellTextClass
+          )}
+        >
+          <MatrixCellTruncatedText
+            text={cell.value}
+            tooltip={valueTooltip !== cell.value ? valueTooltip : undefined}
+            className={trendClassName}
+            ariaLabel={trendLabel}
+          />
+          {showTrend && <TrendArrow trend={trend} className={cn("shrink-0", trendClassName)} />}
+        </span>
+        {onToggleFixed ? (
           <button
             type="button"
             onClick={onToggleFixed}
             className={cn(
-              "inline-flex h-6 w-6 items-center justify-center rounded border transition-colors",
+              "inline-flex shrink-0 items-center justify-center rounded border transition-colors",
+              pinButtonClass,
               isFixed
                 ? "border-app-action bg-app-action text-app-action-foreground"
                 : "border-transparent text-app-subtle hover:border-app-border hover:text-app-fg",
-              hideFixButton && "opacity-0 group-hover/cell:opacity-100 focus-visible:opacity-100"
+              hideFixButton && "opacity-40 focus-visible:opacity-100"
             )}
             aria-label={isFixed ? `Remover célula fixa: ${fixedLabel}` : `Fixar ${fixedLabel}`}
           >
-            <Pin className={cn("h-3.5 w-3.5", isFixed && "fill-current")} />
+            <Pin className={cn(pinIconClass, isFixed && "fill-current")} />
           </button>
+        ) : null}
+      </div>
+    )
+  }
+
+  return (
+    <div className="group/cell flex min-w-0 items-center justify-between gap-1.5">
+      <span className={cn("min-w-0 flex-1 overflow-hidden font-mono tabular-nums text-app-fg", cellTextClass)}>
+        {cell.valueSuffix ? (
+          <span className="flex min-w-0 items-center gap-x-1 overflow-hidden">
+            <span className="min-w-0 shrink truncate">{cell.valuePrefix}</span>
+            <span className="inline-flex min-w-0 shrink items-center gap-0.5 overflow-hidden">
+              <MatrixCellTruncatedText
+                text={cell.valueSuffix}
+                tooltip={valueTooltip}
+                className={trendClassName}
+                ariaLabel={trendLabel}
+              />
+              {showTrend && <TrendArrow trend={trend} className={cn("shrink-0", trendClassName)} />}
+            </span>
+          </span>
+        ) : (
+          <span className="flex min-w-0 items-center gap-0.5 overflow-hidden">
+            <MatrixCellTruncatedText
+              text={cell.value}
+              tooltip={cell.recalculationTooltip}
+              className={trendClassName}
+              ariaLabel={trendLabel}
+            />
+            {showTrend && <TrendArrow trend={trend} className={cn("shrink-0", trendClassName)} />}
+          </span>
         )}
       </span>
+      {onToggleFixed ? (
+        <button
+          type="button"
+          onClick={onToggleFixed}
+          className={cn(
+            "inline-flex shrink-0 items-center justify-center rounded border transition-colors",
+            pinButtonClass,
+            isFixed
+              ? "border-app-action bg-app-action text-app-action-foreground"
+              : "border-transparent text-app-subtle hover:border-app-border hover:text-app-fg",
+            hideFixButton && "opacity-0 group-hover/cell:opacity-100 focus-visible:opacity-100"
+          )}
+          aria-label={isFixed ? `Remover célula fixa: ${fixedLabel}` : `Fixar ${fixedLabel}`}
+        >
+          <Pin className={cn(pinIconClass, isFixed && "fill-current")} />
+        </button>
+      ) : null}
     </div>
   )
 }

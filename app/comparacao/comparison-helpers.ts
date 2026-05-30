@@ -1,8 +1,20 @@
+import type { LucideIcon } from "lucide-react"
+import {
+  Dumbbell,
+  Mountain,
+  Shield,
+  Waves,
+  WavesLadder,
+} from "lucide-react"
 import type { Imovel } from "@/app/anuncios/lib/api"
 import { resolveListingDisplayTitle } from "@/lib/listing-display-title"
 
 export const COMPARISON_LABEL_COL_WIDTH_PX = 104
 export const COMPARISON_SLOT_COL_WIDTH_PX = 198
+export const COMPARISON_LABEL_COL_WIDTH_MOBILE_PX = 48
+export const COMPARISON_SLOT_COL_WIDTH_MOBILE_PX = 102
+/** Tailwind `max-md` — mobile comparison layout (icons, narrow columns). */
+export const COMPARISON_MOBILE_LAYOUT_QUERY = "(max-width: 767px)"
 export const COMPARISON_SLOT_COUNT_COMPACT = 3
 export const COMPARISON_SLOT_COUNT_MAX = 4
 /** Tailwind `xl` — four slots from this width up; three at `lg` and below. */
@@ -16,8 +28,24 @@ export function getComparisonVisibleSlotCount(matchesWideViewport: boolean) {
   return matchesWideViewport ? COMPARISON_SLOT_COUNT_MAX : COMPARISON_SLOT_COUNT_COMPACT
 }
 
-export function getComparisonTableMinWidthPx(slotCount: number) {
-  return COMPARISON_LABEL_COL_WIDTH_PX + COMPARISON_SLOT_COL_WIDTH_PX * slotCount
+export function getComparisonLabelColWidthPx(mobile = false) {
+  return mobile ? COMPARISON_LABEL_COL_WIDTH_MOBILE_PX : COMPARISON_LABEL_COL_WIDTH_PX
+}
+
+export function getComparisonSlotColWidthPx(mobile = false) {
+  return mobile ? COMPARISON_SLOT_COL_WIDTH_MOBILE_PX : COMPARISON_SLOT_COL_WIDTH_PX
+}
+
+export function getComparisonTableMinWidthPx(
+  slotCount: number,
+  options?: { mobile?: boolean }
+) {
+  const mobile = options?.mobile ?? false
+  return getComparisonLabelColWidthPx(mobile) + getComparisonSlotColWidthPx(mobile) * slotCount
+}
+
+export function getComparisonSlotHeaderHeightPx(slotColWidthPx: number) {
+  return (slotColWidthPx * 5) / 4
 }
 
 export function initializeComparisonSlots(
@@ -175,6 +203,16 @@ export function formatPricePerM2(value: number | null | undefined): string {
   return `${formatCurrency(value)}/m²`
 }
 
+export function formatCompactCurrency(value: number | null | undefined): string {
+  if (value === null || value === undefined) return "—"
+  return formatCurrency(value).replace(/\s/g, "")
+}
+
+export function formatCompactPricePerM2(value: number | null | undefined): string {
+  if (value === null || value === undefined) return "—"
+  return `${formatCompactCurrency(value)}/m²`
+}
+
 export function formatArea(value: number | null | undefined): string {
   if (value === null || value === undefined) return "—"
   return `${new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 0 }).format(value)} m²`
@@ -200,12 +238,13 @@ export type ComparisonExtraKey =
 export const COMPARISON_EXTRA_ROWS: ReadonlyArray<{
   key: ComparisonExtraKey
   label: string
+  icon: LucideIcon
 }> = [
-  { key: "piscina", label: "Piscina" },
-  { key: "piscinaTermica", label: "Piscina térmica" },
-  { key: "porteiro24h", label: "Porteiro 24h" },
-  { key: "academia", label: "Academia" },
-  { key: "vistaLivre", label: "Vista livre" },
+  { key: "piscina", label: "Piscina", icon: WavesLadder },
+  { key: "piscinaTermica", label: "Piscina térmica", icon: Waves },
+  { key: "porteiro24h", label: "Porteiro 24h", icon: Shield },
+  { key: "academia", label: "Academia", icon: Dumbbell },
+  { key: "vistaLivre", label: "Vista livre", icon: Mountain },
 ]
 
 export function formatExtraValue(value: boolean | null | undefined): string {
@@ -275,10 +314,6 @@ function featureUnitPlural(rowKey: "rooms" | "bathrooms" | "garage"): string {
   if (rowKey === "rooms") return "quartos"
   if (rowKey === "bathrooms") return "banheiros"
   return "vagas"
-}
-
-function formatCompactCurrency(value: number): string {
-  return formatCurrency(value).replace(/\s/g, "")
 }
 
 function formatFeatureDeltaLabel(

@@ -247,6 +247,21 @@ export function compactListingDisplayTitle(title: string): string {
 
 const LISTING_TITLE_LOCATION_SUFFIX_PATTERN = /\s+em\s+.+$/i
 
+/** Comparison table slot header on mobile — property type and room count only. */
+export function comparisonMobileSlotListingLabel(
+  listing: Pick<ListingTitleInput, "tipoImovel" | "quartos">
+): string {
+  const tipo = propertyTypeLabel(listing.tipoImovel)
+  const quartos = listing.quartos
+
+  if (quartos == null || quartos < 0) {
+    return tipo
+  }
+
+  const quartosLabel = quartos === 1 ? "1 quarto" : `${quartos} quartos`
+  return `${tipo} ${quartosLabel}`
+}
+
 /** Breadcrumb on narrow screens — compact title without the trailing " em …" location. */
 export function mobileCompactListingDisplayTitle(title: string): string {
   const compact = compactListingDisplayTitle(title)
