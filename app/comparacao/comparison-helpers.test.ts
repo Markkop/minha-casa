@@ -7,6 +7,9 @@ import {
   calculateTotalPricePerM2,
   compareNumericValues,
   COMPARISON_FEATURE_ADJUSTMENT_BRL,
+  COMPARISON_SLOT_COUNT_COMPACT,
+  getComparisonTableMinWidthPx,
+  getComparisonVisibleSlotCount,
   formatExtraValue,
   getVisibleComparisonExtraRows,
   formatPricePerM2,
@@ -56,6 +59,24 @@ function makeListing(overrides: Partial<Imovel> = {}): Imovel {
 }
 
 describe("comparison helpers", () => {
+  it("uses 3 slots in compact layout and 4 on wide viewports", () => {
+    expect(getComparisonVisibleSlotCount(false)).toBe(COMPARISON_SLOT_COUNT_COMPACT)
+    expect(getComparisonVisibleSlotCount(true)).toBe(4)
+    expect(getComparisonTableMinWidthPx(3)).toBe(698)
+    expect(getComparisonTableMinWidthPx(4)).toBe(896)
+    expect(
+      initializeComparisonSlots(
+        [
+          makeListing({ id: "1" }),
+          makeListing({ id: "2" }),
+          makeListing({ id: "3" }),
+          makeListing({ id: "4" }),
+        ],
+        COMPARISON_SLOT_COUNT_COMPACT
+      )
+    ).toEqual(["1", "2", "3"])
+  })
+
   it("initializes with the first 4 listings and pads empty slots", () => {
     expect(
       initializeComparisonSlots([

@@ -50,9 +50,11 @@ import {
   initializeComparisonSlotsFromAutoFill,
   normalizeComparisonSlots,
   replaceComparisonSlot,
+  getComparisonTableMinWidthPx,
   type ComparisonSlot,
   type TrendDirection,
 } from "./comparison-helpers"
+import { useComparisonVisibleSlotCount } from "./use-comparison-visible-slot-count"
 
 const EMPTY_SLOT_VALUE = "__empty__"
 const COMPARISON_SELECTION_STORAGE_PREFIX = "minha-casa:comparison-selection"
@@ -106,10 +108,9 @@ const NUMERIC_ROW_KEYS = new Set<NumericRowKey>([
   "garage",
 ])
 
-const COMPARISON_SLOT_COL_WIDTH_PX = 198
 /** Matches aspect-[4/5] at the slot column width so a colspan header stays the same height. */
 const COMPARISON_SLOT_HEADER_HEIGHT_PX =
-  (COMPARISON_SLOT_COL_WIDTH_PX * 5) / 4
+  (198 * 5) / 4
 
 function formatSlotSummary(listing: Imovel) {
   return listing.endereco || "—"
@@ -194,10 +195,14 @@ function getComparisonSelectionStorageKey(collectionId: string) {
   return `${COMPARISON_SELECTION_STORAGE_PREFIX}:${collectionId}`
 }
 
-function resolveFixedCell(slots: ComparisonSlot[], fixedCell: FixedCell | null): FixedCell | null {
+function resolveFixedCell(
+  slots: ComparisonSlot[],
+  fixedCell: FixedCell | null,
+  visibleSlotCount = slots.length
+): FixedCell | null {
   if (!fixedCell) return null
   if (!NUMERIC_ROW_KEYS.has(fixedCell.rowKey)) return null
-  if (fixedCell.slotIndex < 0 || fixedCell.slotIndex >= slots.length) return null
+  if (fixedCell.slotIndex < 0 || fixedCell.slotIndex >= visibleSlotCount) return null
   if (!slots[fixedCell.slotIndex]) return null
   return fixedCell
 }
@@ -412,9 +417,14 @@ function getMatrixRowAccessibleLabel(row: MatrixRow) {
 
 export function ComparisonClient() {
   const { listings, activeCollection, isLoadingListings, updateListing } = useCollections()
+  const visibleSlotCount = useComparisonVisibleSlotCount()
   const [slotIds, setSlotIds] = useState<ComparisonSlot[]>(() => initializeComparisonSlots([]))
   const [fixedCell, setFixedCell] = useState<FixedCell | null>(null)
   const [initializedCollectionId, setInitializedCollectionId] = useState<string | null>(null)
+
+  useEffect(() => {
+    setFixedCell((current) => resolveFixedCell(slotIds, current, visibleSlotCount))
+  }, [slotIds, visibleSlotCount])
 
   useEffect(() => {
     const collectionId = activeCollection?.id ?? null
@@ -459,8 +469,8 @@ export function ComparisonClient() {
   }, [activeCollection?.id, fixedCell, initializedCollectionId, slotIds])
 
   const selectedListings = useMemo(
-    () => getSlotListings(slotIds, listings),
-    [slotIds, listings]
+    () => getSlotListings(slotIds, listings).slice(0, visibleSlotCount),
+    [slotIds, listings, visibleSlotCount]
   )
   const selectedFilledListings = useMemo(
     () => selectedListings.filter((listing): listing is Imovel => Boolean(listing)),
@@ -474,7 +484,7 @@ export function ComparisonClient() {
     ],
     [selectedFilledListings]
   )
-  const resolvedFixedCell = resolveFixedCell(slotIds, fixedCell)
+  const resolvedFixedCell = resolveFixedCell(slotIds, fixedCell, visibleSlotCount)
   const fixedListing = resolvedFixedCell === null ? null : selectedListings[resolvedFixedCell.slotIndex]
 
   const handleReplaceSlot = (slotIndex: number, value: string) => {
@@ -519,10 +529,13 @@ export function ComparisonClient() {
           <>
             <TooltipProvider>
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[896px] table-fixed border-collapse text-xs">
+              <table
+                className="w-full table-fixed border-collapse text-xs"
+                style={{ minWidth: getComparisonTableMinWidthPx(visibleSlotCount) }}
+              >
                 <colgroup>
                   <col className="w-[104px]" />
-                  {slotIds.map((_, index) => (
+                  {Array.from({ length: visibleSlotCount }, (_, index) => (
                     <col key={index} className="w-[198px]" />
                   ))}
                 </colgroup>

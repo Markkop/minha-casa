@@ -1,29 +1,48 @@
 import type { Imovel } from "@/app/anuncios/lib/api"
 
-export const COMPARISON_SLOT_COUNT = 4
+export const COMPARISON_LABEL_COL_WIDTH_PX = 104
+export const COMPARISON_SLOT_COL_WIDTH_PX = 198
+export const COMPARISON_SLOT_COUNT_COMPACT = 3
+export const COMPARISON_SLOT_COUNT_MAX = 4
+/** Tailwind `xl` — four slots from this width up; three at `lg` and below. */
+export const COMPARISON_SLOT_COUNT_WIDE_QUERY = "(min-width: 1280px)"
+/** @deprecated Use COMPARISON_SLOT_COUNT_MAX */
+export const COMPARISON_SLOT_COUNT = COMPARISON_SLOT_COUNT_MAX
 export type ComparisonSlot = string | null
 export type TrendDirection = "up" | "down" | "equal" | null
 
-export function initializeComparisonSlots(listings: Pick<Imovel, "id">[]): ComparisonSlot[] {
+export function getComparisonVisibleSlotCount(matchesWideViewport: boolean) {
+  return matchesWideViewport ? COMPARISON_SLOT_COUNT_MAX : COMPARISON_SLOT_COUNT_COMPACT
+}
+
+export function getComparisonTableMinWidthPx(slotCount: number) {
+  return COMPARISON_LABEL_COL_WIDTH_PX + COMPARISON_SLOT_COL_WIDTH_PX * slotCount
+}
+
+export function initializeComparisonSlots(
+  listings: Pick<Imovel, "id">[],
+  slotCount: number = COMPARISON_SLOT_COUNT_MAX
+): ComparisonSlot[] {
   const initial: ComparisonSlot[] = listings
-    .slice(0, COMPARISON_SLOT_COUNT)
+    .slice(0, slotCount)
     .map((listing) => listing.id)
-  while (initial.length < COMPARISON_SLOT_COUNT) initial.push(null)
+  while (initial.length < slotCount) initial.push(null)
   return initial
 }
 
 export function normalizeComparisonSlots(
   slots: ComparisonSlot[],
-  listings: Pick<Imovel, "id">[]
+  listings: Pick<Imovel, "id">[],
+  slotCount: number = COMPARISON_SLOT_COUNT_MAX
 ): ComparisonSlot[] {
   const validIds = new Set(listings.map((listing) => listing.id))
   const seen = new Set<string>()
-  const next = slots.slice(0, COMPARISON_SLOT_COUNT).map((slot) => {
+  const next = slots.slice(0, slotCount).map((slot) => {
     if (!slot || !validIds.has(slot) || seen.has(slot)) return null
     seen.add(slot)
     return slot
   })
-  while (next.length < COMPARISON_SLOT_COUNT) next.push(null)
+  while (next.length < slotCount) next.push(null)
   return next
 }
 

@@ -3,6 +3,7 @@
 import { describe, expect, it, vi, beforeEach } from "vitest"
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react"
 import { ComparisonClient } from "./comparison-client"
+import { COMPARISON_SLOT_COUNT_WIDE_QUERY } from "./comparison-helpers"
 import type { Collection, Imovel } from "@/app/anuncios/lib/api"
 
 const mockUseCollections = vi.fn()
@@ -147,10 +148,34 @@ function setup(collectionListings: Imovel[] = listings) {
   render(<ComparisonClient />)
 }
 
+function mockWideComparisonViewport(matchesWide = true) {
+  vi.stubGlobal(
+    "matchMedia",
+    vi.fn((query: string) => ({
+      matches: query === COMPARISON_SLOT_COUNT_WIDE_QUERY ? matchesWide : false,
+      media: query,
+      onchange: null,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    }))
+  )
+}
+
 describe("ComparisonClient", () => {
   beforeEach(() => {
     vi.clearAllMocks()
     window.localStorage.clear()
+    mockWideComparisonViewport(true)
+  })
+
+  it("shows 3 comparison slots below xl", async () => {
+    mockWideComparisonViewport(false)
+    saveStoredComparison(["listing-1", "listing-2", "listing-3", "listing-4"])
+    setup()
+
+    expect(await screen.findByRole("button", { name: "Editar imóvel do slot 3" })).toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: "Editar imóvel do slot 4" })).not.toBeInTheDocument()
   })
 
   it("toggles favorite from the slot header star", async () => {
