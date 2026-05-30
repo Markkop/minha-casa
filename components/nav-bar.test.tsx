@@ -255,7 +255,7 @@ describe("NavBar", () => {
     ).toBeInTheDocument()
   })
 
-  it("does not render the brand in the mobile sidebar sheet", async () => {
+  it("renders the brand at the top of the mobile sidebar sheet", async () => {
     mockUseSession.mockReturnValue({
       data: { user: { id: "user-1", name: "Test User", email: "test@example.com" } },
       isPending: false,
@@ -270,10 +270,10 @@ describe("NavBar", () => {
       return element
     })
     expect(
-      within(mobileSidebar as HTMLElement).queryByRole("link", {
+      within(mobileSidebar as HTMLElement).getByRole("link", {
         name: /minha casa/i,
       })
-    ).not.toBeInTheDocument()
+    ).toHaveAttribute("href", "/anuncios")
   })
 
   it("highlights current workspace link", () => {
