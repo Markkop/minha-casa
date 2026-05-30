@@ -89,6 +89,11 @@ export function calculatePrecoM2(preco: number | null, m2Totais: number | null):
   return Math.round(preco / m2Totais)
 }
 
+export function calculatePrecoM2Privado(preco: number | null, m2Privado: number | null): number | null {
+  if (preco === null || m2Privado === null || m2Privado === 0) return null
+  return Math.round(preco / m2Privado)
+}
+
 /**
  * Get marker color based on price per m²
  * Uses a gradient from green (cheap) to red (expensive)

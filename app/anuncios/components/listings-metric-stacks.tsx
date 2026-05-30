@@ -28,19 +28,24 @@ type DualMetricEntry = {
   value: number | null
 }
 
+type MetricAlign = "start" | "end"
+
 function DualMetricStack({
   total,
   privado,
   activeVariant,
   enabledVariants,
   formatValue,
+  align = "end",
 }: {
   total: number | null
   privado: number | null
   activeVariant?: MetricVariant | null
   enabledVariants: Set<MetricVariant>
   formatValue: (value: number | null) => string
+  align?: MetricAlign
 }) {
+  const alignClass = align === "start" ? "items-start" : "items-end"
   const showTotal = enabledVariants.has("total")
   const showPrivado = enabledVariants.has("privado")
   const showBoth = showTotal && showPrivado
@@ -48,7 +53,7 @@ function DualMetricStack({
   if (!showBoth) {
     const variant: MetricVariant = showTotal ? "total" : "privado"
     const value = variant === "total" ? total : privado
-    return <SingleMetricLine value={formatValue(value)} label={variant} />
+    return <SingleMetricLine value={formatValue(value)} label={variant} align={align} />
   }
 
   const entries: DualMetricEntry[] = [
@@ -64,13 +69,14 @@ function DualMetricStack({
       <SingleMetricLine
         value={formatValue(entry.value)}
         label={entry.variant}
+        align={align}
       />
     )
   }
 
   if (visibleEntries.length >= 2) {
     return (
-      <div className="flex flex-col items-end gap-1.5 leading-none">
+      <div className={cn("flex flex-col gap-1.5 leading-none", alignClass)}>
         {visibleEntries.map((entry) => (
           <StackedMetricLine
             key={entry.variant}
@@ -78,6 +84,7 @@ function DualMetricStack({
             label={entry.variant}
             activeVariant={activeVariant}
             emphasizeWhenSorted
+            align={align}
           />
         ))}
       </div>
@@ -89,6 +96,7 @@ function DualMetricStack({
     <SingleMetricLine
       value={formatValue(fallback.value)}
       label={fallback.variant}
+      align={align}
     />
   )
 }
@@ -98,11 +106,13 @@ function StackedMetricLine({
   label,
   activeVariant,
   emphasizeWhenSorted,
+  align = "end",
 }: {
   value: string
   label: MetricVariant
   activeVariant?: MetricVariant | null
   emphasizeWhenSorted: boolean
+  align?: MetricAlign
 }) {
   const isDimmed =
     emphasizeWhenSorted &&
@@ -110,10 +120,13 @@ function StackedMetricLine({
     activeVariant !== undefined &&
     activeVariant !== label
 
+  const alignClass = align === "start" ? "items-start" : "items-end"
+
   return (
     <span
       className={cn(
-        "inline-flex min-w-24 flex-col items-end gap-0.5 whitespace-nowrap transition-opacity",
+        "inline-flex min-w-24 flex-col gap-0.5 whitespace-nowrap transition-opacity",
+        alignClass,
         isDimmed && "opacity-35"
       )}
     >
@@ -126,12 +139,15 @@ function StackedMetricLine({
 function SingleMetricLine({
   value,
   label,
+  align = "end",
 }: {
   value: string
   label: MetricVariant
+  align?: MetricAlign
 }) {
+  const alignClass = align === "start" ? "items-start" : "items-end"
   return (
-    <span className="inline-flex flex-col items-end gap-0.5 whitespace-nowrap tabular-nums">
+    <span className={cn("inline-flex flex-col gap-0.5 whitespace-nowrap tabular-nums", alignClass)}>
       {value}
       <span className="text-[9px] leading-none text-app-muted">{label}</span>
     </span>
@@ -143,11 +159,13 @@ export function AreaM2Stack({
   privado,
   activeVariant,
   enabledVariants,
+  align,
 }: {
   total: number | null
   privado: number | null
   activeVariant?: MetricVariant | null
   enabledVariants: Set<MetricVariant>
+  align?: MetricAlign
 }) {
   return (
     <DualMetricStack
@@ -156,6 +174,7 @@ export function AreaM2Stack({
       activeVariant={activeVariant}
       enabledVariants={enabledVariants}
       formatValue={formatM2Value}
+      align={align}
     />
   )
 }
@@ -165,11 +184,13 @@ export function PricePerM2Stack({
   privado,
   activeVariant,
   enabledVariants,
+  align,
 }: {
   total: number | null
   privado: number | null
   activeVariant?: MetricVariant | null
   enabledVariants: Set<MetricVariant>
+  align?: MetricAlign
 }) {
   return (
     <DualMetricStack
@@ -178,6 +199,7 @@ export function PricePerM2Stack({
       activeVariant={activeVariant}
       enabledVariants={enabledVariants}
       formatValue={formatPrecoM2Value}
+      align={align}
     />
   )
 }

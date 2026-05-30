@@ -30,8 +30,8 @@ export function NearbyPlacesPanel({
   const showTabs = !error && !isLoading && nearby && !nearby.skipped && (nearby.categories?.length ?? 0) > 0
 
   return (
-    <WorkspacePanel className={cn("overflow-hidden p-0", className)}>
-      <div className="flex items-center gap-2 px-4 pt-4 pb-2">
+    <WorkspacePanel className={cn("flex flex-col overflow-hidden p-0", className)}>
+      <div className="flex shrink-0 items-center gap-2 px-4 pt-4 pb-2">
         <h3 className="text-xs font-semibold uppercase tracking-wide text-app-muted">
           Proximidades
         </h3>
@@ -47,13 +47,15 @@ export function NearbyPlacesPanel({
       )}
 
       {!error && !isLoading && !showTabs && (
-        <div className="px-4 pb-4">
+        <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-4">
           <NearbyPlacesContent data={nearby} />
         </div>
       )}
 
       {!error && showTabs && nearby && (
-        <NearbyPlacesTabs data={nearby} />
+        <div className="min-h-0 flex-1 overflow-y-auto">
+          <NearbyPlacesTabs data={nearby} />
+        </div>
       )}
     </WorkspacePanel>
   )

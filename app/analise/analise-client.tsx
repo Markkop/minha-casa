@@ -18,12 +18,7 @@ function AnaliseClientInner() {
   const { orgId } = useWorkspaceProfile()
   const searchParams = useSearchParams()
   const selectedListingId = searchParams.get("listing")
-  const {
-    listings,
-    activeCollection,
-    isLoadingListings,
-    updateListing,
-  } = useCollections()
+  const { listings, activeCollection, isLoadingListings } = useCollections()
 
   const sortedListings = useMemo(
     () =>
@@ -73,7 +68,6 @@ function AnaliseClientInner() {
               listing={selectedListing}
               collectionId={activeCollection.id}
               orgId={orgId}
-              updateListing={updateListing}
             />
             <DeepAnalysisPanel listing={selectedListing} orgId={orgId} />
           </>
