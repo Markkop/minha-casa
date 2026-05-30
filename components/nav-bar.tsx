@@ -1,6 +1,6 @@
 "use client"
 
-import { type ReactNode, useEffect, useState } from "react"
+import { type ReactNode, useSyncExternalStore } from "react"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import {
@@ -633,12 +633,12 @@ function SimpleTopNav({
 export function NavBar({ children }: { children?: ReactNode }) {
   const pathname = usePathname()
   const router = useRouter()
-  const [hasMounted, setHasMounted] = useState(false)
+  const hasMounted = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false,
+  )
   const { data: session, isPending: sessionPending } = useSession()
-
-  useEffect(() => {
-    setHasMounted(true)
-  }, [])
   const { hasAddon } = useAddons()
   const { hasActiveSubscription, subscriptionReady } = useSubscriptionAccess()
   const user = session?.user as SessionUser | undefined
