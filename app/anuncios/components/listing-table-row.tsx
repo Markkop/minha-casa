@@ -1,6 +1,7 @@
 "use client"
 
 import { memo, useCallback, useState } from "react"
+import { ListingTitleLinks } from "@/components/listing-title-links"
 import { TableCell, TableRow } from "@/components/ui/table"
 import { Input } from "@/components/ui/input"
 import {
@@ -106,11 +107,6 @@ function formatQuartosSuites(quartos: number | null, suites: number | null) {
   const s = suites ?? 0
   if (s === 0) return `${q}`
   return `${q} (${s}s)`
-}
-
-function truncateTitle(title: string, maxLength = 50) {
-  if (title.length <= maxLength) return title
-  return `${title.slice(0, maxLength)}...`
 }
 
 function formatDate(value: string | undefined) {
@@ -541,30 +537,10 @@ function ListingTableRowInner({
                                   {imovel.starred ? "Remover dos favoritos" : "Adicionar aos favoritos"}
                                 </TooltipContent>
                               </Tooltip>
-                              {imovel.link ? (
-                                <a
-                                  href={imovel.link}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className={cn(
-                                    "min-w-0 flex-1 cursor-pointer truncate font-medium leading-snug text-app-fg transition-colors hover:text-app-fg",
-                                    imovel.strikethrough && "line-through opacity-50"
-                                  )}
-                                  title={`Abrir anúncio: ${imovel.titulo}`}
-                                >
-                                  {truncateTitle(imovel.titulo)}
-                                </a>
-                              ) : (
-                                <div
-                                  className={cn(
-                                    "min-w-0 flex-1 truncate font-medium leading-snug text-app-fg",
-                                    imovel.strikethrough && "line-through opacity-50"
-                                  )}
-                                  title={imovel.titulo}
-                                >
-                                  {truncateTitle(imovel.titulo)}
-                                </div>
-                              )}
+                              <ListingTitleLinks
+                                listing={imovel}
+                                collectionId={activeCollectionId}
+                              />
                             </div>
                             {propertyDisplay.showAddress && (
                               <a

@@ -36,6 +36,11 @@ vi.mock("./components/deep-analysis-panel", () => ({
   ),
 }))
 
+const mockUseAdminFlag = vi.fn()
+vi.mock("@/lib/admin-feature-flags-provider", () => ({
+  useAdminFlag: (key: string) => mockUseAdminFlag(key),
+}))
+
 const collection: Collection = {
   id: "collection-1",
   label: "Coleção",
@@ -98,6 +103,7 @@ describe("AnaliseClient", () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockSearchParams = new URLSearchParams()
+    mockUseAdminFlag.mockReturnValue(false)
   })
 
   it("reselects from the shared active collection when listings change", async () => {
@@ -131,6 +137,26 @@ describe("AnaliseClient", () => {
       "Casa Beta"
     )
     expect(screen.queryByTestId("listing-selector")).not.toBeInTheDocument()
+  })
+
+  it("renders deep analysis only when admin flag is enabled", async () => {
+    mockUseAdminFlag.mockImplementation((key: string) => key === "deepAnalysis")
+    mockCollections([listing("listing-1", "Casa Alpha")])
+
+    render(<AnaliseClient />)
+
+    expect(await screen.findByTestId("deep-analysis-panel")).toHaveTextContent(
+      "listing-1"
+    )
+  })
+
+  it("hides deep analysis when admin flag is disabled", async () => {
+    mockCollections([listing("listing-1", "Casa Alpha")])
+
+    render(<AnaliseClient />)
+
+    expect(await screen.findByTestId("property-dossier")).toBeInTheDocument()
+    expect(screen.queryByTestId("deep-analysis-panel")).not.toBeInTheDocument()
   })
 
   it("falls back to the first non-struck listing when the query param is invalid", async () => {

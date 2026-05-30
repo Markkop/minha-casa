@@ -9,6 +9,7 @@ import {
   CircleDollarSign,
   ClipboardList,
   Contact,
+  Flag,
   Home,
   LayoutDashboard,
   Link2,
@@ -61,6 +62,8 @@ import {
   useOrganizations,
 } from "@/components/organization-switcher"
 import { getFlag } from "@/lib/feature-flags"
+import { type AdminFeatureFlagName } from "@/lib/admin-feature-flags"
+import { useAdminFlag } from "@/lib/admin-feature-flags-provider"
 import { isActivePath } from "@/lib/navigation"
 import { signOut, useSession } from "@/lib/auth-client"
 import { useAddons } from "@/lib/use-addons"
@@ -76,19 +79,50 @@ interface NavLink {
   href: string
   label: string
   icon: LucideIcon
+  adminFlag?: AdminFeatureFlagName
 }
 
-const workspaceLinks: NavLink[] = [
-  { href: "/visao-geral", label: "Visão geral", icon: LayoutDashboard },
+const coreWorkspaceLinks: NavLink[] = [
   { href: "/anuncios", label: "Anúncios", icon: Home },
   { href: "/comparacao", label: "Comparação", icon: BarChart3 },
   { href: "/analise", label: "Análise", icon: ScanSearch },
   { href: "/financiamento", label: "Financiamento", icon: CircleDollarSign },
   { href: "/links", label: "Links", icon: Link2 },
-  { href: "/contatos", label: "Contatos", icon: Contact },
-  { href: "/regioes", label: "Regiões", icon: MapPinned },
-  { href: "/condominios", label: "Condomínios", icon: Building2 },
 ]
+
+const adminGatedWorkspaceLinks: NavLink[] = [
+  { href: "/visao-geral", label: "Visão geral", icon: LayoutDashboard, adminFlag: "visaoGeral" },
+  { href: "/contatos", label: "Contatos", icon: Contact, adminFlag: "contatos" },
+  { href: "/regioes", label: "Regiões", icon: MapPinned, adminFlag: "regioes" },
+  { href: "/condominios", label: "Condomínios", icon: Building2, adminFlag: "condominios" },
+]
+
+function useVisibleWorkspaceLinks(): NavLink[] {
+  const visaoGeral = useAdminFlag("visaoGeral")
+  const contatos = useAdminFlag("contatos")
+  const regioes = useAdminFlag("regioes")
+  const condominios = useAdminFlag("condominios")
+
+  const gatedByFlag = new Map<AdminFeatureFlagName, boolean>([
+    ["visaoGeral", visaoGeral],
+    ["contatos", contatos],
+    ["regioes", regioes],
+    ["condominios", condominios],
+    ["deepAnalysis", false],
+  ])
+
+  const gatedBeforeCore = adminGatedWorkspaceLinks.filter(
+    (link) => link.adminFlag === "visaoGeral" && gatedByFlag.get("visaoGeral")
+  )
+  const gatedAfterCore = adminGatedWorkspaceLinks.filter(
+    (link) =>
+      link.adminFlag &&
+      link.adminFlag !== "visaoGeral" &&
+      gatedByFlag.get(link.adminFlag)
+  )
+
+  return [...gatedBeforeCore, ...coreWorkspaceLinks, ...gatedAfterCore]
+}
 
 type SessionUser = {
   name?: string | null
@@ -146,6 +180,7 @@ function BrandLink({
 
 function WorkspaceNavLinks({ pathname }: { pathname: string }) {
   const { setOpenMobile } = useSidebar()
+  const workspaceLinks = useVisibleWorkspaceLinks()
 
   return (
     <SidebarMenu>
@@ -236,6 +271,14 @@ function AccountDropdown({
             <Link href="/organizacoes">
               <Users className="h-4 w-4" />
               <span>Organizações</span>
+            </Link>
+          </DropdownMenuItem>
+        )}
+        {isAdmin && (
+          <DropdownMenuItem asChild>
+            <Link href="/admin/feature-flags">
+              <Flag className="h-4 w-4" />
+              <span>Feature flags</span>
             </Link>
           </DropdownMenuItem>
         )}
@@ -491,7 +534,7 @@ export function NavBar({ children }: { children?: ReactNode }) {
   const logoHref = !isLoggedIn
     ? "/"
     : showWorkspaceNav || showPendingWorkspaceNav
-      ? "/visao-geral"
+      ? "/anuncios"
       : "/subscribe"
 
   if (sessionPending) {

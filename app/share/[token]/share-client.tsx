@@ -26,6 +26,7 @@ import { cn } from "@/lib/utils"
 import { ArrowDownIcon, ArrowUpIcon, MagnifyingGlassIcon } from "@radix-ui/react-icons"
 import { AlertCircle, Home, Building, Flag, Waves, Shield, Dumbbell, Mountain, Car, WavesLadder, BedDouble, Bath, Star, LinkIcon, MapPin, Loader2, Search } from "lucide-react"
 import { ListingLocationMiniMap } from "@/app/anuncios/components/listing-location-mini-map"
+import { ListingTitleLinks } from "@/components/listing-title-links"
 import type { Imovel } from "@/app/anuncios/lib/api"
 import { resolveShareListingImages } from "@/lib/listing-images"
 import { FaWhatsapp } from "react-icons/fa"
@@ -710,24 +711,10 @@ export function ShareClient({ token }: ShareClientProps) {
                                     <Flag className="h-4 w-4" />
                                   )}
                                 </span>
-                                {imovel.link ? (
-                                  <a
-                                    href={imovel.link}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="font-medium leading-snug truncate hover:text-app-accent transition-colors cursor-pointer flex-1 min-w-0"
-                                    title={`Abrir anúncio: ${imovel.titulo}`}
-                                  >
-                                    {truncateTitle(imovel.titulo)}
-                                  </a>
-                                ) : (
-                                  <div
-                                    className="font-medium leading-snug truncate flex-1 min-w-0"
-                                    title={imovel.titulo}
-                                  >
-                                    {truncateTitle(imovel.titulo)}
-                                  </div>
-                                )}
+                                <ListingTitleLinks
+                                  listing={imovel}
+                                  collectionId={data?.collection.id}
+                                />
                               </div>
                               {propertyDisplay.showAddress && (
                                 <a

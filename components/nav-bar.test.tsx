@@ -58,6 +58,11 @@ vi.mock("@/lib/feature-flags", () => ({
   getFlag: (flag: string) => mockGetFlag(flag),
 }))
 
+const mockUseAdminFlag = vi.fn()
+vi.mock("@/lib/admin-feature-flags-provider", () => ({
+  useAdminFlag: (key: string) => mockUseAdminFlag(key),
+}))
+
 const mockHasAddon = vi.fn()
 const mockRefreshSubscription = vi.fn()
 let mockHasActiveSubscription = true
@@ -95,6 +100,7 @@ describe("NavBar", () => {
     mockPathname.mockReturnValue("/")
     mockUseSession.mockReturnValue({ data: null })
     mockGetFlag.mockImplementation((flag: string) => flag === "organizations")
+    mockUseAdminFlag.mockReturnValue(false)
     mockHasAddon.mockReturnValue(false)
     mockHasActiveSubscription = true
     mockSubscriptionReady = true
@@ -116,21 +122,48 @@ describe("NavBar", () => {
     ).not.toBeInTheDocument()
   })
 
-  it("renders workspace links when logged in with active subscription", () => {
+  it("renders core workspace links when logged in with active subscription", () => {
     mockUseSession.mockReturnValue({
       data: { user: { id: "user-1", name: "Test User", email: "test@example.com" } },
     })
 
     render(<NavBar />)
 
-    expect(screen.getByRole("link", { name: /visão geral/i })).toHaveAttribute("href", "/visao-geral")
+    expect(screen.queryByRole("link", { name: /visão geral/i })).not.toBeInTheDocument()
     expect(screen.getByRole("link", { name: /anúncios/i })).toHaveAttribute("href", "/anuncios")
     expect(screen.getByRole("link", { name: /comparação/i })).toHaveAttribute("href", "/comparacao")
+    expect(screen.getByRole("link", { name: /análise/i })).toHaveAttribute("href", "/analise")
     expect(screen.getByRole("link", { name: /financiamento/i })).toHaveAttribute("href", "/financiamento")
     expect(screen.getByRole("link", { name: /links/i })).toHaveAttribute("href", "/links")
+    expect(screen.queryByRole("link", { name: /contatos/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole("link", { name: /regiões/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole("link", { name: /condomínios/i })).not.toBeInTheDocument()
+  })
+
+  it("renders admin-gated workspace links when admin flags are enabled", () => {
+    mockUseAdminFlag.mockImplementation((key: string) =>
+      ["visaoGeral", "contatos", "regioes", "condominios"].includes(key)
+    )
+    mockUseSession.mockReturnValue({
+      data: { user: { id: "user-1", name: "Test User", email: "test@example.com", isAdmin: true } },
+    })
+
+    render(<NavBar />)
+
+    expect(screen.getByRole("link", { name: /visão geral/i })).toHaveAttribute("href", "/visao-geral")
     expect(screen.getByRole("link", { name: /contatos/i })).toHaveAttribute("href", "/contatos")
     expect(screen.getByRole("link", { name: /regiões/i })).toHaveAttribute("href", "/regioes")
     expect(screen.getByRole("link", { name: /condomínios/i })).toHaveAttribute("href", "/condominios")
+  })
+
+  it("links logo to anuncios for subscribed users", () => {
+    mockUseSession.mockReturnValue({
+      data: { user: { id: "user-1", name: "Test User", email: "test@example.com" } },
+    })
+
+    render(<NavBar />)
+
+    expect(screen.getByRole("link", { name: /minha casa/i })).toHaveAttribute("href", "/anuncios")
   })
 
   it("renders breadcrumb controls in the top bar", () => {
@@ -227,6 +260,10 @@ describe("NavBar", () => {
 
     fireEvent.pointerDown(screen.getAllByRole("button", { name: /menu do usuario/i })[0])
     expect(screen.getByRole("menuitem", { name: /organizações/i })).toBeInTheDocument()
+    expect(screen.getByRole("menuitem", { name: /feature flags/i })).toHaveAttribute(
+      "href",
+      "/admin/feature-flags"
+    )
     expect(screen.getByRole("menuitem", { name: /admin/i })).toBeInTheDocument()
     expect(screen.getByRole("menuitem", { name: /assinatura/i })).toBeInTheDocument()
   })

@@ -9,6 +9,7 @@ import {
   WORKSPACE_STACK_CLASS,
   WorkspaceLoadingState,
 } from "@/app/components/workspace-ui"
+import { useAdminFlag } from "@/lib/admin-feature-flags-provider"
 import { useWorkspaceProfile } from "@/lib/workspace/use-workspace-profile"
 import { AnaliseQuerySync } from "./components/analise-query-sync"
 import { DeepAnalysisPanel } from "./components/deep-analysis-panel"
@@ -16,6 +17,7 @@ import { PropertyDossier } from "./components/property-dossier"
 
 function AnaliseClientInner() {
   const { orgId } = useWorkspaceProfile()
+  const showDeepAnalysis = useAdminFlag("deepAnalysis")
   const searchParams = useSearchParams()
   const selectedListingId = searchParams.get("listing")
   const { listings, activeCollection, isLoadingListings } = useCollections()
@@ -69,7 +71,9 @@ function AnaliseClientInner() {
               collectionId={activeCollection.id}
               orgId={orgId}
             />
-            <DeepAnalysisPanel listing={selectedListing} orgId={orgId} />
+            {showDeepAnalysis && (
+              <DeepAnalysisPanel listing={selectedListing} orgId={orgId} />
+            )}
           </>
         )}
       </div>

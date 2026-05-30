@@ -28,6 +28,7 @@ import {
 import { WorkspacePage, WorkspacePanel } from "@/app/components/workspace-ui"
 import { useCollections } from "@/app/anuncios/lib/use-collections"
 import type { Imovel } from "@/app/anuncios/lib/api"
+import { buildListingAnaliseHref } from "@/lib/listing-analise-url"
 import { cn } from "@/lib/utils"
 import {
   buildRecalculationTooltip,
@@ -97,6 +98,7 @@ type CellValue = {
   recalculated?: boolean
   recalculationTooltip?: string
   href?: string | null
+  analiseHref?: string | null
 }
 
 const NUMERIC_ROW_KEYS = new Set<NumericRowKey>([
@@ -401,14 +403,6 @@ const MATRIX_ROWS_TAIL: MatrixRow[] = [
     label: "Endereço",
     render: (listing) => ({ value: listing.endereco || "—" }),
   },
-  {
-    key: "link",
-    label: "Link",
-    render: (listing) => ({
-      value: listing.link ? "Abrir anúncio" : "—",
-      href: listing.link,
-    }),
-  },
 ]
 
 function getMatrixRowAccessibleLabel(row: MatrixRow) {
@@ -481,8 +475,20 @@ export function ComparisonClient() {
       ...NUMERIC_MATRIX_ROWS,
       ...buildExtraMatrixRows(getVisibleComparisonExtraRows(selectedFilledListings)),
       ...MATRIX_ROWS_TAIL,
+      {
+        key: "link",
+        label: "Links",
+        render: (listing: Imovel) => ({
+          value: "Análise",
+          analiseHref: buildListingAnaliseHref(
+            listing.id,
+            activeCollection?.id ?? null
+          ),
+          href: listing.link,
+        }),
+      },
     ],
-    [selectedFilledListings]
+    [activeCollection?.id, selectedFilledListings]
   )
   const resolvedFixedCell = resolveFixedCell(slotIds, fixedCell, visibleSlotCount)
   const fixedListing = resolvedFixedCell === null ? null : selectedListings[resolvedFixedCell.slotIndex]
@@ -555,6 +561,7 @@ export function ComparisonClient() {
                           listing={listing}
                           listings={listings}
                           slots={slotIds}
+                          collectionId={activeCollection?.id ?? null}
                           onReplace={handleReplaceSlot}
                           onToggleStar={handleToggleStar}
                         />
@@ -645,6 +652,7 @@ function ComparisonSlotHeader({
   listing,
   listings,
   slots,
+  collectionId,
   onReplace,
   onToggleStar,
 }: {
@@ -652,6 +660,7 @@ function ComparisonSlotHeader({
   listing: Imovel | null
   listings: Imovel[]
   slots: ComparisonSlot[]
+  collectionId: string | null
   onReplace: (slotIndex: number, value: string) => void
   onToggleStar: (listingId: string, currentStarred: boolean | undefined) => void
 }) {
@@ -708,9 +717,32 @@ function ComparisonSlotHeader({
             <Star className="mt-0.5 h-3.5 w-3.5 shrink-0 text-white/30" aria-hidden />
           )}
           <div className="min-w-0 flex-1">
-            <p className="text-xs font-semibold leading-snug text-white line-clamp-2">
-              {listing ? formatShortListingName(listing) : `Imóvel ${slotIndex + 1}`}
-            </p>
+            {listing ? (
+              <div className="flex min-w-0 items-start gap-1">
+                <Link
+                  href={buildListingAnaliseHref(listing.id, collectionId)}
+                  className="min-w-0 flex-1 text-xs font-semibold leading-snug text-white line-clamp-2 hover:underline"
+                >
+                  {formatShortListingName(listing)}
+                </Link>
+                {listing.link ? (
+                  <a
+                    href={listing.link}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="mt-0.5 shrink-0 rounded p-0.5 text-white/80 hover:text-white"
+                    aria-label="Abrir anúncio original"
+                    onClick={(event) => event.stopPropagation()}
+                  >
+                    <ExternalLink className="h-3 w-3" />
+                  </a>
+                ) : null}
+              </div>
+            ) : (
+              <p className="text-xs font-semibold leading-snug text-white line-clamp-2">
+                {`Imóvel ${slotIndex + 1}`}
+              </p>
+            )}
             <p className="mt-0.5 text-[10px] font-normal leading-snug text-white/80 line-clamp-2">
               {listing ? formatSlotSummary(listing) : "Escolha um anúncio"}
             </p>
@@ -828,6 +860,30 @@ function MatrixCell({
   hideFixButton?: boolean
   onToggleFixed?: () => void
 }) {
+  if (cell.analiseHref) {
+    return (
+      <span className="inline-flex min-w-0 items-center gap-2">
+        <Link
+          href={cell.analiseHref}
+          className="text-xs font-medium text-app-accent hover:underline"
+        >
+          {cell.value}
+        </Link>
+        {cell.href ? (
+          <a
+            href={cell.href}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex shrink-0 text-app-muted transition-colors hover:text-app-accent"
+            aria-label="Abrir anúncio original"
+          >
+            <ExternalLink className="h-3.5 w-3.5" />
+          </a>
+        ) : null}
+      </span>
+    )
+  }
+
   if (cell.href) {
     return (
       <a

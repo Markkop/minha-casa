@@ -3,6 +3,7 @@
 /* eslint-disable @next/next/no-img-element */
 
 import { useEffect, useState } from "react"
+import { ListingTitleLinks } from "@/components/listing-title-links"
 import { useCollections } from "../lib/use-collections"
 import { geocodeAddress } from "../lib/geocoding"
 import dynamic from "next/dynamic"
@@ -191,7 +192,7 @@ export function LeafletMapView({
   mapViewport,
   colorByPrice,
 }: MapViewProps) {
-  const { updateListing: apiUpdateListing } = useCollections()
+  const { updateListing: apiUpdateListing, activeCollection } = useCollections()
   const [leafletLoaded, setLeafletLoaded] = useState(false)
 
   useEffect(() => {
@@ -295,20 +296,13 @@ export function LeafletMapView({
                     />
                   </div>
                 )}
-                <h3 className="font-bold text-gray-900 mb-1">
-                  {gl.listing.link ? (
-                    <a
-                      href={gl.listing.link}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="hover:text-app-accent transition-colors cursor-pointer"
-                      title={`Abrir anúncio: ${gl.listing.titulo}`}
-                    >
-                      {gl.listing.titulo}
-                    </a>
-                  ) : (
-                    gl.listing.titulo
-                  )}
+                <h3 className="mb-1 font-bold text-gray-900">
+                  <ListingTitleLinks
+                    listing={gl.listing}
+                    collectionId={activeCollection?.id}
+                    maxTitleLength={80}
+                    titleClassName="hover:text-app-accent"
+                  />
                 </h3>
                 <p className="text-gray-600 text-xs mb-2">{gl.listing.endereco}</p>
                 {customLoc && (
@@ -346,16 +340,6 @@ export function LeafletMapView({
                     >
                       Restaurar localização original
                     </button>
-                  )}
-                  {gl.listing.link && (
-                    <a
-                      href={gl.listing.link}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-blue-600 hover:underline text-xs block"
-                    >
-                      Ver anúncio →
-                    </a>
                   )}
                   <a
                     href={`https://www.google.com/maps?q=${gl.location.lat},${gl.location.lng}`}

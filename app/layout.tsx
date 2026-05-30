@@ -6,6 +6,7 @@ import { AddonsProvider } from "@/lib/use-addons";
 import { SubscriptionProvider } from "@/lib/subscription-context";
 import { SubscriptionCookieSync } from "@/components/subscription-cookie-sync";
 import { WorkspaceCollectionsShell } from "@/app/components/workspace-collections-shell";
+import { AdminFeatureFlagsProvider } from "@/lib/admin-feature-flags-provider";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -43,10 +44,12 @@ export default function RootLayout({
       >
         <AddonsProvider>
           <SubscriptionProvider>
-            <SubscriptionCookieSync />
-            <WorkspaceCollectionsShell>
-              <NavBar>{children}</NavBar>
-            </WorkspaceCollectionsShell>
+            <AdminFeatureFlagsProvider>
+              <SubscriptionCookieSync />
+              <WorkspaceCollectionsShell>
+                <NavBar>{children}</NavBar>
+              </WorkspaceCollectionsShell>
+            </AdminFeatureFlagsProvider>
           </SubscriptionProvider>
         </AddonsProvider>
       </body>

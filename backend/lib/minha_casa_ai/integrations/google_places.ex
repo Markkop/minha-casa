@@ -6,15 +6,15 @@ defmodule MinhaCasaAi.Integrations.GooglePlaces do
   @nearby_url "https://maps.googleapis.com/maps/api/place/nearbysearch/json"
   @radius_m 1500
 
+  @estudos_limit_per_type 2
+
   @categories [
     %{id: "supermarket", type: "supermarket", label: "Supermercados"},
-    %{id: "school", type: "school", label: "Escolas"},
-    %{id: "university", type: "university", label: "Universidades"},
+    %{id: "estudos", label: "Estudos", types: ["school", "university"]},
     %{id: "hospital", type: "hospital", label: "Hospitais"},
     %{id: "pharmacy", type: "pharmacy", label: "Farmácias"},
     %{id: "park", type: "park", label: "Parques"},
-    %{id: "shopping_mall", type: "shopping_mall", label: "Shoppings"},
-    %{id: "transit_station", type: "transit_station", label: "Transporte"}
+    %{id: "shopping_mall", type: "shopping_mall", label: "Shoppings"}
   ]
 
   def nearby_categories(lat, lng) when is_number(lat) and is_number(lng) do
@@ -23,7 +23,7 @@ defmodule MinhaCasaAi.Integrations.GooglePlaces do
         categories =
           @categories
           |> Enum.map(fn cat ->
-            places = fetch_nearby(key, lat, lng, cat.type)
+            places = fetch_category_places(key, lat, lng, cat)
             Map.put(cat, :places, places)
           end)
           |> Enum.map(fn cat ->
@@ -71,6 +71,39 @@ defmodule MinhaCasaAi.Integrations.GooglePlaces do
     end
   rescue
     _ -> false
+  end
+
+  defp fetch_category_places(api_key, lat, lng, %{types: types}) when is_list(types) do
+    types
+    |> Enum.flat_map(fn type ->
+      api_key
+      |> fetch_nearby(lat, lng, type)
+      |> Enum.take(@estudos_limit_per_type)
+    end)
+    |> dedupe_places_by_name()
+  end
+
+  defp fetch_category_places(api_key, lat, lng, %{type: type}) do
+    fetch_nearby(api_key, lat, lng, type)
+  end
+
+  defp dedupe_places_by_name(places) do
+    places
+    |> Enum.reduce({[], MapSet.new()}, fn place, {acc, seen} ->
+      key =
+        place
+        |> Map.get("name", "")
+        |> String.downcase()
+        |> String.trim()
+
+      if key == "" or MapSet.member?(seen, key) do
+        {acc, seen}
+      else
+        {[place | acc], MapSet.put(seen, key)}
+      end
+    end)
+    |> elem(0)
+    |> Enum.reverse()
   end
 
   defp fetch_nearby(api_key, lat, lng, type) do

@@ -11,8 +11,8 @@ describe("buildGeneralNearbyPreview", () => {
         places: [{ name: "Mercado A" }, { name: "Mercado B" }],
       },
       {
-        id: "school",
-        label: "Escolas",
+        id: "estudos",
+        label: "Estudos",
         places: [],
       },
       {
@@ -30,7 +30,7 @@ describe("buildGeneralNearbyPreview", () => {
 
   it("returns an empty array when no categories have places", () => {
     const categories: NearbyCategory[] = [
-      { id: "school", label: "Escolas", places: [] },
+      { id: "estudos", label: "Estudos", places: [] },
     ]
 
     expect(buildGeneralNearbyPreview(categories)).toEqual([])

@@ -46,6 +46,6 @@ defmodule MinhaCasaAi.Listings.Nearby do
   defp cache_key(listing_id, lat, lng) do
     lat_r = Float.round(lat * 1.0e5) / 1.0e5
     lng_r = Float.round(lng * 1.0e5) / 1.0e5
-    "listing:#{listing_id}:#{lat_r}:#{lng_r}"
+    "listing:#{listing_id}:#{lat_r}:#{lng_r}:v2"
   end
 end

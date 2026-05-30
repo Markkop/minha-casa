@@ -10,6 +10,7 @@ import {
   InfoWindow,
   useAdvancedMarkerRef,
 } from "@vis.gl/react-google-maps"
+import { ListingTitleLinks } from "@/components/listing-title-links"
 import { useCollections } from "../lib/use-collections"
 import type { Imovel } from "../lib/api"
 import { geocodeAddress } from "../lib/geocoding"
@@ -215,6 +216,8 @@ function MarkerInfoContent({
   customLoc, 
   onResetLocation 
 }: MarkerInfoContentProps) {
+  const { activeCollection } = useCollections()
+
   return (
     <div className="text-sm min-w-[200px] max-w-[280px]">
       {/* Image Preview */}
@@ -231,20 +234,13 @@ function MarkerInfoContent({
           />
         </div>
       )}
-      <h3 className="font-bold text-gray-900 mb-1">
-        {listing.link ? (
-          <a
-            href={listing.link}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="hover:text-blue-600 transition-colors cursor-pointer"
-            title={`Abrir anúncio: ${listing.titulo}`}
-          >
-            {listing.titulo}
-          </a>
-        ) : (
-          listing.titulo
-        )}
+      <h3 className="mb-1 font-bold text-gray-900">
+        <ListingTitleLinks
+          listing={listing}
+          collectionId={activeCollection?.id}
+          maxTitleLength={80}
+          titleClassName="hover:text-blue-600"
+        />
       </h3>
       <p className="text-gray-600 text-xs mb-2">{listing.endereco}</p>
       {customLoc && (
@@ -282,16 +278,6 @@ function MarkerInfoContent({
           >
             Restaurar localização original
           </button>
-        )}
-        {listing.link && (
-          <a
-            href={listing.link}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-blue-600 hover:underline text-xs block"
-          >
-            Ver anúncio →
-          </a>
         )}
         <a
           href={`https://www.google.com/maps?q=${location.lat},${location.lng}`}
