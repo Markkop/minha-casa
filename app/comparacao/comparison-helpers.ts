@@ -265,12 +265,6 @@ function areaRowLabel(rowKey: "totalArea" | "privateArea"): string {
   return rowKey === "totalArea" ? "área total" : "área privativa"
 }
 
-function featureRowLabel(rowKey: "rooms" | "bathrooms" | "garage"): string {
-  if (rowKey === "rooms") return "quartos"
-  if (rowKey === "bathrooms") return "banheiros"
-  return "vagas de garagem"
-}
-
 function featureUnitLabel(rowKey: "rooms" | "bathrooms" | "garage"): string {
   if (rowKey === "rooms") return "quarto"
   if (rowKey === "bathrooms") return "banheiro"

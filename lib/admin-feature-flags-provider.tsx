@@ -45,14 +45,16 @@ export function AdminFeatureFlagsProvider({ children }: { children: ReactNode })
   const [isReady, setIsReady] = useState(false)
 
   useEffect(() => {
-    if (!isAdmin) {
-      setFlags(defaultAdminFeatureFlags)
-      setIsReady(true)
-      return
-    }
+    queueMicrotask(() => {
+      if (!isAdmin) {
+        setFlags(defaultAdminFeatureFlags)
+        setIsReady(true)
+        return
+      }
 
-    setFlags(readAdminFlagsFromStorage())
-    setIsReady(true)
+      setFlags(readAdminFlagsFromStorage())
+      setIsReady(true)
+    })
   }, [isAdmin])
 
   const setFlag = useCallback(

@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, useCallback } from "react"
+import { useEffect, useState, useCallback, useSyncExternalStore } from "react"
 import { useRouter } from "next/navigation"
 import {
   Select,
@@ -71,6 +71,21 @@ export function setStoredOrgContext(context: OrganizationContext): void {
   )
 }
 
+function subscribeToOrgContext(onStoreChange: () => void) {
+  window.addEventListener(ORGANIZATION_CONTEXT_CHANGE_EVENT, onStoreChange)
+  return () => {
+    window.removeEventListener(ORGANIZATION_CONTEXT_CHANGE_EVENT, onStoreChange)
+  }
+}
+
+function useOrganizationContext() {
+  return useSyncExternalStore(
+    subscribeToOrgContext,
+    getStoredOrgContext,
+    (): OrganizationContext => ({ type: "personal" })
+  )
+}
+
 export function useOrganizations() {
   const [organizations, setOrganizations] = useState<Organization[]>([])
   const [loading, setLoading] = useState(true)
@@ -111,24 +126,21 @@ export function OrganizationSwitcher({
 }: OrganizationSwitcherProps) {
   const router = useRouter()
   const { organizations, loading, hasTeamOrganizations } = useOrganizations()
-  const [context, setContext] = useState<OrganizationContext>({ type: "personal" })
-
-  useEffect(() => {
-    setContext(getStoredOrgContext())
-  }, [])
+  const context = useOrganizationContext()
 
   useEffect(() => {
     if (loading) return
 
-    if (context.type === "organization" && context.organizationId) {
-      const orgExists = organizations.some((org) => org.id === context.organizationId)
-      if (!orgExists) {
-        const newContext: OrganizationContext = { type: "personal" }
-        setContext(newContext)
-        setStoredOrgContext(newContext)
-        onContextChange?.(newContext)
+    queueMicrotask(() => {
+      if (context.type === "organization" && context.organizationId) {
+        const orgExists = organizations.some((org) => org.id === context.organizationId)
+        if (!orgExists) {
+          const newContext: OrganizationContext = { type: "personal" }
+          setStoredOrgContext(newContext)
+          onContextChange?.(newContext)
+        }
       }
-    }
+    })
   }, [loading, organizations, context, onContextChange])
 
   const handleContextChange = (value: string) => {
@@ -147,7 +159,6 @@ export function OrganizationSwitcher({
       }
     }
 
-    setContext(newContext)
     setStoredOrgContext(newContext)
     onContextChange?.(newContext)
     router.refresh()
@@ -226,23 +237,19 @@ export function OrganizationBreadcrumbDropdown({
 }) {
   const router = useRouter()
   const { organizations, loading, hasTeamOrganizations } = useOrganizations()
-  const [context, setContext] = useState<OrganizationContext>({ type: "personal" })
-
-  useEffect(() => {
-    setContext(getStoredOrgContext())
-  }, [])
+  const context = useOrganizationContext()
 
   useEffect(() => {
     if (loading) return
 
-    if (context.type === "organization" && context.organizationId) {
-      const orgExists = organizations.some((org) => org.id === context.organizationId)
-      if (!orgExists) {
-        const newContext: OrganizationContext = { type: "personal" }
-        setContext(newContext)
-        setStoredOrgContext(newContext)
+    queueMicrotask(() => {
+      if (context.type === "organization" && context.organizationId) {
+        const orgExists = organizations.some((org) => org.id === context.organizationId)
+        if (!orgExists) {
+          setStoredOrgContext({ type: "personal" })
+        }
       }
-    }
+    })
   }, [loading, organizations, context])
 
   const handleContextChange = (value: string) => {
@@ -264,7 +271,6 @@ export function OrganizationBreadcrumbDropdown({
       context.type === "personal" ? "personal" : context.organizationId
     if (currentValue === value) return
 
-    setContext(newContext)
     setStoredOrgContext(newContext)
     router.refresh()
   }

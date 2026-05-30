@@ -1,6 +1,8 @@
 "use client"
 
-import { memo, useEffect, useState } from "react"
+/* eslint-disable @next/next/no-img-element */
+
+import { memo, useState } from "react"
 import { cn } from "@/lib/utils"
 
 type ListingThumbnailImageProps = {
@@ -20,11 +22,11 @@ export const ListingThumbnailImage = memo(
     className,
     onError,
   }: ListingThumbnailImageProps) {
-    const [failed, setFailed] = useState(false)
+    const imageKey = `${listingId}\0${src}`
+    const [failureState, setFailureState] = useState({ imageKey, failed: false })
 
-    useEffect(() => {
-      setFailed(false)
-    }, [listingId, src])
+    const failed =
+      failureState.imageKey === imageKey ? failureState.failed : false
 
     if (failed) {
       return null
@@ -37,7 +39,7 @@ export const ListingThumbnailImage = memo(
         alt={alt}
         className={cn("h-full w-full object-cover", className)}
         onError={() => {
-          setFailed(true)
+          setFailureState({ imageKey, failed: true })
           onError?.()
         }}
       />

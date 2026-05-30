@@ -12,6 +12,11 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    "node_modules/**",
+    // Elixir backend (deps/_build contain vendor JS that must not be linted as app code)
+    "backend/**",
+    "coverage/**",
+    ".pnpm-store/**",
   ]),
 ]);
 

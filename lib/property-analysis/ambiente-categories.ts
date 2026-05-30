@@ -24,8 +24,7 @@ export function categoriaAllowsMultiple(categoria: AmbienteCategoria): boolean {
 }
 
 export function buildAmbienteRotulo(
-  card: Pick<AmbienteCard, "categoria" | "ordinal" | "rotulo">,
-  _allCards?: AmbienteCard[]
+  card: Pick<AmbienteCard, "categoria" | "ordinal" | "rotulo">
 ): string {
   if (card.rotulo?.trim()) return card.rotulo.trim()
   const base = CATEGORIA_LABELS[card.categoria] ?? card.categoria

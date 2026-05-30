@@ -11,7 +11,7 @@ export function parseAddressForGoogleMaps(endereco: string): string {
     return "Florianópolis, SC, Brasil"
   }
 
-  let normalized = endereco.trim().replace(/\s+/g, " ")
+  const normalized = endereco.trim().replace(/\s+/g, " ")
   const abbreviations: Record<string, string> = {
     "\\br\\b": "Rua",
     "\\bav\\b": "Avenida",

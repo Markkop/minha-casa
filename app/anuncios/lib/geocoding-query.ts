@@ -58,7 +58,6 @@ export function buildGeocodeSearchQuery(
 
   const cidade = options?.cidade?.trim()
   if (cidade && !lower.includes(cidade.toLowerCase())) {
-    const cidadeLower = cidade.toLowerCase()
     if (!hasSufficientLocationContext(`${trimmed}, ${cidade}`)) {
       return `${trimmed}, ${cidade}, SC, Brasil`
     }

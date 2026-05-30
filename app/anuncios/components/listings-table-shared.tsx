@@ -1,9 +1,9 @@
 "use client"
 
-/* eslint-disable @next/next/no-img-element */
+ 
 
-import { memo, useEffect, useState } from "react"
-import { Home, Building, Loader2 } from "lucide-react"
+import { memo, useState } from "react"
+import { Home, Building } from "lucide-react"
 import type { Imovel } from "../lib/api"
 import { cn } from "@/lib/utils"
 import { isListingImageIngesting } from "@/lib/listing-images"
@@ -175,11 +175,9 @@ function ListingImageColumnCell({
   const thumbClass = LISTING_THUMB_SIZE_CLASS
   const ingesting = isListingImageIngesting(imovel.imageIngestionStatus)
   const hasImage = Boolean(imovel.imageUrl)
-  const [imageLoadFailed, setImageLoadFailed] = useState(false)
-
-  useEffect(() => {
-    setImageLoadFailed(false)
-  }, [imovel.id, imovel.imageUrl])
+  const imageKey = `${imovel.id}\0${imovel.imageUrl ?? ""}`
+  const [loadState, setLoadState] = useState({ imageKey, failed: false })
+  const imageLoadFailed = loadState.imageKey === imageKey ? loadState.failed : false
 
   const placeholderButton = (
     <button
@@ -234,7 +232,7 @@ function ListingImageColumnCell({
             listingId={imovel.id}
             src={imovel.imageUrl!}
             alt={imovel.titulo}
-            onError={() => setImageLoadFailed(true)}
+            onError={() => setLoadState({ imageKey, failed: true })}
           />
         </div>
       </button>

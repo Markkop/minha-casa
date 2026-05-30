@@ -10,6 +10,11 @@ const nextConfig: NextConfig = {
         destination: "/links",
         permanent: true,
       },
+      {
+        source: "/manifest.json",
+        destination: "/site.webmanifest",
+        permanent: false,
+      },
     ];
   },
 };

@@ -83,7 +83,9 @@ export function ConectarTelegramClient() {
   useEffect(() => {
     if (!sessionChecked || !isAuthenticated || !code || linkState === "success") return
     if (linkState === "linking") return
-    void connect(code)
+    queueMicrotask(() => {
+      void connect(code)
+    })
   }, [sessionChecked, isAuthenticated, code, connect, linkState])
 
   if (!code) {

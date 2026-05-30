@@ -1,6 +1,6 @@
 "use client"
 
-import { type ReactNode } from "react"
+import { type ReactNode, useEffect, useState } from "react"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import {
@@ -17,7 +17,6 @@ import {
   MapPinned,
   ScanSearch,
   Settings,
-  User,
   Users,
   Waves,
 } from "lucide-react"
@@ -377,20 +376,19 @@ function WorkspaceLoadingSidebar({ logoHref }: { logoHref: string }) {
   const renderLoadingContent = () => (
     <>
       <SidebarContent>
-        <div className="flex flex-col gap-2 px-1 py-1" aria-hidden="true">
+        <SidebarMenu aria-hidden="true">
           {[7.5, 8.5, 6.5, 8, 5.5].map((width, index) => (
-            <div
-              key={index}
-              className="flex h-9 items-center gap-2 rounded-md px-3"
-            >
-              <span className="h-4 w-4 shrink-0 rounded bg-app-surface-muted" />
-              <span
-                className="h-3 rounded bg-app-surface-muted"
-                style={{ width: `${width}rem` }}
-              />
-            </div>
+            <SidebarMenuItem key={index}>
+              <div className="flex h-9 items-center gap-2 rounded-md px-3">
+                <span className="h-4 w-4 shrink-0 rounded bg-app-surface-muted" />
+                <span
+                  className="h-3 rounded bg-app-surface-muted"
+                  style={{ width: `${width}rem` }}
+                />
+              </div>
+            </SidebarMenuItem>
           ))}
-        </div>
+        </SidebarMenu>
       </SidebarContent>
       <SidebarRail />
     </>
@@ -635,7 +633,12 @@ function SimpleTopNav({
 export function NavBar({ children }: { children?: ReactNode }) {
   const pathname = usePathname()
   const router = useRouter()
+  const [hasMounted, setHasMounted] = useState(false)
   const { data: session, isPending: sessionPending } = useSession()
+
+  useEffect(() => {
+    setHasMounted(true)
+  }, [])
   const { hasAddon } = useAddons()
   const { hasActiveSubscription, subscriptionReady } = useSubscriptionAccess()
   const user = session?.user as SessionUser | undefined
@@ -658,7 +661,10 @@ export function NavBar({ children }: { children?: ReactNode }) {
       ? "/anuncios"
       : "/subscribe"
 
-  if (sessionPending && isWorkspaceChromePath(pathname)) {
+  const showWorkspaceLoadingChrome =
+    isWorkspaceChromePath(pathname) && (!hasMounted || sessionPending)
+
+  if (showWorkspaceLoadingChrome) {
     return (
       <WorkspaceLoadingChrome pathname={pathname}>
         {children}
@@ -666,7 +672,7 @@ export function NavBar({ children }: { children?: ReactNode }) {
     )
   }
 
-  if (sessionPending) {
+  if (!hasMounted || sessionPending) {
     return <SessionPendingTopChrome>{children}</SessionPendingTopChrome>
   }
 

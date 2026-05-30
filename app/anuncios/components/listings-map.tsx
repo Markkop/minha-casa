@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, useMemo, useRef } from "react"
+import { useEffect, useState, useMemo, useRef, useSyncExternalStore } from "react"
 import { Switch } from "@/components/ui/switch"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import type { Imovel } from "../lib/api"
@@ -77,24 +77,33 @@ export function ListingsMap({ listings }: ListingsMapProps) {
   const [geocodedListings, setGeocodedListings] = useState<GeocodedListing[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [progress, setProgress] = useState({ completed: 0, total: 0 })
-  const [mounted, setMounted] = useState(false)
+  const mounted = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false
+  )
   const [geocodeKey, setGeocodeKey] = useState(0)
   const [mapProvider, setMapProvider] = useState<MapProvider>("google")
   const [colorByPrice, setColorByPrice] = useState(false)
   const [mapViewport, setMapViewport] = useState<MapViewport>(DEFAULT_MAP_VIEWPORT)
   const boundsAppliedRef = useRef(false)
+  const prefsHydratedRef = useRef(false)
 
   useEffect(() => {
-    setMounted(true)
-    setMapProvider(getEffectiveMapProvider())
-    setColorByPrice(getStoredColorByPrice())
+    if (!mounted || prefsHydratedRef.current) return
+    prefsHydratedRef.current = true
 
-    const stored = getStoredMapViewport()
-    if (stored && (stored.source === "city" || stored.source === "state")) {
-      setMapViewport(stored)
-      boundsAppliedRef.current = true
-    }
-  }, [])
+    queueMicrotask(() => {
+      setMapProvider(getEffectiveMapProvider())
+      setColorByPrice(getStoredColorByPrice())
+
+      const stored = getStoredMapViewport()
+      if (stored && (stored.source === "city" || stored.source === "state")) {
+        setMapViewport(stored)
+        boundsAppliedRef.current = true
+      }
+    })
+  }, [mounted])
 
   useEffect(() => {
     if (!mounted) return
@@ -125,7 +134,9 @@ export function ListingsMap({ listings }: ListingsMapProps) {
 
   useEffect(() => {
     if (!mounted || listings.length === 0) {
-      setGeocodedListings([])
+      queueMicrotask(() => {
+        setGeocodedListings((current) => (current.length === 0 ? current : []))
+      })
       return
     }
 
@@ -209,7 +220,7 @@ export function ListingsMap({ listings }: ListingsMapProps) {
     if (!boundsViewport) return
 
     boundsAppliedRef.current = true
-    setMapViewport(boundsViewport)
+    queueMicrotask(() => setMapViewport(boundsViewport))
   }, [mounted, isLoading, geocodedListings])
 
   const { minPreco, maxPreco } = useMemo(() => {

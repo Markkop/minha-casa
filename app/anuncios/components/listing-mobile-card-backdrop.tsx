@@ -1,6 +1,6 @@
 "use client"
 
-import { memo, useEffect, useState } from "react"
+import { memo, useState } from "react"
 import { Home } from "lucide-react"
 import type { Imovel } from "../lib/api"
 import { cn } from "@/lib/utils"
@@ -38,11 +38,10 @@ function ListingMobileCardBackdropInner({
 }: ListingMobileCardBackdropProps) {
   const ingesting = isListingImageIngesting(imovel.imageIngestionStatus)
   const hasImage = Boolean(imovel.imageUrl)
-  const [showImageFallback, setShowImageFallback] = useState(false)
-
-  useEffect(() => {
-    setShowImageFallback(false)
-  }, [imovel.id, imovel.imageUrl])
+  const imageKey = `${imovel.id}\0${imovel.imageUrl ?? ""}`
+  const [fallbackState, setFallbackState] = useState({ imageKey, show: false })
+  const showImageFallback =
+    fallbackState.imageKey === imageKey ? fallbackState.show : false
 
   const openModal = () => onOpenImageModal()
 
@@ -108,7 +107,7 @@ function ListingMobileCardBackdropInner({
         <ListingThumbnailImage
           listingId={imovel.id}
           src={imovel.imageUrl!}
-          onError={() => setShowImageFallback(true)}
+          onError={() => setFallbackState({ imageKey, show: true })}
         />
       </button>
     )

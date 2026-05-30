@@ -176,8 +176,8 @@ function LeafletMiniMap({
     link.rel = "stylesheet"
     link.href = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
     link.crossOrigin = ""
+    link.onload = () => setLeafletLoaded(true)
     document.head.appendChild(link)
-    setLeafletLoaded(true)
     return () => {
       document.head.removeChild(link)
     }

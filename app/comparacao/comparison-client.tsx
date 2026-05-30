@@ -424,36 +424,37 @@ export function ComparisonClient() {
   const [initializedCollectionId, setInitializedCollectionId] = useState<string | null>(null)
 
   useEffect(() => {
-    setFixedCell((current) => resolveFixedCell(slotIds, current, visibleSlotCount))
-  }, [slotIds, visibleSlotCount])
-
-  useEffect(() => {
     const collectionId = activeCollection?.id ?? null
-    if (!collectionId) {
-      setSlotIds(initializeComparisonSlots([]))
-      setFixedCell(null)
-      setInitializedCollectionId(null)
-      return
-    }
-
-    setSlotIds((current) => {
-      if (initializedCollectionId !== collectionId) {
-        const storedSelection = readStoredComparisonSelection(collectionId, listings)
-        if (storedSelection) {
-          setFixedCell(storedSelection.fixedCell)
-          return storedSelection.slots
-        }
-
-        const fallbackSlots = initializeComparisonSlotsFromAutoFill(listings)
+    queueMicrotask(() => {
+      if (!collectionId) {
+        setSlotIds(initializeComparisonSlots([]))
         setFixedCell(null)
-        return fallbackSlots
+        setInitializedCollectionId(null)
+        return
       }
 
-      const next = fillBlankComparisonSlots(normalizeComparisonSlots(current, listings), listings)
-      setFixedCell((currentFixedCell) => resolveFixedCell(next, currentFixedCell))
-      return next
+      setSlotIds((current) => {
+        if (initializedCollectionId !== collectionId) {
+          const storedSelection = readStoredComparisonSelection(collectionId, listings)
+          if (storedSelection) {
+            setFixedCell(storedSelection.fixedCell)
+            return storedSelection.slots
+          }
+
+          const fallbackSlots = initializeComparisonSlotsFromAutoFill(listings)
+          setFixedCell(null)
+          return fallbackSlots
+        }
+
+        const next = fillBlankComparisonSlots(
+          normalizeComparisonSlots(current, listings),
+          listings
+        )
+        setFixedCell((currentFixedCell) => resolveFixedCell(next, currentFixedCell))
+        return next
+      })
+      setInitializedCollectionId(collectionId)
     })
-    setInitializedCollectionId(collectionId)
   }, [activeCollection?.id, initializedCollectionId, listings])
 
   useEffect(() => {
@@ -485,6 +486,12 @@ export function ComparisonClient() {
     [selectedFilledListings]
   )
   const resolvedFixedCell = resolveFixedCell(slotIds, fixedCell, visibleSlotCount)
+  if (
+    resolvedFixedCell?.rowKey !== fixedCell?.rowKey ||
+    resolvedFixedCell?.slotIndex !== fixedCell?.slotIndex
+  ) {
+    setFixedCell(resolvedFixedCell)
+  }
   const fixedListing = resolvedFixedCell === null ? null : selectedListings[resolvedFixedCell.slotIndex]
 
   const handleReplaceSlot = (slotIndex: number, value: string) => {
@@ -577,9 +584,6 @@ export function ComparisonClient() {
                         )}
                       </th>
                       {selectedListings.map((listing, index) => {
-                        const isFixedColumn = Boolean(
-                          resolvedFixedCell && resolvedFixedCell.slotIndex === index
-                        )
                         const isFixedCell = Boolean(
                           resolvedFixedCell &&
                           resolvedFixedCell.slotIndex === index &&

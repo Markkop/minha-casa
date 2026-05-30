@@ -1,7 +1,7 @@
 "use client"
 
 import { useCallback, useState } from "react"
-import type { Collection, Imovel } from "../lib/api"
+import type { Imovel } from "../lib/api"
 import { buildListingMarkdown } from "@/app/anuncios/lib/listing-markdown"
 import type { FieldChange } from "./quick-reparse-modal"
 import {
@@ -236,7 +236,8 @@ export function useListingRowInteractions({
     }
   }
 
-  const handleCopyToCollection = async (_targetCollectionId: string) => {
+  const handleCopyToCollection = async (targetCollectionId: string) => {
+    void targetCollectionId
     console.warn("Copy to collection feature is not yet implemented with server-side storage")
     setCopyToCollectionPopoverOpen(false)
   }

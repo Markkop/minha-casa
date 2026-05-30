@@ -265,11 +265,6 @@ const formatDate = (value: string | undefined) => {
   }
 }
 
-const truncateTitle = (title: string, maxLength: number = 50) => {
-  if (title.length <= maxLength) return title
-  return title.slice(0, maxLength) + "..."
-}
-
 const calculatePrecoM2 = (preco: number | null, m2Totais: number | null) => {
   if (preco === null || m2Totais === null || m2Totais === 0) return null
   return Math.round(preco / m2Totais)

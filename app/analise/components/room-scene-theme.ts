@@ -127,7 +127,7 @@ export function themeForCategoria(categoria?: string | null): SceneTheme {
   return themeForScene(scene)
 }
 
-export function sceneGroupKey(scene?: string | null, _listingRole?: string | null): string {
+export function sceneGroupKey(scene?: string | null): string {
   return normalizeScene(scene)
 }
 
@@ -144,10 +144,7 @@ export function isExteriorGarageScene(scene?: string | null): boolean {
   return EXTERIOR_SCENES.has(normalizeScene(scene))
 }
 
-export function displayStackGroupKey(
-  scene?: string | null,
-  listingRole?: string | null
-): string {
+export function displayStackGroupKey(scene?: string | null): string {
   if (isExteriorGarageScene(scene)) return "externo-garagem"
-  return sceneGroupKey(scene, listingRole)
+  return sceneGroupKey(scene)
 }

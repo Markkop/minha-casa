@@ -1,12 +1,11 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
+import { useState, useRef } from "react"
 import { Bot, Check, Paperclip, Sparkles, X } from "lucide-react"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { ModalCloseButton, ModalHeaderTitle, LoadingLabel } from "./modal-chrome"
-import { cn } from "@/lib/utils"
 import type { Imovel } from "../lib/api"
 import type { ListingData } from "@/lib/db/schema"
 
@@ -48,6 +47,21 @@ export function DemoParserModal({
   onClose,
   onListingAdded,
 }: DemoParserModalProps) {
+  if (!isOpen) return null
+
+  return (
+    <DemoParserModalBody
+      key="open"
+      onClose={onClose}
+      onListingAdded={onListingAdded}
+    />
+  )
+}
+
+function DemoParserModalBody({
+  onClose,
+  onListingAdded,
+}: Omit<DemoParserModalProps, "isOpen">) {
   const [rawText, setRawText] = useState(SAMPLE_INPUT)
   const [attachedName, setAttachedName] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
@@ -56,25 +70,12 @@ export function DemoParserModal({
   const [addressValue, setAddressValue] = useState("")
   const linkInputRef = useRef<HTMLInputElement>(null)
 
-  useEffect(() => {
-    if (isOpen) {
-      setRawText(SAMPLE_INPUT)
-      setAttachedName(null)
-      setLastParsed(null)
-      setLinkValue("")
-      setAddressValue("")
-    }
-  }, [isOpen])
-
-  useEffect(() => {
-    if (lastParsed) setAddressValue(lastParsed.data.endereco || "")
-  }, [lastParsed])
-
   const handleParse = async () => {
     if (!rawText.trim() && !attachedName) return
     setIsLoading(true)
     await new Promise((r) => setTimeout(r, 1200))
     setLastParsed({ id: `demo-${Date.now()}`, data: SAMPLE_OUTPUT })
+    setAddressValue(SAMPLE_OUTPUT.endereco || "")
     setRawText("")
     setAttachedName(null)
     setIsLoading(false)
@@ -91,8 +92,6 @@ export function DemoParserModal({
     })
     onClose()
   }
-
-  if (!isOpen) return null
 
   return (
     <div className="fixed inset-0 z-[1000] flex items-center justify-center">

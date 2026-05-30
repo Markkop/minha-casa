@@ -705,10 +705,6 @@ function pickBraveFallback(
   return { title: null, description: null }
 }
 
-function locationHintFromDeconstructed(deconstructed: DeconstructedUrl): string | null {
-  return deconstructed.hints.locationLabel ?? buildLocationLabel(deconstructed.hints)
-}
-
 function descriptionFromHints(deconstructed: DeconstructedUrl): string | null {
   const { hints } = deconstructed
   if (
