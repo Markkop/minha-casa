@@ -65,11 +65,11 @@ export function PropertyDossier({ listing, collectionId, orgId }: PropertyDossie
 
   return (
     <div className="space-y-4">
-      <WorkspacePanel className="p-4">
-        <PropertyImageGallery listing={listing} />
-      </WorkspacePanel>
-
       <div className="grid gap-4 lg:grid-cols-2">
+        <WorkspacePanel className="p-3">
+          <PropertyImageGallery listing={listing} />
+        </WorkspacePanel>
+
         <WorkspacePanel className="p-4">
           <div className="mb-4 flex flex-wrap items-start justify-between gap-2">
             <div>

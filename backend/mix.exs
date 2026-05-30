@@ -37,6 +37,7 @@ defmodule MinhaCasaAi.MixProject do
       {:oban, "~> 2.22"},
       {:finch, "~> 0.22"},
       {:req, "~> 0.5"},
+      {:image, "~> 0.67"},
       {:ex_aws, "~> 2.5"},
       {:ex_aws_s3, "~> 2.5"},
       {:hackney, "~> 1.20"},

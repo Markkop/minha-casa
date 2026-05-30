@@ -75,4 +75,42 @@ defmodule MinhaCasaAi.ListingImages.IngestTest do
       assert length(ordered) == 3
     end
   end
+
+  describe "success_updates/3" do
+    test "persists cover and visual analysis metadata" do
+      visual_analysis = %{
+        "schemaVersion" => 1,
+        "engine" => "test",
+        "generatedAt" => "2026-01-01T00:00:00Z",
+        "order" => [0, 1],
+        "features" => []
+      }
+
+      updates =
+        Ingest.success_updates(
+          ["listings/id/0.jpg", "listings/id/1.jpg"],
+          ["/api/listings/id/images/0", "/api/listings/id/images/1"],
+          visual_analysis
+        )
+
+      assert updates["imageCoverIndex"] == 0
+      assert updates["imageVisualAnalysis"] == visual_analysis
+      assert updates["imageIngestionStatus"] == "ready"
+    end
+  end
+
+  describe "compact image indexing" do
+    test "uses compact storage and display indexes when a download fails" do
+      download = fn
+        "bad" -> :error
+        url -> {:ok, url, "image/jpeg"}
+      end
+
+      store = fn index, _bytes, _content_type -> {:ok, "listings/listing/#{index}.jpg"} end
+
+      assert Ingest.compact_download_indexes_for_test(["bad", "ok-1", "ok-2"], download, store) ==
+               {["listings/listing/0.jpg", "listings/listing/1.jpg"],
+                ["/api/listings/listing/images/0", "/api/listings/listing/images/1"]}
+    end
+  end
 end

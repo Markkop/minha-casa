@@ -321,6 +321,24 @@ export const organizationAddons = pgTable(
 // ============================================================================
 // Listings
 // ============================================================================
+export interface ImageVisualFeature {
+  index: number
+  dhash: string
+  hashSizeBits?: number
+  dominantColor?: number[] | null
+  palette?: number[][] | null
+  width?: number | null
+  height?: number | null
+}
+
+export interface ImageVisualAnalysis {
+  schemaVersion: 1
+  engine: string
+  generatedAt: string
+  order: number[]
+  features: ImageVisualFeature[]
+}
+
 export interface ListingData {
   titulo: string
   endereco: string
@@ -345,6 +363,8 @@ export interface ListingData {
   imageUrl?: string | null
   imageUrls?: string[] | null
   imageStorageKeys?: string[] | null
+  imageCoverIndex?: number | null
+  imageVisualAnalysis?: ImageVisualAnalysis | null
   imageIngestionStatus?: "idle" | "pending" | "processing" | "ready" | "failed" | null
   imageIngestionError?: string | null
   contactName?: string | null

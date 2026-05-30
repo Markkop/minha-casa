@@ -5,7 +5,7 @@
  * for collections and listings management, replacing localStorage operations.
  */
 
-import type { ListingData } from "@/lib/db/schema"
+import type { ImageVisualAnalysis, ListingData } from "@/lib/db/schema"
 import {
   resolveListingImages,
   syncListingImageFields,
@@ -85,6 +85,8 @@ export interface Imovel {
   imageUrl?: string | null
   imageUrls?: string[] | null
   imageStorageKeys?: string[] | null
+  imageCoverIndex?: number | null
+  imageVisualAnalysis?: ImageVisualAnalysis | null
   imageIngestionStatus?: ImageIngestionStatus | null
   imageIngestionError?: string | null
   contactName?: string | null
@@ -159,6 +161,8 @@ export function toImovel(apiListing: ApiListing): Imovel {
     imageUrl: images.imageUrl,
     imageUrls: images.imageUrls,
     imageStorageKeys: apiListing.data.imageStorageKeys,
+    imageCoverIndex: apiListing.data.imageCoverIndex ?? null,
+    imageVisualAnalysis: apiListing.data.imageVisualAnalysis ?? null,
     imageIngestionStatus: apiListing.data.imageIngestionStatus ?? null,
     imageIngestionError: apiListing.data.imageIngestionError ?? null,
     contactName: apiListing.data.contactName,
@@ -235,6 +239,12 @@ export function toListingData(imovel: Partial<Imovel>): Partial<ListingData> {
   if (imovel.siteUpdatedAt !== undefined) data.siteUpdatedAt = imovel.siteUpdatedAt
   if (imovel.imageStorageKeys !== undefined) {
     data.imageStorageKeys = imovel.imageStorageKeys
+  }
+  if (imovel.imageCoverIndex !== undefined) {
+    data.imageCoverIndex = imovel.imageCoverIndex
+  }
+  if (imovel.imageVisualAnalysis !== undefined) {
+    data.imageVisualAnalysis = imovel.imageVisualAnalysis
   }
   if (imovel.imageIngestionStatus !== undefined) {
     data.imageIngestionStatus = imovel.imageIngestionStatus

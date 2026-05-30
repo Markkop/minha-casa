@@ -32,6 +32,14 @@ export interface Imovel {
   imageUrl?: string | null
   imageUrls?: string[] | null
   imageStorageKeys?: string[] | null
+  imageCoverIndex?: number | null
+  imageVisualAnalysis?: {
+    schemaVersion: 1
+    engine: string
+    generatedAt: string
+    order: number[]
+    features: Array<Record<string, unknown>>
+  } | null
   imageIngestionStatus?: string | null
   imageIngestionError?: string | null
   contactName?: string | null

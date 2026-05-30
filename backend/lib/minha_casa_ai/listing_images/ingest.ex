@@ -1,6 +1,7 @@
 defmodule MinhaCasaAi.ListingImages.Ingest do
   alias MinhaCasaAi.Integrations.ScrapingAnt
   alias MinhaCasaAi.ListingImages.Storage
+  alias MinhaCasaAi.ListingImages.VisualAnalysis
   alias MinhaCasaAi.Listings
   alias MinhaCasaAi.Listings.Listing
   alias MinhaCasaAi.Repo
@@ -22,6 +23,7 @@ defmodule MinhaCasaAi.ListingImages.Ingest do
 
   defp run_for_listing(%Listing{id: listing_id, collection_id: collection_id, data: data}) do
     data = data || %{}
+
     link =
       case Map.get(data, "link") do
         s when is_binary(s) -> String.trim(s)
@@ -44,7 +46,7 @@ defmodule MinhaCasaAi.ListingImages.Ingest do
                 {:error, :no_images_found}
 
               true ->
-                {keys, paths} = download_and_store(listing_id, urls)
+                {keys, paths, visual_analysis} = download_and_store(listing_id, urls)
 
                 if keys == [] do
                   mark_failed(
@@ -55,7 +57,7 @@ defmodule MinhaCasaAi.ListingImages.Ingest do
 
                   {:error, :download_failed}
                 else
-                  persist_success(collection_id, listing_id, keys, paths)
+                  persist_success(collection_id, listing_id, keys, paths, visual_analysis)
                   :ok
                 end
             end
@@ -96,26 +98,35 @@ defmodule MinhaCasaAi.ListingImages.Ingest do
   defp normalize_og_url(_), do: nil
 
   defp download_and_store(listing_id, urls) do
-    {keys, paths} =
+    {keys, paths, visual_entries} =
       urls
       |> Enum.with_index()
-      |> Enum.reduce({[], []}, fn {url, index}, {keys, paths} ->
+      |> Enum.reduce({[], [], []}, fn {url, _source_index}, {keys, paths, entries} ->
         case download_image(url) do
           {:ok, bytes, content_type} ->
-            case Storage.put_listing_image(listing_id, index, bytes, content_type) do
+            gallery_index = length(keys)
+
+            case Storage.put_listing_image(listing_id, gallery_index, bytes, content_type) do
               {:ok, key} ->
-                {keys ++ [key], paths ++ [build_image_path(listing_id, index)]}
+                {
+                  keys ++ [key],
+                  paths ++ [build_image_path(listing_id, gallery_index)],
+                  entries ++ [%{index: gallery_index, bytes: bytes}]
+                }
 
               {:error, _} ->
-                {keys, paths}
+                {keys, paths, entries}
             end
 
           :error ->
-            {keys, paths}
+            {keys, paths, entries}
         end
       end)
 
-    {keys, paths}
+    visual_analysis =
+      VisualAnalysis.analyze_images(visual_entries, count: length(keys), cover_index: 0)
+
+    {keys, paths, visual_analysis}
   end
 
   defp download_image(url) when is_binary(url) do
@@ -179,14 +190,51 @@ defmodule MinhaCasaAi.ListingImages.Ingest do
     end
   end
 
-  defp persist_success(collection_id, listing_id, keys, paths) do
-    Listings.update_listing(collection_id, listing_id, %{
+  @doc false
+  def success_updates(keys, paths, visual_analysis \\ nil) do
+    %{
       "imageStorageKeys" => keys,
       "imageUrls" => paths,
       "imageUrl" => List.first(paths),
+      "imageCoverIndex" => 0,
       "imageIngestionStatus" => "ready",
       "imageIngestionError" => nil
-    })
+    }
+    |> maybe_put_visual_analysis(visual_analysis)
+  end
+
+  defp persist_success(collection_id, listing_id, keys, paths, visual_analysis) do
+    Listings.update_listing(
+      collection_id,
+      listing_id,
+      success_updates(keys, paths, visual_analysis)
+    )
+  end
+
+  defp maybe_put_visual_analysis(updates, %{"schemaVersion" => 1} = visual_analysis) do
+    Map.put(updates, "imageVisualAnalysis", visual_analysis)
+  end
+
+  defp maybe_put_visual_analysis(updates, _), do: updates
+
+  @doc false
+  def compact_download_indexes_for_test(urls, download_fun, store_fun)
+      when is_list(urls) and is_function(download_fun, 1) and is_function(store_fun, 3) do
+    urls
+    |> Enum.reduce({[], []}, fn url, {keys, paths} ->
+      case download_fun.(url) do
+        {:ok, bytes, content_type} ->
+          index = length(keys)
+
+          case store_fun.(index, bytes, content_type) do
+            {:ok, key} -> {keys ++ [key], paths ++ [build_image_path("listing", index)]}
+            _ -> {keys, paths}
+          end
+
+        _ ->
+          {keys, paths}
+      end
+    end)
   end
 
   defp mark_failed(collection_id, listing_id, message) when is_binary(message) do
