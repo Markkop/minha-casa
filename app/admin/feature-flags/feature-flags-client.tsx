@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label"
 import {
   ADMIN_FEATURE_FLAG_META,
   type AdminFeatureFlagMeta,
+  type AdminFeatureFlags,
 } from "@/lib/admin-feature-flags"
 import { useAdminFeatureFlags } from "@/lib/admin-feature-flags-provider"
 import { useSession } from "@/lib/auth-client"
@@ -29,7 +30,7 @@ function FlagGroup({
 }: {
   title: string
   flags: AdminFeatureFlagMeta[]
-  values: Record<string, boolean>
+  values: AdminFeatureFlags
   onToggle: (key: AdminFeatureFlagMeta["key"], checked: boolean) => void
 }) {
   if (flags.length === 0) return null

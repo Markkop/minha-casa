@@ -470,8 +470,7 @@ export function ComparisonClient() {
     () => selectedListings.filter((listing): listing is Imovel => Boolean(listing)),
     [selectedListings]
   )
-  const matrixRows = useMemo(
-    () => [
+  const matrixRows = useMemo((): MatrixRow[] => [
       ...NUMERIC_MATRIX_ROWS,
       ...buildExtraMatrixRows(getVisibleComparisonExtraRows(selectedFilledListings)),
       ...MATRIX_ROWS_TAIL,

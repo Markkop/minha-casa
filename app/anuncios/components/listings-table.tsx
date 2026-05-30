@@ -115,8 +115,6 @@ interface SortableHeaderProps {
   align?: "left" | "center" | "right"
 }
 
-type MetricVariant = "total" | "privado"
-
 const COLUMN_STORAGE_KEY = "minha-casa:listings-table-visible-columns"
 const IMAGE_COLUMN_VIEW_KEY = "minha-casa:listings-table-image-column-view"
 
@@ -1125,7 +1123,8 @@ export function ListingsTable({ listings, hasApiKey = true }: ListingsTableProps
   const handleImportReview = useCallback(
     (rowId: string) => {
       const row = pendingAddRows.find((item) => item.id === rowId)
-      if (!row?.reviewItems || !row.parseInput) return
+      const parseInput = row?.parseInput
+      if (!row?.reviewItems || !parseInput) return
 
       const selected = row.reviewItems.filter((item) => item.selected)
       if (selected.length === 0) return
@@ -1135,7 +1134,7 @@ export function ListingsTable({ listings, hasApiKey = true }: ListingsTableProps
         id: createPendingId(),
         status: "processing" as const,
         message: "Preparando importação...",
-        parseInput: row.parseInput,
+        parseInput,
         parsedData: item.data,
       }))
       setPendingAddRows((current) => [...rows, ...current])
@@ -1144,7 +1143,7 @@ export function ListingsTable({ listings, hasApiKey = true }: ListingsTableProps
         void finishPendingListing(
           pendingRow.id,
           pendingRow.parsedData,
-          pendingRow.parseInput
+          parseInput
         ).catch((error) => {
           updatePendingRow(pendingRow.id, {
             status: "error",

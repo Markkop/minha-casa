@@ -319,7 +319,9 @@ export function ShareClient({ token }: ShareClientProps) {
 
   const displayTitles = useMemo(() => {
     if (!data?.listings?.length) return new Map<string, string>()
-    return buildListingDisplayTitles(data.listings)
+    return buildListingDisplayTitles(
+      data.listings.map((listing) => ({ ...listing.data, id: listing.id }))
+    )
   }, [data?.listings])
 
   useEffect(() => {
@@ -364,7 +366,6 @@ export function ShareClient({ token }: ShareClientProps) {
         ...listing.data,
         imageUrl: images.imageUrl,
         imageUrls: images.imageUrls,
-        tipoImovel: (listing.data as { tipoImovel?: string }).tipoImovel || null,
         createdAt: listing.createdAt,
       }
     })

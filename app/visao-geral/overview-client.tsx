@@ -56,9 +56,7 @@ export function OverviewClient() {
       },
       {
         title: "Completar referências de região",
-        description: missingRegionCount > 0
-          ? `${missingRegionCount} favorito(s) sem região vinculada.`
-          : `${regions.length} região(ões) cadastrada(s).`,
+        description: `${regions.length} região(ões) cadastrada(s).`,
         href: "/regioes",
         icon: MapPinned,
       },
