@@ -106,6 +106,11 @@ const NUMERIC_ROW_KEYS = new Set<NumericRowKey>([
   "garage",
 ])
 
+const COMPARISON_SLOT_COL_WIDTH_PX = 198
+/** Matches aspect-[4/5] at the slot column width so a colspan header stays the same height. */
+const COMPARISON_SLOT_HEADER_HEIGHT_PX =
+  (COMPARISON_SLOT_COL_WIDTH_PX * 5) / 4
+
 function formatSlotSummary(listing: Imovel) {
   return listing.endereco || "—"
 }
@@ -523,15 +528,13 @@ export function ComparisonClient() {
                 </colgroup>
                 <thead>
                   <tr className="border-b border-app-border">
-                    <th
-                      aria-hidden
-                      className="sticky left-0 z-20 bg-app-surface px-1.5 py-2 text-left align-bottom"
-                    />
                     {selectedListings.map((listing, index) => (
                       <th
                         key={index}
+                        colSpan={index === 0 ? 2 : 1}
                         className={cn(
-                          "border-l border-app-border bg-app-surface p-2 align-top"
+                          "bg-app-surface p-0 align-top",
+                          index > 0 && "border-l border-app-border"
                         )}
                       >
                         <ComparisonSlotHeader
@@ -642,104 +645,102 @@ function ComparisonSlotHeader({
   const availableListings = getAvailableListingsForSlot(listings, slots, slotIndex)
 
   return (
-    <div className="flex min-h-[166px] flex-col text-left">
-      <div
-        className={cn(
-          "group relative flex min-h-[158px] flex-col gap-1.5 rounded-md border p-1.5 text-left transition-colors",
-          listing
-            ? "border-app-border bg-app-surface"
-            : "border-dashed border-app-border bg-app-bg text-app-muted"
-        )}
-      >
-        <div className="absolute right-2 top-2 z-10 flex items-center gap-1">
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button
-                type="button"
-                variant="outline"
-                size="icon"
-                className="h-7 w-7 border-app-border bg-app-surface/90 backdrop-blur hover:bg-app-bg"
-                aria-label={`Editar imóvel do slot ${slotIndex + 1}`}
+    <div
+      className="group relative w-full min-w-0 overflow-hidden bg-app-bg text-left"
+      style={{ height: COMPARISON_SLOT_HEADER_HEIGHT_PX }}
+    >
+      {listing?.imageUrl ? (
+        <img
+          src={listing.imageUrl}
+          alt={listing.titulo}
+          className="absolute inset-0 h-full w-full object-cover"
+        />
+      ) : (
+        <div className="absolute inset-0 flex items-center justify-center bg-app-bg">
+          <Home className="h-10 w-10 text-app-subtle" />
+        </div>
+      )}
+
+      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/50 to-transparent px-2 pb-2 pt-10">
+        <div className="flex min-w-0 items-start gap-1">
+          {listing ? (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  onClick={() => onToggleStar(listing.id, listing.starred)}
+                  className={cn(
+                    "mt-0.5 shrink-0 rounded p-0.5 transition-colors",
+                    listing.starred
+                      ? "text-yellow hover:text-yellow/80"
+                      : "text-white/70 hover:text-yellow"
+                  )}
+                  aria-label={listing.starred ? "Remover dos favoritos" : "Adicionar aos favoritos"}
+                >
+                  <Star
+                    className="h-3.5 w-3.5"
+                    fill={listing.starred ? "currentColor" : "none"}
+                  />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent
+                side="bottom"
+                sideOffset={4}
+                className="w-max max-w-[min(100vw-2rem,16rem)] whitespace-normal text-wrap px-2.5 py-1 leading-snug"
               >
-                <Pencil className="h-3.5 w-3.5" />
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent align="end" sideOffset={8} className="w-64 border-app-border bg-app-surface p-3">
-              <label className="flex flex-col gap-1.5 text-left">
-                <span className="text-xs font-medium uppercase tracking-wide text-app-muted">
-                  Imóvel do slot
-                </span>
-                <select
-                  aria-label={`Selecionar imóvel do slot ${slotIndex + 1}`}
-                  value={listing?.id ?? EMPTY_SLOT_VALUE}
-                  onChange={(event) => onReplace(slotIndex, event.target.value)}
-                  className="h-9 min-w-0 rounded-md border border-app-border bg-app-bg px-2 text-sm text-app-fg outline-none focus:border-app-border-strong"
-                >
-                  <option value={EMPTY_SLOT_VALUE}>
-                    {listing ? "Remover este anúncio" : "Selecionar imóvel"}
-                  </option>
-                  {availableListings.map((option) => (
-                    <option key={option.id} value={option.id}>
-                      {formatShortListingName(option)}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            </PopoverContent>
-          </Popover>
-        </div>
-        <div className="h-24 w-24 shrink-0 overflow-hidden rounded border border-app-border bg-app-bg">
-          {listing?.imageUrl ? (
-            <img
-              src={listing.imageUrl}
-              alt={listing.titulo}
-              className="h-full w-full object-cover"
-            />
+                {listing.starred ? "Remover dos favoritos" : "Adicionar aos favoritos"}
+              </TooltipContent>
+            </Tooltip>
           ) : (
-            <div className="flex h-full w-full items-center justify-center">
-              <Home className="h-8 w-8 text-app-subtle" />
-            </div>
+            <Star className="mt-0.5 h-3.5 w-3.5 shrink-0 text-white/30" aria-hidden />
           )}
-        </div>
-        <div className="min-w-0">
-          <div className="flex min-w-0 items-center gap-1">
-            {listing && (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button
-                    type="button"
-                    onClick={() => onToggleStar(listing.id, listing.starred)}
-                    className={cn(
-                      "shrink-0 rounded p-0.5 transition-colors",
-                      listing.starred
-                        ? "text-yellow hover:text-yellow/80"
-                        : "text-app-subtle hover:text-yellow"
-                    )}
-                    aria-label={listing.starred ? "Remover dos favoritos" : "Adicionar aos favoritos"}
-                  >
-                    <Star
-                      className="h-3.5 w-3.5"
-                      fill={listing.starred ? "currentColor" : "none"}
-                    />
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent
-                  side="bottom"
-                  sideOffset={4}
-                  className="w-max max-w-[min(100vw-2rem,16rem)] whitespace-normal text-wrap px-2.5 py-1 leading-snug"
-                >
-                  {listing.starred ? "Remover dos favoritos" : "Adicionar aos favoritos"}
-                </TooltipContent>
-              </Tooltip>
-            )}
-            <span className="min-w-0 flex-1 text-xs font-semibold leading-snug text-app-fg">
+          <div className="min-w-0 flex-1">
+            <p className="text-xs font-semibold leading-snug text-white line-clamp-2">
               {listing ? formatShortListingName(listing) : `Imóvel ${slotIndex + 1}`}
-            </span>
-          </div>
-          <div className="mt-0.5 break-words text-[10px] font-normal leading-snug text-app-muted">
-            {listing ? formatSlotSummary(listing) : "Escolha um anúncio"}
+            </p>
+            <p className="mt-0.5 text-[10px] font-normal leading-snug text-white/80 line-clamp-2">
+              {listing ? formatSlotSummary(listing) : "Escolha um anúncio"}
+            </p>
           </div>
         </div>
+      </div>
+
+      <div className="absolute right-1 top-1 z-10">
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              className="h-7 w-7 border-white/20 bg-black/40 text-white shadow-sm backdrop-blur hover:bg-black/55 hover:text-white"
+              aria-label={`Editar imóvel do slot ${slotIndex + 1}`}
+            >
+              <Pencil className="h-3.5 w-3.5" />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent align="end" sideOffset={8} className="w-64 border-app-border bg-app-surface p-3">
+            <label className="flex flex-col gap-1.5 text-left">
+              <span className="text-xs font-medium uppercase tracking-wide text-app-muted">
+                Imóvel do slot
+              </span>
+              <select
+                aria-label={`Selecionar imóvel do slot ${slotIndex + 1}`}
+                value={listing?.id ?? EMPTY_SLOT_VALUE}
+                onChange={(event) => onReplace(slotIndex, event.target.value)}
+                className="h-9 min-w-0 rounded-md border border-app-border bg-app-bg px-2 text-sm text-app-fg outline-none focus:border-app-border-strong"
+              >
+                <option value={EMPTY_SLOT_VALUE}>
+                  {listing ? "Remover este anúncio" : "Selecionar imóvel"}
+                </option>
+                {availableListings.map((option) => (
+                  <option key={option.id} value={option.id}>
+                    {formatShortListingName(option)}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </PopoverContent>
+        </Popover>
       </div>
     </div>
   )
