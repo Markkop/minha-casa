@@ -81,8 +81,6 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 | `pnpm build` | Build for production |
 | `pnpm start` | Start production server |
 | `pnpm lint` | Run ESLint |
-| `pnpm test` | Run tests |
-| `pnpm test:watch` | Run tests in watch mode |
 | `pnpm db:generate` | Generate Drizzle migrations |
 | `pnpm db:migrate` | Run database migrations |
 | `pnpm db:push` | Push schema changes directly |
@@ -301,20 +299,6 @@ The application uses the following main tables:
 - **addons**: Available addon definitions (slug, name, description)
 - **user_addons**: Addon grants for individual users
 - **organization_addons**: Addon grants for organizations
-
-## Testing
-
-Run the test suite:
-
-```bash
-# Run all tests
-pnpm test
-
-# Run tests in watch mode
-pnpm test:watch
-```
-
-Tests are written using Vitest and React Testing Library. Test files are co-located with their source files using the `.test.ts` or `.test.tsx` extension.
 
 ## API Routes
 
