@@ -1,6 +1,6 @@
 "use client"
 
-import { memo, useMemo } from "react"
+import { memo, useCallback, useMemo } from "react"
 import { ListingTitleLinks, truncateListingTitle } from "@/components/listing-title-links"
 import { FaWhatsapp } from "react-icons/fa"
 import { cn } from "@/lib/utils"
@@ -86,6 +86,11 @@ function ListingMobileCardInner({
   const showUnifiedRow = showImage
   const showFallbackHeader = !showImage
   const showFallbackBottom = !showImage && (showAddress || showContact || showStatus)
+
+  const handleOpenImageModal = useCallback(
+    () => openImageModal(imovel),
+    [imovel, openImageModal]
+  )
 
   const rowActionsProps = {
     imovel,
@@ -361,7 +366,7 @@ function ListingMobileCardInner({
             <ListingMobileCardBackdrop
               imovel={imovel}
               view={imageColumnView}
-              onOpenImageModal={() => openImageModal(imovel)}
+              onOpenImageModal={handleOpenImageModal}
             />
             <div aria-hidden className={MOBILE_OVERLAY_SCRIM_BOTTOM} />
 

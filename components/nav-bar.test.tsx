@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest"
-import { render, screen, cleanup, fireEvent } from "@testing-library/react"
+import { render, screen, cleanup, fireEvent, within, waitFor } from "@testing-library/react"
 import { NavBar } from "./nav-bar"
 
 const mockPathname = vi.fn()
@@ -98,7 +98,7 @@ describe("NavBar", () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockPathname.mockReturnValue("/")
-    mockUseSession.mockReturnValue({ data: null })
+    mockUseSession.mockReturnValue({ data: null, isPending: false })
     mockGetFlag.mockImplementation((flag: string) => flag === "organizations")
     mockUseAdminFlag.mockReturnValue(false)
     mockHasAddon.mockReturnValue(false)
@@ -122,9 +122,23 @@ describe("NavBar", () => {
     ).not.toBeInTheDocument()
   })
 
+  it("renders workspace chrome while session is pending on workspace routes", () => {
+    mockPathname.mockReturnValue("/anuncios")
+    mockUseSession.mockReturnValue({ data: null, isPending: true })
+
+    render(<NavBar />)
+
+    expect(
+      screen.getByRole("button", { name: /alternar navegação/i })
+    ).toBeInTheDocument()
+    expect(screen.getByTestId("workspace-loading-breadcrumb")).toBeInTheDocument()
+    expect(screen.queryByRole("link", { name: /entrar/i })).not.toBeInTheDocument()
+  })
+
   it("renders core workspace links when logged in with active subscription", () => {
     mockUseSession.mockReturnValue({
       data: { user: { id: "user-1", name: "Test User", email: "test@example.com" } },
+      isPending: false,
     })
 
     render(<NavBar />)
@@ -146,6 +160,7 @@ describe("NavBar", () => {
     )
     mockUseSession.mockReturnValue({
       data: { user: { id: "user-1", name: "Test User", email: "test@example.com", isAdmin: true } },
+      isPending: false,
     })
 
     render(<NavBar />)
@@ -159,6 +174,7 @@ describe("NavBar", () => {
   it("links logo to anuncios for subscribed users", () => {
     mockUseSession.mockReturnValue({
       data: { user: { id: "user-1", name: "Test User", email: "test@example.com" } },
+      isPending: false,
     })
 
     render(<NavBar />)
@@ -169,6 +185,7 @@ describe("NavBar", () => {
   it("renders breadcrumb controls in the top bar", () => {
     mockUseSession.mockReturnValue({
       data: { user: { id: "user-1", name: "Test User", email: "test@example.com" } },
+      isPending: false,
     })
 
     render(<NavBar />)
@@ -181,6 +198,7 @@ describe("NavBar", () => {
     mockPathname.mockReturnValue("/analise")
     mockUseSession.mockReturnValue({
       data: { user: { id: "user-1", name: "Test User", email: "test@example.com" } },
+      isPending: false,
     })
 
     render(<NavBar />)
@@ -194,6 +212,7 @@ describe("NavBar", () => {
     mockPathname.mockReturnValue("/anuncios")
     mockUseSession.mockReturnValue({
       data: { user: { id: "user-1", name: "Test User", email: "test@example.com" } },
+      isPending: false,
     })
 
     render(<NavBar />)
@@ -207,6 +226,7 @@ describe("NavBar", () => {
     mockHasActiveSubscription = false
     mockUseSession.mockReturnValue({
       data: { user: { id: "user-1", name: "Test User", email: "test@example.com" } },
+      isPending: false,
     })
 
     render(<NavBar />)
@@ -225,6 +245,7 @@ describe("NavBar", () => {
   it("shows mobile navigation trigger when logged in with active subscription", () => {
     mockUseSession.mockReturnValue({
       data: { user: { id: "user-1", name: "Test User", email: "test@example.com" } },
+      isPending: false,
     })
 
     render(<NavBar />)
@@ -234,10 +255,32 @@ describe("NavBar", () => {
     ).toBeInTheDocument()
   })
 
+  it("does not render the brand in the mobile sidebar sheet", async () => {
+    mockUseSession.mockReturnValue({
+      data: { user: { id: "user-1", name: "Test User", email: "test@example.com" } },
+      isPending: false,
+    })
+
+    render(<NavBar />)
+    fireEvent.click(screen.getByRole("button", { name: /alternar navegação/i }))
+
+    const mobileSidebar = await waitFor(() => {
+      const element = document.querySelector('[data-slot="sidebar-mobile"]')
+      expect(element).toBeInTheDocument()
+      return element
+    })
+    expect(
+      within(mobileSidebar as HTMLElement).queryByRole("link", {
+        name: /minha casa/i,
+      })
+    ).not.toBeInTheDocument()
+  })
+
   it("highlights current workspace link", () => {
     mockPathname.mockReturnValue("/comparacao")
     mockUseSession.mockReturnValue({
       data: { user: { id: "user-1", name: "Test User", email: "test@example.com" } },
+      isPending: false,
     })
 
     render(<NavBar />)
@@ -253,6 +296,7 @@ describe("NavBar", () => {
   it("shows organization switcher and menu links when logged in", () => {
     mockUseSession.mockReturnValue({
       data: { user: { id: "user-1", name: "Test User", email: "test@example.com", isAdmin: true } },
+      isPending: false,
     })
 
     render(<NavBar />)
@@ -272,6 +316,7 @@ describe("NavBar", () => {
     mockHasAddon.mockImplementation((slug: string) => slug === "flood")
     mockUseSession.mockReturnValue({
       data: { user: { id: "user-1", name: "Test User", email: "test@example.com" } },
+      isPending: false,
     })
 
     render(<NavBar />)

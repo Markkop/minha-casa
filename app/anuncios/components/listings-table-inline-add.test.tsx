@@ -154,6 +154,23 @@ function mockClipboard(text = "") {
   }
 }
 
+function mockMatchMedia(matches: boolean) {
+  Object.defineProperty(window, "matchMedia", {
+    configurable: true,
+    writable: true,
+    value: vi.fn().mockImplementation((query: string) => ({
+      matches,
+      media: query,
+      onchange: null,
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    })),
+  })
+}
+
 describe("ListingsTable inline add flow", () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -163,7 +180,7 @@ describe("ListingsTable inline add flow", () => {
     mocks.addListing.mockResolvedValue(listing({ id: "created", titulo: "Criado" }))
   })
 
-  it("toggles the inline add input empty and splits search/add space", async () => {
+  it("toggles the inline add input empty and splits search/add space on desktop", async () => {
     const clipboard = mockClipboard("https://example.com/imovel")
 
     render(<ListingsTable listings={[listing()]} />)
@@ -175,11 +192,25 @@ describe("ListingsTable inline add flow", () => {
     expect(clipboard.readText).not.toHaveBeenCalled()
 
     const searchInput = screen.getByPlaceholderText("Buscar por título ou endereço...")
-    expect(searchInput.parentElement).toHaveClass("basis-1/2")
-    expect(addInput.closest(".basis-1\\/2")).not.toBeNull()
+    expect(searchInput.parentElement).toHaveClass("md:basis-1/2")
+    expect(addInput.closest(".md\\:basis-1\\/2")).not.toBeNull()
     expect(
       addInput.compareDocumentPosition(searchInput) & Node.DOCUMENT_POSITION_FOLLOWING
     ).toBeTruthy()
+  })
+
+  it("replaces search with add input using mobile toolbar classes", async () => {
+    mockMatchMedia(true)
+
+    render(<ListingsTable listings={[listing()]} />)
+
+    fireEvent.click(screen.getByLabelText("Adicionar imóvel"))
+
+    const addInput = await screen.findByPlaceholderText("Cole link, texto ou arquivo aqui...")
+    const searchWrapper = screen.getByPlaceholderText("Buscar...").parentElement
+
+    expect(searchWrapper).toHaveClass("max-md:hidden")
+    expect(addInput.closest(".max-md\\:flex-1")).not.toBeNull()
   })
 
   it("adds from clipboard shortcut without opening or filling the inline input", async () => {
@@ -391,5 +422,44 @@ describe("ListingsTable inline add flow", () => {
     fireEvent.click(screen.getByLabelText("Remover fachada.png"))
     expect(screen.queryByText("fachada.png")).not.toBeInTheDocument()
     expect(screen.getByText("memorial.pdf")).toBeInTheDocument()
+  })
+})
+
+describe("ListingsTable mobile toolbar", () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    window.localStorage.clear()
+    mockClipboard("")
+  })
+
+  it("shows sort control instead of column picker in the mobile toolbar slot", () => {
+    render(<ListingsTable listings={[listing()]} />)
+
+    expect(screen.getByLabelText("Ordenar")).toBeInTheDocument()
+    expect(screen.getByLabelText("Colunas visíveis").closest(".hidden")).not.toBeNull()
+  })
+
+  it("reorders mobile listings when a sort option is selected", async () => {
+    render(
+      <ListingsTable
+        listings={[
+          listing({ id: "listing-a", titulo: "Alpha", preco: 200000 }),
+          listing({ id: "listing-b", titulo: "Beta", preco: 900000 }),
+        ]}
+      />
+    )
+
+    const initialOrder = mobileList()
+      .getAllByTestId(/^mobile-/)
+      .map((node) => node.getAttribute("data-testid"))
+    expect(initialOrder).toEqual(["mobile-listing-b", "mobile-listing-a"])
+
+    fireEvent.click(screen.getByLabelText("Ordenar"))
+    fireEvent.click(screen.getByRole("button", { name: "Preço" }))
+
+    const sortedOrder = mobileList()
+      .getAllByTestId(/^mobile-/)
+      .map((node) => node.getAttribute("data-testid"))
+    expect(sortedOrder).toEqual(["mobile-listing-a", "mobile-listing-b"])
   })
 })

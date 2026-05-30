@@ -97,6 +97,19 @@ const adminGatedWorkspaceLinks: NavLink[] = [
   { href: "/condominios", label: "Condomínios", icon: Building2, adminFlag: "condominios" },
 ]
 
+const workspaceChromePathPrefixes = [
+  ...coreWorkspaceLinks.map((link) => link.href),
+  ...adminGatedWorkspaceLinks.map((link) => link.href),
+  "/casa",
+  "/explorar",
+  "/floodrisk",
+  "/organizacoes",
+]
+
+function isWorkspaceChromePath(pathname: string) {
+  return workspaceChromePathPrefixes.some((href) => isActivePath(pathname, href))
+}
+
 function useVisibleWorkspaceLinks(): NavLink[] {
   const visaoGeral = useAdminFlag("visaoGeral")
   const contatos = useAdminFlag("contatos")
@@ -327,15 +340,8 @@ function WorkspaceSidebar({
   hasFloodRisk: boolean
   onLogout: () => Promise<void>
 }) {
-  return (
-    <Sidebar>
-      <SidebarHeader className={workspaceChromeRowClass}>
-        <BrandLink
-          href={logoHref}
-          className="h-8 gap-2 leading-none"
-          logoClassName="size-8 [&_svg]:size-4"
-        />
-      </SidebarHeader>
+  const renderNavContent = () => (
+    <>
       <SidebarContent>
         <WorkspaceNavLinks pathname={pathname} />
       </SidebarContent>
@@ -350,6 +356,56 @@ function WorkspaceSidebar({
         />
       </SidebarFooter>
       <SidebarRail />
+    </>
+  )
+
+  return (
+    <Sidebar>
+      <SidebarHeader className={workspaceChromeRowClass}>
+        <BrandLink
+          href={logoHref}
+          className="h-8 gap-2 leading-none"
+          logoClassName="size-8 [&_svg]:size-4"
+        />
+      </SidebarHeader>
+      {renderNavContent()}
+    </Sidebar>
+  )
+}
+
+function WorkspaceLoadingSidebar({ logoHref }: { logoHref: string }) {
+  const renderLoadingContent = () => (
+    <>
+      <SidebarContent>
+        <div className="flex flex-col gap-2 px-1 py-1" aria-hidden="true">
+          {[7.5, 8.5, 6.5, 8, 5.5].map((width, index) => (
+            <div
+              key={index}
+              className="flex h-9 items-center gap-2 rounded-md px-3"
+            >
+              <span className="h-4 w-4 shrink-0 rounded bg-app-surface-muted" />
+              <span
+                className="h-3 rounded bg-app-surface-muted"
+                style={{ width: `${width}rem` }}
+              />
+            </div>
+          ))}
+        </div>
+      </SidebarContent>
+      <SidebarRail />
+    </>
+  )
+
+  return (
+    <Sidebar>
+      <SidebarHeader className={workspaceChromeRowClass}>
+        <BrandLink
+          href={logoHref}
+          className="h-8 gap-2 leading-none"
+          logoClassName="size-8 [&_svg]:size-4"
+        />
+      </SidebarHeader>
+      {renderLoadingContent()}
     </Sidebar>
   )
 }
@@ -419,6 +475,71 @@ function WorkspaceTopBar({ pathname }: { pathname: string }) {
         </Breadcrumb>
       </div>
     </header>
+  )
+}
+
+function WorkspaceLoadingTopBar({ pathname }: { pathname: string }) {
+  const showAnaliseListingBreadcrumb = isActivePath(pathname, "/analise")
+
+  return (
+    <header id="page-header" className="sticky top-0 z-30 w-full">
+      <div className={cn(workspaceChromeRowClass, "min-w-0 gap-3")}>
+        <SidebarTrigger
+          aria-label="Alternar navegação"
+          className="size-8 shrink-0 text-app-muted hover:text-app-fg [&_svg]:size-4"
+        />
+        <Breadcrumb className="flex min-h-0 min-w-0 flex-1 items-center">
+          <BreadcrumbList className="flex-nowrap items-center gap-3">
+            <BreadcrumbItem className="min-w-0">
+              <div
+                data-testid="workspace-loading-breadcrumb"
+                className={cn(
+                  workspaceTopBarControlClass,
+                  "w-[min(44vw,12rem)] animate-pulse bg-app-surface-muted"
+                )}
+                aria-hidden="true"
+              />
+            </BreadcrumbItem>
+            {showAnaliseListingBreadcrumb && (
+              <>
+                <BreadcrumbSeparator className="text-app-subtle">
+                  <span className="text-sm leading-none">/</span>
+                </BreadcrumbSeparator>
+                <BreadcrumbItem className="min-w-0 flex-1">
+                  <div
+                    className={cn(
+                      workspaceTopBarControlClass,
+                      "w-full max-w-[18rem] animate-pulse bg-app-surface-muted"
+                    )}
+                    aria-hidden="true"
+                  />
+                </BreadcrumbItem>
+              </>
+            )}
+          </BreadcrumbList>
+        </Breadcrumb>
+      </div>
+    </header>
+  )
+}
+
+function WorkspaceLoadingChrome({
+  children,
+  pathname,
+}: {
+  children?: ReactNode
+  pathname: string
+}) {
+  return (
+    <SidebarProvider
+      style={{ "--nav-height": WORKSPACE_NAV_HEIGHT } as React.CSSProperties}
+    >
+      <WorkspaceLoadingSidebar logoHref="/anuncios" />
+      <SidebarInset>
+        <WorkspaceLoadingTopBar pathname={pathname} />
+        {children}
+      </SidebarInset>
+    </SidebarProvider>
   )
 }
 
@@ -536,6 +657,14 @@ export function NavBar({ children }: { children?: ReactNode }) {
     : showWorkspaceNav || showPendingWorkspaceNav
       ? "/anuncios"
       : "/subscribe"
+
+  if (sessionPending && isWorkspaceChromePath(pathname)) {
+    return (
+      <WorkspaceLoadingChrome pathname={pathname}>
+        {children}
+      </WorkspaceLoadingChrome>
+    )
+  }
 
   if (sessionPending) {
     return <SessionPendingTopChrome>{children}</SessionPendingTopChrome>

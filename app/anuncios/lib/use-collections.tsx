@@ -41,6 +41,7 @@ import { useListingDisplayTitles } from "@/lib/hooks/use-listing-display-titles"
 import { isListingImageIngesting } from "@/lib/listing-images"
 import {
   getStoredOrgContext,
+  ORGANIZATION_CONTEXT_CHANGE_EVENT,
   type OrganizationContext,
 } from "@/components/organization-switcher"
 
@@ -207,6 +208,26 @@ export function CollectionsProvider({
     setListings([])
     setListingsCollectionId(null)
   }, [])
+
+  useEffect(() => {
+    const handleContextChange = (event: Event) => {
+      const nextContext = (event as CustomEvent<OrganizationContext>).detail
+      if (!nextContext) return
+      setOrgContext(nextContext)
+      setOrgContextInitialized(true)
+    }
+
+    window.addEventListener(
+      ORGANIZATION_CONTEXT_CHANGE_EVENT,
+      handleContextChange
+    )
+    return () => {
+      window.removeEventListener(
+        ORGANIZATION_CONTEXT_CHANGE_EVENT,
+        handleContextChange
+      )
+    }
+  }, [setOrgContext])
 
   // ============================================================================
   // COLLECTION ACTIONS

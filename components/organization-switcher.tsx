@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState, useCallback } from "react"
+import { useRouter } from "next/navigation"
 import {
   Select,
   SelectContent,
@@ -38,6 +39,8 @@ interface OrganizationSwitcherProps {
 }
 
 const STORAGE_KEY = "minha-casa-org-context"
+export const ORGANIZATION_CONTEXT_CHANGE_EVENT =
+  "minha-casa:organization-context-change"
 
 export function getStoredOrgContext(): OrganizationContext {
   if (typeof window === "undefined") {
@@ -61,6 +64,11 @@ export function getStoredOrgContext(): OrganizationContext {
 export function setStoredOrgContext(context: OrganizationContext): void {
   if (typeof window === "undefined") return
   localStorage.setItem(STORAGE_KEY, JSON.stringify(context))
+  window.dispatchEvent(
+    new CustomEvent<OrganizationContext>(ORGANIZATION_CONTEXT_CHANGE_EVENT, {
+      detail: context,
+    })
+  )
 }
 
 export function useOrganizations() {
@@ -101,6 +109,7 @@ export function OrganizationSwitcher({
   onContextChange,
   className,
 }: OrganizationSwitcherProps) {
+  const router = useRouter()
   const { organizations, loading, hasTeamOrganizations } = useOrganizations()
   const [context, setContext] = useState<OrganizationContext>({ type: "personal" })
 
@@ -141,8 +150,7 @@ export function OrganizationSwitcher({
     setContext(newContext)
     setStoredOrgContext(newContext)
     onContextChange?.(newContext)
-
-    window.location.reload()
+    router.refresh()
   }
 
   const currentValue = context.type === "personal" ? "personal" : context.organizationId
@@ -216,6 +224,7 @@ export function OrganizationBreadcrumbDropdown({
 }: {
   className?: string
 }) {
+  const router = useRouter()
   const { organizations, loading, hasTeamOrganizations } = useOrganizations()
   const [context, setContext] = useState<OrganizationContext>({ type: "personal" })
 
@@ -257,7 +266,7 @@ export function OrganizationBreadcrumbDropdown({
 
     setContext(newContext)
     setStoredOrgContext(newContext)
-    window.location.reload()
+    router.refresh()
   }
 
   if (loading || !hasTeamOrganizations) {

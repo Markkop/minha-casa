@@ -11,6 +11,7 @@ import {
 } from "react"
 import {
   getStoredOrgContext,
+  ORGANIZATION_CONTEXT_CHANGE_EVENT,
   type OrganizationContext,
 } from "@/components/organization-switcher"
 import type { UserAddon, OrganizationAddon } from "./addons"
@@ -101,6 +102,27 @@ export function AddonsProvider({
     const storedContext = getStoredOrgContext()
     setOrgContext(storedContext)
     setInitialized(true)
+  }, [])
+
+  useEffect(() => {
+    const handleContextChange = (event: Event) => {
+      const nextContext = (event as CustomEvent<OrganizationContext>).detail
+      if (!nextContext) return
+      setOrgContext(nextContext)
+      setInitialized(true)
+      setShouldFetch(true)
+    }
+
+    window.addEventListener(
+      ORGANIZATION_CONTEXT_CHANGE_EVENT,
+      handleContextChange
+    )
+    return () => {
+      window.removeEventListener(
+        ORGANIZATION_CONTEXT_CHANGE_EVENT,
+        handleContextChange
+      )
+    }
   }, [])
 
   // Fetch user addons
@@ -332,6 +354,7 @@ export function AddonsProvider({
       if (event.key === "minha-casa-org-context") {
         const storedContext = getStoredOrgContext()
         setOrgContext(storedContext)
+        setShouldFetch(true)
       }
     }
 

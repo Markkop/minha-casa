@@ -1,13 +1,14 @@
 "use client"
 
-import { useEffect, useState } from "react"
-import { Home, Loader2 } from "lucide-react"
+import { memo, useEffect, useState } from "react"
+import { Home } from "lucide-react"
 import type { Imovel } from "../lib/api"
 import { cn } from "@/lib/utils"
 import { isListingImageIngesting } from "@/lib/listing-images"
 import { ListingLocationMiniMap } from "./listing-location-mini-map"
 import type { ImageColumnView } from "./listings-table-shared"
 import { ListingImageIngestionProgressBar } from "./listings-table-shared"
+import { ListingThumbnailImage } from "./listing-thumbnail-image"
 
 type ListingMobileCardBackdropProps = {
   imovel: Imovel
@@ -16,8 +17,20 @@ type ListingMobileCardBackdropProps = {
   className?: string
 }
 
+function listingMobileCardBackdropPropsAreEqual(
+  prev: ListingMobileCardBackdropProps,
+  next: ListingMobileCardBackdropProps
+) {
+  return (
+    prev.imovel.id === next.imovel.id &&
+    prev.imovel.imageUrl === next.imovel.imageUrl &&
+    prev.imovel.imageIngestionStatus === next.imovel.imageIngestionStatus &&
+    prev.view === next.view
+  )
+}
+
 /** Full-bleed listing photo/map for mobile card (fills parent; parent sets height). */
-export function ListingMobileCardBackdrop({
+function ListingMobileCardBackdropInner({
   imovel,
   view,
   onOpenImageModal,
@@ -25,18 +38,11 @@ export function ListingMobileCardBackdrop({
 }: ListingMobileCardBackdropProps) {
   const ingesting = isListingImageIngesting(imovel.imageIngestionStatus)
   const hasImage = Boolean(imovel.imageUrl)
-  const [imageLoading, setImageLoading] = useState(Boolean(imovel.imageUrl))
-  const [imageLoadFailed, setImageLoadFailed] = useState(false)
+  const [showImageFallback, setShowImageFallback] = useState(false)
 
   useEffect(() => {
-    if (imovel.imageUrl) {
-      setImageLoading(true)
-      setImageLoadFailed(false)
-    } else {
-      setImageLoading(false)
-      setImageLoadFailed(false)
-    }
-  }, [imovel.imageUrl])
+    setShowImageFallback(false)
+  }, [imovel.id, imovel.imageUrl])
 
   const openModal = () => onOpenImageModal()
 
@@ -88,7 +94,7 @@ export function ListingMobileCardBackdrop({
     )
   }
 
-  if (hasImage && !imageLoadFailed) {
+  if (hasImage && !showImageFallback) {
     return (
       <button
         type="button"
@@ -99,23 +105,10 @@ export function ListingMobileCardBackdrop({
         )}
         title="Clique para ver/editar imagem"
       >
-        {imageLoading && (
-          <div className="absolute inset-0 z-0 flex items-center justify-center bg-app-surface-muted">
-            <Loader2 className="h-5 w-5 animate-spin text-app-accent" />
-          </div>
-        )}
-        <img
+        <ListingThumbnailImage
+          listingId={imovel.id}
           src={imovel.imageUrl!}
-          alt=""
-          className={cn(
-            "h-full w-full object-cover",
-            imageLoading && "opacity-0"
-          )}
-          onLoad={() => setImageLoading(false)}
-          onError={() => {
-            setImageLoading(false)
-            setImageLoadFailed(true)
-          }}
+          onError={() => setShowImageFallback(true)}
         />
       </button>
     )
@@ -135,3 +128,8 @@ export function ListingMobileCardBackdrop({
     </button>
   )
 }
+
+export const ListingMobileCardBackdrop = memo(
+  ListingMobileCardBackdropInner,
+  listingMobileCardBackdropPropsAreEqual
+)

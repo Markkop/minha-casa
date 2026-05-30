@@ -43,7 +43,10 @@ function SidebarProvider({
   const [open, setOpen] = React.useState(true)
   const [openMobile, setOpenMobile] = React.useState(false)
   const toggleSidebar = React.useCallback(() => {
-    if (window.matchMedia("(min-width: 768px)").matches) {
+    const isDesktop =
+      typeof window.matchMedia === "function" &&
+      window.matchMedia("(min-width: 768px)").matches
+    if (isDesktop) {
       setOpen((value) => !value)
       return
     }
@@ -77,9 +80,11 @@ function SidebarProvider({
 function Sidebar({
   className,
   children,
+  mobileChildren,
   side = "left",
   ...props
 }: React.ComponentProps<"aside"> & {
+  mobileChildren?: React.ReactNode
   side?: "left" | "right"
 }) {
   const { open, openMobile, setOpenMobile } = useSidebar()
@@ -115,7 +120,7 @@ function Sidebar({
               className
             )}
           >
-            {children}
+            {mobileChildren ?? children}
           </aside>
         </SheetContent>
       </Sheet>

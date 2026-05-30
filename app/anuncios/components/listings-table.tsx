@@ -52,6 +52,11 @@ import {
 import { PageToolbarButton, PageToolbarIconButton } from "@/app/components/page-toolbar"
 import { ListingsDisplayPopover } from "./listings-display-popover"
 import {
+  ListingsSortPopover,
+  type ListingsSortKey,
+  type ListingsSortState,
+} from "./listings-sort-popover"
+import {
   LISTINGS_SECTION_CLASS,
   LISTINGS_TOOLBAR_CLASS,
   LISTINGS_TOOLBAR_INNER_CLASS,
@@ -100,13 +105,8 @@ export {
 // TYPES
 // ============================================================================
 
-type SortKey = "titulo" | "m2Totais" | "m2Privado" | "quartos" | "preco" | "precoM2" | "precoM2Privado" | "addedAt"
-type SortDirection = "asc" | "desc"
-
-interface SortState {
-  key: SortKey
-  direction: SortDirection
-}
+type SortKey = ListingsSortKey
+type SortState = ListingsSortState
 
 interface SortableHeaderProps {
   label: string
@@ -1693,14 +1693,16 @@ export function ListingsTable({ listings, hasApiKey = true }: ListingsTableProps
           {addListingToolbarButtons()}
           <div
             className={cn(
-              "flex min-w-[280px] flex-1 items-center",
-              showAddInput ? "gap-1.5" : "gap-0"
+              "flex min-w-0 flex-1 items-center md:min-w-[280px]",
+              showAddInput ? "gap-0 md:gap-1.5" : "gap-0"
             )}
           >
             <div
               className={cn(
                 "min-w-0 transition-[flex-basis,width] duration-300 ease-out",
-                showAddInput ? "basis-1/2" : "w-0 basis-0"
+                showAddInput
+                  ? "max-md:flex-1 max-md:basis-full md:basis-1/2"
+                  : "w-0 basis-0 overflow-hidden"
               )}
             >
               {addInputControl}
@@ -1708,16 +1710,26 @@ export function ListingsTable({ listings, hasApiKey = true }: ListingsTableProps
             <div
               className={cn(
                 "relative min-w-0 transition-[flex-basis] duration-300 ease-out",
-                showAddInput ? "basis-1/2" : "basis-full"
+                showAddInput
+                  ? "max-md:hidden md:basis-1/2"
+                  : "max-md:flex-1 md:basis-full"
               )}
             >
-              <MagnifyingGlassIcon className="absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+              <MagnifyingGlassIcon className="absolute left-1.5 top-1/2 h-3 w-3 -translate-y-1/2 text-muted-foreground md:left-2 md:h-3.5 md:w-3.5" />
+              <Input
+                type="text"
+                placeholder="Buscar..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                aria-label="Buscar por título ou endereço"
+                className="h-7 border-app-border bg-app-surface py-0 pl-6 text-xs text-app-fg placeholder:text-app-subtle md:hidden"
+              />
               <Input
                 type="text"
                 placeholder="Buscar por título ou endereço..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="h-7 border-app-border bg-app-surface py-0 pl-7 text-xs text-app-fg placeholder:text-app-subtle"
+                className="hidden h-7 border-app-border bg-app-surface py-0 pl-7 text-xs text-app-fg placeholder:text-app-subtle md:block"
               />
             </div>
           </div>
@@ -1789,42 +1801,47 @@ export function ListingsTable({ listings, hasApiKey = true }: ListingsTableProps
             prefs={propertyDisplay}
             onChange={setPropertyDisplay}
           />
-          <Popover>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <PopoverTrigger asChild>
-                  <PageToolbarIconButton variant="secondary" aria-label="Colunas visíveis">
-                    <Columns3 />
-                  </PageToolbarIconButton>
-                </PopoverTrigger>
-              </TooltipTrigger>
-              <TooltipContent
-                side="bottom"
-                sideOffset={4}
-                className="border border-app-border bg-app-surface text-app-fg"
-              >
-                Colunas visíveis
-              </TooltipContent>
-            </Tooltip>
-            <PopoverContent align="end" sideOffset={8} className="w-56 border-app-border bg-app-surface p-2 text-app-fg">
-              <div className="flex flex-col gap-1">
-                {LISTINGS_TABLE_COLUMNS.map((column) => (
-                  <label
-                    key={column.id}
-                    className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-sm text-app-muted transition-colors hover:bg-app-surface-muted hover:text-app-fg"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={visibleColumns[column.id]}
-                      onChange={(event) => setColumnVisible(column.id, event.target.checked)}
-                      className="h-3.5 w-3.5 accent-app-action"
-                    />
-                    <span>{column.label}</span>
-                  </label>
-                ))}
-              </div>
-            </PopoverContent>
-          </Popover>
+          <div className="md:hidden">
+            <ListingsSortPopover sort={sort} onSort={handleSort} />
+          </div>
+          <div className="hidden md:contents">
+            <Popover>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <PopoverTrigger asChild>
+                    <PageToolbarIconButton variant="secondary" aria-label="Colunas visíveis">
+                      <Columns3 />
+                    </PageToolbarIconButton>
+                  </PopoverTrigger>
+                </TooltipTrigger>
+                <TooltipContent
+                  side="bottom"
+                  sideOffset={4}
+                  className="border border-app-border bg-app-surface text-app-fg"
+                >
+                  Colunas visíveis
+                </TooltipContent>
+              </Tooltip>
+              <PopoverContent align="end" sideOffset={8} className="w-56 border-app-border bg-app-surface p-2 text-app-fg">
+                <div className="flex flex-col gap-1">
+                  {LISTINGS_TABLE_COLUMNS.map((column) => (
+                    <label
+                      key={column.id}
+                      className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-sm text-app-muted transition-colors hover:bg-app-surface-muted hover:text-app-fg"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={visibleColumns[column.id]}
+                        onChange={(event) => setColumnVisible(column.id, event.target.checked)}
+                        className="h-3.5 w-3.5 accent-app-action"
+                      />
+                      <span>{column.label}</span>
+                    </label>
+                  ))}
+                </div>
+              </PopoverContent>
+            </Popover>
+          </div>
         </div>
       </div>
 

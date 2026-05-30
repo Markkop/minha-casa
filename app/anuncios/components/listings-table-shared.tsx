@@ -8,6 +8,7 @@ import type { Imovel } from "../lib/api"
 import { cn } from "@/lib/utils"
 import { isListingImageIngesting } from "@/lib/listing-images"
 import { ListingLocationMiniMap } from "./listing-location-mini-map"
+import { ListingThumbnailImage } from "./listing-thumbnail-image"
 
 export type ImageColumnView = "image" | "map"
 export type ListingsTableColumn =
@@ -174,18 +175,11 @@ function ListingImageColumnCell({
   const thumbClass = LISTING_THUMB_SIZE_CLASS
   const ingesting = isListingImageIngesting(imovel.imageIngestionStatus)
   const hasImage = Boolean(imovel.imageUrl)
-  const [imageLoading, setImageLoading] = useState(Boolean(imovel.imageUrl))
   const [imageLoadFailed, setImageLoadFailed] = useState(false)
 
   useEffect(() => {
-    if (imovel.imageUrl) {
-      setImageLoading(true)
-      setImageLoadFailed(false)
-    } else {
-      setImageLoading(false)
-      setImageLoadFailed(false)
-    }
-  }, [imovel.imageUrl])
+    setImageLoadFailed(false)
+  }, [imovel.id, imovel.imageUrl])
 
   const placeholderButton = (
     <button
@@ -236,23 +230,11 @@ function ListingImageColumnCell({
             thumbClass
           )}
         >
-          {imageLoading && (
-            <div className="absolute inset-0 z-10 flex items-center justify-center bg-app-surface-muted">
-              <Loader2 className="h-5 w-5 animate-spin text-app-accent" />
-            </div>
-          )}
-          <img
+          <ListingThumbnailImage
+            listingId={imovel.id}
             src={imovel.imageUrl!}
             alt={imovel.titulo}
-            className={cn(
-              "h-full w-full object-cover",
-              imageLoading && "opacity-0"
-            )}
-            onLoad={() => setImageLoading(false)}
-            onError={() => {
-              setImageLoading(false)
-              setImageLoadFailed(true)
-            }}
+            onError={() => setImageLoadFailed(true)}
           />
         </div>
       </button>
@@ -262,4 +244,28 @@ function ListingImageColumnCell({
   return <div className="relative z-10">{placeholderButton}</div>
 }
 
-export const MemoizedListingImageColumnCell = memo(ListingImageColumnCell)
+function listingImageColumnCellPropsAreEqual(
+  prev: {
+    imovel: Imovel
+    view: ImageColumnView
+    onOpenImageModal: () => void
+  },
+  next: {
+    imovel: Imovel
+    view: ImageColumnView
+    onOpenImageModal: () => void
+  }
+) {
+  return (
+    prev.imovel.id === next.imovel.id &&
+    prev.imovel.imageUrl === next.imovel.imageUrl &&
+    prev.imovel.imageIngestionStatus === next.imovel.imageIngestionStatus &&
+    prev.imovel.titulo === next.imovel.titulo &&
+    prev.view === next.view
+  )
+}
+
+export const MemoizedListingImageColumnCell = memo(
+  ListingImageColumnCell,
+  listingImageColumnCellPropsAreEqual
+)

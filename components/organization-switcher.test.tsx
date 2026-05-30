@@ -186,6 +186,32 @@ describe("OrganizationBreadcrumbDropdown", () => {
       expect(screen.getByTestId("organization-breadcrumb")).toBeInTheDocument()
     })
   })
+
+  it("changes organization without a full page reload", async () => {
+    global.fetch = setupFetchMock()
+
+    render(<OrganizationBreadcrumbDropdown />)
+
+    await waitFor(() => {
+      expect(screen.getByTestId("organization-breadcrumb")).toBeInTheDocument()
+    })
+
+    fireEvent.pointerDown(screen.getByTestId("organization-breadcrumb"))
+
+    const orgItem = await screen.findByRole("menuitem", {
+      name: /test organization/i,
+    })
+    fireEvent.click(orgItem)
+
+    await waitFor(() => {
+      expect(mockRefresh).toHaveBeenCalled()
+    })
+    expect(getStoredOrgContext()).toEqual({
+      type: "organization",
+      organizationId: "org-1",
+      organizationName: "Test Organization",
+    })
+  })
 })
 
 describe("getStoredOrgContext", () => {

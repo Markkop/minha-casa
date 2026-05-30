@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import dynamic from "next/dynamic"
 import { APIProvider, Map, AdvancedMarker } from "@vis.gl/react-google-maps"
 import { Loader2 } from "lucide-react"
@@ -277,6 +277,26 @@ export function ListingLocationMiniMap({
     })
   }, [mounted])
 
+  const listingLocationKey = useMemo(
+    () =>
+      [
+        listing.id,
+        listing.endereco,
+        listing.bairro ?? "",
+        listing.cidade ?? "",
+        listing.customLat ?? "",
+        listing.customLng ?? "",
+      ].join("\0"),
+    [
+      listing.id,
+      listing.endereco,
+      listing.bairro,
+      listing.cidade,
+      listing.customLat,
+      listing.customLng,
+    ]
+  )
+
   useEffect(() => {
     if (!mounted) return
 
@@ -293,7 +313,9 @@ export function ListingLocationMiniMap({
     return () => {
       cancelled = true
     }
-  }, [listing, mounted])
+    // listing read from closure; listingLocationKey captures location-relevant fields only.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- avoid map reload on unrelated listing updates (e.g. sort)
+  }, [listingLocationKey, mounted])
 
   if (!mounted) {
     return null
