@@ -382,22 +382,25 @@ describe("ComparisonClient", () => {
     expect(screen.getAllByText((_, element) => element?.textContent === "R$ 3.857.220").length).toBeGreaterThan(0)
   })
 
-  it("combines area and price per m² in the area rows", async () => {
+  it("shows area row names with compact labels and keeps price per m² in values", async () => {
     saveStoredComparison(["listing-1", "listing-2", "listing-3", "listing-4"])
     setup()
 
     const areaCellText = (text: string) => (_: string, element: Element | null) =>
       (element?.textContent ?? "").replace(/\s/g, " ").includes(text.replace(/\s/g, " "))
 
-    expect(
-      (await screen.findAllByText(areaCellText("364 m² (R$ 7.143/m²)"))).length
-    ).toBeGreaterThan(0)
-    expect(
-      screen.getAllByText(areaCellText("354 m² (R$ 7.345/m²)")).length
-    ).toBeGreaterThan(0)
-    expect(
-      screen.getAllByText(areaCellText("193 m² (R$ 8.029/m²)")).length
-    ).toBeGreaterThan(0)
+    const totalAreaRow = (await screen.findByText("total")).closest("tr")
+    expect(totalAreaRow).not.toBeNull()
+    expect(within(totalAreaRow!).getByText("Área")).toBeInTheDocument()
+    expect(within(totalAreaRow!).getByText("total")).toBeInTheDocument()
+    expect(within(totalAreaRow!).getAllByText(areaCellText("364 m² (R$ 7.143/m²)")).length).toBeGreaterThan(0)
+    expect(within(totalAreaRow!).getAllByText(areaCellText("193 m² (R$ 8.029/m²)")).length).toBeGreaterThan(0)
+
+    const privateAreaRow = screen.getByText("privativa").closest("tr")
+    expect(privateAreaRow).not.toBeNull()
+    expect(within(privateAreaRow!).getByText("Área")).toBeInTheDocument()
+    expect(within(privateAreaRow!).getByText("privativa")).toBeInTheDocument()
+    expect(within(privateAreaRow!).getAllByText(areaCellText("354 m² (R$ 7.345/m²)")).length).toBeGreaterThan(0)
   })
 
   it("shows suites inside the rooms row", async () => {

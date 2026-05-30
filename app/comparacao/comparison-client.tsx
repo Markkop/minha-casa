@@ -73,6 +73,7 @@ type FixedCell = {
 type MatrixRow = {
   key: string
   label: string
+  labelDetail?: string
   numericKey?: NumericRowKey
   render: (listing: Imovel, context: MatrixContext) => CellValue
 }
@@ -338,13 +339,15 @@ const NUMERIC_MATRIX_ROWS: MatrixRow[] = [
   },
   {
     key: "totalArea",
-    label: "Área total",
+    label: "Área",
+    labelDetail: "total",
     numericKey: "totalArea",
     render: (listing, context) => renderAreaCell(listing, "totalArea", context),
   },
   {
     key: "privateArea",
-    label: "Área privativa",
+    label: "Área",
+    labelDetail: "privativa",
     numericKey: "privateArea",
     render: (listing, context) => renderAreaCell(listing, "privateArea", context),
   },
@@ -397,6 +400,10 @@ const MATRIX_ROWS_TAIL: MatrixRow[] = [
     }),
   },
 ]
+
+function getMatrixRowAccessibleLabel(row: MatrixRow) {
+  return row.labelDetail ? `${row.label} ${row.labelDetail}` : row.label
+}
 
 export function ComparisonClient() {
   const { listings, activeCollection, isLoadingListings, updateListing } = useCollections()
@@ -507,24 +514,24 @@ export function ComparisonClient() {
           <>
             <TooltipProvider>
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[1120px] table-fixed border-collapse text-sm">
+              <table className="w-full min-w-[896px] table-fixed border-collapse text-xs">
                 <colgroup>
-                  <col className="w-[172px]" />
+                  <col className="w-[104px]" />
                   {slotIds.map((_, index) => (
-                    <col key={index} className="w-[236px]" />
+                    <col key={index} className="w-[198px]" />
                   ))}
                 </colgroup>
                 <thead>
                   <tr className="border-b border-app-border">
                     <th
                       aria-hidden
-                      className="sticky left-0 z-20 bg-app-surface px-3 py-3 text-left align-bottom"
+                      className="sticky left-0 z-20 bg-app-surface px-1.5 py-2 text-left align-bottom"
                     />
                     {selectedListings.map((listing, index) => (
                       <th
                         key={index}
                         className={cn(
-                          "border-l border-app-border bg-app-surface p-3 align-top"
+                          "border-l border-app-border bg-app-surface p-2 align-top"
                         )}
                       >
                         <ComparisonSlotHeader
@@ -542,8 +549,15 @@ export function ComparisonClient() {
                 <tbody>
                   {matrixRows.map((row) => (
                     <tr key={row.key} className="border-b border-app-border last:border-b-0">
-                      <th className="sticky left-0 z-10 bg-app-surface px-3 py-3 text-left align-middle text-xs font-medium uppercase tracking-wide text-app-muted">
-                        {row.label}
+                      <th className="sticky left-0 z-10 bg-app-surface px-1.5 py-1.5 text-left align-middle text-[10px] font-medium text-app-muted">
+                        {row.labelDetail ? (
+                          <span className="inline-flex items-baseline gap-1 leading-none">
+                            <span className="uppercase tracking-wide">{row.label}</span>
+                            <span className="text-[8px] font-normal normal-case leading-none text-app-muted">{row.labelDetail}</span>
+                          </span>
+                        ) : (
+                          <span className="uppercase tracking-wide">{row.label}</span>
+                        )}
                       </th>
                       {selectedListings.map((listing, index) => {
                         const isFixedColumn = Boolean(
@@ -574,7 +588,7 @@ export function ComparisonClient() {
                           <td
                             key={`${row.key}-${index}`}
                             className={cn(
-                              "border-l border-app-border px-3 py-3 align-middle",
+                              "border-l border-app-border px-2 py-1.5 align-middle",
                               isFixedCell && "bg-app-action/15"
                             )}
                           >
@@ -583,7 +597,7 @@ export function ComparisonClient() {
                                 cell={cell}
                                 trend={trend}
                                 isFixed={isFixedCell}
-                                fixedLabel={`${row.label} de ${formatShortListingName(listing)}`}
+                                fixedLabel={`${getMatrixRowAccessibleLabel(row)} de ${formatShortListingName(listing)}`}
                                 hideFixButton={!isFixedCell}
                                 onToggleFixed={
                                   numericRowKey
@@ -628,16 +642,16 @@ function ComparisonSlotHeader({
   const availableListings = getAvailableListingsForSlot(listings, slots, slotIndex)
 
   return (
-    <div className="flex min-h-[204px] flex-col text-left">
+    <div className="flex min-h-[166px] flex-col text-left">
       <div
         className={cn(
-          "group relative flex min-h-[196px] flex-col rounded-md border p-2 text-left transition-colors",
+          "group relative flex min-h-[158px] flex-col gap-1.5 rounded-md border p-1.5 text-left transition-colors",
           listing
             ? "border-app-border bg-app-surface"
             : "border-dashed border-app-border bg-app-bg text-app-muted"
         )}
       >
-        <div className="absolute right-3 top-3 z-10 flex items-center gap-1">
+        <div className="absolute right-2 top-2 z-10 flex items-center gap-1">
           <Popover>
             <PopoverTrigger asChild>
               <Button
@@ -674,7 +688,7 @@ function ComparisonSlotHeader({
             </PopoverContent>
           </Popover>
         </div>
-        <div className="aspect-square w-full overflow-hidden rounded border border-app-border bg-app-bg">
+        <div className="h-24 w-24 shrink-0 overflow-hidden rounded border border-app-border bg-app-bg">
           {listing?.imageUrl ? (
             <img
               src={listing.imageUrl}
@@ -687,8 +701,8 @@ function ComparisonSlotHeader({
             </div>
           )}
         </div>
-        <div className="mt-2 min-w-0">
-          <div className="flex min-w-0 items-center gap-1.5">
+        <div className="min-w-0">
+          <div className="flex min-w-0 items-center gap-1">
             {listing && (
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -718,11 +732,11 @@ function ComparisonSlotHeader({
                 </TooltipContent>
               </Tooltip>
             )}
-            <span className="min-w-0 flex-1 truncate text-sm font-semibold text-app-fg">
+            <span className="min-w-0 flex-1 text-xs font-semibold leading-snug text-app-fg">
               {listing ? formatShortListingName(listing) : `Imóvel ${slotIndex + 1}`}
             </span>
           </div>
-          <div className="mt-1 truncate text-xs font-normal text-app-muted">
+          <div className="mt-0.5 break-words text-[10px] font-normal leading-snug text-app-muted">
             {listing ? formatSlotSummary(listing) : "Escolha um anúncio"}
           </div>
         </div>
@@ -806,7 +820,7 @@ function MatrixCell({
         href={cell.href}
         target="_blank"
         rel="noopener noreferrer"
-        className="inline-flex min-w-0 items-center gap-1 text-sm font-medium text-app-accent hover:underline"
+        className="inline-flex min-w-0 items-center gap-1 text-xs font-medium text-app-accent hover:underline"
       >
         <span className="truncate">{cell.value}</span>
         <ExternalLink className="h-3.5 w-3.5 shrink-0" />
@@ -827,12 +841,12 @@ function MatrixCell({
   const showTrend = trend === "up" || trend === "down"
 
   return (
-    <div className="group/cell flex min-w-0 items-center justify-between gap-2">
-      <span className="min-w-0 truncate font-mono text-sm tabular-nums text-app-fg">
+    <div className="group/cell flex min-w-0 items-center justify-between gap-1.5">
+      <span className="min-w-0 font-mono text-xs tabular-nums text-app-fg">
         {cell.valueSuffix ? (
-          <>
-            {cell.valuePrefix}
-            <span className="inline-flex items-center gap-0.5">
+          <span className="inline-flex flex-wrap items-center gap-x-1 gap-y-0.5">
+            <span className="whitespace-nowrap">{cell.valuePrefix}</span>
+            <span className="inline-flex items-center gap-0.5 whitespace-nowrap">
               <RecalculatedValue
                 tooltip={cell.recalculationTooltip}
                 className={trendClassName}
@@ -842,9 +856,14 @@ function MatrixCell({
               </RecalculatedValue>
               {showTrend && <TrendArrow trend={trend} className={trendClassName} />}
             </span>
-          </>
+          </span>
         ) : (
-          <span className="inline-flex items-center gap-0.5">
+          <span
+            className={cn(
+              "inline-flex min-w-0 items-center gap-0.5",
+              cell.rawValue !== undefined ? "whitespace-nowrap" : "flex-wrap break-words"
+            )}
+          >
             <RecalculatedValue
               tooltip={cell.recalculationTooltip}
               className={trendClassName}
@@ -877,4 +896,3 @@ function MatrixCell({
     </div>
   )
 }
-
