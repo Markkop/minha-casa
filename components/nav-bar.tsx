@@ -378,7 +378,7 @@ function WorkspaceTopBar({ pathname }: { pathname: string }) {
                     className={cn(
                       workspaceTopBarControlClass,
                       showAnaliseListingBreadcrumb
-                        ? "max-w-[28vw] md:max-w-[220px]"
+                        ? "max-w-[min(22vw,6.5rem)] sm:max-w-[180px] md:max-w-[220px]"
                         : "max-w-[38vw] md:max-w-[260px]"
                     )}
                   />
@@ -393,7 +393,7 @@ function WorkspaceTopBar({ pathname }: { pathname: string }) {
                 className={cn(
                   workspaceTopBarControlClass,
                   showAnaliseListingBreadcrumb
-                    ? "max-w-[30vw] md:max-w-[300px]"
+                    ? "max-w-[min(26vw,7.5rem)] sm:max-w-[220px] md:max-w-[300px]"
                     : showOrgBreadcrumb
                       ? "max-w-[44vw] md:max-w-[340px]"
                       : "max-w-[44vw] md:max-w-[380px]"
@@ -405,11 +405,11 @@ function WorkspaceTopBar({ pathname }: { pathname: string }) {
                 <BreadcrumbSeparator className="text-app-subtle">
                   <span className="text-sm leading-none">/</span>
                 </BreadcrumbSeparator>
-                <BreadcrumbItem className="min-w-0">
+                <BreadcrumbItem className="min-w-0 flex-1">
                   <AnaliseListingBreadcrumb
                     className={cn(
                       workspaceTopBarControlClass,
-                      "max-w-[34vw] md:max-w-[360px]"
+                      "w-full max-w-full"
                     )}
                   />
                 </BreadcrumbItem>

@@ -27,11 +27,14 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover"
-import { compactListingDisplayTitle } from "@/lib/listing-display-title"
+import {
+  compactListingDisplayTitle,
+  mobileCompactListingDisplayTitle,
+} from "@/lib/listing-display-title"
 import { cn } from "@/lib/utils"
 
-const LISTING_SELECTOR_POPOVER_CLASS = "w-96 p-2.5"
-const LISTING_SELECTOR_BREADCRUMB_MAX_WIDTH_CLASS = "max-w-[min(100%,48rem)]"
+const LISTING_SELECTOR_POPOVER_CLASS =
+  "w-[min(calc(100vw-1.5rem),24rem)] p-2.5 sm:w-96"
 
 function formatPrice(value: number | null | undefined) {
   if (value === null || value === undefined) return "—"
@@ -243,10 +246,13 @@ export function AnaliseListingBreadcrumb({
     ? "Carregando..."
     : "Nenhum imóvel"
 
-  const selectedTitle = selected
-    ? compactListingDisplayTitle(getListingDisplayTitle(selected))
+  const selectedFullTitle = selected ? getListingDisplayTitle(selected) : null
+  const selectedCompactTitle = selectedFullTitle
+    ? compactListingDisplayTitle(selectedFullTitle)
     : null
-  const selectedTriggerLabel = selectedTitle ?? fallbackLabel
+  const selectedMobileTitle = selectedFullTitle
+    ? mobileCompactListingDisplayTitle(selectedFullTitle)
+    : null
 
   const handleSelect = (listing: Imovel) => {
     const params = new URLSearchParams(searchParams.toString())
@@ -263,14 +269,14 @@ export function AnaliseListingBreadcrumb({
       <PopoverTrigger asChild>
         <button
           type="button"
+          data-testid="analise-listing-breadcrumb"
           className={cn(
-            "inline-flex min-h-8 min-w-0 items-center gap-2 rounded-md px-2.5 py-1 text-sm font-medium leading-snug text-app-fg transition-colors hover:bg-app-surface-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-accent disabled:pointer-events-none disabled:opacity-60 [&_svg]:size-3.5",
-            LISTING_SELECTOR_BREADCRUMB_MAX_WIDTH_CLASS,
+            "inline-flex h-8 w-full min-w-0 max-w-full items-center gap-2 rounded-md px-2.5 py-1 text-sm font-medium leading-snug text-app-fg transition-colors hover:bg-app-surface-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-accent disabled:pointer-events-none disabled:opacity-60 [&_svg]:size-3.5",
             className
           )}
           aria-label={
-            selectedTitle
-              ? `Selecionar imóvel: ${selectedTitle}`
+            selectedCompactTitle
+              ? `Selecionar imóvel: ${selectedCompactTitle}`
               : "Selecionar imóvel"
           }
           disabled={isLoadingListings}
@@ -286,8 +292,15 @@ export function AnaliseListingBreadcrumb({
           ) : (
             <Home className="size-4 shrink-0 text-app-muted" />
           )}
-          <span className="min-w-0 text-left break-words">
-            {selectedTriggerLabel}
+          <span className="min-w-0 flex-1 truncate text-left">
+            {selectedMobileTitle != null && selectedCompactTitle != null ? (
+              <>
+                <span className="sm:hidden">{selectedMobileTitle}</span>
+                <span className="hidden sm:inline">{selectedCompactTitle}</span>
+              </>
+            ) : (
+              fallbackLabel
+            )}
           </span>
           <ChevronDown className="size-3.5 shrink-0 text-app-muted" />
         </button>

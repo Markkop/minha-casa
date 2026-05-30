@@ -245,6 +245,16 @@ export function compactListingDisplayTitle(title: string): string {
   return trimmed.slice(0, index).trim()
 }
 
+const LISTING_TITLE_LOCATION_SUFFIX_PATTERN = /\s+em\s+.+$/i
+
+/** Breadcrumb on narrow screens — compact title without the trailing " em …" location. */
+export function mobileCompactListingDisplayTitle(title: string): string {
+  const compact = compactListingDisplayTitle(title)
+  const match = compact.match(LISTING_TITLE_LOCATION_SUFFIX_PATTERN)
+  if (!match || match.index == null) return compact
+  return compact.slice(0, match.index).trim()
+}
+
 function buildTitleWithEscalation(
   listing: ListingTitleInput,
   baseLocation: string,

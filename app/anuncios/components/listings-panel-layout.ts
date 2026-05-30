@@ -8,8 +8,15 @@ export const LISTINGS_PAGE_CLASS = `flex w-full flex-col gap-2 ${LISTINGS_PAGE_G
 export const LISTINGS_SECTION_CLASS =
   "flex flex-col overflow-hidden rounded-md border border-app-border bg-app-surface"
 
+/**
+ * Embeds Leaflet/Google maps without letting tile panes paint above workspace chrome
+ * (sidebar ~z-50). `isolate` keeps capped z-index values inside this panel.
+ */
+export const MAP_EMBED_PANEL_CLASS =
+  "map-embed-panel relative z-0 isolate overflow-hidden [&_.leaflet-pane]:!z-[1] [&_.leaflet-top]:!z-[2] [&_.leaflet-bottom]:!z-[2] [&_.leaflet-control]:!z-[2]"
+
 /** Map panel — keeps overflow clipped so rounded border corners stay solid. */
-export const LISTINGS_MAP_SECTION_CLASS = `${LISTINGS_SECTION_CLASS} listings-map-panel`
+export const LISTINGS_MAP_SECTION_CLASS = `${LISTINGS_SECTION_CLASS} ${MAP_EMBED_PANEL_CLASS}`
 
 /** Toolbar shell — vertical padding only; horizontal on LISTINGS_TOOLBAR_INNER_CLASS. */
 export const LISTINGS_TOOLBAR_CLASS =
@@ -42,6 +49,5 @@ export const LISTINGS_MAP_LEGEND_OVERLAY_CLASS =
 export const LISTINGS_MAP_LEGEND_OVERLAY_GOOGLE_CLASS =
   "sm:right-12"
 
-/** Keep map tiles below toolbar overlays; popovers/tooltips use MAP_FLOATING_UI_Z_CLASS. */
-export const LISTINGS_MAP_CONTENT_CLASS =
-  "relative z-0 overflow-hidden p-0 [&_.leaflet-pane]:!z-[1] [&_.leaflet-top]:!z-[2] [&_.leaflet-bottom]:!z-[2] [&_.leaflet-control]:!z-[2]"
+/** Map canvas area inside LISTINGS_MAP_SECTION_CLASS (leaflet layers capped on section). */
+export const LISTINGS_MAP_CONTENT_CLASS = "relative z-0 overflow-hidden p-0"

@@ -200,18 +200,18 @@ export function PropertyImageGallery({ listing, updateListing }: PropertyImageGa
 
   return (
     <>
-      <div className="space-y-2">
-        <div className="relative aspect-[4/3] w-full overflow-hidden rounded-md border border-app-border bg-app-bg">
+      <div className="min-w-0 max-w-full space-y-2">
+        <div className="relative h-[min(50vh,16rem)] w-full min-w-0 max-w-full overflow-hidden rounded-md border border-app-border bg-app-bg sm:h-auto sm:aspect-[4/3]">
           <button
             type="button"
             onClick={() => setLightboxIndex(selectedDisplayIndex)}
-            className="h-full w-full"
+            className="block h-full min-h-0 w-full min-w-0"
             aria-label={`Abrir imagem ${selectedImageNumber}`}
           >
             <img
               src={selectedImage.url}
               alt={`Foto ${selectedImageNumber} do imóvel`}
-              className="h-full w-full object-cover"
+              className="block h-full w-full max-w-full min-h-0 object-cover"
             />
           </button>
 

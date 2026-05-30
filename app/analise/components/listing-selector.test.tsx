@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen } from "@testing-library/react"
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { AnaliseListingBreadcrumb } from "./listing-selector"
 import type { Imovel } from "@/app/anuncios/lib/api"
@@ -93,6 +93,23 @@ describe("AnaliseListingBreadcrumb", () => {
     expect(screen.getByRole("button", { name: /selecionar imóvel/i })).toHaveTextContent(
       "Nenhum imóvel"
     )
+  })
+
+  it("shows a shorter title without location on mobile", () => {
+    mockSearchParams.set("listing", "listing-1")
+    mockCollections([
+      listing("listing-1", "Casa com 3 quartos em Itacorubi · Rua das Flores", {
+        endereco: "Rua das Flores",
+      }),
+    ])
+
+    render(<AnaliseListingBreadcrumb />)
+    const trigger = screen.getByTestId("analise-listing-breadcrumb")
+
+    expect(within(trigger).getByText("Casa com 3 quartos")).toHaveClass("sm:hidden")
+    expect(
+      within(trigger).getByText("Casa com 3 quartos em Itacorubi")
+    ).toHaveClass("hidden", "sm:inline")
   })
 
   it("filters listings in the popover", () => {

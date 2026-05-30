@@ -56,16 +56,18 @@ export function PropertyDossier({ listing, collectionId, orgId }: PropertyDossie
   const { updateListing, removeListing } = useCollections()
 
   return (
-    <div className="space-y-4">
-      <div className="grid items-start gap-4 lg:grid-cols-2">
-        <ListingAnalysisSummaryCard
-          listing={listing}
-          collectionId={collectionId}
-          updateListing={updateListing}
-          removeListing={removeListing}
-        />
+    <div className="min-w-0 space-y-4">
+      <div className="grid min-w-0 items-start gap-4 lg:grid-cols-2">
+        <div className="min-w-0">
+          <ListingAnalysisSummaryCard
+            listing={listing}
+            collectionId={collectionId}
+            updateListing={updateListing}
+            removeListing={removeListing}
+          />
+        </div>
 
-        <WorkspacePanel className="p-3">
+        <WorkspacePanel className="min-w-0 overflow-hidden p-3">
           <PropertyImageGallery listing={listing} updateListing={updateListing} />
         </WorkspacePanel>
       </div>

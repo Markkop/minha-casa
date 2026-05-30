@@ -89,7 +89,7 @@ function Sidebar({
       <aside
         data-slot="sidebar"
         className={cn(
-          "fixed inset-y-0 z-40 hidden w-[var(--sidebar-width)] flex-col border-app-border bg-app-surface text-app-fg md:flex",
+          "fixed inset-y-0 z-50 hidden w-[var(--sidebar-width)] flex-col border-app-border bg-app-surface text-app-fg md:flex",
           !open && "md:hidden",
           side === "left" ? "left-0 border-r" : "right-0 border-l",
           className

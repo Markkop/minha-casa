@@ -19,6 +19,7 @@ import {
   getGoogleMapsApiKey,
   subscribeToGoogleMapsErrors,
 } from "../lib/google-maps-config"
+import { MAP_EMBED_PANEL_CLASS } from "@/app/anuncios/components/listings-panel-layout"
 import { markerColors, mapPriceColors } from "@/lib/theme/colors"
 import { cn } from "@/lib/utils"
 
@@ -302,7 +303,8 @@ export function ListingLocationMiniMap({
     return (
       <div
         className={cn(
-          "flex items-center justify-center bg-app-bg border border-app-border overflow-hidden",
+          MAP_EMBED_PANEL_CLASS,
+          "flex items-center justify-center border border-app-border bg-app-bg",
           variant === "thumbnail" ? "h-20 w-20 rounded aspect-square" : "min-h-[200px] rounded-lg",
           className
         )}
@@ -322,8 +324,9 @@ export function ListingLocationMiniMap({
     .join(" — ")
 
   const containerClass = cn(
-    "overflow-hidden border border-app-border bg-app-bg",
-    variant === "thumbnail" ? "h-20 w-20 rounded aspect-square" : "rounded-lg min-h-[200px]",
+    MAP_EMBED_PANEL_CLASS,
+    "border border-app-border bg-app-bg",
+    variant === "thumbnail" ? "h-20 w-20 rounded aspect-square" : "min-h-[200px] rounded-lg",
     className
   )
 

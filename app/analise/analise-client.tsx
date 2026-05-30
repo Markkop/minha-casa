@@ -43,7 +43,7 @@ function AnaliseClientInner() {
     <div className="min-h-[calc(100vh-var(--nav-height,2.75rem))] bg-app-bg text-app-fg">
       <AnaliseQuerySync />
 
-      <div className={`${WORKSPACE_CONTENT_CLASS} ${WORKSPACE_STACK_CLASS}`}>
+      <div className={`${WORKSPACE_CONTENT_CLASS} ${WORKSPACE_STACK_CLASS} min-w-0`}>
         {!activeCollection ? (
           <p className="text-sm text-app-muted">
             Crie uma coleção em{" "}

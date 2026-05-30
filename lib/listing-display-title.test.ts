@@ -4,6 +4,7 @@ import {
   buildBaseListingTitle,
   buildListingDisplayTitles,
   compactListingDisplayTitle,
+  mobileCompactListingDisplayTitle,
   extractStreetLabelTwoWords,
   resolveListingDisplayTitle,
   syncCollectionListingTitulos,
@@ -46,6 +47,20 @@ describe("compactListingDisplayTitle", () => {
 
   it("trims whitespace", () => {
     expect(compactListingDisplayTitle("  Casa em Centro · 42  ")).toBe("Casa em Centro")
+  })
+})
+
+describe("mobileCompactListingDisplayTitle", () => {
+  it("drops disambiguation and location on mobile breadcrumb", () => {
+    expect(
+      mobileCompactListingDisplayTitle(
+        "Casa com 4 quartos em Itacorubi · Rua das Flores · R$ 1,2 mi"
+      )
+    ).toBe("Casa com 4 quartos")
+  })
+
+  it("keeps title when there is no location suffix", () => {
+    expect(mobileCompactListingDisplayTitle("Meu favorito")).toBe("Meu favorito")
   })
 })
 
