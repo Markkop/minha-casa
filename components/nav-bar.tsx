@@ -25,6 +25,7 @@ import { ImportExportMenuItems } from "@/app/anuncios/components/data-management
 import type { LucideIcon } from "lucide-react"
 
 import { GlobalCollectionBreadcrumb } from "@/app/anuncios/components/global-collection-toolbar"
+import { AnaliseListingBreadcrumb } from "@/app/analise/components/listing-selector"
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -54,7 +55,6 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Button } from "@/components/ui/button"
 import {
   OrganizationBreadcrumbDropdown,
   OrganizationSwitcher,
@@ -313,7 +313,9 @@ function WorkspaceSidebar({
   )
 }
 
-function WorkspaceTopBar() {
+function WorkspaceTopBar({ pathname }: { pathname: string }) {
+  const showAnaliseListingBreadcrumb = isActivePath(pathname, "/analise")
+
   return (
     <header
       id="page-header"
@@ -330,7 +332,9 @@ function WorkspaceTopBar() {
               <OrganizationBreadcrumbDropdown
                 className={cn(
                   workspaceTopBarControlClass,
-                  "max-w-[38vw] md:max-w-[260px]"
+                  showAnaliseListingBreadcrumb
+                    ? "max-w-[28vw] md:max-w-[220px]"
+                    : "max-w-[38vw] md:max-w-[260px]"
                 )}
               />
             </BreadcrumbItem>
@@ -341,10 +345,27 @@ function WorkspaceTopBar() {
               <GlobalCollectionBreadcrumb
                 className={cn(
                   workspaceTopBarControlClass,
-                  "max-w-[44vw] md:max-w-[340px]"
+                  showAnaliseListingBreadcrumb
+                    ? "max-w-[30vw] md:max-w-[300px]"
+                    : "max-w-[44vw] md:max-w-[340px]"
                 )}
               />
             </BreadcrumbItem>
+            {showAnaliseListingBreadcrumb && (
+              <>
+                <BreadcrumbSeparator className="text-app-subtle">
+                  <span className="text-sm leading-none">/</span>
+                </BreadcrumbSeparator>
+                <BreadcrumbItem className="min-w-0">
+                  <AnaliseListingBreadcrumb
+                    className={cn(
+                      workspaceTopBarControlClass,
+                      "max-w-[34vw] md:max-w-[360px]"
+                    )}
+                  />
+                </BreadcrumbItem>
+              </>
+            )}
           </BreadcrumbList>
         </Breadcrumb>
       </div>
@@ -499,7 +520,7 @@ export function NavBar({ children }: { children?: ReactNode }) {
         onLogout={handleLogout}
       />
       <SidebarInset>
-        <WorkspaceTopBar />
+        <WorkspaceTopBar pathname={pathname} />
         {children}
       </SidebarInset>
     </SidebarProvider>

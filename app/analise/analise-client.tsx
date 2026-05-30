@@ -1,14 +1,9 @@
 "use client"
 
-import { useCallback, useMemo, useState } from "react"
+import { Suspense, useMemo } from "react"
 import Link from "next/link"
-import { Suspense } from "react"
+import { useSearchParams } from "next/navigation"
 import { useCollections } from "@/app/anuncios/lib/use-collections"
-import type { Imovel } from "@/app/anuncios/lib/api"
-import {
-  PageToolbar,
-  PageToolbarStart,
-} from "@/app/components/page-toolbar"
 import {
   WORKSPACE_CONTENT_CLASS,
   WORKSPACE_STACK_CLASS,
@@ -17,17 +12,17 @@ import {
 import { useWorkspaceProfile } from "@/lib/workspace/use-workspace-profile"
 import { AnaliseQuerySync } from "./components/analise-query-sync"
 import { DeepAnalysisPanel } from "./components/deep-analysis-panel"
-import { ListingSelector } from "./components/listing-selector"
 import { PropertyDossier } from "./components/property-dossier"
 
 function AnaliseClientInner() {
   const { orgId } = useWorkspaceProfile()
+  const searchParams = useSearchParams()
+  const selectedListingId = searchParams.get("listing")
   const {
     listings,
     activeCollection,
     isLoadingListings,
   } = useCollections()
-  const [selectedListingId, setSelectedListingId] = useState<string | null>(null)
 
   const sortedListings = useMemo(
     () =>
@@ -46,36 +41,9 @@ function AnaliseClientInner() {
     )
   }, [isLoadingListings, selectedListingId, sortedListings])
 
-  const handleListingSelect = useCallback((listing: Imovel) => {
-    setSelectedListingId(listing.id)
-  }, [])
-
-  const toolbarCompact = Boolean(selectedListing)
-
   return (
     <div className="min-h-[calc(100vh-var(--nav-height,2.75rem))] bg-app-bg text-app-fg">
-      <AnaliseQuerySync onListingSelect={handleListingSelect} />
-
-      <PageToolbar maxWidthClassName="max-w-[1500px]">
-        <div className="flex w-full min-w-0 flex-col gap-1.5 md:flex-row md:items-center md:justify-between md:gap-x-4">
-          <PageToolbarStart className="md:order-1 md:min-w-0 md:flex-1">
-            {toolbarCompact ? (
-              <ListingSelector
-                listings={sortedListings}
-                selectedId={selectedListing?.id ?? null}
-                onSelect={handleListingSelect}
-                compact
-              />
-            ) : (
-              <ListingSelector
-                listings={sortedListings}
-                selectedId={selectedListing?.id ?? null}
-                onSelect={handleListingSelect}
-              />
-            )}
-          </PageToolbarStart>
-        </div>
-      </PageToolbar>
+      <AnaliseQuerySync />
 
       <div className={`${WORKSPACE_CONTENT_CLASS} ${WORKSPACE_STACK_CLASS}`}>
         {!activeCollection ? (

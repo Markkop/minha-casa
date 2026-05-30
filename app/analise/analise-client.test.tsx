@@ -6,6 +6,11 @@ import { AnaliseClient } from "./analise-client"
 import type { Collection, Imovel } from "@/app/anuncios/lib/api"
 
 const mockUseCollections = vi.fn()
+let mockSearchParams = new URLSearchParams()
+
+vi.mock("next/navigation", () => ({
+  useSearchParams: () => mockSearchParams,
+}))
 
 vi.mock("@/app/anuncios/lib/use-collections", () => ({
   useCollections: () => mockUseCollections(),
@@ -17,20 +22,6 @@ vi.mock("@/lib/workspace/use-workspace-profile", () => ({
 
 vi.mock("./components/analise-query-sync", () => ({
   AnaliseQuerySync: () => null,
-}))
-
-vi.mock("./components/listing-selector", () => ({
-  ListingSelector: ({
-    listings,
-    selectedId,
-  }: {
-    listings: Imovel[]
-    selectedId: string | null
-  }) => (
-    <div data-testid="listing-selector">
-      {selectedId ?? "none"}:{listings.map((listing) => listing.titulo).join(",")}
-    </div>
-  ),
 }))
 
 vi.mock("./components/property-dossier", () => ({
@@ -54,7 +45,11 @@ const collection: Collection = {
   isPublic: false,
 }
 
-function listing(id: string, titulo: string): Imovel {
+function listing(
+  id: string,
+  titulo: string,
+  overrides: Partial<Imovel> = {}
+): Imovel {
   return {
     id,
     titulo,
@@ -85,6 +80,7 @@ function listing(id: string, titulo: string): Imovel {
     visited: false,
     strikethrough: false,
     createdAt: "2026-01-01T00:00:00Z",
+    ...overrides,
   }
 }
 
@@ -93,12 +89,15 @@ function mockCollections(listings: Imovel[]) {
     listings,
     activeCollection: collection,
     isLoadingListings: false,
+    collections: [collection],
+    setActiveCollection: vi.fn(),
   })
 }
 
 describe("AnaliseClient", () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mockSearchParams = new URLSearchParams()
   })
 
   it("reselects from the shared active collection when listings change", async () => {
@@ -117,5 +116,35 @@ describe("AnaliseClient", () => {
         "Casa Beta"
       )
     })
+  })
+
+  it("renders the selected listing from the listing query param", async () => {
+    mockSearchParams.set("listing", "listing-2")
+    mockCollections([
+      listing("listing-1", "Casa Alpha"),
+      listing("listing-2", "Casa Beta"),
+    ])
+
+    render(<AnaliseClient />)
+
+    expect(await screen.findByTestId("property-dossier")).toHaveTextContent(
+      "Casa Beta"
+    )
+    expect(screen.queryByTestId("listing-selector")).not.toBeInTheDocument()
+  })
+
+  it("falls back to the first non-struck listing when the query param is invalid", async () => {
+    mockSearchParams.set("listing", "missing")
+    mockCollections([
+      listing("listing-0", "Casa Riscada", { strikethrough: true }),
+      listing("listing-2", "Casa Beta"),
+      listing("listing-1", "Casa Alpha"),
+    ])
+
+    render(<AnaliseClient />)
+
+    expect(await screen.findByTestId("property-dossier")).toHaveTextContent(
+      "Casa Alpha"
+    )
   })
 })

@@ -38,6 +38,12 @@ vi.mock("@/app/anuncios/components/global-collection-toolbar", () => ({
   ),
 }))
 
+vi.mock("@/app/analise/components/listing-selector", () => ({
+  AnaliseListingBreadcrumb: () => (
+    <button data-testid="analise-listing-breadcrumb">Casa Alpha</button>
+  ),
+}))
+
 vi.mock("@/app/anuncios/components/data-management", () => ({
   ImportExportMenuItems: () => null,
 }))
@@ -131,6 +137,32 @@ describe("NavBar", () => {
 
     expect(screen.getByTestId("organization-breadcrumb")).toBeInTheDocument()
     expect(screen.getByTestId("global-collection-breadcrumb")).toBeInTheDocument()
+  })
+
+  it("renders the imóvel breadcrumb only on análise", () => {
+    mockPathname.mockReturnValue("/analise")
+    mockUseSession.mockReturnValue({
+      data: { user: { id: "user-1", name: "Test User", email: "test@example.com" } },
+    })
+
+    render(<NavBar />)
+
+    expect(screen.getByTestId("organization-breadcrumb")).toBeInTheDocument()
+    expect(screen.getByTestId("global-collection-breadcrumb")).toBeInTheDocument()
+    expect(screen.getByTestId("analise-listing-breadcrumb")).toBeInTheDocument()
+  })
+
+  it("does not render the imóvel breadcrumb outside análise", () => {
+    mockPathname.mockReturnValue("/anuncios")
+    mockUseSession.mockReturnValue({
+      data: { user: { id: "user-1", name: "Test User", email: "test@example.com" } },
+    })
+
+    render(<NavBar />)
+
+    expect(screen.getByTestId("organization-breadcrumb")).toBeInTheDocument()
+    expect(screen.getByTestId("global-collection-breadcrumb")).toBeInTheDocument()
+    expect(screen.queryByTestId("analise-listing-breadcrumb")).not.toBeInTheDocument()
   })
 
   it("hides workspace navigation when subscription is inactive", () => {
