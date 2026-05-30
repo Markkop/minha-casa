@@ -19,10 +19,6 @@ vi.mock("@/lib/sync-subscription-cookie", () => ({
   syncSubscriptionCookie: vi.fn().mockResolvedValue(undefined),
 }))
 
-vi.mock("./data-management", () => ({
-  ImportExportActions: () => <div data-testid="import-export-actions" />,
-}))
-
 vi.mock("./listings-map", () => ({
   ListingsMap: ({ listings }: { listings: Imovel[] }) => (
     <div data-testid="listings-map">{listings.length}</div>

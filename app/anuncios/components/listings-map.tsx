@@ -1,13 +1,12 @@
 "use client"
 
 import { useEffect, useState, useMemo, useRef } from "react"
-import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Switch } from "@/components/ui/switch"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import type { Imovel } from "../lib/api"
 import { geocodeAddresses, clearCacheForAddresses } from "../lib/geocoding"
 import { buildListingGeocodeQuery } from "../lib/listing-location"
-import { RotateCw } from "lucide-react"
+import { Palette, RotateCw } from "lucide-react"
 import { cn } from "@/lib/utils"
 import {
   type GeocodedListing,
@@ -15,6 +14,8 @@ import {
   type MapViewport,
   calculatePrecoM2,
   getEffectiveMapProvider,
+  getStoredColorByPrice,
+  setStoredColorByPrice,
   setStoredMapProvider,
 } from "./map-shared"
 import {
@@ -32,10 +33,12 @@ import { LeafletMapView } from "./leaflet-map-view"
 import { GoogleMapsView } from "./google-maps-view"
 import { MapLocationPicker } from "./map-location-picker"
 import {
-  LISTINGS_MAP_BOTTOM_BAR_CLASS,
   LISTINGS_MAP_CONTENT_CLASS,
-  LISTINGS_PANEL_CARD_CLASS,
-  LISTINGS_PANEL_TOOLBAR_CLASS,
+  LISTINGS_MAP_LEGEND_OVERLAY_CLASS,
+  LISTINGS_MAP_LEGEND_OVERLAY_GOOGLE_CLASS,
+  LISTINGS_MAP_SECTION_CLASS,
+  LISTINGS_TOOLBAR_CLASS,
+  LISTINGS_TOOLBAR_INNER_CLASS,
   MAP_FLOATING_UI_Z_CLASS,
   MAP_FLOATING_UI_Z_INDEX,
 } from "./listings-panel-layout"
@@ -77,12 +80,14 @@ export function ListingsMap({ listings }: ListingsMapProps) {
   const [mounted, setMounted] = useState(false)
   const [geocodeKey, setGeocodeKey] = useState(0)
   const [mapProvider, setMapProvider] = useState<MapProvider>("google")
+  const [colorByPrice, setColorByPrice] = useState(false)
   const [mapViewport, setMapViewport] = useState<MapViewport>(DEFAULT_MAP_VIEWPORT)
   const boundsAppliedRef = useRef(false)
 
   useEffect(() => {
     setMounted(true)
     setMapProvider(getEffectiveMapProvider())
+    setColorByPrice(getStoredColorByPrice())
 
     const stored = getStoredMapViewport()
     if (stored && (stored.source === "city" || stored.source === "state")) {
@@ -98,6 +103,14 @@ export function ListingsMap({ listings }: ListingsMapProps) {
       setStoredMapProvider("leaflet")
     })
   }, [mounted])
+
+  const handleColorByPriceToggle = () => {
+    setColorByPrice((prev) => {
+      const next = !prev
+      setStoredColorByPrice(next)
+      return next
+    })
+  }
 
   const handleProviderChange = (checked: boolean) => {
     const newProvider: MapProvider = checked ? "google" : "leaflet"
@@ -253,6 +266,7 @@ export function ListingsMap({ listings }: ListingsMapProps) {
     minPreco,
     maxPreco,
     mapViewport,
+    colorByPrice,
   }
 
   const countLabel = isLoading
@@ -260,19 +274,9 @@ export function ListingsMap({ listings }: ListingsMapProps) {
     : `${geocodedListings.length} de ${listings.length} no mapa`
 
   return (
-    <Card
-      className={cn(
-        LISTINGS_PANEL_CARD_CLASS,
-        "listings-map-panel overflow-visible"
-      )}
-    >
-      <CardHeader
-        className={cn(
-          LISTINGS_PANEL_TOOLBAR_CLASS,
-          "relative z-20 overflow-visible"
-        )}
-      >
-        <div className="flex min-w-0 items-center justify-between gap-1.5">
+    <section className={LISTINGS_MAP_SECTION_CLASS}>
+      <div className={cn(LISTINGS_TOOLBAR_CLASS, "relative z-20 shrink-0")}>
+        <div className={cn(LISTINGS_TOOLBAR_INNER_CLASS, "justify-between")}>
           <div className="flex min-w-0 flex-1 items-center gap-1.5">
             <MapLocationPicker
               viewport={mapViewport}
@@ -282,6 +286,31 @@ export function ListingsMap({ listings }: ListingsMapProps) {
               isAutomaticActive={mapViewport.source === "listings-bounds"}
               disabled={isLoading}
             />
+
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <PageToolbarIconButton
+                  variant={colorByPrice ? "active" : "secondary"}
+                  onClick={handleColorByPriceToggle}
+                  disabled={isLoading}
+                  aria-pressed={colorByPrice}
+                  aria-label="Colorir marcadores por preço/m²"
+                >
+                  <Palette />
+                </PageToolbarIconButton>
+              </TooltipTrigger>
+              <TooltipContent
+                side="bottom"
+                sideOffset={4}
+                style={{ zIndex: MAP_FLOATING_UI_Z_INDEX }}
+                className={cn(
+                  "border border-app-border bg-app-surface text-app-fg",
+                  MAP_FLOATING_UI_Z_CLASS
+                )}
+              >
+                {colorByPrice ? "Ocultar cores por preço/m²" : "Colorir por preço/m²"}
+              </TooltipContent>
+            </Tooltip>
           </div>
 
           <div className="flex shrink-0 items-center gap-1.5">
@@ -381,9 +410,9 @@ export function ListingsMap({ listings }: ListingsMapProps) {
           </Tooltip>
           </div>
         </div>
-      </CardHeader>
+      </div>
 
-      <CardContent className={LISTINGS_MAP_CONTENT_CLASS}>
+      <div className={LISTINGS_MAP_CONTENT_CLASS}>
         {isLoading && geocodedListings.length === 0 ? (
           <div className="flex h-[400px] flex-col items-center justify-center bg-app-bg">
             <div className="mb-4 h-8 w-8 animate-spin rounded-full border-b-2 border-app-action" />
@@ -406,12 +435,18 @@ export function ListingsMap({ listings }: ListingsMapProps) {
           <LeafletMapView {...mapViewProps} />
         )}
 
-        {geocodedListings.length > 0 && (
-          <div className={LISTINGS_MAP_BOTTOM_BAR_CLASS}>
+        {geocodedListings.length > 0 && colorByPrice && (
+          <div
+            className={cn(
+              LISTINGS_MAP_LEGEND_OVERLAY_CLASS,
+              MAP_FLOATING_UI_Z_CLASS,
+              mapProvider === "google" && LISTINGS_MAP_LEGEND_OVERLAY_GOOGLE_CLASS
+            )}
+          >
             <MapPriceM2Legend />
           </div>
         )}
-      </CardContent>
-    </Card>
+      </div>
+    </section>
   )
 }

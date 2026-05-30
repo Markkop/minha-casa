@@ -24,12 +24,22 @@ vi.mock("@/components/organization-switcher", () => ({
   OrganizationSwitcher: () => (
     <div data-testid="organization-switcher">Organization Switcher</div>
   ),
+  OrganizationBreadcrumbDropdown: () => (
+    <button data-testid="organization-breadcrumb">Minha Casa Local</button>
+  ),
 }))
 
 vi.mock("@/app/anuncios/components/global-collection-toolbar", () => ({
   GlobalCollectionToolbar: () => (
     <div data-testid="global-collection-toolbar">Collection Toolbar</div>
   ),
+  GlobalCollectionBreadcrumb: () => (
+    <button data-testid="global-collection-breadcrumb">minha-casa-local</button>
+  ),
+}))
+
+vi.mock("@/app/anuncios/components/data-management", () => ({
+  ImportExportMenuItems: () => null,
 }))
 
 const mockGetFlag = vi.fn()
@@ -112,18 +122,15 @@ describe("NavBar", () => {
     expect(screen.getByRole("link", { name: /condomínios/i })).toHaveAttribute("href", "/condominios")
   })
 
-  it("places the collection toolbar before the user menu", () => {
+  it("renders breadcrumb controls in the top bar", () => {
     mockUseSession.mockReturnValue({
       data: { user: { id: "user-1", name: "Test User", email: "test@example.com" } },
     })
 
     render(<NavBar />)
 
-    const toolbar = screen.getByTestId("global-collection-toolbar")
-    const userMenu = screen.getByRole("button", { name: /menu do usuario/i })
-    expect(
-      toolbar.compareDocumentPosition(userMenu) & Node.DOCUMENT_POSITION_FOLLOWING
-    ).toBeTruthy()
+    expect(screen.getByTestId("organization-breadcrumb")).toBeInTheDocument()
+    expect(screen.getByTestId("global-collection-breadcrumb")).toBeInTheDocument()
   })
 
   it("hides workspace navigation when subscription is inactive", () => {
@@ -153,7 +160,7 @@ describe("NavBar", () => {
     render(<NavBar />)
 
     expect(
-      screen.getByRole("button", { name: /abrir navegação/i })
+      screen.getByRole("button", { name: /alternar navegação/i })
     ).toBeInTheDocument()
   })
 
@@ -168,8 +175,8 @@ describe("NavBar", () => {
     const comparisonLinks = screen.getAllByRole("link", { name: /comparação/i })
     expect(comparisonLinks.length).toBeGreaterThanOrEqual(1)
     expect(comparisonLinks[0]).toHaveClass(
-      "bg-app-action",
-      "text-app-action-foreground"
+      "bg-app-surface-muted",
+      "text-app-fg"
     )
   })
 
@@ -179,12 +186,12 @@ describe("NavBar", () => {
     })
 
     render(<NavBar />)
-    expect(screen.getByTestId("organization-switcher")).toBeInTheDocument()
+    expect(screen.getByTestId("organization-breadcrumb")).toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole("button", { name: /menu do usuario/i }))
-    expect(screen.getByRole("link", { name: /organizações/i })).toBeInTheDocument()
-    expect(screen.getByRole("link", { name: /admin/i })).toBeInTheDocument()
-    expect(screen.getByRole("link", { name: /assinatura/i })).toBeInTheDocument()
+    fireEvent.pointerDown(screen.getAllByRole("button", { name: /menu do usuario/i })[0])
+    expect(screen.getByRole("menuitem", { name: /organizações/i })).toBeInTheDocument()
+    expect(screen.getByRole("menuitem", { name: /admin/i })).toBeInTheDocument()
+    expect(screen.getByRole("menuitem", { name: /assinatura/i })).toBeInTheDocument()
   })
 
   it("shows flood risk shortcut only when addon is enabled", () => {
@@ -194,8 +201,8 @@ describe("NavBar", () => {
     })
 
     render(<NavBar />)
-    fireEvent.click(screen.getByRole("button", { name: /menu do usuario/i }))
+    fireEvent.pointerDown(screen.getAllByRole("button", { name: /menu do usuario/i })[0])
 
-    expect(screen.getByRole("link", { name: /risco enchente/i })).toHaveAttribute("href", "/floodrisk")
+    expect(screen.getByRole("menuitem", { name: /risco enchente/i })).toHaveAttribute("href", "/floodrisk")
   })
 })

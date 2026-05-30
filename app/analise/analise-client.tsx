@@ -48,7 +48,7 @@ function AnaliseClientInner() {
   const toolbarCompact = Boolean(selectedListing)
 
   return (
-    <div className="min-h-[calc(100vh-104px)] bg-app-bg text-app-fg">
+    <div className="min-h-[calc(100vh-var(--nav-height,3.5rem))] bg-app-bg text-app-fg">
       <AnaliseQuerySync onListingSelect={handleListingSelect} />
 
       <PageToolbar maxWidthClassName="max-w-[1500px]">

@@ -467,7 +467,7 @@ export function SubscribeClient() {
   if (sessionLoading || loading) {
     return (
       <div
-        className="flex min-h-[calc(100vh-104px)] items-center justify-center bg-app-bg"
+        className="flex min-h-[calc(100vh-var(--nav-height,3.5rem))] items-center justify-center bg-app-bg"
         role="status"
         aria-label="Carregando"
       >
@@ -481,7 +481,7 @@ export function SubscribeClient() {
 
   if (error) {
     return (
-      <div className="flex min-h-[calc(100vh-104px)] items-center justify-center bg-app-bg px-4">
+      <div className="flex min-h-[calc(100vh-var(--nav-height,3.5rem))] items-center justify-center bg-app-bg px-4">
         <Card className="w-full max-w-md border-app-border bg-app-surface">
           <CardHeader className="text-center">
             <CardTitle className="flex items-center justify-center gap-2 text-app-fg">
@@ -509,7 +509,7 @@ export function SubscribeClient() {
   }
 
   return (
-    <div className="min-h-[calc(100vh-104px)] bg-app-bg text-app-fg">
+    <div className="min-h-[calc(100vh-var(--nav-height,3.5rem))] bg-app-bg text-app-fg">
       <main className="max-w-7xl mx-auto px-4 py-16 sm:py-24">
         {/* Hero Section */}
         <div className="text-center mb-12">

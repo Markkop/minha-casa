@@ -24,8 +24,10 @@ export const mapPriceColors = {
 } as const
 
 export const markerColors = {
-  favoriteFill: "#f4c84f",
-  favoriteStroke: "#c98b18",
+  /** Map favorite star fill — site primary (app-action). */
+  favoriteFill: appColors.action,
+  /** Map favorite star stroke — darker accent blue. */
+  favoriteStroke: appColors.accent,
   customLocation: "#3f7fbd",
   labelBg: "rgba(22, 32, 18, 0.75)",
   labelFg: appColors.surface,

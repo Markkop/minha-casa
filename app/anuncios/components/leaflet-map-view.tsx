@@ -9,7 +9,8 @@ import dynamic from "next/dynamic"
 import {
   type MapViewProps,
   calculatePrecoM2,
-  getMarkerColor,
+  resolveMarkerColor,
+  resolveMarkerBorderColor,
   formatCurrency,
   formatCompactPrice,
   hasCustomLocation,
@@ -43,13 +44,14 @@ const TILE_ATTRIBUTION = '&copy; <a href="https://www.openstreetmap.org/copyrigh
 // ============================================================================
 
 /**
- * Create custom marker icon with color or golden star for starred items
+ * Create custom marker icon with color or primary-blue star for starred items
  */
 function createMarkerIcon(
-  color: string, 
-  price: number | null, 
-  starred?: boolean, 
-  hasCustomLoc?: boolean
+  color: string,
+  price: number | null,
+  starred?: boolean,
+  hasCustomLoc?: boolean,
+  borderColor?: string
 ): L.DivIcon | null {
   if (typeof window === "undefined") return null
   
@@ -59,7 +61,7 @@ function createMarkerIcon(
   
   const priceLabel = formatCompactPrice(price)
   
-  // Golden star icon for starred items
+  // Primary-blue star icon for starred items
   if (starred) {
     return L.divIcon({
       className: "custom-marker-starred",
@@ -71,14 +73,14 @@ function createMarkerIcon(
           filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5));
         ">
           <div style="
-            width: 32px;
-            height: 32px;
+            width: 28px;
+            height: 28px;
             display: flex;
             align-items: center;
             justify-content: center;
             position: relative;
           ">
-            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" 
                     fill="${markerColors.favoriteFill}" 
                     stroke="${markerColors.favoriteStroke}" 
@@ -114,14 +116,16 @@ function createMarkerIcon(
           ` : ''}
         </div>
       `,
-      iconSize: priceLabel ? [32, 48] : [32, 32],
-      iconAnchor: [16, priceLabel ? 48 : 16],
-      popupAnchor: [0, priceLabel ? -48 : -16],
+      iconSize: priceLabel ? [28, 44] : [28, 28],
+      iconAnchor: [14, priceLabel ? 44 : 14],
+      popupAnchor: [0, priceLabel ? -44 : -14],
     })
   }
   
   // Regular colored circle for non-starred items
-  const borderColor = hasCustomLoc ? markerColors.customLocation : markerColors.markerBorder
+  const circleBorderColor =
+    borderColor ??
+    (hasCustomLoc ? markerColors.customLocation : markerColors.markerBorder)
   const borderWidth = hasCustomLoc ? "3px" : "2px"
   
   return L.divIcon({
@@ -133,10 +137,10 @@ function createMarkerIcon(
         align-items: center;
       ">
         <div style="
-          width: 24px;
-          height: 24px;
+          width: 20px;
+          height: 20px;
           background-color: ${color};
-          border: ${borderWidth} solid ${borderColor};
+          border: ${borderWidth} solid ${circleBorderColor};
           border-radius: 50%;
           box-shadow: 0 2px 4px rgba(0,0,0,0.3);
           position: relative;
@@ -170,9 +174,9 @@ function createMarkerIcon(
         ` : ''}
       </div>
     `,
-    iconSize: priceLabel ? [24, 40] : [24, 24],
-    iconAnchor: [12, priceLabel ? 40 : 12],
-    popupAnchor: [0, priceLabel ? -40 : -12],
+    iconSize: priceLabel ? [20, 36] : [20, 20],
+    iconAnchor: [10, priceLabel ? 36 : 10],
+    popupAnchor: [0, priceLabel ? -36 : -10],
   })
 }
 
@@ -185,6 +189,7 @@ export function LeafletMapView({
   minPreco,
   maxPreco,
   mapViewport,
+  colorByPrice,
 }: MapViewProps) {
   const { updateListing: apiUpdateListing } = useCollections()
   const [leafletLoaded, setLeafletLoaded] = useState(false)
@@ -208,7 +213,7 @@ export function LeafletMapView({
 
   if (!leafletLoaded) {
     return (
-      <div className="h-[400px] flex items-center justify-center bg-app-surface-muted rounded-lg">
+      <div className="flex h-[400px] items-center justify-center bg-app-surface-muted">
         <p className="text-app-muted">Carregando mapa...</p>
       </div>
     )
@@ -219,15 +224,22 @@ export function LeafletMapView({
       key={`${mapViewport.lat}-${mapViewport.lng}-${mapViewport.zoom}-${mapViewport.source}`}
       center={[mapViewport.lat, mapViewport.lng]}
       zoom={mapViewport.zoom}
-      className="h-[400px] rounded-lg pb-10"
+      className="h-[400px]"
       style={{ background: appColors.surfaceMuted }}
     >
       <TileLayer url={TILE_URL} attribution={TILE_ATTRIBUTION} />
       {geocodedListings.map((gl) => {
         const precoM2 = calculatePrecoM2(gl.listing.preco, gl.listing.m2Totais)
-        const color = getMarkerColor(precoM2, minPreco, maxPreco)
+        const color = resolveMarkerColor(precoM2, minPreco, maxPreco, colorByPrice)
         const customLoc = hasCustomLocation(gl.listing)
-        const icon = createMarkerIcon(color, gl.listing.preco, gl.listing.starred, customLoc)
+        const markerBorder = resolveMarkerBorderColor(colorByPrice, customLoc)
+        const icon = createMarkerIcon(
+          color,
+          gl.listing.preco,
+          gl.listing.starred,
+          customLoc,
+          markerBorder
+        )
 
         const handleDragEnd = async (e: L.DragEndEvent) => {
           const marker = e.target

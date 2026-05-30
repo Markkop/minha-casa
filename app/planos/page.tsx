@@ -189,7 +189,7 @@ function PricingCard({ plano }: { plano: Plano }) {
 
 export default function PlanosPage() {
   return (
-    <div className="min-h-[calc(100vh-104px)] bg-app-bg text-app-fg">
+    <div className="min-h-[calc(100vh-var(--nav-height,3.5rem))] bg-app-bg text-app-fg">
       <main className="max-w-7xl mx-auto px-4 py-16 sm:py-24">
         {/* Hero Section */}
         <div className="text-center mb-12">

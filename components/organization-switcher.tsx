@@ -8,8 +8,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { User, Users } from "lucide-react"
+import { Check, ChevronDown, User, Users } from "lucide-react"
 import { cn } from "@/lib/utils"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 
 export interface Organization {
   id: string
@@ -193,5 +201,124 @@ export function OrganizationSwitcher({
         ))}
       </SelectContent>
     </Select>
+  )
+}
+
+export function OrganizationBreadcrumbDropdown({
+  className,
+}: {
+  className?: string
+}) {
+  const [organizations, setOrganizations] = useState<Organization[]>([])
+  const [context, setContext] = useState<OrganizationContext>({ type: "personal" })
+  const [loading, setLoading] = useState(true)
+
+  const fetchOrganizations = useCallback(async () => {
+    try {
+      const res = await fetch("/api/organizations")
+      if (!res.ok) {
+        if (res.status === 401) {
+          return
+        }
+        throw new Error("Failed to fetch organizations")
+      }
+      const data = await res.json()
+      setOrganizations(data.organizations || [])
+    } catch (err) {
+      console.error("Failed to fetch organizations:", err)
+      setOrganizations([])
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    setContext(getStoredOrgContext())
+    fetchOrganizations()
+  }, [fetchOrganizations])
+
+  useEffect(() => {
+    if (loading) return
+
+    if (context.type === "organization" && context.organizationId) {
+      const orgExists = organizations.some((org) => org.id === context.organizationId)
+      if (!orgExists) {
+        const newContext: OrganizationContext = { type: "personal" }
+        setContext(newContext)
+        setStoredOrgContext(newContext)
+      }
+    }
+  }, [loading, organizations, context])
+
+  const handleContextChange = (value: string) => {
+    let newContext: OrganizationContext
+
+    if (value === "personal") {
+      newContext = { type: "personal" }
+    } else {
+      const org = organizations.find((o) => o.id === value)
+      if (!org) return
+      newContext = {
+        type: "organization",
+        organizationId: org.id,
+        organizationName: org.name,
+      }
+    }
+
+    const currentValue =
+      context.type === "personal" ? "personal" : context.organizationId
+    if (currentValue === value) return
+
+    setContext(newContext)
+    setStoredOrgContext(newContext)
+    window.location.reload()
+  }
+
+  const currentValue =
+    context.type === "personal" ? "personal" : context.organizationId
+  const label =
+    loading
+      ? "Carregando..."
+      : context.type === "organization"
+        ? context.organizationName || "Organização"
+        : "Pessoal"
+  const CurrentIcon = context.type === "organization" ? Users : User
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button
+          className={cn(
+            "inline-flex h-10 min-w-0 max-w-[38vw] items-center gap-2 rounded-md px-2 text-sm font-medium leading-none text-app-fg transition-colors hover:bg-app-surface-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-accent md:max-w-[260px]",
+            className
+          )}
+          aria-label="Selecionar organização"
+          disabled={loading}
+        >
+          <CurrentIcon className="h-4 w-4 shrink-0 text-app-muted" />
+          <span className="truncate">{label}</span>
+          <ChevronDown className="h-4 w-4 shrink-0 text-app-muted" />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" className="w-64">
+        <DropdownMenuLabel>Workspaces</DropdownMenuLabel>
+        <DropdownMenuItem onSelect={() => handleContextChange("personal")}>
+          <User className="h-4 w-4" />
+          <span className="min-w-0 flex-1 truncate">Pessoal</span>
+          {currentValue === "personal" && <Check className="h-4 w-4" />}
+        </DropdownMenuItem>
+        {organizations.length > 0 && <DropdownMenuSeparator />}
+        {organizations.map((org) => (
+          <DropdownMenuItem
+            key={org.id}
+            onSelect={() => handleContextChange(org.id)}
+          >
+            <Users className="h-4 w-4" />
+            <span className="min-w-0 flex-1 truncate">{org.name}</span>
+            {currentValue === org.id && <Check className="h-4 w-4" />}
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
   )
 }

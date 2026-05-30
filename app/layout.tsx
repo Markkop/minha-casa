@@ -45,8 +45,7 @@ export default function RootLayout({
           <SubscriptionProvider>
             <SubscriptionCookieSync />
             <WorkspaceCollectionsShell>
-              <NavBar />
-              {children}
+              <NavBar>{children}</NavBar>
             </WorkspaceCollectionsShell>
           </SubscriptionProvider>
         </AddonsProvider>

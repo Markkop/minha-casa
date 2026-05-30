@@ -1,76 +1,60 @@
 "use client"
 
-import { useState } from "react"
+import { useCallback, useState } from "react"
 import { Download, Upload } from "lucide-react"
-import { PageToolbarIconButton } from "@/app/components/page-toolbar"
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip"
+import { DropdownMenuItem } from "@/components/ui/dropdown-menu"
+import { useCollections } from "../lib/use-collections"
 import { ExportModal } from "./export-modal"
 import { ImportModal } from "./import-modal"
 
-interface ImportExportActionsProps {
-  onDataChange: () => void
-  listingsCount: number
-  onImportSuccess?: () => void
-  onSwitchToCollection?: (collectionId: string) => void
-}
-
-export function ImportExportActions({
-  onDataChange,
-  listingsCount,
-  onImportSuccess,
-  onSwitchToCollection,
-}: ImportExportActionsProps) {
+export function ImportExportMenuItems() {
+  const {
+    listings,
+    collections,
+    loadListings,
+    triggerRefresh,
+    setActiveCollection,
+  } = useCollections()
   const [showExportModal, setShowExportModal] = useState(false)
   const [showImportModal, setShowImportModal] = useState(false)
 
-  const handleImportSuccess = () => {
-    onImportSuccess?.()
-  }
+  const handleDataChange = useCallback(() => {
+    void loadListings()
+    triggerRefresh()
+  }, [loadListings, triggerRefresh])
+
+  const handleSwitchToCollection = useCallback(
+    (collectionId: string) => {
+      const collection = collections.find((c) => c.id === collectionId)
+      if (collection) {
+        setActiveCollection(collection)
+        triggerRefresh()
+      }
+    },
+    [collections, setActiveCollection, triggerRefresh]
+  )
 
   return (
     <>
-      <div className="flex shrink-0 items-center gap-1">
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <PageToolbarIconButton
-              onClick={() => setShowExportModal(true)}
-              disabled={listingsCount === 0}
-              aria-label="Exportar"
-            >
-              <Download />
-            </PageToolbarIconButton>
-          </TooltipTrigger>
-          <TooltipContent
-            side="bottom"
-            sideOffset={4}
-            className="border border-app-border bg-app-surface text-app-fg"
-          >
-            Exportar
-          </TooltipContent>
-        </Tooltip>
-
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <PageToolbarIconButton
-              onClick={() => setShowImportModal(true)}
-              aria-label="Importar"
-            >
-              <Upload />
-            </PageToolbarIconButton>
-          </TooltipTrigger>
-          <TooltipContent
-            side="bottom"
-            sideOffset={4}
-            className="border border-app-border bg-app-surface text-app-fg"
-          >
-            Importar
-          </TooltipContent>
-        </Tooltip>
-      </div>
+      <DropdownMenuItem
+        onSelect={(event) => {
+          event.preventDefault()
+          setShowExportModal(true)
+        }}
+        disabled={listings.length === 0}
+      >
+        <Download className="h-4 w-4" />
+        <span>Exportar</span>
+      </DropdownMenuItem>
+      <DropdownMenuItem
+        onSelect={(event) => {
+          event.preventDefault()
+          setShowImportModal(true)
+        }}
+      >
+        <Upload className="h-4 w-4" />
+        <span>Importar</span>
+      </DropdownMenuItem>
 
       <ExportModal
         isOpen={showExportModal}
@@ -80,9 +64,9 @@ export function ImportExportActions({
       <ImportModal
         isOpen={showImportModal}
         onClose={() => setShowImportModal(false)}
-        onImportSuccess={handleImportSuccess}
-        onDataChange={onDataChange}
-        onSwitchToCollection={onSwitchToCollection}
+        onImportSuccess={triggerRefresh}
+        onDataChange={handleDataChange}
+        onSwitchToCollection={handleSwitchToCollection}
       />
     </>
   )

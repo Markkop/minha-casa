@@ -17,7 +17,8 @@ import {
   type MapViewProps,
   type GeocodedListing,
   calculatePrecoM2,
-  getMarkerColor,
+  resolveMarkerColor,
+  resolveMarkerBorderColor,
   formatCurrency,
   formatCompactPrice,
   hasCustomLocation,
@@ -36,13 +37,13 @@ import {
 interface CustomMarkerProps {
   geocodedListing: GeocodedListing
   color: string
-  minPreco: number
-  maxPreco: number
+  borderColor: string
 }
 
-function CustomMarker({ 
-  geocodedListing, 
+function CustomMarker({
+  geocodedListing,
   color,
+  borderColor,
 }: CustomMarkerProps) {
   const { updateListing: apiUpdateListing } = useCollections()
   const [markerRef, marker] = useAdvancedMarkerRef()
@@ -93,8 +94,8 @@ function CustomMarker({
           onClick={() => setShowInfo(true)}
         >
           <div className="flex flex-col items-center" style={{ filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.5))" }}>
-            <div className="w-8 h-8 flex items-center justify-center relative">
-              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <div className="w-7 h-7 flex items-center justify-center relative">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path 
                   d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" 
                   fill={markerColors.favoriteFill} 
@@ -139,8 +140,6 @@ function CustomMarker({
     )
   }
 
-  // Regular colored marker
-  const borderColor = customLoc ? markerColors.customLocation : markerColors.markerBorder
   const borderWidth = customLoc ? "3px" : "2px"
 
   return (
@@ -154,7 +153,7 @@ function CustomMarker({
       >
         <div className="flex flex-col items-center">
           <div 
-            className="w-6 h-6 rounded-full relative"
+            className="w-5 h-5 rounded-full relative"
             style={{ 
               backgroundColor: color, 
               border: `${borderWidth} solid ${borderColor}`,
@@ -363,6 +362,7 @@ function GoogleMapsContent({
   minPreco,
   maxPreco,
   mapViewport,
+  colorByPrice,
   apiKey,
   onError,
 }: GoogleMapsContentProps) {
@@ -485,7 +485,7 @@ function GoogleMapsContent({
         defaultCenter={{ lat: mapViewport.lat, lng: mapViewport.lng }}
         defaultZoom={mapViewport.zoom}
         mapId="minha-casa-map"
-        className="h-[400px] rounded-lg pb-10"
+        className="h-[400px]"
         gestureHandling="cooperative"
         disableDefaultUI={false}
         mapTypeControl={true}
@@ -494,15 +494,16 @@ function GoogleMapsContent({
       >
         {geocodedListings.map((gl) => {
           const precoM2 = calculatePrecoM2(gl.listing.preco, gl.listing.m2Totais)
-          const color = getMarkerColor(precoM2, minPreco, maxPreco)
+          const color = resolveMarkerColor(precoM2, minPreco, maxPreco, colorByPrice)
+          const customLoc = hasCustomLocation(gl.listing)
+          const markerBorder = resolveMarkerBorderColor(colorByPrice, customLoc)
 
           return (
             <CustomMarker
               key={gl.listing.id}
               geocodedListing={gl}
               color={color}
-              minPreco={minPreco}
-              maxPreco={maxPreco}
+              borderColor={markerBorder}
             />
           )
         })}
@@ -520,13 +521,14 @@ export function GoogleMapsView({
   minPreco,
   maxPreco,
   mapViewport,
+  colorByPrice,
 }: MapViewProps) {
   const apiKey = getGoogleMapsApiKey()
   const [error, setError] = useState<Error | null>(null)
 
   if (!apiKey) {
     return (
-      <div className="h-[400px] flex flex-col items-center justify-center bg-app-surface-muted rounded-lg text-center p-4">
+      <div className="flex h-[400px] flex-col items-center justify-center bg-app-surface-muted p-4 text-center">
         <p className="text-app-muted mb-2">
           Google Maps API key não configurada.
         </p>
@@ -540,7 +542,7 @@ export function GoogleMapsView({
   // Show error UI if there's an error
   if (error) {
     return (
-      <div className="h-[400px] flex flex-col items-center justify-center bg-app-surface-muted rounded-lg text-center p-4">
+      <div className="flex h-[400px] flex-col items-center justify-center bg-app-surface-muted p-4 text-center">
         <div className="mb-4">
           <svg
             className="w-12 h-12 mx-auto text-yellow-500 mb-2"
@@ -587,6 +589,7 @@ export function GoogleMapsView({
       minPreco={minPreco}
       maxPreco={maxPreco}
       mapViewport={mapViewport}
+      colorByPrice={colorByPrice}
       apiKey={apiKey}
       onError={setError}
     />

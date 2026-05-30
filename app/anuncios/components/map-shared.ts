@@ -6,7 +6,7 @@
 import type { Imovel } from "../lib/api"
 import { type GeocodedLocation } from "../lib/geocoding"
 import type { MapViewport } from "../lib/map-viewport"
-import { mapPriceColors } from "@/lib/theme/colors"
+import { appColors, mapPriceColors, markerColors } from "@/lib/theme/colors"
 
 export type { MapViewport } from "../lib/map-viewport"
 
@@ -19,6 +19,7 @@ export interface MapViewProps {
   minPreco: number
   maxPreco: number
   mapViewport: MapViewport
+  colorByPrice: boolean
 }
 
 export interface GeocodedListing {
@@ -62,6 +63,12 @@ export function getZoomForPrecision(precision: LocationPrecision): number {
 export const THUMBNAIL_ZOOM_OUT_LEVELS = 3
 export const MIN_MINI_MAP_ZOOM = 6
 
+/** Non–price-colored marker fill when colorByPrice is off (site primary). */
+export const MAP_MARKER_NEUTRAL_COLOR = appColors.action
+
+/** Circle marker border when colorByPrice is off (accent blue). */
+export const MAP_MARKER_NEUTRAL_BORDER_COLOR = appColors.accent
+
 export function getMiniMapZoom(
   zoom: number,
   variant: "thumbnail" | "preview"
@@ -100,6 +107,25 @@ export function getMarkerColor(precoM2: number | null, minPreco: number, maxPrec
   if (normalized < 0.5) return mapPriceColors.medium
   if (normalized < 0.75) return mapPriceColors.high
   return mapPriceColors.veryHigh
+}
+
+export function resolveMarkerColor(
+  precoM2: number | null,
+  minPreco: number,
+  maxPreco: number,
+  colorByPrice: boolean
+): string {
+  if (!colorByPrice) return MAP_MARKER_NEUTRAL_COLOR
+  return getMarkerColor(precoM2, minPreco, maxPreco)
+}
+
+export function resolveMarkerBorderColor(
+  colorByPrice: boolean,
+  hasCustomLoc: boolean
+): string {
+  if (hasCustomLoc) return markerColors.customLocation
+  if (!colorByPrice) return MAP_MARKER_NEUTRAL_BORDER_COLOR
+  return markerColors.markerBorder
 }
 
 /**
@@ -144,6 +170,20 @@ import {
 } from "../lib/google-maps-config"
 
 const MAP_PROVIDER_KEY = "map-provider"
+const MAP_COLOR_BY_PRICE_KEY = "map-color-by-price"
+
+export function getStoredColorByPrice(): boolean {
+  if (typeof window === "undefined") return false
+  const stored = localStorage.getItem(MAP_COLOR_BY_PRICE_KEY)
+  if (stored === "true") return true
+  if (stored === "false") return false
+  return false
+}
+
+export function setStoredColorByPrice(enabled: boolean): void {
+  if (typeof window === "undefined") return
+  localStorage.setItem(MAP_COLOR_BY_PRICE_KEY, enabled ? "true" : "false")
+}
 
 export function getStoredMapProvider(): MapProvider {
   if (typeof window === "undefined") return "google"

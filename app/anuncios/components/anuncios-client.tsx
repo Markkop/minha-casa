@@ -3,17 +3,16 @@
 import { Suspense, useState, useCallback, useEffect } from "react"
 import { ListingsTable } from "./listings-table"
 import { ListingsMap } from "./listings-map"
-import { ImportExportActions } from "./data-management"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { useCollections } from "../lib/use-collections"
 import { getDefaultFirstCollectionName } from "../lib/default-first-collection-name"
 import { cn } from "@/lib/utils"
 import type { Collection, Imovel } from "../lib/api"
 import { syncSubscriptionCookie } from "@/lib/sync-subscription-cookie"
-import { PageToolbar, PageToolbarEnd } from "@/app/components/page-toolbar"
 import { Download, FolderOpen, Link2, Loader2, Plus } from "lucide-react"
 import { ModalCloseButton } from "./modal-chrome"
 import { AnunciosQuerySync } from "./anuncios-query-sync"
+import { LISTINGS_PAGE_CLASS } from "./listings-panel-layout"
 
 function AnunciosClientInner() {
   const {
@@ -22,9 +21,7 @@ function AnunciosClientInner() {
     isLoading,
     isLoadingListings,
     error,
-    setActiveCollection,
     createCollection,
-    loadListings,
     refreshTrigger,
     triggerRefresh,
     orgContext,
@@ -38,23 +35,6 @@ function AnunciosClientInner() {
   useEffect(() => {
     void syncSubscriptionCookie()
   }, [])
-
-  const handleListingsChange = useCallback(() => {
-    // Trigger a refresh of the listings
-    loadListings()
-    triggerRefresh()
-  }, [loadListings, triggerRefresh])
-
-  const handleSwitchToCollection = useCallback(
-    (collectionId: string) => {
-      const collection = collections.find((c) => c.id === collectionId)
-      if (collection) {
-        setActiveCollection(collection)
-        triggerRefresh()
-      }
-    },
-    [collections, setActiveCollection, triggerRefresh]
-  )
 
   const handleCreateCollection = useCallback(async () => {
     if (collections.length === 0) {
@@ -98,7 +78,7 @@ function AnunciosClientInner() {
   // Show loading state until data is loaded
   if (isLoading) {
     return (
-      <div className="flex min-h-[calc(100vh-104px)] items-center justify-center bg-app-bg text-app-fg">
+      <div className="flex min-h-[calc(100vh-var(--nav-height,3.5rem))] items-center justify-center bg-app-bg text-app-fg">
         <p className="text-app-muted">Carregando...</p>
       </div>
     )
@@ -107,7 +87,7 @@ function AnunciosClientInner() {
   // Show error state
   if (error) {
     return (
-      <div className="flex min-h-[calc(100vh-104px)] items-center justify-center bg-app-bg text-app-fg">
+      <div className="flex min-h-[calc(100vh-var(--nav-height,3.5rem))] items-center justify-center bg-app-bg text-app-fg">
         <div className="text-center">
           <p className="text-destructive mb-2">Erro ao carregar dados</p>
           <p className="text-sm text-app-muted">{error}</p>
@@ -123,7 +103,7 @@ function AnunciosClientInner() {
     const defaultCollectionName = getDefaultFirstCollectionName()
 
     return (
-      <div className="min-h-[calc(100vh-104px)] bg-app-bg text-app-fg">
+      <div className="min-h-[calc(100vh-var(--nav-height,3.5rem))] bg-app-bg text-app-fg">
         {/* Header */}
 
         {/* Empty State */}
@@ -177,18 +157,7 @@ function AnunciosClientInner() {
   }
 
   return (
-    <div className="min-h-[calc(100vh-104px)] bg-app-bg text-app-fg">
-      <PageToolbar>
-        <PageToolbarEnd className="w-full md:w-auto">
-          <ImportExportActions
-            onDataChange={handleListingsChange}
-            listingsCount={listings.length}
-            onImportSuccess={triggerRefresh}
-            onSwitchToCollection={handleSwitchToCollection}
-          />
-        </PageToolbarEnd>
-      </PageToolbar>
-
+    <div className="min-h-[calc(100vh-var(--nav-height,3.5rem))] bg-app-bg text-app-fg">
       {/* Share Import Confirmation Modal */}
       {showShareConfirm && shareData && (
         <div className="fixed inset-0 z-[1000] flex items-center justify-center">
@@ -250,14 +219,11 @@ function AnunciosClientInner() {
         </div>
       )}
 
-      <main className="max-w-7xl mx-auto space-y-4 px-4 py-4">
-        {/* Main Content - Full Width Table */}
+      <main className={LISTINGS_PAGE_CLASS}>
         {isLoadingListings && listings.length === 0 ? (
-          <Card className="border-app-border bg-app-surface">
-            <CardContent className="py-12 text-center">
-              <p className="text-app-muted">Carregando imóveis...</p>
-            </CardContent>
-          </Card>
+          <p className="rounded-md border border-app-border bg-app-surface py-8 text-center text-sm text-app-muted">
+            Carregando imóveis...
+          </p>
         ) : (
           <ListingsTable
             listings={listings}

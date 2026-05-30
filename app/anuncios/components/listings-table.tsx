@@ -18,7 +18,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import {
   Popover,
@@ -53,8 +52,9 @@ import {
 import { PageToolbarButton, PageToolbarIconButton } from "@/app/components/page-toolbar"
 import { ListingsDisplayPopover } from "./listings-display-popover"
 import {
-  LISTINGS_PANEL_CARD_CLASS,
-  LISTINGS_PANEL_TOOLBAR_CLASS,
+  LISTINGS_SECTION_CLASS,
+  LISTINGS_TOOLBAR_CLASS,
+  LISTINGS_TOOLBAR_INNER_CLASS,
 } from "./listings-panel-layout"
 import {
   DEFAULT_PROPERTY_DISPLAY,
@@ -1547,8 +1547,14 @@ export function ListingsTable({ listings, hasApiKey = true }: ListingsTableProps
 
   if (listings.length === 0 && pendingAddRows.length === 0) {
     return (
-      <Card className="border-app-border bg-app-surface">
-        <CardContent className="py-12 text-center space-y-6">
+      <section className={LISTINGS_SECTION_CLASS}>
+        <div
+          className={cn(
+            LISTINGS_TOOLBAR_CLASS,
+            LISTINGS_TOOLBAR_INNER_CLASS,
+            "flex-col justify-center py-8 text-center space-y-6"
+          )}
+        >
           <Home className="h-12 w-12 mx-auto text-muted-foreground" />
           <div className="space-y-2">
             <h2 className="text-lg font-semibold text-app-fg">
@@ -1574,8 +1580,8 @@ export function ListingsTable({ listings, hasApiKey = true }: ListingsTableProps
               )}
             </div>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </section>
     )
   }
 
@@ -1583,9 +1589,9 @@ export function ListingsTable({ listings, hasApiKey = true }: ListingsTableProps
   const aptoCount = listings.filter((listing) => listing.tipoImovel === "apartamento").length
 
   return (
-    <Card className={LISTINGS_PANEL_CARD_CLASS}>
-      <CardHeader className={LISTINGS_PANEL_TOOLBAR_CLASS}>
-        <div className="flex min-w-0 items-center gap-1.5 overflow-x-auto">
+    <section className={LISTINGS_SECTION_CLASS}>
+      <div className={LISTINGS_TOOLBAR_CLASS}>
+        <div className={LISTINGS_TOOLBAR_INNER_CLASS}>
           {addListingToolbarButtons()}
           <div
             className={cn(
@@ -1722,9 +1728,9 @@ export function ListingsTable({ listings, hasApiKey = true }: ListingsTableProps
             </PopoverContent>
           </Popover>
         </div>
-      </CardHeader>
+      </div>
 
-      <CardContent className="p-0">
+      <div className="min-w-0">
         {filteredAndSortedListings.length === 0 && pendingAddRows.length === 0 ? (
           <div className="py-8 text-center">
             <p className="text-muted-foreground">
@@ -1845,7 +1851,7 @@ export function ListingsTable({ listings, hasApiKey = true }: ListingsTableProps
               </TableBody>
             </Table>
         )}
-      </CardContent>
+      </div>
 
       {/* Edit Modal */}
       <EditModal
@@ -1877,6 +1883,6 @@ export function ListingsTable({ listings, hasApiKey = true }: ListingsTableProps
         changes={quickReparseChanges || []}
         onApplyChanges={handleQuickReparseApply}
       />
-    </Card>
+    </section>
   )
 }
