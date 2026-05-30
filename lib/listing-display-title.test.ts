@@ -148,6 +148,30 @@ describe("buildListingDisplayTitles", () => {
     ])
     expect(titles.get("a")).toBe("Meu favorito")
   })
+
+  it("does not disambiguate with andar 0", () => {
+    const listings = [
+      {
+        id: "a",
+        tipoImovel: "apartamento" as const,
+        quartos: 2,
+        bairro: "Centro",
+        andar: 0,
+        endereco: "Rua A, 10",
+      },
+      {
+        id: "b",
+        tipoImovel: "apartamento" as const,
+        quartos: 2,
+        bairro: "Centro",
+        andar: 3,
+        endereco: "Rua B, 20",
+      },
+    ]
+    const titles = buildListingDisplayTitles(listings)
+    expect(titles.get("a")).not.toContain("andar 0")
+    expect(titles.get("b")).not.toContain("andar 0")
+  })
 })
 
 describe("resolveListingDisplayTitle", () => {

@@ -28,6 +28,7 @@ import {
 import { WorkspacePage, WorkspacePanel } from "@/app/components/workspace-ui"
 import { useCollections } from "@/app/anuncios/lib/use-collections"
 import type { Imovel } from "@/app/anuncios/lib/api"
+import { buildGoogleMapsUrl } from "@/app/anuncios/lib/listing-maps-url"
 import { buildListingAnaliseHref } from "@/lib/listing-analise-url"
 import { cn } from "@/lib/utils"
 import {
@@ -98,7 +99,6 @@ type CellValue = {
   recalculated?: boolean
   recalculationTooltip?: string
   href?: string | null
-  analiseHref?: string | null
 }
 
 const NUMERIC_ROW_KEYS = new Set<NumericRowKey>([
@@ -401,7 +401,14 @@ const MATRIX_ROWS_TAIL: MatrixRow[] = [
   {
     key: "address",
     label: "Endereço",
-    render: (listing) => ({ value: listing.endereco || "—" }),
+    render: (listing) => {
+      const value = listing.endereco || "—"
+      const trimmed = listing.endereco?.trim()
+      return {
+        value,
+        href: trimmed ? buildGoogleMapsUrl(trimmed) : null,
+      }
+    },
   },
 ]
 
@@ -474,20 +481,8 @@ export function ComparisonClient() {
       ...NUMERIC_MATRIX_ROWS,
       ...buildExtraMatrixRows(getVisibleComparisonExtraRows(selectedFilledListings)),
       ...MATRIX_ROWS_TAIL,
-      {
-        key: "link",
-        label: "Links",
-        render: (listing: Imovel) => ({
-          value: "Análise",
-          analiseHref: buildListingAnaliseHref(
-            listing.id,
-            activeCollection?.id ?? null
-          ),
-          href: listing.link,
-        }),
-      },
     ],
-    [activeCollection?.id, selectedFilledListings]
+    [selectedFilledListings]
   )
   const resolvedFixedCell = resolveFixedCell(slotIds, fixedCell, visibleSlotCount)
   const fixedListing = resolvedFixedCell === null ? null : selectedListings[resolvedFixedCell.slotIndex]
@@ -859,30 +854,6 @@ function MatrixCell({
   hideFixButton?: boolean
   onToggleFixed?: () => void
 }) {
-  if (cell.analiseHref) {
-    return (
-      <span className="inline-flex min-w-0 items-center gap-2">
-        <Link
-          href={cell.analiseHref}
-          className="text-xs font-medium text-app-accent hover:underline"
-        >
-          {cell.value}
-        </Link>
-        {cell.href ? (
-          <a
-            href={cell.href}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex shrink-0 text-app-muted transition-colors hover:text-app-accent"
-            aria-label="Abrir anúncio original"
-          >
-            <ExternalLink className="h-3.5 w-3.5" />
-          </a>
-        ) : null}
-      </span>
-    )
-  }
-
   if (cell.href) {
     return (
       <a

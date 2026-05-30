@@ -87,10 +87,10 @@ function ListingSummary({ listing }: { listing: Imovel }) {
         <Car className="size-3.5 text-app-muted" />
         <span>{garagem}</span>
       </span>
-      {listing.tipoImovel === "apartamento" && (
+      {listing.tipoImovel === "apartamento" && (listing.andar ?? 0) > 0 && (
         <span className="inline-flex shrink-0 items-center gap-0.5">
           <Building className="size-3.5 text-app-muted" />
-          <span>{listing.andar === 10 ? "+" : (listing.andar ?? 0)}</span>
+          <span>{listing.andar === 10 ? "+" : listing.andar}</span>
         </span>
       )}
       {listing.piscina === true && (

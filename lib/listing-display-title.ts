@@ -157,7 +157,7 @@ function locationAtLevel(
       }
       return null
     case "andar":
-      if (listing.tipoImovel === "apartamento" && listing.andar != null) {
+      if (listing.tipoImovel === "apartamento" && (listing.andar ?? 0) > 0) {
         return listing.andar === 10 ? "andar 10+" : `andar ${listing.andar}`
       }
       return null

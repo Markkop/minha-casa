@@ -213,23 +213,6 @@ export function ListingAnalysisSummaryCard({
               {listing.endereco}
             </a>
           )}
-
-          {whatsappUrl && (
-            <a
-              href={whatsappUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className={cn(
-                "inline-flex items-center gap-1 text-sm text-green-600 transition-colors hover:text-green-500",
-                listing.strikethrough && "line-through opacity-50"
-              )}
-            >
-              <FaWhatsapp className="h-3.5 w-3.5 shrink-0" />
-              <span className="truncate">
-                {listing.contactName ?? listing.contactNumber}
-              </span>
-            </a>
-          )}
       </div>
 
       {amenityItems.length > 0 && (
