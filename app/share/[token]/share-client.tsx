@@ -33,6 +33,10 @@ import { FaWhatsapp } from "react-icons/fa"
 import type { ListingData } from "@/lib/db/schema"
 import { buildListingDisplayTitles, resolveListingDisplayTitle } from "@/lib/listing-display-title"
 import { PageToolbarButton } from "@/app/components/page-toolbar"
+import {
+  PropertyTypeFilterCycleButton,
+  type PropertyTypeFilter,
+} from "@/app/anuncios/components/property-type-filter-cycle-button"
 import { ListingsDisplayPopover } from "@/app/anuncios/components/listings-display-popover"
 import {
   LISTINGS_PANEL_CARD_CLASS,
@@ -91,7 +95,6 @@ interface SortableHeaderProps {
   align?: "left" | "center" | "right"
 }
 
-type PropertyTypeFilter = "all" | "casa" | "apartamento"
 type MetricVariant = "total" | "privado"
 
 function getMetricVariantForSortKey(key: SortKey): MetricVariant | null {
@@ -566,27 +569,35 @@ export function ShareClient({ token }: ShareClientProps) {
                 </div>
                 {showTypeFilters && (
                   <>
-                    <PageToolbarButton
-                      variant={propertyTypeFilter === "all" ? "active" : "secondary"}
-                      onClick={() => setPropertyTypeFilter("all")}
-                      className="h-7 shrink-0 rounded-full px-2"
-                    >
-                      Todos ({listings.length})
-                    </PageToolbarButton>
-                    <PageToolbarButton
-                      variant={propertyTypeFilter === "casa" ? "active" : "secondary"}
-                      onClick={() => setPropertyTypeFilter("casa")}
-                      className="h-7 shrink-0 rounded-full px-2"
-                    >
-                      Casas ({casaCount})
-                    </PageToolbarButton>
-                    <PageToolbarButton
-                      variant={propertyTypeFilter === "apartamento" ? "active" : "secondary"}
-                      onClick={() => setPropertyTypeFilter("apartamento")}
-                      className="h-7 shrink-0 rounded-full px-2"
-                    >
-                      Aptos ({aptoCount})
-                    </PageToolbarButton>
+                    <div className="md:hidden">
+                      <PropertyTypeFilterCycleButton
+                        value={propertyTypeFilter}
+                        onChange={setPropertyTypeFilter}
+                      />
+                    </div>
+                    <div className="hidden md:contents">
+                      <PageToolbarButton
+                        variant={propertyTypeFilter === "all" ? "active" : "secondary"}
+                        onClick={() => setPropertyTypeFilter("all")}
+                        className="h-7 shrink-0 rounded-full px-2"
+                      >
+                        Todos ({listings.length})
+                      </PageToolbarButton>
+                      <PageToolbarButton
+                        variant={propertyTypeFilter === "casa" ? "active" : "secondary"}
+                        onClick={() => setPropertyTypeFilter("casa")}
+                        className="h-7 shrink-0 rounded-full px-2"
+                      >
+                        Casas ({casaCount})
+                      </PageToolbarButton>
+                      <PageToolbarButton
+                        variant={propertyTypeFilter === "apartamento" ? "active" : "secondary"}
+                        onClick={() => setPropertyTypeFilter("apartamento")}
+                        className="h-7 shrink-0 rounded-full px-2"
+                      >
+                        Aptos ({aptoCount})
+                      </PageToolbarButton>
+                    </div>
                   </>
                 )}
               </div>

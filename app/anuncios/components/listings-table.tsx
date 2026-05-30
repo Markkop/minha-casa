@@ -57,6 +57,10 @@ import {
   type ListingsSortState,
 } from "./listings-sort-popover"
 import {
+  PropertyTypeFilterCycleButton,
+  type PropertyTypeFilter,
+} from "./property-type-filter-cycle-button"
+import {
   LISTINGS_SECTION_CLASS,
   LISTINGS_TOOLBAR_CLASS,
   LISTINGS_TOOLBAR_INNER_CLASS,
@@ -835,8 +839,6 @@ function PendingAddMobileRow({
 // ============================================================================
 // MAIN COMPONENT
 // ============================================================================
-
-type PropertyTypeFilter = "all" | "casa" | "apartamento"
 
 export function ListingsTable({ listings, hasApiKey = true }: ListingsTableProps) {
   const {
@@ -1735,27 +1737,35 @@ export function ListingsTable({ listings, hasApiKey = true }: ListingsTableProps
           </div>
           {showTypeFilters && (
             <>
-              <PageToolbarButton
-                variant={propertyTypeFilter === "all" ? "active" : "secondary"}
-                onClick={() => setPropertyTypeFilter("all")}
-                className="h-7 shrink-0 rounded-full px-2"
-              >
-                Todos ({listings.length})
-              </PageToolbarButton>
-              <PageToolbarButton
-                variant={propertyTypeFilter === "casa" ? "active" : "secondary"}
-                onClick={() => setPropertyTypeFilter("casa")}
-                className="h-7 shrink-0 rounded-full px-2"
-              >
-                Casas ({casaCount})
-              </PageToolbarButton>
-              <PageToolbarButton
-                variant={propertyTypeFilter === "apartamento" ? "active" : "secondary"}
-                onClick={() => setPropertyTypeFilter("apartamento")}
-                className="h-7 shrink-0 rounded-full px-2"
-              >
-                Aptos ({aptoCount})
-              </PageToolbarButton>
+              <div className="md:hidden">
+                <PropertyTypeFilterCycleButton
+                  value={propertyTypeFilter}
+                  onChange={setPropertyTypeFilter}
+                />
+              </div>
+              <div className="hidden md:contents">
+                <PageToolbarButton
+                  variant={propertyTypeFilter === "all" ? "active" : "secondary"}
+                  onClick={() => setPropertyTypeFilter("all")}
+                  className="h-7 shrink-0 rounded-full px-2"
+                >
+                  Todos ({listings.length})
+                </PageToolbarButton>
+                <PageToolbarButton
+                  variant={propertyTypeFilter === "casa" ? "active" : "secondary"}
+                  onClick={() => setPropertyTypeFilter("casa")}
+                  className="h-7 shrink-0 rounded-full px-2"
+                >
+                  Casas ({casaCount})
+                </PageToolbarButton>
+                <PageToolbarButton
+                  variant={propertyTypeFilter === "apartamento" ? "active" : "secondary"}
+                  onClick={() => setPropertyTypeFilter("apartamento")}
+                  className="h-7 shrink-0 rounded-full px-2"
+                >
+                  Aptos ({aptoCount})
+                </PageToolbarButton>
+              </div>
             </>
           )}
           {hasDiscardedListings && (
