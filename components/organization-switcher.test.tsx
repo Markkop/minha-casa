@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest"
 import { render, screen, fireEvent, waitFor, cleanup } from "@testing-library/react"
 import {
+  OrganizationBreadcrumbDropdown,
   OrganizationSwitcher,
   getStoredOrgContext,
   setStoredOrgContext,
@@ -149,6 +150,42 @@ describe("OrganizationSwitcher", () => {
 
   // Note: Page refresh test is skipped due to Radix Select jsdom limitations
   // The refresh logic is simple and can be verified through manual testing
+})
+
+describe("OrganizationBreadcrumbDropdown", () => {
+  let originalFetch: typeof global.fetch
+
+  beforeEach(() => {
+    originalFetch = global.fetch
+    vi.clearAllMocks()
+    localStorage.clear()
+  })
+
+  afterEach(() => {
+    cleanup()
+    global.fetch = originalFetch
+    localStorage.clear()
+  })
+
+  it("does not render when user has no team organizations", async () => {
+    global.fetch = setupFetchMock([])
+
+    const { container } = render(<OrganizationBreadcrumbDropdown />)
+
+    await waitFor(() => {
+      expect(container.firstChild).toBeNull()
+    })
+  })
+
+  it("renders breadcrumb trigger when user has team organizations", async () => {
+    global.fetch = setupFetchMock()
+
+    render(<OrganizationBreadcrumbDropdown />)
+
+    await waitFor(() => {
+      expect(screen.getByTestId("organization-breadcrumb")).toBeInTheDocument()
+    })
+  })
 })
 
 describe("getStoredOrgContext", () => {

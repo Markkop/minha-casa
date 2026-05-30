@@ -58,8 +58,10 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import {
   OrganizationBreadcrumbDropdown,
   OrganizationSwitcher,
+  useOrganizations,
 } from "@/components/organization-switcher"
 import { getFlag } from "@/lib/feature-flags"
+import { isActivePath } from "@/lib/navigation"
 import { signOut, useSession } from "@/lib/auth-client"
 import { useAddons } from "@/lib/use-addons"
 import { useSubscriptionAccess } from "@/lib/subscription-context"
@@ -93,10 +95,6 @@ type SessionUser = {
   email?: string | null
   image?: string | null
   isAdmin?: boolean
-}
-
-function isActivePath(pathname: string, href: string) {
-  return pathname === href || pathname.startsWith(`${href}/`)
 }
 
 function getUserInitials(user?: SessionUser | null) {
@@ -314,7 +312,9 @@ function WorkspaceSidebar({
 }
 
 function WorkspaceTopBar({ pathname }: { pathname: string }) {
+  const { loading: orgsLoading, hasTeamOrganizations } = useOrganizations()
   const showAnaliseListingBreadcrumb = isActivePath(pathname, "/analise")
+  const showOrgBreadcrumb = !orgsLoading && hasTeamOrganizations
 
   return (
     <header
@@ -328,26 +328,32 @@ function WorkspaceTopBar({ pathname }: { pathname: string }) {
         />
         <Breadcrumb className="flex min-h-0 min-w-0 flex-1 items-center">
           <BreadcrumbList className="flex-nowrap items-center gap-3">
-            <BreadcrumbItem className="min-w-0">
-              <OrganizationBreadcrumbDropdown
-                className={cn(
-                  workspaceTopBarControlClass,
-                  showAnaliseListingBreadcrumb
-                    ? "max-w-[28vw] md:max-w-[220px]"
-                    : "max-w-[38vw] md:max-w-[260px]"
-                )}
-              />
-            </BreadcrumbItem>
-            <BreadcrumbSeparator className="text-app-subtle">
-              <span className="text-sm leading-none">/</span>
-            </BreadcrumbSeparator>
+            {showOrgBreadcrumb && (
+              <>
+                <BreadcrumbItem className="min-w-0">
+                  <OrganizationBreadcrumbDropdown
+                    className={cn(
+                      workspaceTopBarControlClass,
+                      showAnaliseListingBreadcrumb
+                        ? "max-w-[28vw] md:max-w-[220px]"
+                        : "max-w-[38vw] md:max-w-[260px]"
+                    )}
+                  />
+                </BreadcrumbItem>
+                <BreadcrumbSeparator className="text-app-subtle">
+                  <span className="text-sm leading-none">/</span>
+                </BreadcrumbSeparator>
+              </>
+            )}
             <BreadcrumbItem className="min-w-0">
               <GlobalCollectionBreadcrumb
                 className={cn(
                   workspaceTopBarControlClass,
                   showAnaliseListingBreadcrumb
                     ? "max-w-[30vw] md:max-w-[300px]"
-                    : "max-w-[44vw] md:max-w-[340px]"
+                    : showOrgBreadcrumb
+                      ? "max-w-[44vw] md:max-w-[340px]"
+                      : "max-w-[44vw] md:max-w-[380px]"
                 )}
               />
             </BreadcrumbItem>

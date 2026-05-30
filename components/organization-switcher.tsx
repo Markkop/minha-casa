@@ -43,7 +43,7 @@ export function getStoredOrgContext(): OrganizationContext {
   if (typeof window === "undefined") {
     return { type: "personal" }
   }
-  
+
   try {
     const stored = localStorage.getItem(STORAGE_KEY)
     if (stored) {
@@ -63,12 +63,8 @@ export function setStoredOrgContext(context: OrganizationContext): void {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(context))
 }
 
-export function OrganizationSwitcher({
-  onContextChange,
-  className,
-}: OrganizationSwitcherProps) {
+export function useOrganizations() {
   const [organizations, setOrganizations] = useState<Organization[]>([])
-  const [context, setContext] = useState<OrganizationContext>({ type: "personal" })
   const [loading, setLoading] = useState(true)
 
   const fetchOrganizations = useCallback(async () => {
@@ -90,21 +86,34 @@ export function OrganizationSwitcher({
     }
   }, [])
 
-  // Load stored context and organizations on mount
   useEffect(() => {
-    const storedContext = getStoredOrgContext()
-    setContext(storedContext)
-    fetchOrganizations()
+    void fetchOrganizations()
   }, [fetchOrganizations])
 
-  // Validate stored context after organizations load
+  return {
+    organizations,
+    loading,
+    hasTeamOrganizations: organizations.length > 0,
+  }
+}
+
+export function OrganizationSwitcher({
+  onContextChange,
+  className,
+}: OrganizationSwitcherProps) {
+  const { organizations, loading, hasTeamOrganizations } = useOrganizations()
+  const [context, setContext] = useState<OrganizationContext>({ type: "personal" })
+
+  useEffect(() => {
+    setContext(getStoredOrgContext())
+  }, [])
+
   useEffect(() => {
     if (loading) return
 
     if (context.type === "organization" && context.organizationId) {
       const orgExists = organizations.some((org) => org.id === context.organizationId)
       if (!orgExists) {
-        // Organization no longer exists or user lost access
         const newContext: OrganizationContext = { type: "personal" }
         setContext(newContext)
         setStoredOrgContext(newContext)
@@ -133,14 +142,12 @@ export function OrganizationSwitcher({
     setStoredOrgContext(newContext)
     onContextChange?.(newContext)
 
-    // Force full page reload to reset all state and reload collections with new context
     window.location.reload()
   }
 
   const currentValue = context.type === "personal" ? "personal" : context.organizationId
 
-  // Don't show switcher if user has no organizations
-  if (!loading && organizations.length === 0) {
+  if (!loading && !hasTeamOrganizations) {
     return null
   }
 
@@ -209,33 +216,12 @@ export function OrganizationBreadcrumbDropdown({
 }: {
   className?: string
 }) {
-  const [organizations, setOrganizations] = useState<Organization[]>([])
+  const { organizations, loading, hasTeamOrganizations } = useOrganizations()
   const [context, setContext] = useState<OrganizationContext>({ type: "personal" })
-  const [loading, setLoading] = useState(true)
-
-  const fetchOrganizations = useCallback(async () => {
-    try {
-      const res = await fetch("/api/organizations")
-      if (!res.ok) {
-        if (res.status === 401) {
-          return
-        }
-        throw new Error("Failed to fetch organizations")
-      }
-      const data = await res.json()
-      setOrganizations(data.organizations || [])
-    } catch (err) {
-      console.error("Failed to fetch organizations:", err)
-      setOrganizations([])
-    } finally {
-      setLoading(false)
-    }
-  }, [])
 
   useEffect(() => {
     setContext(getStoredOrgContext())
-    fetchOrganizations()
-  }, [fetchOrganizations])
+  }, [])
 
   useEffect(() => {
     if (loading) return
@@ -274,26 +260,29 @@ export function OrganizationBreadcrumbDropdown({
     window.location.reload()
   }
 
+  if (loading || !hasTeamOrganizations) {
+    return null
+  }
+
   const currentValue =
     context.type === "personal" ? "personal" : context.organizationId
   const label =
-    loading
-      ? "Carregando..."
-      : context.type === "organization"
-        ? context.organizationName || "Organização"
-        : "Pessoal"
+    context.type === "organization"
+      ? context.organizationName || "Organização"
+      : "Pessoal"
   const CurrentIcon = context.type === "organization" ? Users : User
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <button
+          type="button"
+          data-testid="organization-breadcrumb"
           className={cn(
             "inline-flex h-8 min-w-0 max-w-[38vw] items-center gap-1.5 rounded-md px-2 text-sm font-medium leading-none text-app-fg transition-colors hover:bg-app-surface-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-accent md:max-w-[260px] [&_svg]:size-3.5",
             className
           )}
           aria-label="Selecionar organização"
-          disabled={loading}
         >
           <CurrentIcon className="size-3.5 shrink-0 text-app-muted" />
           <span className="truncate">{label}</span>

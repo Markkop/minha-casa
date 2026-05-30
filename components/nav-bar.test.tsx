@@ -27,6 +27,11 @@ vi.mock("@/components/organization-switcher", () => ({
   OrganizationBreadcrumbDropdown: () => (
     <button data-testid="organization-breadcrumb">Minha Casa Local</button>
   ),
+  useOrganizations: () => ({
+    organizations: [{ id: "org-1", name: "Org", slug: "org", role: "owner" }],
+    loading: false,
+    hasTeamOrganizations: true,
+  }),
 }))
 
 vi.mock("@/app/anuncios/components/global-collection-toolbar", () => ({

@@ -1,8 +1,10 @@
 "use client"
 
 import { useCallback, useState } from "react"
+import { usePathname, useRouter } from "next/navigation"
 import { Check, ChevronDown, FolderOpen, Pencil, Plus, Star, Trash2 } from "lucide-react"
 
+import { shouldNavigateToAnunciosOnCollectionSelect } from "@/lib/collection-breadcrumb-navigation"
 import type { Collection } from "../lib/api"
 import { useCollections } from "../lib/use-collections"
 import { CollectionModal } from "./collection-modal"
@@ -73,6 +75,8 @@ export function GlobalCollectionBreadcrumb({
 }: {
   className?: string
 }) {
+  const router = useRouter()
+  const pathname = usePathname()
   const {
     collections,
     activeCollection,
@@ -118,6 +122,23 @@ export function GlobalCollectionBreadcrumb({
     }
   }, [activeCollection, setDefaultCollection])
 
+  const handleSelectCollection = useCallback(
+    (collection: Collection) => {
+      if (
+        shouldNavigateToAnunciosOnCollectionSelect(
+          pathname,
+          activeCollection?.id,
+          collection.id
+        )
+      ) {
+        router.push("/anuncios")
+        return
+      }
+      setActiveCollection(collection)
+    },
+    [activeCollection?.id, pathname, router, setActiveCollection]
+  )
+
   const label = isLoading
     ? "Carregando..."
     : activeCollection?.label || "Nenhuma coleção"
@@ -127,6 +148,8 @@ export function GlobalCollectionBreadcrumb({
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <button
+            type="button"
+            data-testid="global-collection-breadcrumb"
             className={cn(
               "inline-flex h-8 min-w-0 max-w-[44vw] items-center gap-1.5 rounded-md px-2 text-sm font-medium leading-none text-app-fg transition-colors hover:bg-app-surface-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-accent md:max-w-[340px] [&_svg]:size-3.5",
               className
@@ -154,7 +177,7 @@ export function GlobalCollectionBreadcrumb({
             collections.map((collection) => (
               <DropdownMenuItem
                 key={collection.id}
-                onSelect={() => setActiveCollection(collection)}
+                onSelect={() => handleSelectCollection(collection)}
               >
                 {collection.isDefault ? (
                   <Star className="h-4 w-4 fill-current" />
