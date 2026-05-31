@@ -159,6 +159,8 @@ services:
     networks:
       - minha_casa_local
 
+  # next-web: Better Auth defaults to BETTER_AUTH_URL=http://localhost:3000.
+  # Host Svelte (pnpm dev:web) uses apps/web/.env with BETTER_AUTH_URL=http://localhost:5173.
   next-web:
     image: node:22-alpine
     container_name: minha-casa-next-web-1

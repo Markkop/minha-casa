@@ -3,6 +3,7 @@
   import { page } from "$app/stores";
   import { AlertCircle, Calendar, Check, CheckCircle, Crown } from "@lucide/svelte";
   import { billingApi } from "$lib/billing/client";
+  import { syncSubscriptionCookie } from "$lib/sync-subscription-cookie";
   import GrantedAddonsSection from "$lib/addons/GrantedAddonsSection.svelte";
   import Button from "$lib/components/ui/Button.svelte";
   import type { AdminPlan, AdminSubscription } from "$lib/admin/client";
@@ -61,6 +62,9 @@
 
   onMount(() => {
     void loadBilling();
+    if ($page.url.searchParams.get("success") === "true") {
+      void syncSubscriptionCookie();
+    }
   });
 
   async function loadBilling() {
@@ -74,6 +78,7 @@
       plans = plansData.plans;
       subscription = subscriptionData.subscription;
       currentPlan = subscriptionData.plan;
+      await syncSubscriptionCookie();
     } catch (err) {
       error = errorMessage(err, "Erro ao carregar assinatura");
     } finally {

@@ -3,6 +3,7 @@
   import { page } from "$app/stores";
   import { signIn, signUp } from "$lib/auth-client";
   import Button from "$lib/components/ui/Button.svelte";
+  import { syncSubscriptionCookie } from "$lib/sync-subscription-cookie";
 
   let name = $state("");
   let email = $state("");
@@ -19,6 +20,7 @@
       error = result.error.message ?? "Nao foi possivel criar sua conta.";
       return;
     }
+    await syncSubscriptionCookie();
     await goto($page.url.searchParams.get("redirect") || "/anuncios");
   }
 

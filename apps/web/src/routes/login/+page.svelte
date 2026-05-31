@@ -3,6 +3,7 @@
   import { page } from "$app/stores";
   import { signIn } from "$lib/auth-client";
   import Button from "$lib/components/ui/Button.svelte";
+  import { syncSubscriptionCookie } from "$lib/sync-subscription-cookie";
 
   let email = $state("");
   let password = $state("");
@@ -18,6 +19,7 @@
       error = result.error.message ?? "Nao foi possivel entrar.";
       return;
     }
+    await syncSubscriptionCookie();
     await goto($page.url.searchParams.get("redirect") || "/anuncios");
   }
 

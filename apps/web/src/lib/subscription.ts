@@ -1,5 +1,6 @@
 export const SUBSCRIPTION_COOKIE_NAME = "subscription-status";
 export const SUBSCRIPTION_ACTIVE = "active";
+export const SUBSCRIPTION_INACTIVE = "inactive";
 export const SUBSCRIPTION_PAGE = "/subscribe";
 
 const COOKIE_SEPARATOR = "|";
@@ -26,6 +27,10 @@ export function parseSubscriptionCookie(cookieValue: string | undefined) {
   const expiresAt = new Date(cookieValue.substring(separatorIndex + 1));
   if (!status || Number.isNaN(expiresAt.getTime())) return null;
   return { status, expiresAt };
+}
+
+export function createSubscriptionCookieValue(status: string, expiresAt: Date): string {
+  return `${status}${COOKIE_SEPARATOR}${expiresAt.toISOString()}`;
 }
 
 export function isSubscriptionValid(cookieValue: string | undefined): boolean {

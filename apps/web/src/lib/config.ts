@@ -9,7 +9,14 @@ function normalizePublicApiUrl(raw: string): string {
 }
 
 export const config = {
+  /**
+   * Browser: same-origin `/api/*` (SvelteKit proxies to Phoenix; `/api/subscriptions` stays local).
+   * SSR: direct Phoenix URL from env.
+   */
   get apiUrl() {
+    if (typeof window !== "undefined") {
+      return "";
+    }
     return normalizePublicApiUrl(env.PUBLIC_API_URL ?? "http://localhost:4000");
   },
   get googleMapsApiKey() {

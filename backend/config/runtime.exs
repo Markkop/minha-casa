@@ -15,6 +15,13 @@ config :minha_casa_ai, MinhaCasaAi.Repo,
   ssl: ssl?,
   ssl_opts: [verify: :verify_none]
 
+config :minha_casa_ai,
+  cors_origins:
+    (System.get_env("CORS_ORIGINS") || "http://localhost:5173,http://localhost:3000")
+    |> String.split(",", trim: true)
+    |> Enum.map(&String.trim/1)
+    |> Enum.reject(&(&1 == ""))
+
 config :minha_casa_ai, MinhaCasaAiWeb.Endpoint,
   server: true,
   http: [

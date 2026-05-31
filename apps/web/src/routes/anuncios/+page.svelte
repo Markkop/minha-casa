@@ -3,6 +3,7 @@
   import { Copy, ExternalLink, Image as ImageIcon, Pencil, Plus, RefreshCw, Share2, Sparkles, Star, Trash2 } from "@lucide/svelte";
   import PageScaffold from "$lib/components/layout/PageScaffold.svelte";
   import Button from "$lib/components/ui/Button.svelte";
+  import { syncSubscriptionCookie } from "$lib/sync-subscription-cookie";
   import { workspaceApi, type Collection, type DuplicateCandidate, type Listing, type ListingData } from "$lib/workspace/client";
 
   type ListingDraft = {
@@ -82,6 +83,7 @@
   });
 
   onMount(() => {
+    void syncSubscriptionCookie();
     void loadCollections();
   });
 

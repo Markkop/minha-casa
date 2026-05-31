@@ -12,4 +12,5 @@ export function getDb() {
 
 // Export schema and types for convenience
 export * from "./schema"
+export { and, desc, eq } from "drizzle-orm"
 export type Database = ReturnType<typeof getDb>

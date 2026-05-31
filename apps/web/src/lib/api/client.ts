@@ -51,7 +51,8 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
   }
 
   let response: Response;
-  const url = `${config.apiUrl}/api${path}`;
+  const base = config.apiUrl;
+  const url = base ? `${base}/api${path}` : `/api${path}`;
   try {
     response = await fetch(url, {
       method,

@@ -1,7 +1,8 @@
+import "$lib/server/load-env";
 import { building } from "$app/environment";
 import { redirect, type Handle } from "@sveltejs/kit";
 import { sequence } from "@sveltejs/kit/hooks";
-import { auth } from "$lib/auth";
+import { getAuth } from "$lib/auth";
 import {
   isSubscriptionValid,
   requiresSubscription,
@@ -41,11 +42,11 @@ const authHandle: Handle = async ({ event, resolve }) => {
   if (building) return resolve(event);
 
   if (event.url.pathname.startsWith(AUTH_BASE)) {
-    return auth.handler(event.request);
+    return getAuth().handler(event.request);
   }
 
   try {
-    const session = await auth.api.getSession({ headers: event.request.headers });
+    const session = await getAuth().api.getSession({ headers: event.request.headers });
     if (session) {
       event.locals.session = session.session;
       event.locals.user = session.user;

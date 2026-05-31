@@ -32,6 +32,7 @@ export const auth = betterAuth({
       account: schema.accounts,
       session: schema.sessions,
       verification: schema.verifications,
+      jwks: schema.jwks,
     },
   }),
   emailAndPassword: {

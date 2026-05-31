@@ -5,6 +5,8 @@ defmodule MinhaCasaAi.Auth.JWKS do
 
   use Agent
 
+  require Logger
+
   alias MinhaCasaAi.Config
 
   def start_link(_opts) do
@@ -25,17 +27,18 @@ defmodule MinhaCasaAi.Auth.JWKS do
   def refresh_keys do
     url = Config.better_auth_jwks_url() || "http://localhost:5173/auth/jwks"
 
-    case :httpc.request(:get, {String.to_charlist(url), []}, [{:timeout, 5_000}], []) do
-      {:ok, {{_, 200, _}, _headers, body}} ->
-        with {:ok, %{"keys" => keys}} <- Jason.decode(to_string(body)) do
-          jwk_set = Enum.map(keys, &JOSE.JWK.from_map/1)
-          set_keys(jwk_set)
-          {:ok, jwk_set}
-        else
-          _ -> {:error, :invalid_jwks_response}
-        end
+    case Req.get(url, receive_timeout: 5_000) do
+      {:ok, %{status: 200, body: %{"keys" => keys}}} when is_list(keys) ->
+        jwk_set = Enum.map(keys, &JOSE.JWK.from_map/1)
+        set_keys(jwk_set)
+        {:ok, jwk_set}
 
-      _ ->
+      {:ok, %{status: status, body: body}} ->
+        Logger.warning("JWKS fetch returned HTTP #{status}: #{inspect(body)}")
+        {:error, :jwks_fetch_failed}
+
+      {:error, reason} ->
+        Logger.warning("JWKS fetch failed for #{url}: #{inspect(reason)}")
         {:error, :jwks_fetch_failed}
     end
   end

@@ -13,13 +13,17 @@ export async function getApiToken(): Promise<string | null> {
 
   try {
     const res = await authClient.token();
+    if (res.error) {
+      console.warn("[auth] JWT token request failed:", res.error.message ?? res.error);
+      return null;
+    }
     if (res.data?.token) {
       cachedJwt = res.data.token;
       jwtExpiresAt = now + 55 * 60 * 1000;
       return cachedJwt;
     }
-  } catch {
-    // Unauthenticated clients should make anonymous/public requests.
+  } catch (error) {
+    console.warn("[auth] JWT token request failed:", error);
   }
 
   cachedJwt = null;

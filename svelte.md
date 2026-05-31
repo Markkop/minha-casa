@@ -45,27 +45,44 @@ Do not run `pnpm build:web` unless explicitly needed; the repo instruction says 
 
 ## Required environment
 
-SvelteKit auth expects:
+Copy [`apps/web/.env.example`](apps/web/.env.example) to `apps/web/.env` (SvelteKit loads env from `apps/web`, not the repo root):
 
 ```bash
-DATABASE_URL=postgresql://minhacasa:minhacasa_local_password@localhost:5435/minha_casa_local
-BETTER_AUTH_SECRET=...
-BETTER_AUTH_URL=http://localhost:5173
-BETTER_AUTH_TRUSTED_ORIGINS=http://localhost:5173,http://localhost:3000
-GOOGLE_CLIENT_ID=...
-GOOGLE_CLIENT_SECRET=...
-PUBLIC_API_URL=http://localhost:4000
-PUBLIC_GOOGLE_MAPS_API_KEY=...
+cp apps/web/.env.example apps/web/.env
+# Fill GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET from your Google OAuth client.
 ```
 
-Phoenix will also need:
+| Variable | Purpose |
+|----------|---------|
+| `DATABASE_URL` | App Postgres on host port **5435** (see `infra/local/.env.local.example`) |
+| `DATABASE_SSL` | `false` locally |
+| `DATABASE_POOL_MAX` | pg pool size for Better Auth + `/api/subscriptions` |
+| `BETTER_AUTH_SECRET` | Same value as Next while both frontends run |
+| `BETTER_AUTH_URL` | Must match browser origin, e.g. `http://localhost:5173` |
+| `BETTER_AUTH_TRUSTED_ORIGINS` | Comma-separated origins (Svelte + Next during migration) |
+| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | OAuth; add redirect `http://localhost:5173/auth/callback/google` |
+| `PUBLIC_API_URL` | Phoenix, e.g. `http://localhost:4000` |
+| `PUBLIC_GOOGLE_MAPS_API_KEY` | Maps (optional until map UI is ported) |
+
+Phoenix (`infra/local/.env.local` or compose env) should also set:
 
 ```bash
-BETTER_AUTH_JWKS_URL=http://localhost:5173/auth/jwks
+BETTER_AUTH_JWKS_URL=http://host.docker.internal:5173/auth/jwks
 CORS_ORIGINS=http://localhost:5173,http://localhost:3000
+APP_PUBLIC_URL=http://localhost:5173
 STRIPE_SECRET_KEY=...
 STRIPE_WEBHOOK_SECRET=...
 ```
+
+**Dual frontend:** Next (`:3000`) and Svelte (`:5173`) share `DATABASE_URL` and `BETTER_AUTH_SECRET` but each process needs its own `BETTER_AUTH_URL`. Sessions are not portable across origins.
+
+**Database:** if tables are missing, from repo root:
+
+```bash
+DATABASE_URL=postgresql://minhacasa:minhacasa_local_password@localhost:5435/minha_casa_local pnpm db:migrate
+```
+
+**Subscription gating:** after login, the app calls `GET /api/subscriptions` on the Svelte origin to set the httpOnly `subscription-status` cookie (same behavior as Next’s BFF). [`apps/web/src/lib/sync-subscription-cookie.ts`](apps/web/src/lib/sync-subscription-cookie.ts) is used from login, signup, subscribe, and anuncios.
 
 The backend now has JWT-authenticated browser endpoints, starting with:
 
@@ -74,12 +91,14 @@ GET /api/me
 Authorization: Bearer <better-auth-jwt>
 ```
 
-The Svelte API client calls Phoenix with Better Auth JWTs. It also sends `X-Organization-Id` when the user selects an active organization in `/organizacoes`; Phoenix validates membership in `JwtAuth` before assigning `current_org_id`. Existing internal Phoenix routes are still mounted for parts not yet migrated; do not expose internal headers to browser code.
+The Svelte API client calls **same-origin** `/api/*` in the browser (SvelteKit proxies to Phoenix on `PHOENIX_API_URL`, default `http://localhost:4000`). `/api/subscriptions` stays on SvelteKit for the subscription cookie. Requests use Better Auth JWTs. It also sends `X-Organization-Id` when the user selects an active organization in `/organizacoes`; Phoenix validates membership in `JwtAuth` before assigning `current_org_id`. Existing internal Phoenix routes are still mounted for parts not yet migrated; do not expose internal headers to browser code.
 
 ## Key files
 
 - `apps/web/src/hooks.server.ts`: Better Auth handler, session population, auth redirects, subscription route gating.
-- `apps/web/src/lib/auth.ts`: Better Auth server config with JWT plugin and direct Postgres pool.
+- `apps/web/src/lib/auth.ts`: Better Auth server config with JWT plugin and Drizzle adapter (shared `lib/db` schema).
+- `apps/web/src/routes/api/subscriptions/+server.ts`: sets httpOnly `subscription-status` cookie for route gating.
+- `apps/web/src/lib/sync-subscription-cookie.ts`: client helper to refresh subscription cookie via SvelteKit BFF.
 - `apps/web/src/lib/auth-client.ts`: Svelte Better Auth client.
 - `apps/web/src/lib/stores/auth.ts`: cached JWT helper for Phoenix API calls.
 - `apps/web/src/lib/api/client.ts`: browser API client that calls `PUBLIC_API_URL + /api/...` with `Authorization: Bearer`.
