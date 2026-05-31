@@ -1,4 +1,4 @@
-import { api } from "$lib/api/client";
+import { ApiError, api } from "$lib/api/client";
 
 export interface SavedLink {
   id: string;
@@ -86,6 +86,14 @@ export interface ListingData {
   corretor?: string;
   telefone?: string;
   condominioNome?: string;
+  contactName?: string | null;
+  contactNumber?: string | null;
+  condominiumName?: string | null;
+  imageUrl?: string | null;
+  imageUrls?: string[] | null;
+  imageStorageKeys?: string[] | null;
+  imageIngestionStatus?: "idle" | "pending" | "processing" | "ready" | "failed" | null;
+  imageIngestionError?: string | null;
   observacoes?: string;
   starred?: boolean;
   strikethrough?: boolean;
@@ -112,6 +120,12 @@ export interface Listing {
   data: ListingData;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface DuplicateCandidate {
+  listingId: string;
+  score: number;
+  reason: string;
 }
 
 export type WhatsAppStatus =
@@ -277,6 +291,10 @@ export const workspaceApi = {
   deleteCollection: (id: string) => api.delete<{ success: true }>(`/collections/${id}`),
   shareCollection: (id: string) => api.post<{ collection: Collection; shareUrl: string }>(`/collections/${id}/share`, {}),
   revokeCollectionShare: (id: string) => api.delete<{ collection: Collection; success: true }>(`/collections/${id}/share`),
+  copyCollection: (id: string, input: { targetOrgId?: string | null; includeListings?: boolean; newName?: string }) =>
+    api.post<{ collection: Collection; copiedListingsCount: number }>(`/collections/${id}/copy`, input),
+  syncListingTitles: (id: string) =>
+    api.post<{ listings: Listing[] }>(`/collections/${id}/sync-listing-titles`, {}),
   fetchListings: (collectionId: string) => api.get<{ listings: Listing[] }>(`/collections/${collectionId}/listings`),
   createListing: (collectionId: string, data: ListingData) =>
     api.post<{ listing: Listing }>(`/collections/${collectionId}/listings`, { data }),
@@ -284,6 +302,24 @@ export const workspaceApi = {
     api.put<{ listing: Listing }>(`/collections/${collectionId}/listings/${listingId}`, { data }),
   deleteListing: (collectionId: string, listingId: string) =>
     api.delete<{ success: true }>(`/collections/${collectionId}/listings/${listingId}`),
+  parseListings: (input:
+    | { kind: "text"; rawText: string }
+    | { kind: "url"; url: string }
+    | { kind: "image"; base64: string; mimeType: string }
+    | { kind: "pdf"; base64: string }
+  ) => api.post<{ listings: ListingData[] }>("/workspace/parse", input),
+  checkDuplicate: async (collectionId: string, data: ListingData) => {
+    try {
+      return await api.post<{ duplicateCandidates: DuplicateCandidate[] }>("/workspace/listings/check-duplicate", { collectionId, data });
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 409) {
+        return error.data as { duplicateCandidates: DuplicateCandidate[] };
+      }
+      throw error;
+    }
+  },
+  ingestListingImages: (listingId: string, overwrite = true) =>
+    api.post<{ status: "pending" | string }>(`/workspace/listings/${listingId}/ingest-images`, { overwrite }),
 
   fetchWhatsAppStatus: () => api.get<WhatsAppStatus>("/whatsapp/status"),
   linkWhatsApp: (code: string) => api.post<{ ok: true; linkedAt: string; waId: string }>("/whatsapp/link", { code }),

@@ -4,7 +4,10 @@ defmodule MinhaCasaAiWeb.CollectionController do
   import Ecto.Query
 
   alias MinhaCasaAi.Listings
+  alias MinhaCasaAi.Listings.DisplayTitle
   alias MinhaCasaAi.Listings.{Collection, Listing}
+  alias MinhaCasaAi.Accounts.User
+  alias MinhaCasaAi.Organizations
   alias MinhaCasaAi.Config
   alias MinhaCasaAi.Repo
   alias MinhaCasaAiWeb.ListingJSON
@@ -50,6 +53,48 @@ defmodule MinhaCasaAiWeb.CollectionController do
     end
   end
 
+  def public_index(conn, _params) do
+    rows =
+      Repo.all(
+        from c in Collection,
+          left_join: u in User,
+          on: u.id == c.user_id,
+          left_join: l in Listing,
+          on: l.collection_id == c.id,
+          where: c.is_public == true,
+          group_by: [c.id, u.name],
+          order_by: [desc: c.updated_at],
+          select: %{collection: c, owner_name: u.name, listings_count: count(l.id)}
+      )
+
+    json(conn, %{collections: Enum.map(rows, &public_collection/1)})
+  end
+
+  def public_show(conn, %{"id" => id}) do
+    collection_row =
+      Repo.one(
+        from c in Collection,
+          left_join: u in User,
+          on: u.id == c.user_id,
+          where: c.id == ^id and c.is_public == true,
+          select: %{collection: c, owner_name: u.name}
+      )
+
+    case collection_row do
+      nil ->
+        conn |> put_status(:not_found) |> json(%{error: "Collection not found or is not public"})
+
+      row ->
+        listings =
+          Listing
+          |> where([l], l.collection_id == ^id)
+          |> order_by([l], desc: l.created_at)
+          |> Repo.all()
+
+        json(conn, %{collection: public_collection(row), listings: ListingJSON.listings(listings)})
+    end
+  end
+
   def create(conn, params) do
     profile = current_profile(conn)
     name = string(params["name"])
@@ -64,7 +109,8 @@ defmodule MinhaCasaAiWeb.CollectionController do
         scoped(Collection, profile) |> Repo.update_all(set: [is_default: false])
       end
 
-      attrs = Map.merge(profile_values(profile), %{name: name, is_default: is_default, is_public: false})
+      attrs =
+        Map.merge(profile_values(profile), %{name: name, is_default: is_default, is_public: false})
 
       case %Collection{} |> Collection.changeset(attrs) |> Repo.insert() do
         {:ok, collection} ->
@@ -79,9 +125,13 @@ defmodule MinhaCasaAiWeb.CollectionController do
   def show(conn, %{"id" => id}) do
     profile = current_profile(conn)
 
-    with %Collection{} = collection <- scoped(Collection, profile) |> where([c], c.id == ^id) |> Repo.one() do
+    with %Collection{} = collection <-
+           scoped(Collection, profile) |> where([c], c.id == ^id) |> Repo.one() do
       count = Repo.one(from(l in Listing, where: l.collection_id == ^id, select: count(l.id)))
-      json(conn, %{collection: ListingJSON.collection(collection) |> Map.put(:listingsCount, count)})
+
+      json(conn, %{
+        collection: ListingJSON.collection(collection) |> Map.put(:listingsCount, count)
+      })
     else
       nil -> not_found(conn, "Collection")
     end
@@ -90,7 +140,8 @@ defmodule MinhaCasaAiWeb.CollectionController do
   def update(conn, %{"id" => id} = params) do
     profile = current_profile(conn)
 
-    with %Collection{} = collection <- scoped(Collection, profile) |> where([c], c.id == ^id) |> Repo.one() do
+    with %Collection{} = collection <-
+           scoped(Collection, profile) |> where([c], c.id == ^id) |> Repo.one() do
       attrs =
         %{}
         |> maybe_put_name(params)
@@ -113,11 +164,14 @@ defmodule MinhaCasaAiWeb.CollectionController do
   def delete(conn, %{"id" => id}) do
     profile = current_profile(conn)
 
-    with %Collection{} = collection <- scoped(Collection, profile) |> where([c], c.id == ^id) |> Repo.one() do
+    with %Collection{} = collection <-
+           scoped(Collection, profile) |> where([c], c.id == ^id) |> Repo.one() do
       collection_count = Repo.one(from(c in scoped(Collection, profile), select: count(c.id)))
 
       if collection.is_default and collection_count <= 1 do
-        conn |> put_status(:bad_request) |> json(%{error: "Cannot delete the only default collection"})
+        conn
+        |> put_status(:bad_request)
+        |> json(%{error: "Cannot delete the only default collection"})
       else
         Repo.transaction(fn ->
           from(l in Listing, where: l.collection_id == ^id) |> Repo.delete_all()
@@ -128,8 +182,11 @@ defmodule MinhaCasaAiWeb.CollectionController do
             |> limit(1)
             |> Repo.one()
             |> case do
-              nil -> :ok
-              next_collection -> next_collection |> Collection.changeset(%{is_default: true}) |> Repo.update!()
+              nil ->
+                :ok
+
+              next_collection ->
+                next_collection |> Collection.changeset(%{is_default: true}) |> Repo.update!()
             end
           end
         end)
@@ -164,17 +221,28 @@ defmodule MinhaCasaAiWeb.CollectionController do
 
     with true <- collection_allowed?(id, profile),
          :ok <- validate_listing_data(data),
-         {:ok, listing} <- Listings.save_listing(id, data, user_id: profile.user_id, org_id: profile.org_id) do
+         {:ok, listing} <-
+           Listings.save_listing(id, data, user_id: profile.user_id, org_id: profile.org_id) do
       conn |> put_status(:created) |> json(%{listing: ListingJSON.listing(listing)})
     else
-      false -> not_found(conn, "Collection")
-      {:error, :invalid_listing} -> conn |> put_status(:bad_request) |> json(%{error: "Listing title and address are required"})
-      {:error, :collection_not_found} -> not_found(conn, "Collection")
-      {:error, changeset} -> changeset_error(conn, changeset)
+      false ->
+        not_found(conn, "Collection")
+
+      {:error, :invalid_listing} ->
+        conn
+        |> put_status(:bad_request)
+        |> json(%{error: "Listing title and address are required"})
+
+      {:error, :collection_not_found} ->
+        not_found(conn, "Collection")
+
+      {:error, changeset} ->
+        changeset_error(conn, changeset)
     end
   end
 
-  def create_listing(conn, _params), do: conn |> put_status(:bad_request) |> json(%{error: "Listing data is required"})
+  def create_listing(conn, _params),
+    do: conn |> put_status(:bad_request) |> json(%{error: "Listing data is required"})
 
   def show_listing(conn, %{"id" => id, "listing_id" => listing_id}) do
     profile = current_profile(conn)
@@ -185,10 +253,14 @@ defmodule MinhaCasaAiWeb.CollectionController do
     end
   end
 
-  def update_listing(conn, %{"id" => id, "listing_id" => listing_id, "data" => data}) when is_map(data) do
+  def update_listing(conn, %{"id" => id, "listing_id" => listing_id, "data" => data})
+      when is_map(data) do
     profile = current_profile(conn)
 
-    case Listings.update_listing(id, listing_id, data, user_id: profile.user_id, org_id: profile.org_id) do
+    case Listings.update_listing(id, listing_id, data,
+           user_id: profile.user_id,
+           org_id: profile.org_id
+         ) do
       {:ok, listing} -> json(conn, %{listing: ListingJSON.listing(listing)})
       {:error, _} -> not_found(conn, "Listing")
     end
@@ -206,7 +278,8 @@ defmodule MinhaCasaAiWeb.CollectionController do
   def share(conn, %{"id" => id}) do
     profile = current_profile(conn)
 
-    with %Collection{} = collection <- scoped(Collection, profile) |> where([c], c.id == ^id) |> Repo.one() do
+    with %Collection{} = collection <-
+           scoped(Collection, profile) |> where([c], c.id == ^id) |> Repo.one() do
       attrs =
         if string(collection.share_token) == "" do
           %{share_token: generate_share_token(), is_public: true}
@@ -232,13 +305,116 @@ defmodule MinhaCasaAiWeb.CollectionController do
   def revoke_share(conn, %{"id" => id}) do
     profile = current_profile(conn)
 
-    with %Collection{} = collection <- scoped(Collection, profile) |> where([c], c.id == ^id) |> Repo.one() do
-      case collection |> Collection.changeset(%{share_token: nil, is_public: false}) |> Repo.update() do
-        {:ok, collection} -> json(conn, %{collection: ListingJSON.collection(collection), success: true})
-        {:error, changeset} -> changeset_error(conn, changeset)
+    with %Collection{} = collection <-
+           scoped(Collection, profile) |> where([c], c.id == ^id) |> Repo.one() do
+      case collection
+           |> Collection.changeset(%{share_token: nil, is_public: false})
+           |> Repo.update() do
+        {:ok, collection} ->
+          json(conn, %{collection: ListingJSON.collection(collection), success: true})
+
+        {:error, changeset} ->
+          changeset_error(conn, changeset)
       end
     else
       nil -> not_found(conn, "Collection")
+    end
+  end
+
+  def copy(conn, %{"id" => id} = params) do
+    user_id = conn.assigns[:current_user_id]
+    source_profile = current_profile(conn)
+    target_org_id = blank_to_nil(params["targetOrgId"] || params["target_org_id"])
+    include_listings = Map.get(params, "includeListings", true) != false
+
+    with %Collection{} = source <-
+           scoped(Collection, source_profile) |> where([c], c.id == ^id) |> Repo.one(),
+         :ok <- authorize_copy_target(user_id, target_org_id) do
+      collection_name =
+        case string(params["newName"]) do
+          "" -> "#{source.name} (cópia)"
+          name -> name
+        end
+
+      target_profile = %{user_id: user_id, org_id: target_org_id}
+
+      result =
+        Repo.transaction(fn ->
+          {:ok, collection} =
+            %Collection{}
+            |> Collection.changeset(
+              Map.merge(profile_values(target_profile), %{
+                name: collection_name,
+                is_public: false,
+                is_default: false
+              })
+            )
+            |> Repo.insert()
+
+          copied_count =
+            if include_listings do
+              source_listings = Repo.all(from(l in Listing, where: l.collection_id == ^source.id))
+
+              Enum.each(source_listings, fn listing ->
+                %Listing{}
+                |> Listing.changeset(%{collection_id: collection.id, data: listing.data || %{}})
+                |> Repo.insert!()
+              end)
+
+              length(source_listings)
+            else
+              0
+            end
+
+          %{collection: collection, copied_count: copied_count}
+        end)
+
+      case result do
+        {:ok, %{collection: collection, copied_count: copied_count}} ->
+          json(conn, %{
+            collection: ListingJSON.collection(collection),
+            copiedListingsCount: copied_count
+          })
+
+        {:error, changeset} ->
+          changeset_error(conn, changeset)
+      end
+    else
+      nil ->
+        not_found(conn, "Collection")
+
+      {:error, :forbidden} ->
+        conn
+        |> put_status(:forbidden)
+        |> json(%{error: "Only organization owners and admins can copy into this organization"})
+    end
+  end
+
+  def sync_listing_titles(conn, %{"id" => id}) do
+    profile = current_profile(conn)
+
+    with true <- collection_allowed?(id, profile) do
+      rows =
+        Repo.all(from(l in Listing, where: l.collection_id == ^id, order_by: [asc: l.created_at]))
+
+      synced =
+        rows
+        |> Enum.map(fn listing -> Map.put(listing.data || %{}, "id", listing.id) end)
+        |> DisplayTitle.apply_to_listings()
+        |> Map.new(fn data -> {data["id"], Map.delete(data, "id")} end)
+
+      updated =
+        Enum.map(rows, fn listing ->
+          data = Map.get(synced, listing.id, listing.data || %{})
+
+          listing
+          |> Listing.changeset(%{data: data})
+          |> Repo.update!()
+        end)
+
+      json(conn, %{listings: ListingJSON.listings(updated)})
+    else
+      false -> not_found(conn, "Collection")
     end
   end
 
@@ -246,17 +422,36 @@ defmodule MinhaCasaAiWeb.CollectionController do
     %{user_id: conn.assigns[:current_user_id], org_id: conn.assigns[:current_org_id]}
   end
 
-  defp scoped(queryable, %{org_id: org_id}) when is_binary(org_id), do: from(c in queryable, where: c.org_id == ^org_id)
+  defp scoped(queryable, %{org_id: org_id}) when is_binary(org_id),
+    do: from(c in queryable, where: c.org_id == ^org_id)
 
   defp scoped(queryable, %{user_id: user_id}) do
     from(c in queryable, where: c.user_id == ^user_id and is_nil(c.org_id))
   end
 
-  defp profile_values(%{org_id: org_id}) when is_binary(org_id), do: %{user_id: nil, org_id: org_id}
+  defp profile_values(%{org_id: org_id}) when is_binary(org_id),
+    do: %{user_id: nil, org_id: org_id}
+
   defp profile_values(%{user_id: user_id}), do: %{user_id: user_id, org_id: nil}
 
   defp collection_allowed?(id, profile) do
     scoped(Collection, profile) |> where([c], c.id == ^id) |> Repo.exists?()
+  end
+
+  defp public_collection(%{collection: collection, owner_name: owner_name} = row) do
+    collection
+    |> ListingJSON.collection()
+    |> Map.put(:ownerName, owner_name)
+    |> Map.put(:listingsCount, Map.get(row, :listings_count))
+  end
+
+  defp authorize_copy_target(_user_id, nil), do: :ok
+
+  defp authorize_copy_target(user_id, org_id) do
+    case Organizations.get_membership(user_id, org_id) do
+      %{role: role} when role in ["owner", "admin"] -> :ok
+      _ -> {:error, :forbidden}
+    end
   end
 
   defp validate_listing_data(data) do
@@ -277,11 +472,20 @@ defmodule MinhaCasaAiWeb.CollectionController do
   defp maybe_put_name(attrs, _), do: attrs
 
   defp maybe_put_bool(attrs, params, key, field) do
-    if Map.has_key?(params, key), do: Map.put(attrs, field, Map.get(params, key) == true), else: attrs
+    if Map.has_key?(params, key),
+      do: Map.put(attrs, field, Map.get(params, key) == true),
+      else: attrs
   end
 
   defp string(value) when is_binary(value), do: String.trim(value)
   defp string(_), do: ""
+
+  defp blank_to_nil(value) when is_binary(value) do
+    value = String.trim(value)
+    if value == "", do: nil, else: value
+  end
+
+  defp blank_to_nil(_), do: nil
 
   defp generate_share_token do
     :crypto.strong_rand_bytes(12) |> Base.url_encode64(padding: false)
@@ -307,5 +511,6 @@ defmodule MinhaCasaAiWeb.CollectionController do
     end
   end
 
-  defp not_found(conn, name), do: conn |> put_status(:not_found) |> json(%{error: "#{name} not found"})
+  defp not_found(conn, name),
+    do: conn |> put_status(:not_found) |> json(%{error: "#{name} not found"})
 end

@@ -54,6 +54,8 @@ config :minha_casa_ai, MinhaCasaAi.Config,
   app_public_url:
     System.get_env("APP_PUBLIC_URL") || System.get_env("NEXT_PUBLIC_APP_URL") ||
       "http://localhost:3000",
+  stripe_secret_key: System.get_env("STRIPE_SECRET_KEY"),
+  stripe_webhook_secret: System.get_env("STRIPE_WEBHOOK_SECRET"),
   assistant_llm_enabled: System.get_env("ASSISTANT_LLM_ENABLED", "true") not in ["false", "0"],
   openai_model:
     System.get_env("OPENAI_MODEL") ||

@@ -20,15 +20,51 @@ defmodule MinhaCasaAiWeb.Router do
     get "/webhooks/whatsapp", WhatsAppWebhookController, :verify
     post "/webhooks/whatsapp", WhatsAppWebhookController, :receive
     post "/webhooks/telegram", TelegramWebhookController, :receive
+    post "/api/webhooks/stripe", StripeWebhookController, :receive
     post "/mcp", McpController, :handle
     get "/api/shared/:token", CollectionController, :shared
+    get "/api/shared/:token/listings/:listing_id/images/:index", ListingImageController, :shared_show
+    get "/api/collections/public", CollectionController, :public_index
+    get "/api/collections/public/:id", CollectionController, :public_show
     get "/api/short-links/:short_id", ShortLinkController, :show
+    get "/api/plans", PlanController, :index
   end
 
   scope "/api", MinhaCasaAiWeb do
     pipe_through [:api, :authenticated]
 
     get "/me", UserController, :me
+    get "/subscriptions", SubscriptionController, :show_current
+    post "/subscriptions", SubscriptionController, :create
+    post "/checkout/session", SubscriptionController, :checkout
+    post "/billing/portal", SubscriptionController, :portal
+    get "/addons/access/:slug", AddonController, :access
+    get "/user/addons", AddonController, :user_index
+    patch "/user/addons/:slug", AddonController, :update_user
+    delete "/user/addons/:slug", AddonController, :delete_user
+
+    get "/admin/users", AdminController, :users
+    get "/admin/plans", AdminController, :plans
+    patch "/admin/users/:user_id", AdminController, :update_user
+    delete "/admin/users/:user_id", AdminController, :delete_user
+    get "/admin/stats", AdminController, :stats
+    get "/admin/addons", AdminController, :addons
+    get "/admin/stripe/reconciliation", AdminController, :stripe_reconciliation
+    patch "/admin/plans/:slug", AdminController, :update_plan
+    get "/admin/subscriptions/:id", AdminController, :subscription
+    patch "/admin/subscriptions/:id", AdminController, :update_subscription
+    get "/admin/subscriptions/user/:user_id", AdminController, :user_subscriptions
+    get "/admin/users/:user_id/addons", AdminController, :user_addons
+    post "/admin/users/:user_id/addons", AdminController, :grant_user_addon
+    delete "/admin/users/:user_id/addons/:slug", AdminController, :revoke_user_addon
+    get "/admin/organizations/addons", AdminController, :organizations_addons
+    get "/admin/organizations/:org_id/addons", AdminController, :organization_addons
+    post "/admin/organizations/:org_id/addons", AdminController, :grant_organization_addon
+
+    delete "/admin/organizations/:org_id/addons/:slug",
+           AdminController,
+           :revoke_organization_addon
+
     get "/organizations", OrganizationController, :index
     post "/organizations", OrganizationController, :create
     get "/organizations/:id", OrganizationController, :show
@@ -38,6 +74,9 @@ defmodule MinhaCasaAiWeb.Router do
     post "/organizations/:id/members", OrganizationController, :add_member
     put "/organizations/:id/members/:user_id", OrganizationController, :update_member
     delete "/organizations/:id/members/:user_id", OrganizationController, :remove_member
+    get "/organizations/:id/addons", AddonController, :organization_index
+    patch "/organizations/:id/addons/:slug", AddonController, :update_organization
+    delete "/organizations/:id/addons/:slug", AddonController, :delete_organization
 
     post "/whatsapp/link", WhatsAppLinkController, :link
     get "/whatsapp/status", WhatsAppLinkController, :status
@@ -53,6 +92,11 @@ defmodule MinhaCasaAiWeb.Router do
          :retry_card_xray
 
     get "/listings/:listing_id/analyses/latest", PropertyAnalysisController, :latest
+    post "/workspace/parse", ParseController, :create
+    post "/workspace/listings/check-duplicate", ListingsDuplicateController, :check
+    post "/workspace/listings/:id/ingest-images", ListingImageController, :ingest
+    get "/workspace/listings/:id/images/:index", ListingImageController, :show
+    get "/workspace/listings/:listing_id/nearby", ListingNearbyController, :show
 
     get "/portal-searches", PortalSearchController, :index
     post "/portal-searches", PortalSearchController, :create
@@ -95,6 +139,8 @@ defmodule MinhaCasaAiWeb.Router do
     delete "/collections/:id", CollectionController, :delete
     post "/collections/:id/share", CollectionController, :share
     delete "/collections/:id/share", CollectionController, :revoke_share
+    post "/collections/:id/copy", CollectionController, :copy
+    post "/collections/:id/sync-listing-titles", CollectionController, :sync_listing_titles
     get "/collections/:id/listings", CollectionController, :listings
     post "/collections/:id/listings", CollectionController, :create_listing
     get "/collections/:id/listings/:listing_id", CollectionController, :show_listing

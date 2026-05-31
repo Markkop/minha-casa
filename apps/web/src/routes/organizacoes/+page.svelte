@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { Building2, Folder, Home, Users } from "@lucide/svelte";
+  import GrantedAddonsSection from "$lib/addons/GrantedAddonsSection.svelte";
   import PageScaffold from "$lib/components/layout/PageScaffold.svelte";
   import Button from "$lib/components/ui/Button.svelte";
   import { getActiveOrganizationId, setActiveOrganizationId } from "$lib/api/client";
@@ -254,6 +255,8 @@
             {/each}
           </div>
         </section>
+
+        <GrantedAddonsSection />
 
         <section class="rounded-md border border-app-border bg-app-surface p-4">
           <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">

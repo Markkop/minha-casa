@@ -2,6 +2,7 @@
   import { onMount } from "svelte";
   import { page } from "$app/stores";
   import { ExternalLink, Search, Star } from "@lucide/svelte";
+  import { config } from "$lib/config";
   import { workspaceApi, type Listing, type ListingData, type SharedCollection } from "$lib/workspace/client";
 
   type SortKey = "titulo" | "preco" | "m2Totais" | "m2Privado" | "quartos" | "precoM2";
@@ -100,6 +101,18 @@
     if (typeof value !== "number" || !Number.isFinite(value)) return "-";
     return `${numberFormat.format(value)}${suffix}`;
   }
+
+  function listingImageUrl(listing: Listing) {
+    const token = $page.params.token;
+    if (Array.isArray(listing.data.imageStorageKeys) && listing.data.imageStorageKeys.length > 0 && token) {
+      return `${config.apiUrl}/api/shared/${encodeURIComponent(token)}/listings/${listing.id}/images/0`;
+    }
+    if (typeof listing.data.imageUrl === "string" && listing.data.imageUrl.trim()) return listing.data.imageUrl;
+    if (Array.isArray(listing.data.imageUrls)) {
+      return listing.data.imageUrls.find((url) => typeof url === "string" && url.trim()) ?? null;
+    }
+    return null;
+  }
 </script>
 
 <svelte:head>
@@ -163,11 +176,18 @@
                 {#each listings as listing (listing.id)}
                   <tr class="border-t border-app-border align-top">
                     <td class="px-3 py-3">
-                      <div class="flex items-center gap-2 font-medium text-app-fg">
-                        {#if listing.data.starred}<Star class="h-4 w-4 text-amber-500" fill="currentColor" />{/if}
-                        {listingTitle(listing.data)}
+                      <div class="flex items-start gap-3">
+                        {#if listingImageUrl(listing)}
+                          <img class="h-14 w-20 shrink-0 rounded-md object-cover" src={listingImageUrl(listing) ?? ""} alt="" loading="lazy" />
+                        {/if}
+                        <div>
+                          <div class="flex items-center gap-2 font-medium text-app-fg">
+                            {#if listing.data.starred}<Star class="h-4 w-4 text-amber-500" fill="currentColor" />{/if}
+                            {listingTitle(listing.data)}
+                          </div>
+                          <div class="mt-1 text-xs text-app-muted">{listing.data.tipoImovel ?? "-"}</div>
+                        </div>
                       </div>
-                      <div class="mt-1 text-xs text-app-muted">{listing.data.tipoImovel ?? "-"}</div>
                     </td>
                     <td class="px-3 py-3 font-medium">{money(listing.data.preco)}</td>
                     <td class="px-3 py-3">{money(pricePerM2(listing.data))}</td>

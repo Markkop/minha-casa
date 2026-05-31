@@ -189,6 +189,9 @@ importers:
       tailwind-merge:
         specifier: ^3.4.0
         version: 3.4.0
+      three:
+        specifier: ^0.182.0
+        version: 0.182.0
     devDependencies:
       '@eslint/js':
         specifier: ^10.0.1
@@ -208,6 +211,9 @@ importers:
       '@types/pg':
         specifier: ^8.20.0
         version: 8.20.0
+      '@types/three':
+        specifier: ^0.182.0
+        version: 0.182.0
       eslint:
         specifier: ^10.1.0
         version: 10.4.1(jiti@2.6.1)
