@@ -103,6 +103,7 @@ defmodule MinhaCasaAiWeb.Router do
     get "/portal-searches/:id", PortalSearchController, :show
     patch "/portal-searches/:id", PortalSearchController, :update
     post "/portal-searches/:id/runs", PortalSearchController, :create_run
+    get "/portal-searches/:id/runs/:run_id/stream", PortalSearchController, :stream
     get "/portal-searches/:id/runs/:run_id", PortalSearchController, :show_run
     get "/portal-searches/:id/runs/:run_id/cards", PortalSearchController, :list_cards
     get "/portal-searches/:id/runs/:run_id/cost", PortalSearchController, :run_cost
@@ -167,6 +168,5 @@ defmodule MinhaCasaAiWeb.Router do
     delete "/saved-links/:id", SavedLinkController, :delete
     post "/saved-links/:id/enrich", SavedLinkController, :enrich
     get "/listings/:listing_id/nearby", ListingNearbyController, :show
-    get "/portal-searches/:id/runs/:run_id/stream", PortalSearchController, :stream
   end
 end

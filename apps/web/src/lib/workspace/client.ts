@@ -343,6 +343,13 @@ export const workspaceApi = {
     }),
   retryAnalysisStep: (analysisId: string, step: string) =>
     api.post<{ analysis: ListingAnalysis }>(`/property-analyses/${analysisId}/steps/${step}/retry`, {}),
+  retryAnalysisCardXray: (analysisId: string, ambienteId: string) =>
+    api.post<{ analysis: ListingAnalysis }>(
+      `/property-analyses/${analysisId}/ambientes/${encodeURIComponent(ambienteId)}/xray/retry`,
+      {}
+    ),
+  fetchListingNearby: (listingId: string) =>
+    api.get<{ nearby: Record<string, unknown> }>(`/workspace/listings/${listingId}/nearby`),
 
   fetchPortalSearches: () => api.get<{ searches: PortalSearch[] }>("/portal-searches"),
   createPortalSearch: (input: {

@@ -174,7 +174,7 @@
   }
 </script>
 
-<PageScaffold title="Organizacoes" description="Organizacoes, membros e contexto ativo do workspace." status="Svelte port">
+<PageScaffold title="Organizacoes" description="Organizacoes, membros e contexto ativo do workspace.">
   {#if error}
     <div class="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</div>
   {/if}

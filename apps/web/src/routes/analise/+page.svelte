@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onDestroy, onMount } from "svelte";
-  import { Activity, CheckCircle2, Clock, RefreshCw, XCircle } from "@lucide/svelte";
+  import { Activity, CheckCircle2, Clock, Image as ImageIcon, MapPinned, RefreshCw, XCircle } from "@lucide/svelte";
   import PageScaffold from "$lib/components/layout/PageScaffold.svelte";
   import Button from "$lib/components/ui/Button.svelte";
   import {
@@ -31,6 +31,9 @@
   let analysisLoading = $state(false);
   let starting = $state(false);
   let error = $state("");
+  let nearby = $state<Record<string, unknown> | null>(null);
+  let nearbyLoading = $state(false);
+  let selectedImage = $state<string | null>(null);
   let pollId: number | null = null;
 
   const activeListing = $derived(listings.find((listing) => listing.id === listingId) ?? null);
@@ -73,6 +76,7 @@
       listings[0] ??
       null;
     listingId = nextListing?.id ?? null;
+    await loadNearby();
     await loadLatest();
   }
 
@@ -89,6 +93,19 @@
       error = err instanceof Error ? err.message : "Erro ao carregar analise";
     } finally {
       analysisLoading = false;
+    }
+  }
+
+  async function loadNearby() {
+    nearby = null;
+    if (!listingId) return;
+    nearbyLoading = true;
+    try {
+      nearby = (await workspaceApi.fetchListingNearby(listingId)).nearby;
+    } catch {
+      nearby = null;
+    } finally {
+      nearbyLoading = false;
     }
   }
 
@@ -121,6 +138,19 @@
       if (shouldPoll(analysis)) startPolling(analysis.id);
     } catch (err) {
       error = err instanceof Error ? err.message : "Erro ao reexecutar etapa";
+    }
+  }
+
+  async function retryCardXray(card: Record<string, unknown>) {
+    if (!analysis) return;
+    const id = textValue(card.id) || textValue(card.ambienteId) || textValue(card.ambiente_id) || textValue(card.rotulo);
+    if (!id) return;
+    error = "";
+    try {
+      analysis = (await workspaceApi.retryAnalysisCardXray(analysis.id, id)).analysis;
+      if (shouldPoll(analysis)) startPolling(analysis.id);
+    } catch (err) {
+      error = err instanceof Error ? err.message : "Erro ao reexecutar x-ray";
     }
   }
 
@@ -186,12 +216,35 @@
     const cards = ambientes.cards;
     return Array.isArray(cards) ? cards.filter((card) => card && typeof card === "object") as Record<string, unknown>[] : [];
   }
+
+  function listingImages(data: ListingData): string[] {
+    const urls = new Set<string>();
+    if (typeof data.imageUrl === "string" && data.imageUrl) urls.add(data.imageUrl);
+    if (Array.isArray(data.imageUrls)) {
+      for (const url of data.imageUrls) {
+        if (typeof url === "string" && url) urls.add(url);
+      }
+    }
+    return [...urls];
+  }
+
+  function listItems(value: unknown): string[] {
+    if (Array.isArray(value)) return value.map(textValue).filter(Boolean);
+    if (typeof value === "string" && value.trim()) return [value.trim()];
+    return [];
+  }
+
+  function nearbyGroups() {
+    if (!nearby) return [];
+    return Object.entries(nearby)
+      .filter(([, value]) => Array.isArray(value) && value.length > 0)
+      .slice(0, 6);
+  }
 </script>
 
 <PageScaffold
   title="Analise"
   description="Dossie do imovel, analise profunda, ambientes e retry de etapas usando Phoenix."
-  status="Svelte port"
 >
   {#if error}
     <div class="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</div>
@@ -217,7 +270,14 @@
 
       <label class="flex flex-col gap-2 text-sm font-medium">
         Imovel
-        <select class="h-10 rounded-md border border-app-border bg-white px-3" bind:value={listingId} onchange={() => void loadLatest()}>
+        <select
+          class="h-10 rounded-md border border-app-border bg-white px-3"
+          bind:value={listingId}
+          onchange={() => {
+            void loadNearby();
+            void loadLatest();
+          }}
+        >
           {#each listings as listing (listing.id)}
             <option value={listing.id}>{listingTitle(listing.data)}</option>
           {/each}
@@ -238,6 +298,65 @@
       />
     </label>
   </section>
+
+  {#if activeListing}
+    <section class="grid gap-4 lg:grid-cols-[1.4fr_.8fr]">
+      <article class="rounded-md border border-app-border bg-app-surface p-4">
+        <div class="flex flex-col gap-4 md:flex-row">
+          <div class="grid w-full grid-cols-3 gap-2 md:w-56">
+            {#each listingImages(activeListing.data).slice(0, 6) as image}
+              <button type="button" class="aspect-[4/3] overflow-hidden rounded-md border border-app-border bg-white" onclick={() => (selectedImage = image)}>
+                <img src={image} alt="" class="h-full w-full object-cover" loading="lazy" />
+              </button>
+            {:else}
+              <div class="col-span-3 flex aspect-video items-center justify-center rounded-md border border-dashed border-app-border bg-white text-app-muted">
+                <ImageIcon class="h-5 w-5" />
+              </div>
+            {/each}
+          </div>
+          <div class="min-w-0 flex-1">
+            <p class="text-xs font-medium uppercase tracking-wide text-app-muted">Dossie do imovel</p>
+            <h2 class="mt-1 text-xl font-semibold">{listingTitle(activeListing.data)}</h2>
+            <p class="mt-1 text-sm text-app-muted">{[activeListing.data.endereco, activeListing.data.bairro, activeListing.data.cidade].filter(Boolean).join(", ")}</p>
+            <div class="mt-4 grid gap-2 sm:grid-cols-4">
+              {#each [
+                ["Preco", activeListing.data.preco],
+                ["Area", activeListing.data.m2Privado ?? activeListing.data.m2Totais],
+                ["Quartos", activeListing.data.quartos],
+                ["Garagem", activeListing.data.garagem]
+              ] as item}
+                <div class="rounded-md border border-app-border bg-white p-3">
+                  <div class="text-xs text-app-muted">{item[0]}</div>
+                  <div class="mt-1 font-semibold">{typeof item[1] === "number" && item[0] === "Preco" ? new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 }).format(item[1]) : textValue(item[1]) || "-"}</div>
+                </div>
+              {/each}
+            </div>
+          </div>
+        </div>
+      </article>
+
+      <article class="rounded-md border border-app-border bg-app-surface p-4">
+        <div class="flex items-center gap-2">
+          <MapPinned class="h-4 w-4 text-app-muted" />
+          <h3 class="font-semibold">Arredores</h3>
+        </div>
+        {#if nearbyLoading}
+          <p class="mt-3 text-sm text-app-muted">Carregando pontos proximos...</p>
+        {:else if nearbyGroups().length === 0}
+          <p class="mt-3 text-sm text-app-muted">Sem dados de arredores para este anuncio.</p>
+        {:else}
+          <div class="mt-3 space-y-3">
+            {#each nearbyGroups() as [group, rows]}
+              <div>
+                <div class="text-xs font-medium uppercase text-app-muted">{group}</div>
+                <div class="mt-1 text-sm text-app-fg">{(rows as unknown[]).slice(0, 3).map((row) => textValue((row as Record<string, unknown>).name ?? row)).join(", ")}</div>
+              </div>
+            {/each}
+          </div>
+        {/if}
+      </article>
+    </section>
+  {/if}
 
   {#if loading || analysisLoading}
     <div class="rounded-md border border-app-border bg-app-surface p-5 text-sm text-app-muted">Carregando...</div>
@@ -315,15 +434,64 @@
         <div class="mt-3 grid gap-3 md:grid-cols-2 lg:grid-cols-3">
           {#each ambienteCards() as card}
             <article class="rounded-md border border-app-border bg-white p-3">
-              <div class="font-medium">{textValue(card.rotulo) || textValue(card.categoria) || "Ambiente"}</div>
-              <div class="mt-1 text-xs text-app-muted">X-ray: {textValue(card.xrayStatus) || "waiting"}</div>
-              <div class="mt-2 text-sm text-app-muted">
-                {(Array.isArray(card.pontosAtencao) ? card.pontosAtencao.length : 0)} ponto(s) de atencao
+              <div class="flex items-start justify-between gap-3">
+                <div>
+                  <div class="font-medium">{textValue(card.rotulo) || textValue(card.categoria) || "Ambiente"}</div>
+                  <div class="mt-1 text-xs text-app-muted">X-ray: {textValue(card.xrayStatus) || textValue(objectValue(card.xray).status) || "waiting"}</div>
+                </div>
+                {#if analysis.status !== "queued" && analysis.status !== "running"}
+                  <Button class="h-8 px-3 text-xs" variant="secondary" onclick={() => void retryCardXray(card)}>X-ray</Button>
+                {/if}
               </div>
+
+              {#if listItems(card.pontosAtencao).length > 0}
+                <div class="mt-3">
+                  <div class="text-xs font-medium uppercase text-app-muted">Atencao</div>
+                  <ul class="mt-1 list-disc space-y-1 pl-4 text-sm text-app-muted">
+                    {#each listItems(card.pontosAtencao).slice(0, 4) as item}
+                      <li>{item}</li>
+                    {/each}
+                  </ul>
+                </div>
+              {/if}
+
+              {#if textValue(objectValue(card.xray).resumo) || textValue(card.xrayResumo)}
+                <p class="mt-3 text-sm leading-6 text-app-muted">{textValue(objectValue(card.xray).resumo) || textValue(card.xrayResumo)}</p>
+              {:else}
+                <div class="mt-2 text-sm text-app-muted">
+                  {(Array.isArray(card.pontosAtencao) ? card.pontosAtencao.length : 0)} ponto(s) de atencao
+                </div>
+              {/if}
+
+              {#if listItems(objectValue(card.xray).blindSpots).length > 0}
+                <div class="mt-3 rounded-md border border-amber-200 bg-amber-50 p-2 text-xs text-amber-800">
+                  Blind spots: {listItems(objectValue(card.xray).blindSpots).slice(0, 3).join("; ")}
+                </div>
+              {/if}
+              {#if textValue(objectValue(card.xray).orcamento) || textValue(objectValue(card.xray).budget)}
+                <div class="mt-2 rounded-md border border-app-border bg-app-surface-muted p-2 text-xs text-app-muted">
+                  Orcamento: {textValue(objectValue(card.xray).orcamento) || textValue(objectValue(card.xray).budget)}
+                </div>
+              {/if}
             </article>
           {/each}
         </div>
       {/if}
     </section>
+  {/if}
+
+  {#if selectedImage && activeListing}
+    <div class="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true" tabindex="-1">
+      <button type="button" class="absolute inset-0 bg-black/75" aria-label="Fechar imagem" onclick={() => (selectedImage = null)}></button>
+      <div class="relative max-h-[92vh] w-full max-w-5xl overflow-hidden rounded-md bg-app-surface shadow-2xl">
+        <div class="flex items-center justify-between gap-3 border-b border-app-border px-4 py-3">
+          <h2 class="truncate text-sm font-semibold">{listingTitle(activeListing.data)}</h2>
+          <button type="button" class="rounded-md px-3 py-1 text-sm hover:bg-muted" onclick={() => (selectedImage = null)}>Fechar</button>
+        </div>
+        <div class="flex max-h-[82vh] items-center justify-center bg-black">
+          <img src={selectedImage} alt="" class="max-h-[82vh] w-auto max-w-full object-contain" />
+        </div>
+      </div>
+    </div>
   {/if}
 </PageScaffold>

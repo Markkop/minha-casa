@@ -31,7 +31,7 @@
   const analysisFlags = adminFeatureFlagMeta.filter((flag) => flag.group === "analysis");
 </script>
 
-<PageScaffold title="Feature flags" description="Controles locais para recursos administrativos neste navegador." status="Svelte port">
+<PageScaffold title="Feature flags" description="Controles locais para recursos administrativos neste navegador.">
   <div class="max-w-3xl space-y-4">
     <div class="flex items-start gap-3 rounded-md border border-app-border bg-app-surface p-4 text-sm text-app-muted">
       <Flag class="mt-0.5 h-5 w-5 shrink-0" />

@@ -386,7 +386,7 @@
   }
 </script>
 
-<PageScaffold title="Admin" description="Usuarios, assinaturas, planos e addons." status="Svelte port">
+<PageScaffold title="Admin" description="Usuarios, assinaturas, planos e addons.">
   {#if error}
     <div class="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</div>
   {/if}

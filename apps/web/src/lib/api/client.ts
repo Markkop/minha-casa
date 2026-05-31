@@ -19,19 +19,36 @@ type RequestOptions = {
 };
 
 const ACTIVE_ORG_STORAGE_KEY = "minha-casa:active-organization-id";
+const LEGACY_ORG_CONTEXT_STORAGE_KEY = "minha-casa-org-context";
 
 export function getActiveOrganizationId(): string | null {
   if (typeof window === "undefined") return null;
   const value = window.localStorage.getItem(ACTIVE_ORG_STORAGE_KEY);
-  return value && value.trim() !== "" ? value : null;
+  if (value && value.trim() !== "") return value;
+
+  try {
+    const context = JSON.parse(window.localStorage.getItem(LEGACY_ORG_CONTEXT_STORAGE_KEY) || "null") as
+      | { type?: string; organizationId?: string }
+      | null;
+    if (context?.type === "organization" && context.organizationId) return context.organizationId;
+  } catch {
+    // Ignore stale localStorage payloads from the previous frontend.
+  }
+
+  return null;
 }
 
 export function setActiveOrganizationId(orgId: string | null) {
   if (typeof window === "undefined") return;
   if (orgId) {
     window.localStorage.setItem(ACTIVE_ORG_STORAGE_KEY, orgId);
+    window.localStorage.setItem(
+      LEGACY_ORG_CONTEXT_STORAGE_KEY,
+      JSON.stringify({ type: "organization", organizationId: orgId })
+    );
   } else {
     window.localStorage.removeItem(ACTIVE_ORG_STORAGE_KEY);
+    window.localStorage.setItem(LEGACY_ORG_CONTEXT_STORAGE_KEY, JSON.stringify({ type: "personal" }));
   }
   window.dispatchEvent(new CustomEvent("minha-casa:organization-context-change", { detail: orgId }));
 }
