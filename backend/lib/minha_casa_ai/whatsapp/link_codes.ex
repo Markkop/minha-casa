@@ -40,7 +40,7 @@ defmodule MinhaCasaAi.WhatsApp.LinkCodes do
     |> Repo.update!()
   end
 
-  def expire_pending_for_wa_id!(wa_id, now \\ DateTime.utc_now() |> DateTime.truncate(:second)) do
+  def expire_pending_for_wa_id!(wa_id, _now \\ DateTime.utc_now() |> DateTime.truncate(:second)) do
     from(c in LinkCode,
       where: c.wa_id == ^wa_id and c.status == "pending",
       update: [set: [status: "expired"]]

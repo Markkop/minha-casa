@@ -7,9 +7,9 @@ defmodule MinhaCasaAi.Assistant.Tools do
   alias MinhaCasaAi.Chat.Pending
   alias MinhaCasaAi.Listings
 
-  def run(user_id, :help, _ctx), do: {:ok, ReplyFormatter.help_text()}
+  def run(_user_id, :help, _ctx), do: {:ok, ReplyFormatter.help_text()}
 
-  def run(user_id, :cancel, ctx) do
+  def run(_user_id, :cancel, ctx) do
     if conversation_id = ctx[:conversation_id] do
       Pending.clear!(conversation_id)
     end

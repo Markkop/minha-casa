@@ -1,6 +1,4 @@
 defmodule MinhaCasaAi.WhatsApp.Identities do
-  import Ecto.Query
-
   alias MinhaCasaAi.Repo
   alias MinhaCasaAi.WhatsApp.Identity
 

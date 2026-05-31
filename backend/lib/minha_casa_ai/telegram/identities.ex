@@ -1,6 +1,4 @@
 defmodule MinhaCasaAi.Telegram.Identities do
-  import Ecto.Query
-
   alias MinhaCasaAi.Repo
   alias MinhaCasaAi.Telegram.Identity
 

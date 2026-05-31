@@ -42,9 +42,9 @@ defmodule MinhaCasaAi.WhatsApp.Payload do
     end)
   end
 
+  defp extract_change(_), do: []
+
   defp message_text(%{"type" => "text", "text" => %{"body" => body}}) when is_binary(body), do: body
   defp message_text(%{"text" => %{"body" => body}}) when is_binary(body), do: body
   defp message_text(_), do: nil
-
-  defp extract_change(_), do: []
 end

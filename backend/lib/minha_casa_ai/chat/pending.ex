@@ -3,8 +3,6 @@ defmodule MinhaCasaAi.Chat.Pending do
   Conversation-level pending actions (duplicate resolution, multi-import, field edit).
   """
 
-  import Ecto.Query
-
   alias MinhaCasaAi.Chat.Conversation
   alias MinhaCasaAi.Repo
 

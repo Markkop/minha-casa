@@ -283,18 +283,13 @@ defmodule MinhaCasaAi.Integrations.ScrapingAnt do
     |> collect_image_candidates()
     |> Enum.reject(&blocked_image_url?/1)
     |> Enum.reduce(%{}, fn url, acc ->
-      case listing_image_key(url) do
-        nil ->
-          acc
+      key = listing_image_key(url)
+      existing = Map.get(acc, key)
 
-        key ->
-          existing = Map.get(acc, key)
-
-          if is_nil(existing) or image_url_score(url) > image_url_score(existing) do
-            Map.put(acc, key, url)
-          else
-            acc
-          end
+      if is_nil(existing) or image_url_score(url) > image_url_score(existing) do
+        Map.put(acc, key, url)
+      else
+        acc
       end
     end)
     |> Map.values()

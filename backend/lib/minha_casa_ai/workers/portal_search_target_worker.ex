@@ -17,7 +17,6 @@ defmodule MinhaCasaAi.Workers.PortalSearchTargetWorker do
   def perform(%Oban.Job{args: %{"target_id" => target_id}}) do
     target = PortalSearches.get_target!(target_id)
     run = PortalSearches.get_run!(target.portal_search_run_id)
-    search = PortalSearches.get_search!(run.portal_search_id)
     refresh? = run.refresh == true
 
     trace_ctx = trace_ctx(run, target)
@@ -154,7 +153,7 @@ defmodule MinhaCasaAi.Workers.PortalSearchTargetWorker do
     end
   end
 
-  defp extract(page_text, target, trace_ctx, html \\ nil) do
+  defp extract(page_text, target, trace_ctx, html) do
     if Config.configured?(:openai) do
       listing_urls =
         if is_binary(html) do

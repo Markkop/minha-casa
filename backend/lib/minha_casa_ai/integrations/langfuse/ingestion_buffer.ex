@@ -1,6 +1,7 @@
 defmodule MinhaCasaAi.Integrations.Langfuse.IngestionBuffer do
   @moduledoc false
   use GenServer
+  require Logger
 
   alias MinhaCasaAi.Integrations.Langfuse.{Client, Config}
 
@@ -36,7 +37,7 @@ defmodule MinhaCasaAi.Integrations.Langfuse.IngestionBuffer do
 
   @impl true
   def handle_cast({:push, event}, state) do
-  queue =
+    queue =
       if :queue.len(state.queue) >= @max_queue_size do
         Logger.warning("langfuse ingestion queue full; dropping oldest event")
         {{:value, _}, rest} = :queue.out(state.queue)

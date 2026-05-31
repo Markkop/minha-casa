@@ -6,15 +6,12 @@ defmodule MinhaCasaAi.PortalSearches do
   import Ecto.Query
 
   alias MinhaCasaAi.PortalSearches.{
-    CachedSearchPage,
     FilterSet,
     Limits,
     Pipeline,
     PortalSearch,
     PortalSearchRun,
     PortalSearchTarget,
-    ShortListing,
-    ShortListingRunHit,
     ShortListings
   }
 

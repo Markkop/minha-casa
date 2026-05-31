@@ -19,12 +19,7 @@ defmodule MinhaCasaAiWeb.WhatsAppWebhookController do
   end
 
   def receive(conn, params) do
-    case WhatsApp.receive_webhook(params) do
-      :ok ->
-        json(conn, %{status: "ok"})
-
-      {:error, reason} ->
-        conn |> put_status(:accepted) |> json(%{status: "ignored", reason: inspect(reason)})
-    end
+    :ok = WhatsApp.receive_webhook(params)
+    json(conn, %{status: "ok"})
   end
 end

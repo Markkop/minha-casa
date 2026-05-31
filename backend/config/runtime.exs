@@ -49,6 +49,8 @@ config :minha_casa_ai, MinhaCasaAi.Config,
   whatsapp_app_secret: System.get_env("WHATSAPP_APP_SECRET"),
   telegram_bot_token: System.get_env("TELEGRAM_BOT_TOKEN"),
   telegram_webhook_secret: System.get_env("TELEGRAM_WEBHOOK_SECRET"),
+  better_auth_jwks_url:
+    System.get_env("BETTER_AUTH_JWKS_URL") || "http://localhost:5173/auth/jwks",
   app_public_url:
     System.get_env("APP_PUBLIC_URL") || System.get_env("NEXT_PUBLIC_APP_URL") ||
       "http://localhost:3000",

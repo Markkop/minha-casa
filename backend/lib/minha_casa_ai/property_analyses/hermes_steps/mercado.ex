@@ -34,10 +34,4 @@ defmodule MinhaCasaAi.PropertyAnalyses.HermesSteps.Mercado do
     end
   end
 
-  defp facts_line(bundle) do
-    case Step.facts_text(bundle) do
-      nil -> ""
-      text -> "Dados do anúncio: #{text}"
-    end
-  end
 end
