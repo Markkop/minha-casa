@@ -212,7 +212,14 @@
           {/if}
           <div class="space-y-2">
             <label for="collection-label" class="text-sm text-app-muted">Nome da Coleção</label>
-            <Input id="collection-label" bind:value={label} class="border-app-border bg-app-surface-muted" />
+            <Input
+              id="collection-label"
+              bind:value={label}
+              class="border-app-border bg-app-surface-muted"
+              onkeydown={(event) => {
+                if (event.key === "Enter") void handleSave();
+              }}
+            />
           </div>
           <label class="flex items-center justify-between gap-3 text-sm">
             <span class="text-app-muted">Coleção padrão</span>

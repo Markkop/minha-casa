@@ -23,7 +23,12 @@
   import { addonsApi } from "$lib/addons/client";
   import { signOut } from "$lib/auth-client";
   import AnchoredPopover from "$lib/components/ui/AnchoredPopover.svelte";
-  import { readAdminFeatureFlags, type AdminFeatureFlagName } from "$lib/admin/client";
+  import {
+    getAdminFeatureFlag,
+    readAdminFeatureFlags,
+    type AdminFeatureFlagName,
+    type AdminFeatureFlags
+  } from "$lib/admin/client";
   import CollectionsProvider from "$lib/components/anuncios/CollectionsProvider.svelte";
   import ImportExportMenuItems from "$lib/components/anuncios/ImportExportMenuItems.svelte";
   import AnaliseListingBreadcrumb from "$lib/components/analise/AnaliseListingBreadcrumb.svelte";
@@ -37,6 +42,8 @@
     workspaceHeaderControlClass,
     workspaceTopBarControlClass
   } from "$lib/workspace-chrome";
+  import { getFlag } from "$lib/feature-flags";
+  import { syncSubscriptionCookie } from "$lib/sync-subscription-cookie";
   import { workspaceApi } from "$lib/workspace/client";
 
   type ShellUser = {
@@ -63,7 +70,15 @@
   let accountOpen = $state(false);
   let hasFloodRisk = $state(false);
   let hasTeamOrganizations = $state(false);
-  let featureFlags = $state(readAdminFeatureFlags());
+  const isAdmin = $derived(Boolean(user?.isAdmin));
+  let featureFlags = $state<AdminFeatureFlags>(readAdminFeatureFlags(false));
+  let subscriptionReady = $state(false);
+  let hasActiveSubscription = $state(false);
+
+  const shouldLoadCollections = $derived(
+    Boolean(user) && subscriptionReady && hasActiveSubscription
+  );
+  const showSubscriptionPendingChrome = $derived(Boolean(user) && !subscriptionReady);
 
   const coreLinks: NavLink[] = [
     { href: "/anuncios", label: "Anúncios", icon: Home },
@@ -81,9 +96,16 @@
   ];
 
   const visibleLinks = $derived.by(() => {
-    const beforeCore = flagLinks.filter((link) => link.adminFlag === "visaoGeral" && featureFlags.visaoGeral);
+    const beforeCore = flagLinks.filter(
+      (link) =>
+        link.adminFlag === "visaoGeral" &&
+        getAdminFeatureFlag(featureFlags, "visaoGeral", isAdmin)
+    );
     const afterCore = flagLinks.filter(
-      (link) => link.adminFlag && link.adminFlag !== "visaoGeral" && featureFlags[link.adminFlag]
+      (link) =>
+        link.adminFlag &&
+        link.adminFlag !== "visaoGeral" &&
+        getAdminFeatureFlag(featureFlags, link.adminFlag, isAdmin)
     );
     return [...beforeCore, ...coreLinks, ...afterCore];
   });
@@ -111,10 +133,45 @@
     )
   );
 
+  async function refreshSubscription() {
+    if (!user) {
+      hasActiveSubscription = false;
+      subscriptionReady = true;
+      return false;
+    }
+    const result = await syncSubscriptionCookie();
+    hasActiveSubscription = result.hasActiveSubscription;
+    subscriptionReady = true;
+    return result.hasActiveSubscription;
+  }
+
+  $effect(() => {
+    featureFlags = readAdminFeatureFlags(isAdmin);
+  });
+
+  $effect(() => {
+    if (!user) {
+      hasActiveSubscription = false;
+      subscriptionReady = true;
+      return;
+    }
+
+    subscriptionReady = false;
+    void refreshSubscription();
+  });
+
   onMount(() => {
-    featureFlags = readAdminFeatureFlags();
+    const onVisible = () => {
+      if (document.visibilityState === "visible" && user) {
+        void refreshSubscription();
+      }
+    };
+    document.addEventListener("visibilitychange", onVisible);
+
+    const admin = Boolean(user?.isAdmin);
+    featureFlags = readAdminFeatureFlags(admin);
     const syncFlags = () => {
-      featureFlags = readAdminFeatureFlags();
+      featureFlags = readAdminFeatureFlags(admin);
     };
     window.addEventListener("storage", syncFlags);
     void addonsApi.fetchAccess("flood").then((result) => {
@@ -138,6 +195,7 @@
     window.addEventListener("minha-casa:organization-context-change", onOrgChange);
 
     return () => {
+      document.removeEventListener("visibilitychange", onVisible);
       window.removeEventListener("storage", syncFlags);
       window.removeEventListener("minha-casa:organization-context-change", onOrgChange);
     };
@@ -265,10 +323,12 @@
           <span>Risco enchente</span>
         </a>
       {/if}
-      <a href="/organizacoes" role="menuitem" class="flex items-center gap-2 px-3 py-2 hover:bg-app-surface-muted" onclick={closeChrome}>
-        <Users class="h-4 w-4" />
-        <span>Organizações</span>
-      </a>
+      {#if getFlag("organizations")}
+        <a href="/organizacoes" role="menuitem" class="flex items-center gap-2 px-3 py-2 hover:bg-app-surface-muted" onclick={closeChrome}>
+          <Users class="h-4 w-4" />
+          <span>Organizações</span>
+        </a>
+      {/if}
       {#if user?.isAdmin}
         <a href="/admin/feature-flags" role="menuitem" class="flex items-center gap-2 px-3 py-2 hover:bg-app-surface-muted" onclick={closeChrome}>
           <Flag class="h-4 w-4" />
@@ -303,7 +363,7 @@
   </div>
 {/snippet}
 
-<CollectionsProvider>
+<CollectionsProvider enabled={shouldLoadCollections}>
 <div
   data-slot="sidebar-wrapper"
   class="min-h-svh bg-app-bg text-app-fg"
@@ -357,24 +417,51 @@
 
         <nav class="flex min-h-0 min-w-0 flex-1 items-center" aria-label="Breadcrumb">
           <ol class="flex min-w-0 flex-1 flex-nowrap items-center gap-3">
-            {#if showOrgBreadcrumb}
+            {#if showSubscriptionPendingChrome}
               <li class="min-w-0">
-                <OrganizationSwitcher breadcrumb class={orgBreadcrumbClass} />
+                <div
+                  data-testid="workspace-loading-breadcrumb"
+                  class={cn(
+                    workspaceTopBarControlClass,
+                    "w-[min(44vw,12rem)] animate-pulse bg-app-surface-muted"
+                  )}
+                  aria-hidden="true"
+                ></div>
               </li>
-              <li class="text-app-subtle" aria-hidden="true">
-                <span class="text-sm leading-none">/</span>
+              {#if showAnaliseListingBreadcrumb}
+                <li class="text-app-subtle" aria-hidden="true">
+                  <span class="text-sm leading-none">/</span>
+                </li>
+                <li class="min-w-0 flex-1">
+                  <div
+                    class={cn(
+                      workspaceTopBarControlClass,
+                      "w-full max-w-[18rem] animate-pulse bg-app-surface-muted"
+                    )}
+                    aria-hidden="true"
+                  ></div>
+                </li>
+              {/if}
+            {:else}
+              {#if showOrgBreadcrumb}
+                <li class="min-w-0">
+                  <OrganizationSwitcher breadcrumb class={orgBreadcrumbClass} />
+                </li>
+                <li class="text-app-subtle" aria-hidden="true">
+                  <span class="text-sm leading-none">/</span>
+                </li>
+              {/if}
+              <li class="min-w-0">
+                <CollectionBreadcrumb class={collectionBreadcrumbClass} />
               </li>
-            {/if}
-            <li class="min-w-0">
-              <CollectionBreadcrumb class={collectionBreadcrumbClass} />
-            </li>
-            {#if showAnaliseListingBreadcrumb}
-              <li class="text-app-subtle" aria-hidden="true">
-                <span class="text-sm leading-none">/</span>
-              </li>
-              <li class="min-w-0 flex-1">
-                <AnaliseListingBreadcrumb class="w-full max-w-full" />
-              </li>
+              {#if showAnaliseListingBreadcrumb}
+                <li class="text-app-subtle" aria-hidden="true">
+                  <span class="text-sm leading-none">/</span>
+                </li>
+                <li class="min-w-0 flex-1">
+                  <AnaliseListingBreadcrumb class="w-full max-w-full" />
+                </li>
+              {/if}
             {/if}
           </ol>
         </nav>

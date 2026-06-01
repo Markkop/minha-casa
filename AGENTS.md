@@ -16,7 +16,9 @@ docker run --rm -v "$(pwd)/backend:/app" -w /app elixir:1.18-otp-27-alpine \
 - Unless it's too risky. If it is, show how the user could run and ask if you can proceed by confirming you can run them.
 
 - This project is being migrated/was migrated from a NextJs project, so feel free to fix and improve from left overs/bad migration.
-
+- Don't browser QA unless asked to
+- Use subagents to do small and contextual changes
+- Avoid updating/creating files longer than 1k LoC, break them down when needed
 
 ## Production VPS
 

@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { page } from "$app/stores";
-  import { AlertCircle, Calendar, Check, CheckCircle, Crown } from "@lucide/svelte";
+  import { AlertCircle, Calendar, Check, CheckCircle, Crown, FlaskConical } from "@lucide/svelte";
   import { billingApi } from "$lib/billing/client";
   import { syncSubscriptionCookie } from "$lib/sync-subscription-cookie";
   import GrantedAddonsSection from "$lib/addons/GrantedAddonsSection.svelte";
@@ -21,27 +21,27 @@
     {
       slug: "plus",
       name: "Plus",
-      description: "Extraia dados dos seus imoveis favoritos",
+      description: "Extraia dados dos seus imóveis favoritos",
       fallbackPrice: "R$ 20,00",
       features: [
-        "Captura manual de anuncios",
-        "Extracao automatica de dados",
-        "Criar e organizar colecoes",
-        "Compartilhar colecoes",
-        "Salvar e comparar anuncios"
+        "Captura manual de anúncios (Ctrl+C, Ctrl+V)",
+        "Extração automática de dados do anúncio",
+        "Criar e organizar coleções de imóveis",
+        "Compartilhar coleções com outras pessoas",
+        "Salvar e comparar anúncios na plataforma"
       ],
       cta: "checkout"
     },
     {
       slug: "pro",
       name: "Pro",
-      description: "Recursos avancados",
+      description: "Recursos avançados",
       fallbackPrice: "R$ 200,00",
       features: [
         "Tudo do Plus",
-        "Simulador de financiamento",
-        "Mapa de risco de enchente",
-        "Criar organizacoes",
+        "Simulador de financiamento imobiliário",
+        "Mapa de risco de enchente por região",
+        "Criar organizações (times / imobiliárias)",
         "Feedback direto com o desenvolvedor"
       ],
       cta: "coming_soon"
@@ -55,6 +55,7 @@
   let checkoutPlanId = $state<string | null>(null);
   let portalLoading = $state(false);
   let error = $state("");
+  let stripeTestMode = $state(false);
 
   const success = $derived($page.url.searchParams.get("success") === "true");
   const cancelled = $derived($page.url.searchParams.get("cancelled") === "true");
@@ -76,6 +77,7 @@
         billingApi.fetchCurrentSubscription()
       ]);
       plans = plansData.plans;
+      stripeTestMode = plansData.stripeTestMode ?? false;
       subscription = subscriptionData.subscription;
       currentPlan = subscriptionData.plan;
       await syncSubscriptionCookie();
@@ -168,6 +170,22 @@
         <div class="mt-4"><Button variant="secondary" onclick={() => void loadBilling()}>Tentar novamente</Button></div>
       </div>
     {:else}
+      {#if stripeTestMode}
+        <div class="mb-8 rounded-md border border-amber-200 bg-amber-50">
+          <div class="py-4">
+            <div class="flex items-center justify-center gap-3">
+              <FlaskConical class="h-5 w-5 text-amber-700" />
+              <div class="text-center">
+                <p class="font-semibold text-amber-900">MODO DE TESTE ATIVO</p>
+                <p class="text-sm text-amber-800">
+                  Pagamentos nesta pagina estao em modo de teste do Stripe. Nenhuma cobranca real sera processada.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      {/if}
+
       {#if success}
         <div class="mb-6 rounded-md border border-emerald-200 bg-emerald-50 p-4 text-center text-sm text-emerald-800">
           <CheckCircle class="mr-2 inline h-5 w-5" /> Pagamento recebido. Se a assinatura ainda nao apareceu, o webhook pode estar processando.
@@ -236,7 +254,8 @@
               <ul class="mt-6 flex-1 space-y-3">
                 {#each tier.features as feature}
                   <li class="flex items-start gap-2 text-sm text-app-muted">
-                    <Check class="mt-0.5 h-5 w-5 shrink-0 text-app-fg" /> {feature}
+                    <Check class="mt-0.5 h-5 w-5 shrink-0 text-app-accent" />
+                    <span>{feature}</span>
                   </li>
                 {/each}
               </ul>

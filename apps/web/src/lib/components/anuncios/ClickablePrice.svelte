@@ -25,6 +25,13 @@
   function handleClick() {
     if (price !== null) void goto(`/financiamento?price=${price}`);
   }
+
+  function handleKeyDown(event: KeyboardEvent) {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      handleClick();
+    }
+  }
 </script>
 
 {#if price === null}
@@ -36,17 +43,19 @@
   </span>
 {:else}
   <FloatingTooltip label="Simular financiamento" side="bottom">
-    <button
-      type="button"
+    <span
+      role="button"
+      tabindex="0"
       onclick={handleClick}
+      onkeydown={handleKeyDown}
       class={cn(
-        "font-mono text-sm text-app-accent transition-colors hover:text-app-accent/80",
+        "font-mono text-sm text-app-accent cursor-pointer transition-colors hover:text-app-accent/80",
         strikethrough && "line-through opacity-50",
         className
       )}
       data-testid="clickable-price"
     >
       {formatCurrency(price)}
-    </button>
+    </span>
   </FloatingTooltip>
 {/if}

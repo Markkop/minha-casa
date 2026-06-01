@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount } from "svelte";
+  import { onMount, untrack } from "svelte";
   import {
     attachCollectionsListeners,
     createCollectionsState,
@@ -7,7 +7,10 @@
   } from "$lib/collections-context.svelte";
   import { isListingImageIngesting } from "$lib/listing-images";
 
-  let { children } = $props<{ children?: import("svelte").Snippet }>();
+  let { children, enabled = true } = $props<{
+    children?: import("svelte").Snippet;
+    enabled?: boolean;
+  }>();
 
   const state = createCollectionsState();
   setCollectionsContext(state);
@@ -19,17 +22,26 @@
       .join(",")
   );
 
-  onMount(() => {
-    void state.loadCollections().then(() => {
-      if (state.activeCollection?.id) {
-        void state.loadListings(state.activeCollection.id);
+  $effect(() => {
+    if (!enabled) return;
+    void (async () => {
+      await state.loadCollections();
+      const collectionId = untrack(() => state.activeCollection?.id);
+      if (collectionId) {
+        await state.loadListings(collectionId);
       }
-    });
-    return attachCollectionsListeners(state);
+    })();
   });
 
+  onMount(() => attachCollectionsListeners(state, { getEnabled: () => enabled }));
+
   $effect(() => {
-    if (!ingestingListingIdsKey || !state.activeCollection?.id || typeof window === "undefined") {
+    if (
+      !enabled ||
+      !ingestingListingIdsKey ||
+      !state.activeCollection?.id ||
+      typeof window === "undefined"
+    ) {
       return;
     }
 

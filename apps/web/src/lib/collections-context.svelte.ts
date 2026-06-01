@@ -80,7 +80,7 @@ export function createCollectionsState() {
   let collections = $state<Collection[]>([]);
   let activeCollection = $state<Collection | null>(null);
   let listings = $state<Imovel[]>([]);
-  let isLoading = $state(true);
+  let isLoading = $state(false);
   let isLoadingListings = $state(false);
   let error = $state<string | null>(null);
   let refreshTrigger = $state(0);
@@ -390,8 +390,12 @@ export function createCollectionsState() {
   } satisfies CollectionsContextValue;
 }
 
-export function attachCollectionsListeners(state: ReturnType<typeof createCollectionsState>) {
+export function attachCollectionsListeners(
+  state: ReturnType<typeof createCollectionsState>,
+  options?: { getEnabled?: () => boolean }
+) {
   const onOrgChange = () => {
+    if (options?.getEnabled && !options.getEnabled()) return;
     void state.loadCollections();
   };
   const onCollectionChange = (event: Event) => {

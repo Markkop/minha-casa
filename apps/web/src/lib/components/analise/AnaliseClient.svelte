@@ -5,18 +5,27 @@
   import DeepAnalysisPanel from "$lib/components/analise/DeepAnalysisPanel.svelte";
   import PropertyDossier from "$lib/components/analise/PropertyDossier.svelte";
   import { getCollectionsContext } from "$lib/collections-context.svelte";
-  import { readAdminFeatureFlags } from "$lib/admin/client";
+  import { getAdminFeatureFlag, readAdminFeatureFlags } from "$lib/admin/client";
   import { getActiveOrganizationId } from "$lib/api/client";
   import { cn } from "$lib/utils";
   import { WORKSPACE_CONTENT_CLASS, WORKSPACE_STACK_CLASS } from "$lib/workspace-chrome";
 
   const ctx = getCollectionsContext();
 
-  let showDeepAnalysis = $state(readAdminFeatureFlags().deepAnalysis);
+  let { isAdmin = false } = $props<{ isAdmin?: boolean }>();
+
+  let storedFlags = $state<ReturnType<typeof readAdminFeatureFlags>>(readAdminFeatureFlags(false));
+  const showDeepAnalysis = $derived(
+    getAdminFeatureFlag(storedFlags, "deepAnalysis", isAdmin)
+  );
+
+  $effect(() => {
+    storedFlags = readAdminFeatureFlags(isAdmin);
+  });
 
   onMount(() => {
     const syncFlags = () => {
-      showDeepAnalysis = readAdminFeatureFlags().deepAnalysis;
+      storedFlags = readAdminFeatureFlags(isAdmin);
     };
     window.addEventListener("storage", syncFlags);
     return () => window.removeEventListener("storage", syncFlags);

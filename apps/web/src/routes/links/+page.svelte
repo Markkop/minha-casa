@@ -3,7 +3,7 @@
 </script>
 
 <svelte:head>
-  <title>Links</title>
+  <title>Links | Minha Casa</title>
 </svelte:head>
 
 <LinksClient />

@@ -19,7 +19,7 @@
   });
 
   onMount(() => {
-    flags = readAdminFeatureFlags();
+    flags = readAdminFeatureFlags(true);
   });
 
   function setFlag(key: AdminFeatureFlagName, value: boolean) {

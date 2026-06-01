@@ -65,7 +65,7 @@
   }
 </script>
 
-<PageScaffold title="Regioes" description="Regioes de interesse do workspace.">
+<PageScaffold title="Regiões" description="Regiões de interesse do workspace.">
   {#if error}<div class="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</div>{/if}
 
   <form class="grid gap-3 rounded-md border border-app-border bg-app-surface p-4 md:grid-cols-[1fr_1fr_160px_160px_1fr_auto]" onsubmit={(event) => { event.preventDefault(); void save(); }}>

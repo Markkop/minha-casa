@@ -2,6 +2,7 @@
   import { onMount } from "svelte";
   import { Boxes, CreditCard, Pencil, RefreshCcw, Shield, Trash2, Users, Activity } from "@lucide/svelte";
   import AdminAddonManager from "$lib/admin/AdminAddonManager.svelte";
+  import UserDetailsModal from "$lib/admin/UserDetailsModal.svelte";
   import PageScaffold from "$lib/components/layout/PageScaffold.svelte";
   import Button from "$lib/components/ui/Button.svelte";
   import {
@@ -37,6 +38,7 @@
   let selectedUser = $state<AdminUser | null>(null);
   let selectedOrg = $state<AdminOrganization | null>(null);
   let mode = $state<"none" | "edit-user" | "grant-subscription" | "subscriptions" | "user-addons" | "org-addons">("none");
+  let userDetailsOpen = $state(false);
 
   let editName = $state("");
   let selectedPlanId = $state("");
@@ -107,6 +109,16 @@
     } finally {
       saving = false;
     }
+  }
+
+  function openUserDetails(user: AdminUser) {
+    selectedUser = user;
+    userDetailsOpen = true;
+  }
+
+  function closeUserDetails() {
+    userDetailsOpen = false;
+    selectedUser = null;
   }
 
   function openEditUser(user: AdminUser) {
@@ -352,6 +364,7 @@
   }
 
   function handleModalKeydown(event: KeyboardEvent) {
+    if (userDetailsOpen) return;
     if (mode === "none") return;
     if (event.key === "Escape") closeModal();
   }
@@ -393,7 +406,7 @@
 
 <svelte:window onkeydown={handleModalKeydown} />
 
-<PageScaffold title="Admin" description="Usuarios, assinaturas, planos e addons.">
+<PageScaffold title="Admin Dashboard" description="Usuários, assinaturas, planos e addons.">
   {#if error}
     <div class="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</div>
   {/if}
@@ -475,6 +488,7 @@
                   </td>
                   <td class="px-3 py-3">
                     <div class="flex flex-wrap gap-2">
+                      <Button class="h-8 px-3" variant="outline" onclick={() => openUserDetails(user)}>Detalhes</Button>
                       <Button class="h-8 px-3" variant="secondary" onclick={() => openEditUser(user)}><Pencil class="h-4 w-4" /> Editar</Button>
                       <Button class="h-8 px-3" variant="secondary" onclick={() => openGrantSubscription(user)}>Conceder</Button>
                       <Button class="h-8 px-3" variant="secondary" onclick={() => void openSubscriptions(user)}>Assinaturas</Button>
@@ -625,6 +639,15 @@
     {/if}
   {/if}
 </PageScaffold>
+
+{#if userDetailsOpen && selectedUser}
+  <UserDetailsModal
+    user={selectedUser}
+    availableAddons={addons}
+    onClose={closeUserDetails}
+    onUserUpdated={loadAll}
+  />
+{/if}
 
 {#if mode !== "none"}
   <div class="fixed inset-0 z-50 flex items-center justify-center p-4">

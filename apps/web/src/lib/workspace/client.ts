@@ -427,6 +427,8 @@ export const workspaceApi = {
   enrichSavedLink: (id: string) => enrichSavedLink(id),
 
   fetchContacts: () => api.get<{ contacts: Contact[] }>("/workspace/contacts"),
+  /** Re-fetch contacts and sync from listing data (GET triggers sync on backend). */
+  syncContacts: () => api.get<{ contacts: Contact[] }>("/workspace/contacts"),
   saveContact: (input: Partial<Contact>, id?: string) =>
     id
       ? api.put<{ contact: Contact }>(`/workspace/contacts/${id}`, input)
@@ -441,6 +443,8 @@ export const workspaceApi = {
   deleteRegion: (id: string) => api.delete<{ success: true }>(`/workspace/regions/${id}`),
 
   fetchCondominiums: () => api.get<{ condominiums: Condominium[] }>("/workspace/condominiums"),
+  /** Re-fetch condominiums and sync from listing data (GET triggers sync on backend). */
+  syncCondominiums: () => api.get<{ condominiums: Condominium[] }>("/workspace/condominiums"),
   saveCondominium: (input: Partial<Condominium>, id?: string) =>
     id
       ? api.put<{ condominium: Condominium }>(`/workspace/condominiums/${id}`, input)

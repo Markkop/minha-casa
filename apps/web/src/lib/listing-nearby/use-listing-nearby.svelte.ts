@@ -1,4 +1,5 @@
 import type { NearbySection } from "$lib/property-analysis/types";
+import { workspaceApi } from "$lib/workspace/client";
 
 export function useListingNearby(listingId: () => string | null, orgId: () => string | null | undefined) {
   let nearby = $state<NearbySection | null>(null);
@@ -16,15 +17,8 @@ export function useListingNearby(listingId: () => string | null, orgId: () => st
     error = null;
 
     try {
-      const params = new URLSearchParams();
-      const org = orgId();
-      if (org) params.set("orgId", org);
-      const qs = params.toString();
-      const res = await fetch(`/api/listings/${id}/nearby${qs ? `?${qs}` : ""}`);
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        throw new Error(typeof data.error === "string" ? data.error : "Erro ao carregar proximidades");
-      }
+      void orgId();
+      const data = await workspaceApi.fetchListingNearby(id);
       nearby = (data.nearby as NearbySection | null) ?? null;
     } catch (e) {
       error = e instanceof Error ? e.message : "Erro ao carregar proximidades";

@@ -599,7 +599,7 @@
   }
 </script>
 
-<PageScaffold title="Explorar" description="Buscas em portais com filtros unificados, runs Phoenix e matriz de resultados.">
+<PageScaffold title="Explorar" description="Buscas em portais com filtros unificados, runs e matriz de resultados.">
   {#if error}
     <div class="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</div>
   {/if}

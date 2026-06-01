@@ -228,15 +228,44 @@ export const adminFeatureFlagMeta: {
   }
 ];
 
-export function readAdminFeatureFlags(): AdminFeatureFlags {
-  if (typeof window === "undefined") return { ...defaultAdminFeatureFlags };
+export function parseStoredAdminFeatureFlags(raw: string | null): AdminFeatureFlags {
+  if (!raw) return { ...defaultAdminFeatureFlags };
 
   try {
-    const parsed = JSON.parse(window.localStorage.getItem(ADMIN_FEATURE_FLAGS_STORAGE_KEY) || "{}") as Partial<AdminFeatureFlags>;
-    return { ...defaultAdminFeatureFlags, ...parsed };
+    const parsed = JSON.parse(raw) as Partial<AdminFeatureFlags>;
+    const result = { ...defaultAdminFeatureFlags };
+    for (const key of Object.keys(defaultAdminFeatureFlags) as AdminFeatureFlagName[]) {
+      if (typeof parsed[key] === "boolean") {
+        result[key] = parsed[key];
+      }
+    }
+    return result;
   } catch {
     return { ...defaultAdminFeatureFlags };
   }
+}
+
+export function getAdminFeatureFlag(
+  flags: AdminFeatureFlags,
+  key: AdminFeatureFlagName,
+  isAdmin: boolean
+): boolean {
+  if (!isAdmin) return false;
+  return flags[key] === true;
+}
+
+export function readAdminFeatureFlags(isAdmin = false): AdminFeatureFlags {
+  if (typeof window === "undefined") return { ...defaultAdminFeatureFlags };
+
+  const stored = parseStoredAdminFeatureFlags(
+    window.localStorage.getItem(ADMIN_FEATURE_FLAGS_STORAGE_KEY)
+  );
+
+  if (!isAdmin) {
+    return { ...defaultAdminFeatureFlags };
+  }
+
+  return stored;
 }
 
 export function writeAdminFeatureFlags(flags: AdminFeatureFlags) {

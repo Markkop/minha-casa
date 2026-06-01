@@ -118,7 +118,7 @@
 </script>
 
 <svelte:head>
-  <title>Anúncios de Imóveis | Parser IA | Minha Casa</title>
+  <title>Anúncios de Imóveis | Parser IA</title>
   <meta
     name="description"
     content="Gerencie anúncios de imóveis com extração automática de dados usando IA."
