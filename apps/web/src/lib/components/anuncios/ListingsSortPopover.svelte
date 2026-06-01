@@ -25,12 +25,13 @@
   }
 </script>
 
-<ToolbarAnchoredPopover bind:open panelClass="w-56 p-1">
+<ToolbarAnchoredPopover bind:open align="auto" panelClass="w-56 p-1">
   {#snippet trigger()}
     <PageToolbarIconButton
       variant="secondary"
       aria-label="Ordenar"
       title="Ordenar"
+      tooltipDisabled={open}
       onclick={() => (open = !open)}
     >
       <ArrowUpDown />

@@ -19,10 +19,10 @@
   } from "@lucide/svelte";
   import { page } from "$app/stores";
   import { goto } from "$app/navigation";
-  import { onMount, tick } from "svelte";
+  import { onMount } from "svelte";
   import { addonsApi } from "$lib/addons/client";
   import { signOut } from "$lib/auth-client";
-  import { popoverOutside } from "$lib/actions/popover-outside";
+  import AnchoredPopover from "$lib/components/ui/AnchoredPopover.svelte";
   import { readAdminFeatureFlags, type AdminFeatureFlagName } from "$lib/admin/client";
   import CollectionsProvider from "$lib/components/anuncios/CollectionsProvider.svelte";
   import ImportExportMenuItems from "$lib/components/anuncios/ImportExportMenuItems.svelte";
@@ -61,10 +61,6 @@
   let sidebarOpen = $state(true);
   let mobileOpen = $state(false);
   let accountOpen = $state(false);
-  let accountMenuRoot = $state<HTMLDivElement | null>(null);
-  let accountMenuPanel = $state<HTMLDivElement | null>(null);
-  let accountMenuAlign = $state<"start" | "end">("start");
-  let accountMenuStyle = $state("position: fixed; top: -9999px; left: -9999px;");
   let hasFloodRisk = $state(false);
   let hasTeamOrganizations = $state(false);
   let featureFlags = $state(readAdminFeatureFlags());
@@ -183,45 +179,6 @@
     accountOpen = false;
   }
 
-  function handleAccountKeydown(event: KeyboardEvent) {
-    if (event.key === "Escape") {
-      accountOpen = false;
-    }
-  }
-
-  async function updateAccountMenuPosition() {
-    if (!accountOpen || !accountMenuRoot || !accountMenuPanel) return;
-    await tick();
-    if (!accountMenuRoot || !accountMenuPanel) return;
-
-    const triggerRect = accountMenuRoot.getBoundingClientRect();
-    const panelRect = accountMenuPanel.getBoundingClientRect();
-    const viewportPadding = 8;
-    const preferredTop = triggerRect.bottom + 4;
-    const top = Math.min(
-      Math.max(viewportPadding, preferredTop),
-      Math.max(viewportPadding, window.innerHeight - panelRect.height - viewportPadding)
-    );
-    const maxHeight = Math.max(120, window.innerHeight - top - viewportPadding);
-
-    if (accountMenuAlign === "end") {
-      const right = Math.min(
-        Math.max(window.innerWidth - triggerRect.right, viewportPadding),
-        Math.max(viewportPadding, window.innerWidth - panelRect.width - viewportPadding)
-      );
-      accountMenuStyle = `position: fixed; top: ${top}px; right: ${right}px; max-height: ${maxHeight}px; overflow-y: auto;`;
-    } else {
-      const left = Math.min(
-        Math.max(triggerRect.left, viewportPadding),
-        Math.max(viewportPadding, window.innerWidth - panelRect.width - viewportPadding)
-      );
-      accountMenuStyle = `position: fixed; top: ${top}px; left: ${left}px; max-height: ${maxHeight}px; overflow-y: auto;`;
-    }
-  }
-
-  $effect(() => {
-    if (accountOpen) void updateAccountMenuPosition();
-  });
 </script>
 
 {#snippet BrandLink()}
@@ -261,88 +218,80 @@
   </ul>
 {/snippet}
 
-{#snippet AccountDropdown(align: "start" | "end" = "start")}
-  <div
-    bind:this={accountMenuRoot}
-    class="relative"
-    data-account-menu
-    use:popoverOutside={{
-      enabled: () => accountOpen,
-      onClose: () => (accountOpen = false)
-    }}
+{#snippet AccountDropdown()}
+  <AnchoredPopover
+    bind:open={accountOpen}
+    align="auto"
+    offset={4}
+    rootClass="relative w-full"
+    panelClass="w-64 overflow-hidden py-1 text-sm"
   >
-    <button
-      type="button"
-      class="flex min-h-10 w-full min-w-0 items-center gap-2 rounded-md px-2 text-left text-sm text-app-fg transition-colors hover:bg-app-surface-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-accent"
-      aria-label="Menu do usuario"
-      aria-haspopup="menu"
-      aria-expanded={accountOpen}
-      onclick={(event) => {
-        event.stopPropagation();
-        accountMenuAlign = align;
-        accountOpen = !accountOpen;
-      }}
-    >
-      {#if user?.image}
-        <img src={user.image} alt="" class="h-8 w-8 shrink-0 rounded-full border border-app-border object-cover" />
-      {:else}
-        <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-app-border bg-app-surface-muted text-xs font-semibold">
-          {initials}
-        </span>
-      {/if}
-      <span class="min-w-0 flex-1">
-        <span class="block truncate font-medium">{user?.name || user?.email || "Usuário"}</span>
-        {#if user?.email}
-          <span class="block truncate text-xs text-app-muted">{user.email}</span>
-        {/if}
-      </span>
-    </button>
-
-    {#if accountOpen}
-      <div
-        bind:this={accountMenuPanel}
-        role="menu"
-        class="z-[1300] w-64 overflow-hidden rounded-md border border-app-border bg-app-surface py-1 text-sm shadow-lg"
-        style={accountMenuStyle}
+    {#snippet trigger()}
+      <button
+        type="button"
+        data-account-menu
+        class="flex min-h-10 w-full min-w-0 items-center gap-2 rounded-md px-2 text-left text-sm text-app-fg transition-colors hover:bg-app-surface-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-accent"
+        aria-label="Menu do usuario"
+        aria-haspopup="menu"
+        aria-expanded={accountOpen}
+        onclick={(event) => {
+          event.stopPropagation();
+          accountOpen = !accountOpen;
+        }}
       >
-        <div class="border-b border-app-border px-3 py-2">
-          <div class="truncate font-medium">{user?.name || "Usuário"}</div>
-          <div class="truncate text-xs text-app-muted">{user?.email}</div>
-        </div>
-        {#if hasFloodRisk}
-          <a href="/floodrisk" role="menuitem" class="flex items-center gap-2 px-3 py-2 hover:bg-app-surface-muted" onclick={closeChrome}>
-            <Waves class="h-4 w-4" />
-            <span>Risco enchente</span>
-          </a>
+        {#if user?.image}
+          <img src={user.image} alt="" class="h-8 w-8 shrink-0 rounded-full border border-app-border object-cover" />
+        {:else}
+          <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-app-border bg-app-surface-muted text-xs font-semibold">
+            {initials}
+          </span>
         {/if}
-        <a href="/organizacoes" role="menuitem" class="flex items-center gap-2 px-3 py-2 hover:bg-app-surface-muted" onclick={closeChrome}>
-          <Users class="h-4 w-4" />
-          <span>Organizações</span>
-        </a>
-        {#if user?.isAdmin}
-          <a href="/admin/feature-flags" role="menuitem" class="flex items-center gap-2 px-3 py-2 hover:bg-app-surface-muted" onclick={closeChrome}>
-            <Flag class="h-4 w-4" />
-            <span>Feature flags</span>
-          </a>
-          <a href="/admin" role="menuitem" class="flex items-center gap-2 px-3 py-2 hover:bg-app-surface-muted" onclick={closeChrome}>
-            <Settings class="h-4 w-4" />
-            <span>Admin</span>
-          </a>
-        {/if}
-        <a href="/subscribe" role="menuitem" class="flex items-center gap-2 px-3 py-2 hover:bg-app-surface-muted" onclick={closeChrome}>
-          <ClipboardList class="h-4 w-4" />
-          <span>Assinatura</span>
-        </a>
-        <div class="my-1 border-t border-app-border"></div>
-        <ImportExportMenuItems />
-        <div class="my-1 border-t border-app-border"></div>
-        <button type="button" role="menuitem" class="flex w-full items-center gap-2 px-3 py-2 text-left hover:bg-app-surface-muted" onclick={logout}>
-          <LogOut class="h-4 w-4" />
-          <span>Sair</span>
-        </button>
+        <span class="min-w-0 flex-1">
+          <span class="block truncate font-medium">{user?.name || user?.email || "Usuário"}</span>
+          {#if user?.email}
+            <span class="block truncate text-xs text-app-muted">{user.email}</span>
+          {/if}
+        </span>
+      </button>
+    {/snippet}
+    <div role="menu">
+      <div class="border-b border-app-border px-3 py-2">
+        <div class="truncate font-medium">{user?.name || "Usuário"}</div>
+        <div class="truncate text-xs text-app-muted">{user?.email}</div>
       </div>
-    {/if}
-  </div>
+      {#if hasFloodRisk}
+        <a href="/floodrisk" role="menuitem" class="flex items-center gap-2 px-3 py-2 hover:bg-app-surface-muted" onclick={closeChrome}>
+          <Waves class="h-4 w-4" />
+          <span>Risco enchente</span>
+        </a>
+      {/if}
+      <a href="/organizacoes" role="menuitem" class="flex items-center gap-2 px-3 py-2 hover:bg-app-surface-muted" onclick={closeChrome}>
+        <Users class="h-4 w-4" />
+        <span>Organizações</span>
+      </a>
+      {#if user?.isAdmin}
+        <a href="/admin/feature-flags" role="menuitem" class="flex items-center gap-2 px-3 py-2 hover:bg-app-surface-muted" onclick={closeChrome}>
+          <Flag class="h-4 w-4" />
+          <span>Feature flags</span>
+        </a>
+        <a href="/admin" role="menuitem" class="flex items-center gap-2 px-3 py-2 hover:bg-app-surface-muted" onclick={closeChrome}>
+          <Settings class="h-4 w-4" />
+          <span>Admin</span>
+        </a>
+      {/if}
+      <a href="/subscribe" role="menuitem" class="flex items-center gap-2 px-3 py-2 hover:bg-app-surface-muted" onclick={closeChrome}>
+        <ClipboardList class="h-4 w-4" />
+        <span>Assinatura</span>
+      </a>
+      <div class="my-1 border-t border-app-border"></div>
+      <ImportExportMenuItems />
+      <div class="my-1 border-t border-app-border"></div>
+      <button type="button" role="menuitem" class="flex w-full items-center gap-2 px-3 py-2 text-left hover:bg-app-surface-muted" onclick={logout}>
+        <LogOut class="h-4 w-4" />
+        <span>Sair</span>
+      </button>
+    </div>
+  </AnchoredPopover>
 {/snippet}
 
 {#snippet SidebarBody()}
@@ -350,15 +299,9 @@
     {@render NavMenu()}
   </div>
   <div class="mt-auto shrink-0 border-t border-app-border p-2">
-    {@render AccountDropdown("start")}
+    {@render AccountDropdown()}
   </div>
 {/snippet}
-
-<svelte:window
-  onkeydown={handleAccountKeydown}
-  onresize={() => void updateAccountMenuPosition()}
-  onscroll={() => void updateAccountMenuPosition()}
-/>
 
 <CollectionsProvider>
 <div

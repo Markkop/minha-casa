@@ -30,12 +30,13 @@
   let open = $state(false);
 </script>
 
-<ToolbarAnchoredPopover bind:open align="start" panelClass="w-56 p-2">
+<ToolbarAnchoredPopover bind:open align="auto" panelClass="w-56 p-2">
   {#snippet trigger()}
     <PageToolbarIconButton
       variant="secondary"
       aria-label="Exibição do imóvel"
       title="Exibição do imóvel"
+      tooltipDisabled={open}
       onclick={() => (open = !open)}
     >
       <Menu />

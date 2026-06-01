@@ -3,13 +3,23 @@ import type { Action } from "svelte/action";
 type PopoverOutsideParams = {
   enabled: () => boolean;
   onClose: () => void;
+  /** Additional roots treated as inside the popover (e.g. portaled panels). */
+  extraRoots?: () => (HTMLElement | null | undefined)[];
 };
 
 export const popoverOutside: Action<HTMLElement, PopoverOutsideParams> = (node, params) => {
+  function isInside(target: Node) {
+    if (node.contains(target)) return true;
+    for (const root of params.extraRoots?.() ?? []) {
+      if (root?.contains(target)) return true;
+    }
+    return false;
+  }
+
   function handlePointerDown(event: PointerEvent) {
     if (!params.enabled()) return;
     const target = event.target;
-    if (!(target instanceof Node) || node.contains(target)) return;
+    if (!(target instanceof Node) || isInside(target)) return;
     params.onClose();
   }
 

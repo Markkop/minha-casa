@@ -8,6 +8,7 @@
     variant = "secondary",
     class: className = "",
     disabled = false,
+    tooltipDisabled = false,
     type = "button",
     title = undefined,
     "aria-label": ariaLabel = undefined,
@@ -18,6 +19,7 @@
     variant?: Variant;
     class?: string;
     disabled?: boolean;
+    tooltipDisabled?: boolean;
     type?: "button" | "submit";
     title?: string;
     "aria-label"?: string;
@@ -37,7 +39,7 @@
   };
 </script>
 
-<FloatingTooltip label={title} side="bottom">
+<FloatingTooltip label={title} side="bottom" disabled={tooltipDisabled}>
   <button
     {type}
     {disabled}

@@ -21,8 +21,8 @@
     LISTING_MOBILE_ICON_CLASS,
     LISTING_MOBILE_TOOLBAR_GAP_CLASS
   } from "$lib/components/anuncios/listings-table-shared";
-  import { popoverOutside } from "$lib/actions/popover-outside";
   import type { ListingRowInteractions } from "$lib/components/anuncios/listing-row-interactions.svelte";
+  import AnchoredPopover from "$lib/components/ui/AnchoredPopover.svelte";
   import FloatingTooltip from "$lib/components/ui/FloatingTooltip.svelte";
 
   let {
@@ -88,55 +88,49 @@
     className
   )}
 >
-  <div
-    class="relative"
-    use:popoverOutside={{
-      enabled: () => interactions.tipoImovelPopoverOpen,
-      onClose: () => (interactions.tipoImovelPopoverOpen = false)
-    }}
-  >
-    <FloatingTooltip label={`Tipo de imóvel: ${tipoOption.label}`} side="bottom">
+  <AnchoredPopover bind:open={interactions.tipoImovelPopoverOpen} align="auto" panelClass="w-44 p-1">
+    {#snippet trigger()}
+      <FloatingTooltip
+        label={`Tipo de imóvel: ${tipoOption.label}`}
+        side="bottom"
+        disabled={interactions.tipoImovelPopoverOpen}
+      >
+        <button
+          type="button"
+          class={tipoBtnClass}
+          onclick={() => (interactions.tipoImovelPopoverOpen = !interactions.tipoImovelPopoverOpen)}
+        >
+          <TipoIcon class={iconClass} />
+        </button>
+      </FloatingTooltip>
+    {/snippet}
+    {#each TIPO_IMOVEL_OPTIONS as option (option.label)}
+      {@const OptionIcon = option.Icon}
+      {@const isSelected = currentTipo === option.value}
       <button
         type="button"
-        class={tipoBtnClass}
-        onclick={() => (interactions.tipoImovelPopoverOpen = !interactions.tipoImovelPopoverOpen)}
+        onclick={() => {
+          if (isSelected) {
+            interactions.tipoImovelPopoverOpen = false;
+            return;
+          }
+          void interactions.handleSetTipoImovel(option.value);
+        }}
+        class={cn(
+          "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-app-surface-muted",
+          isSelected && "bg-app-surface-muted"
+        )}
       >
-        <TipoIcon class={iconClass} />
+        <OptionIcon class="h-4 w-4 shrink-0" />
+        <span class="flex-1 text-left">{option.label}</span>
+        {#if isSelected}
+          <Check class="h-4 w-4 shrink-0 text-app-accent" />
+        {:else}
+          <span class="h-4 w-4 shrink-0" aria-hidden="true"></span>
+        {/if}
       </button>
-    </FloatingTooltip>
-    {#if interactions.tipoImovelPopoverOpen}
-      <div
-        class="absolute left-0 top-full z-50 mt-1.5 w-44 rounded-md border border-app-border bg-app-surface p-1 text-app-fg shadow-lg"
-      >
-        {#each TIPO_IMOVEL_OPTIONS as option (option.label)}
-          {@const OptionIcon = option.Icon}
-          {@const isSelected = currentTipo === option.value}
-          <button
-            type="button"
-            onclick={() => {
-              if (isSelected) {
-                interactions.tipoImovelPopoverOpen = false;
-                return;
-              }
-              void interactions.handleSetTipoImovel(option.value);
-            }}
-            class={cn(
-              "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-app-surface-muted",
-              isSelected && "bg-app-surface-muted"
-            )}
-          >
-            <OptionIcon class="h-4 w-4 shrink-0" />
-            <span class="flex-1 text-left">{option.label}</span>
-            {#if isSelected}
-              <Check class="h-4 w-4 shrink-0 text-app-accent" />
-            {:else}
-              <span class="h-4 w-4 shrink-0" aria-hidden="true"></span>
-            {/if}
-          </button>
-        {/each}
-      </div>
-    {/if}
-  </div>
+    {/each}
+  </AnchoredPopover>
 
   <FloatingTooltip label={imovel.piscina === true ? "Remover piscina" : "Adicionar piscina"} side="bottom">
     <button

@@ -18,8 +18,8 @@
     MAP_FLOATING_UI_Z_CLASS,
     MAP_FLOATING_UI_Z_INDEX
   } from "$lib/anuncios/listings-panel-layout";
-  import { popoverOutside } from "$lib/actions/popover-outside";
   import PageToolbarIconButton from "$lib/components/page-toolbar/PageToolbarIconButton.svelte";
+  import AnchoredPopover from "$lib/components/ui/AnchoredPopover.svelte";
   import FloatingTooltip from "$lib/components/ui/FloatingTooltip.svelte";
   import { cn } from "$lib/utils";
 
@@ -124,70 +124,64 @@
 </script>
 
 <div data-map-location-picker class="flex min-w-0 flex-1 items-center gap-1.5">
-  <div
-    class="relative min-w-0 flex-1 sm:w-64 sm:flex-none"
-    use:popoverOutside={{
-      enabled: () => open,
-      onClose: () => (open = false)
-    }}
+  <AnchoredPopover
+    bind:open
+    align="auto"
+    rootClass="relative min-w-0 flex-1 sm:w-64 sm:flex-none"
+    panelClass="w-72 p-1"
+    zIndexClass={MAP_FLOATING_UI_Z_CLASS}
+    zIndexStyle={String(MAP_FLOATING_UI_Z_INDEX)}
   >
-    <Search class="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-    <input
-      type="text"
-      placeholder="Cidade..."
-      value={displayValue}
-      disabled={disabled || resolving}
-      class="h-7 w-full truncate rounded-md border border-app-border bg-app-surface py-0 pl-7 pr-6 text-xs text-app-fg placeholder:text-app-subtle"
-      onfocus={() => (open = true)}
-      oninput={(event) => {
-        query = event.currentTarget.value;
-        open = true;
-      }}
-    />
-    {#if resolving || loadingLocations}
-      <Loader2 class="absolute right-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 animate-spin text-app-subtle" />
-    {/if}
-
-    {#if open}
-      <div
-        class={cn(
-          "absolute left-0 top-full mt-1.5 w-72 rounded-md border border-app-border bg-app-surface p-1 text-app-fg shadow-lg",
-          MAP_FLOATING_UI_Z_CLASS
-        )}
-        style={`z-index: ${MAP_FLOATING_UI_Z_INDEX}`}
-      >
-        {#if loadingLocations}
-          <p class="px-2 py-1.5 text-xs text-app-muted">Carregando cidades...</p>
-        {:else if !query.trim()}
-          <p class="px-2 py-1.5 text-xs text-app-muted">Digite para buscar cidade ou estado</p>
-        {:else if searchResults.states.length === 0 && searchResults.cities.length === 0}
-          <p class="px-2 py-1.5 text-xs text-app-muted">Nenhum resultado</p>
-        {:else}
-          <div class="flex max-h-56 flex-col gap-0.5 overflow-y-auto">
-            {#each searchResults.states as state (state.id)}
-              <button
-                type="button"
-                class="flex w-full items-center justify-between rounded px-2 py-1.5 text-left text-xs text-app-muted transition-colors hover:bg-app-surface-muted hover:text-app-fg"
-                onclick={() => void handleSelect({ type: "state", state })}
-              >
-                <span>{state.nome}</span>
-                <span class="text-app-subtle">{state.sigla}</span>
-              </button>
-            {/each}
-            {#each searchResults.cities as city (city.id)}
-              <button
-                type="button"
-                class="w-full rounded px-2 py-1.5 text-left text-xs text-app-muted transition-colors hover:bg-app-surface-muted hover:text-app-fg"
-                onclick={() => void handleSelect({ type: "city", city })}
-              >
-                {city.label}
-              </button>
-            {/each}
-          </div>
+    {#snippet trigger()}
+      <div class="relative min-w-0 w-full">
+        <Search class="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+        <input
+          type="text"
+          placeholder="Cidade..."
+          value={displayValue}
+          disabled={disabled || resolving}
+          class="h-7 w-full truncate rounded-md border border-app-border bg-app-surface py-0 pl-7 pr-6 text-xs text-app-fg placeholder:text-app-subtle"
+          onfocus={() => (open = true)}
+          oninput={(event) => {
+            query = event.currentTarget.value;
+            open = true;
+          }}
+        />
+        {#if resolving || loadingLocations}
+          <Loader2 class="absolute right-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 animate-spin text-app-subtle" />
         {/if}
       </div>
+    {/snippet}
+    {#if loadingLocations}
+      <p class="px-2 py-1.5 text-xs text-app-muted">Carregando cidades...</p>
+    {:else if !query.trim()}
+      <p class="px-2 py-1.5 text-xs text-app-muted">Digite para buscar cidade ou estado</p>
+    {:else if searchResults.states.length === 0 && searchResults.cities.length === 0}
+      <p class="px-2 py-1.5 text-xs text-app-muted">Nenhum resultado</p>
+    {:else}
+      <div class="flex max-h-56 flex-col gap-0.5 overflow-y-auto">
+        {#each searchResults.states as state (state.id)}
+          <button
+            type="button"
+            class="flex w-full items-center justify-between rounded px-2 py-1.5 text-left text-xs text-app-muted transition-colors hover:bg-app-surface-muted hover:text-app-fg"
+            onclick={() => void handleSelect({ type: "state", state })}
+          >
+            <span>{state.nome}</span>
+            <span class="text-app-subtle">{state.sigla}</span>
+          </button>
+        {/each}
+        {#each searchResults.cities as city (city.id)}
+          <button
+            type="button"
+            class="w-full rounded px-2 py-1.5 text-left text-xs text-app-muted transition-colors hover:bg-app-surface-muted hover:text-app-fg"
+            onclick={() => void handleSelect({ type: "city", city })}
+          >
+            {city.label}
+          </button>
+        {/each}
+      </div>
     {/if}
-  </div>
+  </AnchoredPopover>
 
   <FloatingTooltip label="Estado (UF)" side="bottom">
     <span

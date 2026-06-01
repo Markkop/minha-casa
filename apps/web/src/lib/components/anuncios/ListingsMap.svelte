@@ -264,7 +264,7 @@
           {:else if missingListings.length > 0}
             <ToolbarAnchoredPopover
               bind:open={missingPopoverOpen}
-              align="end"
+              align="auto"
               offsetClass="mt-1"
               panelClass="w-72 max-w-md p-2"
               mapFloating

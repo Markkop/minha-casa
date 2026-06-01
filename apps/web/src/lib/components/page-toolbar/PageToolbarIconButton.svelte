@@ -6,6 +6,7 @@
     variant = "secondary",
     class: className = "",
     disabled = false,
+    tooltipDisabled = false,
     title = undefined,
     "aria-label": ariaLabel = undefined,
     "aria-pressed": ariaPressed = undefined,
@@ -15,6 +16,7 @@
     variant?: "primary" | "secondary" | "destructive" | "ghost" | "active";
     class?: string;
     disabled?: boolean;
+    tooltipDisabled?: boolean;
     title?: string;
     "aria-label"?: string;
     "aria-pressed"?: boolean;
@@ -27,6 +29,7 @@
   {variant}
   class={cn("h-7 w-7 p-0", className)}
   {disabled}
+  {tooltipDisabled}
   {title}
   aria-label={ariaLabel}
   aria-pressed={ariaPressed}

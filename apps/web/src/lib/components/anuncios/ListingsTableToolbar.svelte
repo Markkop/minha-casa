@@ -174,12 +174,13 @@
     </div>
 
     <div class="hidden md:contents">
-      <ToolbarAnchoredPopover bind:open={columnsOpen} panelClass="w-56 p-2">
+      <ToolbarAnchoredPopover bind:open={columnsOpen} align="auto" panelClass="w-56 p-2">
         {#snippet trigger()}
           <PageToolbarIconButton
             variant="secondary"
             aria-label="Colunas visíveis"
             title="Colunas visíveis"
+            tooltipDisabled={columnsOpen}
             onclick={() => (columnsOpen = !columnsOpen)}
           >
             <Columns3 />

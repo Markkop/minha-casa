@@ -124,7 +124,7 @@
   </div>
 
   <div class="absolute right-1 top-1 z-10">
-    <ToolbarAnchoredPopover bind:open={editOpen} align="end" offsetClass="mt-2" panelClass="w-64 p-3">
+    <ToolbarAnchoredPopover bind:open={editOpen} align="auto" offsetClass="mt-2" panelClass="w-64 p-3">
       {#snippet trigger()}
         <Button
           type="button"

@@ -1,13 +1,13 @@
 <script lang="ts">
   import { onDestroy, tick, type Snippet } from "svelte";
+  import { computeTooltipPlacement, type TooltipSide } from "$lib/floating-position";
   import { cn } from "$lib/utils";
-
-  type TooltipSide = "top" | "bottom";
 
   let {
     label,
     side = "bottom",
     offset = 4,
+    disabled = false,
     class: className = "",
     wrapperClass = "inline-flex shrink-0",
     children
@@ -15,6 +15,7 @@
     label?: string | null;
     side?: TooltipSide;
     offset?: number;
+    disabled?: boolean;
     class?: string;
     wrapperClass?: string;
     children: Snippet;
@@ -47,7 +48,7 @@
   }
 
   async function updatePosition() {
-    if (!open || !triggerRef) return;
+    if (!open || disabled || !triggerRef) return;
     const tooltip = ensureTooltip();
     if (!tooltip) return;
     await tick();
@@ -55,25 +56,14 @@
 
     const triggerRect = triggerRef.getBoundingClientRect();
     const tooltipRect = tooltip.getBoundingClientRect();
-    const left = Math.min(
-      Math.max(triggerRect.left + triggerRect.width / 2, tooltipRect.width / 2 + 8),
-      window.innerWidth - tooltipRect.width / 2 - 8
-    );
-    const preferredTop =
-      side === "bottom"
-        ? triggerRect.bottom + offset
-        : triggerRect.top - tooltipRect.height - offset;
-    const top = Math.min(
-      Math.max(8, preferredTop),
-      Math.max(8, window.innerHeight - tooltipRect.height - 8)
-    );
+    const placement = computeTooltipPlacement(triggerRect, tooltipRect, side, offset);
 
-    tooltip.style.left = `${left}px`;
-    tooltip.style.top = `${top}px`;
+    tooltip.style.left = `${placement.left}px`;
+    tooltip.style.top = `${placement.top}px`;
   }
 
   function show() {
-    if (!label) return;
+    if (!label || disabled) return;
     open = true;
     void updatePosition();
   }
@@ -84,6 +74,10 @@
   }
 
   $effect(() => {
+    if (disabled) {
+      hide();
+      return;
+    }
     if (!open || !label) {
       removeTooltip();
       return;

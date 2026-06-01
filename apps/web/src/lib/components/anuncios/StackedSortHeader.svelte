@@ -31,7 +31,7 @@
 </script>
 
 <th class="p-2 text-right text-app-muted">
-  <ToolbarAnchoredPopover bind:open align="end" offsetClass="mt-1" panelClass="w-40 p-1">
+  <ToolbarAnchoredPopover bind:open align="auto" offsetClass="mt-1" panelClass="w-40 p-1">
     {#snippet trigger()}
       <button
         type="button"

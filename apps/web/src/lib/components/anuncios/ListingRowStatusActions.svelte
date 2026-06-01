@@ -2,7 +2,7 @@
   import Input from "$lib/components/ui/Input.svelte";
   import type { Collection, Imovel } from "$lib/anuncios/types";
   import { buildWhatsAppUrl } from "$lib/anuncios/listings-contact";
-  import { popoverOutside } from "$lib/actions/popover-outside";
+  import AnchoredPopover from "$lib/components/ui/AnchoredPopover.svelte";
   import { cn } from "$lib/utils";
   import {
     Pencil,
@@ -186,148 +186,150 @@
         </a>
       </FloatingTooltip>
     {:else}
-      <div
-        class="relative"
-        use:popoverOutside={{
-          enabled: () => interactions.contactPopoverOpen,
-          onClose: closeContactPopover
-        }}
+      <AnchoredPopover
+        bind:open={interactions.contactPopoverOpen}
+        align="auto"
+        panelClass="w-64 p-3"
+        onClose={closeContactPopover}
       >
-        <FloatingTooltip label="Adicionar contato WhatsApp" side="bottom">
+        {#snippet trigger()}
+          <FloatingTooltip
+            label="Adicionar contato WhatsApp"
+            side="bottom"
+            disabled={interactions.contactPopoverOpen}
+          >
+            <button
+              type="button"
+              class={actionMutedClass}
+              onclick={() => interactions.openContactPopover()}
+            >
+              <WhatsAppIcon class={cn(actionIconClass, "size-3.5")} />
+            </button>
+          </FloatingTooltip>
+        {/snippet}
+        <div class="space-y-3">
+          <p class="text-sm font-medium text-app-muted">Contato WhatsApp</p>
+          {#if uniqueContacts.length > 0}
+            <select
+              class="w-full rounded border border-app-border bg-app-surface-muted px-2 py-1.5 text-sm text-app-fg"
+              value=""
+              onchange={(event) => {
+                const contact = uniqueContacts.find((c) => c.number === event.currentTarget.value);
+                if (contact) interactions.handleSelectExistingContact(contact);
+              }}
+            >
+              <option value="">Selecionar contato existente...</option>
+              {#each uniqueContacts as contact (contact.number)}
+                <option value={contact.number}>
+                  {contact.name || contact.number}
+                  {contact.name ? ` (${contact.number})` : ""}
+                </option>
+              {/each}
+            </select>
+          {/if}
+          <div class="space-y-2">
+            <Input
+              bind:value={interactions.contactNameInput}
+              placeholder="Nome do contato"
+              class={inputClass}
+            />
+            <Input
+              bind:value={interactions.contactNumberInput}
+              placeholder="Ex: 48996792216"
+              class={inputClass}
+              onkeydown={(event: KeyboardEvent) => {
+                if (event.key === "Enter") void interactions.handleSaveContact();
+              }}
+            />
+          </div>
+          <div class="flex gap-2">
+            <button
+              type="button"
+              onclick={closeContactPopover}
+              class="flex-1 rounded border border-app-border bg-app-surface-muted px-3 py-1.5 text-sm text-app-fg transition-colors hover:border-app-action hover:text-app-accent"
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              onclick={() => void interactions.handleSaveContact()}
+              class="flex-1 rounded bg-app-action px-3 py-1.5 text-sm text-app-action-foreground transition-colors hover:bg-app-action-hover"
+            >
+              Salvar
+            </button>
+          </div>
+        </div>
+      </AnchoredPopover>
+    {/if}
+
+    <AnchoredPopover
+      bind:open={interactions.quickReparsePopoverOpen}
+      align="auto"
+      panelClass="w-64 p-3"
+      onClose={closeQuickReparsePopover}
+    >
+      {#snippet trigger()}
+        <FloatingTooltip
+          label="Reparse rápido com IA"
+          side="bottom"
+          disabled={interactions.quickReparsePopoverOpen}
+        >
           <button
             type="button"
             class={actionMutedClass}
-            onclick={() => interactions.openContactPopover()}
+            onclick={() => interactions.openQuickReparsePopover()}
           >
-            <WhatsAppIcon class={cn(actionIconClass, "size-3.5")} />
+            <RefreshCw class={actionIconClass} />
           </button>
         </FloatingTooltip>
-        {#if interactions.contactPopoverOpen}
-          <div class="absolute right-0 top-full z-50 mt-1 w-64 rounded-md border border-app-border bg-app-surface p-3 shadow-lg">
-            <div class="space-y-3">
-              <p class="text-sm font-medium text-app-muted">Contato WhatsApp</p>
-              {#if uniqueContacts.length > 0}
-                <select
-                  class="w-full rounded border border-app-border bg-app-surface-muted px-2 py-1.5 text-sm text-app-fg"
-                  value=""
-                  onchange={(event) => {
-                    const contact = uniqueContacts.find((c) => c.number === event.currentTarget.value);
-                    if (contact) interactions.handleSelectExistingContact(contact);
-                  }}
-                >
-                  <option value="">Selecionar contato existente...</option>
-                  {#each uniqueContacts as contact (contact.number)}
-                    <option value={contact.number}>
-                      {contact.name || contact.number}
-                      {contact.name ? ` (${contact.number})` : ""}
-                    </option>
-                  {/each}
-                </select>
-              {/if}
-              <div class="space-y-2">
-                <Input
-                  bind:value={interactions.contactNameInput}
-                  placeholder="Nome do contato"
-                  class={inputClass}
-                />
-                <Input
-                  bind:value={interactions.contactNumberInput}
-                  placeholder="Ex: 48996792216"
-                  class={inputClass}
-                  onkeydown={(event: KeyboardEvent) => {
-                    if (event.key === "Enter") void interactions.handleSaveContact();
-                  }}
-                />
-              </div>
-              <div class="flex gap-2">
-                <button
-                  type="button"
-                  onclick={closeContactPopover}
-                  class="flex-1 rounded border border-app-border bg-app-surface-muted px-3 py-1.5 text-sm text-app-fg transition-colors hover:border-app-action hover:text-app-accent"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="button"
-                  onclick={() => void interactions.handleSaveContact()}
-                  class="flex-1 rounded bg-app-action px-3 py-1.5 text-sm text-app-action-foreground transition-colors hover:bg-app-action-hover"
-                >
-                  Salvar
-                </button>
-              </div>
-            </div>
-          </div>
+      {/snippet}
+      <div class="space-y-3">
+        <p class="text-sm font-medium text-app-muted">Cole o texto do anúncio</p>
+        <Input
+          bind:value={interactions.quickReparseInput}
+          placeholder="Cole aqui o texto completo..."
+          disabled={interactions.quickReparseLoading}
+          class={inputClass}
+          oninput={() => (interactions.quickReparseError = null)}
+          onkeydown={(event: KeyboardEvent) => {
+            if (
+              event.key === "Enter" &&
+              interactions.quickReparseInput.trim() &&
+              !interactions.quickReparseLoading
+            ) {
+              void interactions.runQuickReparse();
+            }
+          }}
+        />
+        {#if interactions.quickReparseError}
+          <p class="text-xs text-destructive">{interactions.quickReparseError}</p>
         {/if}
-      </div>
-    {/if}
-
-    <div
-      class="relative"
-      use:popoverOutside={{
-        enabled: () => interactions.quickReparsePopoverOpen,
-        onClose: closeQuickReparsePopover
-      }}
-    >
-      <FloatingTooltip label="Reparse rápido com IA" side="bottom">
-        <button
-          type="button"
-          class={actionMutedClass}
-          onclick={() => interactions.openQuickReparsePopover()}
-        >
-          <RefreshCw class={actionIconClass} />
-        </button>
-      </FloatingTooltip>
-      {#if interactions.quickReparsePopoverOpen}
-        <div class="absolute right-0 top-full z-50 mt-1 w-64 rounded-md border border-app-border bg-app-surface p-3 shadow-lg">
-          <div class="space-y-3">
-            <p class="text-sm font-medium text-app-muted">Cole o texto do anúncio</p>
-            <Input
-              bind:value={interactions.quickReparseInput}
-              placeholder="Cole aqui o texto completo..."
-              disabled={interactions.quickReparseLoading}
-              class={inputClass}
-              oninput={() => (interactions.quickReparseError = null)}
-              onkeydown={(event: KeyboardEvent) => {
-                if (
-                  event.key === "Enter" &&
-                  interactions.quickReparseInput.trim() &&
-                  !interactions.quickReparseLoading
-                ) {
-                  void interactions.runQuickReparse();
-                }
-              }}
-            />
-            {#if interactions.quickReparseError}
-              <p class="text-xs text-destructive">{interactions.quickReparseError}</p>
-            {/if}
-            {#if interactions.quickReparseLoading}
-              <p class="flex items-center gap-2 text-xs text-muted-foreground">
-                <Loader2 class="h-3 w-3 animate-spin" />
-                Processando...
-              </p>
-            {/if}
-            <div class="flex gap-2">
-              <button
-                type="button"
-                onclick={closeQuickReparsePopover}
-                disabled={interactions.quickReparseLoading}
-                class="flex-1 rounded border border-app-border bg-app-surface-muted px-3 py-1.5 text-sm text-app-fg transition-colors hover:border-app-action hover:text-app-accent disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                Cancelar
-              </button>
-              <button
-                type="button"
-                onclick={() => void interactions.runQuickReparse()}
-                disabled={!interactions.quickReparseInput.trim() || interactions.quickReparseLoading}
-                class="flex-1 rounded bg-app-action px-3 py-1.5 text-sm text-app-action-foreground transition-colors hover:bg-app-action-hover disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {interactions.quickReparseLoading ? "Processando..." : "Processar"}
-              </button>
-            </div>
-          </div>
+        {#if interactions.quickReparseLoading}
+          <p class="flex items-center gap-2 text-xs text-muted-foreground">
+            <Loader2 class="h-3 w-3 animate-spin" />
+            Processando...
+          </p>
+        {/if}
+        <div class="flex gap-2">
+          <button
+            type="button"
+            onclick={closeQuickReparsePopover}
+            disabled={interactions.quickReparseLoading}
+            class="flex-1 rounded border border-app-border bg-app-surface-muted px-3 py-1.5 text-sm text-app-fg transition-colors hover:border-app-action hover:text-app-accent disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            Cancelar
+          </button>
+          <button
+            type="button"
+            onclick={() => void interactions.runQuickReparse()}
+            disabled={!interactions.quickReparseInput.trim() || interactions.quickReparseLoading}
+            class="flex-1 rounded bg-app-action px-3 py-1.5 text-sm text-app-action-foreground transition-colors hover:bg-app-action-hover disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {interactions.quickReparseLoading ? "Processando..." : "Processar"}
+          </button>
         </div>
-      {/if}
-    </div>
+      </div>
+    </AnchoredPopover>
 
     <FloatingTooltip label="Editar imóvel" side="bottom">
       <button
@@ -350,43 +352,41 @@
     </FloatingTooltip>
 
     {#if hasOtherCollections}
-      <div
-        class="relative"
-        use:popoverOutside={{
-          enabled: () => interactions.copyToCollectionPopoverOpen,
-          onClose: () => (interactions.copyToCollectionPopoverOpen = false)
-        }}
+      <AnchoredPopover
+        bind:open={interactions.copyToCollectionPopoverOpen}
+        align="auto"
+        panelClass="w-52 p-1"
       >
-        <FloatingTooltip label="Copiar para outra coleção" side="bottom">
-          <button
-            type="button"
-            class={actionMutedClass}
-            onclick={() =>
-              (interactions.copyToCollectionPopoverOpen = !interactions.copyToCollectionPopoverOpen)}
+        {#snippet trigger()}
+          <FloatingTooltip
+            label="Copiar para outra coleção"
+            side="bottom"
+            disabled={interactions.copyToCollectionPopoverOpen}
           >
-            <Folder class={actionIconClass} />
-          </button>
-        </FloatingTooltip>
-        {#if interactions.copyToCollectionPopoverOpen}
-          <div
-            class="absolute right-0 top-full z-50 mt-1.5 w-52 rounded-md border border-app-border bg-app-surface p-1 text-app-fg shadow-lg"
-          >
-            <p class="px-2 py-1 text-xs font-medium text-app-muted">Copiar para...</p>
-            <div class="flex flex-col gap-0.5">
-              {#each collections.filter((c) => c.id !== activeCollectionId) as collection (collection.id)}
-                <button
-                  type="button"
-                  onclick={() => void interactions.handleCopyToCollection(collection.id)}
-                  class="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors hover:bg-app-surface-muted"
-                >
-                  <Folder class={cn(actionIconClass, "shrink-0")} />
-                  <span class="flex-1 truncate">{collection.label}</span>
-                </button>
-              {/each}
-            </div>
-          </div>
-        {/if}
-      </div>
+            <button
+              type="button"
+              class={actionMutedClass}
+              onclick={() =>
+                (interactions.copyToCollectionPopoverOpen = !interactions.copyToCollectionPopoverOpen)}
+            >
+              <Folder class={actionIconClass} />
+            </button>
+          </FloatingTooltip>
+        {/snippet}
+        <p class="px-2 py-1 text-xs font-medium text-app-muted">Copiar para...</p>
+        <div class="flex flex-col gap-0.5">
+          {#each collections.filter((c) => c.id !== activeCollectionId) as collection (collection.id)}
+            <button
+              type="button"
+              onclick={() => void interactions.handleCopyToCollection(collection.id)}
+              class="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors hover:bg-app-surface-muted"
+            >
+              <Folder class={cn(actionIconClass, "shrink-0")} />
+              <span class="flex-1 truncate">{collection.label}</span>
+            </button>
+          {/each}
+        </div>
+      </AnchoredPopover>
     {/if}
   </div>
 {/snippet}
