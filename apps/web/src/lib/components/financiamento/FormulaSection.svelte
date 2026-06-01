@@ -23,7 +23,11 @@
     initialExpanded?: boolean;
   } = $props();
 
-  let expanded = $state(initialExpanded);
+  let expanded = $state<boolean>();
+
+  $effect(() => {
+    expanded ??= initialExpanded;
+  });
 </script>
 
 <div class="border-b border-app-border pb-4 last:border-b-0 last:pb-0">

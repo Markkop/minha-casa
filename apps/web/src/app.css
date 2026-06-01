@@ -23,6 +23,9 @@
   --color-app-action-hover: var(--app-action-hover);
   --color-app-action-foreground: var(--app-action-foreground);
   --color-app-accent: var(--app-accent);
+  --color-app-danger: var(--app-danger);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
   --color-salmon: #ff8a59;
   --color-green: #00f773;
   --radius-md: var(--radius);
@@ -42,6 +45,7 @@
   --app-action-hover: #7ec4f8;
   --app-action-foreground: #121a24;
   --app-accent: #1d5f9e;
+  --app-danger: #c4362e;
   --background: var(--app-bg);
   --foreground: var(--app-fg);
   --card: var(--app-surface);
@@ -49,9 +53,11 @@
   --muted: var(--app-surface-muted);
   --muted-foreground: var(--app-muted);
   --border: var(--app-border);
+  --input: var(--app-surface-muted);
+  --ring: var(--app-accent);
   --primary: var(--app-action);
   --primary-foreground: var(--app-action-foreground);
-  --destructive: #c4362e;
+  --destructive: var(--app-danger);
   font-family:
     Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
@@ -81,6 +87,24 @@
   select,
   textarea {
     font: inherit;
+  }
+
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]),
+  a[href],
+  label:has(input:not(:disabled)),
+  select:not(:disabled),
+  input[type="checkbox"]:not(:disabled),
+  input[type="radio"]:not(:disabled),
+  input[type="file"]:not(:disabled) {
+    cursor: pointer;
+  }
+
+  button:disabled,
+  select:disabled,
+  input:disabled,
+  textarea:disabled {
+    cursor: not-allowed;
   }
 }
 

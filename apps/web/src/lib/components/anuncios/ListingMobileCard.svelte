@@ -7,6 +7,7 @@
   import ListingPropertyIconToolbar from "$lib/components/anuncios/ListingPropertyIconToolbar.svelte";
   import ListingRowStatusActions from "$lib/components/anuncios/ListingRowStatusActions.svelte";
   import WhatsAppIcon from "$lib/components/anuncios/WhatsAppIcon.svelte";
+  import FloatingTooltip from "$lib/components/ui/FloatingTooltip.svelte";
   import { mobileCompactListingDisplayTitle } from "$lib/listing-display-title";
   import { buildWhatsAppUrl } from "$lib/anuncios/listings-contact";
   import { buildGoogleMapsUrl, calculatePrecoM2, calculatePrecoM2Privado } from "$lib/components/anuncios/listing-row-urls";
@@ -83,20 +84,21 @@
 
 {#snippet mobileContactLink()}
   {#if showMobileContactLink && mobileContactUrl}
-    <a
-      data-testid="listing-mobile-contact"
-      href={mobileContactUrl}
-      target="_blank"
-      rel="noopener noreferrer"
-      class={cn(
-        "flex min-w-0 max-w-full items-center gap-1 truncate text-[10px] text-green-600 transition-colors hover:text-green-500",
-        imovel.strikethrough && "line-through opacity-50"
-      )}
-      title={imovel.contactName ? `WhatsApp — ${imovel.contactName}` : "Abrir WhatsApp"}
-    >
-      <WhatsAppIcon class="h-3 w-3 shrink-0" />
-      <span class="truncate">{imovel.contactName ?? imovel.contactNumber}</span>
-    </a>
+    <FloatingTooltip label={imovel.contactName ? `WhatsApp — ${imovel.contactName}` : "Abrir WhatsApp"} side="bottom" wrapperClass="block min-w-0 max-w-full">
+      <a
+        data-testid="listing-mobile-contact"
+        href={mobileContactUrl}
+        target="_blank"
+        rel="noopener noreferrer"
+        class={cn(
+          "flex min-w-0 max-w-full items-center gap-1 truncate text-[10px] text-green-600 transition-colors hover:text-green-500",
+          imovel.strikethrough && "line-through opacity-50"
+        )}
+      >
+        <WhatsAppIcon class="h-3 w-3 shrink-0" />
+        <span class="truncate">{imovel.contactName ?? imovel.contactNumber}</span>
+      </a>
+    </FloatingTooltip>
   {/if}
 {/snippet}
 
@@ -169,20 +171,21 @@
           data-testid="listing-mobile-overlay-bottom"
           class={cn("absolute inset-x-0 bottom-0 z-10", LISTING_MOBILE_EDGE_INSET_CLASS)}
         >
-          <a
-            data-testid="listing-mobile-address"
-            href={buildGoogleMapsUrl(imovel.endereco)}
-            target="_blank"
-            rel="noopener noreferrer"
-            class={cn(
-              "block truncate text-[10px] leading-tight text-white/95 underline decoration-white/40 decoration-dotted underline-offset-2 drop-shadow-sm transition-colors hover:text-white",
-              imovel.strikethrough && "line-through opacity-50"
-            )}
-            title="Abrir {imovel.endereco} no Google Maps"
-            onclick={(event) => event.stopPropagation()}
-          >
-            {imovel.endereco}
-          </a>
+          <FloatingTooltip label={`Abrir ${imovel.endereco} no Google Maps`} side="bottom" wrapperClass="block min-w-0">
+            <a
+              data-testid="listing-mobile-address"
+              href={buildGoogleMapsUrl(imovel.endereco)}
+              target="_blank"
+              rel="noopener noreferrer"
+              class={cn(
+                "block truncate text-[10px] leading-tight text-white/95 underline decoration-white/40 decoration-dotted underline-offset-2 drop-shadow-sm transition-colors hover:text-white",
+                imovel.strikethrough && "line-through opacity-50"
+              )}
+              onclick={(event) => event.stopPropagation()}
+            >
+              {imovel.endereco}
+            </a>
+          </FloatingTooltip>
         </div>
       {/if}
     </div>
@@ -313,37 +316,39 @@
     >
       <div class="min-w-0 flex-1">
         {#if showAddress}
-          <a
-            data-testid="listing-mobile-address"
-            href={buildGoogleMapsUrl(imovel.endereco)}
-            target="_blank"
-            rel="noopener noreferrer"
-            class={cn(
-              "block truncate text-xs text-app-muted underline decoration-dotted underline-offset-2 transition-colors hover:text-app-fg",
-              imovel.strikethrough && "line-through opacity-50"
-            )}
-            title="Abrir {imovel.endereco} no Google Maps"
-          >
-            {imovel.endereco}
-          </a>
+          <FloatingTooltip label={`Abrir ${imovel.endereco} no Google Maps`} side="bottom" wrapperClass="block min-w-0">
+            <a
+              data-testid="listing-mobile-address"
+              href={buildGoogleMapsUrl(imovel.endereco)}
+              target="_blank"
+              rel="noopener noreferrer"
+              class={cn(
+                "block truncate text-xs text-app-muted underline decoration-dotted underline-offset-2 transition-colors hover:text-app-fg",
+                imovel.strikethrough && "line-through opacity-50"
+              )}
+            >
+              {imovel.endereco}
+            </a>
+          </FloatingTooltip>
         {/if}
         {#if showContact}
           {@const whatsappUrl = buildWhatsAppUrl(imovel.contactNumber)}
           {#if whatsappUrl}
-            <a
-              data-testid="listing-mobile-contact"
-              href={whatsappUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              class={cn(
-                "mt-0.5 flex min-w-0 items-center gap-1 truncate text-xs text-green-600 transition-colors hover:text-green-500",
-                imovel.strikethrough && "line-through opacity-50"
-              )}
-              title={imovel.contactName ? `WhatsApp — ${imovel.contactName}` : "Abrir WhatsApp"}
-            >
-              <WhatsAppIcon class="h-3 w-3 shrink-0" />
-              <span class="truncate">{imovel.contactName ?? imovel.contactNumber}</span>
-            </a>
+            <FloatingTooltip label={imovel.contactName ? `WhatsApp — ${imovel.contactName}` : "Abrir WhatsApp"} side="bottom" wrapperClass="block min-w-0">
+              <a
+                data-testid="listing-mobile-contact"
+                href={whatsappUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                class={cn(
+                  "mt-0.5 flex min-w-0 items-center gap-1 truncate text-xs text-green-600 transition-colors hover:text-green-500",
+                  imovel.strikethrough && "line-through opacity-50"
+                )}
+              >
+                <WhatsAppIcon class="h-3 w-3 shrink-0" />
+                <span class="truncate">{imovel.contactName ?? imovel.contactNumber}</span>
+              </a>
+            </FloatingTooltip>
           {/if}
         {/if}
       </div>

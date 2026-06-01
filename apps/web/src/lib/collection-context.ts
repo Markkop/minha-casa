@@ -17,6 +17,8 @@ export function readStoredActiveCollectionId(orgId: string | null = getActiveOrg
 export function storeActiveCollectionId(collectionId: string | null, orgId: string | null = getActiveOrganizationId()) {
   if (typeof window === "undefined") return;
   const key = getActiveCollectionStorageKey(orgId);
+  const current = window.localStorage.getItem(key);
+  if ((collectionId ?? null) === (current ?? null)) return;
   if (collectionId) window.localStorage.setItem(key, collectionId);
   else window.localStorage.removeItem(key);
   window.dispatchEvent(

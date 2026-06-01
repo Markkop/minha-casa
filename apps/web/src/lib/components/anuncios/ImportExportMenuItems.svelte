@@ -14,6 +14,7 @@
   type="button"
   class="flex w-full items-center gap-2 px-3 py-2 text-left hover:bg-app-surface-muted disabled:cursor-not-allowed disabled:opacity-50"
   disabled={ctx.listings.length === 0}
+  role="menuitem"
   onclick={() => (showExportModal = true)}
 >
   <Download class="h-4 w-4" />
@@ -22,6 +23,7 @@
 <button
   type="button"
   class="flex w-full items-center gap-2 px-3 py-2 text-left hover:bg-app-surface-muted"
+  role="menuitem"
   onclick={() => (showImportModal = true)}
 >
   <Upload class="h-4 w-4" />

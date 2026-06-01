@@ -10,7 +10,7 @@
 
 <button
   type="button"
-  {onclick}
+  onclick={onclick}
   class={cn("text-muted-foreground transition-colors hover:text-app-fg", className)}
   aria-label="Fechar"
 >

@@ -10,6 +10,7 @@ import {
 } from "./geocoding-query"
 
 const NOMINATIM_BASE_URL = "https://nominatim.openstreetmap.org/search"
+const NOMINATIM_PROXY_URL = "/api/geocoding/nominatim"
 
 // Rate limiting: Nominatim allows 1 request per second
 const RATE_LIMIT_MS = 1100
@@ -60,28 +61,34 @@ export async function geocodeWithNominatim(
       addressdetails: "1",
     })
 
-    const response = await fetch(`${NOMINATIM_BASE_URL}?${params}`, {
-      headers: {
-        // Nominatim requires a valid User-Agent
-        "User-Agent": "MinhaCasa/1.0 (Real Estate Listing App)",
-      },
+    const endpoint =
+      typeof window === "undefined" ? NOMINATIM_BASE_URL : NOMINATIM_PROXY_URL
+
+    const response = await fetch(`${endpoint}?${params}`, {
+      headers:
+        typeof window === "undefined"
+          ? {
+              // Nominatim requires a valid User-Agent; browsers cannot set it.
+              "User-Agent": "MinhaCasa/1.0 (Real Estate Listing App)",
+            }
+          : undefined,
     })
 
     if (!response.ok) {
-      console.warn(`[Nominatim] Geocoding failed for "${address}": ${response.status}`)
+      console.debug(`[Nominatim] Geocoding failed for "${address}": ${response.status}`)
       return null
     }
 
     const data = await response.json()
 
     if (!data || data.length === 0) {
-      console.warn(`[Nominatim] No results for "${address}"`)
+      console.debug(`[Nominatim] No results for "${address}"`)
       return null
     }
 
     const result = data[0] as Record<string, unknown> | undefined
     if (!result || typeof result.lat !== "string" || typeof result.lon !== "string") {
-      console.warn(`[Nominatim] Invalid result for "${address}"`)
+      console.debug(`[Nominatim] Invalid result for "${address}"`)
       return null
     }
     const nominatimType = typeof result.type === "string" ? result.type : ""
@@ -94,8 +101,7 @@ export async function geocodeWithNominatim(
       displayName: typeof result.display_name === "string" ? result.display_name : address,
       locationType,
     }
-  } catch (error) {
-    console.error(`[Nominatim] Error for "${address}":`, error)
+  } catch {
     return null
   }
 }

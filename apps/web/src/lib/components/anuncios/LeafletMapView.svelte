@@ -49,6 +49,7 @@
 
       mapInstance = map;
       ready = true;
+      window.setTimeout(() => map.invalidateSize(), 0);
       renderMarkers(L);
     })();
 

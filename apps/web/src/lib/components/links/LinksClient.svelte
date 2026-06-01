@@ -6,6 +6,7 @@
   import LinkCopyButton from "$lib/components/links/LinkCopyButton.svelte";
   import LinkTitleBlock from "$lib/components/links/LinkTitleBlock.svelte";
   import LinkUrlLine from "$lib/components/links/LinkUrlLine.svelte";
+  import FloatingTooltip from "$lib/components/ui/FloatingTooltip.svelte";
   import WorkspacePage from "$lib/components/workspace/WorkspacePage.svelte";
   import WorkspaceDataTable from "$lib/components/workspace/table/WorkspaceDataTable.svelte";
   import WorkspaceDataTableBody from "$lib/components/workspace/table/WorkspaceDataTableBody.svelte";
@@ -295,13 +296,14 @@
                     url={link.url}
                     disabled={rowEdit.editingId !== null || isRowBusy(link)}
                   />
-                  <a
-                    href="/explorar?fromLink={encodeURIComponent(link.url)}"
-                    class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-app-border text-app-muted hover:text-app-fg"
-                    title="Abrir no Explorar"
-                  >
-                    <Compass class="h-4 w-4" />
-                  </a>
+                  <FloatingTooltip label="Abrir no Explorar" side="bottom">
+                    <a
+                      href="/explorar?fromLink={encodeURIComponent(link.url)}"
+                      class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-app-border text-app-muted hover:text-app-fg"
+                    >
+                      <Compass class="h-4 w-4" />
+                    </a>
+                  </FloatingTooltip>
                   <WorkspaceEditButton
                     onclick={() => rowEdit.startEdit(link)}
                     disabled={rowEdit.editingId !== null || isRowBusy(link)}

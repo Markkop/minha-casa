@@ -8,6 +8,7 @@
   import ListingPropertyIconToolbar from "$lib/components/anuncios/ListingPropertyIconToolbar.svelte";
   import ListingRowStatusActions from "$lib/components/anuncios/ListingRowStatusActions.svelte";
   import WhatsAppIcon from "$lib/components/anuncios/WhatsAppIcon.svelte";
+  import FloatingTooltip from "$lib/components/ui/FloatingTooltip.svelte";
   import { buildWhatsAppUrl } from "$lib/anuncios/listings-contact";
   import { buildGoogleMapsUrl, calculatePrecoM2, calculatePrecoM2Privado } from "$lib/components/anuncios/listing-row-urls";
   import { createListingRowInteractions } from "$lib/components/anuncios/listing-row-interactions.svelte";
@@ -92,35 +93,37 @@
             />
           </div>
           {#if propertyDisplay.showAddress}
-            <a
-              href={buildGoogleMapsUrl(imovel.endereco)}
-              target="_blank"
-              rel="noopener noreferrer"
-              class={cn(
-                "mt-1 block truncate text-xs text-app-muted underline decoration-dotted underline-offset-2 transition-colors hover:text-app-fg",
-                imovel.strikethrough && "line-through opacity-50"
-              )}
-              title="Abrir {imovel.endereco} no Google Maps"
-            >
-              {imovel.endereco}
-            </a>
+            <FloatingTooltip label={`Abrir ${imovel.endereco} no Google Maps`} side="bottom" wrapperClass="block min-w-0">
+              <a
+                href={buildGoogleMapsUrl(imovel.endereco)}
+                target="_blank"
+                rel="noopener noreferrer"
+                class={cn(
+                  "mt-1 block truncate text-xs text-app-muted underline decoration-dotted underline-offset-2 transition-colors hover:text-app-fg",
+                  imovel.strikethrough && "line-through opacity-50"
+                )}
+              >
+                {imovel.endereco}
+              </a>
+            </FloatingTooltip>
           {/if}
           {#if propertyDisplay.showContact && imovel.contactNumber}
             {@const url = buildWhatsAppUrl(imovel.contactNumber)}
             {#if url}
-              <a
-                href={url}
-                target="_blank"
-                rel="noopener noreferrer"
-                class={cn(
-                  "mt-1 flex min-w-0 items-center gap-1 truncate text-xs text-green-600 transition-colors hover:text-green-500",
-                  imovel.strikethrough && "line-through opacity-50"
-                )}
-                title={imovel.contactName ? `WhatsApp — ${imovel.contactName}` : "Abrir WhatsApp"}
-              >
-                <WhatsAppIcon class="h-3 w-3 shrink-0" />
-                <span class="truncate">{imovel.contactName ?? imovel.contactNumber}</span>
-              </a>
+              <FloatingTooltip label={imovel.contactName ? `WhatsApp — ${imovel.contactName}` : "Abrir WhatsApp"} side="bottom" wrapperClass="block min-w-0">
+                <a
+                  href={url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class={cn(
+                    "mt-1 flex min-w-0 items-center gap-1 truncate text-xs text-green-600 transition-colors hover:text-green-500",
+                    imovel.strikethrough && "line-through opacity-50"
+                  )}
+                >
+                  <WhatsAppIcon class="h-3 w-3 shrink-0" />
+                  <span class="truncate">{imovel.contactName ?? imovel.contactNumber}</span>
+                </a>
+              </FloatingTooltip>
             {/if}
           {/if}
         </div>
@@ -175,26 +178,27 @@
   {#if visibleColumns.dates}
     <td
       class={cn("p-2 text-right align-middle whitespace-nowrap text-sm text-muted-foreground", imovel.strikethrough && "line-through opacity-50")}
-      title={formatFullDateTime(imovel.createdAt)}
     >
-      <div class="flex min-w-28 flex-col items-end gap-1 leading-none">
-        <span class="inline-flex flex-col items-end gap-0.5 whitespace-nowrap">
-          <span class="font-mono tabular-nums text-app-fg">{formatDate(imovel.addedAt)}</span>
-          <span class="text-[9px] leading-none text-app-muted">adicionado por você</span>
-        </span>
-        {#if imovel.sitePublishedAt}
+      <FloatingTooltip label={formatFullDateTime(imovel.createdAt)} side="bottom" wrapperClass="inline-flex justify-end">
+        <div class="flex min-w-28 flex-col items-end gap-1 leading-none">
           <span class="inline-flex flex-col items-end gap-0.5 whitespace-nowrap">
-            <span class="font-mono tabular-nums text-app-fg">{formatDate(imovel.sitePublishedAt)}</span>
-            <span class="text-[9px] leading-none text-app-muted">publicado no site</span>
+            <span class="font-mono tabular-nums text-app-fg">{formatDate(imovel.addedAt)}</span>
+            <span class="text-[9px] leading-none text-app-muted">adicionado por você</span>
           </span>
-        {/if}
-        {#if imovel.siteUpdatedAt}
-          <span class="inline-flex flex-col items-end gap-0.5 whitespace-nowrap">
-            <span class="font-mono tabular-nums text-app-fg">{formatDate(imovel.siteUpdatedAt)}</span>
-            <span class="text-[9px] leading-none text-app-muted">atualizado no site</span>
-          </span>
-        {/if}
-      </div>
+          {#if imovel.sitePublishedAt}
+            <span class="inline-flex flex-col items-end gap-0.5 whitespace-nowrap">
+              <span class="font-mono tabular-nums text-app-fg">{formatDate(imovel.sitePublishedAt)}</span>
+              <span class="text-[9px] leading-none text-app-muted">publicado no site</span>
+            </span>
+          {/if}
+          {#if imovel.siteUpdatedAt}
+            <span class="inline-flex flex-col items-end gap-0.5 whitespace-nowrap">
+              <span class="font-mono tabular-nums text-app-fg">{formatDate(imovel.siteUpdatedAt)}</span>
+              <span class="text-[9px] leading-none text-app-muted">atualizado no site</span>
+            </span>
+          {/if}
+        </div>
+      </FloatingTooltip>
     </td>
   {/if}
 

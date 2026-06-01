@@ -43,7 +43,7 @@
   import { syncSubscriptionCookie } from "$lib/sync-subscription-cookie";
   import { WORKSPACE_CONTENT_CLASS, WORKSPACE_STACK_CLASS } from "$lib/workspace-chrome";
 
-  const { settings, isLoaded } = getSettingsContext();
+  const settingsContext = getSettingsContext();
 
   let params = $state<SimulatorParams>(createInitialSimulatorParams());
   let activeTab = $state("table");
@@ -206,7 +206,7 @@
   }
 </script>
 
-{#if !isLoaded}
+{#if !settingsContext.isLoaded}
   <WorkspaceLoadingState />
 {:else}
   <div class="min-h-[calc(100vh-var(--nav-height,2.75rem))] bg-app-bg text-app-fg">
@@ -330,7 +330,7 @@
             <div class="space-y-2">
               <h4 class="font-semibold text-salmon">Permuta vs Venda</h4>
               <p>
-                A permuta tem deságio (haircut) de {settings.sliders.haircut.min}-{settings.sliders
+                A permuta tem deságio (haircut) de {settingsContext.settings.sliders.haircut.min}-{settingsContext.settings.sliders
                   .haircut.max}%. A venda posterior permite vender pelo preço de mercado e usar a Lei
                 do Bem (isenção de IR se usado para amortizar em 180 dias).
               </p>

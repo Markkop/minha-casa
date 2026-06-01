@@ -27,14 +27,14 @@
     onEntradaChange
   }: ParameterCardProps = $props();
 
-  const { settings } = getSettingsContext();
+  const settingsContext = getSettingsContext();
 
-  const prazoOptions = $derived(settings.prazoOptions);
-  const taxaAnualRange = $derived(settings.sliders.taxaAnual);
-  const trMensalRange = $derived(settings.sliders.trMensal);
-  const haircutRange = $derived(settings.sliders.haircut);
-  const aporteExtraRange = $derived(settings.sliders.aporteExtra);
-  const rendaMensalRange = $derived(settings.sliders.rendaMensal);
+  const prazoOptions = $derived(settingsContext.settings.prazoOptions);
+  const taxaAnualRange = $derived(settingsContext.settings.sliders.taxaAnual);
+  const trMensalRange = $derived(settingsContext.settings.sliders.trMensal);
+  const haircutRange = $derived(settingsContext.settings.sliders.haircut);
+  const aporteExtraRange = $derived(settingsContext.settings.sliders.aporteExtra);
+  const rendaMensalRange = $derived(settingsContext.settings.sliders.rendaMensal);
 
   const reservaPct = $derived(
     recursosMeta?.reservaPctRecomendado ?? calcularPctReservaRecomendada(params.valorImovelSelecionado)

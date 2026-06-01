@@ -1,4 +1,5 @@
 <script lang="ts">
+  import FloatingTooltip from "$lib/components/ui/FloatingTooltip.svelte";
   import { cn } from "$lib/utils";
 
   type Variant = "primary" | "default" | "secondary" | "outline" | "ghost" | "danger" | "destructive" | "link";
@@ -44,18 +45,27 @@
   };
 </script>
 
-<button
-  {type}
-  {disabled}
-  {title}
-  aria-label={ariaLabel}
-  class={cn(
-    "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-action disabled:pointer-events-none disabled:opacity-60 [&_svg]:pointer-events-none [&_svg]:shrink-0",
-    variants[variant as Variant],
-    sizes[size as Size],
-    className
-  )}
-  {onclick}
->
-  {@render children?.()}
-</button>
+{#snippet button()}
+  <button
+    {type}
+    {disabled}
+    aria-label={ariaLabel}
+    class={cn(
+      "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-action disabled:pointer-events-none disabled:opacity-60 [&_svg]:pointer-events-none [&_svg]:shrink-0",
+      variants[variant as Variant],
+      sizes[size as Size],
+      className
+    )}
+    onclick={onclick}
+  >
+    {@render children?.()}
+  </button>
+{/snippet}
+
+{#if title}
+  <FloatingTooltip label={title} side="bottom">
+    {@render button()}
+  </FloatingTooltip>
+{:else}
+  {@render button()}
+{/if}

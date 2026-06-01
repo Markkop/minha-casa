@@ -10,6 +10,7 @@
   import ListingImageIngestionProgressBar from "$lib/components/anuncios/ListingImageIngestionProgressBar.svelte";
   import ListingLocationMiniMap from "$lib/components/anuncios/ListingLocationMiniMap.svelte";
   import ListingThumbnailImage from "$lib/components/anuncios/ListingThumbnailImage.svelte";
+  import FloatingTooltip from "$lib/components/ui/FloatingTooltip.svelte";
 
   let {
     imovel,
@@ -41,36 +42,38 @@
 </script>
 
 {#snippet placeholderButton()}
-  <button
-    type="button"
-    onclick={onOpenImageModal}
-    class={cn(
-      "flex h-full w-full cursor-pointer items-center justify-center rounded border border-app-border bg-app-bg transition-opacity hover:opacity-80",
-      thumbClass
-    )}
-    title="Clique para ver/editar imagem"
-  >
-    <Home class="h-3 w-3 text-app-subtle" />
-  </button>
+  <FloatingTooltip label="Clique para ver/editar imagem" side="bottom">
+    <button
+      type="button"
+      onclick={onOpenImageModal}
+      class={cn(
+        "flex h-full w-full cursor-pointer items-center justify-center rounded border border-app-border bg-app-bg transition-opacity hover:opacity-80",
+        thumbClass
+      )}
+    >
+      <Home class="h-3 w-3 text-app-subtle" />
+    </button>
+  </FloatingTooltip>
 {/snippet}
 
 {#if ingesting}
   <div class={cn("relative z-10", thumbClass)}>
-    <button
-      type="button"
-      onclick={onOpenImageModal}
-      class="relative block h-full w-full cursor-pointer overflow-hidden rounded border border-app-border transition-opacity hover:opacity-80"
-      title="Imagens sendo baixadas…"
-    >
-      <ListingLocationMiniMap listing={imovel} variant="thumbnail">
-        {#snippet fallback()}
-          <div class={cn("flex h-full w-full items-center justify-center bg-app-surface-muted", thumbClass)}>
-            <Home class="h-3 w-3 text-app-subtle" />
-          </div>
-        {/snippet}
-      </ListingLocationMiniMap>
-      <ListingImageIngestionProgressBar />
-    </button>
+    <FloatingTooltip label="Imagens sendo baixadas…" side="bottom" wrapperClass="block h-full w-full">
+      <button
+        type="button"
+        onclick={onOpenImageModal}
+        class="relative block h-full w-full cursor-pointer overflow-hidden rounded border border-app-border transition-opacity hover:opacity-80"
+      >
+        <ListingLocationMiniMap listing={imovel} variant="thumbnail">
+          {#snippet fallback()}
+            <div class={cn("flex h-full w-full items-center justify-center bg-app-surface-muted", thumbClass)}>
+              <Home class="h-3 w-3 text-app-subtle" />
+            </div>
+          {/snippet}
+        </ListingLocationMiniMap>
+        <ListingImageIngestionProgressBar />
+      </button>
+    </FloatingTooltip>
   </div>
 {:else if view === "map"}
   <div class={cn("relative z-10", thumbClass)}>
@@ -81,21 +84,22 @@
     </ListingLocationMiniMap>
   </div>
 {:else if hasImage && !imageLoadFailed}
-  <button
-    type="button"
-    onclick={onOpenImageModal}
-    class="relative z-10 flex-shrink-0 cursor-pointer transition-opacity hover:opacity-80"
-    title="Clique para ver/editar imagem"
-  >
-    <div class={cn("relative overflow-hidden rounded border border-app-border", thumbClass)}>
-      <ListingThumbnailImage
-        listingId={imovel.id}
-        src={imovel.imageUrl!}
-        alt={imovel.titulo}
-        onError={handleImageError}
-      />
-    </div>
-  </button>
+  <FloatingTooltip label="Clique para ver/editar imagem" side="bottom">
+    <button
+      type="button"
+      onclick={onOpenImageModal}
+      class="relative z-10 flex-shrink-0 cursor-pointer transition-opacity hover:opacity-80"
+    >
+      <div class={cn("relative overflow-hidden rounded border border-app-border", thumbClass)}>
+        <ListingThumbnailImage
+          listingId={imovel.id}
+          src={imovel.imageUrl!}
+          alt={imovel.titulo}
+          onError={handleImageError}
+        />
+      </div>
+    </button>
+  </FloatingTooltip>
 {:else}
   <div class="relative z-10">
     {@render placeholderButton()}

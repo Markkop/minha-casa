@@ -7,6 +7,7 @@
   import ListingImageIngestionProgressBar from "$lib/components/anuncios/ListingImageIngestionProgressBar.svelte";
   import ListingLocationMiniMap from "$lib/components/anuncios/ListingLocationMiniMap.svelte";
   import ListingThumbnailImage from "$lib/components/anuncios/ListingThumbnailImage.svelte";
+  import FloatingTooltip from "$lib/components/ui/FloatingTooltip.svelte";
 
   let {
     imovel,
@@ -47,60 +48,64 @@
 {/snippet}
 
 {#if ingesting}
-  <button
-    type="button"
-    onclick={openModal}
-    class={cn(
-      "absolute inset-0 block h-full w-full cursor-pointer bg-app-surface-muted",
-      className
-    )}
-    title="Imagens sendo baixadas…"
-  >
-    <ListingLocationMiniMap listing={imovel} variant="thumbnail" class="h-full w-full">
-      {#snippet fallback()}
-        {@render placeholder()}
-      {/snippet}
-    </ListingLocationMiniMap>
-    <div class="absolute inset-x-0 bottom-0 z-10">
-      <ListingImageIngestionProgressBar />
-    </div>
-  </button>
+  <FloatingTooltip label="Imagens sendo baixadas…" side="bottom" wrapperClass="absolute inset-0 block h-full w-full">
+    <button
+      type="button"
+      onclick={openModal}
+      class={cn(
+        "absolute inset-0 block h-full w-full cursor-pointer bg-app-surface-muted",
+        className
+      )}
+    >
+      <ListingLocationMiniMap listing={imovel} variant="thumbnail" class="h-full w-full">
+        {#snippet fallback()}
+          {@render placeholder()}
+        {/snippet}
+      </ListingLocationMiniMap>
+      <div class="absolute inset-x-0 bottom-0 z-10">
+        <ListingImageIngestionProgressBar />
+      </div>
+    </button>
+  </FloatingTooltip>
 {:else if view === "map"}
-  <button
-    type="button"
-    onclick={openModal}
-    class={cn("absolute inset-0 block h-full w-full cursor-pointer", className)}
-    title="Clique para ver localização"
-  >
-    <ListingLocationMiniMap listing={imovel} variant="thumbnail" class="h-full w-full">
-      {#snippet fallback()}
-        {@render placeholder()}
-      {/snippet}
-    </ListingLocationMiniMap>
-  </button>
+  <FloatingTooltip label="Clique para ver localização" side="bottom" wrapperClass="absolute inset-0 block h-full w-full">
+    <button
+      type="button"
+      onclick={openModal}
+      class={cn("absolute inset-0 block h-full w-full cursor-pointer", className)}
+    >
+      <ListingLocationMiniMap listing={imovel} variant="thumbnail" class="h-full w-full">
+        {#snippet fallback()}
+          {@render placeholder()}
+        {/snippet}
+      </ListingLocationMiniMap>
+    </button>
+  </FloatingTooltip>
 {:else if hasImage && !showImageFallback}
-  <button
-    type="button"
-    onclick={openModal}
-    class={cn("absolute inset-0 block h-full w-full cursor-pointer hover:opacity-95", className)}
-    title="Clique para ver/editar imagem"
-  >
-    <ListingThumbnailImage
-      listingId={imovel.id}
-      src={imovel.imageUrl!}
-      onError={handleImageError}
-    />
-  </button>
+  <FloatingTooltip label="Clique para ver/editar imagem" side="bottom" wrapperClass="absolute inset-0 block h-full w-full">
+    <button
+      type="button"
+      onclick={openModal}
+      class={cn("absolute inset-0 block h-full w-full cursor-pointer hover:opacity-95", className)}
+    >
+      <ListingThumbnailImage
+        listingId={imovel.id}
+        src={imovel.imageUrl!}
+        onError={handleImageError}
+      />
+    </button>
+  </FloatingTooltip>
 {:else}
-  <button
-    type="button"
-    onclick={openModal}
-    class={cn(
-      "absolute inset-0 flex h-full w-full cursor-pointer items-center justify-center bg-app-bg hover:opacity-95",
-      className
-    )}
-    title="Clique para ver/editar imagem"
-  >
-    <Home class="h-4 w-4 text-app-subtle" />
-  </button>
+  <FloatingTooltip label="Clique para ver/editar imagem" side="bottom" wrapperClass="absolute inset-0 block h-full w-full">
+    <button
+      type="button"
+      onclick={openModal}
+      class={cn(
+        "absolute inset-0 flex h-full w-full cursor-pointer items-center justify-center bg-app-bg hover:opacity-95",
+        className
+      )}
+    >
+      <Home class="h-4 w-4 text-app-subtle" />
+    </button>
+  </FloatingTooltip>
 {/if}

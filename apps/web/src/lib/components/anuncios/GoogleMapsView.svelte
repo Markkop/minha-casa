@@ -26,10 +26,10 @@
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let map = $state<any>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let markers = $state<any[]>([]);
+  let markers: any[] = [];
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let infoWindow = $state<any>(null);
-  let infoMount = $state<ReturnType<typeof mount> | null>(null);
+  let infoMount: ReturnType<typeof mount> | null = null;
   let error = $state<string | null>(null);
   let ready = $state(false);
 
@@ -135,7 +135,7 @@
     } else {
       const script = document.createElement("script");
       script.id = scriptId;
-      script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(key)}&libraries=marker&language=pt-BR&region=BR`;
+      script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(key)}&libraries=marker&language=pt-BR&region=BR&loading=async`;
       script.async = true;
       script.onerror = () => {
         if (!disposed) {

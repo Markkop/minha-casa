@@ -3,6 +3,7 @@
   import { ExternalLink, Grid3X3, Play, RefreshCw, Search } from "@lucide/svelte";
   import PageScaffold from "$lib/components/layout/PageScaffold.svelte";
   import Button from "$lib/components/ui/Button.svelte";
+  import FloatingTooltip from "$lib/components/ui/FloatingTooltip.svelte";
   import { getActiveOrganizationId } from "$lib/api/client";
   import { getApiToken } from "$lib/stores/auth";
   import { cn } from "$lib/utils";
@@ -1039,9 +1040,11 @@
                     <td class="px-3 py-3">{number(card.precoM2)}</td>
                     <td class="px-3 py-3 text-app-muted">{card.quartos ?? "-"} q · {card.banheiros ?? "-"} b · {card.areaPrivada ?? card.areaTotal ?? "-"} m2</td>
                     <td class="px-3 py-3 text-right">
-                      <a class="inline-flex h-9 w-9 items-center justify-center rounded-md text-app-muted hover:bg-app-surface-muted hover:text-app-fg" href={card.sourceUrl} target="_blank" rel="noreferrer" title="Abrir">
-                        <ExternalLink class="h-4 w-4" />
-                      </a>
+                      <FloatingTooltip label="Abrir" side="bottom">
+                        <a class="inline-flex h-9 w-9 items-center justify-center rounded-md text-app-muted hover:bg-app-surface-muted hover:text-app-fg" href={card.sourceUrl} target="_blank" rel="noreferrer">
+                          <ExternalLink class="h-4 w-4" />
+                        </a>
+                      </FloatingTooltip>
                     </td>
                   </tr>
                 {/each}

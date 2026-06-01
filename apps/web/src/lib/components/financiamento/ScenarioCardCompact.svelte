@@ -24,7 +24,7 @@
     cenario.isBest && "border-app-action ring-1 ring-primary/30"
   )}
 >
-  <button type="button" class="w-full p-4 text-left" {onclick}>
+  <button type="button" class="w-full p-4 text-left" onclick={onclick}>
     <div class="space-y-3">
       <div class="flex items-center justify-between">
         <div class="flex items-center gap-2">

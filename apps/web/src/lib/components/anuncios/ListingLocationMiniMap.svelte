@@ -14,6 +14,7 @@
   } from "$lib/anuncios/map-shared";
   import {
     getGoogleMapsApiKey,
+    markGoogleMapsUnavailable,
     subscribeToGoogleMapsErrors
   } from "$lib/anuncios/google-maps-config";
   import { MAP_EMBED_PANEL_CLASS } from "$lib/anuncios/listings-panel-layout";
@@ -116,8 +117,6 @@
     let googleMarker: any = null;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let googleMap: any = null;
-    const gmaps = (window as { google?: { maps?: { Map?: new (...args: unknown[]) => unknown; marker?: { AdvancedMarkerElement?: new (...args: unknown[]) => unknown } } } }).google;
-
     const loc = location;
 
     void (async () => {
@@ -130,17 +129,19 @@
             const scriptId = "google-maps-js";
             const existing = document.getElementById(scriptId) as HTMLScriptElement | null;
             const onReady = () => {
-              if (gmaps?.maps?.Map) resolve();
+              const googleRuntime = (window as { google?: { maps?: { Map?: unknown } } }).google;
+              if (googleRuntime?.maps?.Map) resolve();
               else reject(new Error("Google Maps unavailable"));
             };
             if (existing) {
-              if (gmaps?.maps) onReady();
+              const googleRuntime = (window as { google?: { maps?: unknown } }).google;
+              if (googleRuntime?.maps) onReady();
               else existing.addEventListener("load", onReady, { once: true });
               return;
             }
             const script = document.createElement("script");
             script.id = scriptId;
-            script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(apiKey)}&libraries=marker&language=pt-BR&region=BR`;
+            script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(apiKey)}&libraries=marker&language=pt-BR&region=BR&loading=async`;
             script.async = true;
             script.onload = onReady;
             script.onerror = () => reject(new Error("Google Maps load failed"));
@@ -149,6 +150,7 @@
 
         try {
           await loadGoogle();
+          const gmaps = (window as { google?: { maps?: { Map?: new (...args: unknown[]) => unknown; marker?: { AdvancedMarkerElement?: new (...args: unknown[]) => unknown } } } }).google;
           const MapCtor = gmaps?.maps?.Map;
           const MarkerCtor = gmaps?.maps?.marker?.AdvancedMarkerElement;
           if (disposed || !mapElement || !MapCtor || !MarkerCtor) return;
@@ -180,7 +182,9 @@
             content
           });
         } catch {
-          /* fall through to leaflet on next effect if provider changes */
+          markGoogleMapsUnavailable();
+          mapProvider = "leaflet";
+          setStoredMapProvider("leaflet");
         }
         return;
       }
@@ -203,6 +207,7 @@
       L.tileLayer(LEAFLET_TILE_URL, {
         attribution: compact ? "" : LEAFLET_TILE_ATTRIBUTION
       }).addTo(map);
+      window.setTimeout(() => map?.invalidateSize(), 0);
 
       const precoM2 = calculatePrecoM2(listing.preco, listing.m2Totais) ?? listing.precoM2;
       const color = getMarkerColor(precoM2, precoM2 ?? 0, precoM2 ?? 0) || mapPriceColors.unknown;

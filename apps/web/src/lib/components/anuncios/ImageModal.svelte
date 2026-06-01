@@ -14,6 +14,7 @@
   import Input from "$lib/components/ui/Input.svelte";
   import ModalCloseButton from "$lib/components/anuncios/ModalCloseButton.svelte";
   import ListingLocationMiniMap from "$lib/components/anuncios/ListingLocationMiniMap.svelte";
+  import FloatingTooltip from "$lib/components/ui/FloatingTooltip.svelte";
   import type { Imovel } from "$lib/anuncios/types";
   import { getCollectionsContext } from "$lib/collections-context.svelte";
   import { workspaceApi } from "$lib/workspace/client";
@@ -162,22 +163,23 @@
           Imagens do Imóvel
         </h2>
         <div class="flex items-center gap-2">
-          <button
-            type="button"
-            onclick={() => (confirmPullOpen = true)}
-            disabled={!hasLink || isPulling || isIngesting}
-            title={hasLink ? "Buscar imagens do link do anúncio" : "Adicione o link do anúncio para buscar imagens"}
-            class={cn(
-              "flex items-center gap-1.5 rounded-lg border border-app-border bg-app-surface-muted px-3 py-1.5 text-sm font-medium text-app-fg transition-all hover:border-app-action hover:text-app-accent disabled:cursor-not-allowed disabled:opacity-50"
-            )}
-          >
-            {#if isPulling || isIngesting}
-              <Loader2 class="h-4 w-4 animate-spin" />
-            {:else}
-              <Download class="h-4 w-4" />
-            {/if}
-            Buscar do anúncio
-          </button>
+          <FloatingTooltip label={hasLink ? "Buscar imagens do link do anúncio" : "Adicione o link do anúncio para buscar imagens"} side="bottom">
+            <button
+              type="button"
+              onclick={() => (confirmPullOpen = true)}
+              disabled={!hasLink || isPulling || isIngesting}
+              class={cn(
+                "flex items-center gap-1.5 rounded-lg border border-app-border bg-app-surface-muted px-3 py-1.5 text-sm font-medium text-app-fg transition-all hover:border-app-action hover:text-app-accent disabled:cursor-not-allowed disabled:opacity-50"
+              )}
+            >
+              {#if isPulling || isIngesting}
+                <Loader2 class="h-4 w-4 animate-spin" />
+              {:else}
+                <Download class="h-4 w-4" />
+              {/if}
+              Buscar do anúncio
+            </button>
+          </FloatingTooltip>
           <ModalCloseButton onclick={onClose} />
         </div>
       </div>

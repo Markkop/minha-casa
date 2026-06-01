@@ -1,6 +1,7 @@
 <script lang="ts">
   import { goto } from "$app/navigation";
   import { cn } from "$lib/utils";
+  import FloatingTooltip from "$lib/components/ui/FloatingTooltip.svelte";
 
   let {
     price,
@@ -34,17 +35,18 @@
     {formatCurrency(price)}
   </span>
 {:else}
-  <button
-    type="button"
-    title="Simular financiamento"
-    onclick={handleClick}
-    class={cn(
-      "font-mono text-sm text-app-accent transition-colors hover:text-app-accent/80",
-      strikethrough && "line-through opacity-50",
-      className
-    )}
-    data-testid="clickable-price"
-  >
-    {formatCurrency(price)}
-  </button>
+  <FloatingTooltip label="Simular financiamento" side="bottom">
+    <button
+      type="button"
+      onclick={handleClick}
+      class={cn(
+        "font-mono text-sm text-app-accent transition-colors hover:text-app-accent/80",
+        strikethrough && "line-through opacity-50",
+        className
+      )}
+      data-testid="clickable-price"
+    >
+      {formatCurrency(price)}
+    </button>
+  </FloatingTooltip>
 {/if}

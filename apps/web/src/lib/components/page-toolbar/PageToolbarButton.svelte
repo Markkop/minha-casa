@@ -1,5 +1,6 @@
 <script lang="ts">
   import { cn } from "$lib/utils";
+  import FloatingTooltip from "$lib/components/ui/FloatingTooltip.svelte";
 
   type Variant = "primary" | "secondary" | "destructive" | "ghost" | "active";
 
@@ -36,18 +37,19 @@
   };
 </script>
 
-<button
-  {type}
-  {disabled}
-  {title}
-  aria-label={ariaLabel}
-  aria-pressed={ariaPressed}
-  {onclick}
-  class={cn(
-    "inline-flex shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-md text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-3.5 [&_svg]:shrink-0 h-7 px-2.5",
-    variants[variant as Variant],
-    className
-  )}
->
-  {@render children?.()}
-</button>
+<FloatingTooltip label={title} side="bottom">
+  <button
+    {type}
+    {disabled}
+    aria-label={ariaLabel}
+    aria-pressed={ariaPressed}
+    onclick={onclick}
+    class={cn(
+      "inline-flex h-7 shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-md px-2.5 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-accent focus-visible:ring-offset-1 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-3.5 [&_svg]:shrink-0",
+      variants[variant as Variant],
+      className
+    )}
+  >
+    {@render children?.()}
+  </button>
+</FloatingTooltip>

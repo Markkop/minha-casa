@@ -27,7 +27,7 @@
   {disabled}
   {title}
   ariaLabel={ariaLabel}
-  {onclick}
+  onclick={onclick}
 >
   {@render children?.()}
 </Button>

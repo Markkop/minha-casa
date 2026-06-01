@@ -47,6 +47,7 @@
   import EditModal from "$lib/components/anuncios/EditModal.svelte";
   import ImageModal from "$lib/components/anuncios/ImageModal.svelte";
   import QuickReparseModal from "$lib/components/anuncios/QuickReparseModal.svelte";
+  import FloatingTooltip from "$lib/components/ui/FloatingTooltip.svelte";
   import {
     extractUniqueContacts,
     handleQuickReparseRequest
@@ -631,23 +632,24 @@
         {#if addFiles.length > 0}
           <div class="pointer-events-none absolute left-7 right-20 top-1/2 flex -translate-y-1/2 items-center gap-1 overflow-hidden">
             {#each addFiles as file, index (file.name + file.size + index)}
-              <span
-                class="pointer-events-auto inline-flex max-w-[7.5rem] items-center gap-1 rounded-full border border-app-border bg-app-surface-muted px-1.5 py-0.5 text-[10px] leading-none text-app-fg"
-                title={file.name}
-              >
-                <span class="truncate">{file.name}</span>
-                <button
-                  type="button"
-                  onclick={() => {
-                    addFiles = addFiles.filter((_, fileIndex) => fileIndex !== index);
-                    setTimeout(() => addInputRef?.focus(), 0);
-                  }}
-                  class="shrink-0 rounded-full text-app-muted hover:text-destructive"
-                  aria-label="Remover {file.name}"
+              <FloatingTooltip label={file.name} side="bottom" wrapperClass="pointer-events-auto inline-flex max-w-[7.5rem]">
+                <span
+                  class="inline-flex max-w-full items-center gap-1 rounded-full border border-app-border bg-app-surface-muted px-1.5 py-0.5 text-[10px] leading-none text-app-fg"
                 >
-                  <X class="h-2.5 w-2.5" />
-                </button>
-              </span>
+                  <span class="truncate">{file.name}</span>
+                  <button
+                    type="button"
+                    onclick={() => {
+                      addFiles = addFiles.filter((_, fileIndex) => fileIndex !== index);
+                      setTimeout(() => addInputRef?.focus(), 0);
+                    }}
+                    class="shrink-0 rounded-full text-app-muted hover:text-destructive"
+                    aria-label="Remover {file.name}"
+                  >
+                    <X class="h-2.5 w-2.5" />
+                  </button>
+                </span>
+              </FloatingTooltip>
             {/each}
           </div>
         {/if}
@@ -665,30 +667,32 @@
             }
           }}
         />
-        <button
-          type="button"
-          onclick={() => addFileInputRef?.click()}
-          disabled={!showAddInput || isSubmittingAdd}
-          class="absolute right-[3.85rem] top-1/2 flex h-5 w-5 -translate-y-1/2 items-center justify-center rounded text-app-muted transition-colors hover:bg-app-surface-muted hover:text-app-fg disabled:opacity-50"
-          aria-label="Selecionar arquivo"
-          title="Selecionar arquivo"
-        >
-          <Upload class="h-3.5 w-3.5" />
-        </button>
-        <button
-          type="button"
-          onclick={() => void submitInlineAdd()}
-          disabled={!showAddInput || isSubmittingAdd || (!addInputValue.trim() && addFiles.length === 0)}
-          class="absolute right-1.5 top-1/2 flex h-5 -translate-y-1/2 items-center justify-center rounded bg-app-action px-2 text-[11px] font-medium leading-none text-app-action-foreground transition-colors hover:bg-app-action-hover disabled:cursor-not-allowed disabled:opacity-40"
-          aria-label="Enviar imóvel"
-          title="Enviar imóvel"
-        >
-          {#if isSubmittingAdd}
-            <Loader2 class="h-3.5 w-3.5 animate-spin" />
-          {:else}
-            Enviar
-          {/if}
-        </button>
+        <FloatingTooltip label="Selecionar arquivo" side="bottom" wrapperClass="absolute right-[3.85rem] top-1/2 block h-5 w-5 -translate-y-1/2">
+          <button
+            type="button"
+            onclick={() => addFileInputRef?.click()}
+            disabled={!showAddInput || isSubmittingAdd}
+            class="flex h-full w-full items-center justify-center rounded text-app-muted transition-colors hover:bg-app-surface-muted hover:text-app-fg disabled:opacity-50"
+            aria-label="Selecionar arquivo"
+          >
+            <Upload class="h-3.5 w-3.5" />
+          </button>
+        </FloatingTooltip>
+        <FloatingTooltip label="Enviar imóvel" side="bottom" wrapperClass="absolute right-1.5 top-1/2 block h-5 -translate-y-1/2">
+          <button
+            type="button"
+            onclick={() => void submitInlineAdd()}
+            disabled={!showAddInput || isSubmittingAdd || (!addInputValue.trim() && addFiles.length === 0)}
+            class="flex h-full items-center justify-center rounded bg-app-action px-2 text-[11px] font-medium leading-none text-app-action-foreground transition-colors hover:bg-app-action-hover disabled:cursor-not-allowed disabled:opacity-40"
+            aria-label="Enviar imóvel"
+          >
+            {#if isSubmittingAdd}
+              <Loader2 class="h-3.5 w-3.5 animate-spin" />
+            {:else}
+              Enviar
+            {/if}
+          </button>
+        </FloatingTooltip>
       </div>
     </div>
   </div>
@@ -758,7 +762,7 @@
               <tr class="border-app-border">
                 {#if visibleColumns.image}
                   <th class="sticky left-0 z-20 w-[5.5rem] bg-app-surface p-2">
-                    <ImageColumnHeaderToggle value={imageColumnView} onChange={(value) => (imageColumnView = value)} />
+                    <ImageColumnHeaderToggle bind:value={imageColumnView} />
                   </th>
                 {/if}
                 {#if visibleColumns.property}

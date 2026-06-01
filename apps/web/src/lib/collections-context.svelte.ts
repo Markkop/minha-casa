@@ -394,10 +394,13 @@ export function attachCollectionsListeners(state: ReturnType<typeof createCollec
   const onOrgChange = () => {
     void state.loadCollections();
   };
-  const onCollectionChange = () => {
+  const onCollectionChange = (event: Event) => {
+    const eventCollectionId =
+      event instanceof CustomEvent ? (event.detail?.collectionId as string | null | undefined) : undefined;
+    if (eventCollectionId && eventCollectionId === state.activeCollection?.id) return;
     const storedId = readStoredActiveCollectionId(getActiveOrganizationId());
     const match = state.collections.find((c) => c.id === storedId);
-    if (match) state.setActiveCollection(match);
+    if (match && match.id !== state.activeCollection?.id) state.setActiveCollection(match);
   };
 
   window.addEventListener("minha-casa:organization-context-change", onOrgChange);

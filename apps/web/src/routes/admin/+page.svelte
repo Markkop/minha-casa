@@ -351,6 +351,11 @@
     editSubscriptionId = "";
   }
 
+  function handleModalKeydown(event: KeyboardEvent) {
+    if (mode === "none") return;
+    if (event.key === "Escape") closeModal();
+  }
+
   function formatDate(value: string | null | undefined) {
     if (!value) return "-";
     return new Date(value).toLocaleDateString("pt-BR");
@@ -385,6 +390,8 @@
     return err instanceof Error ? err.message : fallback;
   }
 </script>
+
+<svelte:window onkeydown={handleModalKeydown} />
 
 <PageScaffold title="Admin" description="Usuarios, assinaturas, planos e addons.">
   {#if error}
@@ -620,8 +627,21 @@
 </PageScaffold>
 
 {#if mode !== "none"}
-  <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-    <section class="max-h-[88vh] w-full max-w-3xl overflow-y-auto rounded-md border border-app-border bg-app-surface p-5 shadow-xl">
+  <div class="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <button
+      type="button"
+      class="absolute inset-0 bg-black/40"
+      aria-label="Fechar modal"
+      onclick={closeModal}
+    ></button>
+    <div
+      class="relative z-10 max-h-[88vh] w-full max-w-3xl overflow-y-auto rounded-md border border-app-border bg-app-surface p-5 shadow-xl"
+      role="dialog"
+      aria-modal="true"
+      aria-label={mode === "edit-user" ? "Editar usuario" : mode === "grant-subscription" ? "Conceder assinatura" : mode === "subscriptions" ? "Assinaturas" : mode === "user-addons" ? "Addons do usuario" : "Addons da organizacao"}
+      tabindex="-1"
+      onkeydown={handleModalKeydown}
+    >
       <div class="mb-4 flex items-start justify-between gap-3">
         <div>
           <h2 class="text-lg font-semibold">
@@ -714,6 +734,6 @@
           {saving}
         />
       {/if}
-    </section>
+    </div>
   </div>
 {/if}

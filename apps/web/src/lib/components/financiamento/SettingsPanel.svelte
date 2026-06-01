@@ -22,28 +22,35 @@
     onClose: () => void;
   } = $props();
 
-  const { settings, updateSettings, resetSettings } = getSettingsContext();
-  let localSettings = $state<SimulatorSettings>(settings);
+  const settingsContext = getSettingsContext();
+  let localSettings = $state<SimulatorSettings>(settingsContext.settings);
 
   $effect(() => {
     if (isOpen) {
-      localSettings = structuredClone(settings);
+      localSettings = structuredClone(settingsContext.settings);
     }
   });
 
   function handleSave() {
-    updateSettings(localSettings);
+    settingsContext.updateSettings(localSettings);
     onClose();
   }
 
   function handleReset() {
     localSettings = structuredClone(DEFAULT_SETTINGS);
-    resetSettings();
+    settingsContext.resetSettings();
   }
 
   function handleCancel() {
-    localSettings = structuredClone(settings);
+    localSettings = structuredClone(settingsContext.settings);
     onClose();
+  }
+
+  function handleDialogKeydown(event: KeyboardEvent) {
+    if (event.key === "Escape") {
+      event.stopPropagation();
+      handleCancel();
+    }
   }
 </script>
 
@@ -59,15 +66,16 @@
       role="dialog"
       aria-modal="true"
       aria-label="Configurações do simulador"
+      tabindex="-1"
       onclick={(e) => e.stopPropagation()}
-      onkeydown={(e) => e.stopPropagation()}
+      onkeydown={handleDialogKeydown}
     >
       <Card class="border-app-border bg-app-surface">
         <CardHeader class="flex flex-row items-center justify-between space-y-0 pb-4">
           <CardTitle class="flex items-center gap-2 text-xl">⚙️ Configurações do Simulador</CardTitle>
           <button
             type="button"
-            class="rounded p-2 transition-colors hover:bg-brightGrey"
+            class="rounded p-2 transition-colors hover:bg-app-surface-muted"
             onclick={handleCancel}
             aria-label="Fechar"
           >
@@ -121,7 +129,7 @@
                   />
                   <button
                     type="button"
-                    class="rounded p-1 transition-colors hover:bg-brightGrey disabled:cursor-not-allowed disabled:opacity-30"
+                    class="rounded p-1 transition-colors hover:bg-app-surface-muted disabled:cursor-not-allowed disabled:opacity-30"
                     disabled={localSettings.prazoOptions.length <= 1}
                     onclick={() => {
                       localSettings = {

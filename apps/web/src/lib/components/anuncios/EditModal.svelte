@@ -3,6 +3,7 @@
   import ReparseModal from "$lib/components/anuncios/ReparseModal.svelte";
   import EditModalFormGrid from "$lib/components/anuncios/EditModalFormGrid.svelte";
   import ModalCloseButton from "$lib/components/anuncios/ModalCloseButton.svelte";
+  import FloatingTooltip from "$lib/components/ui/FloatingTooltip.svelte";
   import type { Imovel } from "$lib/anuncios/types";
   import { buildBaseListingTitle } from "$lib/listing-display-title";
   import { getCollectionsContext } from "$lib/collections-context.svelte";
@@ -173,21 +174,26 @@
         />
 
         <div class="flex gap-3 border-t border-app-border pt-4">
-          <button
-            type="button"
-            onclick={() => (isReparseOpen = true)}
-            disabled={!hasApiKey}
-            title={hasApiKey ? "Reparse com IA" : "Configure a API key nas configurações"}
-            class={cn(
-              "flex flex-1 items-center justify-center gap-2 rounded-lg px-4 py-2.5 font-medium transition-all",
-              "border border-app-border bg-app-surface-muted text-app-fg",
-              "hover:border-app-action hover:text-app-accent",
-              "disabled:cursor-not-allowed disabled:opacity-50"
-            )}
+          <FloatingTooltip
+            label={hasApiKey ? "Reparse com IA" : "Configure a API key nas configurações"}
+            side="bottom"
+            wrapperClass="flex flex-1"
           >
-            <Sparkles class="h-4 w-4" />
-            Reparse IA
-          </button>
+            <button
+              type="button"
+              onclick={() => (isReparseOpen = true)}
+              disabled={!hasApiKey}
+              class={cn(
+                "flex flex-1 items-center justify-center gap-2 rounded-lg px-4 py-2.5 font-medium transition-all",
+                "border border-app-border bg-app-surface-muted text-app-fg",
+                "hover:border-app-action hover:text-app-accent",
+                "disabled:cursor-not-allowed disabled:opacity-50"
+              )}
+            >
+              <Sparkles class="h-4 w-4" />
+              Reparse IA
+            </button>
+          </FloatingTooltip>
           <button
             type="button"
             onclick={onClose}

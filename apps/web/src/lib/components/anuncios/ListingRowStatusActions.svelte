@@ -32,6 +32,7 @@
   import { buildGoogleSearchUrl } from "$lib/components/anuncios/listing-row-urls";
   import type { ListingRowInteractions } from "$lib/components/anuncios/listing-row-interactions.svelte";
   import WhatsAppIcon from "$lib/components/anuncios/WhatsAppIcon.svelte";
+  import FloatingTooltip from "$lib/components/ui/FloatingTooltip.svelte";
 
   let {
     imovel,
@@ -127,59 +128,63 @@
     )}
   >
     {#if hasExternalLink}
-      <a
-        href={imovel.link!}
-        target="_blank"
-        rel="noopener noreferrer"
-        data-testid="listing-external-link"
-        class={actionLinkClass(imovel.strikethrough && "opacity-50")}
-        aria-label="Abrir anúncio original"
-        title="Abrir anúncio original"
-        onclick={(event) => event.stopPropagation()}
-      >
-        <ExternalLink class={actionIconClass} />
-      </a>
+      <FloatingTooltip label="Abrir anúncio original" side="bottom">
+        <a
+          href={imovel.link!}
+          target="_blank"
+          rel="noopener noreferrer"
+          data-testid="listing-external-link"
+          class={actionLinkClass(imovel.strikethrough && "opacity-50")}
+          aria-label="Abrir anúncio original"
+          onclick={(event) => event.stopPropagation()}
+        >
+          <ExternalLink class={actionIconClass} />
+        </a>
+      </FloatingTooltip>
     {/if}
 
-    <a
-      href={buildGoogleSearchUrl(
-        imovel.titulo,
-        imovel.endereco,
-        imovel.m2Totais,
-        imovel.quartos,
-        imovel.banheiros
-      )}
-      target="_blank"
-      rel="noopener noreferrer"
-      class={actionLinkClass()}
-      title="Buscar no Google"
-    >
-      <Search class={actionIconClass} />
-    </a>
-
-    <button
-      type="button"
-      title={interactions.copiedMarkdown ? "Copiado!" : "Copiar resumo em Markdown"}
-      onclick={() => void interactions.handleCopyListingMarkdown()}
-      class={interactions.copiedMarkdown ? actionOnClass : actionMutedClass}
-    >
-      {#if interactions.copiedMarkdown}
-        <Check class={actionIconClass} />
-      {:else}
-        <Copy class={actionIconClass} />
-      {/if}
-    </button>
-
-    {#if hasContact && whatsappUrl}
+    <FloatingTooltip label="Buscar no Google" side="bottom">
       <a
-        href={whatsappUrl}
+        href={buildGoogleSearchUrl(
+          imovel.titulo,
+          imovel.endereco,
+          imovel.m2Totais,
+          imovel.quartos,
+          imovel.banheiros
+        )}
         target="_blank"
         rel="noopener noreferrer"
-        class={cn(actionLinkClass(), "text-green-500 hover:text-green-400")}
-        title={imovel.contactName ? `Abrir WhatsApp - ${imovel.contactName}` : "Abrir WhatsApp"}
+        class={actionLinkClass()}
       >
-        <WhatsAppIcon class={cn(actionIconClass, "size-3.5")} />
+        <Search class={actionIconClass} />
       </a>
+    </FloatingTooltip>
+
+    <FloatingTooltip label={interactions.copiedMarkdown ? "Copiado!" : "Copiar resumo em Markdown"} side="bottom">
+      <button
+        type="button"
+        onclick={() => void interactions.handleCopyListingMarkdown()}
+        class={interactions.copiedMarkdown ? actionOnClass : actionMutedClass}
+      >
+        {#if interactions.copiedMarkdown}
+          <Check class={actionIconClass} />
+        {:else}
+          <Copy class={actionIconClass} />
+        {/if}
+      </button>
+    </FloatingTooltip>
+
+    {#if hasContact && whatsappUrl}
+      <FloatingTooltip label={imovel.contactName ? `Abrir WhatsApp - ${imovel.contactName}` : "Abrir WhatsApp"} side="bottom">
+        <a
+          href={whatsappUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          class={cn(actionLinkClass(), "text-green-500 hover:text-green-400")}
+        >
+          <WhatsAppIcon class={cn(actionIconClass, "size-3.5")} />
+        </a>
+      </FloatingTooltip>
     {:else}
       <div
         class="relative"
@@ -188,14 +193,15 @@
           onClose: closeContactPopover
         }}
       >
-        <button
-          type="button"
-          title="Adicionar contato WhatsApp"
-          class={actionMutedClass}
-          onclick={() => interactions.openContactPopover()}
-        >
-          <WhatsAppIcon class={cn(actionIconClass, "size-3.5")} />
-        </button>
+        <FloatingTooltip label="Adicionar contato WhatsApp" side="bottom">
+          <button
+            type="button"
+            class={actionMutedClass}
+            onclick={() => interactions.openContactPopover()}
+          >
+            <WhatsAppIcon class={cn(actionIconClass, "size-3.5")} />
+          </button>
+        </FloatingTooltip>
         {#if interactions.contactPopoverOpen}
           <div class="absolute right-0 top-full z-50 mt-1 w-64 rounded-md border border-app-border bg-app-surface p-3 shadow-lg">
             <div class="space-y-3">
@@ -262,14 +268,15 @@
         onClose: closeQuickReparsePopover
       }}
     >
-      <button
-        type="button"
-        title="Reparse rápido com IA"
-        class={actionMutedClass}
-        onclick={() => interactions.openQuickReparsePopover()}
-      >
-        <RefreshCw class={actionIconClass} />
-      </button>
+      <FloatingTooltip label="Reparse rápido com IA" side="bottom">
+        <button
+          type="button"
+          class={actionMutedClass}
+          onclick={() => interactions.openQuickReparsePopover()}
+        >
+          <RefreshCw class={actionIconClass} />
+        </button>
+      </FloatingTooltip>
       {#if interactions.quickReparsePopoverOpen}
         <div class="absolute right-0 top-full z-50 mt-1 w-64 rounded-md border border-app-border bg-app-surface p-3 shadow-lg">
           <div class="space-y-3">
@@ -322,23 +329,25 @@
       {/if}
     </div>
 
-    <button
-      type="button"
-      title="Editar imóvel"
-      class={actionMutedClass}
-      onclick={() => openEditListing(imovel)}
-    >
-      <Pencil class={actionIconClass} />
-    </button>
+    <FloatingTooltip label="Editar imóvel" side="bottom">
+      <button
+        type="button"
+        class={actionMutedClass}
+        onclick={() => openEditListing(imovel)}
+      >
+        <Pencil class={actionIconClass} />
+      </button>
+    </FloatingTooltip>
 
-    <button
-      type="button"
-      title="Excluir imóvel"
-      class={cn(actionMutedClass, "hover:text-destructive")}
-      onclick={() => void interactions.handleDelete()}
-    >
-      <Trash2 class={actionIconClass} />
-    </button>
+    <FloatingTooltip label="Excluir imóvel" side="bottom">
+      <button
+        type="button"
+        class={cn(actionMutedClass, "hover:text-destructive")}
+        onclick={() => void interactions.handleDelete()}
+      >
+        <Trash2 class={actionIconClass} />
+      </button>
+    </FloatingTooltip>
 
     {#if hasOtherCollections}
       <div
@@ -348,15 +357,16 @@
           onClose: () => (interactions.copyToCollectionPopoverOpen = false)
         }}
       >
-        <button
-          type="button"
-          title="Copiar para outra coleção"
-          class={actionMutedClass}
-          onclick={() =>
-            (interactions.copyToCollectionPopoverOpen = !interactions.copyToCollectionPopoverOpen)}
-        >
-          <Folder class={actionIconClass} />
-        </button>
+        <FloatingTooltip label="Copiar para outra coleção" side="bottom">
+          <button
+            type="button"
+            class={actionMutedClass}
+            onclick={() =>
+              (interactions.copyToCollectionPopoverOpen = !interactions.copyToCollectionPopoverOpen)}
+          >
+            <Folder class={actionIconClass} />
+          </button>
+        </FloatingTooltip>
         {#if interactions.copyToCollectionPopoverOpen}
           <div
             class="absolute right-0 top-full z-50 mt-1.5 w-52 rounded-md border border-app-border bg-app-surface p-1 text-app-fg shadow-lg"

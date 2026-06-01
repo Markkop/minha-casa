@@ -10,6 +10,7 @@
   import { ExternalLink } from "@lucide/svelte";
   import { buildListingAnaliseHref } from "$lib/listing-analise-url";
   import { cn } from "$lib/utils";
+  import FloatingTooltip from "$lib/components/ui/FloatingTooltip.svelte";
   import {
     LISTING_MOBILE_ICON_BTN_CLASS,
     LISTING_MOBILE_ICON_CLASS
@@ -56,39 +57,46 @@
     className
   )}
 >
-  <a
-    href={analiseHref}
-    class={cn(
-      "font-medium transition-colors",
-      wrapTitle
-        ? "block min-w-0 whitespace-normal break-words leading-tight"
-        : !truncateTitle
-          ? "min-w-0 whitespace-nowrap leading-snug"
-          : "min-w-0 shrink truncate leading-snug",
-      overlayOnMedia ? "text-white hover:text-white/90" : "text-app-fg hover:text-app-accent",
-      listing.strikethrough && "line-through opacity-50",
-      titleClassName
-    )}
-    title={`Ver análise: ${resolvedTitle}`}
+  <FloatingTooltip
+    label={`Ver análise: ${resolvedTitle}`}
+    side="bottom"
+    wrapperClass={cn("min-w-0", wrapTitle ? "block" : "flex min-w-0 flex-1")}
   >
-    {displayTitle}
-  </a>
-  {#if hasExternalLink}
     <a
-      href={listing.link!}
-      target="_blank"
-      rel="noopener noreferrer"
+      href={analiseHref}
       class={cn(
-        overlayOnMedia
-          ? cn(LISTING_MOBILE_ICON_BTN_CLASS, "text-white/80 hover:text-white")
-          : "shrink-0 rounded p-1 text-muted-foreground transition-colors hover:text-app-accent",
-        !overlayOnMedia && listing.strikethrough && "opacity-50",
-        overlayOnMedia && listing.strikethrough && "opacity-50"
+        "font-medium transition-colors",
+        wrapTitle
+          ? "block min-w-0 whitespace-normal break-words leading-tight"
+          : !truncateTitle
+            ? "min-w-0 whitespace-nowrap leading-snug"
+            : "min-w-0 shrink truncate leading-snug",
+        overlayOnMedia ? "text-white hover:text-white/90" : "text-app-fg hover:text-app-accent",
+        listing.strikethrough && "line-through opacity-50",
+        titleClassName
       )}
-      aria-label="Abrir anúncio original"
-      onclick={(event) => event.stopPropagation()}
     >
-      <ExternalLink class={overlayOnMedia ? LISTING_MOBILE_ICON_CLASS : "h-3.5 w-3.5"} />
+      {displayTitle}
     </a>
+  </FloatingTooltip>
+  {#if hasExternalLink}
+    <FloatingTooltip label="Abrir anúncio original" side="bottom">
+      <a
+        href={listing.link!}
+        target="_blank"
+        rel="noopener noreferrer"
+        class={cn(
+          overlayOnMedia
+            ? cn(LISTING_MOBILE_ICON_BTN_CLASS, "text-white/80 hover:text-white")
+            : "shrink-0 rounded p-1 text-muted-foreground transition-colors hover:text-app-accent",
+          !overlayOnMedia && listing.strikethrough && "opacity-50",
+          overlayOnMedia && listing.strikethrough && "opacity-50"
+        )}
+        aria-label="Abrir anúncio original"
+        onclick={(event) => event.stopPropagation()}
+      >
+        <ExternalLink class={overlayOnMedia ? LISTING_MOBILE_ICON_CLASS : "h-3.5 w-3.5"} />
+      </a>
+    </FloatingTooltip>
   {/if}
 </span>

@@ -9,7 +9,7 @@ import { geocodeWithNominatim, geocodeBatchWithNominatim } from "./geocoding-nom
 import { buildGeocodeSearchQuery } from "./geocoding-query"
 import type { GeocodeQueryOptions } from "./geocoding-query"
 
-const GEOCODE_CACHE_KEY = "geocode-cache-v3"
+const GEOCODE_CACHE_KEY = "geocode-cache-v4"
 
 export type { GeocodeQueryOptions } from "./geocoding-query"
 
@@ -235,7 +235,7 @@ export async function geocodeAddress(
 
   // Fallback to Nominatim
   if (!location) {
-    console.log(`[Geocoding] Falling back to Nominatim for "${address}"`)
+    console.debug(`[Geocoding] Falling back to Nominatim for "${address}"`)
     const nominatimResult = await geocodeWithNominatim(address, options)
     if (nominatimResult) {
       location = { ...nominatimResult, provider: "nominatim" }
@@ -329,7 +329,7 @@ export async function geocodeAddresses(
     }
   } else {
     // Fallback to Nominatim (sequential, rate limited)
-    console.log("[Geocoding] Google not available, using Nominatim")
+    console.debug("[Geocoding] Google not available, using Nominatim")
     const nominatimResults = await geocodeBatchWithNominatim(
       uncached,
       (completed) => {

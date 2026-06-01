@@ -30,7 +30,7 @@
   let open = $state(false);
 </script>
 
-<ToolbarAnchoredPopover bind:open panelClass="w-56 p-2">
+<ToolbarAnchoredPopover bind:open align="start" panelClass="w-56 p-2">
   {#snippet trigger()}
     <PageToolbarIconButton
       variant="secondary"

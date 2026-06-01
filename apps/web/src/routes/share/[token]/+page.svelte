@@ -3,6 +3,7 @@
   import { page } from "$app/stores";
   import { ExternalLink, Search, Star } from "@lucide/svelte";
   import { config } from "$lib/config";
+  import FloatingTooltip from "$lib/components/ui/FloatingTooltip.svelte";
   import { workspaceApi, type Listing, type ListingData, type SharedCollection } from "$lib/workspace/client";
 
   type SortKey = "titulo" | "preco" | "m2Totais" | "m2Privado" | "quartos" | "precoM2";
@@ -203,15 +204,16 @@
                     </td>
                     <td class="px-3 py-3 text-right">
                       {#if listing.data.link}
-                        <a
-                          class="inline-flex h-9 w-9 items-center justify-center rounded-md text-app-muted hover:bg-app-surface-muted hover:text-app-fg"
-                          href={String(listing.data.link)}
-                          target="_blank"
-                          rel="noreferrer"
-                          title="Abrir anuncio"
-                        >
-                          <ExternalLink class="h-4 w-4" />
-                        </a>
+                        <FloatingTooltip label="Abrir anuncio" side="bottom">
+                          <a
+                            class="inline-flex h-9 w-9 items-center justify-center rounded-md text-app-muted hover:bg-app-surface-muted hover:text-app-fg"
+                            href={String(listing.data.link)}
+                            target="_blank"
+                            rel="noreferrer"
+                          >
+                            <ExternalLink class="h-4 w-4" />
+                          </a>
+                        </FloatingTooltip>
                       {/if}
                     </td>
                   </tr>

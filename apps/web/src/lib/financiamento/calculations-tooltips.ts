@@ -1,10 +1,29 @@
-import {
-  calcularPctReservaRecomendada,
-  formatCurrency,
-  formatCurrencyCompact,
-  formatPctReserva
-} from "$lib/financiamento/calculations";
 import { DEFAULTS } from "$lib/financiamento/calculations-defaults";
+
+const calcularPctReservaRecomendada = (valorImovel: number): number => {
+  if (valorImovel <= 0) return 0.05;
+  if (valorImovel <= 1_000_000) return 0.06;
+  if (valorImovel <= 2_000_000) return 0.05;
+  if (valorImovel <= 3_500_000) return 0.045;
+  return 0.04;
+};
+
+const formatCurrency = (value: number): string =>
+  new Intl.NumberFormat("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  }).format(value);
+
+const formatCurrencyCompact = (value: number): string => {
+  if (value >= 1_000_000) return `R$ ${(value / 1_000_000).toFixed(2)}M`;
+  if (value >= 1_000) return `R$ ${(value / 1_000).toFixed(0)}k`;
+  return formatCurrency(value);
+};
+
+const formatPctReserva = (pct: number): string =>
+  `${(pct * 100).toFixed(1).replace(".0", "")}%`;
 
 export interface TooltipParams {
   reservaEmergencia?: number;

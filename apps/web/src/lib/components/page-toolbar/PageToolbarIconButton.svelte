@@ -30,7 +30,7 @@
   {title}
   aria-label={ariaLabel}
   aria-pressed={ariaPressed}
-  {onclick}
+  onclick={onclick}
 >
   {@render children?.()}
 </PageToolbarButton>

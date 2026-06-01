@@ -20,6 +20,7 @@
   } from "$lib/anuncios/listings-panel-layout";
   import { popoverOutside } from "$lib/actions/popover-outside";
   import PageToolbarIconButton from "$lib/components/page-toolbar/PageToolbarIconButton.svelte";
+  import FloatingTooltip from "$lib/components/ui/FloatingTooltip.svelte";
   import { cn } from "$lib/utils";
 
   let {
@@ -188,15 +189,16 @@
     {/if}
   </div>
 
-  <span
-    class={cn(
-      "inline-flex h-7 shrink-0 items-center rounded-full border border-app-border bg-app-surface px-2 text-xs font-medium",
-      stateBadge ? "text-app-fg" : "text-app-subtle"
-    )}
-    title="Estado (UF)"
-  >
-    {stateBadge || "UF"}
-  </span>
+  <FloatingTooltip label="Estado (UF)" side="bottom">
+    <span
+      class={cn(
+        "inline-flex h-7 shrink-0 items-center rounded-full border border-app-border bg-app-surface px-2 text-xs font-medium",
+        stateBadge ? "text-app-fg" : "text-app-subtle"
+      )}
+    >
+      {stateBadge || "UF"}
+    </span>
+  </FloatingTooltip>
 
   {#if onAutomaticView}
     <PageToolbarIconButton

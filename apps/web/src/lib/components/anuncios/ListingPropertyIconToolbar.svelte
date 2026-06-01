@@ -23,6 +23,7 @@
   } from "$lib/components/anuncios/listings-table-shared";
   import { popoverOutside } from "$lib/actions/popover-outside";
   import type { ListingRowInteractions } from "$lib/components/anuncios/listing-row-interactions.svelte";
+  import FloatingTooltip from "$lib/components/ui/FloatingTooltip.svelte";
 
   let {
     imovel,
@@ -94,14 +95,15 @@
       onClose: () => (interactions.tipoImovelPopoverOpen = false)
     }}
   >
-    <button
-      type="button"
-      title="Tipo de imóvel: {tipoOption.label}"
-      class={tipoBtnClass}
-      onclick={() => (interactions.tipoImovelPopoverOpen = !interactions.tipoImovelPopoverOpen)}
-    >
-      <TipoIcon class={iconClass} />
-    </button>
+    <FloatingTooltip label={`Tipo de imóvel: ${tipoOption.label}`} side="bottom">
+      <button
+        type="button"
+        class={tipoBtnClass}
+        onclick={() => (interactions.tipoImovelPopoverOpen = !interactions.tipoImovelPopoverOpen)}
+      >
+        <TipoIcon class={iconClass} />
+      </button>
+    </FloatingTooltip>
     {#if interactions.tipoImovelPopoverOpen}
       <div
         class="absolute left-0 top-full z-50 mt-1.5 w-44 rounded-md border border-app-border bg-app-surface p-1 text-app-fg shadow-lg"
@@ -136,118 +138,127 @@
     {/if}
   </div>
 
-  <button
-    type="button"
-    title={imovel.piscina === true ? "Remover piscina" : "Adicionar piscina"}
-    class={featureBtnClass(imovel.piscina === true, "text-blue-500")}
-    onclick={() => void interactions.handleTogglePiscina()}
-  >
-    <WavesLadder class={iconClass} />
-  </button>
+  <FloatingTooltip label={imovel.piscina === true ? "Remover piscina" : "Adicionar piscina"} side="bottom">
+    <button
+      type="button"
+      class={featureBtnClass(imovel.piscina === true, "text-blue-500")}
+      onclick={() => void interactions.handleTogglePiscina()}
+    >
+      <WavesLadder class={iconClass} />
+    </button>
+  </FloatingTooltip>
 
   {#if imovel.tipoImovel === "apartamento"}
-    <button
-      type="button"
-      title={imovel.piscinaTermica === true ? "Remover piscina térmica" : "Adicionar piscina térmica"}
-      class={featureBtnClass(imovel.piscinaTermica === true, "text-blue-500")}
-      onclick={() => void interactions.handleTogglePiscinaTermica()}
-    >
-      <Waves class={iconClass} />
-    </button>
-    <button
-      type="button"
-      title={imovel.porteiro24h === true ? "Remover porteiro 24h" : "Adicionar porteiro 24h"}
-      class={featureBtnClass(imovel.porteiro24h === true, "text-red-500")}
-      onclick={() => void interactions.handleTogglePorteiro24h()}
-    >
-      <Shield class={iconClass} />
-    </button>
-    <button
-      type="button"
-      title={imovel.academia === true ? "Remover academia" : "Adicionar academia"}
-      class={featureBtnClass(imovel.academia === true, "text-yellow-500")}
-      onclick={() => void interactions.handleToggleAcademia()}
-    >
-      <Dumbbell class={iconClass} />
-    </button>
+    <FloatingTooltip label={imovel.piscinaTermica === true ? "Remover piscina térmica" : "Adicionar piscina térmica"} side="bottom">
+      <button
+        type="button"
+        class={featureBtnClass(imovel.piscinaTermica === true, "text-blue-500")}
+        onclick={() => void interactions.handleTogglePiscinaTermica()}
+      >
+        <Waves class={iconClass} />
+      </button>
+    </FloatingTooltip>
+    <FloatingTooltip label={imovel.porteiro24h === true ? "Remover porteiro 24h" : "Adicionar porteiro 24h"} side="bottom">
+      <button
+        type="button"
+        class={featureBtnClass(imovel.porteiro24h === true, "text-red-500")}
+        onclick={() => void interactions.handleTogglePorteiro24h()}
+      >
+        <Shield class={iconClass} />
+      </button>
+    </FloatingTooltip>
+    <FloatingTooltip label={imovel.academia === true ? "Remover academia" : "Adicionar academia"} side="bottom">
+      <button
+        type="button"
+        class={featureBtnClass(imovel.academia === true, "text-yellow-500")}
+        onclick={() => void interactions.handleToggleAcademia()}
+      >
+        <Dumbbell class={iconClass} />
+      </button>
+    </FloatingTooltip>
   {/if}
 
-  <button
-    type="button"
-    title="Quartos: {imovel.quartos ?? 0}"
-    class={cycleBtnClass}
-    onclick={() => void interactions.handleCycleQuartos()}
-  >
-    <BedDouble class={cn("absolute text-muted-foreground opacity-50", iconClass)} />
-    <span
-      class={cn(
-        "relative z-10 text-[10px] font-bold",
-        (imovel.quartos ?? 0) > 0 ? "text-app-fg" : "text-app-subtle opacity-50"
-      )}
-    >
-      {imovel.quartos ?? 0}
-    </span>
-  </button>
-
-  <button
-    type="button"
-    title="Banheiros: {imovel.banheiros ?? 0}"
-    class={cycleBtnClass}
-    onclick={() => void interactions.handleCycleBanheiros()}
-  >
-    <Bath class={cn("absolute text-muted-foreground opacity-50", iconClass)} />
-    <span
-      class={cn(
-        "relative z-10 text-[10px] font-bold",
-        (imovel.banheiros ?? 0) > 0 ? "text-app-fg" : "text-app-subtle opacity-50"
-      )}
-    >
-      {imovel.banheiros ?? 0}
-    </span>
-  </button>
-
-  {#if imovel.tipoImovel === "apartamento"}
+  <FloatingTooltip label={`Quartos: ${imovel.quartos ?? 0}`} side="bottom">
     <button
       type="button"
-      title="Andar: {imovel.andar === 10 ? '10+' : (imovel.andar ?? 0)}"
       class={cycleBtnClass}
-      onclick={() => void interactions.handleCycleAndar()}
+      onclick={() => void interactions.handleCycleQuartos()}
     >
-      <Building class={cn("absolute text-muted-foreground opacity-50", iconClass)} />
+      <BedDouble class={cn("absolute text-muted-foreground opacity-50", iconClass)} />
       <span
         class={cn(
           "relative z-10 text-[10px] font-bold",
-          (imovel.andar ?? 0) > 0 ? "text-app-fg" : "text-app-subtle opacity-50"
+          (imovel.quartos ?? 0) > 0 ? "text-app-fg" : "text-app-subtle opacity-50"
         )}
       >
-        {imovel.andar === 10 ? "+" : (imovel.andar ?? 0)}
+        {imovel.quartos ?? 0}
       </span>
     </button>
+  </FloatingTooltip>
+
+  <FloatingTooltip label={`Banheiros: ${imovel.banheiros ?? 0}`} side="bottom">
+    <button
+      type="button"
+      class={cycleBtnClass}
+      onclick={() => void interactions.handleCycleBanheiros()}
+    >
+      <Bath class={cn("absolute text-muted-foreground opacity-50", iconClass)} />
+      <span
+        class={cn(
+          "relative z-10 text-[10px] font-bold",
+          (imovel.banheiros ?? 0) > 0 ? "text-app-fg" : "text-app-subtle opacity-50"
+        )}
+      >
+        {imovel.banheiros ?? 0}
+      </span>
+    </button>
+  </FloatingTooltip>
+
+  {#if imovel.tipoImovel === "apartamento"}
+    <FloatingTooltip label={`Andar: ${imovel.andar === 10 ? "10+" : (imovel.andar ?? 0)}`} side="bottom">
+      <button
+        type="button"
+        class={cycleBtnClass}
+        onclick={() => void interactions.handleCycleAndar()}
+      >
+        <Building class={cn("absolute text-muted-foreground opacity-50", iconClass)} />
+        <span
+          class={cn(
+            "relative z-10 text-[10px] font-bold",
+            (imovel.andar ?? 0) > 0 ? "text-app-fg" : "text-app-subtle opacity-50"
+          )}
+        >
+          {imovel.andar === 10 ? "+" : (imovel.andar ?? 0)}
+        </span>
+      </button>
+    </FloatingTooltip>
   {/if}
 
-  <button
-    type="button"
-    title="Vagas: {imovel.garagem ?? 0}"
-    class={cycleBtnClass}
-    onclick={() => void interactions.handleCycleGaragem()}
-  >
-    <Car class={cn("absolute text-muted-foreground opacity-50", iconClass)} />
-    <span
-      class={cn(
-        "relative z-10 text-[10px] font-bold",
-        (imovel.garagem ?? 0) > 0 ? "text-app-fg" : "text-app-subtle opacity-50"
-      )}
+  <FloatingTooltip label={`Vagas: ${imovel.garagem ?? 0}`} side="bottom">
+    <button
+      type="button"
+      class={cycleBtnClass}
+      onclick={() => void interactions.handleCycleGaragem()}
     >
-      {imovel.garagem ?? 0}
-    </span>
-  </button>
+      <Car class={cn("absolute text-muted-foreground opacity-50", iconClass)} />
+      <span
+        class={cn(
+          "relative z-10 text-[10px] font-bold",
+          (imovel.garagem ?? 0) > 0 ? "text-app-fg" : "text-app-subtle opacity-50"
+        )}
+      >
+        {imovel.garagem ?? 0}
+      </span>
+    </button>
+  </FloatingTooltip>
 
-  <button
-    type="button"
-    title={imovel.vistaLivre === true ? "Remover vista livre" : "Adicionar vista livre"}
-    class={featureBtnClass(imovel.vistaLivre === true, "text-green-500")}
-    onclick={() => void interactions.handleToggleVistaLivre()}
-  >
-    <Mountain class={iconClass} />
-  </button>
+  <FloatingTooltip label={imovel.vistaLivre === true ? "Remover vista livre" : "Adicionar vista livre"} side="bottom">
+    <button
+      type="button"
+      class={featureBtnClass(imovel.vistaLivre === true, "text-green-500")}
+      onclick={() => void interactions.handleToggleVistaLivre()}
+    >
+      <Mountain class={iconClass} />
+    </button>
+  </FloatingTooltip>
 </div>
