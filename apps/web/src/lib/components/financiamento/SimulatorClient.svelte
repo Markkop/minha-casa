@@ -37,7 +37,6 @@
     applyRecursosMesh,
     computeSimulatorParams,
     createInitialSimulatorParams,
-    readCapital,
     readValorImovel
   } from "$lib/financiamento/simulator-recursos";
   import { syncSubscriptionCookie } from "$lib/sync-subscription-cookie";

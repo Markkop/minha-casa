@@ -48,3 +48,7 @@ next-env.d.ts
 
 .ssh-prod
 .pnpm-store
+
+# svelte / sveltekit
+**/.svelte-kit
+apps/web/build/

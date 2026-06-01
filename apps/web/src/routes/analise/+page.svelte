@@ -1,7 +1,8 @@
 <script lang="ts">
   import AnaliseClient from "$lib/components/analise/AnaliseClient.svelte";
+  import type { PageData } from "./$types";
 
-  let { data } = $props<{ data: App.PageData }>();
+  let { data } = $props<{ data: PageData }>();
 </script>
 
 <svelte:head>

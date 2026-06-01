@@ -9,7 +9,6 @@
   import { formatDuplicateReason } from "$lib/anuncios/duplicate-reason";
   import { formatCurrency } from "$lib/anuncios/map-shared";
   import { calculatePrecoM2, calculatePrecoM2Privado } from "$lib/components/anuncios/listing-row-urls";
-  import { cn } from "$lib/utils";
 
   let {
     row,

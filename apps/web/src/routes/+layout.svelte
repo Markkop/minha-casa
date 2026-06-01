@@ -9,10 +9,11 @@
     setActiveOrganizationId,
     setActiveOrganizationIdCache
   } from "$lib/active-organization";
+  import type { LayoutData } from "./$types";
 
   let { children, data } = $props<{
     children?: import("svelte").Snippet;
-    data: App.PageData;
+    data: LayoutData;
   }>();
 
   $effect(() => {

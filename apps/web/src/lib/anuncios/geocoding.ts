@@ -4,7 +4,6 @@
 // Fallback: Nominatim (OpenStreetMap) for when Google fails
 // ============================================================================
 
-// @ts-nocheck — Google Maps types loaded at runtime via script tag
 import { geocodeWithNominatim, geocodeBatchWithNominatim } from "./geocoding-nominatim"
 import { buildGeocodeSearchQuery } from "./geocoding-query"
 import type { GeocodeQueryOptions } from "./geocoding-query"

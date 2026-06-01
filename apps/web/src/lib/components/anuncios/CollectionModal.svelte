@@ -8,7 +8,6 @@
   import { getCollectionsContext } from "$lib/collections-context.svelte";
   import { getActiveOrganizationId } from "$lib/api/client";
   import { workspaceApi, type Organization } from "$lib/workspace/client";
-  import { cn } from "$lib/utils";
 
   let {
     isOpen,

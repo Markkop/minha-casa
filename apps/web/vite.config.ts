@@ -28,6 +28,10 @@ if (!process.env.PUBLIC_GOOGLE_MAPS_API_KEY?.trim() && process.env.NEXT_PUBLIC_G
 export default defineConfig({
   envDir: webRoot,
   plugins: [tailwindcss(), sveltekit()],
+  ssr: {
+    // Better Auth pulls optional DB adapters; keep them external so Vite does not bundle kysely dialect shims.
+    external: ["better-auth", "@better-auth/core", "kysely"]
+  },
   resolve: {
     alias: {
       "@minha-casa/db": path.join(repoRoot, "lib/db")

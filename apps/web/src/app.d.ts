@@ -1,3 +1,4 @@
+/// <reference path="./lib/google-maps.d.ts" />
 import type { Session, User } from "$lib/auth";
 
 declare global {

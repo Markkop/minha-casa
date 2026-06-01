@@ -27,8 +27,7 @@
     getNumericMatrixRows,
     getMatrixRowAccessibleLabel,
     MATRIX_ROWS_TAIL,
-    type FixedCell,
-    type NumericRowKey
+    type FixedCell
   } from "$lib/comparacao/comparison-matrix";
   import {
     readStoredComparisonSelection,

@@ -13,7 +13,7 @@
   },
   "dependencies": {
     "@lucide/svelte": "^1.7.0",
-    "better-auth": "^1.4.17",
+    "better-auth": "1.4.17",
     "clsx": "^2.1.1",
     "katex": "^0.16.27",
     "leaflet": "^1.9.4",

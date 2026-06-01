@@ -28,11 +28,17 @@
   onMount(() => {
     activeOrgId = getActiveOrganizationId();
     void loadOrganizations();
-    window.addEventListener("minha-casa:organization-context-change", handleContextChange as EventListener);
+    window.addEventListener(
+      "minha-casa:organization-context-change",
+      handleContextChange as Parameters<typeof window.addEventListener>[1]
+    );
     window.addEventListener("click", closeOnOutside);
 
     return () => {
-      window.removeEventListener("minha-casa:organization-context-change", handleContextChange as EventListener);
+      window.removeEventListener(
+        "minha-casa:organization-context-change",
+        handleContextChange as Parameters<typeof window.removeEventListener>[1]
+      );
       window.removeEventListener("click", closeOnOutside);
     };
   });

@@ -24,6 +24,7 @@
   const ctx = getCollectionsContext();
   const apiKey = $derived(getGoogleMapsApiKey());
 
+  // Advanced Marker API instances come from runtime constructors; keep loose for Maps JS API.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let map = $state<any>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

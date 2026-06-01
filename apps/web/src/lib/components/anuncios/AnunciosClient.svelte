@@ -11,7 +11,7 @@
   import { LISTINGS_PAGE_CLASS } from "$lib/anuncios/listings-panel-layout";
   import { WORKSPACE_CONTENT_CLASS } from "$lib/workspace-chrome";
   import { getCollectionsContext } from "$lib/collections-context.svelte";
-  import { toListingData, type Imovel } from "$lib/anuncios/types";
+  import { toListingData } from "$lib/anuncios/types";
   import type { ListingData } from "$lib/workspace/client";
   import AnunciosQuerySync from "$lib/components/anuncios/AnunciosQuerySync.svelte";
   import ListingsTable from "$lib/components/anuncios/ListingsTable.svelte";
