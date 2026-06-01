@@ -1,4 +1,5 @@
 import { resolveListingImages, type ImageIngestionStatus } from "$lib/listing-images";
+import type { ListingImageCategoryKey } from "$lib/listing-image-categories";
 import type { Collection as ApiCollection, Listing as ApiListing, ListingData } from "$lib/workspace/client";
 
 export type { ListingData };
@@ -42,6 +43,7 @@ export interface Imovel {
   imageUrls?: string[] | null;
   imageStorageKeys?: string[] | null;
   imageCoverIndex?: number | null;
+  imageCategories?: Record<string, ListingImageCategoryKey> | null;
   imageIngestionStatus?: ImageIngestionStatus | null;
   imageIngestionError?: string | null;
   contactName?: string | null;
@@ -113,6 +115,7 @@ export function toImovel(apiListing: ApiListing): Imovel {
     imageUrls: images.imageUrls,
     imageStorageKeys: data.imageStorageKeys as string[] | null | undefined,
     imageCoverIndex: (data.imageCoverIndex as number | null) ?? null,
+    imageCategories: (data.imageCategories as Record<string, ListingImageCategoryKey> | null) ?? null,
     imageIngestionStatus: data.imageIngestionStatus as ImageIngestionStatus | null | undefined,
     imageIngestionError: data.imageIngestionError as string | null | undefined,
     contactName: (data.contactName ?? data.corretor) as string | null | undefined,
@@ -165,6 +168,7 @@ export function toListingData(imovel: Partial<Imovel>): Partial<ListingData> {
   assign("imageUrls", imovel.imageUrls ?? undefined);
   assign("imageStorageKeys", imovel.imageStorageKeys ?? undefined);
   assign("imageCoverIndex", imovel.imageCoverIndex ?? undefined);
+  assign("imageCategories", imovel.imageCategories ?? undefined);
   assign("contactName", imovel.contactName ?? undefined);
   assign("contactNumber", imovel.contactNumber ?? undefined);
   assign("condominiumName", imovel.condominiumName ?? undefined);

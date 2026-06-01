@@ -16,6 +16,7 @@ type RequestOptions = {
   body?: unknown;
   headers?: Record<string, string>;
   auth?: boolean;
+  signal?: AbortSignal;
 };
 
 const ACTIVE_ORG_STORAGE_KEY = "minha-casa:active-organization-id";
@@ -74,9 +75,11 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
     response = await fetch(url, {
       method,
       headers: requestHeaders,
-      body: body === undefined ? undefined : JSON.stringify(body)
+      body: body === undefined ? undefined : JSON.stringify(body),
+      signal: options.signal
     });
   } catch (error) {
+    if (error instanceof DOMException && error.name === "AbortError") throw error;
     throw new ApiError(0, {
       error: `Cannot reach ${url}`,
       detail: error instanceof Error ? error.message : String(error)

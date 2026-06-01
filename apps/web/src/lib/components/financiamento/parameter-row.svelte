@@ -1,0 +1,113 @@
+<script lang="ts">
+  import { Info, Pencil } from "@lucide/svelte";
+  import CurrencyInput from "$lib/components/financiamento/currency-input.svelte";
+  import PercentInput from "$lib/components/financiamento/percent-input.svelte";
+  import type { ParameterRowProps } from "$lib/components/financiamento/financiamento-parameter-types";
+  import Input from "$lib/components/ui/Input.svelte";
+  import Slider from "$lib/components/ui/Slider.svelte";
+  import Tooltip from "$lib/components/ui/Tooltip.svelte";
+  import { cn } from "$lib/utils";
+
+  let {
+    label,
+    tooltip,
+    valueDisplay,
+    slider,
+    edit,
+    extras,
+    valueClassName,
+    hint
+  }: ParameterRowProps = $props();
+
+  let isEditing = $state(false);
+</script>
+
+<div class="border-b border-app-border/40 py-1 last:border-b-0">
+  <div class="mb-0.5 flex items-center justify-between gap-2">
+    <div class="flex min-w-0 items-center gap-1.5">
+      <span class="text-sm leading-tight text-app-muted">{label}</span>
+      {#if tooltip}
+        <Tooltip contentClass="max-w-xs">
+          {#snippet trigger()}
+            <button
+              type="button"
+              class="inline-flex shrink-0 cursor-help text-app-subtle transition-colors hover:text-app-accent"
+              aria-label={`Informação: ${label}`}
+            >
+              <Info class="h-3.5 w-3.5" />
+            </button>
+          {/snippet}
+          <p class="text-xs">{tooltip}</p>
+        </Tooltip>
+      {/if}
+    </div>
+
+    <div class="flex shrink-0 flex-col items-end gap-0.5">
+      <div class="flex items-center gap-1.5">
+        {#if isEditing && edit}
+          <div class="w-[8.5rem]">
+            {#if edit.type === "currency"}
+              <CurrencyInput value={edit.value} onchange={edit.onChange} class="h-8 text-xs" />
+            {:else if edit.type === "percent"}
+              <PercentInput value={edit.value} onchange={edit.onChange} class="h-8 text-xs" />
+            {:else}
+              <Input
+                type="number"
+                value={edit.value}
+                class="h-8 font-mono text-xs"
+                onchange={(event) => {
+                  const target = event.currentTarget;
+                  edit.onChange(parseInt(target.value, 10) || 0);
+                }}
+              />
+            {/if}
+          </div>
+        {:else}
+          <span
+            class={cn(
+              "text-right font-mono text-sm whitespace-nowrap tabular-nums",
+              valueClassName ?? "text-app-fg"
+            )}
+          >
+            {valueDisplay}
+          </span>
+        {/if}
+        {#if edit}
+          <button
+            type="button"
+            onclick={() => {
+              isEditing = !isEditing;
+            }}
+            class={cn(
+              "rounded-md p-1.5 text-app-subtle transition-colors hover:bg-app-bg hover:text-app-accent",
+              isEditing && "bg-app-action/10 text-app-accent"
+            )}
+            aria-label={isEditing ? "Fechar edição" : "Editar valor"}
+          >
+            <Pencil class="h-3.5 w-3.5" />
+          </button>
+        {/if}
+      </div>
+      {#if hint && !isEditing}
+        <span class="text-[10px] leading-tight text-app-subtle">{hint}</span>
+      {/if}
+    </div>
+  </div>
+
+  {#if slider}
+    <Slider
+      value={slider.value}
+      min={slider.min}
+      max={slider.max}
+      step={slider.step}
+      onValueChange={slider.onValueChange}
+      class="w-full touch-none py-0.5 [&_[data-slot=slider-thumb]]:size-[18px] [&_[data-slot=slider-track]]:h-2"
+    />
+  {/if}
+
+  {#if extras}
+    <div class="mt-1 flex flex-wrap items-center gap-1">
+      {@render extras()}
+    </div>
+  {/if}
+</div>

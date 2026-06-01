@@ -1,0 +1,133 @@
+<script lang="ts">
+  import {
+    Bath,
+    BedDouble,
+    Building,
+    Car,
+    Dumbbell,
+    Home,
+    Mountain,
+    Search,
+    Shield,
+    Waves,
+    WavesLadder
+  } from "@lucide/svelte";
+  import type { Imovel } from "$lib/anuncios/types";
+  import { getCollectionsContext } from "$lib/collections-context.svelte";
+  import { formatListingAddress, formatListingPrice } from "$lib/components/analise/analise-listing-picker";
+  import { compactListingDisplayTitle } from "$lib/listing-display-title";
+  import { cn } from "$lib/utils";
+
+  let {
+    filtered,
+    query = $bindable(""),
+    selectedId,
+    onSelect
+  }: {
+    filtered: Imovel[];
+    query?: string;
+    selectedId: string | null;
+    onSelect: (listing: Imovel) => void;
+  } = $props();
+
+  const ctx = getCollectionsContext();
+</script>
+
+{#snippet ListingOptionThumb({ listing }: { listing: Imovel })}
+  {@const url = listing.imageUrl || listing.imageUrls?.[0] || null}
+  <div class="w-14 shrink-0 self-stretch overflow-hidden rounded-md border border-app-border bg-app-surface-muted">
+    {#if url}
+      <img src={url} alt="" class="size-full object-cover" />
+    {:else}
+      <div class="flex size-full min-h-[3.25rem] items-center justify-center text-app-muted">
+        <Home class="size-4" />
+      </div>
+    {/if}
+  </div>
+{/snippet}
+
+{#snippet ListingSummary({ listing }: { listing: Imovel })}
+  {@const garagem = listing.garagem ?? 0}
+  {@const quartos = listing.quartos ?? 0}
+  {@const banheiros = listing.banheiros ?? 0}
+  <span class="flex min-w-0 items-center gap-1.5">
+    <span class="shrink-0">{formatListingPrice(listing.preco)}</span>
+    <span class="shrink-0 text-app-muted">-</span>
+    <span class="inline-flex shrink-0 items-center gap-0.5">
+      <BedDouble class="size-3.5 text-app-muted" />
+      <span>{quartos}</span>
+    </span>
+    <span class="inline-flex shrink-0 items-center gap-0.5">
+      <Bath class="size-3.5 text-app-muted" />
+      <span>{banheiros}</span>
+    </span>
+    <span class="inline-flex shrink-0 items-center gap-0.5">
+      <Car class="size-3.5 text-app-muted" />
+      <span>{garagem}</span>
+    </span>
+    {#if listing.tipoImovel === "apartamento" && (listing.andar ?? 0) > 0}
+      <span class="inline-flex shrink-0 items-center gap-0.5">
+        <Building class="size-3.5 text-app-muted" />
+        <span>{listing.andar === 10 ? "+" : listing.andar}</span>
+      </span>
+    {/if}
+    {#if listing.piscina === true}
+      <WavesLadder class="size-3.5 shrink-0 text-blue-500" />
+    {/if}
+    {#if listing.piscinaTermica === true}
+      <Waves class="size-3.5 shrink-0 text-blue-500" />
+    {/if}
+    {#if listing.porteiro24h === true}
+      <Shield class="size-3.5 shrink-0 text-red-500" />
+    {/if}
+    {#if listing.academia === true}
+      <Dumbbell class="size-3.5 shrink-0 text-yellow-500" />
+    {/if}
+    {#if listing.vistaLivre === true}
+      <Mountain class="size-3.5 shrink-0 text-green-500" />
+    {/if}
+  </span>
+{/snippet}
+
+<div class="space-y-2">
+  <div class="relative">
+    <Search class="absolute left-2 top-1/2 size-3.5 -translate-y-1/2 text-app-muted" />
+    <input
+      type="search"
+      bind:value={query}
+      placeholder="Buscar..."
+      class="h-7 w-full rounded-md border border-app-border bg-white pl-7 text-xs"
+    />
+  </div>
+  <ul class="max-h-64 space-y-0.5 overflow-y-auto">
+    {#if filtered.length === 0}
+      <li class="px-2 py-3 text-xs text-app-muted">Nenhum imóvel</li>
+    {:else}
+      {#each filtered as listing (listing.id)}
+        <li>
+          <button
+            type="button"
+            onclick={() => onSelect(listing)}
+            class={cn(
+              "flex w-full items-start gap-2.5 rounded-md px-2 py-1.5 text-left text-xs transition-colors hover:bg-app-bg",
+              selectedId === listing.id && "bg-app-bg font-medium"
+            )}
+          >
+            {@render ListingOptionThumb({ listing })}
+            <div class="min-w-0 flex-1 space-y-0.5">
+              <div class="break-words font-medium leading-snug text-app-fg">
+                {compactListingDisplayTitle(ctx.getListingDisplayTitle(listing))}
+              </div>
+              <div class="text-[11px] font-normal leading-4 text-app-muted">
+                {@render ListingSummary({ listing })}
+              </div>
+              <div class="break-words text-[11px] font-normal leading-4 text-app-muted">
+                {formatListingAddress(listing)}
+              </div>
+            </div>
+          </button>
+        </li>
+      {/each}
+    {/if}
+  </ul>
+</div>

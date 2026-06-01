@@ -268,6 +268,45 @@ export interface OrganizationMember {
   userImage: string | null;
 }
 
+const ENRICH_LINK_TIMEOUT_MS = 58_000;
+
+export async function fetchSavedLinks(_orgId?: string | null) {
+  return api.get<{ links: SavedLink[] }>("/workspace/saved-links");
+}
+
+export async function createSavedLink(
+  input: { url: string } | (Pick<SavedLink, "title" | "url"> & { description?: string | null }),
+  _orgId?: string | null
+) {
+  return api.post<{ link: SavedLink }>("/workspace/saved-links", input);
+}
+
+export async function updateSavedLink(
+  id: string,
+  input: Pick<SavedLink, "title" | "url"> & { description?: string | null },
+  _orgId?: string | null
+) {
+  return api.put<{ link: SavedLink }>(`/workspace/saved-links/${id}`, input);
+}
+
+export async function deleteSavedLink(id: string, _orgId?: string | null) {
+  return api.delete<{ success: true }>(`/workspace/saved-links/${id}`);
+}
+
+export async function enrichSavedLink(id: string, _orgId?: string | null) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), ENRICH_LINK_TIMEOUT_MS);
+  try {
+    return await api.post<{ link: SavedLink }>(
+      `/workspace/saved-links/${id}/enrich`,
+      {},
+      { signal: controller.signal }
+    );
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
 export const workspaceApi = {
   fetchOrganizations: () => api.get<{ organizations: Organization[] }>("/organizations"),
   createOrganization: (input: { name: string; slug?: string }) =>
@@ -381,13 +420,11 @@ export const workspaceApi = {
   fetchSharedCollection: (token: string) =>
     api.get<SharedCollection>(`/shared/${encodeURIComponent(token)}`, { auth: false }),
 
-  fetchSavedLinks: () => api.get<{ links: SavedLink[] }>("/workspace/saved-links"),
-  createSavedLink: (input: { title?: string; url: string; description?: string | null }) =>
-    api.post<{ link: SavedLink }>("/workspace/saved-links", input),
-  updateSavedLink: (id: string, input: { title: string; url: string; description?: string | null }) =>
-    api.put<{ link: SavedLink }>(`/workspace/saved-links/${id}`, input),
-  deleteSavedLink: (id: string) => api.delete<{ success: true }>(`/workspace/saved-links/${id}`),
-  enrichSavedLink: (id: string) => api.post<{ link: SavedLink }>(`/workspace/saved-links/${id}/enrich`, {}),
+  fetchSavedLinks: () => fetchSavedLinks(),
+  createSavedLink: (input: Parameters<typeof createSavedLink>[0]) => createSavedLink(input),
+  updateSavedLink: (id: string, input: Parameters<typeof updateSavedLink>[1]) => updateSavedLink(id, input),
+  deleteSavedLink: (id: string) => deleteSavedLink(id),
+  enrichSavedLink: (id: string) => enrichSavedLink(id),
 
   fetchContacts: () => api.get<{ contacts: Contact[] }>("/workspace/contacts"),
   saveContact: (input: Partial<Contact>, id?: string) =>

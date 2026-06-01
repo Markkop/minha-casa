@@ -25,6 +25,7 @@
   import { readAdminFeatureFlags, type AdminFeatureFlagName } from "$lib/admin/client";
   import CollectionsProvider from "$lib/components/anuncios/CollectionsProvider.svelte";
   import ImportExportMenuItems from "$lib/components/anuncios/ImportExportMenuItems.svelte";
+  import AnaliseListingBreadcrumb from "$lib/components/analise/AnaliseListingBreadcrumb.svelte";
   import CollectionBreadcrumb from "$lib/components/workspace/CollectionBreadcrumb.svelte";
   import OrganizationSwitcher from "$lib/components/workspace/OrganizationSwitcher.svelte";
   import { cn } from "$lib/utils";
@@ -372,9 +373,7 @@
                 <span class="text-sm leading-none">/</span>
               </li>
               <li class="min-w-0 flex-1">
-                <span class={cn(workspaceTopBarControlClass, "w-full max-w-full truncate text-app-muted")}>
-                  {$page.url.searchParams.get("listing") ? "Anúncio selecionado" : "Selecionar anúncio"}
-                </span>
+                <AnaliseListingBreadcrumb class="w-full max-w-full" />
               </li>
             {/if}
           </ol>

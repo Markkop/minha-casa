@@ -17,7 +17,9 @@
     ariaLabel,
     onchange,
     oninput,
-    onkeydown
+    onkeydown,
+    onfocus,
+    onblur
   } = $props<{
     class?: string;
     value?: string | number | null;
@@ -35,6 +37,8 @@
     onchange?: (event: Event & { currentTarget: HTMLInputElement }) => void;
     oninput?: (event: Event & { currentTarget: HTMLInputElement }) => void;
     onkeydown?: (event: KeyboardEvent & { currentTarget: HTMLInputElement }) => void;
+    onfocus?: (event: FocusEvent & { currentTarget: HTMLInputElement }) => void;
+    onblur?: (event: FocusEvent & { currentTarget: HTMLInputElement }) => void;
   }>();
 </script>
 
@@ -58,4 +62,6 @@
   {onchange}
   {oninput}
   {onkeydown}
+  {onfocus}
+  {onblur}
 />

@@ -23,6 +23,8 @@
   --color-app-action-hover: var(--app-action-hover);
   --color-app-action-foreground: var(--app-action-foreground);
   --color-app-accent: var(--app-accent);
+  --color-salmon: #ff8a59;
+  --color-green: #00f773;
   --radius-md: var(--radius);
 }
 
