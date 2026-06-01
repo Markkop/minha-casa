@@ -21,7 +21,7 @@
       return;
     }
     await syncSubscriptionCookie();
-    await goto(page.url.searchParams.get("redirect") || "/anuncios");
+    await goto(page.url.searchParams.get("redirect") || "/anuncios", { invalidateAll: true });
   }
 
   async function google() {

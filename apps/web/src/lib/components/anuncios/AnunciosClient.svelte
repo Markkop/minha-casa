@@ -34,6 +34,10 @@
   const isOrgContext = $derived(Boolean(activeOrgId));
   const contextName = $derived(isOrgContext ? (activeOrgName ?? "organização") : "pessoal");
   const defaultCollectionName = getDefaultFirstCollectionName();
+  const listingsPending = $derived(
+    Boolean(ctx.activeCollection?.id) &&
+      (ctx.isLoadingListings || ctx.listingsCollectionId !== ctx.activeCollection?.id)
+  );
 
   async function refreshOrganizationContext() {
     activeOrgId = getActiveOrganizationId();
@@ -259,7 +263,7 @@
     {/if}
 
     <main class={LISTINGS_PAGE_CLASS}>
-      {#if ctx.isLoadingListings && ctx.listings.length === 0}
+      {#if listingsPending}
         <p class="rounded-md border border-app-border bg-app-surface py-8 text-center text-sm text-app-muted">
           Carregando imóveis...
         </p>

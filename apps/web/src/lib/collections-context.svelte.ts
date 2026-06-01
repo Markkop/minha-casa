@@ -298,7 +298,12 @@ export function createCollectionsState() {
       listingsCollectionId = null;
       return;
     }
-    if (!options?.silent) isLoadingListings = true;
+    if (!options?.silent) {
+      isLoadingListings = true;
+      if (listingsCollectionId !== collectionId) {
+        listings = [];
+      }
+    }
     try {
       const rows = (await workspaceApi.fetchListings(collectionId)).listings.map(toImovel);
       listings = rows;

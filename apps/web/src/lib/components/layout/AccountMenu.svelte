@@ -17,12 +17,14 @@
     hasFloodRisk,
     accountOpen = $bindable(false),
     onCloseChrome,
-    onLogout
+    onLogout,
+    compact = false
   }: {
     user?: ShellUser | null;
     initials: string;
     hasFloodRisk: boolean;
     accountOpen?: boolean;
+    compact?: boolean;
     onCloseChrome: () => void;
     onLogout: () => void | Promise<void>;
   } = $props();
@@ -32,14 +34,16 @@
   bind:open={accountOpen}
   align="auto"
   offset={4}
-  rootClass="relative w-full"
+  rootClass={compact ? "relative w-auto" : "relative w-full"}
   panelClass="w-64 overflow-hidden py-1 text-sm"
 >
   {#snippet trigger()}
     <button
       type="button"
       data-account-menu
-      class="flex min-h-10 w-full min-w-0 items-center gap-2 rounded-md px-2 text-left text-sm text-app-fg transition-colors hover:bg-app-surface-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-accent"
+      class={compact
+        ? "inline-flex h-8 min-h-0 w-auto max-w-[min(100%,14rem)] items-center gap-2 rounded-md border border-app-border bg-app-surface px-2 py-0 text-left text-sm text-app-fg transition-colors hover:bg-app-surface-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-accent"
+        : "flex min-h-10 w-full min-w-0 items-center gap-2 rounded-md px-2 text-left text-sm text-app-fg transition-colors hover:bg-app-surface-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-accent"}
       aria-label="Menu do usuario"
       aria-haspopup="menu"
       aria-expanded={accountOpen}
@@ -57,7 +61,7 @@
       {/if}
       <span class="min-w-0 flex-1">
         <span class="block truncate font-medium">{user?.name || user?.email || "Usuário"}</span>
-        {#if user?.email}
+        {#if user?.email && !compact}
           <span class="block truncate text-xs text-app-muted">{user.email}</span>
         {/if}
       </span>

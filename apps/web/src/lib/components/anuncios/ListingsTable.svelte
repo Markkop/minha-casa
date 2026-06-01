@@ -170,7 +170,15 @@
     <div class="min-w-0">
       {#if tableState.filteredAndSortedListings.length === 0 && pendingAdd.pendingAddRows.length === 0}
         <div class="py-8 text-center">
-          <p class="text-muted-foreground">Nenhum imóvel encontrado para "{tableState.searchQuery}"</p>
+          {#if tableState.searchQuery.trim()}
+            <p class="text-muted-foreground">
+              Nenhum imóvel encontrado para "{tableState.searchQuery}"
+            </p>
+          {:else if tableState.propertyTypeFilter !== "all" || !tableState.showStrikethrough}
+            <p class="text-muted-foreground">Nenhum imóvel corresponde aos filtros atuais.</p>
+          {:else}
+            <p class="text-muted-foreground">Nenhum imóvel nesta coleção.</p>
+          {/if}
         </div>
       {:else}
         <div class="overflow-x-auto">

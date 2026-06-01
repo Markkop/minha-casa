@@ -34,6 +34,13 @@
   });
 
   $effect(() => {
+    if (!enabled) return;
+    const collectionId = state.activeCollection?.id;
+    if (!collectionId || state.listingsCollectionId === collectionId) return;
+    void state.loadListings(collectionId);
+  });
+
+  $effect(() => {
     return attachCollectionsListeners(state, { getEnabled: () => enabled });
   });
 

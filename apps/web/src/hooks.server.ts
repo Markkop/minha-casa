@@ -4,6 +4,7 @@ import { redirect, type Handle } from "@sveltejs/kit";
 import { sequence } from "@sveltejs/kit/hooks";
 import { getAuth } from "$lib/auth";
 import { resolveActiveOrganizationId } from "$lib/server/organization-context";
+import { isPublicRoute } from "$lib/routing/public-routes";
 import {
   isSubscriptionValid,
   requiresSubscription,
@@ -12,30 +13,8 @@ import {
 } from "$lib/subscription";
 
 const AUTH_BASE = "/auth/";
-const PUBLIC_ROUTES = new Set([
-  "/",
-  "/login",
-  "/signup",
-  "/privacy",
-  "/terms",
-  "/data-deletion",
-  "/conectar-whatsapp",
-  "/conectar-telegram"
-]);
 const AUTH_ROUTES = new Set(["/login", "/signup"]);
 const SUBSCRIPTION_EXEMPT_PREFIXES = ["/subscribe", "/planos", "/admin"];
-
-function isPublicShortLink(pathname: string) {
-  return /^\/s\/[a-z0-9]{4,12}$/i.test(pathname);
-}
-
-function isPublicShare(pathname: string) {
-  return pathname.startsWith("/share/");
-}
-
-function isPublicGeocodingApi(pathname: string) {
-  return pathname === "/api/geocoding/nominatim";
-}
 
 function isSubscriptionExempt(pathname: string) {
   return SUBSCRIPTION_EXEMPT_PREFIXES.some(
@@ -60,6 +39,8 @@ const authHandle: Handle = async ({ event, resolve }) => {
         session.user.id
       );
     } else {
+      event.locals.session = undefined;
+      event.locals.user = undefined;
       event.locals.activeOrganizationId = null;
     }
   } catch (error) {
@@ -72,11 +53,7 @@ const authHandle: Handle = async ({ event, resolve }) => {
 
 const routeGuardHandle: Handle = async ({ event, resolve }) => {
   const pathname = event.url.pathname;
-  const publicRoute =
-    PUBLIC_ROUTES.has(pathname) ||
-    isPublicShortLink(pathname) ||
-    isPublicShare(pathname) ||
-    isPublicGeocodingApi(pathname);
+  const publicRoute = isPublicRoute(pathname);
   const loggedIn = Boolean(event.locals.user);
 
   if (AUTH_ROUTES.has(pathname) && loggedIn) {

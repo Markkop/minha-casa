@@ -1,8 +1,9 @@
 <script lang="ts">
   import { Home } from "@lucide/svelte";
   import { cn } from "$lib/utils";
-  import { workspaceChromeRowClass, workspaceHeaderControlClass } from "$lib/workspace-chrome";
+  import { workspaceChromeRowClass } from "$lib/workspace-chrome";
   import AccountMenu from "$lib/components/layout/AccountMenu.svelte";
+  import BrandLink from "$lib/components/layout/BrandLink.svelte";
 
   type ShellUser = {
     name?: string | null;
@@ -28,9 +29,11 @@
     accountOpen = $bindable(false),
     onCloseChrome,
     onLogout,
-    isActive
+    isActive,
+    logoHref = "/anuncios"
   }: {
     visibleLinks: NavLink[];
+    logoHref?: string;
     pathname: string;
     sidebarOpen: boolean;
     mobileOpen?: boolean;
@@ -43,19 +46,6 @@
     isActive: (href: string, currentPath: string) => boolean;
   } = $props();
 </script>
-
-{#snippet BrandLink()}
-  <a
-    href="/anuncios"
-    class={cn(workspaceHeaderControlClass, "rounded-md px-0 font-semibold text-app-fg hover:text-app-fg")}
-    onclick={onCloseChrome}
-  >
-    <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-app-action text-app-action-foreground">
-      <Home class="h-4 w-4" />
-    </span>
-    <span class="truncate">Minha Casa</span>
-  </a>
-{/snippet}
 
 {#snippet NavMenu()}
   <ul class="flex w-full min-w-0 flex-col gap-1">
@@ -105,7 +95,7 @@
   )}
 >
   <div data-slot="sidebar-header" class={workspaceChromeRowClass}>
-    {@render BrandLink()}
+    <BrandLink href={logoHref} onclick={onCloseChrome} />
   </div>
   {@render SidebarBody()}
 </aside>
@@ -121,7 +111,7 @@
     class="fixed inset-y-0 left-0 z-50 flex w-[min(86vw,var(--sidebar-width))] flex-col border-r border-app-border bg-app-surface text-app-fg shadow-xl md:hidden"
   >
     <div class={workspaceChromeRowClass}>
-      {@render BrandLink()}
+      <BrandLink href={logoHref} onclick={onCloseChrome} />
     </div>
     {@render SidebarBody()}
   </aside>

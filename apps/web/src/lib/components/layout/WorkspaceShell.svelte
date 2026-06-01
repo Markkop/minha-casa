@@ -11,9 +11,8 @@
     ScanSearch
   } from "@lucide/svelte";
   import { page } from "$app/state";
-  import { goto } from "$app/navigation";
   import { addonsApi } from "$lib/addons/client";
-  import { signOut } from "$lib/auth-client";
+  import { logoutToHome } from "$lib/auth/logout";
   import {
     getAdminFeatureFlag,
     readAdminFeatureFlags,
@@ -46,9 +45,10 @@
     adminFlag?: AdminFeatureFlagName;
   };
 
-  let { children, user } = $props<{
+  let { children, user, subscriptionActive = false } = $props<{
     children?: import("svelte").Snippet;
     user?: ShellUser | null;
+    subscriptionActive?: boolean;
   }>();
 
   let sidebarOpen = $state(true);
@@ -62,7 +62,9 @@
   let hasActiveSubscription = $state(false);
 
   const shouldLoadCollections = $derived(
-    Boolean(user) && subscriptionReady && hasActiveSubscription
+    Boolean(user) &&
+      subscriptionReady &&
+      (subscriptionActive || hasActiveSubscription)
   );
   const showSubscriptionPendingChrome = $derived(Boolean(user) && !subscriptionReady);
 
@@ -125,10 +127,14 @@
       subscriptionReady = true;
       return false;
     }
-    const result = await syncSubscriptionCookie();
-    hasActiveSubscription = result.hasActiveSubscription;
+    try {
+      const result = await syncSubscriptionCookie();
+      hasActiveSubscription = result.hasActiveSubscription;
+    } catch {
+      hasActiveSubscription = subscriptionActive;
+    }
     subscriptionReady = true;
-    return result.hasActiveSubscription;
+    return hasActiveSubscription;
   }
 
   function refreshOrganizations() {
@@ -153,7 +159,8 @@
       return;
     }
 
-    subscriptionReady = false;
+    hasActiveSubscription = subscriptionActive;
+    subscriptionReady = true;
     void refreshSubscription();
   });
 
@@ -202,8 +209,7 @@
   async function logout() {
     accountOpen = false;
     mobileOpen = false;
-    await signOut();
-    await goto("/login");
+    await logoutToHome();
   }
 
   function closeChrome() {
