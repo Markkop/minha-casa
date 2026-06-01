@@ -1,4 +1,4 @@
-import { getContext, setContext } from "svelte";
+import { createContext } from "svelte";
 import { getActiveOrganizationId, setActiveOrganizationId } from "$lib/api/client";
 import { workspaceApi } from "$lib/workspace/client";
 import { linesToList, listToLines } from "$lib/workspace/listing-notes";
@@ -12,7 +12,8 @@ export type ListingDecisionNotesContextValue = {
   isSaving: boolean;
 };
 
-const LISTING_DECISION_NOTES_KEY = Symbol("listing-decision-notes");
+export const [getListingDecisionNotesContext, setListingDecisionNotesContext] =
+  createContext<ListingDecisionNotesContextValue>();
 
 async function withOrganizationContext<T>(targetOrgId: string | null | undefined, fn: () => Promise<T>) {
   if (!targetOrgId) return fn();
@@ -83,14 +84,3 @@ export function createListingDecisionNotesState(listingId: () => string, orgId: 
   };
 }
 
-export function setListingDecisionNotesContext(value: ListingDecisionNotesContextValue) {
-  setContext(LISTING_DECISION_NOTES_KEY, value);
-}
-
-export function getListingDecisionNotesContext(): ListingDecisionNotesContextValue {
-  const value = getContext<ListingDecisionNotesContextValue>(LISTING_DECISION_NOTES_KEY);
-  if (!value) {
-    throw new Error("ListingDecisionNotes components must be used within ListingDecisionNotesProvider");
-  }
-  return value;
-}

@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { page } from "$app/stores";
+  import { page } from "$app/state";
   import AnaliseQuerySync from "$lib/components/analise/AnaliseQuerySync.svelte";
   import DeepAnalysisPanel from "$lib/components/analise/DeepAnalysisPanel.svelte";
   import PropertyDossier from "$lib/components/analise/PropertyDossier.svelte";
@@ -30,7 +30,7 @@
     window.addEventListener("storage", syncFlags);
     return () => window.removeEventListener("storage", syncFlags);
   });
-  const selectedListingId = $derived($page.url.searchParams.get("listing"));
+  const selectedListingId = $derived(page.url.searchParams.get("listing"));
   const orgId = $derived(getActiveOrganizationId());
 
   const sortedListings = $derived(

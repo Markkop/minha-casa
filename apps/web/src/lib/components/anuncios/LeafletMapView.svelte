@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { mount, onMount, unmount } from "svelte";
+  import { mount, unmount } from "svelte";
+  import type { Attachment } from "svelte/attachments";
   import type { MapViewProps } from "$lib/anuncios/map-shared";
   import {
     calculatePrecoM2,
@@ -21,7 +22,6 @@
 
   const ctx = getCollectionsContext();
 
-  let mapElement = $state<HTMLDivElement | null>(null);
   let mapInstance = $state<import("leaflet").Map | null>(null);
   let leaflet = $state<typeof import("leaflet") | null>(null);
   let ready = $state(false);
@@ -31,7 +31,7 @@
     `${mapViewport.lat}-${mapViewport.lng}-${mapViewport.zoom}-${mapViewport.source}`
   );
 
-  onMount(() => {
+  const mapHostAttachment: Attachment<HTMLDivElement> = (mapElement) => {
     let disposed = false;
 
     void (async () => {
@@ -58,8 +58,10 @@
       mapInstance?.remove();
       mapInstance = null;
       markerLayer = null;
+      leaflet = null;
+      ready = false;
     };
-  });
+  };
 
   $effect(() => {
     viewportKey;
@@ -140,7 +142,7 @@
   }
 </script>
 
-<div bind:this={mapElement} class="h-[400px]" style:background={appColors.surfaceMuted}>
+<div {@attach mapHostAttachment} class="h-[400px]" style:background={appColors.surfaceMuted}>
   {#if !ready}
     <div class="flex h-full items-center justify-center bg-app-surface-muted">
       <p class="text-app-muted">Carregando mapa...</p>

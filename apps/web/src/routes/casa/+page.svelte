@@ -1,10 +1,10 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { goto } from "$app/navigation";
-  import { page } from "$app/stores";
+  import { page } from "$app/state";
 
   onMount(() => {
-    const search = $page.url.search;
+    const search = page.url.search;
     void goto(search ? `/financiamento${search}` : "/financiamento", { replaceState: true });
   });
 </script>

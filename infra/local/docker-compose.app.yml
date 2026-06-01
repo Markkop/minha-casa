@@ -93,7 +93,8 @@ services:
       WHATSAPP_PHONE_NUMBER_ID: ${WHATSAPP_PHONE_NUMBER_ID:-}
       WHATSAPP_APP_SECRET: ${WHATSAPP_APP_SECRET:-}
       APP_PUBLIC_URL: ${APP_PUBLIC_URL:-http://localhost:5173}
-      BETTER_AUTH_JWKS_URL: ${BETTER_AUTH_JWKS_URL:-http://svelte-web:5173/auth/jwks}
+      # JWKS URL comes from env_file (infra/local/.env.local) so host-only Svelte dev
+      # (host.docker.internal) is not overridden by a compose-time default (svelte-web).
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173,http://localhost:3000}
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
       TELEGRAM_WEBHOOK_SECRET: ${TELEGRAM_WEBHOOK_SECRET:-}

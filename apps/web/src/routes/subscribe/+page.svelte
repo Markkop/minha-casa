@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { page } from "$app/stores";
+  import { page } from "$app/state";
   import { AlertCircle, Calendar, Check, CheckCircle, Crown, FlaskConical } from "@lucide/svelte";
   import { billingApi } from "$lib/billing/client";
   import { syncSubscriptionCookie } from "$lib/sync-subscription-cookie";
@@ -57,13 +57,13 @@
   let error = $state("");
   let stripeTestMode = $state(false);
 
-  const success = $derived($page.url.searchParams.get("success") === "true");
-  const cancelled = $derived($page.url.searchParams.get("cancelled") === "true");
-  const redirectPath = $derived($page.url.searchParams.get("redirect"));
+  const success = $derived(page.url.searchParams.get("success") === "true");
+  const cancelled = $derived(page.url.searchParams.get("cancelled") === "true");
+  const redirectPath = $derived(page.url.searchParams.get("redirect"));
 
   onMount(() => {
     void loadBilling();
-    if ($page.url.searchParams.get("success") === "true") {
+    if (page.url.searchParams.get("success") === "true") {
       void syncSubscriptionCookie();
     }
   });

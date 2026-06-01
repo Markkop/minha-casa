@@ -1,6 +1,6 @@
 <script lang="ts">
   import { goto } from "$app/navigation";
-  import { page } from "$app/stores";
+  import { page } from "$app/state";
   import { signIn } from "$lib/auth-client";
   import Button from "$lib/components/ui/Button.svelte";
   import { syncSubscriptionCookie } from "$lib/sync-subscription-cookie";
@@ -20,13 +20,13 @@
       return;
     }
     await syncSubscriptionCookie();
-    await goto($page.url.searchParams.get("redirect") || "/anuncios");
+    await goto(page.url.searchParams.get("redirect") || "/anuncios");
   }
 
   async function google() {
     await signIn.social({
       provider: "google",
-      callbackURL: $page.url.searchParams.get("redirect") || "/anuncios"
+      callbackURL: page.url.searchParams.get("redirect") || "/anuncios"
     });
   }
 </script>

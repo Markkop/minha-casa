@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { mount, onMount, unmount } from "svelte";
+  import { mount, unmount } from "svelte";
+  import type { Attachment } from "svelte/attachments";
   import type { MapViewProps } from "$lib/anuncios/map-shared";
   import {
     calculatePrecoM2,
@@ -23,7 +24,6 @@
   const ctx = getCollectionsContext();
   const apiKey = $derived(getGoogleMapsApiKey());
 
-  let mapElement = $state<HTMLDivElement | null>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let map = $state<any>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -52,8 +52,9 @@
     return `Erro ao carregar Google Maps: ${message || "Erro desconhecido"}`;
   }
 
-  onMount(() => {
-    if (!apiKey) return;
+  $effect(() => {
+    const key = apiKey;
+    if (!key) return;
 
     const handleError = (event: ErrorEvent) => {
       const errorMessage = event.message?.toLowerCase() || "";
@@ -83,7 +84,7 @@
     window.addEventListener("error", handleError, true);
     window.addEventListener("unhandledrejection", handleRejection);
 
-    const checkTimeout = setTimeout(() => {
+    const checkTimeout = window.setTimeout(() => {
       const scripts = Array.from(document.querySelectorAll("script"));
       const hasGoogleMapsScript = scripts.some((script) => script.src.includes("maps.googleapis.com"));
       if (hasGoogleMapsScript && !(window as { google?: unknown }).google) {
@@ -96,13 +97,13 @@
     return () => {
       window.removeEventListener("error", handleError, true);
       window.removeEventListener("unhandledrejection", handleRejection);
-      clearTimeout(checkTimeout);
+      window.clearTimeout(checkTimeout);
     };
   });
 
-  $effect(() => {
+  const mapHostAttachment: Attachment<HTMLDivElement> = (mapElement) => {
     const key = apiKey;
-    if (!key || error || !mapElement) return;
+    if (!key || error) return;
 
     let disposed = false;
 
@@ -146,7 +147,7 @@
       infoWindow = null;
       ready = false;
     };
-  });
+  };
 
   $effect(() => {
     viewportKey;
@@ -272,7 +273,7 @@
     </p>
   </div>
 {:else}
-  <div bind:this={mapElement} class="h-[400px]">
+  <div {@attach mapHostAttachment} class="h-[400px]">
     {#if !ready}
       <div class="flex h-full items-center justify-center bg-app-surface-muted">
         <p class="text-app-muted">Carregando Google Maps...</p>

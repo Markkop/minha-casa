@@ -15,13 +15,18 @@ defmodule MinhaCasaAiWeb.CollectionController do
   def index(conn, _params) do
     profile = current_profile(conn)
 
-    collections =
+    rows =
       Collection
       |> scoped(profile)
+      |> join(:left, [c], l in Listing, on: l.collection_id == c.id)
+      |> group_by([c], c.id)
       |> order_by([c], asc: c.created_at)
+      |> select([c, l], %{collection: c, listings_count: count(l.id)})
       |> Repo.all()
 
-    json(conn, %{collections: ListingJSON.collections(collections)})
+    json(conn, %{
+      collections: Enum.map(rows, &collection_with_count/1)
+    })
   end
 
   def shared(conn, %{"token" => token}) do
@@ -436,6 +441,12 @@ defmodule MinhaCasaAiWeb.CollectionController do
 
   defp collection_allowed?(id, profile) do
     scoped(Collection, profile) |> where([c], c.id == ^id) |> Repo.exists?()
+  end
+
+  defp collection_with_count(%{collection: collection, listings_count: count}) do
+    collection
+    |> ListingJSON.collection()
+    |> Map.put(:listingsCount, count)
   end
 
   defp public_collection(%{collection: collection, owner_name: owner_name} = row) do

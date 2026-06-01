@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { page } from "$app/stores";
+  import { page } from "$app/state";
   import AdjustmentPanel from "$lib/components/financiamento/adjustment-panel.svelte";
   import AmortizationSampleTable from "$lib/components/financiamento/AmortizationSampleTable.svelte";
   import FiltrosCenarioCard from "$lib/components/financiamento/filtros-cenario-card.svelte";
@@ -115,7 +115,7 @@
 
   $effect(() => {
     if (priceInitialized) return;
-    const priceParam = $page.url.searchParams.get("price");
+    const priceParam = page.url.searchParams.get("price");
     if (!priceParam) {
       priceInitialized = true;
       return;

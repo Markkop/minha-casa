@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { page } from "$app/stores";
+  import { page } from "$app/state";
   import { goto } from "$app/navigation";
   import { ChevronDown, Home } from "@lucide/svelte";
   import { getCollectionsContext } from "$lib/collections-context.svelte";
@@ -24,7 +24,7 @@
   let open = $state(false);
   let query = $state("");
 
-  const selectedId = $derived($page.url.searchParams.get("listing"));
+  const selectedId = $derived(page.url.searchParams.get("listing"));
   const sortedListings = $derived(sortSelectableListings(ctx.listings));
   const selected = $derived(
     sortedListings.find((listing) => listing.id === selectedId) ?? sortedListings[0] ?? null
@@ -42,10 +42,10 @@
   );
 
   function handleSelect(listing: (typeof ctx.listings)[number]) {
-    const params = new URLSearchParams($page.url.searchParams);
+    const params = new URLSearchParams(page.url.searchParams);
     params.set("listing", listing.id);
     const queryString = params.toString();
-    const path = $page.url.pathname;
+    const path = page.url.pathname;
     void goto(`${path}${queryString ? `?${queryString}` : ""}`, {
       replaceState: false,
       noScroll: true,

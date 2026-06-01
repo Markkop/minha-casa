@@ -9,6 +9,7 @@
 docker run --rm -v "$(pwd)/backend:/app" -w /app elixir:1.18-otp-27-alpine \
   sh -lc 'apk add --no-cache build-base git && mix local.hex --force && mix local.rebar --force && mix deps.get'
 ```
+- Since mix is not available locally, please do restart/rebuild docker that way after backend code changes.
 
 - Never commit API keys, tokens, or secrets in source files (including tests and one-off scripts).
 - If user pastes a key, use it, but assume the user will rotate it later. Say that to the user when doing that.

@@ -1,4 +1,4 @@
-import { getContext, setContext } from "svelte";
+import { createContext } from "svelte";
 import {
   buildListingDisplayTitles,
   resolveListingDisplayTitle,
@@ -34,6 +34,7 @@ export interface CollectionsContextValue {
   isLoadingListings: boolean;
   error: string | null;
   refreshTrigger: number;
+  listingsCollectionId: string | null;
   loadCollections: () => Promise<void>;
   setActiveCollection: (collection: Collection | null) => void;
   createCollection: (name: string, isDefault?: boolean) => Promise<Collection>;
@@ -63,24 +64,13 @@ export interface CollectionsContextValue {
   triggerRefresh: () => void;
 }
 
-const COLLECTIONS_CONTEXT_KEY = Symbol("collections-context");
-
-export function setCollectionsContext(value: CollectionsContextValue) {
-  setContext(COLLECTIONS_CONTEXT_KEY, value);
-}
-
-export function getCollectionsContext(): CollectionsContextValue {
-  const ctx = getContext<CollectionsContextValue>(COLLECTIONS_CONTEXT_KEY);
-  if (!ctx) {
-    throw new Error("getCollectionsContext must be used within CollectionsProvider");
-  }
-  return ctx;
-}
+export const [getCollectionsContext, setCollectionsContext] =
+  createContext<CollectionsContextValue>();
 
 export function createCollectionsState() {
-  let collections = $state<Collection[]>([]);
+  let collections = $state.raw<Collection[]>([]);
   let activeCollection = $state<Collection | null>(null);
-  let listings = $state<Imovel[]>([]);
+  let listings = $state.raw<Imovel[]>([]);
   let isLoading = $state(false);
   let isLoadingListings = $state(false);
   let error = $state<string | null>(null);
@@ -130,6 +120,22 @@ export function createCollectionsState() {
     refreshTrigger += 1;
   }
 
+  function syncCollectionListingCount(collectionId: string, count: number) {
+    const listed = collections.find((item) => item.id === collectionId);
+    const activeMatches =
+      activeCollection?.id === collectionId && activeCollection.listingsCount === count;
+    if (listed?.listingsCount === count && (activeCollection?.id !== collectionId || activeMatches)) {
+      return;
+    }
+
+    collections = collections.map((item) =>
+      item.id === collectionId ? { ...item, listingsCount: count } : item
+    );
+    if (activeCollection?.id === collectionId && activeCollection.listingsCount !== count) {
+      activeCollection = { ...activeCollection, listingsCount: count };
+    }
+  }
+
   async function loadCollections() {
     isLoading = true;
     error = null;
@@ -168,10 +174,12 @@ export function createCollectionsState() {
   }
 
   function setActiveCollection(collection: Collection | null) {
+    const nextId = collection?.id ?? null;
+    const previousId = activeCollection?.id ?? null;
     activeCollection = collection;
-    storeActiveCollectionId(collection?.id ?? null);
-    if (collection?.id !== listingsCollectionId) {
-      void loadListings(collection?.id);
+    storeActiveCollectionId(nextId);
+    if (nextId && nextId !== listingsCollectionId && nextId !== previousId) {
+      void loadListings(nextId);
     }
   }
 
@@ -295,6 +303,7 @@ export function createCollectionsState() {
       const rows = (await workspaceApi.fetchListings(collectionId)).listings.map(toImovel);
       listings = rows;
       listingsCollectionId = collectionId;
+      syncCollectionListingCount(collectionId, rows.length);
     } catch (err) {
       error = formatApiError(err);
     } finally {
@@ -307,6 +316,7 @@ export function createCollectionsState() {
     const { listing } = await workspaceApi.createListing(activeCollection.id, listingData);
     const imovel = toImovel(listing);
     listings = [...listings, imovel];
+    syncCollectionListingCount(activeCollection.id, listings.length);
     triggerRefresh();
     return imovel;
   }
@@ -328,6 +338,7 @@ export function createCollectionsState() {
     if (!activeCollection?.id) throw new Error("Nenhuma coleção ativa");
     await workspaceApi.deleteListing(activeCollection.id, listingId);
     listings = listings.filter((item) => item.id !== listingId);
+    syncCollectionListingCount(activeCollection.id, listings.length);
     triggerRefresh();
   }
 
@@ -367,6 +378,9 @@ export function createCollectionsState() {
     },
     get refreshTrigger() {
       return refreshTrigger;
+    },
+    get listingsCollectionId() {
+      return listingsCollectionId;
     },
     loadCollections,
     setActiveCollection,

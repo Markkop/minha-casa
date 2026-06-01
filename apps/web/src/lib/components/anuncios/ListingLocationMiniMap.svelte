@@ -1,6 +1,6 @@
 <script lang="ts">
-  import { onMount } from "svelte";
   import { Loader2 } from "@lucide/svelte";
+  import type { Attachment } from "svelte/attachments";
   import type { Imovel } from "$lib/anuncios/types";
   import { resolveListingLocation, type ResolvedListingLocation } from "$lib/anuncios/listing-location";
   import {
@@ -40,11 +40,9 @@
     fallback?: import("svelte").Snippet;
   } = $props();
 
-  let mounted = $state(false);
   let location = $state<ResolvedListingLocation | null>(null);
   let loading = $state(true);
   let mapProvider = $state<MapProvider>("google");
-  let mapElement = $state<HTMLDivElement | null>(null);
 
   const compact = $derived(variant === "thumbnail");
 
@@ -78,8 +76,7 @@
     location ? getMiniMapZoom(location.zoom, variant) : 13
   );
 
-  onMount(() => {
-    mounted = true;
+  $effect(() => {
     mapProvider = getEffectiveMapProvider();
     return subscribeToGoogleMapsErrors(() => {
       mapProvider = "leaflet";
@@ -88,7 +85,6 @@
   });
 
   $effect(() => {
-    if (!mounted) return;
     listingLocationKey;
 
     let cancelled = false;
@@ -106,11 +102,9 @@
     };
   });
 
-  $effect(() => {
-    listingLocationKey;
-    displayZoom;
-    useGoogle;
-    if (!mounted || loading || !location || !mapElement) return;
+  const listingMapAttachment: Attachment<HTMLDivElement> = (mapElement) => {
+    const loc = location;
+    if (!loc || loading) return;
 
     let disposed = false;
     let map: import("leaflet").Map | null = null;
@@ -118,10 +112,11 @@
     let googleMarker: any = null;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let googleMap: any = null;
-    const loc = location;
+    const google = useGoogle;
+    const zoom = displayZoom;
 
     void (async () => {
-      if (useGoogle) {
+      if (google) {
         if (disposed || !mapElement) return;
 
         try {
@@ -133,7 +128,7 @@
 
           googleMap = new MapCtor(mapElement, {
             center: { lat: loc.lat, lng: loc.lng },
-            zoom: displayZoom,
+            zoom,
             mapId: "minha-casa-map",
             gestureHandling: compact ? "cooperative" : "greedy",
             disableDefaultUI: compact,
@@ -171,7 +166,7 @@
 
       map = L.map(mapElement, {
         center: [loc.lat, loc.lng],
-        zoom: displayZoom,
+        zoom,
         zoomControl: !compact,
         attributionControl: !compact,
         dragging: true,
@@ -202,14 +197,12 @@
       map?.remove();
       if (googleMarker) googleMarker.map = null;
       googleMap = null;
-      if (mapElement) mapElement.replaceChildren();
+      mapElement.replaceChildren();
     };
-  });
+  };
 </script>
 
-{#if !mounted}
-  <!-- SSR / pre-hydration -->
-{:else if loading}
+{#if loading}
   <div
     class={cn(containerClass, "flex items-center justify-center")}
     aria-label={`Carregando mapa de ${listing.titulo}`}
@@ -229,6 +222,6 @@
     aria-label={`Mapa: ${mapLabel}`}
     onpointerdown={(event) => event.stopPropagation()}
   >
-    <div bind:this={mapElement} class="h-full w-full rounded-none"></div>
+    <div {@attach listingMapAttachment} class="h-full w-full rounded-none"></div>
   </div>
 {/if}

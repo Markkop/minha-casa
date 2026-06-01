@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount, untrack } from "svelte";
+  import { untrack } from "svelte";
   import {
     attachCollectionsListeners,
     createCollectionsState,
@@ -33,15 +33,12 @@
     })();
   });
 
-  onMount(() => attachCollectionsListeners(state, { getEnabled: () => enabled }));
+  $effect(() => {
+    return attachCollectionsListeners(state, { getEnabled: () => enabled });
+  });
 
   $effect(() => {
-    if (
-      !enabled ||
-      !ingestingListingIdsKey ||
-      !state.activeCollection?.id ||
-      typeof window === "undefined"
-    ) {
+    if (!enabled || !ingestingListingIdsKey || !state.activeCollection?.id) {
       return;
     }
 

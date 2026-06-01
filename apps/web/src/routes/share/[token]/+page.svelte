@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { page } from "$app/stores";
+  import { page } from "$app/state";
   import { ExternalLink, Search, Star } from "@lucide/svelte";
   import { config } from "$lib/config";
   import FloatingTooltip from "$lib/components/ui/FloatingTooltip.svelte";
@@ -38,7 +38,7 @@
   onMount(async () => {
     loading = true;
     try {
-      const token = $page.params.token;
+      const token = page.params.token;
       if (!token) throw new Error("Token ausente");
       data = await workspaceApi.fetchSharedCollection(token);
     } catch (err) {
@@ -104,7 +104,7 @@
   }
 
   function listingImageUrl(listing: Listing) {
-    const token = $page.params.token;
+    const token = page.params.token;
     if (Array.isArray(listing.data.imageStorageKeys) && listing.data.imageStorageKeys.length > 0 && token) {
       return `${config.apiUrl}/api/shared/${encodeURIComponent(token)}/listings/${listing.id}/images/0`;
     }

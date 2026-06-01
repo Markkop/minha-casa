@@ -1,29 +1,42 @@
 <script lang="ts">
-  import { page } from "$app/stores";
+  import { tick } from "svelte";
+  import { page } from "$app/state";
   import { getCollectionsContext } from "$lib/collections-context.svelte";
   import { applyListingDeepLinkHighlight } from "$lib/components/anuncios/listings-table-shared";
 
   const ctx = getCollectionsContext();
 
-  const collectionId = $derived($page.url.searchParams.get("collection"));
-  const listingId = $derived($page.url.searchParams.get("listing"));
+  const collectionId = $derived(page.url.searchParams.get("collection"));
+  const listingId = $derived(page.url.searchParams.get("listing"));
 
   $effect(() => {
     if (!collectionId || ctx.collections.length === 0) return;
+    if (ctx.activeCollection?.id === collectionId) return;
     const match = ctx.collections.find((collection) => collection.id === collectionId);
     if (match) ctx.setActiveCollection(match);
   });
 
   $effect(() => {
-    if (!listingId || ctx.isLoadingListings) return;
-    const element = document.getElementById(`listing-${listingId}`);
-    if (!element) return;
-    element.scrollIntoView({ behavior: "smooth", block: "center" });
-    const removeHighlight = applyListingDeepLinkHighlight(element);
-    const timer = window.setTimeout(() => removeHighlight(), 3000);
+    const id = listingId;
+    if (!id || ctx.isLoadingListings) return;
+
+    let cancelled = false;
+    let removeHighlight: (() => void) | undefined;
+    let timer: number | undefined;
+
+    void tick().then(() => {
+      if (cancelled) return;
+      const element = document.getElementById(`listing-${id}`);
+      if (!element) return;
+      element.scrollIntoView({ behavior: "smooth", block: "center" });
+      removeHighlight = applyListingDeepLinkHighlight(element);
+      timer = window.setTimeout(() => removeHighlight?.(), 3000);
+    });
+
     return () => {
-      window.clearTimeout(timer);
-      removeHighlight();
+      cancelled = true;
+      if (timer !== undefined) window.clearTimeout(timer);
+      removeHighlight?.();
     };
   });
 </script>

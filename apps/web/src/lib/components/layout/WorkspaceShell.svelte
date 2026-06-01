@@ -9,20 +9,13 @@
     Home,
     LayoutDashboard,
     Link2,
-    LogOut,
     MapPinned,
-    PanelLeft,
-    ScanSearch,
-    Settings,
-    Users,
-    Waves
+    ScanSearch
   } from "@lucide/svelte";
-  import { page } from "$app/stores";
+  import { page } from "$app/state";
   import { goto } from "$app/navigation";
-  import { onMount } from "svelte";
   import { addonsApi } from "$lib/addons/client";
   import { signOut } from "$lib/auth-client";
-  import AnchoredPopover from "$lib/components/ui/AnchoredPopover.svelte";
   import {
     getAdminFeatureFlag,
     readAdminFeatureFlags,
@@ -30,19 +23,14 @@
     type AdminFeatureFlags
   } from "$lib/admin/client";
   import CollectionsProvider from "$lib/components/anuncios/CollectionsProvider.svelte";
-  import ImportExportMenuItems from "$lib/components/anuncios/ImportExportMenuItems.svelte";
-  import AnaliseListingBreadcrumb from "$lib/components/analise/AnaliseListingBreadcrumb.svelte";
-  import CollectionBreadcrumb from "$lib/components/workspace/CollectionBreadcrumb.svelte";
-  import OrganizationSwitcher from "$lib/components/workspace/OrganizationSwitcher.svelte";
+  import WorkspaceNav from "$lib/components/layout/WorkspaceNav.svelte";
+  import WorkspaceTopBar from "$lib/components/layout/WorkspaceTopBar.svelte";
   import { cn } from "$lib/utils";
   import {
     WORKSPACE_NAV_HEIGHT,
     WORKSPACE_SIDEBAR_WIDTH,
-    workspaceChromeRowClass,
-    workspaceHeaderControlClass,
     workspaceTopBarControlClass
   } from "$lib/workspace-chrome";
-  import { getFlag } from "$lib/feature-flags";
   import { syncSubscriptionCookie } from "$lib/sync-subscription-cookie";
   import { workspaceApi } from "$lib/workspace/client";
 
@@ -110,7 +98,7 @@
     return [...beforeCore, ...coreLinks, ...afterCore];
   });
 
-  const pathname = $derived($page.url.pathname);
+  const pathname = $derived(page.url.pathname);
   const showAnaliseListingBreadcrumb = $derived(pathname.startsWith("/analise"));
   const showOrgBreadcrumb = $derived(hasTeamOrganizations);
 
@@ -145,6 +133,17 @@
     return result.hasActiveSubscription;
   }
 
+  function refreshOrganizations() {
+    void workspaceApi
+      .fetchOrganizations()
+      .then((result) => {
+        hasTeamOrganizations = result.organizations.length > 0;
+      })
+      .catch(() => {
+        hasTeamOrganizations = false;
+      });
+  }
+
   $effect(() => {
     featureFlags = readAdminFeatureFlags(isAdmin);
   });
@@ -160,45 +159,22 @@
     void refreshSubscription();
   });
 
-  onMount(() => {
-    const onVisible = () => {
-      if (document.visibilityState === "visible" && user) {
-        void refreshSubscription();
-      }
-    };
-    document.addEventListener("visibilitychange", onVisible);
-
-    const admin = Boolean(user?.isAdmin);
-    featureFlags = readAdminFeatureFlags(admin);
-    const syncFlags = () => {
-      featureFlags = readAdminFeatureFlags(admin);
-    };
-    window.addEventListener("storage", syncFlags);
-    void addonsApi.fetchAccess("flood").then((result) => {
-      hasFloodRisk = result.hasAccess;
-    }).catch(() => {
+  $effect(() => {
+    if (!user) {
       hasFloodRisk = false;
-    });
-    void workspaceApi.fetchOrganizations().then((result) => {
-      hasTeamOrganizations = result.organizations.length > 0;
-    }).catch(() => {
       hasTeamOrganizations = false;
-    });
+      return;
+    }
 
-    const onOrgChange = () => {
-      void workspaceApi.fetchOrganizations().then((result) => {
-        hasTeamOrganizations = result.organizations.length > 0;
-      }).catch(() => {
-        hasTeamOrganizations = false;
+    void addonsApi
+      .fetchAccess("flood")
+      .then((result) => {
+        hasFloodRisk = result.hasAccess;
+      })
+      .catch(() => {
+        hasFloodRisk = false;
       });
-    };
-    window.addEventListener("minha-casa:organization-context-change", onOrgChange);
-
-    return () => {
-      document.removeEventListener("visibilitychange", onVisible);
-      window.removeEventListener("storage", syncFlags);
-      window.removeEventListener("minha-casa:organization-context-change", onOrgChange);
-    };
+    refreshOrganizations();
   });
 
   const isActive = (href: string, currentPath: string) =>
@@ -237,238 +213,59 @@
     accountOpen = false;
   }
 
+  function handleVisibilityChange() {
+    if (document.visibilityState === "visible" && user) {
+      void refreshSubscription();
+    }
+  }
+
+  function handleStorageSync() {
+    featureFlags = readAdminFeatureFlags(Boolean(user?.isAdmin));
+  }
+
+  $effect(() => {
+    window.addEventListener("minha-casa:organization-context-change", refreshOrganizations);
+    return () =>
+      window.removeEventListener("minha-casa:organization-context-change", refreshOrganizations);
+  });
 </script>
 
-{#snippet BrandLink()}
-  <a
-    href="/anuncios"
-    class={cn(workspaceHeaderControlClass, "rounded-md px-0 font-semibold text-app-fg hover:text-app-fg")}
-    onclick={closeChrome}
-  >
-    <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-app-action text-app-action-foreground">
-      <Home class="h-4 w-4" />
-    </span>
-    <span class="truncate">Minha Casa</span>
-  </a>
-{/snippet}
-
-{#snippet NavMenu()}
-  <ul class="flex w-full min-w-0 flex-col gap-1">
-    {#each visibleLinks as link}
-      {@const Icon = link.icon}
-      <li class="relative">
-        <a
-          href={link.href}
-          data-active={isActive(link.href, pathname)}
-          class={cn(
-            "flex min-h-9 w-full min-w-0 items-center gap-2 rounded-md px-3 py-2 text-left text-sm font-medium transition-colors",
-            isActive(link.href, pathname)
-              ? "bg-app-surface-muted text-app-fg"
-              : "text-app-muted hover:bg-app-surface-muted hover:text-app-fg"
-          )}
-          onclick={closeChrome}
-        >
-          <Icon class="h-4 w-4 shrink-0" />
-          <span class="truncate">{link.label}</span>
-        </a>
-      </li>
-    {/each}
-  </ul>
-{/snippet}
-
-{#snippet AccountDropdown()}
-  <AnchoredPopover
-    bind:open={accountOpen}
-    align="auto"
-    offset={4}
-    rootClass="relative w-full"
-    panelClass="w-64 overflow-hidden py-1 text-sm"
-  >
-    {#snippet trigger()}
-      <button
-        type="button"
-        data-account-menu
-        class="flex min-h-10 w-full min-w-0 items-center gap-2 rounded-md px-2 text-left text-sm text-app-fg transition-colors hover:bg-app-surface-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-accent"
-        aria-label="Menu do usuario"
-        aria-haspopup="menu"
-        aria-expanded={accountOpen}
-        onclick={(event) => {
-          event.stopPropagation();
-          accountOpen = !accountOpen;
-        }}
-      >
-        {#if user?.image}
-          <img src={user.image} alt="" class="h-8 w-8 shrink-0 rounded-full border border-app-border object-cover" />
-        {:else}
-          <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-app-border bg-app-surface-muted text-xs font-semibold">
-            {initials}
-          </span>
-        {/if}
-        <span class="min-w-0 flex-1">
-          <span class="block truncate font-medium">{user?.name || user?.email || "Usuário"}</span>
-          {#if user?.email}
-            <span class="block truncate text-xs text-app-muted">{user.email}</span>
-          {/if}
-        </span>
-      </button>
-    {/snippet}
-    <div role="menu">
-      <div class="border-b border-app-border px-3 py-2">
-        <div class="truncate font-medium">{user?.name || "Usuário"}</div>
-        <div class="truncate text-xs text-app-muted">{user?.email}</div>
-      </div>
-      {#if hasFloodRisk}
-        <a href="/floodrisk" role="menuitem" class="flex items-center gap-2 px-3 py-2 hover:bg-app-surface-muted" onclick={closeChrome}>
-          <Waves class="h-4 w-4" />
-          <span>Risco enchente</span>
-        </a>
-      {/if}
-      {#if getFlag("organizations")}
-        <a href="/organizacoes" role="menuitem" class="flex items-center gap-2 px-3 py-2 hover:bg-app-surface-muted" onclick={closeChrome}>
-          <Users class="h-4 w-4" />
-          <span>Organizações</span>
-        </a>
-      {/if}
-      {#if user?.isAdmin}
-        <a href="/admin/feature-flags" role="menuitem" class="flex items-center gap-2 px-3 py-2 hover:bg-app-surface-muted" onclick={closeChrome}>
-          <Flag class="h-4 w-4" />
-          <span>Feature flags</span>
-        </a>
-        <a href="/admin" role="menuitem" class="flex items-center gap-2 px-3 py-2 hover:bg-app-surface-muted" onclick={closeChrome}>
-          <Settings class="h-4 w-4" />
-          <span>Admin</span>
-        </a>
-      {/if}
-      <a href="/subscribe" role="menuitem" class="flex items-center gap-2 px-3 py-2 hover:bg-app-surface-muted" onclick={closeChrome}>
-        <ClipboardList class="h-4 w-4" />
-        <span>Assinatura</span>
-      </a>
-      <div class="my-1 border-t border-app-border"></div>
-      <ImportExportMenuItems />
-      <div class="my-1 border-t border-app-border"></div>
-      <button type="button" role="menuitem" class="flex w-full items-center gap-2 px-3 py-2 text-left hover:bg-app-surface-muted" onclick={logout}>
-        <LogOut class="h-4 w-4" />
-        <span>Sair</span>
-      </button>
-    </div>
-  </AnchoredPopover>
-{/snippet}
-
-{#snippet SidebarBody()}
-  <div class="min-h-0 flex-1 overflow-y-auto px-2 py-2">
-    {@render NavMenu()}
-  </div>
-  <div class="mt-auto shrink-0 border-t border-app-border p-2">
-    {@render AccountDropdown()}
-  </div>
-{/snippet}
+<svelte:window onvisibilitychange={handleVisibilityChange} onstorage={handleStorageSync} />
 
 <CollectionsProvider enabled={shouldLoadCollections}>
-<div
-  data-slot="sidebar-wrapper"
-  class="min-h-svh bg-app-bg text-app-fg"
-  style={`--sidebar-width: ${WORKSPACE_SIDEBAR_WIDTH}; --nav-height: ${WORKSPACE_NAV_HEIGHT};`}
->
-  <aside
-    data-slot="sidebar"
-    class={cn(
-      "fixed inset-y-0 left-0 z-50 hidden w-[var(--sidebar-width)] flex-col border-r border-app-border bg-app-surface text-app-fg md:flex",
-      !sidebarOpen && "md:hidden"
-    )}
-  >
-    <div data-slot="sidebar-header" class={workspaceChromeRowClass}>
-      {@render BrandLink()}
-    </div>
-    {@render SidebarBody()}
-  </aside>
-
-  {#if mobileOpen}
-    <div
-      class="fixed inset-0 z-40 bg-black/35 md:hidden"
-      aria-hidden="true"
-      onclick={() => (mobileOpen = false)}
-    ></div>
-    <aside
-      data-slot="sidebar-mobile"
-      class="fixed inset-y-0 left-0 z-50 flex w-[min(86vw,var(--sidebar-width))] flex-col border-r border-app-border bg-app-surface text-app-fg shadow-xl md:hidden"
-    >
-      <div class={workspaceChromeRowClass}>
-        {@render BrandLink()}
-      </div>
-      {@render SidebarBody()}
-    </aside>
-  {/if}
-
   <div
-    data-slot="sidebar-inset"
-    class={cn("min-h-svh", sidebarOpen && "md:pl-[var(--sidebar-width)]")}
+    data-slot="sidebar-wrapper"
+    class="min-h-svh bg-app-bg text-app-fg"
+    style={`--sidebar-width: ${WORKSPACE_SIDEBAR_WIDTH}; --nav-height: ${WORKSPACE_NAV_HEIGHT};`}
   >
-    <header id="page-header" class="sticky top-0 z-[60] w-full">
-      <div class={cn(workspaceChromeRowClass, "min-w-0 gap-3")}>
-        <button
-          type="button"
-          data-slot="sidebar-trigger"
-          class="inline-flex size-8 shrink-0 items-center justify-center rounded-md text-app-muted transition hover:bg-app-surface-muted hover:text-app-fg"
-          aria-label="Alternar navegação"
-          onclick={toggleSidebar}
-        >
-          <PanelLeft class="h-4 w-4" />
-        </button>
+    <WorkspaceNav
+      {visibleLinks}
+      {pathname}
+      {sidebarOpen}
+      bind:mobileOpen
+      {user}
+      {initials}
+      {hasFloodRisk}
+      bind:accountOpen
+      onCloseChrome={closeChrome}
+      onLogout={logout}
+      {isActive}
+    />
 
-        <nav class="flex min-h-0 min-w-0 flex-1 items-center" aria-label="Breadcrumb">
-          <ol class="flex min-w-0 flex-1 flex-nowrap items-center gap-3">
-            {#if showSubscriptionPendingChrome}
-              <li class="min-w-0">
-                <div
-                  data-testid="workspace-loading-breadcrumb"
-                  class={cn(
-                    workspaceTopBarControlClass,
-                    "w-[min(44vw,12rem)] animate-pulse bg-app-surface-muted"
-                  )}
-                  aria-hidden="true"
-                ></div>
-              </li>
-              {#if showAnaliseListingBreadcrumb}
-                <li class="text-app-subtle" aria-hidden="true">
-                  <span class="text-sm leading-none">/</span>
-                </li>
-                <li class="min-w-0 flex-1">
-                  <div
-                    class={cn(
-                      workspaceTopBarControlClass,
-                      "w-full max-w-[18rem] animate-pulse bg-app-surface-muted"
-                    )}
-                    aria-hidden="true"
-                  ></div>
-                </li>
-              {/if}
-            {:else}
-              {#if showOrgBreadcrumb}
-                <li class="min-w-0">
-                  <OrganizationSwitcher breadcrumb class={orgBreadcrumbClass} />
-                </li>
-                <li class="text-app-subtle" aria-hidden="true">
-                  <span class="text-sm leading-none">/</span>
-                </li>
-              {/if}
-              <li class="min-w-0">
-                <CollectionBreadcrumb class={collectionBreadcrumbClass} />
-              </li>
-              {#if showAnaliseListingBreadcrumb}
-                <li class="text-app-subtle" aria-hidden="true">
-                  <span class="text-sm leading-none">/</span>
-                </li>
-                <li class="min-w-0 flex-1">
-                  <AnaliseListingBreadcrumb class="w-full max-w-full" />
-                </li>
-              {/if}
-            {/if}
-          </ol>
-        </nav>
-      </div>
-    </header>
+    <div
+      data-slot="sidebar-inset"
+      class={cn("min-h-svh", sidebarOpen && "md:pl-[var(--sidebar-width)]")}
+    >
+      <WorkspaceTopBar
+        {showSubscriptionPendingChrome}
+        {showAnaliseListingBreadcrumb}
+        {showOrgBreadcrumb}
+        {orgBreadcrumbClass}
+        {collectionBreadcrumbClass}
+        onToggleSidebar={toggleSidebar}
+      />
 
-    {@render children?.()}
+      {@render children?.()}
+    </div>
   </div>
-</div>
 </CollectionsProvider>

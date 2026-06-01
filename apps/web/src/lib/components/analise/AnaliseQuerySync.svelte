@@ -1,10 +1,10 @@
 <script lang="ts">
-  import { page } from "$app/stores";
+  import { page } from "$app/state";
   import { getCollectionsContext } from "$lib/collections-context.svelte";
 
   const ctx = getCollectionsContext();
 
-  const collectionId = $derived($page.url.searchParams.get("collection"));
+  const collectionId = $derived(page.url.searchParams.get("collection"));
 
   $effect(() => {
     if (!collectionId || ctx.collections.length === 0) return;

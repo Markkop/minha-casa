@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { page } from "$app/stores";
+  import { page } from "$app/state";
   import { goto } from "$app/navigation";
   import { Check, ChevronDown, FolderOpen, Pencil, Plus, Star, Trash2 } from "@lucide/svelte";
   import CollectionModal from "$lib/components/anuncios/CollectionModal.svelte";
@@ -22,14 +22,18 @@
     ctx.isLoading ? "Carregando..." : ctx.activeCollection?.label ?? "Nenhuma coleção"
   );
 
-  const listingCount = $derived(
-    $page.url.pathname === "/anuncios"
-      ? ctx.listings.length
-      : (ctx.activeCollection?.listingsCount ?? 0)
-  );
+  function collectionListingCount(collection: Collection): number {
+    if (
+      ctx.activeCollection?.id === collection.id &&
+      ctx.listingsCollectionId === collection.id
+    ) {
+      return ctx.listings.length;
+    }
+    return collection.listingsCount ?? 0;
+  }
 
   function shouldNavigateToAnuncios(collectionId: string) {
-    return $page.url.pathname !== "/anuncios" && ctx.activeCollection?.id !== collectionId;
+    return page.url.pathname !== "/anuncios" && ctx.activeCollection?.id !== collectionId;
   }
 
   function selectCollection(collection: Collection) {
@@ -80,9 +84,6 @@
   >
     <FolderOpen class="size-3.5 shrink-0 text-app-muted" />
     <span class="truncate">{label}</span>
-    {#if ctx.activeCollection}
-      <span class="shrink-0 text-xs leading-none text-app-muted">({listingCount})</span>
-    {/if}
     <ChevronDown class="size-3.5 shrink-0 text-app-muted" />
   </button>
 
@@ -107,7 +108,8 @@
               <FolderOpen class="h-4 w-4" />
             {/if}
             <span class="min-w-0 flex-1 truncate">{collection.label}</span>
-            {#if ctx.activeCollection?.id === collection.id}<Check class="h-4 w-4" />{/if}
+            <span class="shrink-0 text-xs text-app-muted">({collectionListingCount(collection)})</span>
+            {#if ctx.activeCollection?.id === collection.id}<Check class="h-4 w-4 shrink-0" />{/if}
           </button>
         {/each}
       {/if}

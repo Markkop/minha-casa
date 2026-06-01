@@ -1,4 +1,4 @@
-import { getContext, setContext } from "svelte";
+import { createContext } from "svelte";
 import { browser } from "$app/environment";
 import {
   DEFAULT_SETTINGS,
@@ -17,19 +17,7 @@ export interface SettingsContextValue {
   isLoaded: boolean;
 }
 
-const SETTINGS_CONTEXT_KEY = Symbol("financiamento-settings");
-
-export function setSettingsContext(value: SettingsContextValue) {
-  setContext(SETTINGS_CONTEXT_KEY, value);
-}
-
-export function getSettingsContext(): SettingsContextValue {
-  const ctx = getContext<SettingsContextValue>(SETTINGS_CONTEXT_KEY);
-  if (!ctx) {
-    throw new Error("getSettingsContext must be used within a SettingsProvider");
-  }
-  return ctx;
-}
+export const [getSettingsContext, setSettingsContext] = createContext<SettingsContextValue>();
 
 export function createSettingsState() {
   let settings = $state<SimulatorSettings>(DEFAULT_SETTINGS);

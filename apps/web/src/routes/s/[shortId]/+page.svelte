@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { goto } from "$app/navigation";
-  import { page } from "$app/stores";
+  import { page } from "$app/state";
   import { api } from "$lib/api/client";
 
   let error = $state("");
@@ -12,7 +12,7 @@
 
   async function resolve() {
     try {
-      const shortId = $page.params.shortId;
+      const shortId = page.params.shortId;
       if (!shortId) throw new Error("Link nao encontrado");
       const data = await api.get<{ redirectTo: string }>(`/short-links/${encodeURIComponent(shortId)}`, { auth: false });
       window.location.href = data.redirectTo;

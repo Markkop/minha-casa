@@ -1,6 +1,6 @@
 <script lang="ts">
-  import { onMount } from "svelte";
-  import { page } from "$app/stores";
+  import { onMount, untrack } from "svelte";
+  import { page } from "$app/state";
   import { Download, FolderOpen, Link2, Loader2, Plus } from "@lucide/svelte";
   import Card from "$lib/components/ui/Card.svelte";
   import { getActiveOrganizationId } from "$lib/api/client";
@@ -30,7 +30,7 @@
   let activeOrgId = $state<string | null>(null);
   let activeOrgName = $state<string | null>(null);
 
-  const shareToken = $derived($page.url.searchParams.get("share") ?? $page.url.searchParams.get("dbshare"));
+  const shareToken = $derived(page.url.searchParams.get("share") ?? page.url.searchParams.get("dbshare"));
   const isOrgContext = $derived(Boolean(activeOrgId));
   const contextName = $derived(isOrgContext ? (activeOrgName ?? "organização") : "pessoal");
   const defaultCollectionName = getDefaultFirstCollectionName();
@@ -57,22 +57,29 @@
     return () => window.removeEventListener("minha-casa:organization-context-change", onOrgChange);
   });
 
+  async function loadShareFromToken(token: string) {
+    if (!token || ctx.isLoading) return;
+    if (loadedShareToken === token) return;
+    loadedShareToken = token;
+    try {
+      const loaded = await ctx.loadSharedCollection(token);
+      shareData = {
+        collection: loaded.collection,
+        listings: loaded.listings.map((listing) => toListingData(listing))
+      };
+      showShareConfirm = true;
+    } catch (err) {
+      shareImportError = err instanceof Error ? err.message : "Link de compartilhamento inválido";
+    }
+  }
+
   $effect(() => {
     const token = shareToken;
-    if (!token || ctx.isLoading || loadedShareToken === token) return;
-    loadedShareToken = token;
-    void (async () => {
-      try {
-        const loaded = await ctx.loadSharedCollection(token);
-        shareData = {
-          collection: loaded.collection,
-          listings: loaded.listings.map((listing) => toListingData(listing))
-        };
-        showShareConfirm = true;
-      } catch (err) {
-        shareImportError = err instanceof Error ? err.message : "Link de compartilhamento inválido";
-      }
-    })();
+    if (!token || ctx.isLoading) return;
+    untrack(() => {
+      if (loadedShareToken === token) return;
+      void loadShareFromToken(token);
+    });
   });
 
   async function handleCreateCollection() {

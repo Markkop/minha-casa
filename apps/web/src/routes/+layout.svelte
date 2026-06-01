@@ -1,7 +1,7 @@
 <script lang="ts">
   import "../app.css";
   import { onMount } from "svelte";
-  import { page } from "$app/stores";
+  import { page } from "$app/state";
   import WorkspaceShell from "$lib/components/layout/WorkspaceShell.svelte";
   import {
     clearLegacyOrganizationStorage,
@@ -52,7 +52,7 @@
   ]);
 </script>
 
-{#if unframed.has($page.url.pathname) || $page.url.pathname.startsWith("/share/") || $page.url.pathname.startsWith("/s/")}
+{#if unframed.has(page.url.pathname) || page.url.pathname.startsWith("/share/") || page.url.pathname.startsWith("/s/")}
   {@render children?.()}
 {:else}
   <WorkspaceShell user={data.user}>
