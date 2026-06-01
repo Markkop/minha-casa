@@ -18,8 +18,11 @@
   --color-app-border: var(--app-border);
   --color-app-fg: var(--app-fg);
   --color-app-muted: var(--app-muted);
+  --color-app-subtle: var(--app-subtle);
   --color-app-action: var(--app-action);
+  --color-app-action-hover: var(--app-action-hover);
   --color-app-action-foreground: var(--app-action-foreground);
+  --color-app-accent: var(--app-accent);
   --radius-md: var(--radius);
 }
 
@@ -29,10 +32,14 @@
   --app-surface: #fcfdff;
   --app-surface-muted: #e8eef6;
   --app-border: #d4dce8;
+  --app-border-strong: #b8c5d6;
   --app-fg: #121a24;
   --app-muted: #5a6578;
+  --app-subtle: #8491a3;
   --app-action: #9dd4ff;
+  --app-action-hover: #7ec4f8;
   --app-action-foreground: #121a24;
+  --app-accent: #1d5f9e;
   --background: var(--app-bg);
   --foreground: var(--app-fg);
   --card: var(--app-surface);
@@ -59,7 +66,7 @@
 
   body {
     margin: 0;
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground antialiased;
   }
 
   a {
@@ -83,4 +90,17 @@
 .map-embed-panel [class*="leaflet-bottom"],
 .map-embed-panel [class*="leaflet-control"] {
   z-index: 2 !important;
+}
+
+@keyframes listing-image-ingest {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(350%);
+  }
+}
+
+.animate-listing-image-ingest {
+  animation: listing-image-ingest 1.2s ease-in-out infinite;
 }

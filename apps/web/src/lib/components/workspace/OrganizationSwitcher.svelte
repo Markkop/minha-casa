@@ -4,13 +4,16 @@
   import { goto } from "$app/navigation";
   import { getActiveOrganizationId, setActiveOrganizationId } from "$lib/api/client";
   import { cn } from "$lib/utils";
+  import { workspaceTopBarControlClass } from "$lib/workspace-chrome";
   import { workspaceApi, type Organization } from "$lib/workspace/client";
 
   let {
     compact = false,
+    breadcrumb = false,
     class: className = ""
   } = $props<{
     compact?: boolean;
+    breadcrumb?: boolean;
     class?: string;
   }>();
 
@@ -66,15 +69,19 @@
 </script>
 
 {#if loading || organizations.length > 0}
-  <div data-org-switcher class={cn("relative min-w-0", className)}>
+  <div data-org-switcher data-testid={breadcrumb ? "organization-breadcrumb" : undefined} class={cn("relative min-w-0", className)}>
     <button
       type="button"
       class={cn(
-        "inline-flex h-9 min-w-0 items-center gap-2 rounded-md border border-app-border bg-app-surface px-3 text-sm text-app-fg shadow-sm transition hover:bg-app-surface-muted",
-        compact ? "max-w-[13rem]" : "w-full max-w-[18rem]"
+        breadcrumb
+          ? cn(workspaceTopBarControlClass, "max-w-[38vw] md:max-w-[260px]")
+          : "inline-flex h-9 min-w-0 items-center gap-2 rounded-md border border-app-border bg-app-surface px-3 text-sm text-app-fg shadow-xs transition hover:bg-app-surface-muted",
+        !breadcrumb && compact ? "max-w-[13rem]" : "",
+        !breadcrumb && !compact ? "w-full max-w-[18rem]" : ""
       )}
       aria-haspopup="menu"
       aria-expanded={open}
+      aria-label={breadcrumb ? "Selecionar organização" : undefined}
       onclick={(event) => {
         event.stopPropagation();
         open = !open;
@@ -82,12 +89,12 @@
       disabled={loading}
     >
       {#if activeOrg}
-        <Users class="h-4 w-4 shrink-0 text-app-muted" />
+        <Users class={cn("shrink-0 text-app-muted", breadcrumb ? "size-3.5" : "h-4 w-4")} />
       {:else}
-        <User class="h-4 w-4 shrink-0 text-app-muted" />
+        <User class={cn("shrink-0 text-app-muted", breadcrumb ? "size-3.5" : "h-4 w-4")} />
       {/if}
       <span class="min-w-0 truncate">{loading ? "Carregando..." : label}</span>
-      <ChevronDown class="ml-auto h-4 w-4 shrink-0 text-app-muted" />
+      <ChevronDown class={cn("ml-auto shrink-0 text-app-muted", breadcrumb ? "size-3.5" : "h-4 w-4")} />
     </button>
 
     {#if open}
@@ -95,6 +102,9 @@
         role="menu"
         class="absolute left-0 top-10 z-50 w-64 overflow-hidden rounded-md border border-app-border bg-app-surface py-1 text-sm text-app-fg shadow-lg"
       >
+        {#if breadcrumb}
+          <div class="border-b border-app-border px-3 py-2 text-xs font-medium text-app-muted">Workspaces</div>
+        {/if}
         <button
           type="button"
           class="flex w-full items-center gap-2 px-3 py-2 text-left hover:bg-app-surface-muted"
@@ -107,7 +117,7 @@
 
         {#if organizations.length > 0}
           <div class="border-t border-app-border px-3 py-1.5 text-xs font-medium uppercase tracking-wide text-app-muted">
-            Organizacoes
+            Organizações
           </div>
           {#each organizations as org (org.id)}
             <button
@@ -118,7 +128,9 @@
               <Users class="h-4 w-4 text-app-muted" />
               <span class="min-w-0 flex-1">
                 <span class="block truncate">{org.name}</span>
-                <span class="block truncate text-xs text-app-muted">@{org.slug} · {org.role}</span>
+                {#if !breadcrumb}
+                  <span class="block truncate text-xs text-app-muted">@{org.slug} · {org.role}</span>
+                {/if}
               </span>
               {#if activeOrgId === org.id}<Check class="h-4 w-4" />{/if}
             </button>

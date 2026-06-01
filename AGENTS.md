@@ -1,37 +1,22 @@
 <INSTRUCTIONS>
 
-## Property analysis
+- Use pnpm
+- This project is in build mode, so for any task you receive, consider this project as a draft and favor reworks, refactors and doing things the right way first.
 
-Property deep analysis results use schema v6 (`clima`, `riscos`, `mercado`, `ambientes`, `idade`, per-card `xray` with blind spots and orçamento). Ambiente inventory uses structured `{tipo, material?, detalhe?}` items from controlled vocabularies (estruturais, instalações, móveis, materiais) — no color in inventory output. Pre-v6 rows are not migrated; users must re-run analysis.
-
-## Docker & local dev
-
-Don't run frontend builds unless asked to.
-
-Docker builds/recreates are allowed after code changes when needed to verify or run the updated app.
-
-Do rebuild Phoenix in local docker after code changes.
-
-## Elixir / Mix
-
-Mix is often not installed on the host (Docker-only workflow). Do not ask the user to install Elixir.
-
-Use the same base image as `backend/Dockerfile` (`elixir:1.18-otp-27-alpine`) with `backend/` mounted at `/app` to resolve deps, refresh `mix.lock`, run tests, format, etc. The release image (`phoenix-api`) does not include Mix.
-
+- For validations, don't run frontend builds unless asked to.
+- When working with a docker backend, make sure to rebuild it after code changes to be like a "hot reload"
 ```bash
 docker run --rm -v "$(pwd)/backend:/app" -w /app elixir:1.18-otp-27-alpine \
   sh -lc 'apk add --no-cache build-base git && mix local.hex --force && mix local.rebar --force && mix deps.get'
 ```
 
-Replace the final `mix …` command as needed (`mix test`, `mix format`, `mix deps.unlock …`, etc.).
+- Never commit API keys, tokens, or secrets in source files (including tests and one-off scripts).
+- If user pastes a key, use it, but assume the user will rotate it later. Say that to the user when doing that.
+- After completing a task, you may run the commands you would ask the user to do to validate.
+- Unless it's too risky. If it is, show how the user could run and ask if you can proceed by confirming you can run them.
 
-## Secrets & environment
+- This project is being migrated/was migrated from a NextJs project, so feel free to fix and improve from left overs/bad migration.
 
-Never commit API keys, tokens, or secrets in source files (including tests and one-off scripts).
-
-Use `.env`, `.env.local`, or env examples with placeholders only. 
-
-If user pastes a key, use it, but assume the user will rotate it later. Say that to the user when doing that.
 
 ## Production VPS
 

@@ -11,12 +11,11 @@
     Link2,
     LogOut,
     MapPinned,
-    Menu,
+    PanelLeft,
     ScanSearch,
     Settings,
     Users,
-    Waves,
-    X
+    Waves
   } from "@lucide/svelte";
   import { page } from "$app/stores";
   import { goto } from "$app/navigation";
@@ -24,8 +23,19 @@
   import { addonsApi } from "$lib/addons/client";
   import { signOut } from "$lib/auth-client";
   import { readAdminFeatureFlags, type AdminFeatureFlagName } from "$lib/admin/client";
+  import CollectionsProvider from "$lib/components/anuncios/CollectionsProvider.svelte";
+  import ImportExportMenuItems from "$lib/components/anuncios/ImportExportMenuItems.svelte";
+  import CollectionBreadcrumb from "$lib/components/workspace/CollectionBreadcrumb.svelte";
   import OrganizationSwitcher from "$lib/components/workspace/OrganizationSwitcher.svelte";
   import { cn } from "$lib/utils";
+  import {
+    WORKSPACE_NAV_HEIGHT,
+    WORKSPACE_SIDEBAR_WIDTH,
+    workspaceChromeRowClass,
+    workspaceHeaderControlClass,
+    workspaceTopBarControlClass
+  } from "$lib/workspace-chrome";
+  import { workspaceApi } from "$lib/workspace/client";
 
   type ShellUser = {
     name?: string | null;
@@ -46,37 +56,58 @@
     user?: ShellUser | null;
   }>();
 
+  let sidebarOpen = $state(true);
   let mobileOpen = $state(false);
   let accountOpen = $state(false);
   let hasFloodRisk = $state(false);
+  let hasTeamOrganizations = $state(false);
   let featureFlags = $state(readAdminFeatureFlags());
 
   const coreLinks: NavLink[] = [
-    { href: "/anuncios", label: "Anuncios", icon: Home },
-    { href: "/comparacao", label: "Comparacao", icon: BarChart3 },
-    { href: "/analise", label: "Analise", icon: ScanSearch },
+    { href: "/anuncios", label: "Anúncios", icon: Home },
+    { href: "/comparacao", label: "Comparação", icon: BarChart3 },
+    { href: "/analise", label: "Análise", icon: ScanSearch },
     { href: "/financiamento", label: "Financiamento", icon: CircleDollarSign },
     { href: "/links", label: "Links", icon: Link2 }
   ];
 
   const flagLinks: NavLink[] = [
-    { href: "/visao-geral", label: "Visao geral", icon: LayoutDashboard, adminFlag: "visaoGeral" },
+    { href: "/visao-geral", label: "Visão geral", icon: LayoutDashboard, adminFlag: "visaoGeral" },
     { href: "/contatos", label: "Contatos", icon: Contact, adminFlag: "contatos" },
-    { href: "/regioes", label: "Regioes", icon: MapPinned, adminFlag: "regioes" },
-    { href: "/condominios", label: "Condominios", icon: Building2, adminFlag: "condominios" }
-  ];
-
-  const adminLinks: NavLink[] = [
-    { href: "/admin", label: "Admin", icon: Settings },
-    { href: "/admin/feature-flags", label: "Feature flags", icon: Flag },
-    { href: "/organizacoes", label: "Organizacoes", icon: Users }
+    { href: "/regioes", label: "Regiões", icon: MapPinned, adminFlag: "regioes" },
+    { href: "/condominios", label: "Condomínios", icon: Building2, adminFlag: "condominios" }
   ];
 
   const visibleLinks = $derived.by(() => {
     const beforeCore = flagLinks.filter((link) => link.adminFlag === "visaoGeral" && featureFlags.visaoGeral);
-    const afterCore = flagLinks.filter((link) => link.adminFlag && link.adminFlag !== "visaoGeral" && featureFlags[link.adminFlag]);
+    const afterCore = flagLinks.filter(
+      (link) => link.adminFlag && link.adminFlag !== "visaoGeral" && featureFlags[link.adminFlag]
+    );
     return [...beforeCore, ...coreLinks, ...afterCore];
   });
+
+  const pathname = $derived($page.url.pathname);
+  const showAnaliseListingBreadcrumb = $derived(pathname.startsWith("/analise"));
+  const showOrgBreadcrumb = $derived(hasTeamOrganizations);
+
+  const orgBreadcrumbClass = $derived(
+    cn(
+      workspaceTopBarControlClass,
+      showAnaliseListingBreadcrumb
+        ? "max-w-[min(22vw,6.5rem)] sm:max-w-[180px] md:max-w-[220px]"
+        : "max-w-[38vw] md:max-w-[260px]"
+    )
+  );
+
+  const collectionBreadcrumbClass = $derived(
+    cn(
+      showAnaliseListingBreadcrumb
+        ? "max-w-[min(26vw,7.5rem)] sm:max-w-[220px] md:max-w-[300px]"
+        : showOrgBreadcrumb
+          ? "max-w-[44vw] md:max-w-[340px]"
+          : "max-w-[44vw] md:max-w-[380px]"
+    )
+  );
 
   onMount(() => {
     featureFlags = readAdminFeatureFlags();
@@ -89,12 +120,31 @@
     }).catch(() => {
       hasFloodRisk = false;
     });
+    void workspaceApi.fetchOrganizations().then((result) => {
+      hasTeamOrganizations = result.organizations.length > 0;
+    }).catch(() => {
+      hasTeamOrganizations = false;
+    });
 
-    return () => window.removeEventListener("storage", syncFlags);
+    const onOrgChange = () => {
+      void workspaceApi.fetchOrganizations().then((result) => {
+        hasTeamOrganizations = result.organizations.length > 0;
+      }).catch(() => {
+        hasTeamOrganizations = false;
+      });
+    };
+    window.addEventListener("minha-casa:organization-context-change", onOrgChange);
+
+    return () => {
+      window.removeEventListener("storage", syncFlags);
+      window.removeEventListener("minha-casa:organization-context-change", onOrgChange);
+    };
   });
 
-  const isActive = (href: string, pathname: string) =>
-    pathname === href || pathname.startsWith(`${href}/`) || (href === "/financiamento" && pathname === "/casa");
+  const isActive = (href: string, currentPath: string) =>
+    currentPath === href ||
+    currentPath.startsWith(`${href}/`) ||
+    (href === "/financiamento" && currentPath === "/casa");
 
   const initials = $derived.by(() => {
     const source: string = user?.name || user?.email || "U";
@@ -106,6 +156,14 @@
       .join("")
       .toUpperCase();
   });
+
+  function toggleSidebar() {
+    if (typeof window !== "undefined" && window.matchMedia("(min-width: 768px)").matches) {
+      sidebarOpen = !sidebarOpen;
+      return;
+    }
+    mobileOpen = !mobileOpen;
+  }
 
   async function logout() {
     accountOpen = false;
@@ -121,38 +179,48 @@
 </script>
 
 {#snippet BrandLink()}
-  <a href="/anuncios" class="flex h-12 min-w-0 items-center gap-3 rounded-md px-2 font-semibold text-app-fg" onclick={closeChrome}>
-    <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-primary text-primary-foreground">
-      <Home size={17} />
+  <a
+    href="/anuncios"
+    class={cn(workspaceHeaderControlClass, "rounded-md px-0 font-semibold text-app-fg hover:text-app-fg")}
+    onclick={closeChrome}
+  >
+    <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-app-action text-app-action-foreground">
+      <Home class="h-4 w-4" />
     </span>
     <span class="truncate">Minha Casa</span>
   </a>
 {/snippet}
 
-{#snippet NavLinks()}
-  <nav class="space-y-1">
+{#snippet NavMenu()}
+  <ul class="flex w-full min-w-0 flex-col gap-1">
     {#each visibleLinks as link}
       {@const Icon = link.icon}
-      <a
-        href={link.href}
-        class={cn(
-          "flex h-10 items-center gap-3 rounded-md px-3 text-sm text-app-muted transition hover:bg-muted hover:text-app-fg",
-          isActive(link.href, $page.url.pathname) && "bg-muted font-medium text-app-fg"
-        )}
-        onclick={closeChrome}
-      >
-        <Icon size={16} />
-        <span class="truncate">{link.label}</span>
-      </a>
+      <li class="relative">
+        <a
+          href={link.href}
+          data-active={isActive(link.href, pathname)}
+          class={cn(
+            "flex min-h-9 w-full min-w-0 items-center gap-2 rounded-md px-3 py-2 text-left text-sm font-medium transition-colors",
+            isActive(link.href, pathname)
+              ? "bg-app-surface-muted text-app-fg"
+              : "text-app-muted hover:bg-app-surface-muted hover:text-app-fg"
+          )}
+          onclick={closeChrome}
+        >
+          <Icon class="h-4 w-4 shrink-0" />
+          <span class="truncate">{link.label}</span>
+        </a>
+      </li>
     {/each}
-  </nav>
+  </ul>
 {/snippet}
 
-{#snippet AccountMenu(alignRight = false)}
+{#snippet AccountDropdown(align: "start" | "end" = "start")}
   <div class="relative" data-account-menu>
     <button
       type="button"
-      class="flex min-h-10 w-full min-w-0 items-center gap-2 rounded-md px-2 text-left text-sm transition hover:bg-muted"
+      class="flex min-h-10 w-full min-w-0 items-center gap-2 rounded-md px-2 text-left text-sm text-app-fg transition-colors hover:bg-app-surface-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-accent"
+      aria-label="Menu do usuario"
       aria-haspopup="menu"
       aria-expanded={accountOpen}
       onclick={(event) => {
@@ -168,7 +236,7 @@
         </span>
       {/if}
       <span class="min-w-0 flex-1">
-        <span class="block truncate font-medium">{user?.name || user?.email || "Usuario"}</span>
+        <span class="block truncate font-medium">{user?.name || user?.email || "Usuário"}</span>
         {#if user?.email}
           <span class="block truncate text-xs text-app-muted">{user.email}</span>
         {/if}
@@ -179,114 +247,142 @@
       <div
         role="menu"
         class={cn(
-          "absolute bottom-12 z-50 w-64 overflow-hidden rounded-md border border-app-border bg-app-surface py-1 text-sm shadow-lg md:bottom-auto md:top-11",
-          alignRight ? "right-0" : "left-0"
+          "absolute z-50 w-64 overflow-hidden rounded-md border border-app-border bg-app-surface py-1 text-sm shadow-lg",
+          align === "end" ? "right-0 top-11" : "left-0 top-11"
         )}
       >
         <div class="border-b border-app-border px-3 py-2">
-          <div class="truncate font-medium">{user?.name || "Usuario"}</div>
+          <div class="truncate font-medium">{user?.name || "Usuário"}</div>
           <div class="truncate text-xs text-app-muted">{user?.email}</div>
         </div>
         {#if hasFloodRisk}
-          <a href="/floodrisk" class="flex items-center gap-2 px-3 py-2 hover:bg-muted" onclick={closeChrome}>
-            <Waves size={16} /> Risco enchente
+          <a href="/floodrisk" class="flex items-center gap-2 px-3 py-2 hover:bg-app-surface-muted" onclick={closeChrome}>
+            <Waves class="h-4 w-4" />
+            <span>Risco enchente</span>
           </a>
         {/if}
-        <a href="/organizacoes" class="flex items-center gap-2 px-3 py-2 hover:bg-muted" onclick={closeChrome}>
-          <Users size={16} /> Organizacoes
-        </a>
-        <a href="/subscribe" class="flex items-center gap-2 px-3 py-2 hover:bg-muted" onclick={closeChrome}>
-          <ClipboardList size={16} /> Assinatura
+        <a href="/organizacoes" class="flex items-center gap-2 px-3 py-2 hover:bg-app-surface-muted" onclick={closeChrome}>
+          <Users class="h-4 w-4" />
+          <span>Organizações</span>
         </a>
         {#if user?.isAdmin}
-          <div class="border-t border-app-border"></div>
-          {#each adminLinks as link}
-            {@const Icon = link.icon}
-            <a href={link.href} class="flex items-center gap-2 px-3 py-2 hover:bg-muted" onclick={closeChrome}>
-              <Icon size={16} /> {link.label}
-            </a>
-          {/each}
+          <a href="/admin/feature-flags" class="flex items-center gap-2 px-3 py-2 hover:bg-app-surface-muted" onclick={closeChrome}>
+            <Flag class="h-4 w-4" />
+            <span>Feature flags</span>
+          </a>
+          <a href="/admin" class="flex items-center gap-2 px-3 py-2 hover:bg-app-surface-muted" onclick={closeChrome}>
+            <Settings class="h-4 w-4" />
+            <span>Admin</span>
+          </a>
         {/if}
-        <div class="border-t border-app-border"></div>
-        <button type="button" class="flex w-full items-center gap-2 px-3 py-2 text-left hover:bg-muted" onclick={logout}>
-          <LogOut size={16} /> Sair
+        <a href="/subscribe" class="flex items-center gap-2 px-3 py-2 hover:bg-app-surface-muted" onclick={closeChrome}>
+          <ClipboardList class="h-4 w-4" />
+          <span>Assinatura</span>
+        </a>
+        <div class="my-1 border-t border-app-border"></div>
+        <ImportExportMenuItems />
+        <div class="my-1 border-t border-app-border"></div>
+        <button type="button" class="flex w-full items-center gap-2 px-3 py-2 text-left hover:bg-app-surface-muted" onclick={logout}>
+          <LogOut class="h-4 w-4" />
+          <span>Sair</span>
         </button>
       </div>
     {/if}
   </div>
 {/snippet}
 
+{#snippet SidebarBody()}
+  <div class="min-h-0 flex-1 overflow-y-auto px-2 py-2">
+    {@render NavMenu()}
+  </div>
+  <div class="mt-auto shrink-0 border-t border-app-border p-2">
+    {@render AccountDropdown("start")}
+  </div>
+{/snippet}
+
 <svelte:window onclick={() => (accountOpen = false)} />
 
-<div class="min-h-screen bg-app-bg text-app-fg">
-  <aside class="fixed inset-y-0 left-0 z-40 hidden w-64 border-r border-app-border bg-app-surface md:flex md:flex-col">
-    <div class="border-b border-app-border p-2">
+<CollectionsProvider>
+<div
+  data-slot="sidebar-wrapper"
+  class="min-h-svh bg-app-bg text-app-fg"
+  style={`--sidebar-width: ${WORKSPACE_SIDEBAR_WIDTH}; --nav-height: ${WORKSPACE_NAV_HEIGHT};`}
+>
+  <aside
+    data-slot="sidebar"
+    class={cn(
+      "fixed inset-y-0 left-0 z-50 hidden w-[var(--sidebar-width)] flex-col border-r border-app-border bg-app-surface text-app-fg md:flex",
+      !sidebarOpen && "md:hidden"
+    )}
+  >
+    <div data-slot="sidebar-header" class={workspaceChromeRowClass}>
       {@render BrandLink()}
     </div>
-
-    <div class="border-b border-app-border p-3">
-      <OrganizationSwitcher />
-    </div>
-
-    <div class="flex-1 overflow-y-auto p-3">
-      {@render NavLinks()}
-    </div>
-
-    <div class="border-t border-app-border p-3">
-      {@render AccountMenu()}
-    </div>
+    {@render SidebarBody()}
   </aside>
 
   {#if mobileOpen}
-    <div class="fixed inset-0 z-50 bg-black/35 md:hidden" aria-hidden="true" onclick={() => (mobileOpen = false)}></div>
-    <aside class="fixed inset-y-0 left-0 z-50 flex w-[min(20rem,86vw)] flex-col border-r border-app-border bg-app-surface shadow-xl md:hidden">
-      <div class="flex items-center justify-between border-b border-app-border p-2">
+    <div
+      class="fixed inset-0 z-40 bg-black/35 md:hidden"
+      aria-hidden="true"
+      onclick={() => (mobileOpen = false)}
+    ></div>
+    <aside
+      data-slot="sidebar-mobile"
+      class="fixed inset-y-0 left-0 z-50 flex w-[min(86vw,var(--sidebar-width))] flex-col border-r border-app-border bg-app-surface text-app-fg shadow-xl md:hidden"
+    >
+      <div class={workspaceChromeRowClass}>
         {@render BrandLink()}
-        <button class="flex h-9 w-9 items-center justify-center rounded-md hover:bg-muted" type="button" aria-label="Fechar navegacao" onclick={() => (mobileOpen = false)}>
-          <X size={18} />
-        </button>
       </div>
-      <div class="border-b border-app-border p-3">
-        <OrganizationSwitcher />
-      </div>
-      <div class="flex-1 overflow-y-auto p-3">
-        {@render NavLinks()}
-      </div>
-      <div class="border-t border-app-border p-3">
-        {@render AccountMenu()}
-      </div>
+      {@render SidebarBody()}
     </aside>
   {/if}
 
-  <div class="md:pl-64">
-    <header class="sticky top-0 z-30 flex h-14 items-center gap-3 border-b border-app-border bg-app-surface/95 px-3 backdrop-blur">
-      <button class="flex h-9 w-9 shrink-0 items-center justify-center rounded-md hover:bg-muted md:hidden" type="button" aria-label="Abrir navegacao" onclick={() => (mobileOpen = true)}>
-        <Menu size={18} />
-      </button>
-      <div class="hidden md:block">
-        <OrganizationSwitcher compact />
-      </div>
-      <div class="min-w-0 flex-1 text-sm text-app-muted">
-        {#if $page.url.pathname.startsWith("/analise")}
-          Analise
-        {:else if $page.url.pathname.startsWith("/anuncios")}
-          Anuncios
-        {:else if $page.url.pathname.startsWith("/comparacao")}
-          Comparacao
-        {:else}
-          Workspace
-        {/if}
-      </div>
-      <div class="w-48 max-w-[52vw] md:hidden">
-        <OrganizationSwitcher compact />
-      </div>
-      <div class="hidden md:block">
-        {@render AccountMenu(true)}
+  <div
+    data-slot="sidebar-inset"
+    class={cn("min-h-svh", sidebarOpen && "md:pl-[var(--sidebar-width)]")}
+  >
+    <header id="page-header" class="sticky top-0 z-30 w-full">
+      <div class={cn(workspaceChromeRowClass, "min-w-0 gap-3")}>
+        <button
+          type="button"
+          data-slot="sidebar-trigger"
+          class="inline-flex size-8 shrink-0 items-center justify-center rounded-md text-app-muted transition hover:bg-app-surface-muted hover:text-app-fg"
+          aria-label="Alternar navegação"
+          onclick={toggleSidebar}
+        >
+          <PanelLeft class="h-4 w-4" />
+        </button>
+
+        <nav class="flex min-h-0 min-w-0 flex-1 items-center" aria-label="Breadcrumb">
+          <ol class="flex min-w-0 flex-1 flex-nowrap items-center gap-3">
+            {#if showOrgBreadcrumb}
+              <li class="min-w-0">
+                <OrganizationSwitcher breadcrumb class={orgBreadcrumbClass} />
+              </li>
+              <li class="text-app-subtle" aria-hidden="true">
+                <span class="text-sm leading-none">/</span>
+              </li>
+            {/if}
+            <li class="min-w-0">
+              <CollectionBreadcrumb class={collectionBreadcrumbClass} />
+            </li>
+            {#if showAnaliseListingBreadcrumb}
+              <li class="text-app-subtle" aria-hidden="true">
+                <span class="text-sm leading-none">/</span>
+              </li>
+              <li class="min-w-0 flex-1">
+                <span class={cn(workspaceTopBarControlClass, "w-full max-w-full truncate text-app-muted")}>
+                  {$page.url.searchParams.get("listing") ? "Anúncio selecionado" : "Selecionar anúncio"}
+                </span>
+              </li>
+            {/if}
+          </ol>
+        </nav>
       </div>
     </header>
 
-    <main class="min-h-screen">
-      {@render children?.()}
-    </main>
+    {@render children?.()}
   </div>
 </div>
+</CollectionsProvider>
