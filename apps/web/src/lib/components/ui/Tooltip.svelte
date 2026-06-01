@@ -1,16 +1,25 @@
 <script lang="ts">
   import type { Snippet } from "svelte";
+  import {
+    TOOLTIP_SURFACE_COMPACT_CLASS,
+    tooltipWrapClass,
+    type TooltipWrapOption
+  } from "$lib/components/ui/tooltip-content";
   import { cn } from "$lib/utils";
 
   type TooltipSide = "top" | "right" | "bottom" | "left";
 
   let {
     side = "top",
+    wrap,
+    text,
     contentClass = "",
     trigger,
     children
   }: {
     side?: TooltipSide;
+    wrap?: TooltipWrapOption;
+    text?: string;
     contentClass?: string;
     trigger: Snippet;
     children: Snippet;
@@ -29,7 +38,9 @@
   <span
     role="tooltip"
     class={cn(
-      "pointer-events-none absolute z-50 w-fit max-w-[min(100vw-2rem,16rem)] text-wrap rounded-md border border-app-border bg-app-surface px-2.5 py-1 text-xs leading-snug text-balance text-app-fg opacity-0 shadow-sm transition-opacity",
+      "pointer-events-none absolute z-50 text-app-fg opacity-0 transition-opacity",
+      TOOLTIP_SURFACE_COMPACT_CLASS,
+      tooltipWrapClass({ wrap, text }),
       "group-hover/ui-tooltip:opacity-100 group-focus-within/ui-tooltip:opacity-100",
       sidePositionClass[side],
       contentClass

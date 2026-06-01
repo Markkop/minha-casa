@@ -595,11 +595,7 @@ function ComparisonMatrixRowLabel({
           ) : null}
         </span>
       </TooltipTrigger>
-      <TooltipContent
-        side="right"
-        sideOffset={4}
-        className="w-max max-w-[min(100vw-2rem,16rem)] whitespace-normal text-wrap px-2.5 py-1 leading-snug"
-      >
+      <TooltipContent side="right" sideOffset={4} className="px-2.5 py-1 leading-snug">
         {accessibleLabel}
       </TooltipContent>
     </Tooltip>
@@ -913,11 +909,7 @@ function ComparisonSlotHeader({
                     />
                   </button>
                 </TooltipTrigger>
-                <TooltipContent
-                  side="bottom"
-                  sideOffset={4}
-                  className="w-max max-w-[min(100vw-2rem,16rem)] whitespace-normal text-wrap px-2.5 py-1 leading-snug"
-                >
+                <TooltipContent side="bottom" sideOffset={4} className="px-2.5 py-1 leading-snug">
                   {listing.starred ? "Remover dos favoritos" : "Adicionar aos favoritos"}
                 </TooltipContent>
               </Tooltip>
@@ -1045,7 +1037,7 @@ function RecalculatedValue({
       <TooltipContent
         side="top"
         sideOffset={4}
-        className="w-max max-w-[min(100vw-2rem,16rem)] whitespace-normal text-wrap px-2.5 py-1 leading-snug"
+        className="max-w-[min(100vw-2rem,16rem)] whitespace-normal break-words px-2.5 py-1 leading-snug"
       >
         {tooltip}
       </TooltipContent>

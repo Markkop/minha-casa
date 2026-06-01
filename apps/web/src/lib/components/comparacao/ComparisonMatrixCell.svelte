@@ -67,7 +67,7 @@
       </span>
     </span>
   {:else}
-    <ComparisonTooltip side="top">
+    <ComparisonTooltip side="top" wrap="auto" text={tooltip}>
       {#snippet trigger()}
         <span
           class={cn("min-w-0 flex-1 cursor-help", extraClass)}

@@ -31,7 +31,7 @@
   <div class="flex items-center gap-1">
     <span class="text-xs text-app-muted">{label}</span>
     {#if tooltip}
-      <Tooltip side="top">
+      <Tooltip side="top" wrap={true} text={tooltip}>
         {#snippet trigger()}
           <button
             type="button"

@@ -1,4 +1,9 @@
 <script lang="ts">
+  import {
+    TOOLTIP_SURFACE_COMPACT_CLASS,
+    tooltipWrapClass,
+    type TooltipWrapOption
+  } from "$lib/components/ui/tooltip-content";
   import { cn } from "$lib/utils";
   import type { Snippet } from "svelte";
 
@@ -7,11 +12,15 @@
   let {
     children,
     class: className = "",
-    side = "top"
+    side = "top",
+    wrap,
+    text
   }: {
     children?: Snippet;
     class?: string;
     side?: TooltipSide;
+    wrap?: TooltipWrapOption;
+    text?: string;
   } = $props();
 
   const sidePositionClass: Record<TooltipSide, string> = {
@@ -26,7 +35,9 @@
   role="tooltip"
   data-slot="tooltip-content"
   class={cn(
-    "pointer-events-none absolute z-50 w-fit max-w-[min(100vw-2rem,16rem)] origin-center rounded-md border border-app-border bg-app-surface px-3 py-1.5 text-xs text-balance text-app-fg opacity-0 shadow-sm transition-opacity",
+    "pointer-events-none absolute z-50 origin-center px-3 py-1.5 text-xs opacity-0 transition-opacity",
+    TOOLTIP_SURFACE_COMPACT_CLASS,
+    tooltipWrapClass({ wrap, text }),
     "group-hover/ui-tooltip:opacity-100 group-focus-within/ui-tooltip:opacity-100",
     sidePositionClass[side],
     className

@@ -1,5 +1,9 @@
 <script lang="ts">
   import { onDestroy, tick, type Snippet } from "svelte";
+  import {
+    TOOLTIP_SURFACE_FLOATING_CLASS,
+    tooltipWrapClass
+  } from "$lib/components/ui/tooltip-content";
   import { computeTooltipPlacement, type TooltipAlign, type TooltipSide } from "$lib/floating-position";
   import { cn } from "$lib/utils";
 
@@ -37,14 +41,16 @@
     if (!tooltipRef) {
       tooltipRef = document.createElement("span");
       tooltipRef.setAttribute("role", "tooltip");
-      tooltipRef.className = cn(
-        "pointer-events-none fixed z-[2147483000] w-fit max-w-[calc(100vw-1rem)] whitespace-nowrap rounded-md border border-app-border bg-app-surface px-2 py-1 text-[11px] leading-none text-app-fg opacity-100 shadow-sm",
-        className
-      );
       tooltipRef.style.left = "-9999px";
       tooltipRef.style.top = "-9999px";
       document.body.appendChild(tooltipRef);
     }
+    tooltipRef.className = cn(
+      "pointer-events-none fixed z-[2147483000] opacity-100",
+      TOOLTIP_SURFACE_FLOATING_CLASS,
+      tooltipWrapClass({ wrap: "auto", text: label }),
+      className
+    );
     tooltipRef.textContent = label;
     return tooltipRef;
   }

@@ -22,7 +22,7 @@
   <div class="flex items-center gap-2">
     <Label class="text-sm text-app-muted">{label}</Label>
     {#if tooltip}
-      <Tooltip contentClass="max-w-xs">
+      <Tooltip wrap={true} text={tooltip}>
         {#snippet trigger()}
           <button
             type="button"
