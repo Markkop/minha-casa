@@ -1,6 +1,7 @@
 export const VIEWPORT_PADDING = 8;
 
 export type TooltipSide = "top" | "bottom";
+export type TooltipAlign = "start" | "center" | "end";
 export type PanelAlign = "start" | "end" | "auto";
 export type PanelSide = "top" | "bottom" | "auto";
 
@@ -13,7 +14,8 @@ export function computeTooltipPlacement(
   tooltipRect: DOMRect,
   preferredSide: TooltipSide = "bottom",
   offset = 4,
-  padding = VIEWPORT_PADDING
+  padding = VIEWPORT_PADDING,
+  align: TooltipAlign = "center"
 ): { left: number; top: number; side: TooltipSide } {
   const viewportWidth = window.innerWidth;
   const viewportHeight = window.innerHeight;
@@ -29,9 +31,14 @@ export function computeTooltipPlacement(
     side = "bottom";
   }
 
-  const centerX = triggerRect.left + triggerRect.width / 2;
+  const idealLeft =
+    align === "start"
+      ? triggerRect.left
+      : align === "end"
+        ? triggerRect.right - tooltipRect.width
+        : triggerRect.left + triggerRect.width / 2 - tooltipRect.width / 2;
   const left = clamp(
-    centerX - tooltipRect.width / 2,
+    idealLeft,
     padding,
     Math.max(padding, viewportWidth - tooltipRect.width - padding)
   );

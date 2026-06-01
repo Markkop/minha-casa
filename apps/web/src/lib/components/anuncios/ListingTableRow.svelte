@@ -93,13 +93,18 @@
             />
           </div>
           {#if propertyDisplay.showAddress}
-            <FloatingTooltip label={`Abrir ${imovel.endereco} no Google Maps`} side="bottom" wrapperClass="block min-w-0">
+            <FloatingTooltip
+              label={`Abrir ${imovel.endereco} no Google Maps`}
+              side="bottom"
+              align="start"
+              wrapperClass="mt-1 inline-block w-fit max-w-full"
+            >
               <a
                 href={buildGoogleMapsUrl(imovel.endereco)}
                 target="_blank"
                 rel="noopener noreferrer"
                 class={cn(
-                  "mt-1 block truncate text-xs text-app-muted underline decoration-dotted underline-offset-2 transition-colors hover:text-app-fg",
+                  "block max-w-full truncate text-xs text-app-muted underline decoration-dotted underline-offset-2 transition-colors hover:text-app-fg",
                   imovel.strikethrough && "line-through opacity-50"
                 )}
               >
@@ -110,13 +115,18 @@
           {#if propertyDisplay.showContact && imovel.contactNumber}
             {@const url = buildWhatsAppUrl(imovel.contactNumber)}
             {#if url}
-              <FloatingTooltip label={imovel.contactName ? `WhatsApp — ${imovel.contactName}` : "Abrir WhatsApp"} side="bottom" wrapperClass="block min-w-0">
+              <FloatingTooltip
+                label={imovel.contactName ? `WhatsApp — ${imovel.contactName}` : "Abrir WhatsApp"}
+                side="bottom"
+                align="start"
+                wrapperClass="mt-1 inline-flex w-fit max-w-full"
+              >
                 <a
                   href={url}
                   target="_blank"
                   rel="noopener noreferrer"
                   class={cn(
-                    "mt-1 flex min-w-0 items-center gap-1 truncate text-xs text-green-600 transition-colors hover:text-green-500",
+                    "flex min-w-0 max-w-full items-center gap-1 truncate text-xs text-green-600 transition-colors hover:text-green-500",
                     imovel.strikethrough && "line-through opacity-50"
                   )}
                 >
@@ -177,10 +187,10 @@
 
   {#if visibleColumns.dates}
     <td
+      title={formatFullDateTime(imovel.createdAt)}
       class={cn("p-2 text-right align-middle whitespace-nowrap text-sm text-muted-foreground", imovel.strikethrough && "line-through opacity-50")}
     >
-      <FloatingTooltip label={formatFullDateTime(imovel.createdAt)} side="bottom" wrapperClass="inline-flex justify-end">
-        <div class="flex min-w-28 flex-col items-end gap-1 leading-none">
+      <div class="flex min-w-28 flex-col items-end gap-1 leading-none">
           <span class="inline-flex flex-col items-end gap-0.5 whitespace-nowrap">
             <span class="font-mono tabular-nums text-app-fg">{formatDate(imovel.addedAt)}</span>
             <span class="text-[9px] leading-none text-app-muted">adicionado por você</span>
@@ -198,7 +208,6 @@
             </span>
           {/if}
         </div>
-      </FloatingTooltip>
     </td>
   {/if}
 

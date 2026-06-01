@@ -6,7 +6,6 @@
 </script>
 
 <script lang="ts">
-
   import { ExternalLink } from "@lucide/svelte";
   import { buildListingAnaliseHref } from "$lib/listing-analise-url";
   import { cn } from "$lib/utils";
@@ -57,28 +56,23 @@
     className
   )}
 >
-  <FloatingTooltip
-    label={`Ver análise: ${resolvedTitle}`}
-    side="bottom"
-    wrapperClass={cn("min-w-0", wrapTitle ? "block" : "flex min-w-0 flex-1")}
+  <a
+    href={analiseHref}
+    title={`Ver análise: ${resolvedTitle}`}
+    class={cn(
+      "font-medium transition-colors",
+      wrapTitle
+        ? "block min-w-0 whitespace-normal break-words leading-tight"
+        : !truncateTitle
+          ? "min-w-0 whitespace-nowrap leading-snug"
+          : "min-w-0 shrink truncate leading-snug",
+      overlayOnMedia ? "text-white hover:text-white/90" : "text-app-fg hover:text-app-accent",
+      listing.strikethrough && "line-through opacity-50",
+      titleClassName
+    )}
   >
-    <a
-      href={analiseHref}
-      class={cn(
-        "font-medium transition-colors",
-        wrapTitle
-          ? "block min-w-0 whitespace-normal break-words leading-tight"
-          : !truncateTitle
-            ? "min-w-0 whitespace-nowrap leading-snug"
-            : "min-w-0 shrink truncate leading-snug",
-        overlayOnMedia ? "text-white hover:text-white/90" : "text-app-fg hover:text-app-accent",
-        listing.strikethrough && "line-through opacity-50",
-        titleClassName
-      )}
-    >
-      {displayTitle}
-    </a>
-  </FloatingTooltip>
+    {displayTitle}
+  </a>
   {#if hasExternalLink}
     <FloatingTooltip label="Abrir anúncio original" side="bottom">
       <a

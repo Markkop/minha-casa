@@ -65,6 +65,8 @@
   } from "$lib/components/anuncios/listings-sort-shared";
   import { buildParseRequestFromFile } from "$lib/anuncios/parse-input";
   import type { ParseRequest } from "$lib/anuncios/parse-input-types";
+  import { assertPublicListingUrl, normalizeListingUrlInput } from "$lib/anuncios/listing-url";
+  import { formatApiError } from "$lib/api/error-message";
   import type { FieldChange } from "$lib/components/anuncios/QuickReparseModal.svelte";
 
   let {
@@ -230,17 +232,15 @@
     return /^https?:\/\//i.test(trimmed) || /^[\w.-]+\.[a-z]{2,}(\/.*)?$/i.test(trimmed);
   }
 
-  function normalizeUrlInput(value: string) {
-    const trimmed = value.trim();
-    if (!trimmed) return "";
-    return /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
-  }
-
   async function buildInlineParseInput(value: string, file: File | null): Promise<ParseRequest> {
     if (file) return buildParseRequestFromFile(file);
     const trimmed = value.trim();
     if (!trimmed) throw new Error("Cole um link, texto ou arquivo");
-    if (looksLikeUrl(trimmed)) return { kind: "url", url: normalizeUrlInput(trimmed) };
+    if (looksLikeUrl(trimmed)) {
+      const url = normalizeListingUrlInput(trimmed);
+      assertPublicListingUrl(url);
+      return { kind: "url", url };
+    }
     return { kind: "text", rawText: trimmed };
   }
 
@@ -371,7 +371,7 @@
           } catch (error) {
             updatePendingRow(rowId, {
               status: "error",
-              message: error instanceof Error ? error.message : "Erro ao processar anúncio"
+              message: formatApiError(error)
             });
           }
         })
@@ -410,7 +410,7 @@
       } catch (error) {
         updatePendingRow(rowId, {
           status: "error",
-          message: error instanceof Error ? error.message : "Erro ao salvar imóvel"
+          message: formatApiError(error)
         });
       }
     })();
@@ -472,7 +472,7 @@
       void finishPendingListing(pendingRow.id, pendingRow.parsedData!, parseInput).catch((error) => {
         updatePendingRow(pendingRow.id, {
           status: "error",
-          message: error instanceof Error ? error.message : "Erro ao salvar imóvel"
+          message: formatApiError(error)
         });
       });
     }
@@ -758,8 +758,8 @@
       {:else}
         <div class="overflow-x-auto">
           <table class="hidden w-full min-w-[920px] border-collapse text-left text-sm md:table" data-testid="listings-desktop-table">
-            <thead class="bg-app-surface-muted text-xs uppercase text-app-muted">
-              <tr class="border-app-border">
+            <thead>
+              <tr class="border-b border-app-border">
                 {#if visibleColumns.image}
                   <th class="sticky left-0 z-20 w-[5.5rem] bg-app-surface p-2">
                     <ImageColumnHeaderToggle bind:value={imageColumnView} />

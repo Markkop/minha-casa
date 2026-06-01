@@ -1,3 +1,4 @@
+import { formatApiError } from "$lib/api/error-message";
 import { config } from "$lib/config";
 import { getApiToken } from "$lib/stores/auth";
 
@@ -6,7 +7,7 @@ export class ApiError extends Error {
     public status: number,
     public data: unknown
   ) {
-    super(`API Error: ${status}`);
+    super(formatApiError({ status, data }));
     this.name = "ApiError";
   }
 }

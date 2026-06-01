@@ -19,11 +19,11 @@
   } from "$lib/workspace/client";
 
   const portalLabels: Record<Portal, string> = {
-    zap: "Zap Imoveis",
-    vivareal: "Viva Real",
-    olx: "OLX",
-    chavesnamao: "Chaves na Mao",
-    imovelweb: "ImovelWeb"
+    zap: "zapimoveis.com.br",
+    vivareal: "vivareal.com.br",
+    olx: "olx.com.br",
+    chavesnamao: "chavesnamao.com.br",
+    imovelweb: "imovelweb.com.br"
   };
 
   const TRANSACOES = ["venda", "aluguel"] as const;

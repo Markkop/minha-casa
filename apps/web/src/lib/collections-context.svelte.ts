@@ -10,6 +10,7 @@ import {
   storeActiveCollectionId
 } from "$lib/collection-context";
 import { getActiveOrganizationId, setActiveOrganizationId } from "$lib/api/client";
+import { formatApiError } from "$lib/api/error-message";
 import type { ListingData } from "$lib/workspace/client";
 import { workspaceApi } from "$lib/workspace/client";
 import type { ParseRequest } from "$lib/anuncios/parse-input-types";
@@ -160,7 +161,7 @@ export function createCollectionsState() {
         }
       }
     } catch (err) {
-      error = err instanceof Error ? err.message : "Erro ao carregar coleções";
+      error = formatApiError(err);
     } finally {
       isLoading = false;
     }
@@ -295,7 +296,7 @@ export function createCollectionsState() {
       listings = rows;
       listingsCollectionId = collectionId;
     } catch (err) {
-      error = err instanceof Error ? err.message : "Erro ao carregar imóveis";
+      error = formatApiError(err);
     } finally {
       if (!options?.silent) isLoadingListings = false;
     }

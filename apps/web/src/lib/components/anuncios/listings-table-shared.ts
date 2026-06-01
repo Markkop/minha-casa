@@ -84,7 +84,8 @@ export function getListingStatusOption(status: ListingStatus) {
 
 export const STATUS_TRIGGER_WIDTH = "w-[128px]";
 export const ROW_ACTIONS_WIDTH = "w-[148px]";
-export const ROW_ACTION_BTN_CLASS = "flex-shrink-0 p-0.5 transition-colors";
+export const ROW_ACTION_BTN_CLASS =
+  "inline-flex flex-shrink-0 items-center justify-center p-0.5 transition-colors";
 export const ROW_ACTION_ICON_CLASS = "h-3.5 w-3.5";
 export const LISTING_MOBILE_EDGE_INSET_CLASS = "p-1";
 export const LISTING_MOBILE_ROW_GAP_CLASS = "gap-0.5";

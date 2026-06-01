@@ -1,11 +1,12 @@
 <script lang="ts">
   import { onDestroy, tick, type Snippet } from "svelte";
-  import { computeTooltipPlacement, type TooltipSide } from "$lib/floating-position";
+  import { computeTooltipPlacement, type TooltipAlign, type TooltipSide } from "$lib/floating-position";
   import { cn } from "$lib/utils";
 
   let {
     label,
     side = "bottom",
+    align = "center",
     offset = 4,
     disabled = false,
     class: className = "",
@@ -14,6 +15,7 @@
   }: {
     label?: string | null;
     side?: TooltipSide;
+    align?: TooltipAlign;
     offset?: number;
     disabled?: boolean;
     class?: string;
@@ -56,7 +58,7 @@
 
     const triggerRect = triggerRef.getBoundingClientRect();
     const tooltipRect = tooltip.getBoundingClientRect();
-    const placement = computeTooltipPlacement(triggerRect, tooltipRect, side, offset);
+    const placement = computeTooltipPlacement(triggerRect, tooltipRect, side, offset, undefined, align);
 
     tooltip.style.left = `${placement.left}px`;
     tooltip.style.top = `${placement.top}px`;

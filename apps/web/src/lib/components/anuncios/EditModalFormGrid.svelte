@@ -355,7 +355,7 @@
       type="url"
       value={formData.link || ""}
       oninput={(e) => handleInputChange("link", e.currentTarget.value)}
-      placeholder="Ex: https://www.zapimoveis.com.br/imovel/..."
+      placeholder="Ex: https://exemplo.com.br/imovel/..."
       class={EDIT_MODAL_INPUT_CLASS}
     />
   </div>
