@@ -20,6 +20,11 @@ const mode = process.env.NODE_ENV === "production" ? "production" : "development
 applyEnv(mode, repoRoot);
 applyEnv(mode, webRoot);
 
+// Migration: root .env may still define NEXT_PUBLIC_GOOGLE_MAPS_API_KEY for Next.js.
+if (!process.env.PUBLIC_GOOGLE_MAPS_API_KEY?.trim() && process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY?.trim()) {
+  process.env.PUBLIC_GOOGLE_MAPS_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY.trim();
+}
+
 export default defineConfig({
   envDir: webRoot,
   plugins: [tailwindcss(), sveltekit()],

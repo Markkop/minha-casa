@@ -8,8 +8,10 @@
 import { geocodeWithNominatim, geocodeBatchWithNominatim } from "./geocoding-nominatim"
 import { buildGeocodeSearchQuery } from "./geocoding-query"
 import type { GeocodeQueryOptions } from "./geocoding-query"
+import { ensureGoogleMapsLoaded } from "./google-maps-loader"
+import { isGoogleMapsApiKeyConfigured } from "./google-maps-config"
 
-const GEOCODE_CACHE_KEY = "geocode-cache-v4"
+const GEOCODE_CACHE_KEY = "geocode-cache-v5"
 
 export type { GeocodeQueryOptions } from "./geocoding-query"
 
@@ -22,9 +24,34 @@ export interface GeocodedLocation {
   locationType?: string
 }
 
-interface GeocodeCache {
-  [address: string]: GeocodedLocation | null
+interface CachedGeocodeEntry {
+  location: GeocodedLocation
+  cachedAt: number
 }
+
+interface GeocodeCache {
+  [address: string]: CachedGeocodeEntry
+}
+
+export interface GeocodeAddressInput {
+  address: string
+  cidade?: string | null
+}
+
+function cacheKeyFor(input: GeocodeAddressInput | string, options?: GeocodeQueryOptions): string {
+  const address = typeof input === "string" ? input : input.address
+  const cidade = typeof input === "string" ? options?.cidade : input.cidade ?? options?.cidade
+  return cidade?.trim() ? `${address}::${cidade.trim()}` : address
+}
+
+function cacheKeysForInput(input: GeocodeAddressInput): string[] {
+  const keys = [input.address]
+  const withCity = cacheKeyFor(input)
+  if (withCity !== input.address) keys.push(withCity)
+  return keys
+}
+
+const inFlightGeocodes = new Map<string, Promise<GeocodedLocation | null>>()
 
 // ============================================================================
 // CACHE MANAGEMENT
@@ -35,7 +62,23 @@ function getCache(): GeocodeCache {
   const stored = localStorage.getItem(GEOCODE_CACHE_KEY)
   if (!stored) return {}
   try {
-    return JSON.parse(stored) as GeocodeCache
+    const parsed = JSON.parse(stored) as Record<string, unknown>
+    const cache: GeocodeCache = {}
+    for (const [key, value] of Object.entries(parsed)) {
+      if (value && typeof value === "object" && "cachedAt" in value) {
+        const entry = value as { location?: GeocodedLocation | null; cachedAt?: number }
+        if (entry.location) {
+          cache[key] = { location: entry.location, cachedAt: entry.cachedAt ?? Date.now() }
+        }
+        continue
+      }
+      // Legacy entries stored location directly.
+      const legacyLocation = value as GeocodedLocation | null
+      if (legacyLocation) {
+        cache[key] = { location: legacyLocation, cachedAt: Date.now() }
+      }
+    }
+    return cache
   } catch {
     return {}
   }
@@ -46,14 +89,15 @@ function saveCache(cache: GeocodeCache): void {
   localStorage.setItem(GEOCODE_CACHE_KEY, JSON.stringify(cache))
 }
 
-function getCachedLocation(address: string): GeocodedLocation | null | undefined {
+function getCachedLocation(cacheKey: string): GeocodedLocation | undefined {
   const cache = getCache()
-  return cache[address]
+  return cache[cacheKey]?.location
 }
 
-function setCachedLocation(address: string, location: GeocodedLocation | null): void {
+function setCachedLocation(cacheKey: string, location: GeocodedLocation | null): void {
+  if (!location) return
   const cache = getCache()
-  cache[address] = location
+  cache[cacheKey] = { location, cachedAt: Date.now() }
   saveCache(cache)
 }
 
@@ -87,8 +131,8 @@ export function isCondominiumAddress(address: string): boolean {
  * Check if Google Maps API is available
  */
 function isGoogleMapsAvailable(): boolean {
-  return typeof window !== "undefined" && 
-         typeof google !== "undefined" && 
+  return typeof window !== "undefined" &&
+         typeof google !== "undefined" &&
          typeof google.maps !== "undefined" &&
          typeof google.maps.Geocoder !== "undefined"
 }
@@ -208,43 +252,61 @@ export async function geocodeAddress(
   address: string,
   options?: GeocodeQueryOptions
 ): Promise<GeocodedLocation | null> {
-  const cacheKey = options?.cidade
-    ? `${address}::${options.cidade.trim()}`
-    : address
+  const cacheKey = cacheKeyFor(address, options)
 
-  // Check cache first
   const cached = getCachedLocation(cacheKey)
-  if (cached !== undefined) {
+  if (cached) {
     return cached
   }
 
-  let location: GeocodedLocation | null = null
+  const pending = inFlightGeocodes.get(cacheKey)
+  if (pending) {
+    return pending
+  }
 
-  // Try Google APIs if available
-  if (isGoogleMapsAvailable()) {
-    // For condominium-like addresses, try Places API first
-    if (isCondominiumAddress(address)) {
-      location = await findPlaceWithGoogle(address, options)
+  const task = (async (): Promise<GeocodedLocation | null> => {
+    if (isGoogleMapsApiKeyConfigured()) {
+      try {
+        await ensureGoogleMapsLoaded()
+      } catch {
+        // Fall back to Nominatim below.
+      }
     }
-    
-    // If no result from Places, try regular geocoding
+
+    let location: GeocodedLocation | null = null
+
+    // Try Google APIs if available
+    if (isGoogleMapsAvailable()) {
+      // For condominium-like addresses, try Places API first
+      if (isCondominiumAddress(address)) {
+        location = await findPlaceWithGoogle(address, options)
+      }
+
+      // If no result from Places, try regular geocoding
+      if (!location) {
+        location = await geocodeWithGoogle(address, options)
+      }
+    }
+
+    // Fallback to Nominatim
     if (!location) {
-      location = await geocodeWithGoogle(address, options)
+      console.debug(`[Geocoding] Falling back to Nominatim for "${address}"`)
+      const nominatimResult = await geocodeWithNominatim(address, options)
+      if (nominatimResult) {
+        location = { ...nominatimResult, provider: "nominatim" }
+      }
     }
-  }
 
-  // Fallback to Nominatim
-  if (!location) {
-    console.debug(`[Geocoding] Falling back to Nominatim for "${address}"`)
-    const nominatimResult = await geocodeWithNominatim(address, options)
-    if (nominatimResult) {
-      location = { ...nominatimResult, provider: "nominatim" }
-    }
-  }
+    setCachedLocation(cacheKey, location)
+    return location
+  })()
 
-  // Cache the result (even if null)
-  setCachedLocation(cacheKey, location)
-  return location
+  inFlightGeocodes.set(cacheKey, task)
+  try {
+    return await task
+  } finally {
+    inFlightGeocodes.delete(cacheKey)
+  }
 }
 
 /**
@@ -258,11 +320,6 @@ function sleep(ms: number): Promise<void> {
  * Geocode multiple addresses
  * Uses parallel requests for Google (faster), sequential for Nominatim (rate limited)
  */
-export interface GeocodeAddressInput {
-  address: string
-  cidade?: string | null
-}
-
 export async function geocodeAddresses(
   addresses: string[] | GeocodeAddressInput[],
   onProgress?: (completed: number, total: number) => void
@@ -271,17 +328,14 @@ export async function geocodeAddresses(
     typeof item === "string" ? { address: item } : item
   )
   const results = new Map<string, GeocodedLocation | null>()
-  const cache = getCache()
-
-  const cacheKeyFor = (input: GeocodeAddressInput) =>
-    input.cidade ? `${input.address}::${input.cidade.trim()}` : input.address
 
   // Separate cached and uncached addresses
   const uncached: GeocodeAddressInput[] = []
   for (const input of inputs) {
     const key = cacheKeyFor(input)
-    if (cache[key] !== undefined) {
-      results.set(input.address, cache[key])
+    const cached = getCachedLocation(key)
+    if (cached) {
+      results.set(input.address, cached)
     } else {
       uncached.push(input)
     }
@@ -343,8 +397,7 @@ export async function geocodeAddresses(
       const result = location ? { ...location, provider: "nominatim" as const } : null
       results.set(address, result)
       const input = uncached.find((item) => item.address === address)
-      const key = input ? cacheKeyFor(input) : address
-      setCachedLocation(key, result)
+      if (input) setCachedLocation(cacheKeyFor(input), result)
     }
   }
 
@@ -362,16 +415,24 @@ export async function geocodeAddresses(
 export function clearGeocodeCache(): void {
   if (typeof window === "undefined") return
   localStorage.removeItem(GEOCODE_CACHE_KEY)
+  localStorage.removeItem("geocode-cache-v4")
 }
 
 /**
- * Clear cache for specific addresses
+ * Clear cache for specific addresses (supports cidade-scoped keys).
  */
-export function clearCacheForAddresses(addresses: string[]): void {
+export function clearCacheForAddresses(
+  addresses: string[] | GeocodeAddressInput[]
+): void {
   if (typeof window === "undefined") return
   const cache = getCache()
-  for (const address of addresses) {
-    delete cache[address]
+  const inputs: GeocodeAddressInput[] = addresses.map((item) =>
+    typeof item === "string" ? { address: item } : item
+  )
+  for (const input of inputs) {
+    for (const key of cacheKeysForInput(input)) {
+      delete cache[key]
+    }
   }
   saveCache(cache)
 }

@@ -17,6 +17,7 @@
     markGoogleMapsUnavailable,
     subscribeToGoogleMapsErrors
   } from "$lib/anuncios/google-maps-config";
+  import { ensureGoogleMapsLoaded } from "$lib/anuncios/google-maps-loader";
   import { MAP_EMBED_PANEL_CLASS } from "$lib/anuncios/listings-panel-layout";
   import { mapPriceColors } from "$lib/theme/colors";
   import { buildGoogleMiniMarkerContent } from "$lib/anuncios/map-google-markers";
@@ -121,35 +122,10 @@
 
     void (async () => {
       if (useGoogle) {
-        const apiKey = getGoogleMapsApiKey();
-        if (!apiKey || disposed || !mapElement) return;
-
-        const loadGoogle = () =>
-          new Promise<void>((resolve, reject) => {
-            const scriptId = "google-maps-js";
-            const existing = document.getElementById(scriptId) as HTMLScriptElement | null;
-            const onReady = () => {
-              const googleRuntime = (window as { google?: { maps?: { Map?: unknown } } }).google;
-              if (googleRuntime?.maps?.Map) resolve();
-              else reject(new Error("Google Maps unavailable"));
-            };
-            if (existing) {
-              const googleRuntime = (window as { google?: { maps?: unknown } }).google;
-              if (googleRuntime?.maps) onReady();
-              else existing.addEventListener("load", onReady, { once: true });
-              return;
-            }
-            const script = document.createElement("script");
-            script.id = scriptId;
-            script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(apiKey)}&libraries=marker&language=pt-BR&region=BR&loading=async`;
-            script.async = true;
-            script.onload = onReady;
-            script.onerror = () => reject(new Error("Google Maps load failed"));
-            document.head.appendChild(script);
-          });
+        if (disposed || !mapElement) return;
 
         try {
-          await loadGoogle();
+          await ensureGoogleMapsLoaded();
           const gmaps = (window as { google?: { maps?: { Map?: new (...args: unknown[]) => unknown; marker?: { AdvancedMarkerElement?: new (...args: unknown[]) => unknown } } } }).google;
           const MapCtor = gmaps?.maps?.Map;
           const MarkerCtor = gmaps?.maps?.marker?.AdvancedMarkerElement;

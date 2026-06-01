@@ -32,6 +32,10 @@ function isPublicShare(pathname: string) {
   return pathname.startsWith("/share/");
 }
 
+function isPublicGeocodingApi(pathname: string) {
+  return pathname === "/api/geocoding/nominatim";
+}
+
 function isSubscriptionExempt(pathname: string) {
   return SUBSCRIPTION_EXEMPT_PREFIXES.some(
     (route) => pathname === route || pathname.startsWith(`${route}/`)
@@ -60,7 +64,11 @@ const authHandle: Handle = async ({ event, resolve }) => {
 
 const routeGuardHandle: Handle = async ({ event, resolve }) => {
   const pathname = event.url.pathname;
-  const publicRoute = PUBLIC_ROUTES.has(pathname) || isPublicShortLink(pathname) || isPublicShare(pathname);
+  const publicRoute =
+    PUBLIC_ROUTES.has(pathname) ||
+    isPublicShortLink(pathname) ||
+    isPublicShare(pathname) ||
+    isPublicGeocodingApi(pathname);
   const loggedIn = Boolean(event.locals.user);
 
   if (AUTH_ROUTES.has(pathname) && loggedIn) {

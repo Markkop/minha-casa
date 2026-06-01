@@ -4,6 +4,7 @@
   import type { Imovel } from "$lib/anuncios/types";
   import { geocodeAddresses, clearCacheForAddresses } from "$lib/anuncios/geocoding";
   import { buildListingGeocodeQuery } from "$lib/anuncios/listing-location";
+  import { ensureGoogleMapsLoaded } from "$lib/anuncios/google-maps-loader";
   import { cn } from "$lib/utils";
   import {
     calculatePrecoM2,
@@ -107,6 +108,14 @@
           })
           .filter((input): input is { address: string; cidade: string | null | undefined } => input !== null);
 
+        if (googleMapsAvailable) {
+          try {
+            await ensureGoogleMapsLoaded();
+          } catch {
+            // Geocoding falls back to Nominatim when Google is unavailable.
+          }
+        }
+
         const results = await geocodeAddresses(addressInputs, (completed) => {
           if (!cancelled) {
             progress = { completed: withCustom.length + completed, total: listings.length };
@@ -182,10 +191,12 @@
   }
 
   function handleRedoGeocoding() {
-    const addresses = listings
-      .map((listing: Imovel) => buildListingGeocodeQuery(listing))
-      .filter((query: string | null): query is string => Boolean(query));
-    clearCacheForAddresses(addresses);
+    const addressInputs: { address: string; cidade: string | null | undefined }[] = [];
+    for (const listing of listings) {
+      const query = buildListingGeocodeQuery(listing);
+      if (query) addressInputs.push({ address: query, cidade: listing.cidade });
+    }
+    clearCacheForAddresses(addressInputs);
     boundsApplied = false;
     geocodeKey += 1;
   }

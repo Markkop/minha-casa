@@ -13,6 +13,7 @@
     isGoogleMapsErrorMessage,
     markGoogleMapsUnavailable
   } from "$lib/anuncios/google-maps-config";
+  import { ensureGoogleMapsLoaded } from "$lib/anuncios/google-maps-loader";
   import { buildGoogleMarkerContent } from "$lib/anuncios/map-google-markers";
   import { getCollectionsContext } from "$lib/collections-context.svelte";
   import MapMarkerInfoContent from "$lib/components/anuncios/MapMarkerInfoContent.svelte";
@@ -105,7 +106,17 @@
 
     let disposed = false;
 
-    const initMap = () => {
+    const initMap = async () => {
+      try {
+        await ensureGoogleMapsLoaded();
+      } catch {
+        if (!disposed) {
+          markGoogleMapsUnavailable();
+          error = "Erro ao carregar Google Maps.";
+        }
+        return;
+      }
+
       const gmaps = (window as { google?: { maps?: { Map?: new (...args: unknown[]) => unknown; InfoWindow?: new () => unknown; marker?: { AdvancedMarkerElement?: new (...args: unknown[]) => unknown } } } }).google;
       const MapCtor = gmaps?.maps?.Map;
       const InfoWindowCtor = gmaps?.maps?.InfoWindow;
@@ -124,28 +135,7 @@
       renderMarkers();
     };
 
-    const scriptId = "google-maps-js";
-    const existing = document.getElementById(scriptId) as HTMLScriptElement | null;
-
-    const gmapsGlobal = (window as { google?: { maps?: { Map?: unknown } } }).google;
-    if (gmapsGlobal?.maps?.Map) {
-      initMap();
-    } else if (existing) {
-      existing.addEventListener("load", initMap, { once: true });
-    } else {
-      const script = document.createElement("script");
-      script.id = scriptId;
-      script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(key)}&libraries=marker&language=pt-BR&region=BR&loading=async`;
-      script.async = true;
-      script.onerror = () => {
-        if (!disposed) {
-          markGoogleMapsUnavailable();
-          error = "Erro ao carregar Google Maps.";
-        }
-      };
-      script.onload = initMap;
-      document.head.appendChild(script);
-    }
+    void initMap();
 
     return () => {
       disposed = true;
