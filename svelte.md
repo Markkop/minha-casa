@@ -102,7 +102,11 @@ The Svelte API client calls **same-origin** `/api/*` in the browser (SvelteKit p
 - `apps/web/src/lib/sync-subscription-cookie.ts`: client helper to refresh subscription cookie via SvelteKit BFF.
 - `apps/web/src/lib/auth-client.ts`: Svelte Better Auth client.
 - `apps/web/src/lib/stores/auth.ts`: cached JWT helper for Phoenix API calls.
-- `apps/web/src/lib/api/client.ts`: browser API client that calls `PUBLIC_API_URL + /api/...` with `Authorization: Bearer`.
+- `apps/web/src/lib/organization-context.ts`: active-organization httpOnly cookie name and options.
+- `apps/web/src/lib/server/organization-context.ts`: membership validation and cookie read/write on the server.
+- `apps/web/src/lib/active-organization.ts`: client cache synced from layout data; `setActiveOrganizationId` posts to `/api/organization-context`.
+- `apps/web/src/routes/api/organization-context/+server.ts`: GET/POST active organization cookie (auth required).
+- `apps/web/src/lib/api/client.ts`: browser API client; same-origin `/api/*` with `credentials: include` (org header injected by proxy from cookie).
 - `apps/web/src/lib/components/layout/WorkspaceShell.svelte`: Svelte app navigation shell with mobile drawer, account menu, organization switcher, addon/admin actions, and feature-flagged navigation.
 - `apps/web/src/lib/components/workspace/OrganizationSwitcher.svelte`: Svelte organization context switcher used by shell chrome.
 - `apps/web/src/lib/components/ui/Button.svelte`, `Card.svelte`, `Input.svelte`, `Badge.svelte`: first shared Svelte UI primitives.
@@ -157,7 +161,7 @@ For the earlier floodrisk pass, `/floodrisk` was opened through the in-app brows
 ## Things to revisit
 
 - Port the remaining Drizzle/Next API behavior to Phoenix before deleting `app/api`.
-- Active organization is currently stored in localStorage by the Svelte API client and shell switcher, mirrored to the legacy organization-context key, and sent as `X-Organization-Id`; revisit whether this should move to a server session/cookie for SSR and cross-tab polish.
+- Active organization is stored in an httpOnly cookie (`minha-casa-active-organization-id`), exposed on `PageData.activeOrganizationId`, and injected as `X-Organization-Id` by the SvelteKit API proxy. Legacy localStorage keys are migrated once on layout mount.
 - Stripe Checkout, billing portal session creation, webhook lifecycle handling, admin cancel/reactivate calls, and admin reconciliation are now Phoenix-backed. Reconciliation is currently read-only and reports missing/stale rows; it does not auto-repair local subscriptions.
 - `/floodrisk` is ported as a first direct Three.js pass with addon gating, but it still needs logged-in screenshot QA and visual polish against the React Three Fiber version.
 - `/anuncios` still needs Leaflet/Google-specific parity and final dense-table polish. The current Svelte page now has image thumbnails/lightbox, JSON import/export, card mode, cached browser geocoding, OSM map embeds, duplicate review modal, reparse/quick-reparse review flows, and richer sort/filter controls.
@@ -169,4 +173,4 @@ For the earlier floodrisk pass, `/floodrisk` was opened through the in-app brows
 - Reimplement map views with Leaflet and Google Maps JS wrappers, not React bindings. `/anuncios` currently uses cached Nominatim geocoding plus OSM embeds as the Svelte-native map baseline.
 - Polish `/floodrisk` against the React Three Fiber version after logged-in visual QA.
 - Add Stripe reconciliation repair actions if needed; the current port only surfaces discrepancies.
-- Update Docker compose after Phoenix JWT is available: replace `next-web` with `svelte-web`, set `BETTER_AUTH_URL` to the Svelte origin, and set `BETTER_AUTH_JWKS_URL` for Phoenix.
+- Local Docker (`infra/local/docker-compose.app.yml`) runs `svelte-web` on `:5173` instead of `next-web`; Phoenix defaults `BETTER_AUTH_JWKS_URL` to `http://svelte-web:5173/auth/jwks` on the compose network.

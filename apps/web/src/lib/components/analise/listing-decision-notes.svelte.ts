@@ -17,11 +17,11 @@ const LISTING_DECISION_NOTES_KEY = Symbol("listing-decision-notes");
 async function withOrganizationContext<T>(targetOrgId: string | null | undefined, fn: () => Promise<T>) {
   if (!targetOrgId) return fn();
   const previous = getActiveOrganizationId();
-  setActiveOrganizationId(targetOrgId);
+  await setActiveOrganizationId(targetOrgId);
   try {
     return await fn();
   } finally {
-    setActiveOrganizationId(previous);
+    await setActiveOrganizationId(previous);
   }
 }
 

@@ -3,6 +3,7 @@ import { building } from "$app/environment";
 import { redirect, type Handle } from "@sveltejs/kit";
 import { sequence } from "@sveltejs/kit/hooks";
 import { getAuth } from "$lib/auth";
+import { resolveActiveOrganizationId } from "$lib/server/organization-context";
 import {
   isSubscriptionValid,
   requiresSubscription,
@@ -54,9 +55,16 @@ const authHandle: Handle = async ({ event, resolve }) => {
     if (session) {
       event.locals.session = session.session;
       event.locals.user = session.user;
+      event.locals.activeOrganizationId = await resolveActiveOrganizationId(
+        event.cookies,
+        session.user.id
+      );
+    } else {
+      event.locals.activeOrganizationId = null;
     }
   } catch (error) {
     console.error("[hooks.server] getSession failed", error);
+    event.locals.activeOrganizationId = null;
   }
 
   return resolve(event);

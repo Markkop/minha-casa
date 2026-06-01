@@ -66,7 +66,7 @@ Restart `pnpm dev`, sign in again (old session cookies pointed at an empty DB).
 
 If you see a Next.js error about `globals.css` and `lightningcss` on **http://localhost:3000**, you opened the **minha-casa** app container, not Langfuse. Use **http://localhost:3100** for Langfuse.
 
-For local UI dev, prefer **`pnpm dev` on the host** (e.g. :3001) instead of the `next-web` service, or recreate `next-web` after the compose `node_modules` volume fix so deps install inside Alpine.
+For local UI dev, use **`pnpm dev:web` on the host** (`:5173`) or the `svelte-web` service from `infra/local/docker-compose.app.yml`. If native deps fail inside Alpine, recreate `svelte-web` after the compose `node_modules` volume fix so deps install inside the container.
 
 Open **http://localhost:3100** and sign in with the **auto-created** local admin (only after a fresh Langfuse DB init):
 

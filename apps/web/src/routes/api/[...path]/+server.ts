@@ -1,4 +1,5 @@
 import { env } from "$env/dynamic/private";
+import { ACTIVE_ORGANIZATION_COOKIE_NAME } from "$lib/organization-context";
 import type { RequestHandler } from "./$types";
 
 function phoenixBaseUrl(): string {
@@ -6,7 +7,11 @@ function phoenixBaseUrl(): string {
   return raw.trim().replace(/\/+$/, "").replace(/\/api$/i, "");
 }
 
-async function proxyToPhoenix({ request, params }: Parameters<RequestHandler>[0]) {
+async function proxyToPhoenix({
+  request,
+  params,
+  cookies
+}: Parameters<RequestHandler>[0]) {
   const segments = params.path ? (Array.isArray(params.path) ? params.path : [params.path]) : [];
   const target = new URL(`/api/${segments.map(String).join("/")}`, phoenixBaseUrl());
   target.search = new URL(request.url).search;
@@ -14,6 +19,13 @@ async function proxyToPhoenix({ request, params }: Parameters<RequestHandler>[0]
   const headers = new Headers(request.headers);
   headers.delete("host");
   headers.delete("connection");
+
+  const activeOrgId = cookies.get(ACTIVE_ORGANIZATION_COOKIE_NAME)?.trim();
+  if (activeOrgId) {
+    headers.set("X-Organization-Id", activeOrgId);
+  } else {
+    headers.delete("X-Organization-Id");
+  }
 
   const hasBody = request.method !== "GET" && request.method !== "HEAD";
 

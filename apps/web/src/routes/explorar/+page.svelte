@@ -4,7 +4,6 @@
   import PageScaffold from "$lib/components/layout/PageScaffold.svelte";
   import Button from "$lib/components/ui/Button.svelte";
   import FloatingTooltip from "$lib/components/ui/FloatingTooltip.svelte";
-  import { getActiveOrganizationId } from "$lib/api/client";
   import { getApiToken } from "$lib/stores/auth";
   import { cn } from "$lib/utils";
   import {
@@ -315,11 +314,10 @@
       const token = await getApiToken();
       const headers: Record<string, string> = {};
       if (token) headers.Authorization = `Bearer ${token}`;
-      const orgId = getActiveOrganizationId();
-      if (orgId) headers["X-Organization-Id"] = orgId;
 
       const response = await fetch(`/api/portal-searches/${currentSearchId}/runs/${runId}/stream`, {
         headers,
+        credentials: "include",
         signal: controller.signal
       });
 

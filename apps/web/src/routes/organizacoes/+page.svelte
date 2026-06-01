@@ -157,9 +157,13 @@
     }
   }
 
-  function activateOrganization(id: string | null) {
-    activeOrgId = id;
-    setActiveOrganizationId(id);
+  async function activateOrganization(id: string | null) {
+    try {
+      await setActiveOrganizationId(id);
+      activeOrgId = id;
+    } catch (err) {
+      error = err instanceof Error ? err.message : "Erro ao definir organizacao ativa";
+    }
   }
 
   function roleLabel(role: OrganizationRole) {

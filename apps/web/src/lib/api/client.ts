@@ -20,40 +20,7 @@ type RequestOptions = {
   signal?: AbortSignal;
 };
 
-const ACTIVE_ORG_STORAGE_KEY = "minha-casa:active-organization-id";
-const LEGACY_ORG_CONTEXT_STORAGE_KEY = "minha-casa-org-context";
-
-export function getActiveOrganizationId(): string | null {
-  if (typeof window === "undefined") return null;
-  const value = window.localStorage.getItem(ACTIVE_ORG_STORAGE_KEY);
-  if (value && value.trim() !== "") return value;
-
-  try {
-    const context = JSON.parse(window.localStorage.getItem(LEGACY_ORG_CONTEXT_STORAGE_KEY) || "null") as
-      | { type?: string; organizationId?: string }
-      | null;
-    if (context?.type === "organization" && context.organizationId) return context.organizationId;
-  } catch {
-    // Ignore stale localStorage payloads from the previous frontend.
-  }
-
-  return null;
-}
-
-export function setActiveOrganizationId(orgId: string | null) {
-  if (typeof window === "undefined") return;
-  if (orgId) {
-    window.localStorage.setItem(ACTIVE_ORG_STORAGE_KEY, orgId);
-    window.localStorage.setItem(
-      LEGACY_ORG_CONTEXT_STORAGE_KEY,
-      JSON.stringify({ type: "organization", organizationId: orgId })
-    );
-  } else {
-    window.localStorage.removeItem(ACTIVE_ORG_STORAGE_KEY);
-    window.localStorage.setItem(LEGACY_ORG_CONTEXT_STORAGE_KEY, JSON.stringify({ type: "personal" }));
-  }
-  window.dispatchEvent(new CustomEvent("minha-casa:organization-context-change", { detail: orgId }));
-}
+export { getActiveOrganizationId, setActiveOrganizationId } from "$lib/active-organization";
 
 async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const { method = "GET", body, headers = {}, auth = true } = options;
@@ -65,8 +32,6 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
   if (auth) {
     const token = await getApiToken();
     if (token) requestHeaders.Authorization = `Bearer ${token}`;
-    const orgId = getActiveOrganizationId();
-    if (orgId) requestHeaders["X-Organization-Id"] = orgId;
   }
 
   let response: Response;
@@ -76,6 +41,7 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
     response = await fetch(url, {
       method,
       headers: requestHeaders,
+      credentials: "include",
       body: body === undefined ? undefined : JSON.stringify(body),
       signal: options.signal
     });

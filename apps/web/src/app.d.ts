@@ -5,11 +5,13 @@ declare global {
     interface Locals {
       session?: Session["session"];
       user?: User;
+      activeOrganizationId?: string | null;
     }
 
     interface PageData {
       session?: Session["session"] | null;
       user?: User | null;
+      activeOrganizationId?: string | null;
     }
   }
 }

@@ -60,11 +60,20 @@
     if (!target?.closest("[data-org-switcher]")) open = false;
   }
 
-  function selectOrganization(id: string | null, refresh = true) {
-    activeOrgId = id;
-    setActiveOrganizationId(id);
-    open = false;
-    if (refresh) void goto(window.location.pathname + window.location.search, { replaceState: true, invalidateAll: true });
+  async function selectOrganization(id: string | null, refresh = true) {
+    try {
+      await setActiveOrganizationId(id);
+      activeOrgId = id;
+      open = false;
+      if (refresh) {
+        void goto(window.location.pathname + window.location.search, {
+          replaceState: true,
+          invalidateAll: true
+        });
+      }
+    } catch (error) {
+      console.error("[OrganizationSwitcher] failed to switch organization", error);
+    }
   }
 </script>
 

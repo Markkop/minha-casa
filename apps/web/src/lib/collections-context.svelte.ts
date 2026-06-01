@@ -18,11 +18,11 @@ import { toCollection, toImovel, toListingData, type Collection, type Imovel } f
 
 async function withOrganizationContext<T>(targetOrgId: string | null, fn: () => Promise<T>) {
   const previous = getActiveOrganizationId();
-  setActiveOrganizationId(targetOrgId);
+  await setActiveOrganizationId(targetOrgId);
   try {
     return await fn();
   } finally {
-    setActiveOrganizationId(previous);
+    await setActiveOrganizationId(previous);
   }
 }
 
