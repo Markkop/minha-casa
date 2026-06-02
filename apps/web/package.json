@@ -16,8 +16,10 @@
     "better-auth": "1.4.17",
     "clsx": "^2.1.1",
     "katex": "^0.16.27",
+    "konva": "^10.3.0",
     "leaflet": "^1.9.4",
     "pg": "^8.21.0",
+    "svelte-konva": "^1.0.1",
     "tailwind-merge": "^3.4.0",
     "three": "^0.182.0",
     "zod": "^4.4.3"

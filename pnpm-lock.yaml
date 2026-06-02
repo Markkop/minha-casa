@@ -186,12 +186,18 @@ importers:
       katex:
         specifier: ^0.16.27
         version: 0.16.27
+      konva:
+        specifier: ^10.3.0
+        version: 10.3.0
       leaflet:
         specifier: ^1.9.4
         version: 1.9.4
       pg:
         specifier: ^8.21.0
         version: 8.21.0
+      svelte-konva:
+        specifier: ^1.0.1
+        version: 1.0.1(konva@10.3.0)(svelte@5.56.0(@typescript-eslint/types@8.60.0))
       tailwind-merge:
         specifier: ^3.4.0
         version: 3.4.0
@@ -4156,6 +4162,9 @@ packages:
   known-css-properties@0.37.0:
     resolution: {integrity: sha512-JCDrsP4Z1Sb9JwG0aJ8Eo2r7k4Ou5MwmThS/6lcIe1ICyb7UBJKGRIUUdqc2ASdE/42lgz6zFUnzAIhtXnBVrQ==}
 
+  konva@10.3.0:
+    resolution: {integrity: sha512-gt19K2gzY4lHbnkvsku7eSmB+A9PTS2jG4F9coBMsdjM1UKfJNxJbDbXVpeCW1wjEGRwBD3nBamcHnqJhAeKlg==}
+
   kysely@0.28.10:
     resolution: {integrity: sha512-ksNxfzIW77OcZ+QWSAPC7yDqUSaIVwkTWnTPNiIy//vifNbwsSgQ57OkkncHxxpcBHM3LRfLAZVEh7kjq5twVA==}
     engines: {node: '>=20.0.0'}
@@ -5077,6 +5086,12 @@ packages:
     peerDependenciesMeta:
       svelte:
         optional: true
+
+  svelte-konva@1.0.1:
+    resolution: {integrity: sha512-XfiSF9+J9phRupYGzMfbp46dnqsgZfN3Fwqei4YVAy0/9dr7k/qGtEucOqEcwgL1GEI2rxwSFXH0S5zbZqyMJQ==}
+    peerDependencies:
+      konva: 8 - 10
+      svelte: ^5.0.0
 
   svelte@5.56.0:
     resolution: {integrity: sha512-kTXr26t1bchFp28ROrb957LtbujpBmBDibmqMGziVpUs7awBi96TGgX6SovrA8BNoEUDVRK2Fb9FkeYlGspoVg==}
@@ -9367,6 +9382,8 @@ snapshots:
 
   known-css-properties@0.37.0: {}
 
+  konva@10.3.0: {}
+
   kysely@0.28.10: {}
 
   kysely@0.29.2:
@@ -10302,6 +10319,11 @@ snapshots:
       postcss-selector-parser: 7.1.1
       semver: 7.7.3
     optionalDependencies:
+      svelte: 5.56.0(@typescript-eslint/types@8.60.0)
+
+  svelte-konva@1.0.1(konva@10.3.0)(svelte@5.56.0(@typescript-eslint/types@8.60.0)):
+    dependencies:
+      konva: 10.3.0
       svelte: 5.56.0(@typescript-eslint/types@8.60.0)
 
   svelte@5.56.0(@typescript-eslint/types@8.60.0):

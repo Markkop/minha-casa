@@ -7,6 +7,7 @@
     Home,
     LayoutDashboard,
     Link2,
+    Hammer,
     MapPinned,
     ScanSearch
   } from "@lucide/svelte";
@@ -78,6 +79,7 @@
     { href: "/comparacao", label: "Comparação", icon: BarChart3 },
     { href: "/analise", label: "Análise", icon: ScanSearch },
     { href: "/financiamento", label: "Financiamento", icon: CircleDollarSign },
+    { href: "/reforma", label: "Reforma", icon: Hammer },
     { href: "/links", label: "Links", icon: Link2 }
   ];
 
