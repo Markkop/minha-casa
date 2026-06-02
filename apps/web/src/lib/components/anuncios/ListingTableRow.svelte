@@ -5,12 +5,12 @@
   import PricePerM2Stack from "$lib/components/anuncios/PricePerM2Stack.svelte";
   import ListingStarButton from "$lib/components/anuncios/ListingStarButton.svelte";
   import ListingImageColumnCell from "$lib/components/anuncios/ListingImageColumnCell.svelte";
-  import ListingPropertyIconToolbar from "$lib/components/anuncios/ListingPropertyIconToolbar.svelte";
+  import ListingPropertyMetaRow from "$lib/components/anuncios/ListingPropertyMetaRow.svelte";
   import ListingRowStatusActions from "$lib/components/anuncios/ListingRowStatusActions.svelte";
   import WhatsAppIcon from "$lib/components/anuncios/WhatsAppIcon.svelte";
   import FloatingTooltip from "$lib/components/ui/FloatingTooltip.svelte";
   import { buildWhatsAppUrl } from "$lib/anuncios/listings-contact";
-  import { buildGoogleMapsUrl, calculatePrecoM2, calculatePrecoM2Privado } from "$lib/components/anuncios/listing-row-urls";
+  import { calculatePrecoM2, calculatePrecoM2Privado } from "$lib/components/anuncios/listing-row-urls";
   import {
     formatDate,
     formatFullDateTime,
@@ -26,6 +26,7 @@
     imageColumnView,
     enabledMetricVariants,
     propertyDisplay,
+    toolbarVisibility,
     activeMetricVariant,
     uniqueContacts,
     hasOtherCollections,
@@ -38,6 +39,12 @@
   }: ListingTableRowProps = $props();
 
   const interactions = $derived(getRowInteractions(imovel));
+
+  const showMetaRow = $derived(
+    visibleColumns.property &&
+      ((propertyDisplay.showPropertyIcons || propertyDisplay.showAddress) ||
+        visibleColumns.status)
+  );
 </script>
 
 <tr
@@ -82,26 +89,6 @@
               collectionId={activeCollectionId}
             />
           </div>
-          {#if propertyDisplay.showAddress}
-            <FloatingTooltip
-              label={`Abrir ${imovel.endereco} no Google Maps`}
-              side="bottom"
-              align="start"
-              wrapperClass="mt-1 inline-block w-fit max-w-full"
-            >
-              <a
-                href={buildGoogleMapsUrl(imovel.endereco)}
-                target="_blank"
-                rel="noopener noreferrer"
-                class={cn(
-                  "block max-w-full truncate text-xs text-app-muted underline decoration-dotted underline-offset-2 transition-colors hover:text-app-fg",
-                  imovel.strikethrough && "line-through opacity-50"
-                )}
-              >
-                {imovel.endereco}
-              </a>
-            </FloatingTooltip>
-          {/if}
           {#if propertyDisplay.showContact && imovel.contactNumber}
             {@const url = buildWhatsAppUrl(imovel.contactNumber)}
             {#if url}
@@ -126,11 +113,23 @@
               </FloatingTooltip>
             {/if}
           {/if}
+          {#if showMetaRow}
+            <ListingPropertyMetaRow
+              {imovel}
+              {interactions}
+              {toolbarVisibility}
+              showPropertyIcons={propertyDisplay.showPropertyIcons}
+              showMap={propertyDisplay.showAddress}
+              showRowActions={visibleColumns.status}
+              {uniqueContacts}
+              {hasOtherCollections}
+              {collections}
+              {activeCollectionId}
+              {openEditListing}
+              class="mt-1"
+            />
+          {/if}
         </div>
-
-        {#if propertyDisplay.showPropertyIcons}
-          <ListingPropertyIconToolbar {imovel} {interactions} class="justify-start gap-2" />
-        {/if}
       </div>
     </td>
   {/if}
@@ -202,7 +201,7 @@
   {/if}
 
   {#if visibleColumns.status}
-    <td class="min-w-[154px] p-2 align-middle">
+    <td class="min-w-[128px] p-2 align-middle">
       <ListingRowStatusActions
         {imovel}
         {interactions}
@@ -211,7 +210,7 @@
         {collections}
         {activeCollectionId}
         {openEditListing}
-        layout="stacked"
+        part="status"
       />
     </td>
   {/if}

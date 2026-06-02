@@ -4,13 +4,13 @@
   import ListingStarButton from "$lib/components/anuncios/ListingStarButton.svelte";
   import ListingMobileMetricRow from "$lib/components/anuncios/ListingMobileMetricRow.svelte";
   import ListingMobileCardBackdrop from "$lib/components/anuncios/ListingMobileCardBackdrop.svelte";
-  import ListingPropertyIconToolbar from "$lib/components/anuncios/ListingPropertyIconToolbar.svelte";
+  import ListingPropertyMetaRow from "$lib/components/anuncios/ListingPropertyMetaRow.svelte";
   import ListingRowStatusActions from "$lib/components/anuncios/ListingRowStatusActions.svelte";
   import WhatsAppIcon from "$lib/components/anuncios/WhatsAppIcon.svelte";
   import FloatingTooltip from "$lib/components/ui/FloatingTooltip.svelte";
   import { mobileCompactListingDisplayTitle } from "$lib/listing-display-title";
   import { buildWhatsAppUrl } from "$lib/anuncios/listings-contact";
-  import { buildGoogleMapsUrl, calculatePrecoM2, calculatePrecoM2Privado } from "$lib/components/anuncios/listing-row-urls";
+  import { calculatePrecoM2, calculatePrecoM2Privado } from "$lib/components/anuncios/listing-row-urls";
   import {
     LISTING_MOBILE_EDGE_INSET_CLASS,
     LISTING_MOBILE_ROW_GAP_CLASS
@@ -24,6 +24,7 @@
     imageColumnView,
     enabledMetricVariants,
     propertyDisplay,
+    toolbarVisibility,
     activeMetricVariant,
     uniqueContacts,
     hasOtherCollections,
@@ -45,31 +46,21 @@
   const mobileCompactTitle = $derived(mobileCompactListingDisplayTitle(displayTitle));
   const mobileTitleTruncated = $derived(truncateListingTitle(mobileCompactTitle, 48));
   const showPropertyIcons = $derived(propertyDisplay.showPropertyIcons && visibleColumns.property);
-  const showAddress = $derived(propertyDisplay.showAddress);
+  const showMap = $derived(propertyDisplay.showAddress && visibleColumns.property);
+  const showMetaRow = $derived(
+    visibleColumns.property && (showPropertyIcons || showMap || visibleColumns.status)
+  );
   const showPrice = $derived(visibleColumns.price);
   const showMetrics = $derived(visibleColumns.area || visibleColumns.value);
   const showImage = $derived(visibleColumns.image);
   const showStatus = $derived(visibleColumns.status);
   const showContact = $derived(propertyDisplay.showContact && Boolean(imovel.contactNumber));
-  const showUnifiedRight = $derived(
-    showStatus || showPropertyIcons || showPrice || showMetrics || showContact
-  );
+  const showUnifiedRight = $derived(showMetaRow || showPrice || showMetrics || showContact);
   const showAsideRows = $derived(showPrice || showMetrics || showContact);
   const showUnifiedRow = $derived(showImage);
   const showFallbackHeader = $derived(!showImage);
-  const showFallbackBottom = $derived(!showImage && (showAddress || showContact || showStatus));
   const mobileContactUrl = $derived(showContact ? buildWhatsAppUrl(imovel.contactNumber) : null);
   const showMobileContactLink = $derived(Boolean(mobileContactUrl));
-
-  const rowActionsProps = $derived({
-    imovel,
-    interactions,
-    uniqueContacts,
-    hasOtherCollections,
-    collections,
-    activeCollectionId,
-    openEditListing
-  });
 </script>
 
 {#snippet mobileContactLink()}
@@ -97,6 +88,28 @@
   {/if}
 {/snippet}
 
+{#snippet mobileMetaRow()}
+  {#if showMetaRow}
+    <div data-testid="listing-mobile-meta-row" class="flex min-w-0 items-center leading-none">
+      <ListingPropertyMetaRow
+        {imovel}
+        {interactions}
+        {toolbarVisibility}
+        {showPropertyIcons}
+        {showMap}
+        showRowActions={visibleColumns.status}
+        {uniqueContacts}
+        {hasOtherCollections}
+        {collections}
+        {activeCollectionId}
+        {openEditListing}
+        density="mobile"
+        class="justify-start"
+      />
+    </div>
+  {/if}
+{/snippet}
+
 <article
   id="listing-{imovel.id}"
   data-testid="listing-mobile-card-{imovel.id}"
@@ -107,20 +120,37 @@
   )}
 >
   {#if showFallbackHeader}
-    <div data-testid="listing-mobile-top" class="flex min-w-0 items-center gap-1">
-      <ListingStarButton
-        starred={imovel.starred}
-        onToggle={() => void interactions.handleToggleStar()}
-      />
-      <ListingTitleLinks
-        listing={imovel}
-        displayTitle={mobileTitleTruncated}
-        collectionId={activeCollectionId}
-        maxTitleLength={48}
-        class="min-w-0 flex-1"
-      />
-      {#if showStatus}
-        <ListingRowStatusActions {...rowActionsProps} part="status" />
+    <div data-testid="listing-mobile-top" class="flex min-w-0 flex-col gap-1">
+      <div class="flex min-w-0 items-center gap-1">
+        <ListingStarButton
+          starred={imovel.starred}
+          onToggle={() => void interactions.handleToggleStar()}
+        />
+        <ListingTitleLinks
+          listing={imovel}
+          displayTitle={mobileTitleTruncated}
+          collectionId={activeCollectionId}
+          maxTitleLength={48}
+          class="min-w-0 flex-1"
+        />
+        {#if showStatus}
+          <ListingRowStatusActions
+            {imovel}
+            {interactions}
+            {uniqueContacts}
+            {hasOtherCollections}
+            {collections}
+            {activeCollectionId}
+            {openEditListing}
+            part="status"
+          />
+        {/if}
+      </div>
+      {@render mobileMetaRow()}
+      {#if showContact}
+        <div class="min-w-0">
+          {@render mobileContactLink()}
+        </div>
       {/if}
     </div>
   {/if}
@@ -160,34 +190,6 @@
           titleClassName="text-[11px] drop-shadow-sm"
         />
       </div>
-
-      {#if showAddress}
-        <div
-          data-testid="listing-mobile-overlay-bottom"
-          class={cn("absolute inset-x-0 bottom-0 z-10", LISTING_MOBILE_EDGE_INSET_CLASS)}
-        >
-          <FloatingTooltip
-            label={`Abrir ${imovel.endereco} no Google Maps`}
-            side="bottom"
-            align="start"
-            wrapperClass="inline-block w-fit max-w-full"
-          >
-            <a
-              data-testid="listing-mobile-address"
-              href={buildGoogleMapsUrl(imovel.endereco)}
-              target="_blank"
-              rel="noopener noreferrer"
-              class={cn(
-                "block max-w-full truncate text-[10px] leading-tight text-white/95 underline decoration-white/40 decoration-dotted underline-offset-2 drop-shadow-sm transition-colors hover:text-white",
-                imovel.strikethrough && "line-through opacity-50"
-              )}
-              onclick={(event) => event.stopPropagation()}
-            >
-              {imovel.endereco}
-            </a>
-          </FloatingTooltip>
-        </div>
-      {/if}
     </div>
 
     {#if showUnifiedRight}
@@ -199,19 +201,20 @@
           <div class={cn("flex min-h-0 flex-col", LISTING_MOBILE_ROW_GAP_CLASS)}>
             {#if showStatus}
               <div data-testid="listing-mobile-status-row" class="flex min-w-0 items-center leading-none">
-                <ListingRowStatusActions {...rowActionsProps} density="mobile" part="status" />
-              </div>
-            {/if}
-            {#if showPropertyIcons}
-              <div data-testid="listing-mobile-property-row" class="flex min-w-0 items-center leading-none">
-                <ListingPropertyIconToolbar
-                  imovel={imovel}
+                <ListingRowStatusActions
+                  {imovel}
                   {interactions}
+                  {uniqueContacts}
+                  {hasOtherCollections}
+                  {collections}
+                  {activeCollectionId}
+                  {openEditListing}
                   density="mobile"
-                  class="justify-start"
+                  part="status"
                 />
               </div>
             {/if}
+            {@render mobileMetaRow()}
             {#if showPrice}
               <div data-testid="listing-mobile-price" class="flex items-center leading-none">
                 <ClickablePrice price={imovel.preco} strikethrough={imovel.strikethrough} />
@@ -239,36 +242,20 @@
                 class={imovel.strikethrough ? "line-through opacity-50" : undefined}
               />
             {/if}
-          </div>
-
-          {#if showStatus || showMobileContactLink}
-            <div
-              data-testid="listing-mobile-actions-row"
-              class={cn("mt-auto flex min-w-0 flex-col leading-none", LISTING_MOBILE_ROW_GAP_CLASS)}
-            >
-              {#if showStatus}
-                <ListingRowStatusActions {...rowActionsProps} density="mobile" part="actions" />
-              {/if}
+            {#if showContact}
               {@render mobileContactLink()}
-            </div>
-          {/if}
+            {/if}
+          </div>
         </div>
       </div>
     {/if}
   {/if}
 
-  {#if !showUnifiedRow && (showAsideRows || showPropertyIcons)}
+  {#if !showUnifiedRow && (showAsideRows || showMetaRow)}
     <div data-testid="listing-mobile-body" class="mt-2">
       <div data-testid="listing-mobile-aside" class="flex min-w-0 flex-1 flex-col gap-1">
-        {#if showPropertyIcons}
-          <div class="flex items-center leading-none">
-            <ListingPropertyIconToolbar
-              imovel={imovel}
-              {interactions}
-              density="mobile"
-              class="justify-start"
-            />
-          </div>
+        {#if !showFallbackHeader}
+          {@render mobileMetaRow()}
         {/if}
         {#if showPrice}
           <div data-testid="listing-mobile-price" class="flex items-center leading-none">
@@ -297,74 +284,10 @@
             class={imovel.strikethrough ? "line-through opacity-50" : undefined}
           />
         {/if}
-        {#if showContact || showStatus}
-          <div class="flex min-w-0 flex-col gap-0.5 leading-none">
-            {@render mobileContactLink()}
-            {#if showStatus}
-              <ListingRowStatusActions {...rowActionsProps} part="actions" />
-            {/if}
-          </div>
+        {#if showContact && !showFallbackHeader}
+          {@render mobileContactLink()}
         {/if}
       </div>
-    </div>
-  {/if}
-
-  {#if showFallbackBottom}
-    <div
-      data-testid="listing-mobile-bottom"
-      class="mt-2 flex min-w-0 items-center justify-between gap-2"
-    >
-      <div class="min-w-0 flex-1">
-        {#if showAddress}
-          <FloatingTooltip
-            label={`Abrir ${imovel.endereco} no Google Maps`}
-            side="bottom"
-            align="start"
-            wrapperClass="inline-block w-fit max-w-full"
-          >
-            <a
-              data-testid="listing-mobile-address"
-              href={buildGoogleMapsUrl(imovel.endereco)}
-              target="_blank"
-              rel="noopener noreferrer"
-              class={cn(
-                "block max-w-full truncate text-xs text-app-muted underline decoration-dotted underline-offset-2 transition-colors hover:text-app-fg",
-                imovel.strikethrough && "line-through opacity-50"
-              )}
-            >
-              {imovel.endereco}
-            </a>
-          </FloatingTooltip>
-        {/if}
-        {#if showContact}
-          {@const whatsappUrl = buildWhatsAppUrl(imovel.contactNumber)}
-          {#if whatsappUrl}
-            <FloatingTooltip
-              label={imovel.contactName ? `WhatsApp — ${imovel.contactName}` : "Abrir WhatsApp"}
-              side="bottom"
-              align="start"
-              wrapperClass="mt-0.5 inline-flex w-fit max-w-full"
-            >
-              <a
-                data-testid="listing-mobile-contact"
-                href={whatsappUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                class={cn(
-                  "flex min-w-0 max-w-full items-center gap-1 truncate text-xs text-green-600 transition-colors hover:text-green-500",
-                  imovel.strikethrough && "line-through opacity-50"
-                )}
-              >
-                <WhatsAppIcon class="h-3 w-3 shrink-0" />
-                <span class="truncate">{imovel.contactName ?? imovel.contactNumber}</span>
-              </a>
-            </FloatingTooltip>
-          {/if}
-        {/if}
-      </div>
-      {#if showStatus}
-        <ListingRowStatusActions {...rowActionsProps} part="actions" />
-      {/if}
     </div>
   {/if}
 </article>

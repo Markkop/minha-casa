@@ -12,7 +12,7 @@
     key: keyof ListingsPropertyDisplayPrefs;
     label: string;
   }[] = [
-    { key: "showAddress", label: "Endereço" },
+    { key: "showAddress", label: "Mapa" },
     { key: "showPropertyIcons", label: "Detalhes do imóvel" },
     { key: "showContact", label: "Contato" },
     { key: "showMetricTotal", label: "Área total" },

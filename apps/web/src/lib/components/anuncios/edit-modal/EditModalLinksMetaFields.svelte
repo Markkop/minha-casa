@@ -3,7 +3,11 @@
   import { EDIT_MODAL_INPUT_CLASS } from "$lib/components/anuncios/edit-modal-shared";
   import type { EditModalFieldProps } from "$lib/components/anuncios/edit-modal/form-field-props";
 
-  let { formData, onInputChange }: EditModalFieldProps = $props();
+  let {
+    formData,
+    onInputChange,
+    includeImageUrl = true
+  }: EditModalFieldProps & { includeImageUrl?: boolean } = $props();
 </script>
 
 <div class="space-y-2 md:col-span-2">
@@ -18,17 +22,19 @@
   />
 </div>
 
-<div class="space-y-2 md:col-span-2">
-  <label for="imageUrl" class="text-sm text-app-muted">Image URL</label>
-  <Input
-    id="imageUrl"
-    type="url"
-    value={formData.imageUrl || ""}
-    oninput={(e) => onInputChange("imageUrl", e.currentTarget.value)}
-    placeholder="Ex: https://example.com/image.jpg"
-    class={EDIT_MODAL_INPUT_CLASS}
-  />
-</div>
+{#if includeImageUrl}
+  <div class="space-y-2 md:col-span-2">
+    <label for="imageUrl-extra" class="text-sm text-app-muted">Image URL</label>
+    <Input
+      id="imageUrl-extra"
+      type="url"
+      value={formData.imageUrl || ""}
+      oninput={(e) => onInputChange("imageUrl", e.currentTarget.value)}
+      placeholder="Ex: https://example.com/image.jpg"
+      class={EDIT_MODAL_INPUT_CLASS}
+    />
+  </div>
+{/if}
 
 <div class="space-y-2">
   <label for="addedAt" class="text-sm text-app-muted">Adicionado por você</label>

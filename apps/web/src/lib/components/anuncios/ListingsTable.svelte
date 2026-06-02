@@ -10,6 +10,7 @@
   import { createListingsTablePendingAdd } from "$lib/components/anuncios/listings-table-pending-add.svelte";
   import { createListingRowInteractionsRegistry } from "$lib/components/anuncios/listing-row-interactions-registry.svelte";
   import { extractUniqueContacts, handleQuickReparseRequest } from "$lib/components/anuncios/quick-reparse-utils";
+  import { computeListingToolbarVisibility } from "$lib/anuncios/listing-toolbar-visibility";
   import ListingsTableToolbar from "$lib/components/anuncios/ListingsTableToolbar.svelte";
   import ListingsTableAddButtons from "$lib/components/anuncios/ListingsTableAddButtons.svelte";
   import ListingsTableAddInput from "$lib/components/anuncios/ListingsTableAddInput.svelte";
@@ -81,11 +82,16 @@
     }
   }
 
+  const toolbarVisibility = $derived(
+    computeListingToolbarVisibility(tableState.filteredAndSortedListings)
+  );
+
   const sharedRowProps = $derived({
     visibleColumns: tableState.visibleColumns,
     imageColumnView: tableState.imageColumnView,
     enabledMetricVariants: tableState.enabledMetricVariants,
     propertyDisplay: tableState.propertyDisplay,
+    toolbarVisibility,
     activeMetricVariant: tableState.activeMetricVariant,
     uniqueContacts,
     hasOtherCollections,

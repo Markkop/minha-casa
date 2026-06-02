@@ -7,11 +7,14 @@
     Building,
     Car,
     WavesLadder,
-    BedDouble,
     Bath,
     Check
   } from "@lucide/svelte";
   import type { Imovel } from "$lib/anuncios/types";
+  import {
+    DEFAULT_LISTING_TOOLBAR_VISIBILITY,
+    type ListingToolbarVisibility
+  } from "$lib/anuncios/listing-toolbar-visibility";
   import { cn } from "$lib/utils";
   import {
     getTipoImovelOption,
@@ -28,10 +31,12 @@
   let {
     imovel,
     interactions,
+    visibility = DEFAULT_LISTING_TOOLBAR_VISIBILITY,
     class: className = "",
     density = "default"
   }: {
     imovel: Imovel;
+    visibility?: ListingToolbarVisibility;
     interactions: Pick<
       ListingRowInteractions,
       | "tipoImovelPopoverOpen"
@@ -88,6 +93,7 @@
     className
   )}
 >
+  {#if visibility.showTipoImovel}
   <AnchoredPopover bind:open={interactions.tipoImovelPopoverOpen} align="auto" panelClass="w-44 p-1">
     {#snippet trigger()}
       <FloatingTooltip
@@ -131,7 +137,9 @@
       </button>
     {/each}
   </AnchoredPopover>
+  {/if}
 
+  {#if visibility.showPiscina}
   <FloatingTooltip label={imovel.piscina === true ? "Remover piscina" : "Adicionar piscina"} side="bottom">
     <button
       type="button"
@@ -141,6 +149,7 @@
       <WavesLadder class={iconClass} />
     </button>
   </FloatingTooltip>
+  {/if}
 
   {#if imovel.tipoImovel === "apartamento"}
     <FloatingTooltip label={imovel.piscinaTermica === true ? "Remover piscina térmica" : "Adicionar piscina térmica"} side="bottom">
@@ -172,16 +181,16 @@
     </FloatingTooltip>
   {/if}
 
+  {#if visibility.showQuartos}
   <FloatingTooltip label={`Quartos: ${imovel.quartos ?? 0}`} side="bottom">
     <button
       type="button"
       class={cycleBtnClass}
       onclick={() => void interactions.handleCycleQuartos()}
     >
-      <BedDouble class={cn("absolute text-muted-foreground opacity-50", iconClass)} />
       <span
         class={cn(
-          "relative z-10 text-[10px] font-bold",
+          "text-[10px] font-bold",
           (imovel.quartos ?? 0) > 0 ? "text-app-fg" : "text-app-subtle opacity-50"
         )}
       >
@@ -189,6 +198,7 @@
       </span>
     </button>
   </FloatingTooltip>
+  {/if}
 
   <FloatingTooltip label={`Banheiros: ${imovel.banheiros ?? 0}`} side="bottom">
     <button
@@ -246,6 +256,7 @@
     </button>
   </FloatingTooltip>
 
+  {#if visibility.showVistaLivre}
   <FloatingTooltip label={imovel.vistaLivre === true ? "Remover vista livre" : "Adicionar vista livre"} side="bottom">
     <button
       type="button"
@@ -255,4 +266,5 @@
       <Mountain class={iconClass} />
     </button>
   </FloatingTooltip>
+  {/if}
 </div>

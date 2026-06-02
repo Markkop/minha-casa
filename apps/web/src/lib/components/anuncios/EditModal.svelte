@@ -1,7 +1,8 @@
 <script lang="ts">
   import { Pencil, Save, Sparkles } from "@lucide/svelte";
   import ReparseModal from "$lib/components/anuncios/ReparseModal.svelte";
-  import EditModalFormGrid from "$lib/components/anuncios/EditModalFormGrid.svelte";
+  import EditModalCard from "$lib/components/anuncios/edit-modal/EditModalCard.svelte";
+  import type { EditModalTabId } from "$lib/components/anuncios/edit-modal/edit-modal-tabs";
   import ModalCloseButton from "$lib/components/anuncios/ModalCloseButton.svelte";
   import FloatingTooltip from "$lib/components/ui/FloatingTooltip.svelte";
   import type { Imovel } from "$lib/anuncios/types";
@@ -35,6 +36,7 @@
   let regions = $state<Region[]>([]);
   let condominiums = $state<Condominium[]>([]);
   let isReparseOpen = $state(false);
+  let activeTab = $state<EditModalTabId>("basic");
 
   $effect(() => {
     if (isOpen && listing) {
@@ -68,9 +70,14 @@
         addedAt: listing.addedAt || "2025-12-31",
         sitePublishedAt: listing.sitePublishedAt,
         siteUpdatedAt: listing.siteUpdatedAt,
-        discardedReason: listing.discardedReason
+        discardedReason: listing.discardedReason,
+        starred: listing.starred,
+        listingStatus: listing.listingStatus,
+        strikethrough: listing.strikethrough,
+        visited: listing.visited
       };
       error = null;
+      activeTab = "basic";
 
       if (focusImageUrl) {
         setTimeout(() => document.getElementById("imageUrl")?.focus(), 100);
@@ -150,14 +157,14 @@
     ></button>
 
     <div
-      class="relative z-10 mx-4 flex max-h-[90vh] w-full max-w-2xl flex-col gap-6 overflow-hidden rounded-xl border border-app-border bg-app-surface py-6 text-app-fg shadow-sm"
+      class="relative z-10 mx-4 flex max-h-[90vh] min-h-0 w-full max-w-2xl flex-col overflow-hidden rounded-xl border border-app-border bg-app-surface py-5 text-app-fg shadow-sm"
       role="dialog"
       aria-modal="true"
       aria-labelledby="edit-modal-title"
       tabindex="-1"
       onkeydown={handleKeyDown}
     >
-      <div class="flex flex-row items-center justify-between px-6 pb-2">
+      <div class="flex shrink-0 flex-row items-center justify-between px-6 pb-2">
         <h2 id="edit-modal-title" class="flex items-center gap-2 text-lg font-semibold leading-none text-app-fg">
           <Pencil class="h-5 w-5 shrink-0" />
           <span>Editar Imóvel</span>
@@ -165,22 +172,27 @@
         <ModalCloseButton onclick={onClose} />
       </div>
 
-      <div class="flex flex-1 flex-col gap-4 overflow-y-auto px-6">
+      <div class="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden px-6">
         {#if error}
-          <div class="rounded-lg border border-destructive/30 bg-destructive/10 p-3">
+          <div class="shrink-0 rounded-lg border border-destructive/30 bg-destructive/10 p-3">
             <p class="text-sm text-destructive">{error}</p>
           </div>
         {/if}
 
-        <EditModalFormGrid
-          bind:formData
-          {autoTitle}
-          {regions}
-          {condominiums}
-          {uniqueContacts}
-        />
+        {#key listing.id}
+          <EditModalCard
+            class="min-h-0 flex-1"
+            {listing}
+            bind:formData
+            bind:activeTab
+            {autoTitle}
+            {regions}
+            {condominiums}
+            {uniqueContacts}
+          />
+        {/key}
 
-        <div class="flex gap-3 border-t border-app-border pt-4">
+        <div class="flex shrink-0 gap-3 border-t border-app-border pt-4">
           <FloatingTooltip
             label={hasApiKey ? "Reparse com IA" : "Configure a API key nas configurações"}
             side="bottom"
