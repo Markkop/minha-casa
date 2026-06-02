@@ -1,7 +1,7 @@
 import type { Imovel } from "$lib/anuncios/types";
 
 export const LISTING_SELECTOR_POPOVER_CLASS =
-  "w-[min(calc(100vw-1.5rem),24rem)] p-2.5 sm:w-96";
+  "w-[min(calc(100vw-1.5rem),24rem)] p-2 sm:w-96";
 
 export function formatListingPrice(value: number | null | undefined): string {
   if (value === null || value === undefined) return "—";

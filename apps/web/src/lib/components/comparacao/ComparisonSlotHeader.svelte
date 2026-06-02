@@ -1,7 +1,7 @@
 <script lang="ts">
-  import { Home, Pencil, Star } from "@lucide/svelte";
+  import { ArrowLeftRight, Home, Pencil, Star } from "@lucide/svelte";
   import type { Imovel } from "$lib/anuncios/types";
-  import ToolbarAnchoredPopover from "$lib/components/anuncios/ToolbarAnchoredPopover.svelte";
+  import ListingSelectorPopover from "$lib/components/listings/ListingSelectorPopover.svelte";
   import ComparisonTooltip from "$lib/components/comparacao/ComparisonTooltip.svelte";
   import Button from "$lib/components/ui/Button.svelte";
   import {
@@ -23,7 +23,8 @@
     headerHeightPx,
     isMobileLayout,
     onReplace,
-    onToggleStar
+    onToggleStar,
+    onEditListing
   }: {
     slotIndex: number;
     listing: Imovel | null;
@@ -34,11 +35,18 @@
     isMobileLayout: boolean;
     onReplace: (slotIndex: number, value: string) => void;
     onToggleStar: (listingId: string, currentStarred: boolean | undefined) => void;
+    onEditListing: (listing: Imovel) => void;
   } = $props();
 
-  let editOpen = $state(false);
+  const slotActionBtnClass =
+    "h-7 w-7 border-white/20 bg-black/40 text-white shadow-sm backdrop-blur hover:bg-black/55 hover:text-white";
+
+  let swapOpen = $state(false);
 
   const availableListings = $derived(getAvailableListingsForSlot(listings, slots, slotIndex));
+  const swapCandidates = $derived(
+    availableListings.filter((item) => item.id !== listing?.id)
+  );
 
   function formatSlotSummary(imovel: Imovel): string {
     return imovel.endereco || "—";
@@ -123,41 +131,38 @@
     </div>
   </div>
 
-  <div class="absolute right-1 top-1 z-10">
-    <ToolbarAnchoredPopover bind:open={editOpen} align="auto" offsetClass="mt-2" panelClass="w-64 p-3">
+  <div class="absolute right-1 top-1 z-10 flex items-center gap-1">
+    {#if listing}
+      <Button
+        type="button"
+        variant="outline"
+        size="icon"
+        class={slotActionBtnClass}
+        ariaLabel={`Editar detalhes do imóvel no slot ${slotIndex + 1}`}
+        onclick={() => onEditListing(listing)}
+      >
+        <Pencil class="h-3.5 w-3.5" />
+      </Button>
+    {/if}
+    <ListingSelectorPopover
+      bind:open={swapOpen}
+      listings={swapCandidates}
+      selectedId={null}
+      onClear={listing ? () => onReplace(slotIndex, EMPTY_SLOT_VALUE) : undefined}
+      onSelect={(selected) => onReplace(slotIndex, selected.id)}
+    >
       {#snippet trigger()}
         <Button
           type="button"
           variant="outline"
           size="icon"
-          class="h-7 w-7 border-white/20 bg-black/40 text-white shadow-sm backdrop-blur hover:bg-black/55 hover:text-white"
-          ariaLabel={`Editar imóvel do slot ${slotIndex + 1}`}
-          onclick={() => (editOpen = !editOpen)}
+          class={slotActionBtnClass}
+          ariaLabel={`Trocar imóvel do slot ${slotIndex + 1}`}
+          onclick={() => (swapOpen = !swapOpen)}
         >
-          <Pencil class="h-3.5 w-3.5" />
+          <ArrowLeftRight class="h-3.5 w-3.5" />
         </Button>
       {/snippet}
-      <label class="flex flex-col gap-1.5 text-left">
-        <span class="text-xs font-medium uppercase tracking-wide text-app-muted">
-          Imóvel do slot
-        </span>
-        <select
-          aria-label={`Selecionar imóvel do slot ${slotIndex + 1}`}
-          value={listing?.id ?? EMPTY_SLOT_VALUE}
-          onchange={(event) => {
-            onReplace(slotIndex, event.currentTarget.value);
-            editOpen = false;
-          }}
-          class="h-9 min-w-0 rounded-md border border-app-border bg-app-bg px-2 text-sm text-app-fg outline-none focus:border-app-border-strong"
-        >
-          <option value={EMPTY_SLOT_VALUE}>
-            {listing ? "Remover este anúncio" : "Selecionar imóvel"}
-          </option>
-          {#each availableListings as option (option.id)}
-            <option value={option.id}>{formatShortListingName(option)}</option>
-          {/each}
-        </select>
-      </label>
-    </ToolbarAnchoredPopover>
+    </ListingSelectorPopover>
   </div>
 </div>

@@ -7,25 +7,22 @@
     Dumbbell,
     Home,
     Mountain,
-    Search,
     Shield,
     Waves,
     WavesLadder
   } from "@lucide/svelte";
   import type { Imovel } from "$lib/anuncios/types";
   import { getCollectionsContext } from "$lib/collections-context.svelte";
-  import { formatListingAddress, formatListingPrice } from "$lib/components/analise/analise-listing-picker";
+  import { formatListingAddress, formatListingPrice } from "$lib/listings/listing-selector";
   import { compactListingDisplayTitle } from "$lib/listing-display-title";
   import { cn } from "$lib/utils";
 
   let {
     filtered,
-    query = $bindable(""),
     selectedId,
     onSelect
   }: {
     filtered: Imovel[];
-    query?: string;
     selectedId: string | null;
     onSelect: (listing: Imovel) => void;
   } = $props();
@@ -89,17 +86,7 @@
   </span>
 {/snippet}
 
-<div class="space-y-2">
-  <div class="relative">
-    <Search class="absolute left-2 top-1/2 size-3.5 -translate-y-1/2 text-app-muted" />
-    <input
-      type="search"
-      bind:value={query}
-      placeholder="Buscar..."
-      class="h-7 w-full rounded-md border border-app-border bg-white pl-7 text-xs"
-    />
-  </div>
-  <ul class="max-h-64 space-y-0.5 overflow-y-auto">
+<ul class="max-h-64 space-y-0.5 overflow-y-auto">
     {#if filtered.length === 0}
       <li class="px-2 py-3 text-xs text-app-muted">Nenhum imóvel</li>
     {:else}
@@ -129,5 +116,4 @@
         </li>
       {/each}
     {/if}
-  </ul>
-</div>
+</ul>

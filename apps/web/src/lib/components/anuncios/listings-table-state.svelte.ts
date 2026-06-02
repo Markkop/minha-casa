@@ -180,12 +180,26 @@ export function createListingsTableState(getListings: () => Imovel[]) {
     setPropertyDisplay,
     setImageColumnView,
     handleSort,
-    enabledMetricVariants,
-    showTypeFilters,
-    hasDiscardedListings,
-    casaCount,
-    aptoCount,
-    filteredAndSortedListings,
-    activeMetricVariant
+    get enabledMetricVariants() {
+      return enabledMetricVariants;
+    },
+    get showTypeFilters() {
+      return showTypeFilters;
+    },
+    get hasDiscardedListings() {
+      return hasDiscardedListings;
+    },
+    get casaCount() {
+      return casaCount;
+    },
+    get aptoCount() {
+      return aptoCount;
+    },
+    get filteredAndSortedListings() {
+      return filteredAndSortedListings;
+    },
+    get activeMetricVariant() {
+      return activeMetricVariant;
+    }
   };
 }

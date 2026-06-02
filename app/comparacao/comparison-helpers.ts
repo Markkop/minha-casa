@@ -15,17 +15,35 @@ export const COMPARISON_LABEL_COL_WIDTH_MOBILE_PX = 48
 export const COMPARISON_SLOT_COL_WIDTH_MOBILE_PX = 102
 /** Tailwind `max-md` — mobile comparison layout (icons, narrow columns). */
 export const COMPARISON_MOBILE_LAYOUT_QUERY = "(max-width: 767px)"
-export const COMPARISON_SLOT_COUNT_COMPACT = 3
-export const COMPARISON_SLOT_COUNT_MAX = 4
-/** Tailwind `xl` — four slots from this width up; three at `lg` and below. */
+export const COMPARISON_SLOT_COUNT_NARROW = 3
+export const COMPARISON_SLOT_COUNT_MEDIUM = 4
+/** @deprecated Use COMPARISON_SLOT_COUNT_MEDIUM */
+export const COMPARISON_SLOT_COUNT_COMPACT = COMPARISON_SLOT_COUNT_MEDIUM
+export const COMPARISON_SLOT_COUNT_MAX = 5
+/** Tailwind `lg` and below — three slots. */
+export const COMPARISON_SLOT_COUNT_NARROW_QUERY = "(max-width: 1024px)"
+/** Tailwind `xl` — five slots from this width up; four between `lg` and `xl`. */
 export const COMPARISON_SLOT_COUNT_WIDE_QUERY = "(min-width: 1280px)"
 /** @deprecated Use COMPARISON_SLOT_COUNT_MAX */
 export const COMPARISON_SLOT_COUNT = COMPARISON_SLOT_COUNT_MAX
 export type ComparisonSlot = string | null
 export type TrendDirection = "up" | "down" | "equal" | null
 
-export function getComparisonVisibleSlotCount(matchesWideViewport: boolean) {
-  return matchesWideViewport ? COMPARISON_SLOT_COUNT_MAX : COMPARISON_SLOT_COUNT_COMPACT
+export function getComparisonVisibleSlotCount(viewport: {
+  matchesNarrowViewport: boolean
+  matchesWideViewport: boolean
+}) {
+  if (viewport.matchesNarrowViewport) return COMPARISON_SLOT_COUNT_NARROW
+  if (viewport.matchesWideViewport) return COMPARISON_SLOT_COUNT_MAX
+  return COMPARISON_SLOT_COUNT_MEDIUM
+}
+
+export function readComparisonVisibleSlotCountFromWindow() {
+  if (typeof window === "undefined") return COMPARISON_SLOT_COUNT_MAX
+  return getComparisonVisibleSlotCount({
+    matchesNarrowViewport: window.matchMedia(COMPARISON_SLOT_COUNT_NARROW_QUERY).matches,
+    matchesWideViewport: window.matchMedia(COMPARISON_SLOT_COUNT_WIDE_QUERY).matches,
+  })
 }
 
 export function getComparisonLabelColWidthPx(mobile = false) {

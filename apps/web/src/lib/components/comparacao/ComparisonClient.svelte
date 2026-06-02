@@ -1,4 +1,6 @@
 <script lang="ts">
+  import EditModal from "$lib/components/anuncios/EditModal.svelte";
+  import { extractUniqueContacts } from "$lib/components/anuncios/quick-reparse-utils";
   import ComparisonMatrixCell from "$lib/components/comparacao/ComparisonMatrixCell.svelte";
   import ComparisonMatrixRowLabel from "$lib/components/comparacao/ComparisonMatrixRowLabel.svelte";
   import ComparisonSlotHeader from "$lib/components/comparacao/ComparisonSlotHeader.svelte";
@@ -46,6 +48,9 @@
   let slotIds = $state<ComparisonSlot[]>(initializeComparisonSlots([]));
   let fixedCell = $state<FixedCell | null>(null);
   let initializedCollectionId = $state<string | null>(null);
+  let editingListing = $state<Imovel | null>(null);
+
+  const uniqueContacts = $derived(extractUniqueContacts(ctx.listings));
 
   const isMobileLayout = $derived(mobileLayout.current);
   const visibleSlotCount = $derived(visibleSlots.current);
@@ -136,6 +141,15 @@
     }
   }
 
+  function openEditListing(listing: Imovel) {
+    editingListing = listing;
+  }
+
+  function reloadActiveListings() {
+    const collectionId = ctx.activeCollection?.id;
+    if (collectionId) void ctx.loadListings(collectionId, { silent: true });
+  }
+
   function handleToggleFixedCell(nextFixedCell: FixedCell) {
     fixedCell =
       fixedCell?.rowKey === nextFixedCell.rowKey && fixedCell.slotIndex === nextFixedCell.slotIndex
@@ -194,6 +208,7 @@
                       {isMobileLayout}
                       onReplace={handleReplaceSlot}
                       onToggleStar={handleToggleStar}
+                      onEditListing={openEditListing}
                     />
                   </th>
                 {/each}
@@ -265,3 +280,13 @@
       {/if}
   </WorkspacePanel>
 </WorkspacePage>
+
+<EditModal
+  isOpen={editingListing !== null}
+  listing={editingListing}
+  {uniqueContacts}
+  onClose={() => {
+    editingListing = null;
+  }}
+  onListingUpdated={reloadActiveListings}
+/>

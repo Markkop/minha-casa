@@ -1,25 +1,34 @@
 import {
+  COMPARISON_SLOT_COUNT_MAX,
+  COMPARISON_SLOT_COUNT_NARROW_QUERY,
   COMPARISON_SLOT_COUNT_WIDE_QUERY,
-  getComparisonVisibleSlotCount
+  getComparisonVisibleSlotCount,
+  readComparisonVisibleSlotCountFromWindow
 } from "$lib/comparacao/comparison-helpers";
 
 export function createComparisonVisibleSlotCount() {
   let visibleSlotCount = $state(
     typeof window !== "undefined"
-      ? getComparisonVisibleSlotCount(
-          window.matchMedia(COMPARISON_SLOT_COUNT_WIDE_QUERY).matches
-        )
-      : getComparisonVisibleSlotCount(true)
+      ? readComparisonVisibleSlotCountFromWindow()
+      : COMPARISON_SLOT_COUNT_MAX
   );
 
   $effect(() => {
-    const mediaQuery = window.matchMedia(COMPARISON_SLOT_COUNT_WIDE_QUERY);
+    const narrowMediaQuery = window.matchMedia(COMPARISON_SLOT_COUNT_NARROW_QUERY);
+    const wideMediaQuery = window.matchMedia(COMPARISON_SLOT_COUNT_WIDE_QUERY);
     const syncSlotCount = () => {
-      visibleSlotCount = getComparisonVisibleSlotCount(mediaQuery.matches);
+      visibleSlotCount = getComparisonVisibleSlotCount({
+        matchesNarrowViewport: narrowMediaQuery.matches,
+        matchesWideViewport: wideMediaQuery.matches
+      });
     };
     syncSlotCount();
-    mediaQuery.addEventListener("change", syncSlotCount);
-    return () => mediaQuery.removeEventListener("change", syncSlotCount);
+    narrowMediaQuery.addEventListener("change", syncSlotCount);
+    wideMediaQuery.addEventListener("change", syncSlotCount);
+    return () => {
+      narrowMediaQuery.removeEventListener("change", syncSlotCount);
+      wideMediaQuery.removeEventListener("change", syncSlotCount);
+    };
   });
 
   return {

@@ -3,13 +3,12 @@
   import { goto } from "$app/navigation";
   import { ChevronDown, Home } from "@lucide/svelte";
   import { getCollectionsContext } from "$lib/collections-context.svelte";
-  import AnaliseListingList from "$lib/components/analise/AnaliseListingList.svelte";
+  import ListingSelectorPanel from "$lib/components/listings/ListingSelectorPanel.svelte";
   import {
-    filterSelectableListings,
     getListingThumbUrl,
     LISTING_SELECTOR_POPOVER_CLASS,
     sortSelectableListings
-  } from "$lib/components/analise/analise-listing-picker";
+  } from "$lib/listings/listing-selector";
   import {
     compactListingDisplayTitle,
     mobileCompactListingDisplayTitle
@@ -22,14 +21,13 @@
   const ctx = getCollectionsContext();
 
   let open = $state(false);
-  let query = $state("");
+  let panel: ListingSelectorPanel | undefined = $state();
 
   const selectedId = $derived(page.url.searchParams.get("listing"));
   const sortedListings = $derived(sortSelectableListings(ctx.listings));
   const selected = $derived(
     sortedListings.find((listing) => listing.id === selectedId) ?? sortedListings[0] ?? null
   );
-  const filtered = $derived(filterSelectableListings(ctx.listings, query));
 
   const fallbackLabel = $derived(ctx.isLoadingListings ? "Carregando..." : "Nenhum imóvel");
 
@@ -40,6 +38,10 @@
   const selectedMobileTitle = $derived(
     selectedFullTitle ? mobileCompactListingDisplayTitle(selectedFullTitle) : null
   );
+
+  $effect(() => {
+    if (!open) panel?.resetQuery();
+  });
 
   function handleSelect(listing: (typeof ctx.listings)[number]) {
     const params = new URLSearchParams(page.url.searchParams);
@@ -103,9 +105,9 @@
         LISTING_SELECTOR_POPOVER_CLASS
       )}
     >
-      <AnaliseListingList
-        {filtered}
-        bind:query
+      <ListingSelectorPanel
+        bind:this={panel}
+        listings={ctx.listings}
         selectedId={selected?.id ?? null}
         onSelect={handleSelect}
       />
