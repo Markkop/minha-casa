@@ -126,12 +126,13 @@
       {#each sortedCenarios as cenario (cenario.id)}
         <tr
           class={cn(
-            "cursor-pointer border-app-border transition-colors",
+            "border-app-border transition-colors",
+            onSelectCenario && "cursor-pointer",
             cenario.isBest
               ? "bg-app-action/10 hover:bg-app-action-hover/20"
               : "hover:bg-app-surface-muted/30"
           )}
-          onclick={() => onSelectCenario?.(cenario)}
+          onclick={onSelectCenario ? () => onSelectCenario(cenario) : undefined}
         >
           <td class={cn(tdClass, "sticky left-0 z-10 w-8 bg-inherit")}>
             {#if cenario.isBest}

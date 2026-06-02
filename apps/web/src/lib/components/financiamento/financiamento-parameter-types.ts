@@ -9,12 +9,7 @@ export const PERCENTAGE_OPTIONS = [
 
 export type EstrategiaFiltro = "permuta" | "venda_posterior";
 
-export type SliderField =
-  | "valorImovel"
-  | "valorApartamento"
-  | "custoCondominio"
-  | "seguros"
-  | "prazoMeses";
+export type SliderField = "valorImovel" | "valorApartamento" | "custoCondominio";
 
 export interface SimulatorParams {
   valorImovelSelecionado: number;
@@ -61,9 +56,7 @@ export interface ParameterCardProps {
   recursosMeta?: RecursosMeta;
   onChange: (params: SimulatorParams) => void;
   onValueChange?: (field: SliderField | "capitalDisponivel", newValue: number) => void;
-  onSliderChange?: (field: SliderField, multiplier: number) => void;
   onCapitalChange?: (newCapital: number) => void;
-  onReservaChange?: (newReserva: number) => void;
   onEntradaChange?: (newEntrada: number) => void;
 }
 
