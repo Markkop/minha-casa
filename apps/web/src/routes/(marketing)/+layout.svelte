@@ -12,7 +12,10 @@
   let accountOpen = $state(false);
 
   const user = $derived(data.user);
-  const logoHref = $derived(user ? "/subscribe" : "/");
+  const subscriptionActive = $derived(data.subscriptionActive);
+  const logoHref = $derived(
+    !user ? "/" : subscriptionActive ? "/anuncios" : "/subscribe"
+  );
 
   const initials = $derived.by(() => {
     const source: string = user?.name || user?.email || "U";
