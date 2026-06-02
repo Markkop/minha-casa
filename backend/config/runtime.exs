@@ -9,16 +9,27 @@ pool_size = String.to_integer(System.get_env("DATABASE_POOL_MAX") || "10")
 ssl? =
   String.downcase(System.get_env("DATABASE_SSL") || "false") in ["1", "true", "yes"]
 
+non_empty_env = fn key ->
+  case System.get_env(key) do
+    value when is_binary(value) ->
+      value = String.trim(value)
+      if value == "", do: nil, else: value
+
+    _ ->
+      nil
+  end
+end
+
 app_public_url =
   if config_env() == :test do
     ""
   else
-    System.get_env("APP_PUBLIC_URL") || System.get_env("NEXT_PUBLIC_APP_URL") ||
+    non_empty_env.("APP_PUBLIC_URL") || non_empty_env.("NEXT_PUBLIC_APP_URL") ||
       "http://localhost:3000"
   end
 
 better_auth_jwks_url =
-  System.get_env("BETTER_AUTH_JWKS_URL") ||
+  non_empty_env.("BETTER_AUTH_JWKS_URL") ||
     if app_public_url == "" do
       "http://localhost:5173/api/auth/jwks"
     else
