@@ -102,6 +102,19 @@ export const verifications = pgTable(
 )
 
 // ============================================================================
+// JWKS (Better Auth JWT plugin — signing keys for /auth/token and /auth/jwks)
+// ============================================================================
+export const jwks = pgTable("jwks", {
+  id: text("id").primaryKey(),
+  publicKey: text("public_key").notNull(),
+  privateKey: text("private_key").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }),
+  alg: text("alg"),
+  crv: text("crv"),
+})
+
+// ============================================================================
 // Plans
 // ============================================================================
 export const plans = pgTable("plans", {

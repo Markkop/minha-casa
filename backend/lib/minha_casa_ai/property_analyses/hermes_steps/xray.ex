@@ -77,7 +77,7 @@ defmodule MinhaCasaAi.PropertyAnalyses.HermesSteps.Xray do
     |> Map.new()
   end
 
-  defp pad_to_count(pontos, count, ambiente_id) when length(pontos) >= count, do: pontos
+  defp pad_to_count(pontos, count, _ambiente_id) when length(pontos) >= count, do: pontos
 
   defp pad_to_count(pontos, count, ambiente_id) do
     missing = count - length(pontos)

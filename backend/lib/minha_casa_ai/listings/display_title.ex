@@ -61,7 +61,7 @@ defmodule MinhaCasaAi.Listings.DisplayTitle do
   end
 
   defp assign_collision_group(group, base_locations, acc) do
-    {assigned, used} =
+    {assigned, _used} =
       Enum.reduce(0..length(@escalation_levels), {%{}, MapSet.new()}, fn escalation, {assigned, used} ->
         Enum.reduce(group, {assigned, used}, fn listing, {assigned, used} ->
           id = listing["id"]

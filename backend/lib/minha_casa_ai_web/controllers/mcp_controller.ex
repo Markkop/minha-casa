@@ -251,7 +251,7 @@ defmodule MinhaCasaAiWeb.McpController do
 
   defp call_tool(_name, _args), do: error_result("unknown tool")
 
-  defp saved_link_profile(user_id, org_id) when is_binary(org_id) and org_id != "" do
+  defp saved_link_profile(_user_id, org_id) when is_binary(org_id) and org_id != "" do
     %{user_id: nil, org_id: org_id}
   end
 

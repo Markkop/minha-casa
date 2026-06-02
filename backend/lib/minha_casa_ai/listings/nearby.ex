@@ -37,9 +37,6 @@ defmodule MinhaCasaAi.Listings.Nearby do
 
       {:ok, _} ->
         {:skip, %{"skipped" => true, "reason" => "no_coordinates"}}
-
-      {:error, reason} ->
-        {:skip, %{"skipped" => true, "reason" => to_string(reason)}}
     end
   end
 

@@ -2,8 +2,6 @@ defmodule MinhaCasaAi.PropertyAnalyses.HermesSteps.Ambientes do
   @behaviour MinhaCasaAi.PropertyAnalyses.HermesSteps.Behaviour
 
   alias MinhaCasaAi.PropertyAnalyses.HermesSteps.Step
-  alias MinhaCasaAi.PropertyAnalyses.InventoryVocab
-
   @categories [
     "sala",
     "cozinha",

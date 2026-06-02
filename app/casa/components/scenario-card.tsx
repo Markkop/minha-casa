@@ -156,7 +156,7 @@ const DataRow = ({ label, value, tooltip, highlight, className }: DataRowProps) 
               <TooltipTrigger asChild>
                 <InfoCircledIcon className="h-3 w-3 text-app-subtle hover:text-app-accent cursor-help" />
               </TooltipTrigger>
-              <TooltipContent className="max-w-xs">
+              <TooltipContent className="max-w-xs whitespace-normal break-words">
                 <p className="text-xs">{tooltip}</p>
               </TooltipContent>
             </Tooltip>
@@ -408,7 +408,7 @@ export const ScenarioCard = ({ cenario, isExpanded = false }: ScenarioCardProps)
                     {formatPercent(cetEstimado)} a.a.
                   </span>
                 </TooltipTrigger>
-                <TooltipContent className="max-w-xs">
+                <TooltipContent className="max-w-xs whitespace-normal break-words">
                   <p className="text-xs">{tooltips.cetEstimado}</p>
                 </TooltipContent>
               </Tooltip>

@@ -3,9 +3,9 @@ defmodule MinhaCasaAi.Assistant.PendingChoices do
   Parses user replies for pending assistant flows.
   """
 
-  @save ~w(1 salvar salvar mesmo assim save sim)
-  @skip ~w(2 ignorar ignore skip nao não)
-  @view ~w(3 ver ver no site site link)
+  @save ~w(1 salvar save sim) ++ ["salvar mesmo assim"]
+  @skip ~w(2 ignorar ignore skip) ++ ["nao", "não"]
+  @view ~w(3 ver site link) ++ ["ver no site"]
   @cancel ~w(cancelar cancel sair)
 
   def duplicate_action(text) when is_binary(text) do

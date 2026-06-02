@@ -11,8 +11,20 @@ defmodule MinhaCasaAiWeb.Plugs.InternalAuth do
     auth_secret = bearer_token(conn)
 
     cond do
+      production_without_secret?(configured_secret) ->
+        conn
+        |> put_status(:service_unavailable)
+        |> json(%{error: "Internal API is not configured"})
+        |> halt()
+
       configured_secret && auth_secret != configured_secret ->
         conn |> put_status(:unauthorized) |> json(%{error: "Unauthorized"}) |> halt()
+
+      configured_secret ->
+        conn
+        |> assign(:current_user_id, get_req_header(conn, "x-minha-casa-user-id") |> List.first())
+        |> assign(:current_org_id, get_req_header(conn, "x-minha-casa-org-id") |> List.first())
+        |> assign(:current_user_is_admin, admin_from_header(conn))
 
       true ->
         conn
@@ -38,4 +50,12 @@ defmodule MinhaCasaAiWeb.Plugs.InternalAuth do
       _ -> false
     end
   end
+
+  defp production_without_secret?(configured_secret) do
+    secret_blank?(configured_secret) and Application.get_env(:minha_casa_ai, :env) == :prod
+  end
+
+  defp secret_blank?(nil), do: true
+  defp secret_blank?(value) when is_binary(value), do: String.trim(value) == ""
+  defp secret_blank?(_), do: false
 end

@@ -35,6 +35,9 @@ defmodule MinhaCasaAi.Config do
   def telegram_bot_token, do: get(:telegram_bot_token)
   def telegram_webhook_secret, do: get(:telegram_webhook_secret)
   def app_public_url, do: get(:app_public_url)
+  def better_auth_jwks_url, do: get(:better_auth_jwks_url)
+  def stripe_secret_key, do: get(:stripe_secret_key)
+  def stripe_webhook_secret, do: get(:stripe_webhook_secret)
 
   def assistant_llm_enabled? do
     case get(:assistant_llm_enabled) do
@@ -52,6 +55,13 @@ defmodule MinhaCasaAi.Config do
   def configured?(:scrapingant), do: present?(scrapingant_api_key())
   def configured?(:brave_search), do: present?(brave_search_api_key())
   def configured?(:google_maps), do: present?(google_maps_server_api_key())
+  def configured?(:stripe), do: present?(stripe_secret_key())
+  def configured?(:stripe_webhook), do: present?(stripe_webhook_secret())
+
+  def configured?(:langfuse),
+    do:
+      present?(langfuse_host()) and present?(langfuse_public_key()) and
+        present?(langfuse_secret_key())
 
   def configured?(:minio) do
     Enum.all?(
@@ -80,7 +90,9 @@ defmodule MinhaCasaAi.Config do
 
   def portal_search_cache_ttl_days do
     case get(:portal_search_cache_ttl_days) do
-      n when is_integer(n) -> n
+      n when is_integer(n) ->
+        n
+
       n when is_binary(n) ->
         case Integer.parse(n) do
           {i, _} -> i
@@ -99,10 +111,6 @@ defmodule MinhaCasaAi.Config do
       "0" -> false
       _ -> configured?(:langfuse)
     end
-  end
-
-  def configured?(:langfuse) do
-    present?(langfuse_host()) and present?(langfuse_public_key()) and present?(langfuse_secret_key())
   end
 
   defp get(key), do: Application.get_env(:minha_casa_ai, __MODULE__, []) |> Keyword.get(key)

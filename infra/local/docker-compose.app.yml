@@ -92,7 +92,10 @@ services:
       WHATSAPP_ACCESS_TOKEN: ${WHATSAPP_ACCESS_TOKEN:-}
       WHATSAPP_PHONE_NUMBER_ID: ${WHATSAPP_PHONE_NUMBER_ID:-}
       WHATSAPP_APP_SECRET: ${WHATSAPP_APP_SECRET:-}
-      APP_PUBLIC_URL: ${APP_PUBLIC_URL:-http://localhost:3000}
+      APP_PUBLIC_URL: ${APP_PUBLIC_URL:-http://localhost:5173}
+      # JWKS URL comes from env_file (infra/local/.env.local) so host-only Svelte dev
+      # (host.docker.internal) is not overridden by a compose-time default (svelte-web).
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173,http://localhost:3000}
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
       TELEGRAM_WEBHOOK_SECRET: ${TELEGRAM_WEBHOOK_SECRET:-}
       ASSISTANT_LLM_ENABLED: ${ASSISTANT_LLM_ENABLED:-true}
@@ -159,35 +162,43 @@ services:
     networks:
       - minha_casa_local
 
-  next-web:
+  # svelte-web: Better Auth must use BETTER_AUTH_URL=http://localhost:5173 (browser → host port map).
+  # Host-only dev: pnpm dev:web with apps/web/.env (same BETTER_AUTH_URL).
+  svelte-web:
     image: node:22-alpine
-    container_name: minha-casa-next-web-1
+    container_name: minha-casa-svelte-web-1
     restart: unless-stopped
     working_dir: /app
     depends_on:
       phoenix-api:
         condition: service_started
+      postgres:
+        condition: service_healthy
+    env_file:
+      - ../../.env
+      - ../../.env.local
+      - .env.local
     environment:
       DATABASE_URL: ${DATABASE_URL:-postgresql://minhacasa:minhacasa_local_password@postgres:5432/minha_casa_local}
       DATABASE_SSL: ${DATABASE_SSL:-false}
       BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:-local-better-auth-secret}
-      BETTER_AUTH_URL: ${BETTER_AUTH_URL:-http://localhost:3000}
-      BETTER_AUTH_TRUSTED_ORIGINS: ${BETTER_AUTH_TRUSTED_ORIGINS:-http://localhost:3000,http://localhost:3001}
-      NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-http://localhost:3000}
+      BETTER_AUTH_URL: ${BETTER_AUTH_URL:-http://localhost:5173}
+      BETTER_AUTH_TRUSTED_ORIGINS: ${BETTER_AUTH_TRUSTED_ORIGINS:-http://localhost:5173,http://localhost:3000}
+      PUBLIC_API_URL: http://phoenix-api:4000
+      PHOENIX_API_URL: http://phoenix-api:4000
       INTERNAL_BACKEND_URL: http://phoenix-api:4000
-      BACKEND_API_URL: ${BACKEND_API_URL:-http://localhost:4000}
+      BACKEND_API_URL: http://phoenix-api:4000
       INTERNAL_API_SECRET: ${INTERNAL_API_SECRET:-local-internal-api-secret}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       SCRAPINGANT_API_KEY: ${SCRAPINGANT_API_KEY:-}
-    # Anonymous node_modules/.next so Alpine gets linux-musl native deps (not host macOS binaries).
-    command: sh -lc "corepack enable && pnpm install --frozen-lockfile && pnpm dev"
+    command: sh -lc "corepack enable && pnpm install --frozen-lockfile && pnpm --dir apps/web dev --host"
     volumes:
       - ../..:/app
       - /app/node_modules
-      - /app/.next
+      - /app/apps/web/node_modules
       - minha_casa_local_pnpm_store:/root/.local/share/pnpm/store
     ports:
-      - "${NEXT_PUBLIC_PORT:-3000}:3000"
+      - "${SVELTE_PUBLIC_PORT:-5173}:5173"
     networks:
       - minha_casa_local
 

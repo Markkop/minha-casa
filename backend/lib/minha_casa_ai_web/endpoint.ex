@@ -12,5 +12,6 @@ defmodule MinhaCasaAiWeb.Endpoint do
 
   plug Plug.MethodOverride
   plug Plug.Head
+  plug MinhaCasaAiWeb.Plugs.Cors
   plug MinhaCasaAiWeb.Router
 end

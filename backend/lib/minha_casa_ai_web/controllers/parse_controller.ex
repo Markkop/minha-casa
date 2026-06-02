@@ -2,13 +2,14 @@ defmodule MinhaCasaAiWeb.ParseController do
   use MinhaCasaAiWeb, :controller
 
   alias MinhaCasaAi.Integrations.ListingParser
+  alias MinhaCasaAi.Listings.DisplayTitle
 
   def create(conn, params) do
     input = Map.merge(conn.body_params, params)
 
     case ListingParser.parse(input) do
       {:ok, listings} ->
-        json(conn, %{listings: listings})
+        json(conn, %{listings: DisplayTitle.apply_to_listings(listings)})
 
       {:error, reason} ->
         {status, message} = map_error(reason)

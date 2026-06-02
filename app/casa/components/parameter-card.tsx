@@ -112,7 +112,7 @@ const FieldWithTooltip = ({ label, tooltip, children, className }: FieldWithTool
               <TooltipTrigger asChild>
                 <InfoCircledIcon className="h-4 w-4 text-app-subtle hover:text-app-accent cursor-help transition-colors" />
               </TooltipTrigger>
-              <TooltipContent className="max-w-xs">
+              <TooltipContent className="max-w-xs whitespace-normal break-words">
                 <p className="text-xs">{tooltip}</p>
               </TooltipContent>
             </Tooltip>
@@ -333,7 +333,7 @@ const ParameterRow = ({
                 <TooltipTrigger asChild>
                   <InfoCircledIcon className="h-3.5 w-3.5 shrink-0 text-app-subtle hover:text-app-accent cursor-help" />
                 </TooltipTrigger>
-                <TooltipContent className="max-w-xs">
+                <TooltipContent className="max-w-xs whitespace-normal break-words">
                   <p className="text-xs">{tooltip}</p>
                 </TooltipContent>
               </Tooltip>

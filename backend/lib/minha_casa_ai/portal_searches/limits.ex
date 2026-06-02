@@ -16,7 +16,9 @@ defmodule MinhaCasaAi.PortalSearches.Limits do
     if admin, do: @admin_max_pages, else: @default_max_pages
   end
 
-  def clamp_pages(requested, admin \\ false) when is_integer(requested) do
+  def clamp_pages(requested, admin \\ false)
+
+  def clamp_pages(requested, admin) when is_integer(requested) do
     min(max(requested, 1), max_pages(admin))
   end
 

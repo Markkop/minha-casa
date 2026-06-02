@@ -3,8 +3,6 @@ defmodule MinhaCasaAi.ListingShortLinks do
   Short `/s/{id}` links for listings (channel messages and redirects).
   """
 
-  import Ecto.Query
-
   alias MinhaCasaAi.Config
   alias MinhaCasaAi.Ingestion.Complete
   alias MinhaCasaAi.Listings.ListingShortLink

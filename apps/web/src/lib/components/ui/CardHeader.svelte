@@ -1,0 +1,21 @@
+<script lang="ts">
+  import { cn } from "$lib/utils";
+
+  let {
+    children,
+    class: className = ""
+  } = $props<{
+    children?: import("svelte").Snippet;
+    class?: string;
+  }>();
+</script>
+
+<div
+  data-slot="card-header"
+  class={cn(
+    "@container/card-header grid auto-rows-min grid-rows-[auto_auto] items-start gap-2 px-6 has-data-[slot=card-action]:grid-cols-[1fr_auto] [.border-b]:pb-6",
+    className
+  )}
+>
+  {@render children?.()}
+</div>

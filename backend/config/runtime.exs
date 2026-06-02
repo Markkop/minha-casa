@@ -15,6 +15,13 @@ config :minha_casa_ai, MinhaCasaAi.Repo,
   ssl: ssl?,
   ssl_opts: [verify: :verify_none]
 
+config :minha_casa_ai,
+  cors_origins:
+    (System.get_env("CORS_ORIGINS") || "http://localhost:5173,http://localhost:3000")
+    |> String.split(",", trim: true)
+    |> Enum.map(&String.trim/1)
+    |> Enum.reject(&(&1 == ""))
+
 config :minha_casa_ai, MinhaCasaAiWeb.Endpoint,
   server: true,
   http: [
@@ -49,9 +56,17 @@ config :minha_casa_ai, MinhaCasaAi.Config,
   whatsapp_app_secret: System.get_env("WHATSAPP_APP_SECRET"),
   telegram_bot_token: System.get_env("TELEGRAM_BOT_TOKEN"),
   telegram_webhook_secret: System.get_env("TELEGRAM_WEBHOOK_SECRET"),
+  better_auth_jwks_url:
+    System.get_env("BETTER_AUTH_JWKS_URL") || "http://localhost:5173/auth/jwks",
   app_public_url:
-    System.get_env("APP_PUBLIC_URL") || System.get_env("NEXT_PUBLIC_APP_URL") ||
-      "http://localhost:3000",
+    if(config_env() == :test,
+      do: "",
+      else:
+        System.get_env("APP_PUBLIC_URL") || System.get_env("NEXT_PUBLIC_APP_URL") ||
+          "http://localhost:3000"
+    ),
+  stripe_secret_key: System.get_env("STRIPE_SECRET_KEY"),
+  stripe_webhook_secret: System.get_env("STRIPE_WEBHOOK_SECRET"),
   assistant_llm_enabled: System.get_env("ASSISTANT_LLM_ENABLED", "true") not in ["false", "0"],
   openai_model:
     System.get_env("OPENAI_MODEL") ||

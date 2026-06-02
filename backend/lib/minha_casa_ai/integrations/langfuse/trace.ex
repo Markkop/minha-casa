@@ -3,7 +3,7 @@ defmodule MinhaCasaAi.Integrations.Langfuse.Trace do
   Fail-open Langfuse trace/span/generation helpers.
   """
 
-  alias MinhaCasaAi.Integrations.Langfuse.{Config, IngestionBuffer}
+  alias MinhaCasaAi.Integrations.Langfuse.IngestionBuffer
 
   @type ctx :: %{
           optional(:trace_id) => String.t(),

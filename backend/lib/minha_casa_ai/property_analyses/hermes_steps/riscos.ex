@@ -53,10 +53,4 @@ defmodule MinhaCasaAi.PropertyAnalyses.HermesSteps.Riscos do
     |> Enum.uniq()
   end
 
-  defp facts_line(bundle) do
-    case Step.facts_text(bundle) do
-      nil -> ""
-      text -> "Dados do anúncio: #{text}"
-    end
-  end
 end

@@ -123,7 +123,7 @@ const SortableHeader = ({
               <TooltipTrigger asChild>
                 <InfoCircledIcon className="h-3 w-3 text-app-subtle" />
               </TooltipTrigger>
-              <TooltipContent className="max-w-xs">
+              <TooltipContent className="max-w-xs whitespace-normal break-words">
                 <p className="text-xs">{tooltip}</p>
               </TooltipContent>
             </Tooltip>

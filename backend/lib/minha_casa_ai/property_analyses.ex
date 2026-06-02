@@ -263,9 +263,6 @@ defmodule MinhaCasaAi.PropertyAnalyses do
   end
 
   @doc """
-  Formats Hermes/pipeline errors into a short user-facing string for stepErrors.
-  """
-  @doc """
   Row-locked: writes x-ray pontos on one ambiente card and marks xrayStatus done.
   """
   def patch_ambiente_xray!(analysis_id, ambiente_id, pontos)

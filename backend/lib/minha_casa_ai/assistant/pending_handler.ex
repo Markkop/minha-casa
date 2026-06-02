@@ -5,7 +5,7 @@ defmodule MinhaCasaAi.Assistant.PendingHandler do
 
   alias MinhaCasaAi.Assistant.PendingChoices
   alias MinhaCasaAi.Channel.{Inbound, ReplyFormatter}
-  alias MinhaCasaAi.Chat.{Conversation, Pending}
+  alias MinhaCasaAi.Chat.Pending
   alias MinhaCasaAi.Ingestion.Complete
   alias MinhaCasaAi.Listings
   alias MinhaCasaAi.Telegram.Client, as: TelegramClient
@@ -103,7 +103,7 @@ defmodule MinhaCasaAi.Assistant.PendingHandler do
     {:error, :pending_expired}
   end
 
-  defp resolve_duplicate(user_id, conversation_id, pending, index, :view) do
+  defp resolve_duplicate(_user_id, _conversation_id, pending, index, :view) do
     items = Map.get(pending, "items", [])
     item = Enum.at(items, index)
 
@@ -237,7 +237,7 @@ defmodule MinhaCasaAi.Assistant.PendingHandler do
     |> Enum.reject(&is_nil/1)
   end
 
-  defp duplicate_markup("telegram", pending) do
+  defp duplicate_markup("telegram", _pending) do
     %{inline_keyboard: [[%{text: "Salvar", callback_data: "dup:save:0"}, %{text: "Ignorar", callback_data: "dup:skip:0"}]]}
   end
 

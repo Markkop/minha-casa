@@ -2,6 +2,7 @@
 
 # dependencies
 /node_modules
+**/node_modules
 /backend/deps
 /backend/_build
 /.pnp
@@ -17,6 +18,7 @@
 
 # next.js
 /.next/
+**/.svelte-kit
 /out/
 
 # production
@@ -46,3 +48,7 @@ next-env.d.ts
 
 .ssh-prod
 .pnpm-store
+
+# svelte / sveltekit
+**/.svelte-kit
+apps/web/build/

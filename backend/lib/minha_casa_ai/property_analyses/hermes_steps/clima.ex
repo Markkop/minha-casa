@@ -63,10 +63,4 @@ defmodule MinhaCasaAi.PropertyAnalyses.HermesSteps.Clima do
     |> Map.put_new("descricao", "")
   end
 
-  defp facts_line(bundle) do
-    case Step.facts_text(bundle) do
-      nil -> ""
-      text -> "Dados do anúncio: #{text}"
-    end
-  end
 end

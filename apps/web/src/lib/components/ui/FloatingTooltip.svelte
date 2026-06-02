@@ -1,0 +1,111 @@
+<script lang="ts">
+  import { onDestroy, tick, type Snippet } from "svelte";
+  import {
+    TOOLTIP_SURFACE_FLOATING_CLASS,
+    tooltipWrapClass
+  } from "$lib/components/ui/tooltip-content";
+  import { computeTooltipPlacement, type TooltipAlign, type TooltipSide } from "$lib/floating-position";
+  import { cn } from "$lib/utils";
+
+  let {
+    label,
+    side = "bottom",
+    align = "center",
+    offset = 4,
+    disabled = false,
+    class: className = "",
+    wrapperClass = "inline-flex shrink-0",
+    children
+  }: {
+    label?: string | null;
+    side?: TooltipSide;
+    align?: TooltipAlign;
+    offset?: number;
+    disabled?: boolean;
+    class?: string;
+    wrapperClass?: string;
+    children: Snippet;
+  } = $props();
+
+  let triggerRef = $state<HTMLSpanElement | null>(null);
+  let open = $state(false);
+  let tooltipRef: HTMLSpanElement | null = null;
+
+  function removeTooltip() {
+    tooltipRef?.remove();
+    tooltipRef = null;
+  }
+
+  function ensureTooltip() {
+    if (typeof document === "undefined" || !label) return null;
+    if (!tooltipRef) {
+      tooltipRef = document.createElement("span");
+      tooltipRef.setAttribute("role", "tooltip");
+      tooltipRef.style.left = "-9999px";
+      tooltipRef.style.top = "-9999px";
+      document.body.appendChild(tooltipRef);
+    }
+    tooltipRef.className = cn(
+      "pointer-events-none fixed z-[2147483000] opacity-100",
+      TOOLTIP_SURFACE_FLOATING_CLASS,
+      tooltipWrapClass({ wrap: "auto", text: label }),
+      className
+    );
+    tooltipRef.textContent = label;
+    return tooltipRef;
+  }
+
+  async function updatePosition() {
+    if (!open || disabled || !triggerRef) return;
+    const tooltip = ensureTooltip();
+    if (!tooltip) return;
+    await tick();
+    if (!triggerRef || !tooltipRef) return;
+
+    const triggerRect = triggerRef.getBoundingClientRect();
+    const tooltipRect = tooltip.getBoundingClientRect();
+    const placement = computeTooltipPlacement(triggerRect, tooltipRect, side, offset, undefined, align);
+
+    tooltip.style.left = `${placement.left}px`;
+    tooltip.style.top = `${placement.top}px`;
+  }
+
+  function show() {
+    if (!label || disabled) return;
+    open = true;
+    void updatePosition();
+  }
+
+  function hide() {
+    open = false;
+    removeTooltip();
+  }
+
+  $effect(() => {
+    if (disabled) {
+      hide();
+      return;
+    }
+    if (!open || !label) {
+      removeTooltip();
+      return;
+    }
+    void updatePosition();
+  });
+
+  onDestroy(removeTooltip);
+</script>
+
+<svelte:window onresize={updatePosition} onscroll={updatePosition} />
+
+<span
+  bind:this={triggerRef}
+  role="presentation"
+  class={wrapperClass}
+  onpointerenter={show}
+  onpointerleave={hide}
+  onfocusin={show}
+  onfocusout={hide}
+>
+  {@render children()}
+</span>

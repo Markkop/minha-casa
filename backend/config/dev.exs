@@ -1,5 +1,7 @@
 import Config
 
+config :minha_casa_ai, env: :dev
+
 config :minha_casa_ai, MinhaCasaAiWeb.Endpoint,
   http: [ip: {0, 0, 0, 0}, port: String.to_integer(System.get_env("PORT") || "4000")],
   check_origin: false,
