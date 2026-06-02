@@ -106,6 +106,21 @@ function quartosPhrase(quartos: number | null | undefined): string | null {
   return `${quartos} quartos`
 }
 
+/** Casa/Apartamento prefix when building collection titles. */
+export function collectionShowsPropertyTypePrefix(
+  listings: ListingTitleInput[]
+): boolean {
+  if (listings.length <= 1) return true
+  const hasCasa = listings.some((l) => l.tipoImovel === "casa")
+  const hasApto = listings.some((l) => l.tipoImovel === "apartamento")
+  return hasCasa && hasApto
+}
+
+type BuildListingTitleOptions = {
+  showPropertyTypePrefix?: boolean
+  locationPreposition?: "em" | "na"
+}
+
 export type LocationLevel =
   | "bairro"
   | "cidade"
@@ -205,16 +220,26 @@ function formatCompactPrice(preco: number | null | undefined): string | null {
 
 export function buildBaseListingTitle(
   listing: ListingTitleInput,
-  locationLabel?: string
+  locationLabel?: string,
+  options?: BuildListingTitleOptions
 ): string {
+  const showPrefix = options?.showPropertyTypePrefix ?? true
+  const prep = options?.locationPreposition ?? "em"
   const tipo = propertyTypeLabel(listing.tipoImovel)
   const quartos = quartosPhrase(listing.quartos)
   const local = locationLabel ?? defaultLocationLabel(listing)
+  const locationPart = `${prep} ${local}`
 
   if (quartos) {
-    return `${tipo} com ${quartos} em ${local}`
+    if (showPrefix) {
+      return `${tipo} com ${quartos} ${locationPart}`
+    }
+    return `${quartos} ${locationPart}`
   }
-  return `${tipo} em ${local}`
+  if (showPrefix) {
+    return `${tipo} ${locationPart}`
+  }
+  return local
 }
 
 function collisionKey(listing: ListingTitleInput, locationLabel: string): string {
@@ -223,9 +248,23 @@ function collisionKey(listing: ListingTitleInput, locationLabel: string): string
   return `${tipo}|${quartos}|${normalizeKey(locationLabel)}`
 }
 
+function streetGroupKey(listing: ListingTitleInput): string | null {
+  const street = locationAtLevel(listing, "rua")
+  return street ? normalizeKey(street) : null
+}
+
 const ESCALATION_LEVELS: LocationLevel[] = [
   "rua",
   "numero",
+  "condominio",
+  "preco",
+  "m2",
+  "andar",
+  "id",
+]
+
+/** Extra disambiguation when multiple listings share a street (no bairro in title). */
+const SAME_STREET_ESCALATION_LEVELS: LocationLevel[] = [
   "condominio",
   "preco",
   "m2",
@@ -245,7 +284,7 @@ export function compactListingDisplayTitle(title: string): string {
   return trimmed.slice(0, index).trim()
 }
 
-const LISTING_TITLE_LOCATION_SUFFIX_PATTERN = /\s+em\s+.+$/i
+const LISTING_TITLE_LOCATION_SUFFIX_PATTERN = /\s+(?:em|na)\s+.+$/i
 
 /** Comparison table slot header on mobile — property type and room count only. */
 export function comparisonMobileSlotListingLabel(
@@ -270,13 +309,70 @@ export function mobileCompactListingDisplayTitle(title: string): string {
   return compact.slice(0, match.index).trim()
 }
 
+function buildSameStreetTitle(
+  listing: ListingTitleInput,
+  escalationIndex: number,
+  showPropertyTypePrefix: boolean
+): string {
+  const base =
+    locationAtLevel(listing, "numero") ??
+    locationAtLevel(listing, "rua") ??
+    defaultLocationLabel(listing)
+
+  const extras: string[] = []
+  for (
+    let i = 0;
+    i < escalationIndex && i < SAME_STREET_ESCALATION_LEVELS.length;
+    i++
+  ) {
+    const extra = locationAtLevel(listing, SAME_STREET_ESCALATION_LEVELS[i]!)
+    if (extra && !extras.some((p) => normalizeKey(p) === normalizeKey(extra))) {
+      extras.push(extra)
+    }
+  }
+
+  const locationLabel =
+    extras.length > 0
+      ? [base, ...extras].join(LISTING_TITLE_DISAMBIGUATION_SEPARATOR)
+      : base
+
+  return buildBaseListingTitle(listing, locationLabel, {
+    showPropertyTypePrefix,
+    locationPreposition: "na",
+  })
+}
+
 function buildTitleWithEscalation(
   listing: ListingTitleInput,
   baseLocation: string,
-  escalationIndex: number
+  escalationIndex: number,
+  showPropertyTypePrefix: boolean
 ): string {
+  const titleOptions = { showPropertyTypePrefix }
+
   if (escalationIndex <= 0) {
-    return buildBaseListingTitle(listing, baseLocation)
+    return buildBaseListingTitle(listing, baseLocation, {
+      ...titleOptions,
+      locationPreposition: "em",
+    })
+  }
+
+  const street = locationAtLevel(listing, "rua")
+  if (street) {
+    const extras: string[] = []
+    for (let i = 1; i < escalationIndex && i < ESCALATION_LEVELS.length; i++) {
+      const extra = locationAtLevel(listing, ESCALATION_LEVELS[i]!)
+      if (extra && !extras.some((p) => normalizeKey(p) === normalizeKey(extra))) {
+        extras.push(extra)
+      }
+    }
+    const streetPart =
+      extras.length > 0 ? `${street}, ${extras.join(", ")}` : street
+    const locationLabel = `${streetPart} em ${baseLocation}`
+    return buildBaseListingTitle(listing, locationLabel, {
+      ...titleOptions,
+      locationPreposition: "na",
+    })
   }
 
   const parts: string[] = [baseLocation]
@@ -294,7 +390,45 @@ function buildTitleWithEscalation(
           .filter(Boolean)
           .join(LISTING_TITLE_DISAMBIGUATION_SEPARATOR)
 
-  return buildBaseListingTitle(listing, local)
+  return buildBaseListingTitle(listing, local, {
+    ...titleOptions,
+    locationPreposition: "em",
+  })
+}
+
+function assignUniqueTitles(
+  group: ListingTitleInput[],
+  showPropertyTypePrefix: boolean,
+  minEscalation: number,
+  maxEscalation: number,
+  buildCandidate: (listing: ListingTitleInput, escalation: number) => string
+): Map<string, string> {
+  const assigned = new Map<string, string>()
+  const usedTitles = new Set<string>()
+
+  for (let escalation = minEscalation; escalation <= maxEscalation; escalation++) {
+    for (const listing of group) {
+      const id = listing.id ?? ""
+      if (assigned.has(id)) continue
+
+      const candidate = buildCandidate(listing, escalation)
+      const norm = normalizeKey(candidate)
+
+      if (!usedTitles.has(norm)) {
+        assigned.set(id, candidate)
+        usedTitles.add(norm)
+      }
+    }
+  }
+
+  for (const listing of group) {
+    const id = listing.id ?? ""
+    if (!assigned.has(id)) {
+      assigned.set(id, buildCandidate(listing, maxEscalation))
+    }
+  }
+
+  return assigned
 }
 
 /**
@@ -304,6 +438,7 @@ export function buildListingDisplayTitles(
   listings: ListingTitleInput[]
 ): Map<string, string> {
   const result = new Map<string, string>()
+  const showPropertyTypePrefix = collectionShowsPropertyTypePrefix(listings)
   const autoListings = listings.filter((l) => !l.tituloManual?.trim())
 
   const baseLocations = new Map<string, string>()
@@ -312,52 +447,90 @@ export function buildListingDisplayTitles(
     baseLocations.set(id, defaultLocationLabel(listing))
   }
 
-  const groups = new Map<string, ListingTitleInput[]>()
+  const streetGroups = new Map<string, ListingTitleInput[]>()
+  for (const listing of autoListings) {
+    const key = streetGroupKey(listing)
+    if (!key) continue
+    const group = streetGroups.get(key) ?? []
+    group.push(listing)
+    streetGroups.set(key, group)
+  }
+
+  const sameStreetIds = new Set<string>()
+
+  for (const group of streetGroups.values()) {
+    if (group.length < 2) continue
+
+    const titles = assignUniqueTitles(
+      group,
+      showPropertyTypePrefix,
+      0,
+      SAME_STREET_ESCALATION_LEVELS.length,
+      (listing, escalation) =>
+        buildSameStreetTitle(listing, escalation, showPropertyTypePrefix)
+    )
+
+    for (const [id, title] of titles) {
+      result.set(id, title)
+      sameStreetIds.add(id)
+    }
+  }
+
+  const bairroGroups = new Map<string, ListingTitleInput[]>()
   for (const listing of autoListings) {
     const id = listing.id ?? ""
     const loc = baseLocations.get(id) ?? "Sem local"
     const key = collisionKey(listing, loc)
-    const group = groups.get(key) ?? []
+    const group = bairroGroups.get(key) ?? []
     group.push(listing)
-    groups.set(key, group)
+    bairroGroups.set(key, group)
   }
 
-  for (const [, group] of groups) {
+  for (const [, group] of bairroGroups) {
     if (group.length === 1) {
       const listing = group[0]!
       const id = listing.id ?? ""
+      if (result.has(id)) continue
       const loc = baseLocations.get(id) ?? "Sem local"
-      result.set(id, buildBaseListingTitle(listing, loc))
+      result.set(
+        id,
+        buildBaseListingTitle(listing, loc, { showPropertyTypePrefix })
+      )
       continue
     }
 
-    const assigned = new Map<string, string>()
-    const usedTitles = new Set<string>()
+    const pending = group.filter((l) => !sameStreetIds.has(l.id ?? ""))
+    if (pending.length === 0) continue
 
-    for (let escalation = 0; escalation <= ESCALATION_LEVELS.length; escalation++) {
-      for (const listing of group) {
-        const id = listing.id ?? ""
-        if (assigned.has(id)) continue
-
-        const baseLoc = baseLocations.get(id) ?? "Sem local"
-        const candidate = buildTitleWithEscalation(listing, baseLoc, escalation)
-        const norm = normalizeKey(candidate)
-
-        if (!usedTitles.has(norm)) {
-          assigned.set(id, candidate)
-          usedTitles.add(norm)
-        }
+    const titles = assignUniqueTitles(
+      pending,
+      showPropertyTypePrefix,
+      1,
+      ESCALATION_LEVELS.length,
+      (listing, escalation) => {
+        const baseLoc = baseLocations.get(listing.id ?? "") ?? "Sem local"
+        return buildTitleWithEscalation(
+          listing,
+          baseLoc,
+          escalation,
+          showPropertyTypePrefix
+        )
       }
-    }
+    )
 
-    for (const listing of group) {
-      const id = listing.id ?? ""
-      const baseLoc = baseLocations.get(id) ?? "Sem local"
-      result.set(
-        id,
-        assigned.get(id) ?? buildTitleWithEscalation(listing, baseLoc, ESCALATION_LEVELS.length)
-      )
+    for (const [id, title] of titles) {
+      result.set(id, title)
     }
+  }
+
+  for (const listing of autoListings) {
+    const id = listing.id ?? ""
+    if (result.has(id)) continue
+    const loc = baseLocations.get(id) ?? "Sem local"
+    result.set(
+      id,
+      buildBaseListingTitle(listing, loc, { showPropertyTypePrefix })
+    )
   }
 
   for (const listing of listings) {

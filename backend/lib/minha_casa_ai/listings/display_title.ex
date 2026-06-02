@@ -5,8 +5,11 @@ defmodule MinhaCasaAi.Listings.DisplayTitle do
   @street_prefix ~r/^(?:rua|r\.|av\.?|avenida|alameda|al\.?|travessa|trav\.?|rodovia|estrada|servidão|servidao|praça|praca|largo)\s+/iu
 
   @escalation_levels [:rua, :numero, :condominio, :preco, :m2, :andar, :id]
+  @same_street_escalation_levels [:condominio, :preco, :m2, :andar, :id]
 
   def apply_to_listings(listings) when is_list(listings) do
+    show_property_type_prefix = collection_shows_property_type_prefix?(listings)
+
     auto =
       listings
       |> Enum.with_index()
@@ -22,20 +25,107 @@ defmodule MinhaCasaAi.Listings.DisplayTitle do
         {listing["id"], default_location_label(listing)}
       end)
 
-    groups =
+    street_groups =
+      auto
+      |> Enum.group_by(&street_group_key/1)
+      |> Enum.reject(fn {key, _} -> is_nil(key) end)
+
+    {titles, same_street_ids} =
+      Enum.reduce(street_groups, {%{}, MapSet.new()}, fn {_key, group}, {acc, ids} ->
+        if length(group) < 2 do
+          {acc, ids}
+        else
+          assigned =
+            assign_unique_titles(
+              group,
+              show_property_type_prefix,
+              0,
+              length(@same_street_escalation_levels),
+              fn listing, escalation ->
+                build_same_street_title(listing, escalation, show_property_type_prefix)
+              end
+            )
+
+          new_ids =
+            assigned
+            |> Map.keys()
+            |> Enum.reduce(ids, &MapSet.put(&2, &1))
+
+          {Map.merge(acc, assigned), new_ids}
+        end
+      end)
+
+    bairro_groups =
       Enum.group_by(auto, fn listing ->
         loc = Map.get(base_locations, listing["id"], "Sem local")
         collision_key(listing, loc)
       end)
 
     titles =
-      Enum.reduce(groups, %{}, fn {_key, group}, acc ->
-        if length(group) == 1 do
-          [listing] = group
-          loc = Map.get(base_locations, listing["id"], "Sem local")
-          Map.put(acc, listing["id"], build_base_title(listing, loc))
+      Enum.reduce(bairro_groups, titles, fn {_key, group}, acc ->
+        cond do
+          length(group) == 1 ->
+            [listing] = group
+            id = listing["id"]
+
+            if Map.has_key?(acc, id) do
+              acc
+            else
+              loc = Map.get(base_locations, id, "Sem local")
+
+              Map.put(
+                acc,
+                id,
+                build_base_title(listing, loc, show_property_type_prefix: show_property_type_prefix)
+              )
+            end
+
+          true ->
+            pending =
+              Enum.reject(group, fn listing ->
+                MapSet.member?(same_street_ids, listing["id"])
+              end)
+
+            if pending == [] do
+              acc
+            else
+              assigned =
+                assign_unique_titles(
+                  pending,
+                  show_property_type_prefix,
+                  1,
+                  length(@escalation_levels),
+                  fn listing, escalation ->
+                    base_loc = Map.get(base_locations, listing["id"], "Sem local")
+
+                    build_title_with_escalation(
+                      listing,
+                      base_loc,
+                      escalation,
+                      show_property_type_prefix
+                    )
+                  end
+                )
+
+              Map.merge(acc, assigned)
+            end
+        end
+      end)
+
+    titles =
+      Enum.reduce(auto, titles, fn listing, acc ->
+        id = listing["id"]
+
+        if Map.has_key?(acc, id) do
+          acc
         else
-          assign_collision_group(group, base_locations, acc)
+          loc = Map.get(base_locations, id, "Sem local")
+
+          Map.put(
+            acc,
+            id,
+            build_base_title(listing, loc, show_property_type_prefix: show_property_type_prefix)
+          )
         end
       end)
 
@@ -60,17 +150,35 @@ defmodule MinhaCasaAi.Listings.DisplayTitle do
     end
   end
 
-  defp assign_collision_group(group, base_locations, acc) do
+  defp collection_shows_property_type_prefix?(listings) do
+    cond do
+      length(listings) <= 1 ->
+        true
+
+      true ->
+        has_casa = Enum.any?(listings, &(&1["tipoImovel"] == "casa"))
+        has_apto = Enum.any?(listings, &(&1["tipoImovel"] == "apartamento"))
+        has_casa and has_apto
+    end
+  end
+
+  defp street_group_key(listing) do
+    case location_at_level(listing, :rua) do
+      nil -> nil
+      street -> normalize_key(street)
+    end
+  end
+
+  defp assign_unique_titles(group, _show_property_type_prefix, min_escalation, max_escalation, build_candidate) do
     {assigned, _used} =
-      Enum.reduce(0..length(@escalation_levels), {%{}, MapSet.new()}, fn escalation, {assigned, used} ->
+      Enum.reduce(min_escalation..max_escalation, {%{}, MapSet.new()}, fn escalation, {assigned, used} ->
         Enum.reduce(group, {assigned, used}, fn listing, {assigned, used} ->
           id = listing["id"]
 
           if Map.has_key?(assigned, id) do
             {assigned, used}
           else
-            base_loc = Map.get(base_locations, id, "Sem local")
-            candidate = build_title_with_escalation(listing, base_loc, escalation)
+            candidate = build_candidate.(listing, escalation)
             norm = normalize_key(candidate)
 
             if MapSet.member?(used, norm) do
@@ -85,16 +193,55 @@ defmodule MinhaCasaAi.Listings.DisplayTitle do
         end)
       end)
 
-    Enum.reduce(group, acc, fn listing, acc ->
+    Enum.reduce(group, assigned, fn listing, assigned ->
       id = listing["id"]
-      base_loc = Map.get(base_locations, id, "Sem local")
 
-      title =
-        Map.get(assigned, id) ||
-          build_title_with_escalation(listing, base_loc, length(@escalation_levels))
-
-      Map.put(acc, id, title)
+      if Map.has_key?(assigned, id) do
+        assigned
+      else
+        Map.put(assigned, id, build_candidate.(listing, max_escalation))
+      end
     end)
+  end
+
+  defp build_same_street_title(listing, escalation_index, show_property_type_prefix) do
+    base =
+      location_at_level(listing, :numero) ||
+        location_at_level(listing, :rua) ||
+        default_location_label(listing)
+
+    extras =
+      0..(escalation_index - 1)
+      |> Enum.take(length(@same_street_escalation_levels))
+      |> Enum.reduce([], fn i, extras ->
+        level = Enum.at(@same_street_escalation_levels, i)
+
+        if level do
+          extra = location_at_level(listing, level)
+
+          if extra && not Enum.any?(extras, &(normalize_key(&1) == normalize_key(extra))) do
+            extras ++ [extra]
+          else
+            extras
+          end
+        else
+          extras
+        end
+      end)
+
+    location_label =
+      if extras == [] do
+        base
+      else
+        Enum.join([base | extras], " · ")
+      end
+
+    build_base_title(
+      listing,
+      location_label,
+      show_property_type_prefix: show_property_type_prefix,
+      location_preposition: "na"
+    )
   end
 
   defp collision_key(listing, location_label) do
@@ -103,43 +250,91 @@ defmodule MinhaCasaAi.Listings.DisplayTitle do
     "#{tipo}|#{quartos}|#{normalize_key(location_label)}"
   end
 
-  defp build_base_title(listing, location_label \\ nil) do
+  defp build_base_title(listing, location_label \\ nil, opts \\ []) do
+    show_prefix = Keyword.get(opts, :show_property_type_prefix, true)
+    prep = Keyword.get(opts, :location_preposition, "em")
     tipo = property_type_label(listing["tipoImovel"])
     quartos = quartos_phrase(listing["quartos"])
     local = location_label || default_location_label(listing)
+    location_part = "#{prep} #{local}"
 
-    if quartos do
-      "#{tipo} com #{quartos} em #{local}"
-    else
-      "#{tipo} em #{local}"
+    cond do
+      quartos && show_prefix ->
+        "#{tipo} com #{quartos} #{location_part}"
+
+      quartos ->
+        "#{quartos} #{location_part}"
+
+      show_prefix ->
+        "#{tipo} #{location_part}"
+
+      true ->
+        local
     end
   end
 
-  defp build_title_with_escalation(listing, base_location, escalation_index) do
-    if escalation_index <= 0 do
-      build_base_title(listing, base_location)
-    else
-      parts = [base_location]
+  defp build_title_with_escalation(listing, base_location, escalation_index, show_property_type_prefix) do
+    title_opts = [show_property_type_prefix: show_property_type_prefix]
 
-      parts =
-        Enum.reduce(0..(escalation_index - 1), parts, fn i, parts ->
-          level = Enum.at(@escalation_levels, i)
+    cond do
+      escalation_index <= 0 ->
+        build_base_title(listing, base_location, Keyword.put(title_opts, :location_preposition, "em"))
 
-          if level do
-            extra = location_at_level(listing, level)
+      location_at_level(listing, :rua) ->
+        street = location_at_level(listing, :rua)
 
-            if extra && not Enum.any?(parts, &(normalize_key(&1) == normalize_key(extra))) do
-              parts ++ [extra]
+        extras =
+          1..(escalation_index - 1)
+          |> Enum.take(length(@escalation_levels) - 1)
+          |> Enum.reduce([], fn i, extras ->
+            level = Enum.at(@escalation_levels, i)
+
+            if level do
+              extra = location_at_level(listing, level)
+
+              if extra && not Enum.any?(extras, &(normalize_key(&1) == normalize_key(extra))) do
+                extras ++ [extra]
+              else
+                extras
+              end
+            else
+              extras
+            end
+          end)
+
+        street_part =
+          if extras == [], do: street, else: Enum.join([street | extras], ", ")
+
+        location_label = "#{street_part} em #{base_location}"
+
+        build_base_title(
+          listing,
+          location_label,
+          Keyword.put(title_opts, :location_preposition, "na")
+        )
+
+      true ->
+        parts = [base_location]
+
+        parts =
+          Enum.reduce(0..(escalation_index - 1), parts, fn i, parts ->
+            level = Enum.at(@escalation_levels, i)
+
+            if level do
+              extra = location_at_level(listing, level)
+
+              if extra && not Enum.any?(parts, &(normalize_key(&1) == normalize_key(extra))) do
+                parts ++ [extra]
+              else
+                parts
+              end
             else
               parts
             end
-          else
-            parts
-          end
-        end)
+          end)
 
-      local = Enum.join(parts, " · ")
-      build_base_title(listing, local)
+        local = Enum.join(parts, " · ")
+        build_base_title(listing, local, Keyword.put(title_opts, :location_preposition, "em"))
     end
   end
 
