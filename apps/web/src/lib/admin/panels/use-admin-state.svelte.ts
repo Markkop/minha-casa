@@ -517,8 +517,12 @@ export function createAdminState() {
     set editSubscriptionNotes(value: string) {
       editSubscriptionNotes = value;
     },
-    filteredUsers,
-    paidPlans,
+    get filteredUsers() {
+      return filteredUsers;
+    },
+    get paidPlans() {
+      return paidPlans;
+    },
     loadAll,
     loadStripeReconciliation,
     openStripePanel,
