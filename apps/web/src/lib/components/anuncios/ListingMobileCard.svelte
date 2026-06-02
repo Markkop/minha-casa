@@ -1,7 +1,6 @@
 <script lang="ts">
   import ListingTitleLinks, { truncateListingTitle } from "$lib/components/anuncios/ListingTitleLinks.svelte";
   import ClickablePrice from "$lib/components/anuncios/ClickablePrice.svelte";
-  import ListingStarButton from "$lib/components/anuncios/ListingStarButton.svelte";
   import ListingMobileMetricRow from "$lib/components/anuncios/ListingMobileMetricRow.svelte";
   import ListingMobileCardBackdrop from "$lib/components/anuncios/ListingMobileCardBackdrop.svelte";
   import ListingPropertyMetaRow from "$lib/components/anuncios/ListingPropertyMetaRow.svelte";
@@ -55,12 +54,22 @@
   const showImage = $derived(visibleColumns.image);
   const showStatus = $derived(visibleColumns.status);
   const showContact = $derived(propertyDisplay.showContact && Boolean(imovel.contactNumber));
-  const showUnifiedRight = $derived(showMetaRow || showPrice || showMetrics || showContact);
+  const showUnifiedRight = $derived(showMetaRow || showPrice || showMetrics || showContact || showStatus);
   const showAsideRows = $derived(showPrice || showMetrics || showContact);
   const showUnifiedRow = $derived(showImage);
   const showFallbackHeader = $derived(!showImage);
   const mobileContactUrl = $derived(showContact ? buildWhatsAppUrl(imovel.contactNumber) : null);
   const showMobileContactLink = $derived(Boolean(mobileContactUrl));
+
+  const rowActionsProps = $derived({
+    imovel,
+    interactions,
+    uniqueContacts,
+    hasOtherCollections,
+    collections,
+    activeCollectionId,
+    openEditListing
+  });
 </script>
 
 {#snippet mobileContactLink()}
@@ -97,14 +106,22 @@
         {toolbarVisibility}
         {showPropertyIcons}
         {showMap}
-        showRowActions={visibleColumns.status}
-        {uniqueContacts}
-        {hasOtherCollections}
-        {collections}
-        {activeCollectionId}
-        {openEditListing}
+        showRowStatus={showStatus}
         density="mobile"
         class="justify-start"
+      />
+    </div>
+  {/if}
+{/snippet}
+
+{#snippet mobileActionsRow()}
+  {#if showStatus}
+    <div data-testid="listing-mobile-actions-row" class="flex min-w-0 items-center leading-none">
+      <ListingRowStatusActions
+        {...rowActionsProps}
+        density="mobile"
+        part="actions"
+        showStar
       />
     </div>
   {/if}
@@ -122,10 +139,6 @@
   {#if showFallbackHeader}
     <div data-testid="listing-mobile-top" class="flex min-w-0 flex-col gap-1">
       <div class="flex min-w-0 items-center gap-1">
-        <ListingStarButton
-          starred={imovel.starred}
-          onToggle={() => void interactions.handleToggleStar()}
-        />
         <ListingTitleLinks
           listing={imovel}
           displayTitle={mobileTitleTruncated}
@@ -133,20 +146,9 @@
           maxTitleLength={48}
           class="min-w-0 flex-1"
         />
-        {#if showStatus}
-          <ListingRowStatusActions
-            {imovel}
-            {interactions}
-            {uniqueContacts}
-            {hasOtherCollections}
-            {collections}
-            {activeCollectionId}
-            {openEditListing}
-            part="status"
-          />
-        {/if}
       </div>
       {@render mobileMetaRow()}
+      {@render mobileActionsRow()}
       {#if showContact}
         <div class="min-w-0">
           {@render mobileContactLink()}
@@ -175,11 +177,6 @@
           MOBILE_TITLE_OVERLAY_SCRIM
         )}
       >
-        <ListingStarButton
-          variant="on-media"
-          starred={imovel.starred}
-          onToggle={() => void interactions.handleToggleStar()}
-        />
         <ListingTitleLinks
           listing={imovel}
           displayTitle={mobileCompactTitle}
@@ -199,22 +196,8 @@
       >
         <div data-testid="listing-mobile-aside" class="flex min-h-0 flex-1 flex-col">
           <div class={cn("flex min-h-0 flex-col", LISTING_MOBILE_ROW_GAP_CLASS)}>
-            {#if showStatus}
-              <div data-testid="listing-mobile-status-row" class="flex min-w-0 items-center leading-none">
-                <ListingRowStatusActions
-                  {imovel}
-                  {interactions}
-                  {uniqueContacts}
-                  {hasOtherCollections}
-                  {collections}
-                  {activeCollectionId}
-                  {openEditListing}
-                  density="mobile"
-                  part="status"
-                />
-              </div>
-            {/if}
             {@render mobileMetaRow()}
+            {@render mobileActionsRow()}
             {#if showPrice}
               <div data-testid="listing-mobile-price" class="flex items-center leading-none">
                 <ClickablePrice price={imovel.preco} strikethrough={imovel.strikethrough} />
@@ -251,11 +234,12 @@
     {/if}
   {/if}
 
-  {#if !showUnifiedRow && (showAsideRows || showMetaRow)}
+  {#if !showUnifiedRow && (showAsideRows || showMetaRow || showStatus)}
     <div data-testid="listing-mobile-body" class="mt-2">
       <div data-testid="listing-mobile-aside" class="flex min-w-0 flex-1 flex-col gap-1">
         {#if !showFallbackHeader}
           {@render mobileMetaRow()}
+          {@render mobileActionsRow()}
         {/if}
         {#if showPrice}
           <div data-testid="listing-mobile-price" class="flex items-center leading-none">

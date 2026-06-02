@@ -1,6 +1,5 @@
 <script lang="ts">
   import Input from "$lib/components/ui/Input.svelte";
-  import ListingStarButton from "$lib/components/anuncios/ListingStarButton.svelte";
   import PricePerM2Stack from "$lib/components/anuncios/PricePerM2Stack.svelte";
   import { EDIT_MODAL_INPUT_CLASS } from "$lib/components/anuncios/edit-modal-shared";
   import {
@@ -43,12 +42,8 @@
 </script>
 
 <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-  <div class="flex items-start gap-2 sm:col-span-2">
-    <ListingStarButton
-      starred={formData.starred ?? false}
-      onToggle={() => handlers.onInputChange("starred", !(formData.starred ?? false))}
-    />
-    <div class="min-w-0 flex-1 space-y-2">
+  <div class="space-y-2 sm:col-span-2">
+    <div class="min-w-0 space-y-2">
       <div>
         <span class="text-xs text-app-muted">Título automático</span>
         <p class="text-sm text-app-fg">{autoTitle}</p>

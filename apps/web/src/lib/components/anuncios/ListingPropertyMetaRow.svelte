@@ -1,6 +1,6 @@
 <script lang="ts">
   import { MapPin } from "@lucide/svelte";
-  import type { Collection, Imovel } from "$lib/anuncios/types";
+  import type { Imovel } from "$lib/anuncios/types";
   import type { ListingToolbarVisibility } from "$lib/anuncios/listing-toolbar-visibility";
   import ListingPropertyIconToolbar from "$lib/components/anuncios/ListingPropertyIconToolbar.svelte";
   import ListingRowStatusActions from "$lib/components/anuncios/ListingRowStatusActions.svelte";
@@ -22,12 +22,7 @@
     toolbarVisibility,
     showPropertyIcons = true,
     showMap = true,
-    showRowActions = true,
-    uniqueContacts,
-    hasOtherCollections,
-    collections,
-    activeCollectionId,
-    openEditListing,
+    showRowStatus = false,
     density = "default",
     class: className = ""
   }: {
@@ -36,12 +31,7 @@
     toolbarVisibility: ListingToolbarVisibility;
     showPropertyIcons?: boolean;
     showMap?: boolean;
-    showRowActions?: boolean;
-    uniqueContacts: { name: string | null; number: string }[];
-    hasOtherCollections: boolean;
-    collections: Collection[];
-    activeCollectionId: string | null;
-    openEditListing: (listing: Imovel) => void;
+    showRowStatus?: boolean;
     density?: "default" | "mobile";
     class?: string;
   } = $props();
@@ -55,10 +45,10 @@
   const mapIconClass = $derived(isMobile ? LISTING_MOBILE_ICON_CLASS : ROW_ACTION_ICON_CLASS);
   const mapsUrl = $derived(imovel.endereco?.trim() ? buildGoogleMapsUrl(imovel.endereco) : null);
   const showMetaToolbar = $derived(showPropertyIcons || (showMap && mapsUrl));
-  const showActionsDivider = $derived(showMetaToolbar && showRowActions);
+  const showStatusDivider = $derived(showMetaToolbar && showRowStatus);
 </script>
 
-{#if showMetaToolbar || showRowActions}
+{#if showMetaToolbar || showRowStatus}
   <div
     data-testid="listing-property-meta-row"
     class={cn(
@@ -109,7 +99,7 @@
       </div>
     {/if}
 
-    {#if showActionsDivider}
+    {#if showStatusDivider}
       <div
         class={cn(
           "h-5 w-px shrink-0 bg-app-border",
@@ -119,16 +109,11 @@
       ></div>
     {/if}
 
-    {#if showRowActions}
+    {#if showRowStatus}
       <ListingRowStatusActions
         {imovel}
         {interactions}
-        {uniqueContacts}
-        {hasOtherCollections}
-        {collections}
-        {activeCollectionId}
-        {openEditListing}
-        part="actions"
+        part="status"
         {density}
         class="min-w-0"
       />

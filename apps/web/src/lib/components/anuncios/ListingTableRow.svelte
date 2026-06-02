@@ -3,7 +3,6 @@
   import ClickablePrice from "$lib/components/anuncios/ClickablePrice.svelte";
   import AreaM2Stack from "$lib/components/anuncios/AreaM2Stack.svelte";
   import PricePerM2Stack from "$lib/components/anuncios/PricePerM2Stack.svelte";
-  import ListingStarButton from "$lib/components/anuncios/ListingStarButton.svelte";
   import ListingImageColumnCell from "$lib/components/anuncios/ListingImageColumnCell.svelte";
   import ListingPropertyMetaRow from "$lib/components/anuncios/ListingPropertyMetaRow.svelte";
   import ListingRowStatusActions from "$lib/components/anuncios/ListingRowStatusActions.svelte";
@@ -79,10 +78,6 @@
       <div class="flex min-w-0 flex-col gap-2">
         <div class="min-w-0">
           <div class="flex min-w-0 items-center gap-1">
-            <ListingStarButton
-              starred={imovel.starred}
-              onToggle={() => void interactions.handleToggleStar()}
-            />
             <ListingTitleLinks
               listing={imovel}
               {displayTitle}
@@ -120,12 +115,7 @@
               {toolbarVisibility}
               showPropertyIcons={propertyDisplay.showPropertyIcons}
               showMap={propertyDisplay.showAddress}
-              showRowActions={visibleColumns.status}
-              {uniqueContacts}
-              {hasOtherCollections}
-              {collections}
-              {activeCollectionId}
-              {openEditListing}
+              showRowStatus={visibleColumns.status}
               class="mt-1"
             />
           {/if}
@@ -201,7 +191,7 @@
   {/if}
 
   {#if visibleColumns.status}
-    <td class="min-w-[128px] p-2 align-middle">
+    <td class="min-w-[148px] p-2 align-middle">
       <ListingRowStatusActions
         {imovel}
         {interactions}
@@ -210,7 +200,8 @@
         {collections}
         {activeCollectionId}
         {openEditListing}
-        part="status"
+        part="actions"
+        showStar
       />
     </td>
   {/if}

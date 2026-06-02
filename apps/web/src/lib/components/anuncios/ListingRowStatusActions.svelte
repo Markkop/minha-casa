@@ -11,9 +11,9 @@
     Folder,
     Check,
     Copy,
-    ExternalLink,
-    Search
+    ExternalLink
   } from "@lucide/svelte";
+  import ListingStarButton from "$lib/components/anuncios/ListingStarButton.svelte";
   import {
     getListingStatus,
     getListingStatusOption,
@@ -28,7 +28,6 @@
     LISTING_STATUS_SELECT_APPEARANCE_CLASS,
     type ListingStatus
   } from "$lib/components/anuncios/listings-table-shared";
-  import { buildGoogleSearchUrl } from "$lib/components/anuncios/listing-row-urls";
   import type { ListingRowInteractions } from "$lib/components/anuncios/listing-row-interactions.svelte";
   import WhatsAppIcon from "$lib/components/anuncios/WhatsAppIcon.svelte";
   import FloatingTooltip from "$lib/components/ui/FloatingTooltip.svelte";
@@ -36,27 +35,31 @@
   let {
     imovel,
     interactions,
-    uniqueContacts,
-    hasOtherCollections,
-    collections,
-    activeCollectionId,
-    openEditListing,
+    uniqueContacts = [],
+    hasOtherCollections = false,
+    collections = [],
+    activeCollectionId = null,
+    openEditListing = () => {},
     layout = "stacked",
     part = "full",
     includeExternalLink = false,
+    showStar = false,
+    showDelete = false,
     class: className = "",
     density = "default"
   }: {
     imovel: Imovel;
     interactions: ListingRowInteractions;
-    uniqueContacts: { name: string | null; number: string }[];
-    hasOtherCollections: boolean;
-    collections: Collection[];
-    activeCollectionId: string | null;
-    openEditListing: (listing: Imovel) => void;
+    uniqueContacts?: { name: string | null; number: string }[];
+    hasOtherCollections?: boolean;
+    collections?: Collection[];
+    activeCollectionId?: string | null;
+    openEditListing?: (listing: Imovel) => void;
     layout?: "stacked" | "inline";
     part?: "full" | "actions" | "status";
     includeExternalLink?: boolean;
+    showStar?: boolean;
+    showDelete?: boolean;
     class?: string;
     density?: "default" | "mobile";
   } = $props();
@@ -126,6 +129,13 @@
       part === "full" && layout !== "inline" && ROW_ACTIONS_WIDTH
     )}
   >
+    {#if showStar}
+      <ListingStarButton
+        starred={imovel.starred}
+        onToggle={() => void interactions.handleToggleStar()}
+      />
+    {/if}
+
     {#if hasExternalLink}
       <FloatingTooltip label="Abrir anúncio original" side="bottom">
         <a
@@ -141,25 +151,6 @@
         </a>
       </FloatingTooltip>
     {/if}
-
-    <FloatingTooltip label="Buscar no Google" side="bottom">
-      <a
-        href={buildGoogleSearchUrl(
-          imovel.titulo,
-          imovel.endereco,
-          imovel.m2Totais,
-          imovel.quartos,
-          imovel.banheiros
-        )}
-        target="_blank"
-        rel="noopener noreferrer"
-        class={actionLinkClass()}
-        aria-label="Buscar no Google"
-        onclick={(event) => event.stopPropagation()}
-      >
-        <Search class={actionIconClass} />
-      </a>
-    </FloatingTooltip>
 
     <FloatingTooltip label={interactions.copiedMarkdown ? "Copiado!" : "Copiar resumo em Markdown"} side="bottom">
       <button
@@ -216,15 +207,17 @@
       </button>
     </FloatingTooltip>
 
-    <FloatingTooltip label="Excluir imóvel" side="bottom">
-      <button
-        type="button"
-        class={cn(actionMutedClass, "hover:text-destructive")}
-        onclick={() => void interactions.handleDelete()}
-      >
-        <Trash2 class={actionIconClass} />
-      </button>
-    </FloatingTooltip>
+    {#if showDelete}
+      <FloatingTooltip label="Excluir imóvel" side="bottom">
+        <button
+          type="button"
+          class={cn(actionMutedClass, "hover:text-destructive")}
+          onclick={() => void interactions.handleDelete()}
+        >
+          <Trash2 class={actionIconClass} />
+        </button>
+      </FloatingTooltip>
+    {/if}
 
     {#if hasOtherCollections}
       <AnchoredPopover

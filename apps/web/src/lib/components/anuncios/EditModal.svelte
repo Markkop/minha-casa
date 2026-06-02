@@ -1,10 +1,8 @@
 <script lang="ts">
-  import { Pencil, Save, Sparkles } from "@lucide/svelte";
-  import ReparseModal from "$lib/components/anuncios/ReparseModal.svelte";
+  import { Pencil, Save, Trash2 } from "@lucide/svelte";
   import EditModalCard from "$lib/components/anuncios/edit-modal/EditModalCard.svelte";
   import type { EditModalTabId } from "$lib/components/anuncios/edit-modal/edit-modal-tabs";
   import ModalCloseButton from "$lib/components/anuncios/ModalCloseButton.svelte";
-  import FloatingTooltip from "$lib/components/ui/FloatingTooltip.svelte";
   import type { Imovel } from "$lib/anuncios/types";
   import { buildBaseListingTitle } from "$lib/listing-display-title";
   import { getCollectionsContext } from "$lib/collections-context.svelte";
@@ -17,7 +15,6 @@
     listing,
     focusImageUrl = false,
     onListingUpdated,
-    hasApiKey = true,
     uniqueContacts = []
   } = $props<{
     isOpen: boolean;
@@ -25,7 +22,6 @@
     listing: Imovel | null;
     focusImageUrl?: boolean;
     onListingUpdated?: () => void;
-    hasApiKey?: boolean;
     uniqueContacts?: { name: string | null; number: string }[];
   }>();
 
@@ -35,7 +31,6 @@
   let error = $state<string | null>(null);
   let regions = $state<Region[]>([]);
   let condominiums = $state<Condominium[]>([]);
-  let isReparseOpen = $state(false);
   let activeTab = $state<EditModalTabId>("basic");
 
   $effect(() => {
@@ -129,13 +124,20 @@
     }
   }
 
-  function handleReparseApply(changes: Partial<Imovel>) {
-    formData = { ...formData, ...changes };
+  async function handleDelete() {
+    if (!listing) return;
+    if (!confirm("Excluir este imóvel permanentemente?")) return;
+    try {
+      await ctx.removeListing(listing.id);
+      onListingUpdated?.();
+      onClose();
+    } catch (err) {
+      error = err instanceof Error ? err.message : "Erro ao excluir imóvel";
+    }
   }
 
   function handleKeyDown(event: KeyboardEvent) {
     if (event.key !== "Escape") return;
-    if (isReparseOpen) return;
     event.preventDefault();
     onClose();
   }
@@ -193,26 +195,17 @@
         {/key}
 
         <div class="flex shrink-0 gap-3 border-t border-app-border pt-4">
-          <FloatingTooltip
-            label={hasApiKey ? "Reparse com IA" : "Configure a API key nas configurações"}
-            side="bottom"
-            wrapperClass="flex flex-1"
+          <button
+            type="button"
+            onclick={() => void handleDelete()}
+            class={cn(
+              "flex items-center justify-center gap-2 rounded-lg border border-destructive/40 px-4 py-2.5 font-medium text-destructive transition-all",
+              "hover:bg-destructive/10"
+            )}
           >
-            <button
-              type="button"
-              onclick={() => (isReparseOpen = true)}
-              disabled={!hasApiKey}
-              class={cn(
-                "flex flex-1 items-center justify-center gap-2 rounded-lg px-4 py-2.5 font-medium transition-all",
-                "border border-app-border bg-app-surface-muted text-app-fg",
-                "hover:border-app-action hover:text-app-accent",
-                "disabled:cursor-not-allowed disabled:opacity-50"
-              )}
-            >
-              <Sparkles class="h-4 w-4" />
-              Reparse IA
-            </button>
-          </FloatingTooltip>
+            <Trash2 class="h-4 w-4" />
+            Excluir
+          </button>
           <button
             type="button"
             onclick={onClose}
@@ -233,18 +226,11 @@
             )}
           >
             <Save class="h-4 w-4" />
-            Salvar Alterações
+            Salvar
           </button>
         </div>
       </div>
     </div>
   </div>
 
-  <ReparseModal
-    isOpen={isReparseOpen}
-    onClose={() => (isReparseOpen = false)}
-    currentData={formData}
-    {hasApiKey}
-    onApplyChanges={handleReparseApply}
-  />
 {/if}
