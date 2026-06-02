@@ -39,18 +39,18 @@
 <div
   data-slot="slider"
   class={cn(
-    "relative flex w-full touch-none items-center select-none data-[disabled]:opacity-50",
+    "relative flex h-5 w-full touch-none items-center select-none data-[disabled]:opacity-50",
     className
   )}
   data-disabled={disabled ? "" : undefined}
 >
   <div
     data-slot="slider-track"
-    class="relative grow overflow-hidden rounded-full bg-brightGrey data-[orientation=horizontal]:h-1.5 data-[orientation=horizontal]:w-full"
+    class="relative h-2 w-full grow overflow-hidden rounded-full bg-app-border"
   >
     <div
       data-slot="slider-range"
-      class="absolute h-full bg-app-action data-[orientation=horizontal]:h-full"
+      class="absolute inset-y-0 left-0 rounded-full bg-app-action"
       style="width: {percent}%"
     ></div>
   </div>
@@ -58,7 +58,7 @@
     {id}
     {name}
     type="range"
-    class="absolute inset-0 h-full w-full cursor-pointer opacity-0 disabled:cursor-not-allowed"
+    class="absolute inset-0 z-10 h-full w-full cursor-pointer opacity-0 disabled:cursor-not-allowed"
     {min}
     {max}
     {step}
@@ -72,7 +72,7 @@
   />
   <div
     data-slot="slider-thumb"
-    class="pointer-events-none absolute top-1/2 block size-4 shrink-0 -translate-x-1/2 -translate-y-1/2 rounded-full border border-app-action bg-app-fg shadow-sm transition-[color,box-shadow] focus-visible:outline-hidden disabled:pointer-events-none disabled:opacity-50"
+    class="pointer-events-none absolute top-1/2 z-20 block size-4 shrink-0 -translate-x-1/2 -translate-y-1/2 rounded-full border border-app-action bg-app-surface shadow-sm transition-[color,box-shadow] focus-visible:outline-hidden disabled:pointer-events-none disabled:opacity-50"
     style="left: {percent}%"
   ></div>
 </div>

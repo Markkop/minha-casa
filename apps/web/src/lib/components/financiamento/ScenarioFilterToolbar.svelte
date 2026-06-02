@@ -1,11 +1,13 @@
 <script lang="ts">
-  import { DollarSign, House, RotateCcw } from "@lucide/svelte";
+  import { DollarSign, House, Map, RotateCcw } from "@lucide/svelte";
   import {
     PERCENTAGE_OPTIONS,
     type EstrategiaFiltro,
     type SimulatorParams
   } from "$lib/components/financiamento/financiamento-parameter-types";
-  import PageToolbarButton from "$lib/components/page-toolbar/PageToolbarButton.svelte";
+  import ScenarioFilterPopover from "$lib/components/financiamento/ScenarioFilterPopover.svelte";
+  import type { ScenarioFilterOption } from "$lib/components/financiamento/scenario-filter-shared";
+  import PageToolbarIconButton from "$lib/components/page-toolbar/PageToolbarIconButton.svelte";
   import {
     LISTINGS_TOOLBAR_CLASS,
     LISTINGS_TOOLBAR_INNER_CLASS
@@ -22,26 +24,53 @@
     onChange: (params: SimulatorParams) => void;
   } = $props();
 
-  const priceOptions = $derived(
-    PERCENTAGE_OPTIONS.map((option) => ({
-      ...option,
-      valor: Math.round(params.valorImovel * option.value)
-    }))
-  );
-
   const permutaDisponivel = $derived(params.valorApartamento > 0);
 
-  const propertyOptions = $derived(
-    PERCENTAGE_OPTIONS.map((option) => ({
-      ...option,
-      valor: Math.round(params.valorApartamento * option.value)
-    }))
+  const priceOptions = $derived(buildPercentageOptions(params.valorImovel));
+
+  const propertyOptions = $derived(buildPercentageOptions(params.valorApartamento));
+
+  const estrategiaOptions: ScenarioFilterOption<EstrategiaFiltro>[] = [
+    { value: "permuta", label: "Permuta" },
+    { value: "venda_posterior", label: "Venda Posterior" }
+  ];
+
+  const defaults = createInitialSimulatorParams();
+
+  const anyFilterCustom = $derived(
+    !arraysEqual(
+      [...params.valoresImovelFiltroMultipliers].sort(),
+      [...defaults.valoresImovelFiltroMultipliers].sort()
+    ) ||
+      (permutaDisponivel &&
+        (!arraysEqual(
+          [...params.valoresAptoFiltroMultipliers].sort(),
+          [...defaults.valoresAptoFiltroMultipliers].sort()
+        ) ||
+          !arraysEqual(
+            [...params.estrategiasFiltro].sort(),
+            [...defaults.estrategiasFiltro].sort()
+          )))
   );
 
-  const estrategias = [
-    { value: "permuta" as const, label: "Permuta" },
-    { value: "venda_posterior" as const, label: "Venda Posterior" }
-  ];
+  function buildPercentageOptions(
+    baseValue: number
+  ): ScenarioFilterOption<number>[] {
+    return PERCENTAGE_OPTIONS.map((option) => {
+      const valor = Math.round(baseValue * option.value);
+      const price = formatCurrencyCompact(valor);
+      return {
+        value: option.value,
+        label: price,
+        hint: option.label === "Original" ? undefined : ` (${option.label})`
+      };
+    });
+  }
+
+  function arraysEqual(a: number[] | string[], b: number[] | string[]) {
+    if (a.length !== b.length) return false;
+    return a.every((value, index) => value === b[index]);
+  }
 
   function patch(partial: Partial<SimulatorParams>) {
     onChange({ ...params, ...partial });
@@ -55,12 +84,7 @@
     return current.includes(value) ? current.filter((v) => v !== value) : [...current, value];
   }
 
-  function percentLabel(label: string) {
-    return label === "Original" ? "Base" : label;
-  }
-
   function resetFilters() {
-    const defaults = createInitialSimulatorParams();
     patch({
       valoresImovelFiltroMultipliers: defaults.valoresImovelFiltroMultipliers,
       valoresAptoFiltroMultipliers: defaults.valoresAptoFiltroMultipliers,
@@ -70,83 +94,64 @@
 </script>
 
 <div class={LISTINGS_TOOLBAR_CLASS}>
-  <div class={cn(LISTINGS_TOOLBAR_INNER_CLASS, "w-full gap-1.5")}>
-    {#each priceOptions as option (option.value)}
-      {@const active = params.valoresImovelFiltroMultipliers.includes(option.value)}
-      <PageToolbarButton
-        variant={active ? "active" : "secondary"}
-        class="h-7 rounded-full px-2"
-        aria-pressed={active}
-        title={`Preço do imóvel ${percentLabel(option.label)}`}
-        onclick={() =>
-          patch({
-            valoresImovelFiltroMultipliers: toggleNumber(
-              params.valoresImovelFiltroMultipliers,
-              option.value
-            )
-          })}
-      >
-        <DollarSign />
-        <span>{formatCurrencyCompact(option.valor)}</span>
-        <span class={cn("text-[10px]", active ? "opacity-90" : "text-app-subtle")}>
-          ({percentLabel(option.label)})
-        </span>
-      </PageToolbarButton>
-    {/each}
-
-    {#if permutaDisponivel}
-      <div class="h-5 w-px shrink-0 bg-app-border"></div>
-
-      {#each propertyOptions as option (option.value)}
-        {@const active = params.valoresAptoFiltroMultipliers.includes(option.value)}
-        <PageToolbarButton
-          variant={active ? "active" : "secondary"}
-          class="h-7 rounded-full px-2"
-          aria-pressed={active}
-          title={`Imóveis para permutar ou vender ${percentLabel(option.label)}`}
-          onclick={() =>
+  <div class={cn(LISTINGS_TOOLBAR_INNER_CLASS, "w-full justify-between")}>
+    <div class="flex min-w-0 shrink-0 items-center gap-1.5">
+      <ScenarioFilterPopover
+          icon={DollarSign}
+          buttonLabel="Preço"
+          ariaLabel="Preço do imóvel alvo"
+          headerText="Preço do imóvel alvo"
+          options={priceOptions}
+          selected={params.valoresImovelFiltroMultipliers}
+          onToggle={(value) =>
             patch({
-              valoresAptoFiltroMultipliers: toggleNumber(
-                params.valoresAptoFiltroMultipliers,
-                option.value
+              valoresImovelFiltroMultipliers: toggleNumber(
+                params.valoresImovelFiltroMultipliers,
+                value
               )
             })}
-        >
-          <House />
-          <span>{formatCurrencyCompact(option.valor)}</span>
-          <span class={cn("text-[10px]", active ? "opacity-90" : "text-app-subtle")}>
-            ({percentLabel(option.label)})
-          </span>
-        </PageToolbarButton>
-      {/each}
+        />
 
-      <div class="h-5 w-px shrink-0 bg-app-border"></div>
+        {#if permutaDisponivel}
+          <ScenarioFilterPopover
+            icon={House}
+            buttonLabel="Venda"
+            ariaLabel="Valor de venda do seu imóvel"
+            headerText="Valor de venda do seu imóvel"
+            options={propertyOptions}
+            selected={params.valoresAptoFiltroMultipliers}
+            onToggle={(value) =>
+              patch({
+                valoresAptoFiltroMultipliers: toggleNumber(
+                  params.valoresAptoFiltroMultipliers,
+                  value
+                )
+              })}
+          />
 
-      {#each estrategias as estrategia (estrategia.value)}
-        {@const active = params.estrategiasFiltro.includes(estrategia.value)}
-        <PageToolbarButton
-          variant={active ? "active" : "secondary"}
-          class="h-7 rounded-full px-2"
-          aria-pressed={active}
-          onclick={() =>
-            patch({
-              estrategiasFiltro: toggleEstrategia(params.estrategiasFiltro, estrategia.value)
-            })}
-        >
-          {estrategia.label}
-        </PageToolbarButton>
-      {/each}
-    {/if}
+          <ScenarioFilterPopover
+            icon={Map}
+            buttonLabel="Estratégia"
+            ariaLabel="Estratégia de venda do seu imóvel"
+            headerText="Estratégia de venda do seu imóvel"
+            options={estrategiaOptions}
+            selected={params.estrategiasFiltro}
+            onToggle={(value) =>
+              patch({
+                estrategiasFiltro: toggleEstrategia(params.estrategiasFiltro, value)
+              })}
+          />
+        {/if}
+    </div>
 
-    <button
-      type="button"
-      class="ml-auto inline-flex shrink-0 items-center gap-1 rounded-full border border-app-border bg-app-surface px-2.5 py-1 text-[11px] font-medium text-app-subtle transition-colors hover:bg-app-surface-muted hover:text-app-fg"
-      title="Restaurar filtros padrão"
-      aria-label="Restaurar filtros padrão"
-      onclick={resetFilters}
-    >
-      <RotateCcw class="size-3" aria-hidden="true" />
-      Restaurar
-    </button>
+    <PageToolbarIconButton
+        variant="secondary"
+        aria-label="Restaurar filtros padrão"
+        title="Restaurar filtros padrão"
+        disabled={!anyFilterCustom}
+        onclick={resetFilters}
+      >
+        <RotateCcw />
+    </PageToolbarIconButton>
   </div>
 </div>
