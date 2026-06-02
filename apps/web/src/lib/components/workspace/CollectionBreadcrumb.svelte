@@ -158,7 +158,9 @@
   }}
   onCollectionChange={() => {
     void ctx.loadCollections();
-    ctx.triggerRefresh();
+    if (ctx.activeCollection?.id) {
+      void ctx.loadListings(ctx.activeCollection.id, { silent: true });
+    }
   }}
 />
 

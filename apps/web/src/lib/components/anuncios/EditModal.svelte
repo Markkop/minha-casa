@@ -81,18 +81,25 @@
   $effect(() => {
     if (!isOpen) return;
 
+    let cancelled = false;
+
     void (async () => {
       try {
         const [regionsData, condominiumsData] = await Promise.all([
           workspaceApi.fetchRegions(),
           workspaceApi.fetchCondominiums()
         ]);
+        if (cancelled) return;
         regions = regionsData.regions;
         condominiums = condominiumsData.condominiums;
       } catch {
         // optional workspace references
       }
     })();
+
+    return () => {
+      cancelled = true;
+    };
   });
 
   async function handleSave() {

@@ -51,6 +51,21 @@ defmodule MinhaCasaAi.Billing do
     |> with_plan()
   end
 
+  def active_subscription?(user_id) when is_binary(user_id) do
+    case current_subscription(user_id) do
+      nil ->
+        false
+
+      %{subscription: %Subscription{expires_at: expires_at}} ->
+        not is_nil(expires_at) and DateTime.compare(expires_at, DateTime.utc_now()) != :lt
+
+      _ ->
+        false
+    end
+  end
+
+  def active_subscription?(_), do: false
+
   def create_checkout_session(user_id, attrs) do
     app_url = Config.app_public_url() || "http://localhost:5173"
     plan_id = Map.get(attrs, "planId") || Map.get(attrs, "plan_id")

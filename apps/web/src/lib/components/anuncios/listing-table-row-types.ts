@@ -1,6 +1,7 @@
 import type { Collection, Imovel } from "$lib/anuncios/types";
 import type { ListingsPropertyDisplayPrefs, MetricVariant } from "$lib/anuncios/listings-display-prefs";
 import type { FieldChange } from "$lib/components/anuncios/QuickReparseModal.svelte";
+import type { ListingRowInteractions } from "$lib/components/anuncios/listing-row-interactions.svelte";
 import type { ImageColumnView, ListingsTableColumn } from "$lib/components/anuncios/listings-table-shared";
 
 export interface ListingTableRowProps {
@@ -27,5 +28,6 @@ export interface ListingTableRowProps {
     | { outcome: "error"; message: string }
   >;
   onQuickReparseDetected: (listing: Imovel, changes: FieldChange[]) => void;
+  getRowInteractions: (listing: Imovel) => ListingRowInteractions;
   displayTitle: string;
 }

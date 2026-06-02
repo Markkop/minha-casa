@@ -11,7 +11,6 @@
   import FloatingTooltip from "$lib/components/ui/FloatingTooltip.svelte";
   import { buildWhatsAppUrl } from "$lib/anuncios/listings-contact";
   import { buildGoogleMapsUrl, calculatePrecoM2, calculatePrecoM2Privado } from "$lib/components/anuncios/listing-row-urls";
-  import { createListingRowInteractions } from "$lib/components/anuncios/listing-row-interactions.svelte";
   import {
     formatDate,
     formatFullDateTime,
@@ -32,22 +31,13 @@
     hasOtherCollections,
     collections,
     activeCollectionId,
-    updateListing,
-    removeListing,
     openImageModal,
     openEditListing,
-    onQuickReparseRequest,
-    onQuickReparseDetected,
+    getRowInteractions,
     displayTitle
   }: ListingTableRowProps = $props();
 
-  const interactions = createListingRowInteractions({
-    getImovel: () => imovel,
-    updateListing: (listingId, updates) => updateListing(listingId, updates),
-    removeListing: (listingId) => removeListing(listingId),
-    onQuickReparseRequest: (listing, input) => onQuickReparseRequest(listing, input),
-    onQuickReparseDetected: (listing, changes) => onQuickReparseDetected(listing, changes)
-  });
+  const interactions = $derived(getRowInteractions(imovel));
 </script>
 
 <tr

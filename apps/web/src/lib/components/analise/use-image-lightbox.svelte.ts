@@ -30,9 +30,9 @@ export function useImageLightbox(getThumbs: () => LightboxThumb[]) {
 
   $effect(() => {
     if (lightboxLocalIndex === null) return;
-    const thumbs = getThumbs();
 
     const onKey = (e: KeyboardEvent) => {
+      const thumbs = getThumbs();
       if (e.key === "Escape") close();
       if (e.key === "ArrowRight") {
         lightboxLocalIndex =

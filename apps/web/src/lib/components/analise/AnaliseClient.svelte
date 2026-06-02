@@ -14,18 +14,18 @@
 
   let { isAdmin = false } = $props<{ isAdmin?: boolean }>();
 
-  let storedFlags = $state<ReturnType<typeof readAdminFeatureFlags>>(readAdminFeatureFlags(false));
+  let storedFlagsSyncTick = $state(0);
+  const storedFlags = $derived.by(() => {
+    void storedFlagsSyncTick;
+    return readAdminFeatureFlags(isAdmin);
+  });
   const showDeepAnalysis = $derived(
     getAdminFeatureFlag(storedFlags, "deepAnalysis", isAdmin)
   );
 
-  $effect(() => {
-    storedFlags = readAdminFeatureFlags(isAdmin);
-  });
-
   onMount(() => {
     const syncFlags = () => {
-      storedFlags = readAdminFeatureFlags(isAdmin);
+      storedFlagsSyncTick += 1;
     };
     window.addEventListener("storage", syncFlags);
     return () => window.removeEventListener("storage", syncFlags);

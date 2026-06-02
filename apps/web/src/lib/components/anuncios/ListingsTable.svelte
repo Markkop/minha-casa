@@ -8,6 +8,7 @@
   import { getCollectionsContext } from "$lib/collections-context.svelte";
   import { createListingsTableState } from "$lib/components/anuncios/listings-table-state.svelte";
   import { createListingsTablePendingAdd } from "$lib/components/anuncios/listings-table-pending-add.svelte";
+  import { createListingRowInteractionsRegistry } from "$lib/components/anuncios/listing-row-interactions-registry.svelte";
   import { extractUniqueContacts, handleQuickReparseRequest } from "$lib/components/anuncios/quick-reparse-utils";
   import ListingsTableToolbar from "$lib/components/anuncios/ListingsTableToolbar.svelte";
   import ListingsTableAddButtons from "$lib/components/anuncios/ListingsTableAddButtons.svelte";
@@ -19,14 +20,21 @@
   import QuickReparseModal from "$lib/components/anuncios/QuickReparseModal.svelte";
   import type { FieldChange } from "$lib/components/anuncios/QuickReparseModal.svelte";
 
-  let {
-    listings,
-    refreshTrigger = 0
-  } = $props<{ listings: Imovel[]; refreshTrigger?: number }>();
+  let { listings } = $props<{ listings: Imovel[] }>();
 
   const ctx = getCollectionsContext();
   const tableState = createListingsTableState(() => listings);
   const pendingAdd = createListingsTablePendingAdd(() => ctx);
+  const rowInteractionsRegistry = createListingRowInteractionsRegistry({
+    updateListing: (listingId, updates) => ctx.updateListing(listingId, updates),
+    removeListing: (listingId) => ctx.removeListing(listingId),
+    onQuickReparseRequest: handleQuickReparseRequest,
+    onQuickReparseDetected: handleQuickReparseDetected
+  });
+
+  $effect(() => {
+    rowInteractionsRegistry.prune(new Set(listings.map((listing: Imovel) => listing.id)));
+  });
 
   let copiedVisibleMarkdown = $state(false);
   let editingListing = $state<Imovel | null>(null);
@@ -37,15 +45,12 @@
 
   onMount(() => tableState.initFromLocalStorage());
 
-  const activeCollectionId = $derived(ctx.activeCollection?.id);
-
-  $effect(() => {
-    void refreshTrigger;
-    const collectionId = activeCollectionId;
-    if (collectionId) void ctx.loadListings(collectionId, { silent: true });
-  });
-
   const uniqueContacts = $derived(extractUniqueContacts(listings));
+
+  function reloadActiveListings() {
+    const collectionId = ctx.activeCollection?.id;
+    if (collectionId) void ctx.loadListings(collectionId, { silent: true });
+  }
   const hasOtherCollections = $derived(ctx.collections.length > 1);
   const imageModalListing = $derived(
     listings.find((listing: Imovel) => listing.id === imageModalListingId) ?? null
@@ -91,7 +96,8 @@
     openImageModal,
     openEditListing,
     onQuickReparseRequest: handleQuickReparseRequest,
-    onQuickReparseDetected: handleQuickReparseDetected
+    onQuickReparseDetected: handleQuickReparseDetected,
+    getRowInteractions: (listing: Imovel) => rowInteractionsRegistry.getForListing(listing)
   });
 </script>
 
@@ -216,14 +222,14 @@
     editingListing = null;
     focusImageUrl = false;
   }}
-  onListingUpdated={() => ctx.triggerRefresh()}
+  onListingUpdated={reloadActiveListings}
 />
 
 <ImageModal
   isOpen={imageModalListingId !== null}
   listing={imageModalListing}
   onClose={() => (imageModalListingId = null)}
-  onListingUpdated={() => ctx.triggerRefresh()}
+  onListingUpdated={reloadActiveListings}
 />
 
 <QuickReparseModal

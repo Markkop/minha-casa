@@ -1,8 +1,11 @@
 export function useEscapeToCancel(enabled: () => boolean, onCancel: () => void) {
   $effect(() => {
-    if (!enabled()) return;
+    const isEnabled = enabled();
+    const cancel = onCancel;
+    if (!isEnabled) return;
+
     const handler = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onCancel();
+      if (event.key === "Escape") cancel();
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);

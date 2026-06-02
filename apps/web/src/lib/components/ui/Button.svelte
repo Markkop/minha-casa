@@ -49,7 +49,7 @@
   <button
     {type}
     {disabled}
-    aria-label={ariaLabel}
+    aria-label={ariaLabel ?? title}
     class={cn(
       "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-action disabled:pointer-events-none disabled:opacity-60 [&_svg]:pointer-events-none [&_svg]:shrink-0",
       variants[variant as Variant],

@@ -108,9 +108,7 @@
 
     let disposed = false;
     let map: import("leaflet").Map | null = null;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let googleMarker: any = null;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let googleMap: any = null;
     const google = useGoogle;
     const zoom = displayZoom;

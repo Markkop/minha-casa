@@ -37,6 +37,8 @@
   onSwitchToCollection={(collectionId) => {
     const collection = ctx.collections.find((item) => item.id === collectionId);
     if (collection) ctx.setActiveCollection(collection);
-    ctx.triggerRefresh();
+    else if (ctx.activeCollection?.id) {
+      void ctx.loadListings(ctx.activeCollection.id, { silent: true });
+    }
   }}
 />

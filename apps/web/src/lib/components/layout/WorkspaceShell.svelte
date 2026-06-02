@@ -57,7 +57,11 @@
   let hasFloodRisk = $state(false);
   let hasTeamOrganizations = $state(false);
   const isAdmin = $derived(Boolean(user?.isAdmin));
-  let featureFlags = $state<AdminFeatureFlags>(readAdminFeatureFlags(false));
+  let featureFlagsSyncTick = $state(0);
+  const featureFlags = $derived.by((): AdminFeatureFlags => {
+    void featureFlagsSyncTick;
+    return readAdminFeatureFlags(isAdmin);
+  });
   let subscriptionReady = $state(false);
   let hasActiveSubscription = $state(false);
 
@@ -149,10 +153,6 @@
   }
 
   $effect(() => {
-    featureFlags = readAdminFeatureFlags(isAdmin);
-  });
-
-  $effect(() => {
     if (!user) {
       hasActiveSubscription = false;
       subscriptionReady = true;
@@ -224,7 +224,7 @@
   }
 
   function handleStorageSync() {
-    featureFlags = readAdminFeatureFlags(Boolean(user?.isAdmin));
+    featureFlagsSyncTick += 1;
   }
 
   $effect(() => {

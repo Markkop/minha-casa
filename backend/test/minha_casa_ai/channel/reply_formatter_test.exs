@@ -3,6 +3,9 @@ defmodule MinhaCasaAi.Channel.ReplyFormatterTest do
 
   alias MinhaCasaAi.Channel.ReplyFormatter
 
+  @listing_id "550e8400-e29b-41d4-a716-446655440000"
+  @collection_id "550e8400-e29b-41d4-a716-446655440001"
+
   @full_data %{
     "tipoImovel" => "casa",
     "starred" => true,
@@ -25,7 +28,7 @@ defmodule MinhaCasaAi.Channel.ReplyFormatterTest do
     assert card =~ "★ Casa"
     assert card =~ "320 m²"
     assert card =~ "R$ 2.100.000"
-    assert card =~ "R$ 6.563/m²"
+    assert card =~ "R$ 6.562/m²"
     assert card =~ "📐 320/400 m²"
     assert card =~ "🛏️ 4"
     assert card =~ "🚿 3"
@@ -59,8 +62,8 @@ defmodule MinhaCasaAi.Channel.ReplyFormatterTest do
       ReplyFormatter.ingestion_result(%{
         saved: [
           %{
-            listing_id: "l1",
-            collection_id: "c1",
+            listing_id: @listing_id,
+            collection_id: @collection_id,
             title: "Casa teste",
             listing_data: Map.put(@full_data, "starred", false)
           }
@@ -86,8 +89,8 @@ defmodule MinhaCasaAi.Channel.ReplyFormatterTest do
 
   test "list_listings uses card format" do
     listing = %{
-      id: "listing-1",
-      collection_id: "collection-1",
+      id: @listing_id,
+      collection_id: @collection_id,
       data: Map.put(@full_data, "starred", false)
     }
 

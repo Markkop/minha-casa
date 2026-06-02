@@ -176,7 +176,9 @@
 
       success = `${totalImported} imóvel(eis) importado(s) com sucesso!`;
       importText = "";
-      ctx.triggerRefresh();
+      if (ctx.activeCollection?.id) {
+        await ctx.loadListings(ctx.activeCollection.id, { silent: true });
+      }
       setTimeout(() => {
         success = null;
         onClose();

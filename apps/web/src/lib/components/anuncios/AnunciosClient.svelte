@@ -92,10 +92,6 @@
     createCollectionError = null;
     try {
       await ctx.createCollection(getDefaultFirstCollectionName(), true);
-      ctx.triggerRefresh();
-      if (ctx.activeCollection?.id) {
-        await ctx.loadListings(ctx.activeCollection.id);
-      }
     } catch (err) {
       createCollectionError = err instanceof Error ? err.message : "Erro ao criar coleção";
     } finally {
@@ -268,7 +264,7 @@
           Carregando imóveis...
         </p>
       {:else}
-        <ListingsTable listings={ctx.listings} refreshTrigger={ctx.refreshTrigger} />
+        <ListingsTable listings={ctx.listings} />
       {/if}
       <ListingsMap listings={ctx.listings} />
     </main>

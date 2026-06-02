@@ -40,10 +40,8 @@ export interface SubscriptionSyncResult {
   plan: SubscriptionSyncPlan | null;
 }
 
-interface SubscriptionsApiResponse {
-  subscription?: SubscriptionSyncSubscription | null;
-  plan?: SubscriptionSyncPlan | null;
-}
+import { parseApiResponse } from "$lib/api/parse-api-response";
+import { subscriptionPayloadSchema } from "$lib/api/schemas/subscription";
 
 /** Refresh the httpOnly subscription-status cookie via the SvelteKit BFF route. */
 export async function syncSubscriptionCookie(): Promise<SubscriptionSyncResult> {
@@ -52,12 +50,15 @@ export async function syncSubscriptionCookie(): Promise<SubscriptionSyncResult> 
     if (!res.ok) {
       return { hasActiveSubscription: false, subscription: null, plan: null };
     }
-    const data = (await res.json()) as SubscriptionsApiResponse;
-    const hasActiveSubscription = data.subscription?.status === "active";
+    const raw = await res.json();
+    const data = parseApiResponse(subscriptionPayloadSchema, raw, "/api/subscriptions");
+    const subscription = data.subscription as SubscriptionSyncSubscription | null;
+    const plan = data.plan as SubscriptionSyncPlan | null;
+    const hasActiveSubscription = subscription?.status === "active";
     return {
       hasActiveSubscription,
-      subscription: data.subscription ?? null,
-      plan: data.plan ?? null
+      subscription,
+      plan
     };
   } catch {
     return { hasActiveSubscription: false, subscription: null, plan: null };

@@ -11,7 +11,6 @@
   import { mobileCompactListingDisplayTitle } from "$lib/listing-display-title";
   import { buildWhatsAppUrl } from "$lib/anuncios/listings-contact";
   import { buildGoogleMapsUrl, calculatePrecoM2, calculatePrecoM2Privado } from "$lib/components/anuncios/listing-row-urls";
-  import { createListingRowInteractions } from "$lib/components/anuncios/listing-row-interactions.svelte";
   import {
     LISTING_MOBILE_EDGE_INSET_CLASS,
     LISTING_MOBILE_ROW_GAP_CLASS
@@ -30,12 +29,9 @@
     hasOtherCollections,
     collections,
     activeCollectionId,
-    updateListing,
-    removeListing,
     openImageModal,
     openEditListing,
-    onQuickReparseRequest,
-    onQuickReparseDetected,
+    getRowInteractions,
     displayTitle
   }: ListingTableRowProps = $props();
 
@@ -44,13 +40,7 @@
   const MOBILE_OVERLAY_SCRIM_BOTTOM =
     "pointer-events-none absolute inset-x-0 bottom-0 z-[1] h-10 bg-gradient-to-t from-black/75 via-black/35 to-transparent";
 
-  const interactions = createListingRowInteractions({
-    getImovel: () => imovel,
-    updateListing: (listingId, updates) => updateListing(listingId, updates),
-    removeListing: (listingId) => removeListing(listingId),
-    onQuickReparseRequest: (listing, input) => onQuickReparseRequest(listing, input),
-    onQuickReparseDetected: (listing, changes) => onQuickReparseDetected(listing, changes)
-  });
+  const interactions = $derived(getRowInteractions(imovel));
 
   const mobileCompactTitle = $derived(mobileCompactListingDisplayTitle(displayTitle));
   const mobileTitleTruncated = $derived(truncateListingTitle(mobileCompactTitle, 48));

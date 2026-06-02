@@ -20,16 +20,8 @@ export interface SettingsContextValue {
 export const [getSettingsContext, setSettingsContext] = createContext<SettingsContextValue>();
 
 export function createSettingsState() {
-  let settings = $state<SimulatorSettings>(DEFAULT_SETTINGS);
-  let isLoaded = $state(false);
-
-  $effect(() => {
-    if (!browser) {
-      return;
-    }
-    settings = loadSettings();
-    isLoaded = true;
-  });
+  let settings = $state<SimulatorSettings>(browser ? loadSettings() : DEFAULT_SETTINGS);
+  const isLoaded = $state(browser);
 
   const updateSettings = (newSettings: SimulatorSettings) => {
     settings = newSettings;

@@ -13,6 +13,10 @@ defmodule MinhaCasaAiWeb.Router do
     plug MinhaCasaAiWeb.Plugs.JwtAuth
   end
 
+  pipeline :subscribed do
+    plug MinhaCasaAiWeb.Plugs.RequireSubscription
+  end
+
   scope "/", MinhaCasaAiWeb do
     pipe_through :api
 
@@ -82,6 +86,10 @@ defmodule MinhaCasaAiWeb.Router do
     get "/whatsapp/status", WhatsAppLinkController, :status
     post "/telegram/link", TelegramLinkController, :link
     get "/telegram/status", TelegramLinkController, :status
+  end
+
+  scope "/api", MinhaCasaAiWeb do
+    pipe_through [:api, :authenticated, :subscribed]
 
     post "/property-analyses", PropertyAnalysisController, :create
     get "/property-analyses/:id", PropertyAnalysisController, :show

@@ -59,8 +59,12 @@ config :minha_casa_ai, MinhaCasaAi.Config,
   better_auth_jwks_url:
     System.get_env("BETTER_AUTH_JWKS_URL") || "http://localhost:5173/auth/jwks",
   app_public_url:
-    System.get_env("APP_PUBLIC_URL") || System.get_env("NEXT_PUBLIC_APP_URL") ||
-      "http://localhost:3000",
+    if(config_env() == :test,
+      do: "",
+      else:
+        System.get_env("APP_PUBLIC_URL") || System.get_env("NEXT_PUBLIC_APP_URL") ||
+          "http://localhost:3000"
+    ),
   stripe_secret_key: System.get_env("STRIPE_SECRET_KEY"),
   stripe_webhook_secret: System.get_env("STRIPE_WEBHOOK_SECRET"),
   assistant_llm_enabled: System.get_env("ASSISTANT_LLM_ENABLED", "true") not in ["false", "0"],

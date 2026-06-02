@@ -33,7 +33,6 @@ export interface CollectionsContextValue {
   isLoading: boolean;
   isLoadingListings: boolean;
   error: string | null;
-  refreshTrigger: number;
   listingsCollectionId: string | null;
   loadCollections: () => Promise<void>;
   setActiveCollection: (collection: Collection | null) => void;
@@ -61,7 +60,6 @@ export interface CollectionsContextValue {
   refreshListing: (listingId: string) => Promise<Imovel | null>;
   parseListingInput: (input: ParseRequest) => Promise<ListingData[]>;
   getListingDisplayTitle: (listing: Imovel) => string;
-  triggerRefresh: () => void;
 }
 
 export const [getCollectionsContext, setCollectionsContext] =
@@ -74,7 +72,6 @@ export function createCollectionsState() {
   let isLoading = $state(false);
   let isLoadingListings = $state(false);
   let error = $state<string | null>(null);
-  let refreshTrigger = $state(0);
   let listingsCollectionId = $state<string | null>(null);
 
   const displayTitles = $derived.by(() =>
@@ -116,10 +113,6 @@ export function createCollectionsState() {
     );
   }
 
-  function triggerRefresh() {
-    refreshTrigger += 1;
-  }
-
   function syncCollectionListingCount(collectionId: string, count: number) {
     const listed = collections.find((item) => item.id === collectionId);
     const activeMatches =
@@ -151,19 +144,15 @@ export function createCollectionsState() {
         null;
 
       if (!activeCollection && fallback) {
-        activeCollection = fallback;
-        storeActiveCollectionId(fallback.id);
+        setActiveCollection(fallback);
       } else if (activeCollection) {
         const updated = fetched.find((c) => c.id === activeCollection!.id);
         if (updated) {
-          activeCollection = updated;
-          storeActiveCollectionId(updated.id);
+          setActiveCollection(updated);
         } else if (fallback) {
-          activeCollection = fallback;
-          storeActiveCollectionId(fallback.id);
+          setActiveCollection(fallback);
         } else {
-          activeCollection = null;
-          storeActiveCollectionId(null);
+          setActiveCollection(null);
         }
       }
     } catch (err) {
@@ -178,7 +167,12 @@ export function createCollectionsState() {
     const previousId = activeCollection?.id ?? null;
     activeCollection = collection;
     storeActiveCollectionId(nextId);
-    if (nextId && nextId !== listingsCollectionId && nextId !== previousId) {
+    if (!nextId) {
+      listings = [];
+      listingsCollectionId = null;
+      return;
+    }
+    if (nextId !== listingsCollectionId || nextId !== previousId) {
       void loadListings(nextId);
     }
   }
@@ -190,10 +184,8 @@ export function createCollectionsState() {
       ? [...collections.map((c) => ({ ...c, isDefault: false })), converted]
       : [...collections, converted];
     if (!activeCollection) {
-      activeCollection = converted;
-      storeActiveCollectionId(converted.id);
+      setActiveCollection(converted);
     }
-    triggerRefresh();
     return converted;
   }
 
@@ -213,10 +205,8 @@ export function createCollectionsState() {
       return item;
     });
     if (activeCollection?.id === id) {
-      activeCollection = converted;
-      storeActiveCollectionId(converted.id);
+      setActiveCollection(converted);
     }
-    triggerRefresh();
     return converted;
   }
 
@@ -226,12 +216,8 @@ export function createCollectionsState() {
     if (activeCollection?.id === id) {
       const fallback =
         collections.find((c) => c.isDefault) ?? collections[0] ?? null;
-      activeCollection = fallback;
-      storeActiveCollectionId(fallback?.id ?? null);
-      if (fallback?.id) await loadListings(fallback.id);
-      else listings = [];
+      setActiveCollection(fallback);
     }
-    triggerRefresh();
   }
 
   async function setDefaultCollection(id: string) {
@@ -253,7 +239,6 @@ export function createCollectionsState() {
     if (targetOrgId === currentOrg) {
       collections = [...collections, converted];
     }
-    triggerRefresh();
     return { collection: converted, copiedListingsCount: result.copiedListingsCount };
   }
 
@@ -262,7 +247,6 @@ export function createCollectionsState() {
     const converted = toCollection(collection);
     collections = collections.map((item) => (item.id === collectionId ? converted : item));
     if (activeCollection?.id === collectionId) activeCollection = converted;
-    triggerRefresh();
     return shareUrl;
   }
 
@@ -271,7 +255,6 @@ export function createCollectionsState() {
     const converted = toCollection(collection);
     collections = collections.map((item) => (item.id === collectionId ? converted : item));
     if (activeCollection?.id === collectionId) activeCollection = converted;
-    triggerRefresh();
   }
 
   async function loadSharedCollection(token: string) {
@@ -322,7 +305,6 @@ export function createCollectionsState() {
     const imovel = toImovel(listing);
     listings = [...listings, imovel];
     syncCollectionListingCount(activeCollection.id, listings.length);
-    triggerRefresh();
     return imovel;
   }
 
@@ -335,7 +317,6 @@ export function createCollectionsState() {
     );
     const imovel = toImovel(listing);
     listings = listings.map((item) => (item.id === imovel.id ? imovel : item));
-    triggerRefresh();
     return imovel;
   }
 
@@ -344,7 +325,6 @@ export function createCollectionsState() {
     await workspaceApi.deleteListing(activeCollection.id, listingId);
     listings = listings.filter((item) => item.id !== listingId);
     syncCollectionListingCount(activeCollection.id, listings.length);
-    triggerRefresh();
   }
 
   async function refreshListing(listingId: string) {
@@ -381,9 +361,6 @@ export function createCollectionsState() {
     get error() {
       return error;
     },
-    get refreshTrigger() {
-      return refreshTrigger;
-    },
     get listingsCollectionId() {
       return listingsCollectionId;
     },
@@ -405,8 +382,7 @@ export function createCollectionsState() {
     removeListing,
     refreshListing,
     parseListingInput,
-    getListingDisplayTitle,
-    triggerRefresh
+    getListingDisplayTitle
   } satisfies CollectionsContextValue;
 }
 

@@ -24,6 +24,7 @@
       <input
         bind:this={pendingAdd.addInputRef}
         type="text"
+        aria-label="Adicionar anúncio por link, texto ou arquivo"
         value={pendingAdd.addFiles.length > 0 ? "" : pendingAdd.addInputValue}
         oninput={(event) => {
           if (pendingAdd.addFiles.length > 0) return;

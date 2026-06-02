@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { untrack } from "svelte";
   import {
     attachCollectionsListeners,
     createCollectionsState,
@@ -24,20 +23,7 @@
 
   $effect(() => {
     if (!enabled) return;
-    void (async () => {
-      await state.loadCollections();
-      const collectionId = untrack(() => state.activeCollection?.id);
-      if (collectionId) {
-        await state.loadListings(collectionId);
-      }
-    })();
-  });
-
-  $effect(() => {
-    if (!enabled) return;
-    const collectionId = state.activeCollection?.id;
-    if (!collectionId || state.listingsCollectionId === collectionId) return;
-    void state.loadListings(collectionId);
+    void state.loadCollections();
   });
 
   $effect(() => {

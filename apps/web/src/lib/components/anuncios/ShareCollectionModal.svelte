@@ -95,7 +95,14 @@
           </div>
         {:else if isShared && shareUrl}
           <div class="space-y-2">
-            <input readonly value={shareUrl} class="w-full rounded border border-app-border bg-app-surface-muted px-2 py-2 text-xs" />
+            <label class="sr-only" for="share-collection-url">Link de compartilhamento</label>
+            <input
+              id="share-collection-url"
+              readonly
+              value={shareUrl}
+              aria-label="Link de compartilhamento da coleção"
+              class="w-full rounded border border-app-border bg-app-surface-muted px-2 py-2 text-xs"
+            />
             <button type="button" class="flex w-full items-center justify-center gap-2 rounded-lg border border-app-border py-2 text-sm" onclick={() => void handleCopyLink()}>
               {#if copied}<Check class="h-4 w-4" /> Copiado!{:else}Copiar link{/if}
             </button>
