@@ -114,7 +114,8 @@
 
   async function attachTransformer(shapeId: string | null) {
     await tick();
-    if (!transformerRef || !stageRef || !shapeId) {
+    const shape = shapeId ? planner.shapes.find((current) => current.id === shapeId) : null;
+    if (!transformerRef || !stageRef || !shapeId || shape?.locked || shape?.visible === false) {
       transformerRef?.node.nodes([]);
       return;
     }
@@ -226,6 +227,9 @@
         id,
         type: "line",
         points: [start.x, start.y, end.x, end.y],
+        name: `Linha ${planner.shapes.length + 1}`,
+        visible: true,
+        locked: false,
         stroke: SHAPE_STROKE,
         strokeWidth: 3
       };
@@ -245,6 +249,9 @@
     return {
       id,
       type: "rect",
+      name: `Retangulo ${planner.shapes.length + 1}`,
+      visible: true,
+      locked: false,
       x: size < 0 ? start.x + size : start.x,
       y: squareHeight < 0 ? start.y + squareHeight : start.y,
       width: Math.abs(size),
@@ -266,6 +273,8 @@
 
   function handleShapePointerDown(event: KonvaPointerEvent, shapeId: string) {
     if (tool !== "select") return;
+    const shape = planner.shapes.find((current) => current.id === shapeId);
+    if (shape?.locked || shape?.visible === false) return;
     event.cancelBubble = true;
     activeShapeId = shapeId;
   }
@@ -389,36 +398,38 @@
         {/each}
 
         {#each allShapes as shape (shape.id)}
-          {#if shape.type === "rect"}
-            <Rect
-              id={konvaShapeId(shape.id)}
-              x={shape.x}
-              y={shape.y}
-              width={shape.width}
-              height={shape.height}
-              fill={shape.fill}
-              stroke={shape.stroke}
-              strokeWidth={shape.strokeWidth}
-              strokeScaleEnabled={false}
-              draggable={tool === "select" && shape.id !== draftShape?.id}
-              onpointerdown={(event) => handleShapePointerDown(event, shape.id)}
-              ondragend={(event) => handleRectDragEnd(event, shape)}
-              ontransformend={(event) => handleRectTransformEnd(event, shape)}
-            />
-          {:else}
-            <Line
-              id={konvaShapeId(shape.id)}
-              points={shape.points}
-              stroke={shape.stroke}
-              strokeWidth={shape.strokeWidth}
-              strokeScaleEnabled={false}
-              lineCap="round"
-              lineJoin="round"
-              draggable={tool === "select" && shape.id !== draftShape?.id}
-              onpointerdown={(event) => handleShapePointerDown(event, shape.id)}
-              ondragend={(event) => handleLineDragEnd(event, shape)}
-              ontransformend={(event) => handleLineTransformEnd(event, shape)}
-            />
+          {#if shape.visible !== false}
+            {#if shape.type === "rect"}
+              <Rect
+                id={konvaShapeId(shape.id)}
+                x={shape.x}
+                y={shape.y}
+                width={shape.width}
+                height={shape.height}
+                fill={shape.fill}
+                stroke={shape.stroke}
+                strokeWidth={shape.strokeWidth}
+                strokeScaleEnabled={false}
+                draggable={tool === "select" && shape.id !== draftShape?.id && !shape.locked}
+                onpointerdown={(event) => handleShapePointerDown(event, shape.id)}
+                ondragend={(event) => handleRectDragEnd(event, shape)}
+                ontransformend={(event) => handleRectTransformEnd(event, shape)}
+              />
+            {:else}
+              <Line
+                id={konvaShapeId(shape.id)}
+                points={shape.points}
+                stroke={shape.stroke}
+                strokeWidth={shape.strokeWidth}
+                strokeScaleEnabled={false}
+                lineCap="round"
+                lineJoin="round"
+                draggable={tool === "select" && shape.id !== draftShape?.id && !shape.locked}
+                onpointerdown={(event) => handleShapePointerDown(event, shape.id)}
+                ondragend={(event) => handleLineDragEnd(event, shape)}
+                ontransformend={(event) => handleLineTransformEnd(event, shape)}
+              />
+            {/if}
           {/if}
         {/each}
 
@@ -442,4 +453,3 @@
     </div>
   {/if}
 </div>
-

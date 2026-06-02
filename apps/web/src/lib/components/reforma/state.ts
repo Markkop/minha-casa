@@ -17,6 +17,10 @@ export function createShapeId() {
   return `shape-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
 }
 
+export function getShapeName(shape: ReformaShape, index: number) {
+  return shape.name || `${shape.type === "rect" ? "Retangulo" : "Linha"} ${index + 1}`;
+}
+
 export function getShapeBounds(shape: ReformaShape) {
   if (shape.type === "rect") {
     return {
@@ -55,11 +59,19 @@ export function parseReformaDocument(raw: string | null): ReformaDocument {
         visible: parsed.grid?.visible !== false,
         size: clampNumber(Number(parsed.grid?.size ?? 50), 20, 200)
       },
-      shapes: Array.isArray(parsed.shapes) ? parsed.shapes.filter(isShape) : []
+      shapes: Array.isArray(parsed.shapes) ? parsed.shapes.filter(isShape).map(normalizeShape) : []
     };
   } catch {
     return createReformaDocument();
   }
+}
+
+function normalizeShape(shape: ReformaShape): ReformaShape {
+  return {
+    ...shape,
+    visible: shape.visible !== false,
+    locked: shape.locked === true
+  };
 }
 
 function clampNumber(value: number, min: number, max: number) {
@@ -82,4 +94,3 @@ function isShape(value: unknown): value is ReformaShape {
   }
   return false;
 }
-

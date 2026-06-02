@@ -26,6 +26,9 @@ export type ReformaGrid = {
 export type ReformaLineShape = {
   id: string;
   type: "line";
+  name?: string;
+  visible?: boolean;
+  locked?: boolean;
   points: [number, number, number, number];
   stroke: string;
   strokeWidth: number;
@@ -34,6 +37,9 @@ export type ReformaLineShape = {
 export type ReformaRectShape = {
   id: string;
   type: "rect";
+  name?: string;
+  visible?: boolean;
+  locked?: boolean;
   x: number;
   y: number;
   width: number;
@@ -52,4 +58,3 @@ export type ReformaDocument = {
   grid: ReformaGrid;
   shapes: ReformaShape[];
 };
-
