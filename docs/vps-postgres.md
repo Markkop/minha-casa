@@ -82,7 +82,9 @@ BACKEND_API_URL=https://<api-domain>
 INTERNAL_API_SECRET=<same value as VPS .env.prod>
 ```
 
-Also keep the existing production values for OpenAI, ScrapingAnt, Brave Search, Google Maps, Stripe and share links. OpenAI, ScrapingAnt, and Brave Search should be available to Phoenix on the VPS. The Next.js app proxies `/api/parse` and workspace saved-links to Phoenix in production.
+Also keep the existing production values for OpenAI, ScrapingAnt, Brave Search, Google Maps, and share links. OpenAI, ScrapingAnt, and Brave Search should be available to Phoenix on the VPS.
+
+**Stripe (billing):** set `STRIPE_SECRET_KEY` and `STRIPE_WEBHOOK_SECRET` in VPS `.env.prod` and wire them into `phoenix-api` in `infra/vps/docker-compose.db.yml`. Restricted keys (`rk_live_...`) work as drop-in replacements for secret keys. The Svelte app on Vercel does **not** need Stripe env vars — it proxies billing to Phoenix.
 
 ### Langfuse (optional)
 

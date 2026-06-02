@@ -39,6 +39,14 @@ defmodule MinhaCasaAi.Config do
   def stripe_secret_key, do: get(:stripe_secret_key)
   def stripe_webhook_secret, do: get(:stripe_webhook_secret)
 
+  def stripe_test_mode? do
+    case stripe_secret_key() do
+      "sk_test_" <> _ -> true
+      "rk_test_" <> _ -> true
+      _ -> false
+    end
+  end
+
   def assistant_llm_enabled? do
     case get(:assistant_llm_enabled) do
       false -> false

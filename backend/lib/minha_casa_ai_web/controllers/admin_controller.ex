@@ -2,6 +2,7 @@ defmodule MinhaCasaAiWeb.AdminController do
   use MinhaCasaAiWeb, :controller
 
   alias MinhaCasaAi.Billing
+  alias MinhaCasaAi.Config
   alias MinhaCasaAiWeb.{AdminJSON, BillingJSON}
 
   plug :require_admin
@@ -46,7 +47,7 @@ defmodule MinhaCasaAiWeb.AdminController do
   def plans(conn, _params) do
     json(conn, %{
       plans: Billing.list_plans(true) |> Enum.map(&BillingJSON.plan/1),
-      stripeTestMode: true
+      stripeTestMode: Config.stripe_test_mode?()
     })
   end
 

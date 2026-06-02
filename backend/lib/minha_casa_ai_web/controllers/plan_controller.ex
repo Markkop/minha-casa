@@ -2,6 +2,7 @@ defmodule MinhaCasaAiWeb.PlanController do
   use MinhaCasaAiWeb, :controller
 
   alias MinhaCasaAi.Billing
+  alias MinhaCasaAi.Config
   alias MinhaCasaAiWeb.BillingJSON
 
   def index(conn, params) do
@@ -9,7 +10,7 @@ defmodule MinhaCasaAiWeb.PlanController do
 
     json(conn, %{
       plans: BillingJSON.plans(Billing.list_plans(include_inactive)),
-      stripeTestMode: true
+      stripeTestMode: Config.stripe_test_mode?()
     })
   end
 

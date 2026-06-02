@@ -6,7 +6,8 @@ import Stripe from "stripe"
 
 const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY
 const IS_PRODUCTION = process.env.NODE_ENV === "production"
-const IS_STRIPE_TEST_MODE = STRIPE_SECRET_KEY?.startsWith("sk_test_") ?? false
+const IS_STRIPE_TEST_MODE =
+  STRIPE_SECRET_KEY?.startsWith("sk_test_") || STRIPE_SECRET_KEY?.startsWith("rk_test_") || false
 
 // Validate Stripe key configuration
 if (!STRIPE_SECRET_KEY) {
@@ -15,16 +16,19 @@ if (!STRIPE_SECRET_KEY) {
   // Warn about test keys in production (but don't block)
   if (IS_PRODUCTION && IS_STRIPE_TEST_MODE) {
     console.warn(
-      "WARNING: Using Stripe test key (sk_test_) in production environment. " +
+      "WARNING: Using Stripe test key in production environment. " +
       "Payments will be processed in test mode. No real charges will occur."
     )
   }
-  
+
   // Warn about live keys in non-production
-  if (!IS_PRODUCTION && STRIPE_SECRET_KEY.startsWith("sk_live_")) {
+  if (
+    !IS_PRODUCTION &&
+    (STRIPE_SECRET_KEY.startsWith("sk_live_") || STRIPE_SECRET_KEY.startsWith("rk_live_"))
+  ) {
     console.warn(
-      "WARNING: Using Stripe live key (sk_live_) in non-production environment. " +
-      "This will process real payments. Consider using a test key (sk_test_) instead."
+      "WARNING: Using Stripe live key in non-production environment. " +
+      "This will process real payments. Consider using a test key instead."
     )
   }
 }
