@@ -1,9 +1,7 @@
 <script lang="ts">
-  import { addonsApi } from "$lib/addons/client";
   import { logoutToHome } from "$lib/auth/logout";
   import AccountMenu from "$lib/components/layout/AccountMenu.svelte";
   import MarketingHeader from "$lib/components/layout/MarketingHeader.svelte";
-  import OrganizationSwitcher from "$lib/components/workspace/OrganizationSwitcher.svelte";
   import type { LayoutData } from "../$types";
 
   let { children, data } = $props<{
@@ -12,7 +10,6 @@
   }>();
 
   let accountOpen = $state(false);
-  let hasFloodRisk = $state(false);
 
   const user = $derived(data.user);
   const logoHref = $derived(user ? "/subscribe" : "/");
@@ -28,22 +25,6 @@
       .toUpperCase();
   });
 
-  $effect(() => {
-    if (!user) {
-      hasFloodRisk = false;
-      return;
-    }
-
-    void addonsApi
-      .fetchAccess("flood")
-      .then((result) => {
-        hasFloodRisk = result.hasAccess;
-      })
-      .catch(() => {
-        hasFloodRisk = false;
-      });
-  });
-
   function closeChrome() {
     accountOpen = false;
   }
@@ -57,14 +38,11 @@
 <MarketingHeader href={logoHref}>
   {#snippet actions()}
     {#if user}
-      <div class="hidden sm:block">
-        <OrganizationSwitcher />
-      </div>
       <div class="w-auto max-w-[min(100%,14rem)]">
         <AccountMenu
           {user}
           {initials}
-          {hasFloodRisk}
+          hasFloodRisk={false}
           bind:accountOpen
           compact
           onCloseChrome={closeChrome}

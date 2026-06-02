@@ -30,6 +30,7 @@
   } from "$lib/workspace-chrome";
   import { syncSubscriptionCookie } from "$lib/sync-subscription-cookie";
   import { workspaceApi } from "$lib/workspace/client";
+  import ImportExportMenuItems from "$lib/components/anuncios/ImportExportMenuItems.svelte";
 
   type ShellUser = {
     name?: string | null;
@@ -236,6 +237,10 @@
 
 <svelte:window onvisibilitychange={handleVisibilityChange} onstorage={handleStorageSync} />
 
+{#snippet accountMenuItems()}
+  <ImportExportMenuItems />
+{/snippet}
+
 <CollectionsProvider enabled={shouldLoadCollections}>
   <div
     data-slot="sidebar-wrapper"
@@ -250,6 +255,7 @@
       {user}
       {initials}
       {hasFloodRisk}
+      {accountMenuItems}
       bind:accountOpen
       onCloseChrome={closeChrome}
       onLogout={logout}

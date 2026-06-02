@@ -11,6 +11,7 @@ import {
   SUBSCRIPTION_COOKIE_NAME,
   SUBSCRIPTION_PAGE
 } from "$lib/subscription";
+import { refreshSubscriptionStatusCookie } from "$lib/server/subscription-status";
 
 const AUTH_BASE = "/api/auth";
 const AUTH_ROUTES = new Set(["/login", "/signup"]);
@@ -68,7 +69,17 @@ const routeGuardHandle: Handle = async ({ event, resolve }) => {
 
   if (loggedIn && requiresSubscription(pathname) && !isSubscriptionExempt(pathname)) {
     const cookie = event.cookies.get(SUBSCRIPTION_COOKIE_NAME);
-    if (!isSubscriptionValid(cookie)) {
+    let subscriptionActive = isSubscriptionValid(cookie);
+    if (!subscriptionActive && event.locals.user?.id) {
+      try {
+        const refreshed = await refreshSubscriptionStatusCookie(event.cookies, event.locals.user.id);
+        subscriptionActive = refreshed.hasActiveSubscription;
+      } catch (error) {
+        console.error("[hooks.server] subscription refresh failed", error);
+      }
+    }
+
+    if (!subscriptionActive) {
       const subscribe = new URL(SUBSCRIPTION_PAGE, event.url);
       subscribe.searchParams.set("redirect", pathname);
       throw redirect(303, subscribe.toString());

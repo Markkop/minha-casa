@@ -24,18 +24,18 @@ export { getActiveOrganizationId, setActiveOrganizationId } from "$lib/active-or
 
 async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const { method = "GET", body, headers = {}, auth = true } = options;
+  const base = config.apiUrl;
   const requestHeaders: Record<string, string> = {
     "Content-Type": "application/json",
     ...headers
   };
 
-  if (auth) {
+  if (auth && base) {
     const token = await getApiToken();
     if (token) requestHeaders.Authorization = `Bearer ${token}`;
   }
 
   let response: Response;
-  const base = config.apiUrl;
   const url = base ? `${base}/api${path}` : `/api${path}`;
   try {
     response = await fetch(url, {

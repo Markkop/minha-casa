@@ -1,4 +1,5 @@
 <script lang="ts">
+  import type { Snippet } from "svelte";
   import { Home } from "@lucide/svelte";
   import { cn } from "$lib/utils";
   import { workspaceChromeRowClass } from "$lib/workspace-chrome";
@@ -26,6 +27,7 @@
     user,
     initials,
     hasFloodRisk,
+    accountMenuItems,
     accountOpen = $bindable(false),
     onCloseChrome,
     onLogout,
@@ -40,6 +42,7 @@
     user?: ShellUser | null;
     initials: string;
     hasFloodRisk: boolean;
+    accountMenuItems?: Snippet;
     accountOpen?: boolean;
     onCloseChrome: () => void;
     onLogout: () => void | Promise<void>;
@@ -80,6 +83,7 @@
       {user}
       {initials}
       {hasFloodRisk}
+      {accountMenuItems}
       bind:accountOpen
       {onCloseChrome}
       onLogout={onLogout}

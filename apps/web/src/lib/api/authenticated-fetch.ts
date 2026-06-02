@@ -1,5 +1,12 @@
 type TokenResponse = { token?: string };
 
+export class MissingAuthTokenError extends Error {
+  constructor() {
+    super("Missing authentication token");
+    this.name = "MissingAuthTokenError";
+  }
+}
+
 export async function fetchWithBetterAuthJwt(
   fetchFn: typeof fetch,
   input: string,
@@ -12,6 +19,10 @@ export async function fetchWithBetterAuthJwt(
     if (payload?.token) {
       headers.set("Authorization", `Bearer ${payload.token}`);
     }
+  }
+
+  if (!headers.has("Authorization")) {
+    throw new MissingAuthTokenError();
   }
 
   return fetchFn(input, { ...init, headers });

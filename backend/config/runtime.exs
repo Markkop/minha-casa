@@ -25,7 +25,7 @@ app_public_url =
     ""
   else
     non_empty_env.("APP_PUBLIC_URL") || non_empty_env.("NEXT_PUBLIC_APP_URL") ||
-      "http://localhost:3000"
+      "http://localhost:5173"
   end
 
 better_auth_jwks_url =
