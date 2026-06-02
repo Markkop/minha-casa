@@ -22,6 +22,7 @@
     zoomAtPoint,
     type Bounds
   } from "$lib/components/reforma/state";
+  import { buildGridLines } from "$lib/components/reforma/grid-lines";
   import { buildAllMeasurementOverlays } from "$lib/components/reforma/measurements";
   import { snapPointer, snapRectShape, snapShape, snapSquareRect } from "$lib/components/reforma/snap";
   import type {
@@ -35,6 +36,7 @@
   const MEASUREMENT_FONT_SIZE = 12;
   const MEASUREMENT_LINE_STROKE = "#64748b";
   const MEASUREMENT_FADED_OPACITY = 0.28;
+  const MEASUREMENT_LINE_DASH = [6, 4];
   const SHAPE_STROKE = "#1d5f9e";
   const SHAPE_FILL = "rgba(157, 212, 255, 0.16)";
 
@@ -45,7 +47,8 @@
     blueprintHandActive = false,
     selectedShapeIds = $bindable<string[]>([]),
     canvasWidth = $bindable(0),
-    canvasHeight = $bindable(0)
+    canvasHeight = $bindable(0),
+    recordUndo = () => {}
   }: {
     planner: ReformaDocument;
     tool: ReformaTool;
@@ -54,6 +57,7 @@
     selectedShapeIds?: string[];
     canvasWidth?: number;
     canvasHeight?: number;
+    recordUndo?: () => void;
   } = $props();
 
   let host: HTMLDivElement | null = $state(null);
@@ -77,25 +81,22 @@
   let liveShapeGeometry = $state<Record<string, ReformaShape>>({});
 
   const gridLines = $derived.by(() => {
-    if (!planner.grid.visible || canvasWidth <= 0 || canvasHeight <= 0) return [];
+    if (canvasWidth <= 0 || canvasHeight <= 0) return [];
 
     const size = planner.grid.size;
     const left = (-planner.viewport.x / planner.viewport.scale) - size;
     const top = (-planner.viewport.y / planner.viewport.scale) - size;
     const right = (canvasWidth - planner.viewport.x) / planner.viewport.scale + size;
     const bottom = (canvasHeight - planner.viewport.y) / planner.viewport.scale + size;
-    const startX = Math.floor(left / size) * size;
-    const startY = Math.floor(top / size) * size;
-    const lines: Array<{ id: string; points: number[]; strong: boolean }> = [];
 
-    for (let x = startX; x <= right; x += size) {
-      lines.push({ id: `v-${x}`, points: [x, top, x, bottom], strong: x === 0 });
-    }
-    for (let y = startY; y <= bottom; y += size) {
-      lines.push({ id: `h-${y}`, points: [left, y, right, y], strong: y === 0 });
-    }
-
-    return lines;
+    return buildGridLines({
+      visible: planner.grid.visible,
+      size,
+      left,
+      top,
+      right,
+      bottom
+    });
   });
 
   const allShapes = $derived(draftShape ? [...planner.shapes, draftShape] : planner.shapes);
@@ -234,8 +235,9 @@
     planner = { ...planner, viewport };
   }
 
-  function setBlueprintPosition(x: number, y: number) {
+  function setBlueprintPosition(x: number, y: number, options?: { recordUndo?: boolean }) {
     if (!planner.blueprint) return;
+    if (options?.recordUndo) recordUndo();
     planner = {
       ...planner,
       blueprint: {
@@ -246,12 +248,17 @@
     };
   }
 
-  function setShapes(shapes: ReformaShape[]) {
+  function setShapes(shapes: ReformaShape[], options?: { recordUndo?: boolean }) {
+    if (options?.recordUndo !== false) recordUndo();
     planner = { ...planner, shapes };
   }
 
-  function updateShape(shape: ReformaShape) {
-    setShapes(planner.shapes.map((current) => (current.id === shape.id ? shape : current)));
+  function updateShape(shape: ReformaShape, options?: { recordUndo?: boolean }) {
+    if (options?.recordUndo !== false) recordUndo();
+    planner = {
+      ...planner,
+      shapes: planner.shapes.map((current) => (current.id === shape.id ? shape : current))
+    };
   }
 
   function setSelection(ids: string[]) {
@@ -340,6 +347,7 @@
   function startBlueprintDrag(event: PointerEvent) {
     if (!planner.blueprint) return;
 
+    recordUndo();
     isDraggingBlueprint = true;
     panPointerId = event.pointerId;
     panOrigin = { x: event.clientX, y: event.clientY };
@@ -523,7 +531,7 @@
     const bounds = getShapeBounds(draftShape);
     if (bounds.width >= MARQUEE_MIN_SIZE || bounds.height >= MARQUEE_MIN_SIZE) {
       const committed = snapShape(draftShape, planner.grid);
-      setShapes([...planner.shapes, committed]);
+      setShapes([...planner.shapes, committed], { recordUndo: true });
       setSelection([committed.id]);
     }
 
@@ -852,6 +860,7 @@
               points={line.points}
               stroke={MEASUREMENT_LINE_STROKE}
               strokeWidth={measurementStrokeWidth}
+              dash={MEASUREMENT_LINE_DASH}
               opacity={overlayOpacity}
               strokeScaleEnabled={false}
               listening={false}

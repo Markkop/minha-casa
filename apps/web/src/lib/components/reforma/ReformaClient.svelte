@@ -30,6 +30,13 @@
   import WorkspacePage from "$lib/components/workspace/WorkspacePage.svelte";
   import { cn } from "$lib/utils";
   import { resizeBlueprintFile } from "$lib/components/reforma/blueprint";
+  import {
+    captureCanvasSnapshot,
+    popUndoStack,
+    pushUndoStack,
+    snapshotsEqual,
+    type ReformaCanvasSnapshot
+  } from "$lib/components/reforma/history";
   import { snapShape } from "$lib/components/reforma/snap";
   import ReformaCanvas from "$lib/components/reforma/ReformaCanvas.svelte";
   import {
@@ -75,6 +82,8 @@
   let layersPanelOpen = $state(true);
   let designPanelOpen = $state(true);
   let blueprintHandActive = $state(false);
+  let undoStack = $state<ReformaCanvasSnapshot[]>([]);
+  let isApplyingHistory = $state(false);
 
   const zoomPercent = $derived(Math.round(planner.viewport.scale * 100));
   const selectedShapes = $derived(
@@ -94,8 +103,38 @@
 
   onMount(() => {
     planner = parseReformaDocument(localStorage.getItem(REFORMA_STORAGE_KEY));
+    undoStack = [];
     hydrated = true;
   });
+
+  function recordUndo() {
+    if (isApplyingHistory) return;
+
+    const snapshot = captureCanvasSnapshot(planner);
+    const previous = undoStack[undoStack.length - 1];
+    if (previous && snapshotsEqual(previous, snapshot)) return;
+
+    undoStack = pushUndoStack(undoStack, snapshot);
+  }
+
+  function undoCanvasChange() {
+    if (undoStack.length === 0) return;
+
+    const { snapshot, stack } = popUndoStack(undoStack);
+    if (!snapshot) return;
+
+    undoStack = stack;
+    isApplyingHistory = true;
+    planner = {
+      ...planner,
+      shapes: snapshot.shapes,
+      blueprint: snapshot.blueprint
+    };
+    selectedShapeIds = selectedShapeIds.filter((id) =>
+      snapshot.shapes.some((shape) => shape.id === id)
+    );
+    isApplyingHistory = false;
+  }
 
   $effect(() => {
     if (!hydrated) return;
@@ -120,6 +159,7 @@
 
   function removeBlueprint() {
     blueprintHandActive = false;
+    recordUndo();
     planner = { ...planner, blueprint: null };
   }
 
@@ -131,6 +171,7 @@
     uploadError = null;
     try {
       const image = await resizeBlueprintFile(file);
+      recordUndo();
       planner = {
         ...planner,
         blueprint: {
@@ -175,6 +216,7 @@
       y: (canvasHeight / 2 - planner.viewport.y) / planner.viewport.scale
     };
 
+    recordUndo();
     planner = {
       ...planner,
       blueprint: {
@@ -317,6 +359,7 @@
   }
 
   function updateShape(shapeId: string, patch: Partial<ReformaShape>) {
+    recordUndo();
     planner = {
       ...planner,
       shapes: planner.shapes.map((shape) =>
@@ -395,6 +438,7 @@
 
   function deleteSelectedShape() {
     if (selectedShapeIds.length === 0) return;
+    recordUndo();
     planner = {
       ...planner,
       shapes: planner.shapes.filter((shape) => !selectedShapeIds.includes(shape.id))
@@ -404,6 +448,7 @@
 
   function duplicateSelectedShape() {
     if (!selectedShape || selectedIndex < 0) return;
+    recordUndo();
     const offset = 24;
     const copy: ReformaShape =
       selectedShape.type === "rect"
@@ -440,17 +485,20 @@
     if (selectedIndex < 0) return;
     const nextIndex = direction === "up" ? selectedIndex + 1 : selectedIndex - 1;
     if (nextIndex < 0 || nextIndex >= planner.shapes.length) return;
+    recordUndo();
     const shapes = [...planner.shapes];
     [shapes[selectedIndex], shapes[nextIndex]] = [shapes[nextIndex], shapes[selectedIndex]];
     planner = { ...planner, shapes };
   }
 
   function clearShapes() {
+    recordUndo();
     planner = { ...planner, shapes: [] };
     selectedShapeIds = [];
   }
 
   function resetPlanner() {
+    recordUndo();
     planner = createReformaDocument();
     selectedShapeIds = [];
     tool = "select";
@@ -513,6 +561,12 @@
     if (mod && key === "0") {
       event.preventDefault();
       zoomTo100();
+      return;
+    }
+
+    if (mod && key === "z" && !event.shiftKey) {
+      event.preventDefault();
+      undoCanvasChange();
       return;
     }
 
@@ -778,6 +832,7 @@
         {tool}
         {spacePressed}
         {blueprintHandActive}
+        recordUndo={recordUndo}
       />
     </main>
 
