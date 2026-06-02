@@ -1,5 +1,45 @@
 import type { Cookies } from "@sveltejs/kit";
 
+function splitSetCookieHeader(header: string) {
+  const cookies: string[] = [];
+  let start = 0;
+  let inExpires = false;
+
+  for (let index = 0; index < header.length; index += 1) {
+    const rest = header.slice(index).toLowerCase();
+    if (rest.startsWith("expires=")) {
+      inExpires = true;
+      index += "expires=".length - 1;
+      continue;
+    }
+    if (inExpires && header[index] === ";") {
+      inExpires = false;
+      continue;
+    }
+    if (header[index] === ",") {
+      const next = header.slice(index + 1).trimStart();
+      if (/^[^=;,]+=/.test(next)) {
+        cookies.push(header.slice(start, index).trim());
+        start = index + 1;
+        inExpires = false;
+      }
+    }
+  }
+
+  cookies.push(header.slice(start).trim());
+  return cookies.filter(Boolean);
+}
+
+function getSetCookieHeaders(headers: Headers) {
+  if (typeof headers.getSetCookie === "function") {
+    const values = headers.getSetCookie();
+    if (values.length > 0) return values.flatMap(splitSetCookieHeader);
+  }
+
+  const fallback = headers.get("set-cookie");
+  return fallback ? splitSetCookieHeader(fallback) : [];
+}
+
 function parseSetCookie(header: string) {
   const parts = header.split(";").map((part) => part.trim());
   const [nameValue, ...attributes] = parts;
@@ -43,12 +83,7 @@ function parseSetCookie(header: string) {
 }
 
 export function applyAuthResponseCookies(response: Response, cookies: Cookies) {
-  const setCookieHeaders =
-    typeof response.headers.getSetCookie === "function"
-      ? response.headers.getSetCookie()
-      : [];
-
-  for (const header of setCookieHeaders) {
+  for (const header of getSetCookieHeaders(response.headers)) {
     const parsed = parseSetCookie(header);
     if (!parsed) continue;
     const { path = "/", httpOnly, secure, sameSite, maxAge, expires } = parsed.options;
