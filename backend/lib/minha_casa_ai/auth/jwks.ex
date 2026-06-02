@@ -25,7 +25,7 @@ defmodule MinhaCasaAi.Auth.JWKS do
   end
 
   def refresh_keys do
-    url = Config.better_auth_jwks_url() || "http://localhost:5173/auth/jwks"
+    url = Config.better_auth_jwks_url() || "http://localhost:5173/api/auth/jwks"
 
     case Req.get(url, receive_timeout: 5_000) do
       {:ok, %{status: 200, body: %{"keys" => keys}}} when is_list(keys) ->

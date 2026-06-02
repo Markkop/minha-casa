@@ -9,6 +9,22 @@ pool_size = String.to_integer(System.get_env("DATABASE_POOL_MAX") || "10")
 ssl? =
   String.downcase(System.get_env("DATABASE_SSL") || "false") in ["1", "true", "yes"]
 
+app_public_url =
+  if config_env() == :test do
+    ""
+  else
+    System.get_env("APP_PUBLIC_URL") || System.get_env("NEXT_PUBLIC_APP_URL") ||
+      "http://localhost:3000"
+  end
+
+better_auth_jwks_url =
+  System.get_env("BETTER_AUTH_JWKS_URL") ||
+    if app_public_url == "" do
+      "http://localhost:5173/api/auth/jwks"
+    else
+      String.trim_trailing(app_public_url, "/") <> "/api/auth/jwks"
+    end
+
 config :minha_casa_ai, MinhaCasaAi.Repo,
   url: database_url,
   pool_size: pool_size,
@@ -56,15 +72,8 @@ config :minha_casa_ai, MinhaCasaAi.Config,
   whatsapp_app_secret: System.get_env("WHATSAPP_APP_SECRET"),
   telegram_bot_token: System.get_env("TELEGRAM_BOT_TOKEN"),
   telegram_webhook_secret: System.get_env("TELEGRAM_WEBHOOK_SECRET"),
-  better_auth_jwks_url:
-    System.get_env("BETTER_AUTH_JWKS_URL") || "http://localhost:5173/auth/jwks",
-  app_public_url:
-    if(config_env() == :test,
-      do: "",
-      else:
-        System.get_env("APP_PUBLIC_URL") || System.get_env("NEXT_PUBLIC_APP_URL") ||
-          "http://localhost:3000"
-    ),
+  better_auth_jwks_url: better_auth_jwks_url,
+  app_public_url: app_public_url,
   stripe_secret_key: System.get_env("STRIPE_SECRET_KEY"),
   stripe_webhook_secret: System.get_env("STRIPE_WEBHOOK_SECRET"),
   assistant_llm_enabled: System.get_env("ASSISTANT_LLM_ENABLED", "true") not in ["false", "0"],

@@ -102,7 +102,7 @@ export const verifications = pgTable(
 )
 
 // ============================================================================
-// JWKS (Better Auth JWT plugin — signing keys for /auth/token and /auth/jwks)
+// JWKS (Better Auth JWT plugin — signing keys for /api/auth/token and /api/auth/jwks)
 // ============================================================================
 export const jwks = pgTable("jwks", {
   id: text("id").primaryKey(),

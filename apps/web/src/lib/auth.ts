@@ -19,8 +19,8 @@ export function getAuth(): ReturnType<typeof betterAuth> {
 
   const db = getDb();
   authInstance = betterAuth({
-    basePath: "/auth",
-    baseURL: process.env.BETTER_AUTH_URL,
+    basePath: "/api/auth",
+    baseURL: process.env.BETTER_AUTH_URL || process.env.NEXT_PUBLIC_APP_URL,
     secret: process.env.BETTER_AUTH_SECRET,
     database: drizzleAdapter(db, {
       provider: "pg",

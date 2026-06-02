@@ -61,14 +61,14 @@ cp apps/web/.env.example apps/web/.env
 | `BETTER_AUTH_SECRET` | Same value as Next while both frontends run |
 | `BETTER_AUTH_URL` | Must match browser origin, e.g. `http://localhost:5173` |
 | `BETTER_AUTH_TRUSTED_ORIGINS` | Comma-separated origins (Svelte + Next during migration) |
-| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | OAuth; add redirect `http://localhost:5173/auth/callback/google` |
+| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | OAuth; add redirect `http://localhost:5173/api/auth/callback/google` |
 | `PUBLIC_API_URL` | Phoenix, e.g. `http://localhost:4000` |
 | `PUBLIC_GOOGLE_MAPS_API_KEY` | Maps (optional until map UI is ported) |
 
 Phoenix (`infra/local/.env.local` or compose env) should also set:
 
 ```bash
-BETTER_AUTH_JWKS_URL=http://host.docker.internal:5173/auth/jwks
+BETTER_AUTH_JWKS_URL=http://host.docker.internal:5173/api/auth/jwks
 CORS_ORIGINS=http://localhost:5173,http://localhost:3000
 APP_PUBLIC_URL=http://localhost:5173
 STRIPE_SECRET_KEY=...
@@ -173,4 +173,4 @@ For the earlier floodrisk pass, `/floodrisk` was opened through the in-app brows
 - Reimplement map views with Leaflet and Google Maps JS wrappers, not React bindings. `/anuncios` currently uses cached Nominatim geocoding plus OSM embeds as the Svelte-native map baseline.
 - Polish `/floodrisk` against the React Three Fiber version after logged-in visual QA.
 - Add Stripe reconciliation repair actions if needed; the current port only surfaces discrepancies.
-- Local Docker (`infra/local/docker-compose.app.yml`) runs `svelte-web` on `:5173` instead of `next-web`; Phoenix defaults `BETTER_AUTH_JWKS_URL` to `http://svelte-web:5173/auth/jwks` on the compose network.
+- Local Docker (`infra/local/docker-compose.app.yml`) runs `svelte-web` on `:5173` instead of `next-web`; Phoenix defaults `BETTER_AUTH_JWKS_URL` to `http://svelte-web:5173/api/auth/jwks` on the compose network.

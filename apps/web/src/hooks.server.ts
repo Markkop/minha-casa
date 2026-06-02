@@ -12,7 +12,7 @@ import {
   SUBSCRIPTION_PAGE
 } from "$lib/subscription";
 
-const AUTH_BASE = "/auth/";
+const AUTH_BASE = "/api/auth";
 const AUTH_ROUTES = new Set(["/login", "/signup"]);
 const SUBSCRIPTION_EXEMPT_PREFIXES = ["/subscribe", "/planos", "/admin"];
 
@@ -25,7 +25,7 @@ function isSubscriptionExempt(pathname: string) {
 const authHandle: Handle = async ({ event, resolve }) => {
   if (building) return resolve(event);
 
-  if (event.url.pathname.startsWith(AUTH_BASE)) {
+  if (event.url.pathname === AUTH_BASE || event.url.pathname.startsWith(`${AUTH_BASE}/`)) {
     return getAuth().handler(event.request);
   }
 

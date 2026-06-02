@@ -15,7 +15,7 @@ const jwtTokenClient = () => ({
 });
 
 export const authClient = createAuthClient({
-  basePath: "/auth",
+  basePath: "/api/auth",
   plugins: [jwtClient(), jwtTokenClient()]
 });
 

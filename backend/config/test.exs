@@ -14,5 +14,5 @@ config :minha_casa_ai, MinhaCasaAi.Config,
   property_analysis_engine: "legacy",
   hermes_analysis_timeout_ms: 1_000,
   hermes_jobs_dir: System.tmp_dir!(),
-  better_auth_jwks_url: "http://localhost:5173/auth/jwks",
+  better_auth_jwks_url: "http://localhost:5173/api/auth/jwks",
   langfuse_enabled: false
