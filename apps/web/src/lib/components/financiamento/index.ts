@@ -13,7 +13,13 @@ export {
   type SliderField,
   type EstrategiaFiltro
 } from "./financiamento-parameter-types";
-export { calculateSliderRange } from "./parameter-row-helpers";
+export {
+  VALOR_IMOVEL_RANGE,
+  VALOR_APARTAMENTO_RANGE,
+  CUSTO_CONDOMINIO_RANGE,
+  snapToPropertyStep,
+  PROPERTY_SLIDER_STEP
+} from "./parameter-row-helpers";
 export { default as SimulatorClient } from "./SimulatorClient.svelte";
 export { default as SettingsPanel } from "./SettingsPanel.svelte";
 export { default as SettingsButton } from "./SettingsButton.svelte";

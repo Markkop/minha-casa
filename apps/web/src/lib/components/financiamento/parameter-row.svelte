@@ -5,7 +5,7 @@
   import type { ParameterRowProps } from "$lib/components/financiamento/financiamento-parameter-types";
   import Input from "$lib/components/ui/Input.svelte";
   import Slider from "$lib/components/ui/Slider.svelte";
-  import Tooltip from "$lib/components/ui/Tooltip.svelte";
+  import FloatingTooltip from "$lib/components/ui/FloatingTooltip.svelte";
   import { cn } from "$lib/utils";
 
   let {
@@ -27,18 +27,15 @@
     <div class="flex min-w-0 items-center gap-1.5">
       <span class="text-sm leading-tight text-app-muted">{label}</span>
       {#if tooltip}
-        <Tooltip contentClass="max-w-xs">
-          {#snippet trigger()}
-            <button
-              type="button"
-              class="inline-flex shrink-0 cursor-help text-app-subtle transition-colors hover:text-app-accent"
-              aria-label={`Informação: ${label}`}
-            >
-              <Info class="h-3.5 w-3.5" />
-            </button>
-          {/snippet}
-          <p class="text-xs">{tooltip}</p>
-        </Tooltip>
+        <FloatingTooltip label={tooltip} side="top" align="center" class="max-w-xs">
+          <button
+            type="button"
+            class="inline-flex shrink-0 cursor-help text-app-subtle transition-colors hover:text-app-accent"
+            aria-label={`Informação: ${label}`}
+          >
+            <Info class="h-3.5 w-3.5" />
+          </button>
+        </FloatingTooltip>
       {/if}
     </div>
 

@@ -12,42 +12,20 @@ export type EstrategiaFiltro = "permuta" | "venda_posterior";
 export type SliderField = "valorImovel" | "valorApartamento" | "custoCondominio";
 
 export interface SimulatorParams {
-  valorImovelSelecionado: number;
+  capitalDisponivel: number;
+  valorApartamento: number;
+  rendaMensal: number;
+  aporteExtra: number;
+  valorImovel: number;
   taxaAnual: number;
   trMensal: number;
-  prazoMeses: number;
-  capitalDisponivel: number;
-  reservaEmergencia: number;
-  valorApartamentoSelecionado: number;
-  haircut: number;
   custoCondominioMensal: number;
-  aporteExtra: number;
-  rendaMensal: number;
-  seguros: number;
   valoresImovelFiltroMultipliers: number[];
   valoresAptoFiltroMultipliers: number[];
   estrategiasFiltro: EstrategiaFiltro[];
-  valorImovelBase: number;
-  valorImovelMultiplier: number;
-  capitalDisponivelBase: number;
-  capitalDisponivelMultiplier: number;
-  reservaEmergenciaBase: number;
-  reservaEmergenciaMultiplier: number;
-  valorApartamentoBase: number;
-  valorApartamentoMultiplier: number;
-  custoCondominioBase: number;
-  custoCondominioMultiplier: number;
-  segurosBase: number;
-  segurosMultiplier: number;
-  prazoMesesBase: number;
-  prazoMesesMultiplier: number;
-  reservaTetoRatio: number;
 }
 
 export interface RecursosMeta {
-  reservaRecomendada: number;
-  reservaPctRecomendado: number;
-  reservaTeto: number;
   capitalSlider: { min: number; max: number; step: number };
 }
 

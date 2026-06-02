@@ -1,6 +1,7 @@
 <script lang="ts">
   import { ArrowDown, ArrowUp, CircleCheck, Info } from "@lucide/svelte";
   import EstrategiaBadge from "$lib/components/financiamento/EstrategiaBadge.svelte";
+  import FloatingTooltip from "$lib/components/ui/FloatingTooltip.svelte";
   import Tooltip from "$lib/components/ui/Tooltip.svelte";
   import {
     toggleSort,
@@ -18,10 +19,13 @@
 
   let {
     cenarios,
-    onSelectCenario
+    onSelectCenario,
+    permutaDisponivel = true
   }: {
     cenarios: CenarioCompleto[];
     onSelectCenario?: (cenario: CenarioCompleto) => void;
+    /** When false (sem seu imóvel), hides Seu imóvel and Estratégia columns. */
+    permutaDisponivel?: boolean;
   } = $props();
 
   let sort = $state<ResultsSortState>({ key: "custoTotal", direction: "asc" });
@@ -57,18 +61,15 @@
         {/if}
       </button>
       {#if tooltip}
-        <Tooltip side="top">
-          {#snippet trigger()}
-            <button
-              type="button"
-              class="inline-flex text-app-subtle hover:text-app-accent"
-              aria-label="Mais informações sobre {label}"
-            >
-              <Info class="size-3" />
-            </button>
-          {/snippet}
-          <p class="text-xs">{tooltip}</p>
-        </Tooltip>
+        <FloatingTooltip label={tooltip} side="right" align="center">
+          <button
+            type="button"
+            class="inline-flex text-app-subtle hover:text-app-accent"
+            aria-label="Mais informações sobre {label}"
+          >
+            <Info class="size-3" />
+          </button>
+        </FloatingTooltip>
       {/if}
     </div>
   </th>
@@ -99,9 +100,11 @@
     <thead>
       <tr class="hover:bg-transparent">
         <th class={cn(thClass, "sticky left-0 z-30 w-8")}></th>
-        {@render sortableHeader("Casa", "valorImovel", TOOLTIPS.valorImovel)}
-        {@render sortableHeader("Apto", "valorApartamento", TOOLTIPS.valorApartamento)}
-        <th class={thClass}>Estratégia</th>
+        {@render sortableHeader("Imóvel alvo", "valorImovel", TOOLTIPS.valorImovel)}
+        {#if permutaDisponivel}
+          {@render sortableHeader("Seu imóvel", "valorApartamento", TOOLTIPS.valorApartamento)}
+          <th class={thClass}>Estratégia</th>
+        {/if}
         {@render sortableHeader("Financiado", "valorFinanciado", "Valor total a ser financiado")}
         {@render sortableHeader(
           "Total/mês",
@@ -142,16 +145,18 @@
           <td class={cn(tdClass, "font-mono text-sm text-app-accent")}>
             {formatCurrencyCompact(cenario.valorImovel)}
           </td>
-          <td class={cn(tdClass, "font-mono text-sm text-salmon")}>
-            {formatCurrencyCompact(
-              cenario.estrategia === "permuta"
-                ? cenario.financiamento.valorApartamentoUsado
-                : cenario.valorApartamento
-            )}
-          </td>
-          <td class={tdClass}>
-            <EstrategiaBadge estrategia={cenario.estrategia} variant="inline" />
-          </td>
+          {#if permutaDisponivel}
+            <td class={cn(tdClass, "font-mono text-sm text-salmon")}>
+              {formatCurrencyCompact(
+                cenario.estrategia === "permuta"
+                  ? cenario.financiamento.valorApartamentoUsado
+                  : cenario.valorApartamento
+              )}
+            </td>
+            <td class={tdClass}>
+              <EstrategiaBadge estrategia={cenario.estrategia} variant="inline" />
+            </td>
+          {/if}
           <td class={cn(tdClass, "font-mono text-sm")}>
             {formatCurrencyCompact(cenario.financiamento.valorFinanciado)}
           </td>

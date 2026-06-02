@@ -30,8 +30,7 @@
   );
 
   function handleInput(event: Event) {
-    const target = event.currentTarget as HTMLInputElement;
-    const next = Number(target.value);
+    const next = Number((event.currentTarget as HTMLInputElement).value);
     value = next;
     onValueChange?.(next);
   }
@@ -64,7 +63,7 @@
     {max}
     {step}
     {disabled}
-    bind:value
+    {value}
     oninput={handleInput}
     aria-label={ariaLabel}
     aria-valuemin={min}

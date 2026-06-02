@@ -39,7 +39,7 @@
       </div>
 
       <div class="text-xs text-app-muted">
-        Apto:
+        Seu imóvel:
         <span class="font-mono text-salmon">
           {formatCurrencyCompact(cenario.valorApartamento)}
         </span>

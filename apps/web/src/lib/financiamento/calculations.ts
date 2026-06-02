@@ -3,6 +3,8 @@
  * Todas as fórmulas e cálculos para financiamento habitacional
  */
 
+import { SIMULATION_ASSUMPTIONS } from "$lib/financiamento/calculations-defaults";
+
 // ============================================================================
 // TYPES AND INTERFACES
 // ============================================================================
@@ -252,15 +254,15 @@ export interface MatrizCenariosParams {
   valoresImovel: readonly number[]
   valoresApartamento: readonly number[]
   capitalDisponivel: number
-  reservaEmergencia: number
-  haircut: number
   taxaAnual: number
   trMensal: number
-  prazoMeses: number
   aporteExtra: number
   rendaMensal: number
   custoCondominioMensal: number
-  seguros: number
+  reservaEmergencia?: number
+  haircut?: number
+  prazoMeses?: number
+  seguros?: number
 }
 
 // ============================================================================
@@ -943,21 +945,25 @@ export const gerarMatrizCenarios = ({
   valoresImovel,
   valoresApartamento,
   capitalDisponivel,
-  reservaEmergencia,
-  haircut,
   taxaAnual,
   trMensal,
-  prazoMeses,
   aporteExtra,
   rendaMensal,
   custoCondominioMensal,
-  seguros,
+  reservaEmergencia = SIMULATION_ASSUMPTIONS.reservaEmergencia,
+  haircut = SIMULATION_ASSUMPTIONS.haircut,
+  prazoMeses = SIMULATION_ASSUMPTIONS.prazoMeses,
+  seguros = SIMULATION_ASSUMPTIONS.seguros,
 }: MatrizCenariosParams): CenarioCompleto[] => {
   const cenarios: CenarioCompleto[] = []
 
   for (const valorImovel of valoresImovel) {
     for (const valorApartamento of valoresApartamento) {
-      for (const estrategia of ["permuta", "venda_posterior"] as const) {
+      const estrategias =
+        valorApartamento > 0
+          ? (["permuta", "venda_posterior"] as const)
+          : (["venda_posterior"] as const);
+      for (const estrategia of estrategias) {
         const cenario = gerarCenarioCompleto({
           valorImovel,
           capitalDisponivel,

@@ -6,6 +6,7 @@
     Line,
     Rect,
     Stage,
+    Text,
     Transformer,
     type KonvaDragTransformEvent,
     type KonvaPointerEvent,
@@ -15,30 +16,42 @@
   import { cn } from "$lib/utils";
   import {
     createShapeId,
-    getShapeBounds
+    getSelectableShapeIdsInBounds,
+    getShapeBounds,
+    normalizeBounds,
+    zoomAtPoint,
+    type Bounds
   } from "$lib/components/reforma/state";
+  import { buildAllMeasurementOverlays } from "$lib/components/reforma/measurements";
+  import { snapPointer, snapRectShape, snapShape, snapSquareRect } from "$lib/components/reforma/snap";
   import type {
     ReformaDocument,
     ReformaShape,
     ReformaTool
   } from "$lib/components/reforma/types";
 
-  const MIN_SCALE = 0.2;
-  const MAX_SCALE = 4;
   const SCALE_BY = 1.05;
+  const MARQUEE_MIN_SIZE = 4;
+  const MEASUREMENT_FONT_SIZE = 12;
+  const MEASUREMENT_LINE_STROKE = "#64748b";
+  const MEASUREMENT_FADED_OPACITY = 0.28;
   const SHAPE_STROKE = "#1d5f9e";
   const SHAPE_FILL = "rgba(157, 212, 255, 0.16)";
 
   let {
     planner = $bindable<ReformaDocument>(),
     tool,
-    activeShapeId = $bindable<string | null>(null),
+    spacePressed = false,
+    blueprintHandActive = false,
+    selectedShapeIds = $bindable<string[]>([]),
     canvasWidth = $bindable(0),
     canvasHeight = $bindable(0)
   }: {
     planner: ReformaDocument;
     tool: ReformaTool;
-    activeShapeId?: string | null;
+    spacePressed?: boolean;
+    blueprintHandActive?: boolean;
+    selectedShapeIds?: string[];
     canvasWidth?: number;
     canvasHeight?: number;
   } = $props();
@@ -49,7 +62,19 @@
   let blueprintImage: HTMLImageElement | null = $state(null);
   let draftShape: ReformaShape | null = $state(null);
   let isDrawing = $state(false);
+  let isPanning = $state(false);
+  let isDraggingBlueprint = $state(false);
+  let isMarqueeSelecting = $state(false);
   let drawStart = $state({ x: 0, y: 0 });
+  let marqueeStart = $state({ x: 0, y: 0 });
+  let marqueeRect: Bounds | null = $state(null);
+  let marqueeShiftKey = $state(false);
+  let marqueeBaseSelection = $state<string[]>([]);
+  let panPointerId = $state<number | null>(null);
+  let panOrigin = $state({ x: 0, y: 0 });
+  let panViewportStart = $state({ x: 0, y: 0 });
+  let blueprintDragStart = $state({ x: 0, y: 0 });
+  let liveShapeGeometry = $state<Record<string, ReformaShape>>({});
 
   const gridLines = $derived.by(() => {
     if (!planner.grid.visible || canvasWidth <= 0 || canvasHeight <= 0) return [];
@@ -74,13 +99,61 @@
   });
 
   const allShapes = $derived(draftShape ? [...planner.shapes, draftShape] : planner.shapes);
-  const stageDraggable = $derived(tool === "pan" && !isDrawing);
+  const shapesForMeasurements = $derived(
+    allShapes.map((shape) => liveShapeGeometry[shape.id] ?? shape)
+  );
+  const measurementFontSize = $derived(MEASUREMENT_FONT_SIZE / planner.viewport.scale);
+  const measurementStrokeWidth = $derived(1 / planner.viewport.scale);
+  const measurementOverlays = $derived(
+    buildAllMeasurementOverlays(shapesForMeasurements, planner.grid)
+  );
+
+  function estimateTextOffset(text: string, fontSize: number) {
+    return {
+      x: text.length * fontSize * 0.29,
+      y: fontSize / 2
+    };
+  }
+
+  function measurementOverlayOpacity(shapeId: string) {
+    if (selectedShapeIds.length === 0) return 1;
+    return selectedShapeIds.includes(shapeId) ? 1 : MEASUREMENT_FADED_OPACITY;
+  }
+
+  function rectDragBound(pos: { x: number; y: number }) {
+    return snapPointer(pos, planner.grid);
+  }
+  const isDrawTool = $derived(tool === "line" || tool === "rect" || tool === "square");
+  const isSingleSelection = $derived(selectedShapeIds.length === 1);
+  const shapeDraggable = $derived(
+    (tool === "select" || isDrawTool) &&
+      isSingleSelection &&
+      !spacePressed &&
+      !blueprintHandActive &&
+      !isPanning &&
+      !isDrawing &&
+      !isMarqueeSelecting
+  );
+  const panCursorActive = $derived(tool === "pan" || spacePressed || isPanning);
+  const blueprintHandCursorActive = $derived(
+    blueprintHandActive && planner.blueprint !== null && !spacePressed && tool !== "pan"
+  );
+
+  export function cancelDraft() {
+    draftShape = null;
+    isDrawing = false;
+    finishMarquee();
+    endPointerSession();
+  }
 
   onMount(() => {
     updateCanvasSize();
     const observer = new ResizeObserver(updateCanvasSize);
     if (host) observer.observe(host);
-    return () => observer.disconnect();
+    return () => {
+      observer.disconnect();
+      endPointerSession();
+    };
   });
 
   $effect(() => {
@@ -103,7 +176,15 @@
   });
 
   $effect(() => {
-    void attachTransformer(activeShapeId);
+    void attachTransformer(
+      selectedShapeIds,
+      tool,
+      spacePressed,
+      blueprintHandActive,
+      isPanning,
+      isDrawing,
+      isMarqueeSelecting
+    );
   });
 
   function updateCanvasSize() {
@@ -112,16 +193,37 @@
     canvasHeight = Math.max(320, Math.round(host.clientHeight));
   }
 
-  async function attachTransformer(shapeId: string | null) {
+  async function attachTransformer(
+    shapeIds: string[],
+    currentTool: ReformaTool,
+    spaceHeld: boolean,
+    blueprintHand: boolean,
+    panning: boolean,
+    drawing: boolean,
+    marqueeSelecting: boolean
+  ) {
     await tick();
-    const shape = shapeId ? planner.shapes.find((current) => current.id === shapeId) : null;
-    if (!transformerRef || !stageRef || !shapeId || shape?.locked || shape?.visible === false) {
+    const canTransform =
+      currentTool !== "pan" &&
+      !blueprintHand &&
+      !spaceHeld &&
+      !panning &&
+      !drawing &&
+      !marqueeSelecting;
+    if (!canTransform || !transformerRef || !stageRef || shapeIds.length === 0) {
       transformerRef?.node.nodes([]);
       return;
     }
 
-    const node = stageRef.node.findOne(`#${konvaShapeId(shapeId)}`);
-    transformerRef.node.nodes(node ? [node] : []);
+    const nodes = shapeIds
+      .map((shapeId) => {
+        const shape = planner.shapes.find((current) => current.id === shapeId);
+        if (!shape || shape.locked || shape.visible === false) return null;
+        return stageRef?.node.findOne(`#${konvaShapeId(shapeId)}`) ?? null;
+      })
+      .filter((node): node is Konva.Node => node !== null);
+
+    transformerRef.node.nodes(nodes);
   }
 
   function konvaShapeId(shapeId: string) {
@@ -132,12 +234,48 @@
     planner = { ...planner, viewport };
   }
 
+  function setBlueprintPosition(x: number, y: number) {
+    if (!planner.blueprint) return;
+    planner = {
+      ...planner,
+      blueprint: {
+        ...planner.blueprint,
+        x,
+        y
+      }
+    };
+  }
+
   function setShapes(shapes: ReformaShape[]) {
     planner = { ...planner, shapes };
   }
 
   function updateShape(shape: ReformaShape) {
     setShapes(planner.shapes.map((current) => (current.id === shape.id ? shape : current)));
+  }
+
+  function setSelection(ids: string[]) {
+    selectedShapeIds = ids;
+  }
+
+  function toggleSelection(shapeId: string) {
+    setSelection(
+      selectedShapeIds.includes(shapeId)
+        ? selectedShapeIds.filter((id) => id !== shapeId)
+        : [...selectedShapeIds, shapeId]
+    );
+  }
+
+  function getWorldPointerFromClient(clientX: number, clientY: number) {
+    if (!host) return null;
+    const rect = host.getBoundingClientRect();
+    const pointerX = clientX - rect.left;
+    const pointerY = clientY - rect.top;
+
+    return {
+      x: (pointerX - planner.viewport.x) / planner.viewport.scale,
+      y: (pointerY - planner.viewport.y) / planner.viewport.scale
+    };
   }
 
   function getWorldPointer() {
@@ -151,6 +289,97 @@
     };
   }
 
+  function shouldStartPan(event: PointerEvent) {
+    if (isDrawing || isMarqueeSelecting || isDraggingBlueprint) return false;
+    return spacePressed || tool === "pan" || event.button === 1;
+  }
+
+  function shouldStartBlueprintDrag(event: PointerEvent) {
+    if (!blueprintHandActive || !planner.blueprint) return false;
+    if (isDrawing || isMarqueeSelecting || isPanning || isDraggingBlueprint) return false;
+    if (spacePressed || tool === "pan" || event.button !== 0) return false;
+    return true;
+  }
+
+  function beginPointerSession() {
+    window.addEventListener("pointermove", handleWindowPointerMove);
+    window.addEventListener("pointerup", handleWindowPointerUp);
+    window.addEventListener("pointercancel", handleWindowPointerUp);
+  }
+
+  function endPointerSession() {
+    window.removeEventListener("pointermove", handleWindowPointerMove);
+    window.removeEventListener("pointerup", handleWindowPointerUp);
+    window.removeEventListener("pointercancel", handleWindowPointerUp);
+
+    if (panPointerId !== null && host) {
+      try {
+        host.releasePointerCapture(panPointerId);
+      } catch {
+        // Pointer may already be released.
+      }
+    }
+
+    panPointerId = null;
+    isPanning = false;
+    isDraggingBlueprint = false;
+  }
+
+  function finishMarquee() {
+    isMarqueeSelecting = false;
+    marqueeRect = null;
+    marqueeShiftKey = false;
+    marqueeBaseSelection = [];
+  }
+
+  function applyMarqueeSelection(rect: Bounds) {
+    const ids = getSelectableShapeIdsInBounds(planner.shapes, rect);
+    setSelection(marqueeShiftKey ? [...new Set([...marqueeBaseSelection, ...ids])] : ids);
+  }
+
+  function startBlueprintDrag(event: PointerEvent) {
+    if (!planner.blueprint) return;
+
+    isDraggingBlueprint = true;
+    panPointerId = event.pointerId;
+    panOrigin = { x: event.clientX, y: event.clientY };
+    blueprintDragStart = { x: planner.blueprint.x, y: planner.blueprint.y };
+
+    host?.setPointerCapture(event.pointerId);
+    beginPointerSession();
+  }
+
+  function startPan(event: PointerEvent) {
+    if (event.button === 1) event.preventDefault();
+
+    isPanning = true;
+    panPointerId = event.pointerId;
+    panOrigin = { x: event.clientX, y: event.clientY };
+    panViewportStart = { x: planner.viewport.x, y: planner.viewport.y };
+
+    if (tool === "pan" || spacePressed) {
+      setSelection([]);
+    }
+
+    host?.setPointerCapture(event.pointerId);
+    beginPointerSession();
+  }
+
+  function handleHostPointerDown(event: PointerEvent) {
+    if (shouldStartBlueprintDrag(event)) {
+      startBlueprintDrag(event);
+      event.preventDefault();
+      event.stopPropagation();
+      return;
+    }
+
+    if (!shouldStartPan(event)) return;
+
+    startPan(event);
+    event.preventDefault();
+    event.stopPropagation();
+  }
+
   function handleWheel(event: KonvaWheelEvent) {
     event.evt.preventDefault();
     if (!stageRef) return;
@@ -159,61 +388,148 @@
     if (!pointer) return;
 
     const oldScale = planner.viewport.scale;
-    const mousePointTo = {
-      x: (pointer.x - planner.viewport.x) / oldScale,
-      y: (pointer.y - planner.viewport.y) / oldScale
-    };
     let direction = event.evt.deltaY > 0 ? -1 : 1;
     if (event.evt.ctrlKey) direction = -direction;
 
-    const scale = clampScale(direction > 0 ? oldScale * SCALE_BY : oldScale / SCALE_BY);
-    setViewport({
-      x: pointer.x - mousePointTo.x * scale,
-      y: pointer.y - mousePointTo.y * scale,
-      scale
-    });
+    const nextScale = direction > 0 ? oldScale * SCALE_BY : oldScale / SCALE_BY;
+    setViewport(zoomAtPoint(planner.viewport, pointer.x, pointer.y, nextScale));
+  }
+
+  function startMarquee(event: KonvaPointerEvent, pointer: { x: number; y: number }) {
+    marqueeShiftKey = event.evt.shiftKey;
+    marqueeBaseSelection = marqueeShiftKey ? [...selectedShapeIds] : [];
+    if (!marqueeShiftKey) setSelection([]);
+
+    marqueeStart = pointer;
+    marqueeRect = normalizeBounds(pointer, pointer);
+    isMarqueeSelecting = true;
+    panPointerId = event.evt.pointerId;
+    host?.setPointerCapture(event.evt.pointerId);
+    beginPointerSession();
   }
 
   function handleStagePointerDown(event: KonvaPointerEvent) {
-    if (tool === "pan") {
-      activeShapeId = null;
-      return;
-    }
+    if (shouldStartPan(event.evt) || shouldStartBlueprintDrag(event.evt)) return;
 
     const isStageClick = event.target === stageRef?.node;
+
     if (tool === "select") {
-      if (isStageClick) activeShapeId = null;
+      if (!isStageClick) return;
+
+      const pointer = getWorldPointer();
+      if (!pointer) return;
+
+      startMarquee(event, pointer);
       return;
     }
 
+    if (tool === "pan") return;
+
+    if (!isStageClick) return;
+
     const pointer = getWorldPointer();
     if (!pointer) return;
 
-    activeShapeId = null;
-    drawStart = pointer;
+    setSelection([]);
+    drawStart = snapPointer(pointer, planner.grid);
     isDrawing = true;
-    draftShape = createDraftShape(tool, pointer, pointer);
+    draftShape = createDraftShape(tool, drawStart, drawStart);
+    panPointerId = event.evt.pointerId;
+    host?.setPointerCapture(event.evt.pointerId);
+    beginPointerSession();
   }
 
-  function handleStagePointerMove() {
-    if (!isDrawing || !draftShape) return;
-    const pointer = getWorldPointer();
+  function handleWindowPointerMove(event: PointerEvent) {
+    if (isDraggingBlueprint && event.pointerId === panPointerId && planner.blueprint) {
+      const dx = (event.clientX - panOrigin.x) / planner.viewport.scale;
+      const dy = (event.clientY - panOrigin.y) / planner.viewport.scale;
+      setBlueprintPosition(blueprintDragStart.x + dx, blueprintDragStart.y + dy);
+      return;
+    }
+
+    if (isPanning && event.pointerId === panPointerId) {
+      setViewport({
+        ...planner.viewport,
+        x: panViewportStart.x + (event.clientX - panOrigin.x),
+        y: panViewportStart.y + (event.clientY - panOrigin.y)
+      });
+      return;
+    }
+
+    if (isMarqueeSelecting && event.pointerId === panPointerId) {
+      const pointer = getWorldPointerFromClient(event.clientX, event.clientY);
+      if (!pointer) return;
+
+      const rect = normalizeBounds(marqueeStart, pointer);
+      marqueeRect = rect;
+
+      if (rect.width >= MARQUEE_MIN_SIZE || rect.height >= MARQUEE_MIN_SIZE) {
+        applyMarqueeSelection(rect);
+      } else if (!marqueeShiftKey) {
+        setSelection([]);
+      }
+
+      return;
+    }
+
+    if (!isDrawing || !draftShape || event.pointerId !== panPointerId) return;
+
+    const pointer = getWorldPointerFromClient(event.clientX, event.clientY);
     if (!pointer) return;
-    draftShape = createDraftShape(tool, drawStart, pointer, draftShape.id);
+    draftShape = createDraftShape(
+      tool,
+      drawStart,
+      snapPointer(pointer, planner.grid),
+      draftShape.id
+    );
   }
 
-  function handleStagePointerUp() {
-    if (!isDrawing || !draftShape) return;
+  function handleWindowPointerUp(event: PointerEvent) {
+    if (isDraggingBlueprint && event.pointerId === panPointerId) {
+      endPointerSession();
+      return;
+    }
+
+    if (isPanning && event.pointerId === panPointerId) {
+      endPointerSession();
+      return;
+    }
+
+    if (isMarqueeSelecting && event.pointerId === panPointerId) {
+      const rect = marqueeRect;
+      if (rect && (rect.width >= MARQUEE_MIN_SIZE || rect.height >= MARQUEE_MIN_SIZE)) {
+        applyMarqueeSelection(rect);
+      } else if (!marqueeShiftKey) {
+        setSelection([]);
+      } else {
+        setSelection(marqueeBaseSelection);
+      }
+
+      finishMarquee();
+      endPointerSession();
+      return;
+    }
+
+    if (!isDrawing || event.pointerId !== panPointerId) return;
+    finishDrawing();
+  }
+
+  function finishDrawing() {
+    if (!isDrawing || !draftShape) {
+      endPointerSession();
+      return;
+    }
 
     const bounds = getShapeBounds(draftShape);
-    if (bounds.width >= 4 || bounds.height >= 4) {
-      const committed = draftShape;
+    if (bounds.width >= MARQUEE_MIN_SIZE || bounds.height >= MARQUEE_MIN_SIZE) {
+      const committed = snapShape(draftShape, planner.grid);
       setShapes([...planner.shapes, committed]);
-      activeShapeId = committed.id;
+      setSelection([committed.id]);
     }
 
     draftShape = null;
     isDrawing = false;
+    endPointerSession();
   }
 
   function createDraftShape(
@@ -223,16 +539,19 @@
     id = createShapeId()
   ): ReformaShape {
     if (currentTool === "line") {
-      return {
-        id,
-        type: "line",
-        points: [start.x, start.y, end.x, end.y],
-        name: `Linha ${planner.shapes.length + 1}`,
-        visible: true,
-        locked: false,
-        stroke: SHAPE_STROKE,
-        strokeWidth: 3
-      };
+      return snapShape(
+        {
+          id,
+          type: "line",
+          points: [start.x, start.y, end.x, end.y],
+          name: `Linha ${planner.shapes.length + 1}`,
+          visible: true,
+          locked: false,
+          stroke: SHAPE_STROKE,
+          strokeWidth: 3
+        },
+        planner.grid
+      );
     }
 
     const width = end.x - start.x;
@@ -246,7 +565,7 @@
         ? Math.max(Math.abs(width), Math.abs(height)) * (height < 0 ? -1 : 1)
         : height;
 
-    return {
+    const rect: Extract<ReformaShape, { type: "rect" }> = {
       id,
       type: "rect",
       name: `Retangulo ${planner.shapes.length + 1}`,
@@ -260,99 +579,189 @@
       strokeWidth: 2,
       fill: SHAPE_FILL
     };
-  }
-
-  function handleStageDragEnd(event: KonvaDragTransformEvent) {
-    if (tool !== "pan") return;
-    setViewport({
-      ...planner.viewport,
-      x: event.target.x(),
-      y: event.target.y()
-    });
+    return currentTool === "square"
+      ? snapSquareRect(rect, planner.grid)
+      : snapRectShape(rect, planner.grid);
   }
 
   function handleShapePointerDown(event: KonvaPointerEvent, shapeId: string) {
-    if (tool !== "select") return;
+    if (spacePressed || isPanning || tool === "pan" || blueprintHandActive) return;
     const shape = planner.shapes.find((current) => current.id === shapeId);
-    if (shape?.locked || shape?.visible === false) return;
+    if (shape?.locked || shape?.visible === false || shape?.id === draftShape?.id) return;
+
     event.cancelBubble = true;
-    activeShapeId = shapeId;
+
+    if (tool === "select" && event.evt.shiftKey) {
+      toggleSelection(shapeId);
+      return;
+    }
+
+    setSelection([shapeId]);
+  }
+
+  function setLiveShape(shape: ReformaShape) {
+    liveShapeGeometry = { ...liveShapeGeometry, [shape.id]: shape };
+  }
+
+  function clearLiveShape(shapeId: string) {
+    if (!liveShapeGeometry[shapeId]) return;
+    const next = { ...liveShapeGeometry };
+    delete next[shapeId];
+    liveShapeGeometry = next;
+  }
+
+  function getRectGeometryFromNode(
+    node: Konva.Node,
+    shape: Extract<ReformaShape, { type: "rect" }>
+  ): Extract<ReformaShape, { type: "rect" }> {
+    return snapRectShape(
+      {
+        ...shape,
+        x: node.x(),
+        y: node.y(),
+        width: Math.max(MARQUEE_MIN_SIZE, shape.width * node.scaleX()),
+        height: Math.max(MARQUEE_MIN_SIZE, shape.height * node.scaleY())
+      },
+      planner.grid
+    );
+  }
+
+  function getLineGeometryFromNode(
+    node: Konva.Node,
+    shape: Extract<ReformaShape, { type: "line" }>
+  ): Extract<ReformaShape, { type: "line" }> {
+    const lineNode = node as Konva.Line;
+    const scaleX = lineNode.scaleX();
+    const scaleY = lineNode.scaleY();
+    const x = lineNode.x();
+    const y = lineNode.y();
+
+    return snapShape(
+      {
+        ...shape,
+        points: [
+          shape.points[0] * scaleX + x,
+          shape.points[1] * scaleY + y,
+          shape.points[2] * scaleX + x,
+          shape.points[3] * scaleY + y
+        ]
+      },
+      planner.grid
+    ) as Extract<ReformaShape, { type: "line" }>;
+  }
+
+  function syncRectShapeFromNode(node: Konva.Node, shape: Extract<ReformaShape, { type: "rect" }>) {
+    const nextShape = getRectGeometryFromNode(node, shape);
+    node.scale({ x: 1, y: 1 });
+    updateShape(nextShape);
+  }
+
+  function syncLineShapeFromNode(node: Konva.Node, shape: Extract<ReformaShape, { type: "line" }>) {
+    const lineNode = node as Konva.Line;
+    const nextShape = getLineGeometryFromNode(node, shape);
+    lineNode.position({ x: 0, y: 0 });
+    lineNode.scale({ x: 1, y: 1 });
+    updateShape(nextShape);
+  }
+
+  function handleRectDragMove(
+    event: KonvaDragTransformEvent,
+    shape: Extract<ReformaShape, { type: "rect" }>
+  ) {
+    const position = snapPointer({ x: event.target.x(), y: event.target.y() }, planner.grid);
+    if (planner.grid.snapToGrid) {
+      event.target.position(position);
+    }
+    setLiveShape({ ...shape, ...position });
   }
 
   function handleRectDragEnd(event: KonvaDragTransformEvent, shape: Extract<ReformaShape, { type: "rect" }>) {
+    const position = snapPointer({ x: event.target.x(), y: event.target.y() }, planner.grid);
+    if (planner.grid.snapToGrid) {
+      event.target.position(position);
+    }
     updateShape({
       ...shape,
-      x: event.target.x(),
-      y: event.target.y()
+      ...position
     });
+    clearLiveShape(shape.id);
+  }
+
+  function handleRectTransform(
+    event: KonvaDragTransformEvent,
+    shape: Extract<ReformaShape, { type: "rect" }>
+  ) {
+    setLiveShape(getRectGeometryFromNode(event.target, shape));
   }
 
   function handleRectTransformEnd(
     event: KonvaDragTransformEvent,
     shape: Extract<ReformaShape, { type: "rect" }>
   ) {
-    const node = event.target;
-    const scaleX = node.scaleX();
-    const scaleY = node.scaleY();
+    syncRectShapeFromNode(event.target, shape);
+    clearLiveShape(shape.id);
+  }
 
-    node.scale({ x: 1, y: 1 });
-    updateShape({
-      ...shape,
-      x: node.x(),
-      y: node.y(),
-      width: Math.max(4, shape.width * scaleX),
-      height: Math.max(4, shape.height * scaleY)
-    });
+  function handleLineDragMove(
+    event: KonvaDragTransformEvent,
+    shape: Extract<ReformaShape, { type: "line" }>
+  ) {
+    setLiveShape(getLineGeometryFromNode(event.target, shape));
   }
 
   function handleLineDragEnd(event: KonvaDragTransformEvent, shape: Extract<ReformaShape, { type: "line" }>) {
     const dx = event.target.x();
     const dy = event.target.y();
     event.target.position({ x: 0, y: 0 });
-    updateShape({
-      ...shape,
-      points: [
-        shape.points[0] + dx,
-        shape.points[1] + dy,
-        shape.points[2] + dx,
-        shape.points[3] + dy
-      ]
-    });
+    updateShape(
+      snapShape(
+        {
+          ...shape,
+          points: [
+            shape.points[0] + dx,
+            shape.points[1] + dy,
+            shape.points[2] + dx,
+            shape.points[3] + dy
+          ]
+        },
+        planner.grid
+      )
+    );
+    clearLiveShape(shape.id);
+  }
+
+  function handleLineTransform(
+    event: KonvaDragTransformEvent,
+    shape: Extract<ReformaShape, { type: "line" }>
+  ) {
+    setLiveShape(getLineGeometryFromNode(event.target, shape));
   }
 
   function handleLineTransformEnd(
     event: KonvaDragTransformEvent,
     shape: Extract<ReformaShape, { type: "line" }>
   ) {
-    const node = event.target as Konva.Line;
-    const scaleX = node.scaleX();
-    const scaleY = node.scaleY();
-    const x = node.x();
-    const y = node.y();
-    node.position({ x: 0, y: 0 });
-    node.scale({ x: 1, y: 1 });
-
-    updateShape({
-      ...shape,
-      points: [
-        shape.points[0] * scaleX + x,
-        shape.points[1] * scaleY + y,
-        shape.points[2] * scaleX + x,
-        shape.points[3] * scaleY + y
-      ]
-    });
-  }
-
-  function clampScale(value: number) {
-    return Math.max(MIN_SCALE, Math.min(MAX_SCALE, value));
+    syncLineShapeFromNode(event.target, shape);
+    clearLiveShape(shape.id);
   }
 </script>
 
 <div
   bind:this={host}
+  onpointerdowncapture={handleHostPointerDown}
   class={cn(
     "relative min-h-[560px] flex-1 overflow-hidden rounded-lg border border-app-border bg-[#f9fbff] shadow-sm",
-    tool === "pan" ? "cursor-grab" : tool === "select" ? "cursor-default" : "cursor-crosshair"
+    isPanning
+      ? "cursor-grabbing"
+      : isDraggingBlueprint
+        ? "cursor-grabbing"
+        : panCursorActive
+          ? "cursor-grab"
+          : blueprintHandCursorActive
+            ? "cursor-grab"
+            : tool === "select"
+              ? "cursor-default"
+              : "cursor-crosshair"
   )}
 >
   {#if canvasWidth > 0 && canvasHeight > 0}
@@ -363,16 +772,12 @@
       y={planner.viewport.y}
       scaleX={planner.viewport.scale}
       scaleY={planner.viewport.scale}
-      draggable={stageDraggable}
       bind:this={stageRef}
       onwheel={handleWheel}
       onpointerdown={handleStagePointerDown}
-      onpointermove={handleStagePointerMove}
-      onpointerup={handleStagePointerUp}
-      ondragend={handleStageDragEnd}
       divWrapperProps={{ class: "h-full w-full" }}
     >
-      <Layer>
+      <Layer listening={false}>
         {#if planner.blueprint && blueprintImage}
           <KonvaImage
             image={blueprintImage}
@@ -386,7 +791,9 @@
             listening={false}
           />
         {/if}
+      </Layer>
 
+      <Layer>
         {#each gridLines as gridLine (gridLine.id)}
           <Line
             points={gridLine.points}
@@ -410,9 +817,12 @@
                 stroke={shape.stroke}
                 strokeWidth={shape.strokeWidth}
                 strokeScaleEnabled={false}
-                draggable={tool === "select" && shape.id !== draftShape?.id && !shape.locked}
+                draggable={shapeDraggable && shape.id !== draftShape?.id && !shape.locked && selectedShapeIds.includes(shape.id)}
+                dragBoundFunc={planner.grid.snapToGrid ? rectDragBound : undefined}
                 onpointerdown={(event) => handleShapePointerDown(event, shape.id)}
+                ondragmove={(event) => handleRectDragMove(event, shape)}
                 ondragend={(event) => handleRectDragEnd(event, shape)}
+                ontransform={(event) => handleRectTransform(event, shape)}
                 ontransformend={(event) => handleRectTransformEnd(event, shape)}
               />
             {:else}
@@ -424,14 +834,61 @@
                 strokeScaleEnabled={false}
                 lineCap="round"
                 lineJoin="round"
-                draggable={tool === "select" && shape.id !== draftShape?.id && !shape.locked}
+                draggable={shapeDraggable && shape.id !== draftShape?.id && !shape.locked && selectedShapeIds.includes(shape.id)}
                 onpointerdown={(event) => handleShapePointerDown(event, shape.id)}
+                ondragmove={(event) => handleLineDragMove(event, shape)}
                 ondragend={(event) => handleLineDragEnd(event, shape)}
+                ontransform={(event) => handleLineTransform(event, shape)}
                 ontransformend={(event) => handleLineTransformEnd(event, shape)}
               />
             {/if}
           {/if}
         {/each}
+
+        {#each measurementOverlays as overlay (overlay.shapeId)}
+          {@const overlayOpacity = measurementOverlayOpacity(overlay.shapeId)}
+          {#each overlay.lines as line, lineIndex (`${overlay.shapeId}-line-${lineIndex}`)}
+            <Line
+              points={line.points}
+              stroke={MEASUREMENT_LINE_STROKE}
+              strokeWidth={measurementStrokeWidth}
+              opacity={overlayOpacity}
+              strokeScaleEnabled={false}
+              listening={false}
+            />
+          {/each}
+          {#each overlay.texts as textSpec, textIndex (`${overlay.shapeId}-text-${textIndex}`)}
+            {@const textOffset = estimateTextOffset(textSpec.text, measurementFontSize)}
+            <Text
+              x={textSpec.x}
+              y={textSpec.y}
+              text={textSpec.text}
+              fontSize={measurementFontSize}
+              fontFamily="system-ui, -apple-system, sans-serif"
+              fill={textSpec.kind === "area" ? "#475569" : "#334155"}
+              rotation={textSpec.rotation ?? 0}
+              offsetX={textOffset.x}
+              offsetY={textOffset.y}
+              opacity={overlayOpacity}
+              listening={false}
+            />
+          {/each}
+        {/each}
+
+        {#if marqueeRect && (marqueeRect.width >= MARQUEE_MIN_SIZE || marqueeRect.height >= MARQUEE_MIN_SIZE)}
+          <Rect
+            x={marqueeRect.x}
+            y={marqueeRect.y}
+            width={marqueeRect.width}
+            height={marqueeRect.height}
+            fill="rgba(29, 95, 158, 0.08)"
+            stroke="#1d5f9e"
+            dash={[4, 4]}
+            strokeWidth={1}
+            strokeScaleEnabled={false}
+            listening={false}
+          />
+        {/if}
 
         <Transformer
           bind:this={transformerRef}

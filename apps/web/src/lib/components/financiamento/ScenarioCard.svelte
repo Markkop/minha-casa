@@ -53,7 +53,7 @@
           <span class="text-app-accent">{formatCurrencyCompact(cenario.valorImovel)}</span>
           <span class="text-app-subtle">+</span>
           <span class="text-salmon">
-            Apto {formatCurrencyCompact(cenario.valorApartamento)}
+            Seu imóvel {formatCurrencyCompact(cenario.valorApartamento)}
           </span>
         </h3>
         <EstrategiaBadge estrategia={cenario.estrategia} />
@@ -83,15 +83,15 @@
         tooltip="Valor total a ser financiado após entrada e/ou permuta."
       />
       <ScenarioDataRow
-        label="Entrada sem Apto"
+        label="Entrada sem seu imóvel"
         value={formatCurrency(cenario.financiamento.entradaDinheiro)}
-        tooltip="Valor em dinheiro da entrada, sem incluir o apartamento."
+        tooltip="Valor em dinheiro da entrada, sem incluir o seu imóvel."
       />
       {#if cenario.estrategia === "permuta"}
         <ScenarioDataRow
-          label="Apto na Permuta"
+          label="Seu imóvel na Permuta"
           value={formatCurrency(cenario.financiamento.valorApartamentoUsado)}
-          tooltip={`Valor aceito do apartamento na permuta: ${formatCurrency(cenario.financiamento.valorApartamentoUsado)}.`}
+          tooltip={`Valor aceito do seu imóvel na permuta: ${formatCurrency(cenario.financiamento.valorApartamentoUsado)}.`}
           class="text-salmon"
         />
       {/if}

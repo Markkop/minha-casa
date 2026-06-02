@@ -11,6 +11,7 @@ docker run --rm -v "$(pwd)/backend:/app" -w /app elixir:1.18-otp-27-alpine \
 ```
 - Since mix is not available locally, please do restart/rebuild docker that way after backend code changes.
 
+- When asked to commit and push, you can commit and push all git changes into a single commit.
 - Never commit API keys, tokens, or secrets in source files (including tests and one-off scripts).
 - If user pastes a key, use it, but assume the user will rotate it later. Say that to the user when doing that.
 - After completing a task, you may run the commands you would ask the user to do to validate.

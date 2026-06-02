@@ -19,7 +19,7 @@
     PERCENTAGE_OPTIONS.map((o) => ({
       multiplier: o.value,
       label: o.label,
-      valor: Math.round(params.valorImovelSelecionado * o.value)
+      valor: Math.round(params.valorImovel * o.value)
     }))
   );
 
@@ -27,9 +27,11 @@
     PERCENTAGE_OPTIONS.map((o) => ({
       multiplier: o.value,
       label: o.label,
-      valor: Math.round(params.valorApartamentoSelecionado * o.value)
+      valor: Math.round(params.valorApartamento * o.value)
     }))
   );
+
+  const permutaDisponivel = $derived(params.valorApartamento > 0);
 
   const estrategiasAtivas = $derived(params.estrategiasFiltro ?? ["permuta", "venda_posterior"]);
 
@@ -47,8 +49,8 @@
   </CardHeader>
   <CardContent class="space-y-4">
     <FieldWithTooltip
-      label="Valores do Imóvel (Casa)"
-      tooltip="Selecione quais variações de valor do imóvel mostrar na comparação."
+      label="Imóvel alvo"
+      tooltip="Selecione quais variações de valor do imóvel alvo mostrar na comparação."
     >
       <div class="flex flex-wrap gap-2">
         {#each valoresImovelComputados as { multiplier, label, valor } (multiplier)}
@@ -75,61 +77,63 @@
       </div>
     </FieldWithTooltip>
 
-    <FieldWithTooltip
-      label="Valores do Imóvel do Comprador"
-      tooltip="Selecione quais variações de valor do imóvel do comprador mostrar na comparação."
-    >
-      <div class="flex flex-wrap gap-2">
-        {#each valoresAptoComputados as { multiplier, label, valor } (multiplier)}
-          <button
-            type="button"
-            onclick={() => {
-              const current = params.valoresAptoFiltroMultipliers;
-              const updated = current.includes(multiplier)
-                ? current.filter((v) => v !== multiplier)
-                : [...current, multiplier];
-              patch({ valoresAptoFiltroMultipliers: updated });
-            }}
-            class={cn(
-              "flex flex-col items-center gap-0.5 rounded-md border px-3 py-1.5 text-xs transition-all",
-              params.valoresAptoFiltroMultipliers.includes(multiplier)
-                ? "border-salmon bg-salmon/20 text-salmon"
-                : "border-app-border bg-app-bg text-app-subtle"
-            )}
-          >
-            <span class="font-semibold">{label}</span>
-            <span class="text-[10px] opacity-75">{formatCurrency(valor)}</span>
-          </button>
-        {/each}
-      </div>
-    </FieldWithTooltip>
+    {#if permutaDisponivel}
+      <FieldWithTooltip
+        label="Seu imóvel"
+        tooltip="Selecione quais variações de valor do seu imóvel mostrar na comparação."
+      >
+        <div class="flex flex-wrap gap-2">
+          {#each valoresAptoComputados as { multiplier, label, valor } (multiplier)}
+            <button
+              type="button"
+              onclick={() => {
+                const current = params.valoresAptoFiltroMultipliers;
+                const updated = current.includes(multiplier)
+                  ? current.filter((v) => v !== multiplier)
+                  : [...current, multiplier];
+                patch({ valoresAptoFiltroMultipliers: updated });
+              }}
+              class={cn(
+                "flex flex-col items-center gap-0.5 rounded-md border px-3 py-1.5 text-xs transition-all",
+                params.valoresAptoFiltroMultipliers.includes(multiplier)
+                  ? "border-salmon bg-salmon/20 text-salmon"
+                  : "border-app-border bg-app-bg text-app-subtle"
+              )}
+            >
+              <span class="font-semibold">{label}</span>
+              <span class="text-[10px] opacity-75">{formatCurrency(valor)}</span>
+            </button>
+          {/each}
+        </div>
+      </FieldWithTooltip>
 
-    <FieldWithTooltip label="Estratégias" tooltip={tooltips.estrategia}>
-      <div class="flex gap-2">
-        {#each [
-          { value: "permuta" as const, label: "Permuta" },
-          { value: "venda_posterior" as const, label: "Venda Posterior" }
-        ] as estrategia (estrategia.value)}
-          <button
-            type="button"
-            onclick={() => {
-              const current = params.estrategiasFiltro ?? ["permuta", "venda_posterior"];
-              const updated = current.includes(estrategia.value)
-                ? current.filter((v) => v !== estrategia.value)
-                : [...current, estrategia.value];
-              patch({ estrategiasFiltro: updated });
-            }}
-            class={cn(
-              "rounded-md border px-3 py-1 text-xs transition-all",
-              estrategiasAtivas.includes(estrategia.value)
-                ? "border-green bg-green/20 text-green"
-                : "border-app-border bg-app-bg text-app-subtle"
-            )}
-          >
-            {estrategia.label}
-          </button>
-        {/each}
-      </div>
-    </FieldWithTooltip>
+      <FieldWithTooltip label="Estratégias" tooltip={tooltips.estrategia}>
+        <div class="flex gap-2">
+          {#each [
+            { value: "permuta" as const, label: "Permuta" },
+            { value: "venda_posterior" as const, label: "Venda Posterior" }
+          ] as estrategia (estrategia.value)}
+            <button
+              type="button"
+              onclick={() => {
+                const current = params.estrategiasFiltro ?? ["permuta", "venda_posterior"];
+                const updated = current.includes(estrategia.value)
+                  ? current.filter((v) => v !== estrategia.value)
+                  : [...current, estrategia.value];
+                patch({ estrategiasFiltro: updated });
+              }}
+              class={cn(
+                "rounded-md border px-3 py-1 text-xs transition-all",
+                estrategiasAtivas.includes(estrategia.value)
+                  ? "border-green bg-green/20 text-green"
+                  : "border-app-border bg-app-bg text-app-subtle"
+              )}
+            >
+              {estrategia.label}
+            </button>
+          {/each}
+        </div>
+      </FieldWithTooltip>
+    {/if}
   </CardContent>
 </Card>

@@ -21,6 +21,9 @@ export type ReformaViewport = {
 export type ReformaGrid = {
   visible: boolean;
   size: number;
+  metersPerCell: number;
+  showMeasurements: boolean;
+  snapToGrid: boolean;
 };
 
 export type ReformaLineShape = {

@@ -1,12 +1,4 @@
-import { DEFAULTS } from "$lib/financiamento/calculations-defaults";
-
-const calcularPctReservaRecomendada = (valorImovel: number): number => {
-  if (valorImovel <= 0) return 0.05;
-  if (valorImovel <= 1_000_000) return 0.06;
-  if (valorImovel <= 2_000_000) return 0.05;
-  if (valorImovel <= 3_500_000) return 0.045;
-  return 0.04;
-};
+import { UI_DEFAULTS } from "$lib/financiamento/calculations-defaults";
 
 const formatCurrency = (value: number): string =>
   new Intl.NumberFormat("pt-BR", {
@@ -22,17 +14,9 @@ const formatCurrencyCompact = (value: number): string => {
   return formatCurrency(value);
 };
 
-const formatPctReserva = (pct: number): string =>
-  `${(pct * 100).toFixed(1).replace(".0", "")}%`;
-
 export interface TooltipParams {
-  reservaEmergencia?: number;
-  reservaPctRecomendado?: number;
-  haircut?: number;
-  haircutRange?: { min: number; max: number };
   taxaAnualRange?: { min: number; max: number };
   trMensalRange?: { min: number; max: number };
-  prazoOptions?: number[];
   aporteExtra?: number;
   economiaJuros?: number;
   aporteExtraRange?: { min: number; max: number };
@@ -41,19 +25,14 @@ export interface TooltipParams {
 
 export function generateTooltips(params: TooltipParams = {}) {
   const {
-    reservaPctRecomendado = calcularPctReservaRecomendada(DEFAULTS.valoresImovel[0]),
-    haircutRange = { min: 5, max: 30 },
     taxaAnualRange = { min: 9, max: 15 },
     trMensalRange = { min: 0, max: 0.5 },
-    prazoOptions = [240, 300, 360, 420],
-    aporteExtra = DEFAULTS.aporteExtra,
+    aporteExtra = UI_DEFAULTS.aporteExtra,
     economiaJuros
   } = params;
 
   const trAnualMin = (trMensalRange.min * 12).toFixed(1);
   const trAnualMax = (trMensalRange.max * 12).toFixed(1);
-  const prazoMin = Math.min(...prazoOptions);
-  const prazoMax = Math.max(...prazoOptions);
 
   const economiaText = economiaJuros
     ? `Com seu aporte de ${formatCurrency(aporteExtra)}/mês, você pode economizar ${formatCurrencyCompact(economiaJuros)} em juros.`
@@ -62,18 +41,13 @@ export function generateTooltips(params: TooltipParams = {}) {
   return {
     valorImovel:
       "Valor de compra do imóvel. Negocie! Uma entrada robusta dá poder de barganha.",
-    capitalDisponivel:
-      "Total de recursos líquidos. Ao alterar, a reserva tende ao teto recomendado e o restante compõe a entrada.",
-    reservaEmergencia: `Reserva sugerida de ${formatPctReserva(reservaPctRecomendado)} do valor do imóvel (ITBI, registro, cartório e imprevistos). Ajuste até esse teto; acima disso só via entrada.`,
-    entradaDisponivel:
-      "Valor livre para entrada após a reserva de emergência. Aumentar a entrada reduz a reserva, respeitando o capital total.",
-    valorApartamento: `Valor de mercado do apartamento secundário. Na permuta, espere um deságio de ${haircutRange.min}-${haircutRange.max}%.`,
+    capitalDisponivel: "Total de recursos líquidos disponíveis para dar entrada no imóvel.",
+    valorApartamento:
+      "Valor de mercado do imóvel que pode entrar como permuta ou ser vendido posteriormente.",
     estrategia:
       "Permuta: usar o apto como parte da entrada (aceita com desconto). Venda Posterior: financiar mais e vender o apto em até 180 dias para amortizar (isento de IR via Lei do Bem).",
-    haircut: `Deságio típico na permuta. Construtoras/vendedores descontam ${haircutRange.min}-${haircutRange.max}% para cobrir custos de revenda.`,
     taxaAnual: `Taxa de juros nominal anual. Taxas de balcão variam de ${taxaAnualRange.min}% a ${taxaAnualRange.max}% a.a.`,
     trMensal: `Taxa Referencial mensal. A TR oscila entre ${trMensalRange.min.toFixed(2)}% e ${trMensalRange.max.toFixed(2)}% ao mês, adicionando ${trAnualMin}% a ${trAnualMax}% ao ano ao custo real.`,
-    prazoMeses: `Prazo total do financiamento. Recomendação: contratar o máximo (${prazoMin}-${prazoMax} meses) para ter flexibilidade de aportes.`,
     aporteExtra:
       "Valor extra mensal para amortização. SEMPRE escolha 'Reduzir Prazo' para maximizar a economia de juros.",
     rendaMensal:
@@ -82,7 +56,7 @@ export function generateTooltips(params: TooltipParams = {}) {
       "Percentual da renda comprometido com a parcela. Acima de 30% pode dificultar aprovação do crédito.",
     economiaJuros: economiaText,
     cetEstimado:
-      "Custo Efetivo Total estimado. Inclui juros, TR, seguros e taxas. Com base nas suas configurações, calcule o CET considerando a taxa + TR + custos adicionais.",
+      "Custo Efetivo Total estimado. Inclui juros, TR, seguros e taxas.",
     sfh: "Sistema Financeiro da Habitação. Novo teto de R$ 2,25 milhões em 2025, permitindo taxas reguladas e uso do FGTS.",
     itbi: "Imposto de Transmissão de Bens Imóveis. Em Florianópolis, 0,5% sobre até R$ 226k financiados via SFH, 2% sobre o restante.",
     leiDoBem:

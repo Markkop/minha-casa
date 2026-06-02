@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { browser } from "$app/environment";
   import { onMount } from "svelte";
   import { page } from "$app/state";
   import AdjustmentPanel from "$lib/components/financiamento/adjustment-panel.svelte";
@@ -6,59 +7,54 @@
   import ScenarioFilterToolbar from "$lib/components/financiamento/ScenarioFilterToolbar.svelte";
   import type { RecursosMeta } from "$lib/components/financiamento/financiamento-parameter-types";
   import type { SimulatorParams } from "$lib/components/financiamento/financiamento-parameter-types";
+  import { snapToPropertyStep } from "$lib/components/financiamento/parameter-row-helpers";
   import { LISTINGS_SECTION_CLASS } from "$lib/anuncios/listings-panel-layout";
   import WorkspaceLoadingState from "$lib/components/workspace/WorkspaceLoadingState.svelte";
-  import {
-    DEFAULTS,
-    calcularReservaRecomendada,
-    gerarMatrizCenarios
-  } from "$lib/financiamento/calculations";
+  import { UI_DEFAULTS } from "$lib/financiamento/calculations-defaults";
+  import { calcularReservaRecomendada, gerarMatrizCenarios } from "$lib/financiamento/calculations";
   import { getSettingsContext } from "$lib/financiamento/settings-context.svelte";
   import {
-    applyRecursosMesh,
-    computeSimulatorParams,
-    createInitialSimulatorParams
-  } from "$lib/financiamento/simulator-recursos";
+    loadSimulatorParams,
+    saveSimulatorParams
+  } from "$lib/financiamento/simulator-params-storage";
+  import { createInitialSimulatorParams } from "$lib/financiamento/simulator-recursos";
   import { syncSubscriptionCookie } from "$lib/sync-subscription-cookie";
   import { WORKSPACE_CONTENT_CLASS, WORKSPACE_STACK_CLASS } from "$lib/workspace-chrome";
 
   const settingsContext = getSettingsContext();
 
-  let params = $state<SimulatorParams>(createInitialSimulatorParams());
+  let params = $state<SimulatorParams>(
+    browser ? (loadSimulatorParams() ?? createInitialSimulatorParams()) : createInitialSimulatorParams()
+  );
   let priceInitialized = $state(false);
 
-  const computedParams = $derived(computeSimulatorParams(params));
+  $effect(() => {
+    if (!browser) return;
+    saveSimulatorParams(params);
+  });
 
   const recursosMeta = $derived.by((): RecursosMeta => {
-    const valorImovel = computedParams.valorImovelSelecionado;
-    const { pct, valor: reservaRecomendada } = calcularReservaRecomendada(valorImovel);
-    const reservaTeto = Math.min(reservaRecomendada, computedParams.capitalDisponivel);
+    const valorImovel = params.valorImovel;
+    const { valor: reservaRecomendada } = calcularReservaRecomendada(valorImovel);
     const capitalMax = Math.max(
       Math.round(valorImovel * 0.75),
       reservaRecomendada * 10,
-      DEFAULTS.capitalDisponivel * 3
+      UI_DEFAULTS.capitalDisponivel * 3
     );
     return {
-      reservaRecomendada,
-      reservaPctRecomendado: pct,
-      reservaTeto,
       capitalSlider: { min: 0, max: capitalMax, step: 10_000 }
     };
   });
 
   const valoresImovelFiltrados = $derived(
     uniqueNumbers(
-      params.valoresImovelFiltroMultipliers.map((m) =>
-        Math.round(computedParams.valorImovelSelecionado * m)
-      )
+      params.valoresImovelFiltroMultipliers.map((m) => Math.round(params.valorImovel * m))
     )
   );
 
   const valoresAptoFiltrados = $derived(
     uniqueNumbers(
-      params.valoresAptoFiltroMultipliers.map((m) =>
-        Math.round(computedParams.valorApartamentoSelecionado * m)
-      )
+      params.valoresAptoFiltroMultipliers.map((m) => Math.round(params.valorApartamento * m))
     )
   );
 
@@ -66,24 +62,25 @@
     gerarMatrizCenarios({
       valoresImovel: valoresImovelFiltrados,
       valoresApartamento: valoresAptoFiltrados,
-      capitalDisponivel: computedParams.capitalDisponivel,
-      reservaEmergencia: computedParams.reservaEmergencia,
-      haircut: 0,
-      taxaAnual: computedParams.taxaAnual,
-      trMensal: computedParams.trMensal,
-      prazoMeses: computedParams.prazoMeses,
-      aporteExtra: computedParams.aporteExtra,
-      rendaMensal: computedParams.rendaMensal,
-      custoCondominioMensal: computedParams.custoCondominioMensal,
-      seguros: 0
+      capitalDisponivel: params.capitalDisponivel,
+      taxaAnual: params.taxaAnual,
+      trMensal: params.trMensal,
+      aporteExtra: params.aporteExtra,
+      rendaMensal: params.rendaMensal,
+      custoCondominioMensal: params.custoCondominioMensal
     })
   );
 
-  const filteredCenarios = $derived(
-    cenarios.filter((c) => params.estrategiasFiltro.includes(c.estrategia))
-  );
+  const permutaDisponivel = $derived(params.valorApartamento > 0);
 
-  const panelParams = $derived({ ...params, ...computedParams });
+  const filteredCenarios = $derived(
+    cenarios.filter((c) => {
+      if (!permutaDisponivel) {
+        return c.estrategia === "venda_posterior";
+      }
+      return params.estrategiasFiltro.includes(c.estrategia);
+    })
+  );
 
   function uniqueNumbers(values: number[]) {
     return Array.from(new Set(values));
@@ -102,10 +99,7 @@
     }
     const price = parseFloat(priceParam);
     if (!isNaN(price) && price > 0) {
-      params = applyRecursosMesh(
-        { ...params, valorImovelBase: price, valorImovelMultiplier: 1.0 },
-        { valorImovel: price }
-      );
+      params = { ...params, valorImovel: snapToPropertyStep(price) };
       if (typeof window !== "undefined") {
         const url = new URL(window.location.href);
         url.searchParams.delete("price");
@@ -124,35 +118,21 @@
     newValue: number
   ) {
     if (field === "capitalDisponivel") {
-      handleEntradaChange(newValue);
+      params = { ...params, capitalDisponivel: Math.max(0, Math.round(newValue)) };
       return;
     }
     if (field === "valorImovel") {
-      params = applyRecursosMesh(params, { valorImovel: newValue });
+      params = { ...params, valorImovel: snapToPropertyStep(newValue) };
       return;
     }
-
-    const baseField = `${field}Base` as keyof SimulatorParams;
-    const multiplierField = `${field}Multiplier` as keyof SimulatorParams;
-    params = {
-      ...params,
-      [baseField]: newValue,
-      [multiplierField]: 1.0
-    } as SimulatorParams;
+    if (field === "valorApartamento") {
+      params = { ...params, valorApartamento: snapToPropertyStep(newValue) };
+      return;
+    }
+    if (field === "custoCondominio") {
+      params = { ...params, custoCondominioMensal: newValue };
+    }
   }
-
-  function handleEntradaChange(newEntrada: number) {
-    const entrada = Math.max(0, Math.round(newEntrada));
-    params = {
-      ...params,
-      capitalDisponivelBase: entrada,
-      capitalDisponivelMultiplier: 1,
-      reservaEmergenciaBase: 0,
-      reservaEmergenciaMultiplier: 1,
-      reservaTetoRatio: 0
-    };
-  }
-
 </script>
 
 {#if !settingsContext.isLoaded}
@@ -161,17 +141,17 @@
   <div class="min-h-[calc(100vh-var(--nav-height,2.75rem))] bg-app-bg text-app-fg">
     <main class="{WORKSPACE_CONTENT_CLASS} {WORKSPACE_STACK_CLASS}">
       <AdjustmentPanel
-        params={panelParams}
+        {params}
         {recursosMeta}
         onChange={(next) => (params = next)}
         onValueChange={handleValueChange}
-        onCapitalChange={handleEntradaChange}
-        onEntradaChange={handleEntradaChange}
+        onCapitalChange={(v) => handleValueChange("capitalDisponivel", v)}
+        onEntradaChange={(v) => handleValueChange("capitalDisponivel", v)}
       />
 
       <section class={LISTINGS_SECTION_CLASS}>
-        <ScenarioFilterToolbar params={panelParams} onChange={(next) => (params = next)} />
-        <ResultsTable cenarios={filteredCenarios} />
+        <ScenarioFilterToolbar {params} onChange={(next) => (params = next)} />
+        <ResultsTable cenarios={filteredCenarios} {permutaDisponivel} />
       </section>
     </main>
   </div>

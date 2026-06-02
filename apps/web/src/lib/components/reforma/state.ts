@@ -1,11 +1,31 @@
-import type { ReformaDocument, ReformaShape } from "$lib/components/reforma/types";
+import type {
+  ReformaDocument,
+  ReformaShape,
+  ReformaViewport
+} from "$lib/components/reforma/types";
+
+export const MIN_VIEWPORT_SCALE = 0.2;
+export const MAX_VIEWPORT_SCALE = 4;
+
+export type Bounds = {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+};
 
 export function createReformaDocument(): ReformaDocument {
   return {
     version: 1,
     blueprint: null,
     viewport: { x: 80, y: 70, scale: 1 },
-    grid: { visible: true, size: 50 },
+    grid: {
+      visible: true,
+      size: 50,
+      metersPerCell: 1,
+      showMeasurements: false,
+      snapToGrid: false
+    },
     shapes: []
   };
 }
@@ -19,6 +39,97 @@ export function createShapeId() {
 
 export function getShapeName(shape: ReformaShape, index: number) {
   return shape.name || `${shape.type === "rect" ? "Retangulo" : "Linha"} ${index + 1}`;
+}
+
+export function clampScale(value: number) {
+  return clampNumber(value, MIN_VIEWPORT_SCALE, MAX_VIEWPORT_SCALE);
+}
+
+export function zoomAtPoint(
+  viewport: ReformaViewport,
+  pointerX: number,
+  pointerY: number,
+  nextScale: number
+): ReformaViewport {
+  const scale = clampScale(nextScale);
+  const worldX = (pointerX - viewport.x) / viewport.scale;
+  const worldY = (pointerY - viewport.y) / viewport.scale;
+
+  return {
+    x: pointerX - worldX * scale,
+    y: pointerY - worldY * scale,
+    scale
+  };
+}
+
+export function zoomAtCenter(
+  viewport: ReformaViewport,
+  canvasWidth: number,
+  canvasHeight: number,
+  nextScale: number
+): ReformaViewport {
+  return zoomAtPoint(viewport, canvasWidth / 2, canvasHeight / 2, nextScale);
+}
+
+export function getBlueprintBounds(planner: ReformaDocument): Bounds | null {
+  if (!planner.blueprint) return null;
+
+  const { blueprint } = planner;
+  return {
+    x: blueprint.x,
+    y: blueprint.y,
+    width: blueprint.naturalWidth * blueprint.scale,
+    height: blueprint.naturalHeight * blueprint.scale
+  };
+}
+
+export function getContentBounds(planner: ReformaDocument): Bounds | null {
+  const bounds: Bounds[] = [];
+
+  for (const shape of planner.shapes) {
+    if (shape.visible === false) continue;
+    bounds.push(getShapeBounds(shape));
+  }
+
+  const blueprintBounds = getBlueprintBounds(planner);
+  if (blueprintBounds) bounds.push(blueprintBounds);
+
+  if (bounds.length === 0) return null;
+
+  const left = Math.min(...bounds.map((item) => item.x));
+  const top = Math.min(...bounds.map((item) => item.y));
+  const right = Math.max(...bounds.map((item) => item.x + item.width));
+  const bottom = Math.max(...bounds.map((item) => item.y + item.height));
+
+  return {
+    x: left,
+    y: top,
+    width: Math.max(1, right - left),
+    height: Math.max(1, bottom - top)
+  };
+}
+
+export function fitBoundsToViewport(
+  bounds: Bounds,
+  canvasWidth: number,
+  canvasHeight: number,
+  padding = 48
+): ReformaViewport {
+  if (canvasWidth <= 0 || canvasHeight <= 0) {
+    return { x: 80, y: 70, scale: 1 };
+  }
+
+  const availableWidth = Math.max(1, canvasWidth - padding * 2);
+  const availableHeight = Math.max(1, canvasHeight - padding * 2);
+  const scale = clampScale(
+    Math.min(availableWidth / bounds.width, availableHeight / bounds.height)
+  );
+
+  return {
+    scale,
+    x: (canvasWidth - bounds.width * scale) / 2 - bounds.x * scale,
+    y: (canvasHeight - bounds.height * scale) / 2 - bounds.y * scale
+  };
 }
 
 export function getShapeBounds(shape: ReformaShape) {
@@ -40,6 +151,56 @@ export function getShapeBounds(shape: ReformaShape) {
   };
 }
 
+export function normalizeBounds(
+  start: { x: number; y: number },
+  end: { x: number; y: number }
+): Bounds {
+  return {
+    x: Math.min(start.x, end.x),
+    y: Math.min(start.y, end.y),
+    width: Math.abs(end.x - start.x),
+    height: Math.abs(end.y - start.y)
+  };
+}
+
+export function boundsIntersect(a: Bounds, b: Bounds) {
+  return !(
+    a.x + a.width < b.x ||
+    b.x + b.width < a.x ||
+    a.y + a.height < b.y ||
+    b.y + b.height < a.y
+  );
+}
+
+export function getSelectableShapeIdsInBounds(shapes: ReformaShape[], bounds: Bounds) {
+  return shapes
+    .filter((shape) => shape.visible !== false && shape.locked !== true)
+    .filter((shape) => boundsIntersect(getShapeBounds(shape), bounds))
+    .map((shape) => shape.id);
+}
+
+export function unionBounds(boundsList: Bounds[]): Bounds | null {
+  if (boundsList.length === 0) return null;
+
+  const left = Math.min(...boundsList.map((bounds) => bounds.x));
+  const top = Math.min(...boundsList.map((bounds) => bounds.y));
+  const right = Math.max(...boundsList.map((bounds) => bounds.x + bounds.width));
+  const bottom = Math.max(...boundsList.map((bounds) => bounds.y + bounds.height));
+
+  return {
+    x: left,
+    y: top,
+    width: Math.max(1, right - left),
+    height: Math.max(1, bottom - top)
+  };
+}
+
+export function getShapesUnionBounds(shapes: ReformaShape[]): Bounds | null {
+  const visible = shapes.filter((shape) => shape.visible !== false);
+  if (visible.length === 0) return null;
+  return unionBounds(visible.map(getShapeBounds));
+}
+
 export function parseReformaDocument(raw: string | null): ReformaDocument {
   if (!raw) return createReformaDocument();
 
@@ -53,11 +214,14 @@ export function parseReformaDocument(raw: string | null): ReformaDocument {
       viewport: {
         x: Number(parsed.viewport?.x ?? 80),
         y: Number(parsed.viewport?.y ?? 70),
-        scale: clampNumber(Number(parsed.viewport?.scale ?? 1), 0.2, 4)
+        scale: clampScale(Number(parsed.viewport?.scale ?? 1))
       },
       grid: {
         visible: parsed.grid?.visible !== false,
-        size: clampNumber(Number(parsed.grid?.size ?? 50), 20, 200)
+        size: clampNumber(Number(parsed.grid?.size ?? 50), 20, 200),
+        metersPerCell: clampNumber(Number(parsed.grid?.metersPerCell ?? 1), 0.01, 100),
+        showMeasurements: parsed.grid?.showMeasurements === true,
+        snapToGrid: parsed.grid?.snapToGrid === true
       },
       shapes: Array.isArray(parsed.shapes) ? parsed.shapes.filter(isShape).map(normalizeShape) : []
     };

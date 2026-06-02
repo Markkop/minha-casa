@@ -1,7 +1,11 @@
 <script lang="ts">
   import ColumnHeader from "$lib/components/financiamento/column-header.svelte";
   import type { ParameterCardProps } from "$lib/components/financiamento/financiamento-parameter-types";
-  import { calculateSliderRange } from "$lib/components/financiamento/parameter-row-helpers";
+  import {
+    CUSTO_CONDOMINIO_RANGE,
+    VALOR_APARTAMENTO_RANGE,
+    VALOR_IMOVEL_RANGE
+  } from "$lib/components/financiamento/parameter-row-helpers";
   import ParameterRow from "$lib/components/financiamento/parameter-row.svelte";
   import Card from "$lib/components/ui/Card.svelte";
   import CardContent from "$lib/components/ui/CardContent.svelte";
@@ -9,6 +13,7 @@
     formatCurrency,
     generateTooltips
   } from "$lib/financiamento/calculations";
+  import { UI_DEFAULTS } from "$lib/financiamento/calculations-defaults";
   import { getSettingsContext } from "$lib/financiamento/settings-context.svelte";
 
   let {
@@ -44,12 +49,6 @@
       step: 10_000
     }
   );
-  const valorImovelRange = $derived(calculateSliderRange(params.valorImovelBase, true));
-  const valorApartamentoRange = $derived({
-    ...calculateSliderRange(params.valorApartamentoBase, true),
-    max: Math.max(params.valorApartamentoBase * 2, params.valorApartamentoSelecionado, 1_000_000)
-  });
-  const custoCondominioRange = $derived(calculateSliderRange(params.custoCondominioBase, true));
 
   function patch(partial: Partial<typeof params>) {
     onChange({ ...params, ...partial });
@@ -64,13 +63,24 @@
       onCapitalChange(value);
       return;
     }
+    patch({ capitalDisponivel: value });
+  }
+
+  function resetRecursosSection() {
     patch({
-      capitalDisponivel: value,
-      capitalDisponivelBase: value,
-      capitalDisponivelMultiplier: 1,
-      reservaEmergencia: 0,
-      reservaEmergenciaBase: 0,
-      reservaEmergenciaMultiplier: 1
+      capitalDisponivel: UI_DEFAULTS.capitalDisponivel,
+      valorApartamento: UI_DEFAULTS.valorApartamento,
+      rendaMensal: UI_DEFAULTS.rendaMensal,
+      aporteExtra: UI_DEFAULTS.aporteExtra
+    });
+  }
+
+  function resetCustosSection() {
+    patch({
+      valorImovel: UI_DEFAULTS.valorImovel,
+      taxaAnual: UI_DEFAULTS.taxaAnual,
+      trMensal: UI_DEFAULTS.trMensal,
+      custoCondominioMensal: UI_DEFAULTS.custoCondominioMensal
     });
   }
 </script>
@@ -79,7 +89,7 @@
   <CardContent class="pt-0 pb-2">
     <div class="grid grid-cols-1 gap-x-8 gap-y-0 lg:grid-cols-2">
       <div>
-        <ColumnHeader title="Quanto você tem?" />
+        <ColumnHeader title="Quanto você tem?" onReset={resetRecursosSection} />
         <ParameterRow
           label="Para dar entrada?"
           tooltip="Valor em dinheiro disponível para entrada."
@@ -101,20 +111,20 @@
         <ParameterRow
           label="Imóveis para permutar ou vender?"
           tooltip="Valor dos imóveis que podem entrar como permuta ou venda posterior."
-          valueDisplay={formatCurrency(params.valorApartamentoSelecionado)}
+          valueDisplay={formatCurrency(params.valorApartamento)}
           slider={{
-            value: params.valorApartamentoSelecionado,
-            min: valorApartamentoRange.min,
-            max: valorApartamentoRange.max,
-            step: valorApartamentoRange.step,
+            value: params.valorApartamento,
+            min: VALOR_APARTAMENTO_RANGE.min,
+            max: VALOR_APARTAMENTO_RANGE.max,
+            step: VALOR_APARTAMENTO_RANGE.step,
             onValueChange: (v) =>
-              onValueChange ? onValueChange("valorApartamento", v) : patch({ valorApartamentoSelecionado: v })
+              onValueChange ? onValueChange("valorApartamento", v) : patch({ valorApartamento: v })
           }}
           edit={{
             type: "currency",
-            value: params.valorApartamentoSelecionado,
+            value: params.valorApartamento,
             onChange: (v) =>
-              onValueChange ? onValueChange("valorApartamento", v) : patch({ valorApartamentoSelecionado: v })
+              onValueChange ? onValueChange("valorApartamento", v) : patch({ valorApartamento: v })
           }}
         />
         <ParameterRow
@@ -154,24 +164,24 @@
       </div>
 
       <div>
-        <ColumnHeader title="Quanto custa?" />
+        <ColumnHeader title="Quanto custa?" onReset={resetCustosSection} />
         <ParameterRow
           label="Preço do Imóvel"
           tooltip={tooltips.valorImovel}
-          valueDisplay={formatCurrency(params.valorImovelSelecionado)}
+          valueDisplay={formatCurrency(params.valorImovel)}
           slider={{
-            value: params.valorImovelSelecionado,
-            min: valorImovelRange.min,
-            max: valorImovelRange.max,
-            step: valorImovelRange.step,
+            value: params.valorImovel,
+            min: VALOR_IMOVEL_RANGE.min,
+            max: VALOR_IMOVEL_RANGE.max,
+            step: VALOR_IMOVEL_RANGE.step,
             onValueChange: (v) =>
-              onValueChange ? onValueChange("valorImovel", v) : patch({ valorImovelSelecionado: v })
+              onValueChange ? onValueChange("valorImovel", v) : patch({ valorImovel: v })
           }}
           edit={{
             type: "currency",
-            value: params.valorImovelSelecionado,
+            value: params.valorImovel,
             onChange: (v) =>
-              onValueChange ? onValueChange("valorImovel", v) : patch({ valorImovelSelecionado: v })
+              onValueChange ? onValueChange("valorImovel", v) : patch({ valorImovel: v })
           }}
         />
         <ParameterRow
@@ -214,9 +224,9 @@
           valueDisplay={formatCurrency(params.custoCondominioMensal)}
           slider={{
             value: params.custoCondominioMensal,
-            min: custoCondominioRange.min,
-            max: custoCondominioRange.max,
-            step: custoCondominioRange.step,
+            min: CUSTO_CONDOMINIO_RANGE.min,
+            max: CUSTO_CONDOMINIO_RANGE.max,
+            step: CUSTO_CONDOMINIO_RANGE.step,
             onValueChange: (v) =>
               onValueChange ? onValueChange("custoCondominio", v) : patch({ custoCondominioMensal: v })
           }}

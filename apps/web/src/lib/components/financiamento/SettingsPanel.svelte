@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Plus, RotateCcw, X } from "@lucide/svelte";
+  import { RotateCcw, X } from "@lucide/svelte";
   import Card from "$lib/components/ui/Card.svelte";
   import CardContent from "$lib/components/ui/CardContent.svelte";
   import CardHeader from "$lib/components/ui/CardHeader.svelte";
@@ -105,61 +105,6 @@
             </div>
           </div>
 
-          <div class="space-y-2">
-            <Label class="text-sm font-semibold text-app-accent">Opções de Prazo (meses)</Label>
-            <p class="mb-2 text-xs text-app-subtle">
-              Prazos disponíveis para seleção rápida no simulador.
-            </p>
-            <div class="space-y-2">
-              {#each localSettings.prazoOptions as value, index (index)}
-                <div class="flex items-center gap-2">
-                  <Input
-                    type="number"
-                    class="w-24 font-mono"
-                    {value}
-                    oninput={(e) => {
-                      const v = parseInt(e.currentTarget.value, 10) || 0;
-                      const next = [...localSettings.prazoOptions];
-                      next[index] = v;
-                      localSettings = {
-                        ...localSettings,
-                        prazoOptions: [...next].sort((a, b) => a - b)
-                      };
-                    }}
-                  />
-                  <button
-                    type="button"
-                    class="rounded p-1 transition-colors hover:bg-app-surface-muted disabled:cursor-not-allowed disabled:opacity-30"
-                    disabled={localSettings.prazoOptions.length <= 1}
-                    onclick={() => {
-                      localSettings = {
-                        ...localSettings,
-                        prazoOptions: localSettings.prazoOptions.filter((_, i) => i !== index)
-                      };
-                    }}
-                    aria-label="Remover prazo"
-                  >
-                    <X class="size-4 text-app-subtle hover:text-salmon" />
-                  </button>
-                </div>
-              {/each}
-              <button
-                type="button"
-                class="text-xs text-app-accent transition-colors hover:text-app-accent/80"
-                onclick={() => {
-                  const last = localSettings.prazoOptions.at(-1) ?? 0;
-                  localSettings = {
-                    ...localSettings,
-                    prazoOptions: [...localSettings.prazoOptions, last]
-                  };
-                }}
-              >
-                <Plus class="mr-1 inline size-3" />
-                Adicionar valor
-              </button>
-            </div>
-          </div>
-
           <div class="space-y-4">
             <Label class="text-sm font-semibold text-app-accent">Limites dos Sliders</Label>
             <p class="mb-2 text-xs text-app-subtle">
@@ -169,7 +114,6 @@
             {#each [
               { key: "taxaAnual" as const, label: "Taxa de Juros Anual", isPercent: true },
               { key: "trMensal" as const, label: "TR Mensal", isPercent: true },
-              { key: "haircut" as const, label: "Haircut (Deságio Permuta)", isPercent: true },
               { key: "aporteExtra" as const, label: "Aporte Extra Mensal", isCurrency: true },
               { key: "rendaMensal" as const, label: "Renda Mensal", isCurrency: true }
             ] as row (row.key)}

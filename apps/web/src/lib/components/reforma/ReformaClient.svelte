@@ -12,28 +12,36 @@
     ImageUp,
     Layers,
     Lock,
+    Magnet,
     Maximize2,
     Minus,
     MousePointer2,
     PanelLeft,
     PanelRight,
     RotateCcw,
+    Ruler,
     Square,
     Trash2,
     Unlock
   } from "@lucide/svelte";
   import Button from "$lib/components/ui/Button.svelte";
+  import Input from "$lib/components/ui/Input.svelte";
   import Slider from "$lib/components/ui/Slider.svelte";
   import WorkspacePage from "$lib/components/workspace/WorkspacePage.svelte";
   import { cn } from "$lib/utils";
   import { resizeBlueprintFile } from "$lib/components/reforma/blueprint";
+  import { snapShape } from "$lib/components/reforma/snap";
   import ReformaCanvas from "$lib/components/reforma/ReformaCanvas.svelte";
   import {
     createReformaDocument,
     createShapeId,
+    fitBoundsToViewport,
+    getContentBounds,
+    getShapesUnionBounds,
     getShapeBounds,
     getShapeName,
-    parseReformaDocument
+    parseReformaDocument,
+    zoomAtCenter
   } from "$lib/components/reforma/state";
   import {
     REFORMA_STORAGE_KEY,
@@ -56,23 +64,30 @@
 
   let planner = $state<ReformaDocument>(createReformaDocument());
   let tool = $state<ReformaTool>("select");
-  let activeShapeId = $state<string | null>(null);
+  let selectedShapeIds = $state<string[]>([]);
+  let spacePressed = $state(false);
   let hydrated = $state(false);
   let uploadError = $state<string | null>(null);
   let fileInput: HTMLInputElement | null = $state(null);
+  let canvasRef = $state<{ cancelDraft: () => void }>();
   let canvasWidth = $state(0);
   let canvasHeight = $state(0);
   let layersPanelOpen = $state(true);
   let designPanelOpen = $state(true);
+  let blueprintHandActive = $state(false);
 
   const zoomPercent = $derived(Math.round(planner.viewport.scale * 100));
-  const selectedShape = $derived(
-    activeShapeId ? planner.shapes.find((shape) => shape.id === activeShapeId) ?? null : null
+  const selectedShapes = $derived(
+    planner.shapes.filter((shape) => selectedShapeIds.includes(shape.id))
   );
+  const selectedShape = $derived(selectedShapes[0] ?? null);
   const selectedIndex = $derived(
-    activeShapeId ? planner.shapes.findIndex((shape) => shape.id === activeShapeId) : -1
+    selectedShape ? planner.shapes.findIndex((shape) => shape.id === selectedShape.id) : -1
   );
-  const selectedBounds = $derived(selectedShape ? getShapeBounds(selectedShape) : null);
+  const selectedBounds = $derived(
+    selectedShapeIds.length === 1 && selectedShape ? getShapeBounds(selectedShape) : null
+  );
+  const selectionUnionBounds = $derived(getShapesUnionBounds(selectedShapes));
   const layerRows = $derived(
     planner.shapes.map((shape, index) => ({ shape, index })).toReversed()
   );
@@ -97,6 +112,15 @@
 
   function toggleDesignPanel() {
     designPanelOpen = !designPanelOpen;
+  }
+
+  function toggleBlueprintHand() {
+    blueprintHandActive = !blueprintHandActive;
+  }
+
+  function removeBlueprint() {
+    blueprintHandActive = false;
+    planner = { ...planner, blueprint: null };
   }
 
   async function handleBlueprintUpload(event: Event) {
@@ -163,19 +187,58 @@
   }
 
   function resetViewport() {
+    const bounds = getContentBounds(planner);
     planner = {
       ...planner,
-      viewport: { x: 80, y: 70, scale: 1 }
+      viewport: bounds
+        ? fitBoundsToViewport(bounds, canvasWidth, canvasHeight)
+        : { x: 80, y: 70, scale: 1 }
+    };
+  }
+
+  function zoomToFit() {
+    const bounds = getContentBounds(planner);
+    if (!bounds) return;
+    planner = {
+      ...planner,
+      viewport: fitBoundsToViewport(bounds, canvasWidth, canvasHeight)
+    };
+  }
+
+  function zoomToSelection() {
+    if (!selectionUnionBounds) return;
+    planner = {
+      ...planner,
+      viewport: fitBoundsToViewport(selectionUnionBounds, canvasWidth, canvasHeight, 64)
+    };
+  }
+
+  function zoomTo100() {
+    if (canvasWidth <= 0 || canvasHeight <= 0) return;
+    planner = {
+      ...planner,
+      viewport: zoomAtCenter(planner.viewport, canvasWidth, canvasHeight, 1)
+    };
+  }
+
+  function zoomByFactor(factor: number) {
+    if (canvasWidth <= 0 || canvasHeight <= 0) return;
+    planner = {
+      ...planner,
+      viewport: zoomAtCenter(
+        planner.viewport,
+        canvasWidth,
+        canvasHeight,
+        planner.viewport.scale * factor
+      )
     };
   }
 
   function updateZoom(nextPercent: number) {
+    if (canvasWidth <= 0 || canvasHeight <= 0) return;
     planner = {
       ...planner,
-      viewport: {
-        ...planner.viewport,
-        scale: Math.max(0.2, Math.min(4, nextPercent / 100))
-      }
+      viewport: zoomAtCenter(planner.viewport, canvasWidth, canvasHeight, nextPercent / 100)
     };
   }
 
@@ -221,6 +284,38 @@
     };
   }
 
+  function updateMetersPerCell(rawValue: string) {
+    const parsed = Number.parseFloat(rawValue.replace(",", "."));
+    if (!Number.isFinite(parsed)) return;
+    planner = {
+      ...planner,
+      grid: {
+        ...planner.grid,
+        metersPerCell: Math.max(0.01, Math.min(100, parsed))
+      }
+    };
+  }
+
+  function toggleMeasurements() {
+    planner = {
+      ...planner,
+      grid: {
+        ...planner.grid,
+        showMeasurements: !planner.grid.showMeasurements
+      }
+    };
+  }
+
+  function toggleSnapToGrid() {
+    planner = {
+      ...planner,
+      grid: {
+        ...planner.grid,
+        snapToGrid: !planner.grid.snapToGrid
+      }
+    };
+  }
+
   function updateShape(shapeId: string, patch: Partial<ReformaShape>) {
     planner = {
       ...planner,
@@ -238,12 +333,19 @@
     };
 
     if (selectedShape.type === "rect") {
-      updateShape(selectedShape.id, {
-        x: nextBounds.x,
-        y: nextBounds.y,
-        width: Math.max(4, nextBounds.width),
-        height: Math.max(4, nextBounds.height)
-      });
+      updateShape(
+        selectedShape.id,
+        snapShape(
+          {
+            ...selectedShape,
+            x: nextBounds.x,
+            y: nextBounds.y,
+            width: Math.max(4, nextBounds.width),
+            height: Math.max(4, nextBounds.height)
+          },
+          planner.grid
+        )
+      );
       return;
     }
 
@@ -252,41 +354,52 @@
     const oldHeight = selectedBounds.height || 1;
     const widthScale = Math.max(4, nextBounds.width) / oldWidth;
     const heightScale = Math.max(4, nextBounds.height) / oldHeight;
-    updateShape(selectedShape.id, {
-      points: [
-        nextBounds.x + (x1 - selectedBounds.x) * widthScale,
-        nextBounds.y + (y1 - selectedBounds.y) * heightScale,
-        nextBounds.x + (x2 - selectedBounds.x) * widthScale,
-        nextBounds.y + (y2 - selectedBounds.y) * heightScale
-      ]
-    });
+    updateShape(
+      selectedShape.id,
+      snapShape(
+        {
+          ...selectedShape,
+          points: [
+            nextBounds.x + (x1 - selectedBounds.x) * widthScale,
+            nextBounds.y + (y1 - selectedBounds.y) * heightScale,
+            nextBounds.x + (x2 - selectedBounds.x) * widthScale,
+            nextBounds.y + (y2 - selectedBounds.y) * heightScale
+          ]
+        },
+        planner.grid
+      )
+    );
   }
 
   function selectShape(shape: ReformaShape) {
     if (shape.visible === false || shape.locked) return;
-    activeShapeId = shape.id;
+    selectedShapeIds = [shape.id];
     tool = "select";
   }
 
   function toggleShapeVisibility(shape: ReformaShape) {
     const nextVisible = shape.visible === false;
     updateShape(shape.id, { visible: nextVisible });
-    if (!nextVisible && activeShapeId === shape.id) activeShapeId = null;
+    if (!nextVisible) {
+      selectedShapeIds = selectedShapeIds.filter((id) => id !== shape.id);
+    }
   }
 
   function toggleShapeLock(shape: ReformaShape) {
     const nextLocked = shape.locked !== true;
     updateShape(shape.id, { locked: nextLocked });
-    if (nextLocked && activeShapeId === shape.id) activeShapeId = null;
+    if (nextLocked) {
+      selectedShapeIds = selectedShapeIds.filter((id) => id !== shape.id);
+    }
   }
 
   function deleteSelectedShape() {
-    if (!activeShapeId) return;
+    if (selectedShapeIds.length === 0) return;
     planner = {
       ...planner,
-      shapes: planner.shapes.filter((shape) => shape.id !== activeShapeId)
+      shapes: planner.shapes.filter((shape) => !selectedShapeIds.includes(shape.id))
     };
-    activeShapeId = null;
+    selectedShapeIds = [];
   }
 
   function duplicateSelectedShape() {
@@ -320,7 +433,7 @@
     const shapes = [...planner.shapes];
     shapes.splice(selectedIndex + 1, 0, copy);
     planner = { ...planner, shapes };
-    activeShapeId = copy.id;
+    selectedShapeIds = [copy.id];
   }
 
   function moveSelectedLayer(direction: "up" | "down") {
@@ -334,12 +447,12 @@
 
   function clearShapes() {
     planner = { ...planner, shapes: [] };
-    activeShapeId = null;
+    selectedShapeIds = [];
   }
 
   function resetPlanner() {
     planner = createReformaDocument();
-    activeShapeId = null;
+    selectedShapeIds = [];
     tool = "select";
     uploadError = null;
   }
@@ -347,7 +460,108 @@
   function numberValue(event: Event) {
     return Number((event.currentTarget as HTMLInputElement).value);
   }
+
+  function shouldIgnoreShortcut(event: KeyboardEvent) {
+    const target = event.target;
+    if (!(target instanceof HTMLElement)) return false;
+    return (
+      target instanceof HTMLInputElement ||
+      target instanceof HTMLTextAreaElement ||
+      target instanceof HTMLSelectElement ||
+      target.isContentEditable
+    );
+  }
+
+  function handleWindowKeyDown(event: KeyboardEvent) {
+    if (event.key === " " || event.code === "Space") {
+      if (!shouldIgnoreShortcut(event)) {
+        event.preventDefault();
+        spacePressed = true;
+      }
+      return;
+    }
+
+    if (shouldIgnoreShortcut(event)) return;
+
+    const key = event.key.toLowerCase();
+    const mod = event.metaKey || event.ctrlKey;
+
+    if (key === "escape") {
+      canvasRef?.cancelDraft();
+      selectedShapeIds = [];
+      return;
+    }
+
+    if (key === "delete" || key === "backspace") {
+      event.preventDefault();
+      deleteSelectedShape();
+      return;
+    }
+
+    if (mod && (key === "=" || key === "+")) {
+      event.preventDefault();
+      zoomByFactor(1.05);
+      return;
+    }
+
+    if (mod && key === "-") {
+      event.preventDefault();
+      zoomByFactor(1 / 1.05);
+      return;
+    }
+
+    if (mod && key === "0") {
+      event.preventDefault();
+      zoomTo100();
+      return;
+    }
+
+    if (event.shiftKey && event.code === "Digit1") {
+      event.preventDefault();
+      zoomToFit();
+      return;
+    }
+
+    if (event.shiftKey && event.code === "Digit2") {
+      event.preventDefault();
+      zoomToSelection();
+      return;
+    }
+
+    if (event.altKey || mod || event.shiftKey) return;
+
+    if (key === "v") {
+      event.preventDefault();
+      setTool("select");
+      return;
+    }
+
+    if (key === "h") {
+      event.preventDefault();
+      setTool("pan");
+      return;
+    }
+
+    if (key === "l") {
+      event.preventDefault();
+      setTool("line");
+      return;
+    }
+
+    if (key === "r") {
+      event.preventDefault();
+      setTool("rect");
+    }
+  }
+
+  function handleWindowKeyUp(event: KeyboardEvent) {
+    if (event.key === " " || event.code === "Space") {
+      spacePressed = false;
+    }
+  }
 </script>
+
+<svelte:window onkeydown={handleWindowKeyDown} onkeyup={handleWindowKeyUp} />
 
 <WorkspacePage contentClassName="flex min-h-[calc(100vh-var(--nav-height,2.75rem))] max-w-none flex-col gap-0 p-0">
   <input
@@ -396,7 +610,7 @@
       <Button size="icon" class="h-8 w-8" variant="secondary" title="Ajustar planta" ariaLabel="Ajustar planta" disabled={!planner.blueprint} onclick={fitBlueprint}>
         <Maximize2 class="h-4 w-4" />
       </Button>
-      <Button size="icon" class="h-8 w-8" variant="secondary" title="Resetar tela" ariaLabel="Resetar tela" onclick={resetViewport}>
+      <Button size="icon" class="h-8 w-8" variant="secondary" title="Ajustar vista (Shift+1)" ariaLabel="Ajustar vista" onclick={resetViewport}>
         <RotateCcw class="h-4 w-4" />
       </Button>
     </div>
@@ -497,7 +711,7 @@
           <div class="mb-2 flex h-8 items-center gap-2 rounded-md px-2 text-xs text-app-muted">
             <ImageUp class="h-3.5 w-3.5" />
             <span class="min-w-0 flex-1 truncate">Blueprint</span>
-            <Button variant="ghost" size="icon" class="h-6 w-6" title="Remover planta" ariaLabel="Remover planta" onclick={() => (planner = { ...planner, blueprint: null })}>
+            <Button variant="ghost" size="icon" class="h-6 w-6" title="Remover planta" ariaLabel="Remover planta" onclick={removeBlueprint}>
               <ImageOff class="h-3.5 w-3.5" />
             </Button>
           </div>
@@ -511,7 +725,7 @@
           <div class="space-y-1">
             {#each layerRows as row (row.shape.id)}
               {@const shape = row.shape}
-              {@const isActive = activeShapeId === shape.id}
+              {@const isActive = selectedShapeIds.includes(shape.id)}
               <div
                 class={cn(
                   "group flex h-8 min-w-0 items-center gap-1 rounded-md px-1 text-xs",
@@ -556,11 +770,14 @@
 
     <main class="min-h-0 bg-app-bg p-2">
       <ReformaCanvas
+        bind:this={canvasRef}
         bind:planner
-        bind:activeShapeId
+        bind:selectedShapeIds
         bind:canvasWidth
         bind:canvasHeight
         {tool}
+        {spacePressed}
+        {blueprintHandActive}
       />
     </main>
 
@@ -587,16 +804,20 @@
               <Button variant="ghost" size="icon" class="h-7 w-7" title="Mover layer para baixo" ariaLabel="Mover layer para baixo" disabled={selectedIndex <= 0} onclick={() => moveSelectedLayer("down")}>
                 <ArrowDown class="h-3.5 w-3.5" />
               </Button>
-              <Button variant="ghost" size="icon" class="h-7 w-7" title="Duplicar" ariaLabel="Duplicar" disabled={!selectedShape} onclick={duplicateSelectedShape}>
+              <Button variant="ghost" size="icon" class="h-7 w-7" title="Duplicar" ariaLabel="Duplicar" disabled={selectedShapeIds.length !== 1} onclick={duplicateSelectedShape}>
                 <Copy class="h-3.5 w-3.5" />
               </Button>
-              <Button variant="ghost" size="icon" class="h-7 w-7" title="Apagar" ariaLabel="Apagar" disabled={!selectedShape} onclick={deleteSelectedShape}>
+              <Button variant="ghost" size="icon" class="h-7 w-7" title="Apagar" ariaLabel="Apagar" disabled={selectedShapeIds.length === 0} onclick={deleteSelectedShape}>
                 <Trash2 class="h-3.5 w-3.5" />
               </Button>
             </div>
           </div>
 
-          {#if selectedShape && selectedBounds}
+          {#if selectedShapeIds.length > 1}
+            <p class="text-xs leading-relaxed text-app-muted">
+              {selectedShapeIds.length} objetos selecionados. Use Shift+clique ou arraste uma area para selecionar varios. Delete apaga todos.
+            </p>
+          {:else if selectedShape && selectedBounds}
             <label class="mb-3 block text-xs text-app-muted">
               Nome
               <input
@@ -625,9 +846,22 @@
         <section class="border-b border-app-border p-3">
           <div class="mb-3 flex items-center justify-between">
             <h2 class="text-xs font-semibold uppercase text-app-muted">Blueprint</h2>
-            <Button variant="ghost" size="icon" class="h-7 w-7" title="Remover planta" ariaLabel="Remover planta" disabled={!planner.blueprint} onclick={() => (planner = { ...planner, blueprint: null })}>
-              <ImageOff class="h-3.5 w-3.5" />
-            </Button>
+            <div class="flex items-center gap-0.5">
+              <Button
+                variant={blueprintHandActive ? "primary" : "ghost"}
+                size="icon"
+                class="h-7 w-7"
+                title="Mover planta"
+                ariaLabel="Mover planta"
+                disabled={!planner.blueprint}
+                onclick={toggleBlueprintHand}
+              >
+                <Hand class="h-3.5 w-3.5" />
+              </Button>
+              <Button variant="ghost" size="icon" class="h-7 w-7" title="Remover planta" ariaLabel="Remover planta" disabled={!planner.blueprint} onclick={removeBlueprint}>
+                <ImageOff class="h-3.5 w-3.5" />
+              </Button>
+            </div>
           </div>
           <div class="space-y-3">
             <label class="grid grid-cols-[4.5rem_minmax(0,1fr)_2.6rem] items-center gap-2 text-xs text-app-muted">
@@ -646,14 +880,50 @@
         <section class="p-3">
           <div class="mb-3 flex items-center justify-between">
             <h2 class="text-xs font-semibold uppercase text-app-muted">Canvas</h2>
-            <Button variant={planner.grid.visible ? "primary" : "ghost"} size="icon" class="h-7 w-7" title="Mostrar grade" ariaLabel="Mostrar grade" onclick={toggleGrid}>
-              <Grid3X3 class="h-3.5 w-3.5" />
-            </Button>
+            <div class="flex items-center gap-1">
+              <Button
+                variant={planner.grid.snapToGrid ? "primary" : "ghost"}
+                size="icon"
+                class="h-7 w-7"
+                title="Encaixar na grade"
+                ariaLabel="Encaixar na grade"
+                onclick={toggleSnapToGrid}
+              >
+                <Magnet class="h-3.5 w-3.5" />
+              </Button>
+              <Button
+                variant={planner.grid.showMeasurements ? "primary" : "ghost"}
+                size="icon"
+                class="h-7 w-7"
+                title="Mostrar medidas"
+                ariaLabel="Mostrar medidas"
+                onclick={toggleMeasurements}
+              >
+                <Ruler class="h-3.5 w-3.5" />
+              </Button>
+              <Button variant={planner.grid.visible ? "primary" : "ghost"} size="icon" class="h-7 w-7" title="Mostrar grade" ariaLabel="Mostrar grade" onclick={toggleGrid}>
+                <Grid3X3 class="h-3.5 w-3.5" />
+              </Button>
+            </div>
           </div>
           <label class="grid grid-cols-[4.5rem_minmax(0,1fr)_2.6rem] items-center gap-2 text-xs text-app-muted">
             <span>Grid</span>
             <Slider value={planner.grid.size} min={20} max={200} step={5} onValueChange={updateGridSize} ariaLabel="Tamanho da grade" />
             <span class="text-right font-mono text-app-fg">{planner.grid.size}</span>
+          </label>
+          <label class="mt-2 grid grid-cols-[4.5rem_minmax(0,1fr)] items-center gap-2 text-xs text-app-muted">
+            <span>Lado (m)</span>
+            <Input
+              type="number"
+              min={0.01}
+              max={100}
+              step={0.01}
+              inputmode="decimal"
+              value={planner.grid.metersPerCell}
+              ariaLabel="Lado do quadrado em metros"
+              class="h-8 font-mono text-app-fg"
+              onchange={(event) => updateMetersPerCell(event.currentTarget.value)}
+            />
           </label>
         </section>
         </div>
