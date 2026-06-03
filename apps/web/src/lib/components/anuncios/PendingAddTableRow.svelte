@@ -9,6 +9,14 @@
   import { formatDuplicateReason } from "$lib/anuncios/duplicate-reason";
   import { formatCurrency } from "$lib/anuncios/map-shared";
   import { calculatePrecoM2, calculatePrecoM2Privado } from "$lib/components/anuncios/listing-row-urls";
+  import {
+    LISTING_TABLE_COMPACT_CELL_CENTER_CLASS,
+    LISTING_TABLE_DATA_CELL_CENTER_CLASS,
+    LISTING_TABLE_IMAGE_BODY_CELL_CLASS,
+    LISTING_TABLE_PROPERTY_CELL_CLASS,
+    LISTING_TABLE_STATUS_CELL_CENTER_CLASS
+  } from "$lib/components/anuncios/listing-table-column-layout";
+  import { cn } from "$lib/utils";
 
   let {
     row,
@@ -51,8 +59,8 @@
 
 <tr class="border-app-border bg-app-action/5 hover:bg-app-action/10">
   {#if visibleColumns.image}
-    <td class="sticky left-0 z-20 w-[5.5rem] bg-app-surface p-2">
-      <div class="flex h-20 w-20 items-center justify-center rounded border border-app-border bg-app-surface-muted">
+    <td class={LISTING_TABLE_IMAGE_BODY_CELL_CLASS}>
+      <div class="mx-auto flex h-20 w-20 items-center justify-center rounded border border-app-border bg-app-surface-muted">
         {#if isBusy}
           <Loader2 class="h-5 w-5 animate-spin text-app-accent" />
         {:else}
@@ -62,7 +70,7 @@
     </td>
   {/if}
   {#if visibleColumns.property}
-    <td class="min-w-[320px]">
+    <td class={LISTING_TABLE_PROPERTY_CELL_CLASS}>
       {#if row.status === "review" && row.reviewItems}
         <div class="w-[min(560px,70vw)] whitespace-normal py-1">
           <ParserReviewList
@@ -116,53 +124,64 @@
     </td>
   {/if}
   {#if visibleColumns.price}
-    <td class="text-right">
+    <td class={LISTING_TABLE_DATA_CELL_CENTER_CLASS}>
       {#if isDuplicatePreview && parsedPreview}
-        <div class={metricMutedClass}>{formatCurrency(parsedPreview.preco ?? null)}</div>
+        <div class={cn(metricMutedClass, "text-center")}>{formatCurrency(parsedPreview.preco ?? null)}</div>
       {:else}
-        <span class="inline-block h-3 w-20 animate-pulse rounded bg-app-surface-muted"></span>
+        <span class="mx-auto inline-block h-3 w-20 animate-pulse rounded bg-app-surface-muted"></span>
       {/if}
     </td>
   {/if}
   {#if visibleColumns.area}
-    <td class="text-right">
+    <td class={LISTING_TABLE_DATA_CELL_CENTER_CLASS}>
       {#if isDuplicatePreview && parsedPreview}
-        <div class={metricMutedClass}>
+        <div class={cn(metricMutedClass, "flex justify-center")}>
           <AreaM2Stack
             total={parsedPreview.m2Totais ?? null}
             privado={parsedPreview.m2Privado ?? null}
             activeVariant={activeMetricVariant}
             enabledVariants={enabledMetricVariants}
+            align="center"
           />
         </div>
       {:else}
-        <span class="inline-block h-3 w-14 animate-pulse rounded bg-app-surface-muted"></span>
+        <span class="mx-auto inline-block h-3 w-14 animate-pulse rounded bg-app-surface-muted"></span>
       {/if}
     </td>
   {/if}
   {#if visibleColumns.value}
-    <td class="text-right">
+    <td class={LISTING_TABLE_DATA_CELL_CENTER_CLASS}>
       {#if isDuplicatePreview && parsedPreview}
-        <div class={metricMutedClass}>
+        <div class={cn(metricMutedClass, "flex justify-center")}>
           <PricePerM2Stack
             total={calculatePrecoM2(parsedPreview.preco ?? null, parsedPreview.m2Totais ?? null)}
             privado={calculatePrecoM2Privado(parsedPreview.preco ?? null, parsedPreview.m2Privado ?? null)}
             activeVariant={activeMetricVariant}
             enabledVariants={enabledMetricVariants}
+            align="center"
           />
         </div>
       {:else}
-        <span class="inline-block h-3 w-16 animate-pulse rounded bg-app-surface-muted"></span>
+        <span class="mx-auto inline-block h-3 w-16 animate-pulse rounded bg-app-surface-muted"></span>
       {/if}
     </td>
   {/if}
   {#if visibleColumns.rooms}
-    <td class="text-center"><span class="inline-block h-3 w-8 animate-pulse rounded bg-app-surface-muted"></span></td>
+    <td class={LISTING_TABLE_COMPACT_CELL_CENTER_CLASS}>
+      <span class="mx-auto inline-block h-3 w-8 animate-pulse rounded bg-app-surface-muted"></span>
+    </td>
   {/if}
   {#if visibleColumns.bathrooms}
-    <td class="text-center"><span class="inline-block h-3 w-8 animate-pulse rounded bg-app-surface-muted"></span></td>
+    <td class={LISTING_TABLE_COMPACT_CELL_CENTER_CLASS}>
+      <span class="mx-auto inline-block h-3 w-8 animate-pulse rounded bg-app-surface-muted"></span>
+    </td>
   {/if}
   {#if visibleColumns.dates}
-    <td class="text-right"><span class="inline-block h-3 w-24 animate-pulse rounded bg-app-surface-muted"></span></td>
+    <td class={LISTING_TABLE_COMPACT_CELL_CENTER_CLASS}>
+      <span class="mx-auto inline-block h-3 w-24 animate-pulse rounded bg-app-surface-muted"></span>
+    </td>
+  {/if}
+  {#if visibleColumns.status}
+    <td class={LISTING_TABLE_STATUS_CELL_CENTER_CLASS}></td>
   {/if}
 </tr>

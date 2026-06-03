@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { truncateListingTitle } from "$lib/components/anuncios/ListingTitleLinks.svelte";
+  import { truncateListingTitle } from "$lib/components/anuncios/listing-title-display";
   import ClickablePrice from "$lib/components/anuncios/ClickablePrice.svelte";
   import ListingMobileMetricRow from "$lib/components/anuncios/ListingMobileMetricRow.svelte";
   import ListingMobileCardBackdrop from "$lib/components/anuncios/ListingMobileCardBackdrop.svelte";

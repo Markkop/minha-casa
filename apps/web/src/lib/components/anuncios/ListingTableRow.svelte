@@ -4,6 +4,7 @@
   import PricePerM2Stack from "$lib/components/anuncios/PricePerM2Stack.svelte";
   import ListingImageColumnCell from "$lib/components/anuncios/ListingImageColumnCell.svelte";
   import ListingPropertyMetaRow from "$lib/components/anuncios/ListingPropertyMetaRow.svelte";
+  import ListingRowStatusSelect from "$lib/components/anuncios/ListingRowStatusSelect.svelte";
   import ListingTitleStatusRow from "$lib/components/anuncios/ListingTitleStatusRow.svelte";
   import { calculatePrecoM2, calculatePrecoM2Privado } from "$lib/components/anuncios/listing-row-urls";
   import {
@@ -13,6 +14,13 @@
     formatQuartosSuites
   } from "$lib/components/anuncios/listing-table-row-utils";
   import type { ListingTableRowProps } from "$lib/components/anuncios/listing-table-row-types";
+  import {
+    LISTING_TABLE_COMPACT_CELL_CENTER_CLASS,
+    LISTING_TABLE_DATA_CELL_CENTER_CLASS,
+    LISTING_TABLE_IMAGE_BODY_CELL_CLASS,
+    LISTING_TABLE_PROPERTY_CELL_CLASS,
+    LISTING_TABLE_STATUS_CELL_CENTER_CLASS
+  } from "$lib/components/anuncios/listing-table-column-layout";
   import { cn } from "$lib/utils";
 
   let {
@@ -45,7 +53,7 @@
   class={cn("group border-b", rowSurfaceClass)}
 >
   {#if visibleColumns.image}
-    <td class="relative sticky left-0 z-20 w-[5.5rem] bg-app-surface p-2 align-middle whitespace-nowrap">
+    <td class={cn("relative", LISTING_TABLE_IMAGE_BODY_CELL_CLASS)}>
       <div
         class={cn(
           "pointer-events-none absolute inset-0 z-0",
@@ -54,18 +62,20 @@
             : "group-hover:bg-app-bg"
         )}
       ></div>
-      <ListingImageColumnCell
-        {imovel}
-        view={imageColumnView}
-        onOpenImageModal={() => openImageModal(imovel)}
-      />
+      <div class="relative z-10 flex justify-center">
+        <ListingImageColumnCell
+          {imovel}
+          view={imageColumnView}
+          onOpenImageModal={() => openImageModal(imovel)}
+        />
+      </div>
     </td>
   {/if}
 
   {#if visibleColumns.property}
-    <td class="min-w-[320px] p-2 align-middle whitespace-nowrap">
-      <div class="flex min-w-0 flex-col gap-2">
-        <div class="min-w-0">
+    <td class={LISTING_TABLE_PROPERTY_CELL_CLASS}>
+      <div class="flex w-full min-w-0 max-w-full flex-col justify-center gap-1">
+        <div class="min-w-0 max-w-full">
           <ListingTitleStatusRow
             listing={imovel}
             {displayTitle}
@@ -91,41 +101,49 @@
   {/if}
 
   {#if visibleColumns.price}
-    <td class="p-2 text-right align-middle whitespace-nowrap">
-      <ClickablePrice price={imovel.preco} strikethrough={imovel.strikethrough} />
+    <td class={LISTING_TABLE_DATA_CELL_CENTER_CLASS}>
+      <div class="flex justify-center">
+        <ClickablePrice price={imovel.preco} strikethrough={imovel.strikethrough} />
+      </div>
     </td>
   {/if}
 
   {#if visibleColumns.area}
-    <td class={cn("p-2 text-right align-middle whitespace-nowrap font-mono text-sm", imovel.strikethrough && "line-through opacity-50")}>
-      <AreaM2Stack
-        total={imovel.m2Totais}
-        privado={imovel.m2Privado}
-        activeVariant={activeMetricVariant}
-        enabledVariants={enabledMetricVariants}
-      />
+    <td class={cn(LISTING_TABLE_DATA_CELL_CENTER_CLASS, "font-mono text-sm", imovel.strikethrough && "line-through opacity-50")}>
+      <div class="flex justify-center">
+        <AreaM2Stack
+          total={imovel.m2Totais}
+          privado={imovel.m2Privado}
+          activeVariant={activeMetricVariant}
+          enabledVariants={enabledMetricVariants}
+          align="center"
+        />
+      </div>
     </td>
   {/if}
 
   {#if visibleColumns.value}
-    <td class={cn("p-2 text-right align-middle whitespace-nowrap font-mono text-sm", imovel.strikethrough && "line-through opacity-50")}>
-      <PricePerM2Stack
-        total={calculatePrecoM2(imovel.preco, imovel.m2Totais)}
-        privado={calculatePrecoM2Privado(imovel.preco, imovel.m2Privado)}
-        activeVariant={activeMetricVariant}
-        enabledVariants={enabledMetricVariants}
-      />
+    <td class={cn(LISTING_TABLE_DATA_CELL_CENTER_CLASS, "font-mono text-sm", imovel.strikethrough && "line-through opacity-50")}>
+      <div class="flex justify-center">
+        <PricePerM2Stack
+          total={calculatePrecoM2(imovel.preco, imovel.m2Totais)}
+          privado={calculatePrecoM2Privado(imovel.preco, imovel.m2Privado)}
+          activeVariant={activeMetricVariant}
+          enabledVariants={enabledMetricVariants}
+          align="center"
+        />
+      </div>
     </td>
   {/if}
 
   {#if visibleColumns.rooms}
-    <td class={cn("p-2 text-center align-middle whitespace-nowrap font-mono text-sm", imovel.strikethrough && "line-through opacity-50")}>
+    <td class={cn(LISTING_TABLE_COMPACT_CELL_CENTER_CLASS, "font-mono text-sm", imovel.strikethrough && "line-through opacity-50")}>
       {formatQuartosSuites(imovel.quartos, imovel.suites)}
     </td>
   {/if}
 
   {#if visibleColumns.bathrooms}
-    <td class={cn("p-2 text-center align-middle whitespace-nowrap font-mono text-sm", imovel.strikethrough && "line-through opacity-50")}>
+    <td class={cn(LISTING_TABLE_COMPACT_CELL_CENTER_CLASS, "font-mono text-sm", imovel.strikethrough && "line-through opacity-50")}>
       {formatNumber(imovel.banheiros)}
     </td>
   {/if}
@@ -133,26 +151,32 @@
   {#if visibleColumns.dates}
     <td
       title={formatFullDateTime(imovel.createdAt)}
-      class={cn("p-2 text-right align-middle whitespace-nowrap text-sm text-muted-foreground", imovel.strikethrough && "line-through opacity-50")}
+      class={cn(LISTING_TABLE_COMPACT_CELL_CENTER_CLASS, "text-sm text-muted-foreground", imovel.strikethrough && "line-through opacity-50")}
     >
-      <div class="flex min-w-28 flex-col items-end gap-1 leading-none">
-          <span class="inline-flex flex-col items-end gap-0.5 whitespace-nowrap">
+      <div class="mx-auto flex w-fit min-w-28 flex-col items-center gap-1 leading-none">
+          <span class="inline-flex flex-col items-center gap-0.5 whitespace-nowrap">
             <span class="font-mono tabular-nums text-app-fg">{formatDate(imovel.addedAt)}</span>
             <span class="text-[9px] leading-none text-app-muted">adicionado por você</span>
           </span>
           {#if imovel.sitePublishedAt}
-            <span class="inline-flex flex-col items-end gap-0.5 whitespace-nowrap">
+            <span class="inline-flex flex-col items-center gap-0.5 whitespace-nowrap">
               <span class="font-mono tabular-nums text-app-fg">{formatDate(imovel.sitePublishedAt)}</span>
               <span class="text-[9px] leading-none text-app-muted">publicado no site</span>
             </span>
           {/if}
           {#if imovel.siteUpdatedAt}
-            <span class="inline-flex flex-col items-end gap-0.5 whitespace-nowrap">
+            <span class="inline-flex flex-col items-center gap-0.5 whitespace-nowrap">
               <span class="font-mono tabular-nums text-app-fg">{formatDate(imovel.siteUpdatedAt)}</span>
               <span class="text-[9px] leading-none text-app-muted">atualizado no site</span>
             </span>
           {/if}
         </div>
+    </td>
+  {/if}
+
+  {#if visibleColumns.status}
+    <td class={LISTING_TABLE_STATUS_CELL_CENTER_CLASS}>
+      <ListingRowStatusSelect {imovel} {interactions} />
     </td>
   {/if}
 </tr>

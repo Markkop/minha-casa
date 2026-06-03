@@ -14,7 +14,7 @@
     privado: number | null;
     activeVariant?: MetricVariant | null;
     enabledVariants: Set<MetricVariant>;
-    align?: "start" | "end";
+    align?: "start" | "center" | "end";
   }>();
 </script>
 

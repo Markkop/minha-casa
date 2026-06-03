@@ -1,11 +1,5 @@
-<script lang="ts" module>
-  export function truncateListingTitle(title: string, maxLength = 50) {
-    if (title.length <= maxLength) return title;
-    return `${title.slice(0, maxLength)}...`;
-  }
-</script>
-
 <script lang="ts">
+  import { truncateListingTitle } from "$lib/components/anuncios/listing-title-display";
   import { buildListingAnaliseHref } from "$lib/listing-analise-url";
   import { cn } from "$lib/utils";
 

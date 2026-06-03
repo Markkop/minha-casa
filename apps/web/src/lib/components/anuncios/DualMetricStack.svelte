@@ -23,7 +23,9 @@
     align?: MetricAlign;
   } = $props();
 
-  const alignClass = $derived(align === "start" ? "items-start" : "items-end");
+  const alignClass = $derived(
+    align === "start" ? "items-start" : align === "center" ? "items-center" : "items-end"
+  );
   const display = $derived(buildDualMetricDisplay({ total, privado, enabledVariants }));
 </script>
 

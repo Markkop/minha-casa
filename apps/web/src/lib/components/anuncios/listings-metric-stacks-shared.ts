@@ -1,6 +1,6 @@
 import type { MetricVariant } from "$lib/anuncios/listings-display-prefs";
 
-export type MetricAlign = "start" | "end";
+export type MetricAlign = "start" | "center" | "end";
 
 export type DualMetricEntry = {
   variant: MetricVariant;

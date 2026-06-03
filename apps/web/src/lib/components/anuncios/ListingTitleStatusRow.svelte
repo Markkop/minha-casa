@@ -40,7 +40,7 @@
 
 <div
   data-testid="listing-title-status-row"
-  class={cn("inline-flex min-w-0 max-w-full items-center gap-0.5", className)}
+  class={cn("flex w-full min-w-0 max-w-full items-center gap-0.5", className)}
 >
   <ListingTitleLinks
     {listing}

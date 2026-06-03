@@ -10,6 +10,20 @@
   import type { ListingsSortState } from "$lib/components/anuncios/listings-sort-shared";
   import type { ImageColumnView, ListingsTableColumn } from "$lib/components/anuncios/listings-table-shared";
   import type { createListingsTablePendingAdd } from "$lib/components/anuncios/listings-table-pending-add.svelte";
+  import {
+    LISTING_TABLE_CLASS,
+    LISTING_TABLE_COMPACT_HEADER_CENTER_CLASS,
+    LISTING_TABLE_DATA_HEADER_CLASS,
+    LISTING_TABLE_IMAGE_HEADER_CLASS,
+    LISTING_TABLE_PROPERTY_HEADER_CLASS,
+    LISTING_TABLE_STATUS_HEADER_CLASS,
+    listingTablePropertyWidthStyle
+  } from "$lib/components/anuncios/listing-table-column-layout";
+  import {
+    buildPropertyColumnMeasureText,
+    createListingsTablePropertyColumnWidth
+  } from "$lib/components/anuncios/listings-table-property-width.svelte";
+  import { cn } from "$lib/utils";
 
   type PendingAddState = ReturnType<typeof createListingsTablePendingAdd>;
 
@@ -48,41 +62,120 @@
     onDeselectAllReview: pendingAdd.handleDeselectAllReview,
     onImportReview: pendingAdd.handleImportReview
   });
+
+  const hasPendingReviewPanel = $derived(
+    pendingAdd.pendingAddRows.some((row) => row.status === "review" && row.reviewItems)
+  );
+
+  let propertyMeasureEl = $state<HTMLSpanElement | null>(null);
+
+  const propertyColumnWidth = createListingsTablePropertyColumnWidth({
+    getMeasureEl: () => propertyMeasureEl,
+    getEnabled: () => visibleColumns.property,
+    getHasPendingReview: () => hasPendingReviewPanel,
+    getMeasureText: () =>
+      buildPropertyColumnMeasureText(filteredListings.map((listing) => getDisplayTitle(listing)))
+  });
+
+  const tableStyle = $derived(
+    visibleColumns.property
+      ? listingTablePropertyWidthStyle(propertyColumnWidth.widthPx)
+      : undefined
+  );
 </script>
 
-<table class="hidden w-full min-w-[920px] border-collapse text-left text-sm md:table" data-testid="listings-desktop-table">
+<span
+  bind:this={propertyMeasureEl}
+  class={cn(
+    "pointer-events-none invisible fixed top-0 left-0 -z-50",
+    propertyColumnWidth.measureClass
+  )}
+  aria-hidden="true"
+></span>
+
+<table
+  class={cn("hidden md:table", LISTING_TABLE_CLASS)}
+  style={tableStyle}
+  data-testid="listings-desktop-table"
+>
   <thead>
     <tr class="border-b border-app-border">
       {#if visibleColumns.image}
-        <th class="sticky left-0 z-20 w-[5.5rem] bg-app-surface p-2">
-          <ImageColumnHeaderToggle
-            bind:value={
-              () => imageColumnView,
-              onImageColumnViewChange
-            }
-          />
+        <th class={LISTING_TABLE_IMAGE_HEADER_CLASS}>
+          <div class="flex justify-center">
+            <ImageColumnHeaderToggle
+              bind:value={
+                () => imageColumnView,
+                onImageColumnViewChange
+              }
+            />
+          </div>
         </th>
       {/if}
       {#if visibleColumns.property}
-        <SortableHeader label="Imóvel" sortKey="titulo" currentSort={sort} {onSort} />
+        <SortableHeader
+          label="Imóvel"
+          sortKey="titulo"
+          currentSort={sort}
+          {onSort}
+          class={LISTING_TABLE_PROPERTY_HEADER_CLASS}
+        />
       {/if}
       {#if visibleColumns.price}
-        <SortableHeader label="Preço" sortKey="preco" currentSort={sort} {onSort} align="right" />
+        <SortableHeader
+          label="Preço"
+          sortKey="preco"
+          currentSort={sort}
+          {onSort}
+          align="center"
+          class={LISTING_TABLE_DATA_HEADER_CLASS}
+        />
       {/if}
       {#if visibleColumns.area}
-        <StackedSortHeader label="Área" totalSortKey="m2Totais" privadoSortKey="m2Privado" currentSort={sort} {onSort} />
+        <StackedSortHeader
+          label="Área"
+          totalSortKey="m2Totais"
+          privadoSortKey="m2Privado"
+          currentSort={sort}
+          {onSort}
+          class={LISTING_TABLE_DATA_HEADER_CLASS}
+        />
       {/if}
       {#if visibleColumns.value}
-        <StackedSortHeader label="Valor" totalSortKey="precoM2" privadoSortKey="precoM2Privado" currentSort={sort} {onSort} />
+        <StackedSortHeader
+          label="Valor"
+          totalSortKey="precoM2"
+          privadoSortKey="precoM2Privado"
+          currentSort={sort}
+          {onSort}
+          class={LISTING_TABLE_DATA_HEADER_CLASS}
+        />
       {/if}
       {#if visibleColumns.rooms}
-        <SortableHeader label="Quartos" sortKey="quartos" currentSort={sort} {onSort} align="center" />
+        <SortableHeader
+          label="Quartos"
+          sortKey="quartos"
+          currentSort={sort}
+          {onSort}
+          align="center"
+          class={LISTING_TABLE_COMPACT_HEADER_CENTER_CLASS}
+        />
       {/if}
       {#if visibleColumns.bathrooms}
-        <th class="p-2 text-center text-app-muted">WC</th>
+        <th class={cn(LISTING_TABLE_COMPACT_HEADER_CENTER_CLASS, "text-app-muted")}>WC</th>
       {/if}
       {#if visibleColumns.dates}
-        <SortableHeader label="Datas" sortKey="addedAt" currentSort={sort} {onSort} align="center" />
+        <SortableHeader
+          label="Datas"
+          sortKey="addedAt"
+          currentSort={sort}
+          {onSort}
+          align="center"
+          class={LISTING_TABLE_COMPACT_HEADER_CENTER_CLASS}
+        />
+      {/if}
+      {#if visibleColumns.status}
+        <th class={LISTING_TABLE_STATUS_HEADER_CLASS}>Estado</th>
       {/if}
     </tr>
   </thead>

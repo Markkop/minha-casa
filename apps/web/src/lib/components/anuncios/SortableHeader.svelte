@@ -8,13 +8,15 @@
     sortKey,
     currentSort,
     onSort,
-    align = "left"
+    align = "left",
+    class: className = ""
   }: {
     label: string;
     sortKey: ListingsSortKey;
     currentSort: ListingsSortState;
     onSort: (key: ListingsSortKey) => void;
     align?: "left" | "center" | "right";
+    class?: string;
   } = $props();
 
   const isActive = $derived(currentSort.key === sortKey);
@@ -26,9 +28,10 @@
 
 <th
   class={cn(
-    "cursor-pointer select-none p-2 text-app-muted transition-colors hover:bg-app-surface-muted",
+    "cursor-pointer select-none text-app-muted transition-colors hover:bg-app-surface-muted",
     align === "right" && "text-right",
-    align === "center" && "text-center"
+    align === "center" && "text-center",
+    className
   )}
   onclick={() => onSort(sortKey)}
 >

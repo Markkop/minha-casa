@@ -8,6 +8,7 @@
 
   $effect(() => {
     if (!collectionId || ctx.collections.length === 0) return;
+    if (ctx.activeCollection?.id === collectionId) return;
     const match = ctx.collections.find((collection) => collection.id === collectionId);
     if (match) ctx.setActiveCollection(match);
   });

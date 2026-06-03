@@ -3,20 +3,27 @@
   import ToolbarAnchoredPopover from "$lib/components/anuncios/ToolbarAnchoredPopover.svelte";
   import type { MetricVariant } from "$lib/anuncios/listings-display-prefs";
   import type { ListingsSortKey, ListingsSortState } from "$lib/components/anuncios/listings-sort-shared";
+  import { cn } from "$lib/utils";
 
   let {
     label,
     totalSortKey,
     privadoSortKey,
     currentSort,
-    onSort
+    onSort,
+    align = "center",
+    class: className = ""
   }: {
     label: string;
     totalSortKey: ListingsSortKey;
     privadoSortKey: ListingsSortKey;
     currentSort: ListingsSortState;
     onSort: (key: ListingsSortKey) => void;
+    align?: "center" | "right";
+    class?: string;
   } = $props();
+
+  const isCentered = $derived(align === "center");
 
   let open = $state(false);
 
@@ -30,12 +37,21 @@
   const isAsc = $derived(activeVariant !== null && currentSort.direction === "asc");
 </script>
 
-<th class="p-2 text-right text-app-muted">
+<th
+  class={cn(
+    "text-app-muted",
+    isCentered ? "text-center" : "text-right",
+    className || "p-2"
+  )}
+>
   <ToolbarAnchoredPopover bind:open align="auto" offsetClass="mt-1" panelClass="w-40 p-1">
     {#snippet trigger()}
       <button
         type="button"
-        class="ml-auto flex items-center justify-end gap-1 rounded-sm px-1 py-0.5 text-right transition-colors hover:bg-app-surface-muted"
+        class={cn(
+          "flex items-center gap-1 rounded-sm px-1 py-0.5 transition-colors hover:bg-app-surface-muted",
+          isCentered ? "mx-auto justify-center" : "ml-auto justify-end text-right"
+        )}
         onclick={() => (open = !open)}
       >
         <span>{label}</span>

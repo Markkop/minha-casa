@@ -2,8 +2,7 @@
   import { onMount } from "svelte";
   import { page } from "$app/state";
   import AnaliseQuerySync from "$lib/components/analise/AnaliseQuerySync.svelte";
-  import DeepAnalysisPanel from "$lib/components/analise/DeepAnalysisPanel.svelte";
-  import PropertyDossier from "$lib/components/analise/PropertyDossier.svelte";
+  import AnaliseTabbedDossier from "$lib/components/analise/AnaliseTabbedDossier.svelte";
   import { getCollectionsContext } from "$lib/collections-context.svelte";
   import { getAdminFeatureFlag, readAdminFeatureFlags } from "$lib/admin/client";
   import { getActiveOrganizationId } from "$lib/api/client";
@@ -69,14 +68,12 @@
     {:else if !selectedListing}
       <p class="text-sm text-app-muted">Selecione um imóvel acima.</p>
     {:else}
-      <PropertyDossier
+      <AnaliseTabbedDossier
         listing={selectedListing}
         collectionId={ctx.activeCollection.id}
         {orgId}
+        {showDeepAnalysis}
       />
-      {#if showDeepAnalysis}
-        <DeepAnalysisPanel listing={selectedListing} {orgId} />
-      {/if}
     {/if}
   </div>
 </div>
