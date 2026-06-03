@@ -61,7 +61,7 @@
         {/if}
       </button>
       {#if tooltip}
-        <FloatingTooltip label={tooltip} side="right" align="center">
+        <FloatingTooltip label={tooltip} side="bottom" align="center">
           <button
             type="button"
             class="inline-flex text-app-subtle hover:text-app-accent"

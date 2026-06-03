@@ -1,7 +1,7 @@
-import { getDb, collections, organizationMembers } from "@/lib/db"
+import { eq, and } from "drizzle-orm"
+import { getDb, collections, organizationMembers } from "./index"
 
 type Collection = typeof collections.$inferSelect
-import { eq, and } from "drizzle-orm"
 
 /**
  * Verifies if a user has access to a collection.

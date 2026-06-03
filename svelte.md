@@ -19,7 +19,7 @@ This is not a complete UI parity port yet. The shell, auth pages, route guard st
 - `/subscribe`: current subscription, available plans, personal/org addon list, Phoenix-backed Stripe Checkout session creation, and Phoenix-backed Stripe billing portal opening.
 - `/floodrisk`: addon-gated direct Three.js Svelte scene with scenario switching, animated water level, block height configuration, custom JSON import, and connection type toggles.
 - `/financiamento`: SAC simulator with extra amortization, resources/reserve inputs, current-property haircut, scenario matrix for permuta vs venda posterior, and formula breakdown cards.
-- `/casa`: redirects to `/financiamento`, preserving current Next behavior.
+- `/casa`: redirects to `/financiamento`, preserving the compatibility route.
 - `/share/[token]`: public shared collection table backed by Phoenix, including public shared image thumbnails for hosted listing images.
 - `/s/[shortId]`: short-link redirect resolution backed by Phoenix.
 - `/planos`, `/privacy`, `/terms`, `/data-deletion`: static content ported.
@@ -58,9 +58,9 @@ cp apps/web/.env.example apps/web/.env
 | `DATABASE_URL` | App Postgres on host port **5435** (see `infra/local/.env.local.example`) |
 | `DATABASE_SSL` | `false` locally |
 | `DATABASE_POOL_MAX` | pg pool size for Better Auth + `/api/subscriptions` |
-| `BETTER_AUTH_SECRET` | Same value as Next while both frontends run |
+| `BETTER_AUTH_SECRET` | Shared Better Auth secret for local and deployed SvelteKit auth |
 | `BETTER_AUTH_URL` | Must match browser origin, e.g. `http://localhost:5173` |
-| `BETTER_AUTH_TRUSTED_ORIGINS` | Comma-separated origins (Svelte + Next during migration) |
+| `BETTER_AUTH_TRUSTED_ORIGINS` | Comma-separated trusted SvelteKit origins |
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | OAuth; add redirect `http://localhost:5173/api/auth/callback/google` |
 | `PUBLIC_API_URL` | Phoenix, e.g. `http://localhost:4000` |
 | `PUBLIC_GOOGLE_MAPS_API_KEY` | Maps (optional until map UI is ported) |
@@ -69,13 +69,13 @@ Phoenix (`infra/local/.env.local` or compose env) should also set:
 
 ```bash
 BETTER_AUTH_JWKS_URL=http://host.docker.internal:5173/api/auth/jwks
-CORS_ORIGINS=http://localhost:5173,http://localhost:3000
+CORS_ORIGINS=http://localhost:5173
 APP_PUBLIC_URL=http://localhost:5173
 STRIPE_SECRET_KEY=...
 STRIPE_WEBHOOK_SECRET=...
 ```
 
-**Dual frontend:** Next (`:3000`) and Svelte (`:5173`) share `DATABASE_URL` and `BETTER_AUTH_SECRET` but each process needs its own `BETTER_AUTH_URL`. Sessions are not portable across origins.
+**Active frontend:** SvelteKit runs on `:5173` locally. `BETTER_AUTH_URL` must match the browser origin used for sign-in and OAuth callbacks.
 
 **Database:** if tables are missing, from repo root:
 
@@ -83,7 +83,7 @@ STRIPE_WEBHOOK_SECRET=...
 DATABASE_URL=postgresql://minhacasa:minhacasa_local_password@localhost:5435/minha_casa_local pnpm db:migrate
 ```
 
-**Subscription gating:** after login, the app calls `GET /api/subscriptions` on the Svelte origin to set the httpOnly `subscription-status` cookie (same behavior as Next’s BFF). [`apps/web/src/lib/sync-subscription-cookie.ts`](apps/web/src/lib/sync-subscription-cookie.ts) is used from login, signup, subscribe, and anuncios.
+**Subscription gating:** after login, the app calls `GET /api/subscriptions` on the Svelte origin to set the httpOnly `subscription-status` cookie used by SvelteKit route gating. [`apps/web/src/lib/sync-subscription-cookie.ts`](apps/web/src/lib/sync-subscription-cookie.ts) is used from login, signup, subscribe, and anuncios.
 
 The backend now has JWT-authenticated browser endpoints, starting with:
 
@@ -154,23 +154,23 @@ docker run --rm -v "$(pwd)/backend:/app" -w /app elixir:1.18-otp-27-alpine \
 
 Latest checks in this pass: `pnpm check:web` completed with 0 errors and 0 warnings; Phoenix `mix compile --warnings-as-errors` completed successfully through the Docker Elixir workflow.
 
-`pnpm install` still reports deprecated transitive packages from `drizzle-kit` (`@esbuild-kit/*`). I updated Drizzle Kit and removed the direct deprecated `@types/lz-string`; the remaining warning is inside the current Drizzle toolchain and should disappear when Drizzle/Next API code is removed.
+`pnpm install` still reports deprecated transitive packages from `drizzle-kit` (`@esbuild-kit/*`). I updated Drizzle Kit and removed the direct deprecated `@types/lz-string`; the remaining warning is inside the current Drizzle toolchain and should disappear when the legacy API code is removed.
 
 For the earlier floodrisk pass, `/floodrisk` was opened through the in-app browser at `http://localhost:5173/floodrisk`; the app correctly redirected to `/login?redirect=%2Ffloodrisk`, so the authenticated canvas still needs a logged-in visual QA pass. The route itself is covered by `svelte-check`.
 
 ## Things to revisit
 
-- Port the remaining Drizzle/Next API behavior to Phoenix before deleting `app/api`.
+- Port the remaining legacy API behavior to Phoenix before deleting obsolete root API routes.
 - Active organization is stored in an httpOnly cookie (`minha-casa-active-organization-id`), exposed on `PageData.activeOrganizationId`, and injected as `X-Organization-Id` by the SvelteKit API proxy. Legacy localStorage keys are migrated once on layout mount.
 - Stripe Checkout, billing portal session creation, webhook lifecycle handling, admin cancel/reactivate calls, and admin reconciliation are now Phoenix-backed. Reconciliation is currently read-only and reports missing/stale rows; it does not auto-repair local subscriptions.
-- `/floodrisk` is ported as a first direct Three.js pass with addon gating, but it still needs logged-in screenshot QA and visual polish against the React Three Fiber version.
+- `/floodrisk` is ported as a first direct Three.js pass with addon gating, but it still needs logged-in screenshot QA and visual polish against the previous 3D implementation.
 - `/anuncios` still needs Leaflet/Google-specific parity and final dense-table polish. The current Svelte page now has image thumbnails/lightbox, JSON import/export, card mode, cached browser geocoding, OSM map embeds, duplicate review modal, reparse/quick-reparse review flows, and richer sort/filter controls.
-- `/analise` still needs exact React dossier formatting, decision notes persistence UX, stale-result messaging, and full card taxonomy parity. The current Svelte page now has dossier images, nearby data, x-ray retry, and richer ambiente rendering.
-- `/comparacao` now has fixed-cell recalculation, slot count, and map/analysis links. It still needs final mobile layout parity, exact React tooltip text, and full formatting/polish parity.
-- `/explorar` now has filter chips, URL preview, saved-link bridge, matrix controls, and authenticated SSE streaming with polling fallback. It still needs exact React builder URL parity for every portal edge case and final run-state polish.
+- `/analise` still needs exact dossier formatting, decision notes persistence UX, stale-result messaging, and full card taxonomy parity. The current Svelte page now has dossier images, nearby data, x-ray retry, and richer ambiente rendering.
+- `/comparacao` now has fixed-cell recalculation, slot count, and map/analysis links. It still needs final mobile layout parity, exact tooltip text, and full formatting/polish parity.
+- `/explorar` now has filter chips, URL preview, saved-link bridge, matrix controls, and authenticated SSE streaming with polling fallback. It still needs exact builder URL parity for every portal edge case and final run-state polish.
 - `/financiamento` now has a scenario matrix and formula cards, but still needs exact old settings panel, slider ergonomics, compact scenario card parity, and full table formatting from `/casa`.
 - Continue adding Svelte UI primitives or shadcn-svelte equivalents for select, popover, sheet, tooltip, table, tabs, switch, avatar, sidebar, breadcrumb.
-- Reimplement map views with Leaflet and Google Maps JS wrappers, not React bindings. `/anuncios` currently uses cached Nominatim geocoding plus OSM embeds as the Svelte-native map baseline.
-- Polish `/floodrisk` against the React Three Fiber version after logged-in visual QA.
+- Reimplement map views with Leaflet and Google Maps JS wrappers. `/anuncios` currently uses cached Nominatim geocoding plus OSM embeds as the Svelte-native map baseline.
+- Polish `/floodrisk` against the previous 3D version after logged-in visual QA.
 - Add Stripe reconciliation repair actions if needed; the current port only surfaces discrepancies.
-- Local Docker (`infra/local/docker-compose.app.yml`) runs `svelte-web` on `:5173` instead of `next-web`; Phoenix defaults `BETTER_AUTH_JWKS_URL` to `http://svelte-web:5173/api/auth/jwks` on the compose network.
+- Local Docker (`infra/local/docker-compose.app.yml`) runs `svelte-web` on `:5173`; Phoenix defaults `BETTER_AUTH_JWKS_URL` to `http://svelte-web:5173/api/auth/jwks` on the compose network.

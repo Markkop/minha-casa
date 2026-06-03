@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { snapPoint, snapRectShape, snapShape, snapToGridValue } from "./snap";
-import type { ReformaGrid, ReformaRectShape } from "./types";
+import type { ReformaGrid, ReformaLineShape, ReformaRectShape } from "./types";
 
 const grid: ReformaGrid = {
   visible: true,
@@ -54,13 +54,16 @@ describe("snapRectShape", () => {
 
 describe("snapShape", () => {
   it("dispatches to line snapping", () => {
-    const line = {
+    const line: ReformaLineShape = {
       id: "l1",
-      type: "line" as const,
+      type: "line",
       points: [23, 38, 127, 73] as [number, number, number, number],
       stroke: "#000",
       strokeWidth: 2
     };
-    expect(snapShape(line, grid).points).toEqual([0, 50, 150, 50]);
+    const snapped = snapShape(line, grid);
+    expect(snapped.type).toBe("line");
+    if (snapped.type !== "line") throw new Error("Expected line shape");
+    expect(snapped.points).toEqual([0, 50, 150, 50]);
   });
 });

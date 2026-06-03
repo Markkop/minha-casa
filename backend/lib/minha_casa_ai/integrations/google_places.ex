@@ -51,7 +51,7 @@ defmodule MinhaCasaAi.Integrations.GooglePlaces do
         %{
           "skipped" => true,
           "reason" => "google_not_configured",
-          "hint" => "Defina GOOGLE_MAPS_SERVER_API_KEY ou NEXT_PUBLIC_GOOGLE_MAPS_API_KEY no Phoenix."
+          "hint" => "Defina GOOGLE_MAPS_SERVER_API_KEY ou PUBLIC_GOOGLE_MAPS_API_KEY no Phoenix."
         }
     end
   end

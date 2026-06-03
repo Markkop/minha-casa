@@ -1,6 +1,6 @@
 defmodule MinhaCasaAi.Workspace.DecisionData do
   @moduledoc """
-  Workspace CRUD data currently served by Next API routes.
+  Workspace CRUD data for listings, contacts, regions, condominiums, and notes.
   """
 
   import Ecto.Query

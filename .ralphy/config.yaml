@@ -5,14 +5,14 @@
 project:
   name: "minha-casa"
   language: "TypeScript"
-  framework: "Next.js"
-  description: "A platform to manage real state listings and planning your home purchase."  # Add a brief description
+  framework: "SvelteKit + Phoenix"
+  description: "A platform to manage real estate listings and plan your home purchase."  # Add a brief description
 
 # Commands (auto-detected from package.json/pyproject.toml)
 commands:
   test: ""
-  lint: "npm run lint"
-  build: "npm run build"
+  lint: "pnpm lint"
+  build: "pnpm build"
 
 # Rules - instructions the AI MUST follow
 # These are injected into every prompt
@@ -21,7 +21,7 @@ rules:
   # - "Always use TypeScript strict mode"
   # - "Follow the error handling pattern in src/utils/errors.ts"
   # - "All API endpoints must have input validation with Zod"
-  # - "Use server actions instead of API routes in Next.js"
+  # - "Keep browser-facing API calls behind the SvelteKit proxy or Phoenix routes"
   #
   # Skills/playbooks (optional):
   # - "Before coding, read and follow any relevant skill/playbook docs under .opencode/skills or .claude/skills."

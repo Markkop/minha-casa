@@ -2,12 +2,12 @@
 
 Self-hosted Langfuse v3 for traces, prompt versions, and cost visibility.
 
-**UI URL: http://localhost:3100** (not :3000 — that port is the Next.js app from `docker-compose.app.yml`).
+**UI URL: http://localhost:3100**.
 
 ## Start
 
 ```bash
-# App stack (Postgres, MinIO, Phoenix, Hermes, Next)
+# App stack (Postgres, MinIO, Phoenix, Hermes, SvelteKit)
 docker compose -f infra/local/docker-compose.app.yml up -d
 
 # Langfuse (ClickHouse, Redis, web UI on :3100)
@@ -26,9 +26,9 @@ docker volume rm local_minha_casa_local_langfuse_clickhouse
 
 **Do not use `--remove-orphans`** unless you intend to stop the standalone DB on port 5434. With the default compose project name, it used to delete `minha-casa-local-db-1` while starting Langfuse. Compose files now use isolated project names (`minha-casa-app` vs `minha-casa-db`) so this should not happen again.
 
-### Postgres / `ECONNREFUSED` on `pnpm dev`
+### Postgres / `ECONNREFUSED` on `pnpm dev:web`
 
-Host Next.js reads `.env.local` → `DATABASE_URL`. If that points to `localhost:5434` but only the **app** stack is running, Postgres is on **`localhost:5435`** instead.
+Host SvelteKit reads `apps/web/.env` and the shared env bridge for `DATABASE_URL`. If that points to `localhost:5434` but only the **app** stack is running, Postgres is on **`localhost:5435`** instead.
 
 Either update `.env.local`:
 
@@ -44,7 +44,7 @@ docker compose -f infra/local/docker-compose.db.yml up -d
 
 ### `relation "sessions" does not exist` (Better Auth / Drizzle)
 
-After a **fresh** Postgres volume (or switching ports), the DB is empty. Apply Next.js schema, then Phoenix backend tables:
+After a **fresh** Postgres volume (or switching ports), the DB is empty. Apply the shared Drizzle schema, then Phoenix backend tables:
 
 ```bash
 # From repo root — use the same host/port as DATABASE_URL in .env.local (5435 with app stack)
@@ -62,9 +62,9 @@ Set `BACKEND_DATABASE_URL` in `infra/local/.env.local` to `@host.docker.internal
 
 Restart `pnpm dev`, sign in again (old session cookies pointed at an empty DB).
 
-### Wrong port / `lightningcss.linux-arm64-musl` on :3000
+### Wrong app / `lightningcss.linux-arm64-musl`
 
-If you see a Next.js error about `globals.css` and `lightningcss` on **http://localhost:3000**, you opened the **minha-casa** app container, not Langfuse. Use **http://localhost:3100** for Langfuse.
+If you see an app dependency error about `globals.css` or `lightningcss`, you opened the **minha-casa** app container, not Langfuse. Use **http://localhost:3100** for Langfuse.
 
 For local UI dev, use **`pnpm dev:web` on the host** (`:5173`) or the `svelte-web` service from `infra/local/docker-compose.app.yml`. If native deps fail inside Alpine, recreate `svelte-web` after the compose `node_modules` volume fix so deps install inside the container.
 

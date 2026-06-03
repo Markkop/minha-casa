@@ -24,8 +24,7 @@ app_public_url =
   if config_env() == :test do
     ""
   else
-    non_empty_env.("APP_PUBLIC_URL") || non_empty_env.("NEXT_PUBLIC_APP_URL") ||
-      "http://localhost:5173"
+    non_empty_env.("APP_PUBLIC_URL") || "http://localhost:5173"
   end
 
 better_auth_jwks_url =
@@ -44,7 +43,7 @@ config :minha_casa_ai, MinhaCasaAi.Repo,
 
 config :minha_casa_ai,
   cors_origins:
-    (System.get_env("CORS_ORIGINS") || "http://localhost:5173,http://localhost:3000")
+    (System.get_env("CORS_ORIGINS") || "http://localhost:5173")
     |> String.split(",", trim: true)
     |> Enum.map(&String.trim/1)
     |> Enum.reject(&(&1 == ""))
@@ -72,7 +71,7 @@ config :minha_casa_ai, MinhaCasaAi.Config,
   brave_search_api_key: System.get_env("BRAVE_SEARCH_API_KEY"),
   google_maps_server_api_key:
     System.get_env("GOOGLE_MAPS_SERVER_API_KEY") ||
-      System.get_env("NEXT_PUBLIC_GOOGLE_MAPS_API_KEY"),
+      System.get_env("PUBLIC_GOOGLE_MAPS_API_KEY"),
   minio_endpoint: System.get_env("MINIO_ENDPOINT"),
   minio_bucket: System.get_env("MINIO_BUCKET"),
   minio_access_key: System.get_env("MINIO_ACCESS_KEY"),

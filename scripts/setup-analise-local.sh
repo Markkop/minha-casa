@@ -37,7 +37,7 @@ docker compose -f "$COMPOSE_DIR/docker-compose.app.yml" "${COMPOSE_ENV[@]}" up -
 echo "Checking API keys inside Phoenix (set = ok, empty = fix .env / .env.local)..."
 docker exec minha-casa-phoenix-api-1 sh -c '
   test -n "$OPENAI_API_KEY" && echo "  OPENAI_API_KEY: set" || echo "  OPENAI_API_KEY: MISSING (add to .env)"
-  test -n "$GOOGLE_MAPS_SERVER_API_KEY$NEXT_PUBLIC_GOOGLE_MAPS_API_KEY" && echo "  Google Maps: set" || echo "  Google Maps: MISSING"
+  test -n "$GOOGLE_MAPS_SERVER_API_KEY$PUBLIC_GOOGLE_MAPS_API_KEY" && echo "  Google Maps: set" || echo "  Google Maps: MISSING"
   test -n "$BRAVE_SEARCH_API_KEY" && echo "  BRAVE_SEARCH_API_KEY: set" || echo "  BRAVE_SEARCH_API_KEY: optional"
 '
 
@@ -48,7 +48,7 @@ for _ in $(seq 1 30); do
     echo ""
     echo "Ensure repo root has:"
     echo "  .env — OPENAI_API_KEY=..."
-    echo "  .env.local — NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=... (Geocoding + Places enabled)"
+    echo "  .env.local — PUBLIC_GOOGLE_MAPS_API_KEY=... (Geocoding + Places enabled)"
     echo "  .env.local — DATABASE_URL=...@localhost:5434/..., INTERNAL_BACKEND_URL=http://localhost:4000"
     echo ""
     echo "Re-run deep analysis on /analise after keys are loaded."

@@ -95,7 +95,7 @@ services:
       APP_PUBLIC_URL: ${APP_PUBLIC_URL:-http://localhost:5173}
       # JWKS URL comes from env_file (infra/local/.env.local) so host-only Svelte dev
       # (host.docker.internal) is not overridden by a compose-time default (svelte-web).
-      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173,http://localhost:3000}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173}
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
       TELEGRAM_WEBHOOK_SECRET: ${TELEGRAM_WEBHOOK_SECRET:-}
       ASSISTANT_LLM_ENABLED: ${ASSISTANT_LLM_ENABLED:-true}
@@ -183,7 +183,7 @@ services:
       DATABASE_SSL: ${DATABASE_SSL:-false}
       BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:-local-better-auth-secret}
       BETTER_AUTH_URL: ${BETTER_AUTH_URL:-http://localhost:5173}
-      BETTER_AUTH_TRUSTED_ORIGINS: ${BETTER_AUTH_TRUSTED_ORIGINS:-http://localhost:5173,http://localhost:3000}
+      BETTER_AUTH_TRUSTED_ORIGINS: ${BETTER_AUTH_TRUSTED_ORIGINS:-http://localhost:5173}
       PUBLIC_API_URL: http://phoenix-api:4000
       PHOENIX_API_URL: http://phoenix-api:4000
       INTERNAL_BACKEND_URL: http://phoenix-api:4000

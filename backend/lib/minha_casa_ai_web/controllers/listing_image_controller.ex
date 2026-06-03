@@ -99,7 +99,7 @@ defmodule MinhaCasaAiWeb.ListingImageController do
         :ok
 
       {:error, :listing_not_found} when is_nil(user_id) ->
-        # Internal serve from Next share proxy (secret already validated)
+        # Internal serve from the Svelte share proxy (secret already validated).
         case Listings.get_listing_by_id(listing_id) do
           {:ok, _} -> :ok
           error -> error

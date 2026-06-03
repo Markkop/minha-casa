@@ -62,23 +62,24 @@ docker compose -f infra/vps/docker-compose.db.yml --env-file .env.prod exec phoe
 
 ## Data model note
 
-All app tables (listings, `saved_links`, auth, etc.) live in this Postgres instance. Drizzle (Next.js) and Ecto (Phoenix) are ORMs over the same database.
+All app tables (listings, `saved_links`, auth, etc.) live in this Postgres instance. Drizzle (shared TypeScript tooling) and Ecto (Phoenix) are ORMs over the same database.
 
 ## Frontend env vars
 
-Set these wherever the Next.js frontend runs:
+Set these wherever the SvelteKit frontend runs:
 
 ```env
 DATABASE_URL=postgresql://minhacasa:<POSTGRES_PASSWORD>@<VPS_HOST>:5433/minha_casa_prod
 DATABASE_SSL=true
 DATABASE_POOL_MAX=5
 BETTER_AUTH_URL=https://<minha-casa-domain>
+PUBLIC_APP_URL=https://<minha-casa-domain>
 BETTER_AUTH_SECRET=<openssl rand -base64 32>
-BETTER_AUTH_TRUSTED_ORIGINS=https://<minha-casa-domain>,http://localhost:3000
+BETTER_AUTH_TRUSTED_ORIGINS=https://<minha-casa-domain>,http://localhost:5173
 GOOGLE_CLIENT_ID=<from Google Cloud Console>
 GOOGLE_CLIENT_SECRET=<from Google Cloud Console>
-INTERNAL_BACKEND_URL=https://<api-domain>
-BACKEND_API_URL=https://<api-domain>
+PUBLIC_API_URL=https://<api-domain>
+PHOENIX_API_URL=https://<api-domain>
 INTERNAL_API_SECRET=<same value as VPS .env.prod>
 ```
 
@@ -105,7 +106,7 @@ Phoenix on the VPS uses `LANGFUSE_HOST=http://langfuse-web:3000` in `.env.prod` 
 SCRAPINGANT_API_KEY=<from ScrapingAnt dashboard>
 ```
 
-**Production domain (example):** `https://casas.markkop.dev` — use your real hostname in Google OAuth and in `BETTER_AUTH_*` / `NEXT_PUBLIC_APP_URL`.
+**Production domain (example):** `https://casas.markkop.dev` — use your real hostname in Google OAuth and in `BETTER_AUTH_*` / `PUBLIC_APP_URL`.
 
 ### Running `pnpm db:migrate` from your laptop (self-signed TLS)
 
@@ -124,10 +125,10 @@ Use Web Application credentials:
 
 - Authorized JavaScript origins:
   - `https://<minha-casa-domain>`
-  - `http://localhost:3000`
+  - `http://localhost:5173`
 - Authorized redirect URIs:
   - `https://<minha-casa-domain>/api/auth/callback/google`
-  - `http://localhost:3000/api/auth/callback/google`
+  - `http://localhost:5173/api/auth/callback/google`
 - Consent screen links:
   - Homepage: `https://<minha-casa-domain>`
   - Privacy: `https://<minha-casa-domain>/privacy`

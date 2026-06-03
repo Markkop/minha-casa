@@ -5,9 +5,9 @@ import {
   pushUndoStack,
   snapshotsEqual
 } from "$lib/components/reforma/history";
-import type { ReformaShape } from "$lib/components/reforma/types";
+import type { ReformaRectShape } from "$lib/components/reforma/types";
 
-const rect: ReformaShape = {
+const rect: ReformaRectShape = {
   id: "a",
   type: "rect",
   x: 0,
@@ -23,6 +23,8 @@ describe("captureCanvasSnapshot", () => {
   it("clones shapes so later edits do not mutate the snapshot", () => {
     const snapshot = captureCanvasSnapshot({ shapes: [rect], blueprint: null });
     const shapes = [{ ...rect, x: 10 }];
+    expect(snapshot.shapes[0].type).toBe("rect");
+    if (snapshot.shapes[0].type !== "rect") throw new Error("Expected rect shape");
     expect(snapshot.shapes[0].x).toBe(0);
     expect(shapes[0].x).toBe(10);
   });

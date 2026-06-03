@@ -8,17 +8,14 @@ Minha Casa helps users manage and organize real estate listings with AI-powered 
 
 ## Tech Stack
 
-- **Framework**: Next.js 16 (App Router)
-- **Language**: TypeScript 5
-- **Frontend**: React 19, Tailwind CSS v4
-- **UI Components**: shadcn/ui (Radix UI primitives)
+- **Frontend**: SvelteKit in `apps/web` with `@sveltejs/adapter-vercel`, TypeScript 5, and Tailwind CSS v4
+- **API Backend**: Phoenix/Elixir service in `backend/` for browser APIs, parsing, workflows, chat, MCP, WhatsApp/Telegram webhooks, and MinIO attachments
 - **Database**: PostgreSQL (`pg` pool) — production on VPS, local via Docker or VPS tunnel
-- **ORM**: Drizzle ORM
-- **Authentication**: BetterAuth
+- **Data tooling**: Drizzle ORM for shared auth/app schema and Ecto for Phoenix tables
+- **Authentication**: Better Auth in SvelteKit, with JWT verification in Phoenix
 - **AI**: OpenAI Responses API (`gpt-5.4-mini` via `OPENAI_MODEL`)
-- **AI Backend**: Phoenix/Elixir service in `backend/` for parsing, workflows, chat, MCP, WhatsApp/Telegram webhooks, and MinIO attachments
 - **Maps**: Leaflet + Google Maps (dual provider)
-- **Testing**: Vitest + React Testing Library
+- **Testing**: Vitest, Svelte checks, and Phoenix tests
 
 ## Prerequisites
 
@@ -50,7 +47,8 @@ Copy `.env.example` to `.env.local` and fill in values. For local dev against th
 DATABASE_URL=postgresql://minhacasa:<password>@<VPS_HOST>:5433/minha_casa_prod
 DATABASE_SSL=true
 BETTER_AUTH_SECRET=<strong-random-secret>
-NEXT_PUBLIC_APP_URL=http://localhost:3000
+BETTER_AUTH_URL=http://localhost:5173
+PUBLIC_APP_URL=http://localhost:5173
 OPENAI_API_KEY=<openai-api-key>
 ```
 
@@ -71,7 +69,7 @@ pnpm db:migrate
 pnpm dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) in your browser.
+Open [http://localhost:5173](http://localhost:5173) in your browser.
 
 ## Available Scripts
 
@@ -104,39 +102,20 @@ curl http://localhost:4000/health
 
 The backend boots without optional credentials. Features that need OpenAI, ScrapingAnt, MinIO, or WhatsApp validate those env vars when called and return a feature-specific error if missing.
 
-Next.js consumes Phoenix server-side through `/api/parse` when `INTERNAL_BACKEND_URL` or `BACKEND_API_URL` is configured. Without those env vars, the existing in-process parser remains as a local fallback.
+The SvelteKit app serves browser traffic from `apps/web` and proxies most `/api/*` requests to Phoenix through `PHOENIX_API_URL` or `PUBLIC_API_URL`. `/api/subscriptions` stays in SvelteKit because it manages the subscription cookie used by route gating.
 
 ## Project Structure
 
 ```
 minha-casa/
-├── app/                      # Next.js App Router pages
-│   ├── admin/               # Admin panel (users, subscriptions)
-│   ├── anuncios/            # Listings manager (MVP focus)
-│   │   ├── components/      # Listings UI components
-│   │   └── lib/             # Listings-specific utilities
-│   ├── api/                 # API routes
-│   │   ├── auth/           # BetterAuth endpoints
-│   │   ├── collections/    # Collections CRUD
-│   │   ├── listings/       # Listings CRUD
-│   │   ├── organizations/  # Organizations CRUD
-│   │   ├── parse/          # AI parsing endpoint
-│   │   └── ...
-│   ├── casa/               # Legacy redirect to /financiamento
-│   ├── financiamento/      # Financing simulator
-│   ├── floodrisk/          # Flood risk visualization (feature flagged)
-│   ├── login/              # Login page
-│   ├── organizacoes/       # Organizations management
-│   ├── share/              # Public share pages
-│   ├── signup/             # Registration page
-│   └── subscribe/          # Subscription page
-├── components/              # Shared components
-│   ├── addon-guard.tsx    # Addon access control component
-│   ├── nav-bar.tsx        # Navigation with addon-aware links
-│   └── ui/                 # shadcn/ui components
+├── apps/
+│   └── web/                 # Active SvelteKit frontend and browser-facing BFF
+│       ├── src/routes/      # Pages and same-origin API proxy routes
+│       ├── src/lib/         # Svelte UI, clients, auth, billing, maps, and stores
+│       └── svelte.config.js # SvelteKit config with Vercel adapter
 ├── drizzle/                 # Database migrations
 │   └── migrations/
-├── backend/                 # Phoenix/Elixir AI backend
+├── backend/                 # Phoenix/Elixir API and AI backend
 ├── lib/                     # Shared utilities
 │   ├── db/                 # Database schema and connection
 │   │   ├── index.ts       # DB connection
@@ -147,11 +126,10 @@ minha-casa/
 │   ├── auth-server.ts     # Server-side auth utilities
 │   ├── feature-flags.ts   # Feature flags system
 │   ├── subscription.ts    # Subscription utilities
-│   ├── use-addons.tsx     # React hooks for addon access
 │   └── utils.ts           # General utilities
 ├── public/                  # Static assets
+├── infra/                   # Local and VPS Docker Compose stacks
 ├── drizzle.config.ts       # Drizzle configuration
-├── middleware.ts           # Auth middleware
 └── package.json
 ```
 
@@ -237,34 +215,9 @@ hasAddonAccess(userId, addonSlug, orgId?) =
 - `GET /api/organizations/[orgId]/addons` - Get org's enabled addons
 - `PATCH /api/organizations/[orgId]/addons/[slug]` - Toggle org addon enabled state
 
-### React Hooks & Components
+### Svelte Addon Clients & Components
 
-**Hooks** (`lib/use-addons.tsx`):
-
-```tsx
-// Access addon context
-const { userAddons, orgAddons, hasAddon, isLoading } = useAddons()
-
-// Check specific addon access
-const hasFinancing = useHasAddon('financiamento')
-
-// Check loading state
-const isLoading = useAddonsLoading()
-```
-
-**Components** (`components/addon-guard.tsx`):
-
-```tsx
-// Guard content behind addon access
-<AddonGuard addonSlug="financiamento" addonName="Simulador de Financiamento">
-  <ProtectedContent />
-</AddonGuard>
-
-// Conditionally show content (no fallback UI)
-<AddonContent addonSlug="flood">
-  <FloodRiskWidget />
-</AddonContent>
-```
+Addon state is loaded through the Svelte workspace shell and Phoenix-backed addon APIs. Current-user and active-organization addon controls live under `apps/web/src/lib/addons`, with route gating handled by SvelteKit server hooks and backend access checks.
 
 ## Feature Flags
 
@@ -272,9 +225,9 @@ Feature flags control visibility of incomplete or optional features. Configure v
 
 | Flag | Env Variable | Default | Description |
 |------|-------------|---------|-------------|
-| `organizations` | `NEXT_PUBLIC_FF_ORGANIZATIONS` | `true` | Enable organizations |
-| `publicCollections` | `NEXT_PUBLIC_FF_PUBLIC_COLLECTIONS` | `true` | Enable public sharing |
-| `mapProvider` | `NEXT_PUBLIC_FF_MAP_PROVIDER` | `auto` | Map provider (`google`, `leaflet`, `auto`) |
+| `organizations` | `PUBLIC_FF_ORGANIZATIONS` | `true` | Enable organizations |
+| `publicCollections` | `PUBLIC_FF_PUBLIC_COLLECTIONS` | `true` | Enable public sharing |
+| `mapProvider` | `PUBLIC_FF_MAP_PROVIDER` | `auto` | Map provider (`google`, `leaflet`, `auto`) |
 
 **Note**: Access to `/floodrisk` (Flood Forecast) is controlled by the addon system instead of feature flags. Financing is available to Plus workspace users through `/financiamento`, with `/casa` kept as a compatibility redirect.
 

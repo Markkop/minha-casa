@@ -1,6 +1,6 @@
 defmodule MinhaCasaAi.Workspace.Profile do
   @moduledoc """
-  Workspace profile scoping (personal user vs organization), mirroring Next.js `profileWhere`.
+  Workspace profile scoping for personal users and organizations.
   """
 
   import Ecto.Query

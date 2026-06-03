@@ -35,8 +35,8 @@ export function createListingsTablePendingAdd(getCtx: () => CollectionsContextVa
   let addFiles = $state<File[]>([]);
   let isSubmittingAdd = $state(false);
   let clipboardAddError = $state<string | null>(null);
-  const addInputRef = $state<HTMLInputElement | null>(null);
-  const addFileInputRef = $state<HTMLInputElement | null>(null);
+  let addInputRef = $state<HTMLInputElement | null>(null);
+  let addFileInputRef = $state<HTMLInputElement | null>(null);
   let pendingAddRows = $state<PendingAddRow[]>([]);
 
   function toggleAddInput() {
@@ -383,8 +383,18 @@ export function createListingsTablePendingAdd(getCtx: () => CollectionsContextVa
     get clipboardAddError() {
       return clipboardAddError;
     },
-    addInputRef,
-    addFileInputRef,
+    get addInputRef() {
+      return addInputRef;
+    },
+    set addInputRef(value: HTMLInputElement | null) {
+      addInputRef = value;
+    },
+    get addFileInputRef() {
+      return addFileInputRef;
+    },
+    set addFileInputRef(value: HTMLInputElement | null) {
+      addFileInputRef = value;
+    },
     get pendingAddRows() {
       return pendingAddRows;
     },

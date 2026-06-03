@@ -1,5 +1,5 @@
 /**
- * Client-side feature flags (parity with lib/feature-flags.ts in Next).
+ * Client-side feature flags.
  *
  * Priority: runtime overrides → PUBLIC_FF_* env → defaults.
  */

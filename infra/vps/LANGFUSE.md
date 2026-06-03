@@ -70,6 +70,6 @@ docker compose -f infra/vps/docker-compose.db.yml --env-file .env.prod run --rm 
 | Where | `LANGFUSE_HOST` / `LANGFUSE_BASE_URL` | Notes |
 |-------|--------------------------------------|--------|
 | Phoenix (Docker) | `http://langfuse-web:3000` | Internal network |
-| Vercel / Next.js | `https://langfuse.casas.markkop.dev` | Use `LANGFUSE_BASE_URL` in Vercel |
+| Vercel / SvelteKit | `https://langfuse.casas.markkop.dev` | Use `LANGFUSE_BASE_URL` in Vercel |
 
 Set `LANGFUSE_ENABLED=true` only after project API keys are configured.
