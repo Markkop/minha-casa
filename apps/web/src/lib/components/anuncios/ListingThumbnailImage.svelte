@@ -11,7 +11,7 @@
   src={src}
   alt={alt}
   loading="lazy"
-  class="h-full w-full object-cover"
+  class="h-full w-full object-cover object-center"
   data-listing-id={listingId}
   onerror={() => onError?.()}
 />

@@ -88,6 +88,12 @@ export const ROW_ACTION_BTN_CLASS =
   "inline-flex flex-shrink-0 items-center justify-center p-0.5 transition-colors";
 export const ROW_ACTION_ICON_CLASS = "h-3.5 w-3.5";
 export const LISTING_MOBILE_EDGE_INSET_CLASS = "p-1";
+/** Side rail gallery in horizontal mobile card layouts. */
+export const LISTING_MOBILE_GALLERY_CLASS = "min-w-0 flex-[2] basis-0 self-stretch min-h-[7.25rem]";
+/** Full-width hero image on vertical media-first mobile cards. */
+export const LISTING_MOBILE_GALLERY_HERO_CLASS = "relative aspect-video w-full overflow-hidden";
+export const LISTING_MOBILE_CARD_BODY_CLASS =
+  "relative flex min-w-0 flex-col gap-1.5 px-3.5 pb-3.5";
 export const LISTING_MOBILE_ROW_GAP_CLASS = "gap-0.5";
 export const LISTING_MOBILE_TOOLBAR_GAP_CLASS = "gap-0.5";
 export const LISTING_MOBILE_ICON_BTN_CLASS =

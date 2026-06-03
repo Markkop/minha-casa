@@ -13,8 +13,10 @@
   import PropertyTypeFilterCycleButton from "$lib/components/anuncios/PropertyTypeFilterCycleButton.svelte";
   import ToolbarAnchoredPopover from "$lib/components/anuncios/ToolbarAnchoredPopover.svelte";
   import Input from "$lib/components/ui/Input.svelte";
+  import ImageColumnHeaderToggle from "$lib/components/anuncios/ImageColumnHeaderToggle.svelte";
   import {
     LISTINGS_TABLE_COLUMNS,
+    type ImageColumnView,
     type ListingsTableColumn
   } from "$lib/components/anuncios/listings-table-shared";
   import type { ListingsSortKey, ListingsSortState } from "$lib/components/anuncios/listings-sort-shared";
@@ -40,6 +42,8 @@
     sort,
     onSort,
     visibleColumns = $bindable<Record<ListingsTableColumn, boolean>>(),
+    imageColumnView = $bindable<ImageColumnView>("image"),
+    onImageColumnViewChange,
     addListingToolbarButtons,
     addInputControl
   }: {
@@ -60,9 +64,16 @@
     sort: ListingsSortState;
     onSort: (key: ListingsSortKey) => void;
     visibleColumns: Record<ListingsTableColumn, boolean>;
+    imageColumnView?: ImageColumnView;
+    onImageColumnViewChange?: (view: ImageColumnView) => void;
     addListingToolbarButtons: Snippet<[large?: boolean]>;
     addInputControl: Snippet;
   } = $props();
+
+  function setImageColumnView(view: ImageColumnView) {
+    imageColumnView = view;
+    onImageColumnViewChange?.(view);
+  }
 
   let columnsOpen = $state(false);
 
@@ -173,39 +184,52 @@
       <ListingsSortPopover {sort} onSort={onSort} />
     </div>
 
-    <div class="hidden md:contents">
-      <ToolbarAnchoredPopover bind:open={columnsOpen} align="auto" panelClass="w-56 p-2">
-        {#snippet trigger()}
-          <PageToolbarIconButton
-            variant="secondary"
-            aria-label="Colunas visíveis"
-            title="Colunas visíveis"
-            tooltipDisabled={columnsOpen}
-            onclick={() => (columnsOpen = !columnsOpen)}
+    <ToolbarAnchoredPopover bind:open={columnsOpen} align="auto" panelClass="w-56 p-2">
+      {#snippet trigger()}
+        <PageToolbarIconButton
+          variant="secondary"
+          aria-label="Colunas visíveis"
+          title="Colunas visíveis"
+          tooltipDisabled={columnsOpen}
+          onclick={() => (columnsOpen = !columnsOpen)}
+        >
+          <Columns3 />
+        </PageToolbarIconButton>
+      {/snippet}
+      <div class="flex flex-col gap-1">
+        {#each LISTINGS_TABLE_COLUMNS as column (column.id)}
+          <label
+            class="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-sm text-app-muted transition-colors hover:bg-app-surface-muted hover:text-app-fg"
           >
-            <Columns3 />
-          </PageToolbarIconButton>
-        {/snippet}
-        <div class="flex flex-col gap-1">
-          {#each LISTINGS_TABLE_COLUMNS as column (column.id)}
-            <label
-              class="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-sm text-app-muted transition-colors hover:bg-app-surface-muted hover:text-app-fg"
-            >
-              <input
-                type="checkbox"
-                checked={visibleColumns[column.id]}
-                onchange={(event) =>
-                  (visibleColumns = {
-                    ...visibleColumns,
-                    [column.id]: event.currentTarget.checked
-                  })}
-                class="h-3.5 w-3.5 accent-app-action"
+            <input
+              type="checkbox"
+              checked={visibleColumns[column.id]}
+              onchange={(event) =>
+                (visibleColumns = {
+                  ...visibleColumns,
+                  [column.id]: event.currentTarget.checked
+                })}
+              class="h-3.5 w-3.5 accent-app-action"
+            />
+            <span>{column.label}</span>
+          </label>
+        {/each}
+        {#if visibleColumns.image}
+          <div class="mt-1 border-t border-app-border pt-2">
+            <p class="mb-1.5 px-2 text-[10px] font-medium uppercase tracking-wide text-app-muted">
+              Coluna imagem
+            </p>
+            <div class="flex justify-center px-2">
+              <ImageColumnHeaderToggle
+                bind:value={
+                  () => imageColumnView,
+                  setImageColumnView
+                }
               />
-              <span>{column.label}</span>
-            </label>
-          {/each}
-        </div>
-      </ToolbarAnchoredPopover>
-    </div>
+            </div>
+          </div>
+        {/if}
+      </div>
+    </ToolbarAnchoredPopover>
   </div>
 </div>

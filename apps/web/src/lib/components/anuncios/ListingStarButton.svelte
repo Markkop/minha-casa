@@ -10,11 +10,13 @@
   let {
     starred = false,
     onToggle,
-    variant = "default"
+    variant = "default",
+    class: className = ""
   } = $props<{
     starred?: boolean;
     onToggle: () => void;
-    variant?: "default" | "on-media";
+    variant?: "default" | "on-media" | "floating";
+    class?: string;
   }>();
 </script>
 
@@ -24,21 +26,37 @@
     data-testid="listing-star-button"
     onclick={() => void onToggle()}
     class={cn(
-      variant === "on-media" ? LISTING_MOBILE_ICON_BTN_CLASS : "flex-shrink-0 p-1",
+      variant === "floating"
+        ? "flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white shadow-md"
+        : variant === "on-media"
+          ? LISTING_MOBILE_ICON_BTN_CLASS
+          : "flex-shrink-0 p-1",
       "transition-colors",
-      variant === "on-media"
+      variant === "floating"
         ? starred
-          ? "text-yellow hover:text-yellow/80"
-          : "text-white/85 hover:text-yellow"
-        : starred
-          ? "text-yellow hover:text-yellow/80"
-          : "text-muted-foreground hover:text-yellow"
+          ? "text-yellow hover:text-yellow/90"
+          : "text-app-muted hover:text-yellow"
+        : variant === "on-media"
+          ? starred
+            ? "text-yellow hover:text-yellow/80"
+            : "text-white/85 hover:text-yellow"
+          : starred
+            ? "text-yellow hover:text-yellow/80"
+            : "text-muted-foreground hover:text-yellow",
+      className
     )}
   >
     <Star
-      class={cn(variant === "on-media" ? LISTING_MOBILE_ICON_CLASS : "h-4 w-4", starred && variant === "on-media" && "fill-current")}
+      class={cn(
+        variant === "floating"
+          ? "h-4 w-4"
+          : variant === "on-media"
+            ? LISTING_MOBILE_ICON_CLASS
+            : "h-4 w-4",
+        starred && (variant === "on-media" || variant === "floating") && "fill-current"
+      )}
       fill={starred ? "currentColor" : "none"}
-      strokeWidth={variant === "on-media" ? 1.5 : undefined}
+      strokeWidth={variant === "on-media" || variant === "floating" ? 1.5 : undefined}
     />
   </button>
 </FloatingTooltip>

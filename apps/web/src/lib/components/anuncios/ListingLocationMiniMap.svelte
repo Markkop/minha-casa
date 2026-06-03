@@ -35,7 +35,7 @@
     fallback
   }: {
     listing: Imovel;
-    variant?: "thumbnail" | "preview";
+    variant?: "thumbnail" | "preview" | "hero";
     class?: string;
     fallback?: import("svelte").Snippet;
   } = $props();
@@ -60,10 +60,20 @@
   const containerClass = $derived(
     cn(
       MAP_EMBED_PANEL_CLASS,
-      "border border-app-border bg-app-bg",
-      variant === "thumbnail" ? "h-20 w-20 rounded aspect-square" : "min-h-[200px] rounded-lg",
+      variant === "hero"
+        ? "size-full min-h-0 overflow-hidden rounded-none border-0 bg-app-bg"
+        : "border border-app-border bg-app-bg",
+      variant === "thumbnail"
+        ? "h-20 w-20 rounded aspect-square"
+        : variant === "hero"
+          ? "aspect-auto"
+          : "min-h-[200px] rounded-lg",
       className
     )
+  );
+
+  const loadingShellClass = $derived(
+    variant === "thumbnail" ? "flex items-center justify-center" : "grid size-full place-items-center"
   );
 
   const mapLabel = $derived(
@@ -73,7 +83,7 @@
   const useGoogle = $derived(mapProvider === "google" && Boolean(getGoogleMapsApiKey()));
 
   const displayZoom = $derived(
-    location ? getMiniMapZoom(location.zoom, variant) : 13
+    location ? getMiniMapZoom(location.zoom, variant === "thumbnail" ? "thumbnail" : "preview") : 13
   );
 
   $effect(() => {
@@ -201,15 +211,18 @@
 </script>
 
 {#if loading}
-  <div
-    class={cn(containerClass, "flex items-center justify-center")}
-    aria-label={`Carregando mapa de ${listing.titulo}`}
-  >
+  <div class={cn(containerClass, loadingShellClass)} aria-label={`Carregando mapa de ${listing.titulo}`}>
     <Loader2 class="h-4 w-4 animate-spin text-app-subtle" />
   </div>
 {:else if !location}
   {#if fallback}
-    {@render fallback()}
+    {#if variant === "hero"}
+      <div class="size-full">
+        {@render fallback()}
+      </div>
+    {:else}
+      {@render fallback()}
+    {/if}
   {/if}
 {:else}
   <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->

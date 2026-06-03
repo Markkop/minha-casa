@@ -30,7 +30,7 @@
   });
 </script>
 
-<div class="divide-y divide-app-border md:hidden" data-testid="listings-mobile-list">
+<div class="space-y-2 p-2 md:hidden" data-testid="listings-mobile-list">
   {#each pendingAdd.pendingAddRows as row (row.id)}
     <PendingAddMobileRow {row} {...pendingHandlers} />
   {/each}

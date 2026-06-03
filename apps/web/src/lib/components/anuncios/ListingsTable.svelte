@@ -162,6 +162,10 @@
         () => tableState.visibleColumns,
         tableState.setVisibleColumns
       }
+      bind:imageColumnView={
+        () => tableState.imageColumnView,
+        tableState.setImageColumnView
+      }
       {addListingToolbarButtons}
       {addInputControl}
     />
