@@ -16,6 +16,7 @@ import {
   type ImageColumnView,
   type ListingsTableColumn
 } from "$lib/components/anuncios/listings-table-shared";
+import { shouldUseCasaAreaLabelsForCollection } from "$lib/anuncios/area-metric-labels";
 import {
   type ListingsSortKey,
   type ListingsSortState
@@ -112,6 +113,13 @@ export function createListingsTableState(getListings: () => Imovel[]) {
   const hasDiscardedListings = $derived(listings.some((listing) => listing.strikethrough));
   const casaCount = $derived(listings.filter((listing) => listing.tipoImovel === "casa").length);
   const aptoCount = $derived(listings.filter((listing) => listing.tipoImovel === "apartamento").length);
+  const useCasaAreaLabels = $derived(
+    shouldUseCasaAreaLabelsForCollection({
+      propertyTypeFilter,
+      casaCount,
+      aptoCount
+    })
+  );
 
   const filteredAndSortedListings = $derived.by(() => {
     const query = searchQuery.toLowerCase().trim();
@@ -194,6 +202,9 @@ export function createListingsTableState(getListings: () => Imovel[]) {
     },
     get aptoCount() {
       return aptoCount;
+    },
+    get useCasaAreaLabels() {
+      return useCasaAreaLabels;
     },
     get filteredAndSortedListings() {
       return filteredAndSortedListings;

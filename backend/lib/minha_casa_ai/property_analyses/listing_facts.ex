@@ -36,13 +36,21 @@ defmodule MinhaCasaAi.PropertyAnalyses.ListingFacts do
     if map_size(facts) == 0 do
       nil
     else
+      tipo = Map.get(facts, "tipoImovel")
+
       facts
-      |> Enum.map(fn {k, v} -> "#{k}: #{format_value(v)}" end)
+      |> Enum.map(fn {k, v} -> format_fact_line(k, v, tipo) end)
       |> Enum.join("; ")
     end
   end
 
   def hints_text(_), do: nil
+
+  defp format_fact_line("m2Totais", v, "casa"), do: "m2Totais (terreno): #{format_value(v)}"
+  defp format_fact_line("m2Privado", v, "casa"), do: "m2Privado (construído): #{format_value(v)}"
+  defp format_fact_line("m2Totais", v, _), do: "m2Totais (área total): #{format_value(v)}"
+  defp format_fact_line("m2Privado", v, _), do: "m2Privado (área privativa): #{format_value(v)}"
+  defp format_fact_line(k, v, _), do: "#{k}: #{format_value(v)}"
 
   defp format_value(v) when is_boolean(v), do: if(v, do: "sim", else: "não")
   defp format_value(v), do: to_string(v)

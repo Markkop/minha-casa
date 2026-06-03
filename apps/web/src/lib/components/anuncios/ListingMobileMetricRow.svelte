@@ -1,6 +1,8 @@
 <script lang="ts">
   import type { MetricVariant } from "$lib/anuncios/listings-display-prefs";
   import { cn } from "$lib/utils";
+  import { formatMetricVariantLabel } from "$lib/anuncios/area-metric-labels";
+  import type { Imovel } from "$lib/anuncios/types";
   import {
     formatM2Value,
     formatPrecoM2Value,
@@ -15,6 +17,7 @@
 
   let {
     segments,
+    tipoImovel = null,
     activeVariant = null,
     emphasizeWhenSorted = false,
     showArea = true,
@@ -23,6 +26,7 @@
     "data-testid": dataTestId
   } = $props<{
     segments: MetricSegment[];
+    tipoImovel?: Imovel["tipoImovel"];
     activeVariant?: MetricVariant | null;
     emphasizeWhenSorted?: boolean;
     showArea?: boolean;
@@ -30,10 +34,6 @@
     class?: string;
     "data-testid"?: string;
   }>();
-
-  function formatVariantLabel(variant: MetricVariant) {
-    return variant.toLowerCase();
-  }
 </script>
 
 <div
@@ -57,7 +57,7 @@
       {#if showValue}
         <span class="text-app-muted">({formatPrecoM2Value(segment.pricePerM2)})</span>
       {/if}
-      <span class="text-app-muted/80">{` ${formatVariantLabel(segment.variant)}`}</span>
+      <span class="text-app-muted/80">{` ${formatMetricVariantLabel(segment.variant, tipoImovel)}`}</span>
     </span>
   {/each}
 </div>

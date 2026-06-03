@@ -6,10 +6,13 @@
     isDimmedVariant,
     type MetricAlign
   } from "$lib/components/anuncios/listings-metric-stacks-shared";
+  import { formatMetricVariantLabel } from "$lib/anuncios/area-metric-labels";
+  import type { Imovel } from "$lib/anuncios/types";
 
   let {
     total,
     privado,
+    tipoImovel = null,
     activeVariant = null,
     enabledVariants,
     formatValue,
@@ -17,11 +20,16 @@
   }: {
     total: number | null;
     privado: number | null;
+    tipoImovel?: Imovel["tipoImovel"];
     activeVariant?: MetricVariant | null;
     enabledVariants: Set<MetricVariant>;
     formatValue: (value: number | null) => string;
     align?: MetricAlign;
   } = $props();
+
+  function variantLabel(variant: MetricVariant) {
+    return formatMetricVariantLabel(variant, tipoImovel);
+  }
 
   const alignClass = $derived(
     align === "start" ? "items-start" : align === "center" ? "items-center" : "items-end"
@@ -41,7 +49,7 @@
         )}
       >
         <span class="tabular-nums">{formatValue(entry.value)}</span>
-        <span class="text-[9px] leading-none text-app-muted">{entry.variant}</span>
+        <span class="text-[9px] leading-none text-app-muted">{variantLabel(entry.variant)}</span>
       </span>
     {/each}
   </div>
@@ -50,6 +58,6 @@
   {@const value = display.value}
   <span class={cn("inline-flex flex-col gap-0.5 whitespace-nowrap tabular-nums", alignClass)}>
     {formatValue(value)}
-    <span class="text-[9px] leading-none text-app-muted">{variant}</span>
+    <span class="text-[9px] leading-none text-app-muted">{variantLabel(variant)}</span>
   </span>
 {/if}

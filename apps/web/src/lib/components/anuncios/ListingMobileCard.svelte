@@ -6,7 +6,6 @@
   import ListingMobileActiveFeatures from "$lib/components/anuncios/ListingMobileActiveFeatures.svelte";
   import ListingTitleStatusRow from "$lib/components/anuncios/ListingTitleStatusRow.svelte";
   import ListingRowStatusSelect from "$lib/components/anuncios/ListingRowStatusSelect.svelte";
-  import ListingStarButton from "$lib/components/anuncios/ListingStarButton.svelte";
   import { buildListingAnaliseHref } from "$lib/listing-analise-url";
   import { calculatePrecoM2, calculatePrecoM2Privado } from "$lib/components/anuncios/listing-row-urls";
   import { LISTING_MOBILE_CARD_BODY_CLASS } from "$lib/components/anuncios/listings-table-shared";
@@ -51,7 +50,8 @@
     openEditListing,
     showMap: propertyDisplay.showAddress,
     showContact: propertyDisplay.showContact,
-    showStatus
+    showStatus,
+    onToggleStar: () => void interactions.handleToggleStar()
   });
 
   const strikethroughClass = $derived(
@@ -80,7 +80,7 @@
       {#snippet overlays()}
         {#if titleOnHero}
           <div
-            class="pointer-events-none absolute inset-x-0 top-0 z-10 bg-gradient-to-b from-black/80 via-black/50 to-transparent px-3.5 pb-5 pt-3 pr-12"
+            class="pointer-events-none absolute inset-x-0 top-0 z-10 bg-gradient-to-b from-black/80 via-black/50 to-transparent px-3.5 pb-5 pt-3"
           >
             <div class="pointer-events-auto min-w-0">
               <ListingTitleStatusRow
@@ -92,12 +92,6 @@
             </div>
           </div>
         {/if}
-        <ListingStarButton
-          starred={imovel.starred}
-          variant="floating"
-          onToggle={() => void interactions.handleToggleStar()}
-          class="absolute right-3 top-3 z-20"
-        />
       {/snippet}
     </ListingMobileImageGallery>
   {/if}
@@ -106,17 +100,8 @@
     data-testid="listing-mobile-body"
     class={cn(LISTING_MOBILE_CARD_BODY_CLASS, showImage ? "pt-2.5" : "pt-3.5")}
   >
-    {#if !showImage}
-      <ListingStarButton
-        starred={imovel.starred}
-        variant="floating"
-        onToggle={() => void interactions.handleToggleStar()}
-        class="absolute right-3 top-3 z-10"
-      />
-    {/if}
-
     {#if showTitle && !titleOnHero}
-      <ListingTitleStatusRow {...titleStatusProps} {displayTitle} class="min-w-0 pr-10" />
+      <ListingTitleStatusRow {...titleStatusProps} {displayTitle} class="min-w-0" />
     {/if}
 
     <div class="flex min-w-0 items-stretch gap-3">
@@ -165,6 +150,7 @@
             <ListingMobileMetricRow
               data-testid="listing-mobile-metrics"
               segments={metricSegments}
+              tipoImovel={imovel.tipoImovel}
               {showArea}
               showValue={showValue}
               activeVariant={activeMetricVariant}

@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { Imovel } from "$lib/anuncios/types";
   import ListingRowActionsMenu from "$lib/components/anuncios/ListingRowActionsMenu.svelte";
+  import ListingStarButton from "$lib/components/anuncios/ListingStarButton.svelte";
   import ListingTitleLinks from "$lib/components/anuncios/ListingTitleLinks.svelte";
   import type { ListingRowInteractions } from "$lib/components/anuncios/listing-row-interactions.svelte";
   import { cn } from "$lib/utils";
@@ -18,7 +19,8 @@
     openEditListing = undefined,
     showMap = true,
     showContact = true,
-    showStatus = true
+    showStatus = true,
+    onToggleStar = undefined
   }: {
     listing: Imovel;
     displayTitle: string;
@@ -33,6 +35,7 @@
     showMap?: boolean;
     showContact?: boolean;
     showStatus?: boolean;
+    onToggleStar?: () => void;
   } = $props();
 
   const showActionsMenu = $derived(interactions !== undefined && openEditListing !== undefined);
@@ -42,6 +45,14 @@
   data-testid="listing-title-status-row"
   class={cn("flex w-full min-w-0 max-w-full items-center gap-0.5", className)}
 >
+  {#if onToggleStar}
+    <ListingStarButton
+      starred={listing.starred}
+      variant={overlayOnMedia ? "on-media" : "default"}
+      onToggle={onToggleStar}
+      class="shrink-0"
+    />
+  {/if}
   <ListingTitleLinks
     {listing}
     {displayTitle}

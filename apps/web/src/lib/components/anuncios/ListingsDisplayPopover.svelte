@@ -2,30 +2,34 @@
   import { Menu } from "@lucide/svelte";
   import PageToolbarIconButton from "$lib/components/page-toolbar/PageToolbarIconButton.svelte";
   import ToolbarAnchoredPopover from "$lib/components/anuncios/ToolbarAnchoredPopover.svelte";
+  import { getDisplayMetricToggleLabels } from "$lib/anuncios/area-metric-labels";
   import {
     setPropertyDisplayPref,
     type ListingsPropertyDisplayPrefs
   } from "$lib/anuncios/listings-display-prefs";
   import { cn } from "$lib/utils";
 
-  const DISPLAY_OPTIONS: {
-    key: keyof ListingsPropertyDisplayPrefs;
-    label: string;
-  }[] = [
-    { key: "showAddress", label: "Mapa" },
-    { key: "showPropertyIcons", label: "Detalhes do imóvel" },
-    { key: "showContact", label: "Contato" },
-    { key: "showMetricTotal", label: "Área total" },
-    { key: "showMetricPrivado", label: "Área privada" }
-  ];
-
   let {
     prefs,
+    useCasaAreaLabels = false,
     onChange
   }: {
     prefs: ListingsPropertyDisplayPrefs;
+    useCasaAreaLabels?: boolean;
     onChange: (prefs: ListingsPropertyDisplayPrefs) => void;
   } = $props();
+
+  const metricToggleLabels = $derived(getDisplayMetricToggleLabels(useCasaAreaLabels));
+
+  const displayOptions = $derived<
+    { key: keyof ListingsPropertyDisplayPrefs; label: string }[]
+  >([
+    { key: "showAddress", label: "Mapa" },
+    { key: "showPropertyIcons", label: "Detalhes do imóvel" },
+    { key: "showContact", label: "Contato" },
+    { key: "showMetricTotal", label: metricToggleLabels.total },
+    { key: "showMetricPrivado", label: metricToggleLabels.privado }
+  ]);
 
   let open = $state(false);
 </script>
@@ -43,7 +47,7 @@
     </PageToolbarIconButton>
   {/snippet}
   <div class="flex flex-col gap-1">
-    {#each DISPLAY_OPTIONS as option (option.key)}
+    {#each displayOptions as option (option.key)}
       {@const isMetric = option.key === "showMetricTotal" || option.key === "showMetricPrivado"}
       {@const otherMetricKey =
         option.key === "showMetricTotal" ? "showMetricPrivado" : "showMetricTotal"}

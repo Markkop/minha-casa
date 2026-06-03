@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { getAreaInputShortLabels } from "$lib/anuncios/area-metric-labels";
   import Input from "$lib/components/ui/Input.svelte";
   import type { Imovel } from "$lib/anuncios/types";
   import {
@@ -9,6 +10,8 @@
 
   let { formData, onInputChange, onNumberInputChange }: EditModalFieldProps = $props();
 
+  const areaInputLabels = $derived(getAreaInputShortLabels(formData.tipoImovel));
+
   function handleTipoImovelChange(value: string) {
     const tipo: Imovel["tipoImovel"] =
       value === "null" ? null : value === "casa" || value === "apartamento" ? value : null;
@@ -17,7 +20,7 @@
 </script>
 
 <div class="space-y-2">
-  <label for="m2Totais" class="text-sm text-app-muted">m² total</label>
+  <label for="m2Totais" class="text-sm text-app-muted">{areaInputLabels.total}</label>
   <Input
     id="m2Totais"
     type="number"
@@ -29,7 +32,7 @@
 </div>
 
 <div class="space-y-2">
-  <label for="m2Privado" class="text-sm text-app-muted">m² privado</label>
+  <label for="m2Privado" class="text-sm text-app-muted">{areaInputLabels.privado}</label>
   <Input
     id="m2Privado"
     type="number"

@@ -6,6 +6,7 @@ import {
   Waves,
   WavesLadder,
 } from "@lucide/svelte"
+import { areaRowLabel } from "$lib/anuncios/area-metric-labels"
 import type { Imovel } from "$lib/anuncios/types"
 import { resolveListingDisplayTitle } from "$lib/listing-display-title"
 
@@ -318,10 +319,6 @@ function pricePerM2ForAreaKey(
   return rowKey === "totalArea" ? calculateTotalPricePerM2(listing) : calculatePrivatePricePerM2(listing)
 }
 
-function areaRowLabel(rowKey: "totalArea" | "privateArea"): string {
-  return rowKey === "totalArea" ? "área total" : "área privativa"
-}
-
 function featureUnitLabel(rowKey: "rooms" | "bathrooms" | "garage"): string {
   if (rowKey === "rooms") return "quarto"
   if (rowKey === "bathrooms") return "banheiro"
@@ -375,7 +372,7 @@ export function buildRecalculationTooltip(options: {
     if (fixedRowKey === "totalArea" || fixedRowKey === "privateArea") {
       const pricePerM2 = pricePerM2ForAreaKey(fixedListing, fixedRowKey)
       if (!pricePerM2) return undefined
-      return `Este seria o preço se este imóvel tivesse ${formatPricePerM2(pricePerM2)} de ${areaRowLabel(fixedRowKey)}`
+      return `Este seria o preço se este imóvel tivesse ${formatPricePerM2(pricePerM2)} de ${areaRowLabel(fixedRowKey, fixedListing.tipoImovel)}`
     }
 
     if (fixedRowKey === "rooms" || fixedRowKey === "bathrooms" || fixedRowKey === "garage") {

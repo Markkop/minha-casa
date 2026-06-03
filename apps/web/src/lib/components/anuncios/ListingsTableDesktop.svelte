@@ -34,6 +34,7 @@
     onImageColumnViewChange,
     sort,
     onSort,
+    useCasaAreaLabels = false,
     enabledMetricVariants,
     activeMetricVariant,
     filteredListings,
@@ -46,6 +47,7 @@
     onImageColumnViewChange: (view: ImageColumnView) => void;
     sort: ListingsSortState;
     onSort: (key: ListingsSortState["key"]) => void;
+    useCasaAreaLabels?: boolean;
     enabledMetricVariants: Set<MetricVariant>;
     activeMetricVariant: MetricVariant | null;
     filteredListings: Imovel[];
@@ -138,6 +140,7 @@
           privadoSortKey="m2Privado"
           currentSort={sort}
           {onSort}
+          {useCasaAreaLabels}
           class={LISTING_TABLE_DATA_HEADER_CLASS}
         />
       {/if}
@@ -148,6 +151,7 @@
           privadoSortKey="precoM2Privado"
           currentSort={sort}
           {onSort}
+          {useCasaAreaLabels}
           class={LISTING_TABLE_DATA_HEADER_CLASS}
         />
       {/if}

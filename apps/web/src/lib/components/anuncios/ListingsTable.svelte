@@ -146,6 +146,7 @@
       listingsCount={listings.length}
       casaCount={tableState.casaCount}
       aptoCount={tableState.aptoCount}
+      useCasaAreaLabels={tableState.useCasaAreaLabels}
       hasDiscardedListings={tableState.hasDiscardedListings}
       bind:showStrikethrough={
         () => tableState.showStrikethrough,
@@ -192,6 +193,7 @@
             onImageColumnViewChange={tableState.setImageColumnView}
             sort={tableState.sort}
             onSort={tableState.handleSort}
+            useCasaAreaLabels={tableState.useCasaAreaLabels}
             enabledMetricVariants={tableState.enabledMetricVariants}
             activeMetricVariant={tableState.activeMetricVariant}
             filteredListings={tableState.filteredAndSortedListings}

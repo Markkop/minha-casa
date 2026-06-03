@@ -53,7 +53,7 @@
           : variant === "on-media"
             ? LISTING_MOBILE_ICON_CLASS
             : "h-4 w-4",
-        starred && (variant === "on-media" || variant === "floating") && "fill-current"
+        starred && "fill-current"
       )}
       fill={starred ? "currentColor" : "none"}
       strokeWidth={variant === "on-media" || variant === "floating" ? 1.5 : undefined}

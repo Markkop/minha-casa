@@ -2,6 +2,7 @@
   import { ArrowDown, ArrowUp } from "@lucide/svelte";
   import ToolbarAnchoredPopover from "$lib/components/anuncios/ToolbarAnchoredPopover.svelte";
   import type { MetricVariant } from "$lib/anuncios/listings-display-prefs";
+  import { formatMetricVariantLabelTitle } from "$lib/anuncios/area-metric-labels";
   import type { ListingsSortKey, ListingsSortState } from "$lib/components/anuncios/listings-sort-shared";
   import { cn } from "$lib/utils";
 
@@ -11,6 +12,7 @@
     privadoSortKey,
     currentSort,
     onSort,
+    useCasaAreaLabels = false,
     align = "center",
     class: className = ""
   }: {
@@ -19,9 +21,13 @@
     privadoSortKey: ListingsSortKey;
     currentSort: ListingsSortState;
     onSort: (key: ListingsSortKey) => void;
+    useCasaAreaLabels?: boolean;
     align?: "center" | "right";
     class?: string;
   } = $props();
+
+  const totalLabel = $derived(formatMetricVariantLabelTitle("total", useCasaAreaLabels));
+  const privadoLabel = $derived(formatMetricVariantLabelTitle("privado", useCasaAreaLabels));
 
   const isCentered = $derived(align === "center");
 
@@ -72,7 +78,7 @@
         open = false;
       }}
     >
-      <span>Total</span>
+      <span>{totalLabel}</span>
       {#if activeVariant === "total"}
         {#if isAsc}
           <ArrowUp class="h-3 w-3" />
@@ -89,7 +95,7 @@
         open = false;
       }}
     >
-      <span>Privado</span>
+      <span>{privadoLabel}</span>
       {#if activeVariant === "privado"}
         {#if isAsc}
           <ArrowUp class="h-3 w-3" />

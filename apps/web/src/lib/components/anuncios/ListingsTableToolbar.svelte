@@ -32,6 +32,7 @@
     listingsCount,
     casaCount,
     aptoCount,
+    useCasaAreaLabels = false,
     hasDiscardedListings,
     showStrikethrough = $bindable(true),
     copiedVisibleMarkdown,
@@ -54,6 +55,7 @@
     listingsCount: number;
     casaCount: number;
     aptoCount: number;
+    useCasaAreaLabels?: boolean;
     hasDiscardedListings: boolean;
     showStrikethrough?: boolean;
     copiedVisibleMarkdown: boolean;
@@ -178,10 +180,14 @@
       {#if copiedVisibleMarkdown}<Check />{:else}<Copy />{/if}
     </PageToolbarIconButton>
 
-    <ListingsDisplayPopover prefs={propertyDisplay} onChange={onPropertyDisplayChange} />
+    <ListingsDisplayPopover
+      prefs={propertyDisplay}
+      {useCasaAreaLabels}
+      onChange={onPropertyDisplayChange}
+    />
 
     <div class="md:hidden">
-      <ListingsSortPopover {sort} onSort={onSort} />
+      <ListingsSortPopover {sort} {useCasaAreaLabels} onSort={onSort} />
     </div>
 
     <ToolbarAnchoredPopover bind:open={columnsOpen} align="auto" panelClass="w-56 p-2">

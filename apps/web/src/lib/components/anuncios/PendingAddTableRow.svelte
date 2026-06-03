@@ -139,6 +139,7 @@
           <AreaM2Stack
             total={parsedPreview.m2Totais ?? null}
             privado={parsedPreview.m2Privado ?? null}
+            tipoImovel={parsedPreview.tipoImovel}
             activeVariant={activeMetricVariant}
             enabledVariants={enabledMetricVariants}
             align="center"
@@ -156,6 +157,7 @@
           <PricePerM2Stack
             total={calculatePrecoM2(parsedPreview.preco ?? null, parsedPreview.m2Totais ?? null)}
             privado={calculatePrecoM2Privado(parsedPreview.preco ?? null, parsedPreview.m2Privado ?? null)}
+            tipoImovel={parsedPreview.tipoImovel}
             activeVariant={activeMetricVariant}
             enabledVariants={enabledMetricVariants}
             align="center"

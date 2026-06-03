@@ -4,18 +4,22 @@
   import ToolbarAnchoredPopover from "$lib/components/anuncios/ToolbarAnchoredPopover.svelte";
   import { cn } from "$lib/utils";
   import {
-    LISTINGS_SORT_OPTIONS,
+    getListingsSortOptions,
     type ListingsSortKey,
     type ListingsSortState
   } from "$lib/components/anuncios/listings-sort-shared";
 
   let {
     sort,
+    useCasaAreaLabels = false,
     onSort
   }: {
     sort: ListingsSortState;
+    useCasaAreaLabels?: boolean;
     onSort: (key: ListingsSortKey) => void;
   } = $props();
+
+  const sortOptions = $derived(getListingsSortOptions(useCasaAreaLabels));
 
   let open = $state(false);
 
@@ -38,7 +42,7 @@
     </PageToolbarIconButton>
   {/snippet}
   <div class="flex flex-col gap-0.5">
-    {#each LISTINGS_SORT_OPTIONS as option (option.key)}
+    {#each sortOptions as option (option.key)}
       {@const isActive = sort.key === option.key}
       {@const isAsc = isActive && sort.direction === "asc"}
       <button

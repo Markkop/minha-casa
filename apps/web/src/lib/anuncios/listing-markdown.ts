@@ -1,3 +1,7 @@
+import {
+  formatAreaMarkdownParts,
+  formatPricePerM2MarkdownParts
+} from "$lib/anuncios/area-metric-labels";
 import type { Imovel } from "$lib/anuncios/types";
 
 function hasValue<T extends string | number>(value: T | null | undefined): value is T {
@@ -34,33 +38,12 @@ function formatLocation(imovel: Imovel): string | null {
 }
 
 function formatArea(imovel: Imovel): string | null {
-  const parts: string[] = []
-
-  if (hasValue(imovel.m2Totais)) {
-    parts.push(`${imovel.m2Totais} m² total`)
-  }
-
-  if (hasValue(imovel.m2Privado)) {
-    const label = imovel.m2Privado === 1 ? "privativo" : "privativos"
-    parts.push(`${imovel.m2Privado} m² ${label}`)
-  }
-
+  const parts = formatAreaMarkdownParts(imovel).filter((part) => part.length > 0)
   return parts.length > 0 ? parts.join(" · ") : null
 }
 
 function formatPricePerM2(imovel: Imovel): string | null {
-  if (!hasValue(imovel.preco)) return null
-
-  const parts: string[] = []
-
-  if (hasValue(imovel.m2Totais) && imovel.m2Totais !== 0) {
-    parts.push(`${formatRoundedCurrency(imovel.preco / imovel.m2Totais)}/m² total`)
-  }
-
-  if (hasValue(imovel.m2Privado) && imovel.m2Privado !== 0) {
-    parts.push(`${formatRoundedCurrency(imovel.preco / imovel.m2Privado)}/m² privativo`)
-  }
-
+  const parts = formatPricePerM2MarkdownParts(imovel, formatRoundedCurrency)
   return parts.length > 0 ? parts.join(" · ") : null
 }
 

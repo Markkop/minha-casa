@@ -37,6 +37,10 @@ defmodule MinhaCasaAi.Integrations.Langfuse.PromptDefinitions do
     - Use null para campos não encontrados.
     - Para números, retorne apenas o valor numérico.
     - tipoImovel deve ser "casa", "apartamento" ou null.
+    - Campos de área (nomes JSON fixos): m2Totais e m2Privado — não renomeie as chaves.
+    - Apartamento: m2Totais = área total do imóvel; m2Privado = área privativa.
+    - Casa (tipoImovel "casa"): m2Totais = área do terreno/lote; m2Privado = área construída.
+    - Em casas, "área total", "lote" ou "terreno" → m2Totais; "área construída", "área privativa" ou "construção" → m2Privado.
     - Normalize contactNumber com apenas dígitos e remova prefixo 55 quando existir.
     - Datas devem ser YYYY-MM-DD quando explícitas.
     - Se houver vários imóveis distintos, retorne {"listings": [...]}.
@@ -301,6 +305,8 @@ defmodule MinhaCasaAi.Integrations.Langfuse.PromptDefinitions do
     - listingUrl: associe cada card ao link correspondente da lista abaixo (por ordem, endereço, preço ou metragem). Se não houver correspondência, omita o card.
     - propertyType: apartamento, casa, sobrado, cobertura, kitnet, studio, loft, flat, terreno, sala_comercial ou null.
     - price, areaTotal, areaPrivate, condoFee: números em BRL/m² sem formatação.
+    - areaTotal/areaPrivate são nomes JSON fixos. Apartamento: areaTotal = área total, areaPrivate = área privativa.
+    - Casa (propertyType "casa"): areaTotal = terreno/lote, areaPrivate = área construída.
     - amenities: array de strings em português (ex: piscina, academia).
 
     Links de anúncios extraídos do HTML (use para listingUrl):

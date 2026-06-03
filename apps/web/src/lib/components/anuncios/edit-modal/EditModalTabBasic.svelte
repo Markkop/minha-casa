@@ -10,6 +10,7 @@
     LISTING_STATUS_SELECT_APPEARANCE_CLASS,
     type ListingStatus
   } from "$lib/components/anuncios/listings-table-shared";
+  import { getAreaInputLabels } from "$lib/anuncios/area-metric-labels";
   import { calculatePrecoM2, calculatePrecoM2Privado } from "$lib/components/anuncios/listing-row-urls";
   import { mergeListingDraft } from "$lib/components/anuncios/edit-modal/merge-listing-draft";
   import type { Imovel } from "$lib/anuncios/types";
@@ -33,6 +34,7 @@
   const statusOption = $derived(getListingStatusOption(status));
   const showDiscardedReason = $derived(status === "descartado" || status === "descartando");
   const metricVariants = new Set<"total" | "privado">(["total", "privado"]);
+  const areaInputLabels = $derived(getAreaInputLabels(draftListing.tipoImovel));
 
   function handleStatusChange(nextStatus: ListingStatus) {
     handlers.onInputChange("listingStatus", nextStatus);
@@ -87,6 +89,7 @@
     <PricePerM2Stack
       total={calculatePrecoM2(formData.preco ?? null, formData.m2Totais ?? null)}
       privado={calculatePrecoM2Privado(formData.preco ?? null, formData.m2Privado ?? null)}
+      tipoImovel={draftListing.tipoImovel}
       activeVariant={null}
       enabledVariants={metricVariants}
       align="start"
@@ -163,7 +166,7 @@
   </div>
 
   <div class="space-y-2">
-    <label for="m2Totais" class="text-sm text-app-muted">Área total (m²)</label>
+    <label for="m2Totais" class="text-sm text-app-muted">{areaInputLabels.total}</label>
     <Input
       id="m2Totais"
       type="number"
@@ -175,7 +178,7 @@
   </div>
 
   <div class="space-y-2">
-    <label for="m2Privado" class="text-sm text-app-muted">Área privada (m²)</label>
+    <label for="m2Privado" class="text-sm text-app-muted">{areaInputLabels.privado}</label>
     <Input
       id="m2Privado"
       type="number"

@@ -114,6 +114,7 @@
         <AreaM2Stack
           total={imovel.m2Totais}
           privado={imovel.m2Privado}
+          tipoImovel={imovel.tipoImovel}
           activeVariant={activeMetricVariant}
           enabledVariants={enabledMetricVariants}
           align="center"
@@ -128,6 +129,7 @@
         <PricePerM2Stack
           total={calculatePrecoM2(imovel.preco, imovel.m2Totais)}
           privado={calculatePrecoM2Privado(imovel.preco, imovel.m2Privado)}
+          tipoImovel={imovel.tipoImovel}
           activeVariant={activeMetricVariant}
           enabledVariants={enabledMetricVariants}
           align="center"

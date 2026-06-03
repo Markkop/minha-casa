@@ -24,6 +24,10 @@
     type ComparisonSlot
   } from "$lib/comparacao/comparison-helpers";
   import {
+    applyComparisonAreaLabelDetails,
+    shouldUseCasaAreaLabelsForListings
+  } from "$lib/anuncios/area-metric-labels";
+  import {
     buildExtraMatrixRows,
     EMPTY_SLOT_VALUE,
     getNumericMatrixRows,
@@ -112,11 +116,15 @@
     selectedListings.filter((listing): listing is Imovel => Boolean(listing))
   );
 
-  const matrixRows = $derived([
-    ...getNumericMatrixRows(isMobileLayout),
-    ...buildExtraMatrixRows(getVisibleComparisonExtraRows(selectedFilledListings)),
-    ...MATRIX_ROWS_TAIL
-  ]);
+  const matrixRows = $derived.by(() => {
+    const useCasaAreaLabels = shouldUseCasaAreaLabelsForListings(selectedFilledListings);
+    const rows = [
+      ...getNumericMatrixRows(isMobileLayout),
+      ...buildExtraMatrixRows(getVisibleComparisonExtraRows(selectedFilledListings)),
+      ...MATRIX_ROWS_TAIL
+    ];
+    return applyComparisonAreaLabelDetails(rows, useCasaAreaLabels);
+  });
 
   const resolvedFixedCell = $derived(
     resolveFixedCell(slotIds, fixedCell, visibleSlotCount)
