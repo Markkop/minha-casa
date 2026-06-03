@@ -25,7 +25,7 @@
   const tableState = createListingsTableState(() => listings);
   const pendingAdd = createListingsTablePendingAdd(() => ctx);
   const rowInteractionsRegistry = createListingRowInteractionsRegistry({
-    getListingById: (listingId) => listings.find((listing) => listing.id === listingId),
+    getListingById: (listingId) => listings.find((listing: Imovel) => listing.id === listingId),
     updateListing: (listingId, updates) => ctx.updateListing(listingId, updates),
     removeListing: (listingId) => ctx.removeListing(listingId)
   });

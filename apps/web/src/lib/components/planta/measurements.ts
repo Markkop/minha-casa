@@ -1,9 +1,9 @@
 import type {
-  ReformaGrid,
-  ReformaLineShape,
-  ReformaRectShape,
-  ReformaShape
-} from "$lib/components/reforma/types";
+  PlantaGrid,
+  PlantaLineShape,
+  PlantaRectShape,
+  PlantaShape
+} from "$lib/components/planta/types";
 
 const DIMENSION_GAP = 14;
 const DIMENSION_TICK = 4;
@@ -36,7 +36,7 @@ export type ShapeMeasurementOverlay = {
   texts: MeasurementTextSpec[];
 };
 
-export function worldToMeters(worldPixels: number, grid: ReformaGrid): number | null {
+export function worldToMeters(worldPixels: number, grid: PlantaGrid): number | null {
   if (!Number.isFinite(worldPixels) || worldPixels < 0) return null;
   if (!Number.isFinite(grid.size) || grid.size <= 0) return null;
   if (!Number.isFinite(grid.metersPerCell) || grid.metersPerCell <= 0) return null;
@@ -173,8 +173,8 @@ function pushVerticalDimension(
 }
 
 export function buildRectMeasurementOverlay(
-  shape: ReformaRectShape,
-  grid: ReformaGrid
+  shape: PlantaRectShape,
+  grid: PlantaGrid
 ): ShapeMeasurementOverlay | null {
   const widthM = worldToMeters(shape.width, grid);
   const heightM = worldToMeters(shape.height, grid);
@@ -211,8 +211,8 @@ export function buildRectMeasurementOverlay(
 }
 
 export function buildLineMeasurementOverlay(
-  shape: ReformaLineShape,
-  grid: ReformaGrid
+  shape: PlantaLineShape,
+  grid: PlantaGrid
 ): ShapeMeasurementOverlay | null {
   const lengthPx = getLineLengthPx(shape.points);
   const lengthM = worldToMeters(lengthPx, grid);
@@ -259,16 +259,16 @@ export function buildLineMeasurementOverlay(
 }
 
 export function buildShapeMeasurementOverlay(
-  shape: ReformaShape,
-  grid: ReformaGrid
+  shape: PlantaShape,
+  grid: PlantaGrid
 ): ShapeMeasurementOverlay | null {
   if (shape.type === "rect") return buildRectMeasurementOverlay(shape, grid);
   return buildLineMeasurementOverlay(shape, grid);
 }
 
 export function buildAllMeasurementOverlays(
-  shapes: ReformaShape[],
-  grid: ReformaGrid
+  shapes: PlantaShape[],
+  grid: PlantaGrid
 ): ShapeMeasurementOverlay[] {
   if (!grid.showMeasurements || grid.metersPerCell <= 0) return [];
 

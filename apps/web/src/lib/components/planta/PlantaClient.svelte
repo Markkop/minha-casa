@@ -29,36 +29,37 @@
   import Slider from "$lib/components/ui/Slider.svelte";
   import WorkspacePage from "$lib/components/workspace/WorkspacePage.svelte";
   import { cn } from "$lib/utils";
-  import { resizeBlueprintFile } from "$lib/components/reforma/blueprint";
+  import { resizePlantaFile } from "$lib/components/planta/planta-image";
   import {
     captureCanvasSnapshot,
     popUndoStack,
     pushUndoStack,
     snapshotsEqual,
-    type ReformaCanvasSnapshot
-  } from "$lib/components/reforma/history";
-  import { snapShape } from "$lib/components/reforma/snap";
-  import ReformaCanvas from "$lib/components/reforma/ReformaCanvas.svelte";
+    type PlantaCanvasSnapshot
+  } from "$lib/components/planta/history";
+  import { snapShape } from "$lib/components/planta/snap";
+  import PlantaCanvas from "$lib/components/planta/PlantaCanvas.svelte";
   import {
-    createReformaDocument,
+    createPlantaDocument,
     createShapeId,
     fitBoundsToViewport,
     getContentBounds,
     getShapesUnionBounds,
     getShapeBounds,
     getShapeName,
-    parseReformaDocument,
+    parsePlantaDocument,
     zoomAtCenter
-  } from "$lib/components/reforma/state";
+  } from "$lib/components/planta/state";
   import {
-    REFORMA_STORAGE_KEY,
-    type ReformaDocument,
-    type ReformaShape,
-    type ReformaTool
-  } from "$lib/components/reforma/types";
+    LEGACY_REFORMA_STORAGE_KEY,
+    PLANTA_STORAGE_KEY,
+    type PlantaDocument,
+    type PlantaShape,
+    type PlantaTool
+  } from "$lib/components/planta/types";
 
   const tools: Array<{
-    id: ReformaTool;
+    id: PlantaTool;
     label: string;
     icon: typeof MousePointer2;
   }> = [
@@ -69,8 +70,8 @@
     { id: "square", label: "Quadrado", icon: Grid3X3 }
   ];
 
-  let planner = $state<ReformaDocument>(createReformaDocument());
-  let tool = $state<ReformaTool>("select");
+  let planner = $state<PlantaDocument>(createPlantaDocument());
+  let tool = $state<PlantaTool>("select");
   let selectedShapeIds = $state<string[]>([]);
   let spacePressed = $state(false);
   let hydrated = $state(false);
@@ -82,7 +83,7 @@
   let layersPanelOpen = $state(true);
   let designPanelOpen = $state(true);
   let blueprintHandActive = $state(false);
-  let undoStack = $state<ReformaCanvasSnapshot[]>([]);
+  let undoStack = $state<PlantaCanvasSnapshot[]>([]);
   let isApplyingHistory = $state(false);
 
   const zoomPercent = $derived(Math.round(planner.viewport.scale * 100));
@@ -101,8 +102,21 @@
     planner.shapes.map((shape, index) => ({ shape, index })).toReversed()
   );
 
+  function loadStoredPlantaDocument(): PlantaDocument {
+    const current = localStorage.getItem(PLANTA_STORAGE_KEY);
+    if (current) return parsePlantaDocument(current);
+
+    const legacy = localStorage.getItem(LEGACY_REFORMA_STORAGE_KEY);
+    if (legacy) {
+      localStorage.setItem(PLANTA_STORAGE_KEY, legacy);
+      return parsePlantaDocument(legacy);
+    }
+
+    return parsePlantaDocument(null);
+  }
+
   onMount(() => {
-    planner = parseReformaDocument(localStorage.getItem(REFORMA_STORAGE_KEY));
+    planner = loadStoredPlantaDocument();
     undoStack = [];
     hydrated = true;
   });
@@ -138,10 +152,10 @@
 
   $effect(() => {
     if (!hydrated) return;
-    localStorage.setItem(REFORMA_STORAGE_KEY, JSON.stringify(planner));
+    localStorage.setItem(PLANTA_STORAGE_KEY, JSON.stringify(planner));
   });
 
-  function setTool(next: ReformaTool) {
+  function setTool(next: PlantaTool) {
     tool = next;
   }
 
@@ -170,7 +184,7 @@
 
     uploadError = null;
     try {
-      const image = await resizeBlueprintFile(file);
+      const image = await resizePlantaFile(file);
       recordUndo();
       planner = {
         ...planner,
@@ -358,12 +372,12 @@
     };
   }
 
-  function updateShape(shapeId: string, patch: Partial<ReformaShape>) {
+  function updateShape(shapeId: string, patch: Partial<PlantaShape>) {
     recordUndo();
     planner = {
       ...planner,
       shapes: planner.shapes.map((shape) =>
-        shape.id === shapeId ? ({ ...shape, ...patch } as ReformaShape) : shape
+        shape.id === shapeId ? ({ ...shape, ...patch } as PlantaShape) : shape
       )
     };
   }
@@ -414,13 +428,13 @@
     );
   }
 
-  function selectShape(shape: ReformaShape) {
+  function selectShape(shape: PlantaShape) {
     if (shape.visible === false || shape.locked) return;
     selectedShapeIds = [shape.id];
     tool = "select";
   }
 
-  function toggleShapeVisibility(shape: ReformaShape) {
+  function toggleShapeVisibility(shape: PlantaShape) {
     const nextVisible = shape.visible === false;
     updateShape(shape.id, { visible: nextVisible });
     if (!nextVisible) {
@@ -428,7 +442,7 @@
     }
   }
 
-  function toggleShapeLock(shape: ReformaShape) {
+  function toggleShapeLock(shape: PlantaShape) {
     const nextLocked = shape.locked !== true;
     updateShape(shape.id, { locked: nextLocked });
     if (nextLocked) {
@@ -450,7 +464,7 @@
     if (!selectedShape || selectedIndex < 0) return;
     recordUndo();
     const offset = 24;
-    const copy: ReformaShape =
+    const copy: PlantaShape =
       selectedShape.type === "rect"
         ? {
             ...selectedShape,
@@ -499,7 +513,7 @@
 
   function resetPlanner() {
     recordUndo();
-    planner = createReformaDocument();
+    planner = createPlantaDocument();
     selectedShapeIds = [];
     tool = "select";
     uploadError = null;
@@ -632,7 +646,7 @@
         <Layers class="h-4 w-4" />
       </div>
       <div class="hidden min-w-0 sm:block">
-        <div class="truncate text-sm font-semibold leading-tight text-app-fg">Reforma</div>
+        <div class="truncate text-sm font-semibold leading-tight text-app-fg">Planta</div>
         <div class="truncate text-[11px] leading-tight text-app-muted">Local draft</div>
       </div>
     </div>
@@ -764,7 +778,7 @@
         {#if planner.blueprint}
           <div class="mb-2 flex h-8 items-center gap-2 rounded-md px-2 text-xs text-app-muted">
             <ImageUp class="h-3.5 w-3.5" />
-            <span class="min-w-0 flex-1 truncate">Blueprint</span>
+            <span class="min-w-0 flex-1 truncate">Planta</span>
             <Button variant="ghost" size="icon" class="h-6 w-6" title="Remover planta" ariaLabel="Remover planta" onclick={removeBlueprint}>
               <ImageOff class="h-3.5 w-3.5" />
             </Button>
@@ -823,7 +837,7 @@
     {/if}
 
     <main class="min-h-0 bg-app-bg p-2">
-      <ReformaCanvas
+      <PlantaCanvas
         bind:this={canvasRef}
         bind:planner
         bind:selectedShapeIds
@@ -900,7 +914,7 @@
 
         <section class="border-b border-app-border p-3">
           <div class="mb-3 flex items-center justify-between">
-            <h2 class="text-xs font-semibold uppercase text-app-muted">Blueprint</h2>
+            <h2 class="text-xs font-semibold uppercase text-app-muted">Planta</h2>
             <div class="flex items-center gap-0.5">
               <Button
                 variant={blueprintHandActive ? "primary" : "ghost"}

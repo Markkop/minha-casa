@@ -21,15 +21,15 @@
     normalizeBounds,
     zoomAtPoint,
     type Bounds
-  } from "$lib/components/reforma/state";
-  import { buildGridLines } from "$lib/components/reforma/grid-lines";
-  import { buildAllMeasurementOverlays } from "$lib/components/reforma/measurements";
-  import { snapPointer, snapRectShape, snapShape, snapSquareRect } from "$lib/components/reforma/snap";
+  } from "$lib/components/planta/state";
+  import { buildGridLines } from "$lib/components/planta/grid-lines";
+  import { buildAllMeasurementOverlays } from "$lib/components/planta/measurements";
+  import { snapPointer, snapRectShape, snapShape, snapSquareRect } from "$lib/components/planta/snap";
   import type {
-    ReformaDocument,
-    ReformaShape,
-    ReformaTool
-  } from "$lib/components/reforma/types";
+    PlantaDocument,
+    PlantaShape,
+    PlantaTool
+  } from "$lib/components/planta/types";
 
   const SCALE_BY = 1.05;
   const MARQUEE_MIN_SIZE = 4;
@@ -41,7 +41,7 @@
   const SHAPE_FILL = "rgba(157, 212, 255, 0.16)";
 
   let {
-    planner = $bindable<ReformaDocument>(),
+    planner = $bindable<PlantaDocument>(),
     tool,
     spacePressed = false,
     blueprintHandActive = false,
@@ -50,8 +50,8 @@
     canvasHeight = $bindable(0),
     recordUndo = () => {}
   }: {
-    planner: ReformaDocument;
-    tool: ReformaTool;
+    planner: PlantaDocument;
+    tool: PlantaTool;
     spacePressed?: boolean;
     blueprintHandActive?: boolean;
     selectedShapeIds?: string[];
@@ -64,7 +64,7 @@
   let stageRef: ReturnType<typeof Stage> | undefined = $state();
   let transformerRef: ReturnType<typeof Transformer> | undefined = $state();
   let blueprintImage: HTMLImageElement | null = $state(null);
-  let draftShape: ReformaShape | null = $state(null);
+  let draftShape: PlantaShape | null = $state(null);
   let isDrawing = $state(false);
   let isPanning = $state(false);
   let isDraggingBlueprint = $state(false);
@@ -78,7 +78,7 @@
   let panOrigin = $state({ x: 0, y: 0 });
   let panViewportStart = $state({ x: 0, y: 0 });
   let blueprintDragStart = $state({ x: 0, y: 0 });
-  let liveShapeGeometry = $state<Record<string, ReformaShape>>({});
+  let liveShapeGeometry = $state<Record<string, PlantaShape>>({});
 
   const gridLines = $derived.by(() => {
     if (canvasWidth <= 0 || canvasHeight <= 0) return [];
@@ -196,7 +196,7 @@
 
   async function attachTransformer(
     shapeIds: string[],
-    currentTool: ReformaTool,
+    currentTool: PlantaTool,
     spaceHeld: boolean,
     blueprintHand: boolean,
     panning: boolean,
@@ -228,10 +228,10 @@
   }
 
   function konvaShapeId(shapeId: string) {
-    return `reforma-shape-${shapeId}`;
+    return `planta-shape-${shapeId}`;
   }
 
-  function setViewport(viewport: ReformaDocument["viewport"]) {
+  function setViewport(viewport: PlantaDocument["viewport"]) {
     planner = { ...planner, viewport };
   }
 
@@ -248,12 +248,12 @@
     };
   }
 
-  function setShapes(shapes: ReformaShape[], options?: { recordUndo?: boolean }) {
+  function setShapes(shapes: PlantaShape[], options?: { recordUndo?: boolean }) {
     if (options?.recordUndo !== false) recordUndo();
     planner = { ...planner, shapes };
   }
 
-  function updateShape(shape: ReformaShape, options?: { recordUndo?: boolean }) {
+  function updateShape(shape: PlantaShape, options?: { recordUndo?: boolean }) {
     if (options?.recordUndo !== false) recordUndo();
     planner = {
       ...planner,
@@ -541,11 +541,11 @@
   }
 
   function createDraftShape(
-    currentTool: ReformaTool,
+    currentTool: PlantaTool,
     start: { x: number; y: number },
     end: { x: number; y: number },
     id = createShapeId()
-  ): ReformaShape {
+  ): PlantaShape {
     if (currentTool === "line") {
       return snapShape(
         {
@@ -573,7 +573,7 @@
         ? Math.max(Math.abs(width), Math.abs(height)) * (height < 0 ? -1 : 1)
         : height;
 
-    const rect: Extract<ReformaShape, { type: "rect" }> = {
+    const rect: Extract<PlantaShape, { type: "rect" }> = {
       id,
       type: "rect",
       name: `Retangulo ${planner.shapes.length + 1}`,
@@ -607,7 +607,7 @@
     setSelection([shapeId]);
   }
 
-  function setLiveShape(shape: ReformaShape) {
+  function setLiveShape(shape: PlantaShape) {
     liveShapeGeometry = { ...liveShapeGeometry, [shape.id]: shape };
   }
 
@@ -620,8 +620,8 @@
 
   function getRectGeometryFromNode(
     node: Konva.Node,
-    shape: Extract<ReformaShape, { type: "rect" }>
-  ): Extract<ReformaShape, { type: "rect" }> {
+    shape: Extract<PlantaShape, { type: "rect" }>
+  ): Extract<PlantaShape, { type: "rect" }> {
     return snapRectShape(
       {
         ...shape,
@@ -636,8 +636,8 @@
 
   function getLineGeometryFromNode(
     node: Konva.Node,
-    shape: Extract<ReformaShape, { type: "line" }>
-  ): Extract<ReformaShape, { type: "line" }> {
+    shape: Extract<PlantaShape, { type: "line" }>
+  ): Extract<PlantaShape, { type: "line" }> {
     const lineNode = node as Konva.Line;
     const scaleX = lineNode.scaleX();
     const scaleY = lineNode.scaleY();
@@ -655,16 +655,16 @@
         ]
       },
       planner.grid
-    ) as Extract<ReformaShape, { type: "line" }>;
+    ) as Extract<PlantaShape, { type: "line" }>;
   }
 
-  function syncRectShapeFromNode(node: Konva.Node, shape: Extract<ReformaShape, { type: "rect" }>) {
+  function syncRectShapeFromNode(node: Konva.Node, shape: Extract<PlantaShape, { type: "rect" }>) {
     const nextShape = getRectGeometryFromNode(node, shape);
     node.scale({ x: 1, y: 1 });
     updateShape(nextShape);
   }
 
-  function syncLineShapeFromNode(node: Konva.Node, shape: Extract<ReformaShape, { type: "line" }>) {
+  function syncLineShapeFromNode(node: Konva.Node, shape: Extract<PlantaShape, { type: "line" }>) {
     const lineNode = node as Konva.Line;
     const nextShape = getLineGeometryFromNode(node, shape);
     lineNode.position({ x: 0, y: 0 });
@@ -674,7 +674,7 @@
 
   function handleRectDragMove(
     event: KonvaDragTransformEvent,
-    shape: Extract<ReformaShape, { type: "rect" }>
+    shape: Extract<PlantaShape, { type: "rect" }>
   ) {
     const position = snapPointer({ x: event.target.x(), y: event.target.y() }, planner.grid);
     if (planner.grid.snapToGrid) {
@@ -683,7 +683,7 @@
     setLiveShape({ ...shape, ...position });
   }
 
-  function handleRectDragEnd(event: KonvaDragTransformEvent, shape: Extract<ReformaShape, { type: "rect" }>) {
+  function handleRectDragEnd(event: KonvaDragTransformEvent, shape: Extract<PlantaShape, { type: "rect" }>) {
     const position = snapPointer({ x: event.target.x(), y: event.target.y() }, planner.grid);
     if (planner.grid.snapToGrid) {
       event.target.position(position);
@@ -697,14 +697,14 @@
 
   function handleRectTransform(
     event: KonvaDragTransformEvent,
-    shape: Extract<ReformaShape, { type: "rect" }>
+    shape: Extract<PlantaShape, { type: "rect" }>
   ) {
     setLiveShape(getRectGeometryFromNode(event.target, shape));
   }
 
   function handleRectTransformEnd(
     event: KonvaDragTransformEvent,
-    shape: Extract<ReformaShape, { type: "rect" }>
+    shape: Extract<PlantaShape, { type: "rect" }>
   ) {
     syncRectShapeFromNode(event.target, shape);
     clearLiveShape(shape.id);
@@ -712,12 +712,12 @@
 
   function handleLineDragMove(
     event: KonvaDragTransformEvent,
-    shape: Extract<ReformaShape, { type: "line" }>
+    shape: Extract<PlantaShape, { type: "line" }>
   ) {
     setLiveShape(getLineGeometryFromNode(event.target, shape));
   }
 
-  function handleLineDragEnd(event: KonvaDragTransformEvent, shape: Extract<ReformaShape, { type: "line" }>) {
+  function handleLineDragEnd(event: KonvaDragTransformEvent, shape: Extract<PlantaShape, { type: "line" }>) {
     const dx = event.target.x();
     const dy = event.target.y();
     event.target.position({ x: 0, y: 0 });
@@ -740,14 +740,14 @@
 
   function handleLineTransform(
     event: KonvaDragTransformEvent,
-    shape: Extract<ReformaShape, { type: "line" }>
+    shape: Extract<PlantaShape, { type: "line" }>
   ) {
     setLiveShape(getLineGeometryFromNode(event.target, shape));
   }
 
   function handleLineTransformEnd(
     event: KonvaDragTransformEvent,
-    shape: Extract<ReformaShape, { type: "line" }>
+    shape: Extract<PlantaShape, { type: "line" }>
   ) {
     syncLineShapeFromNode(event.target, shape);
     clearLiveShape(shape.id);

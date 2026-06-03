@@ -1,4 +1,4 @@
-import type { ReformaGrid, ReformaShape } from "$lib/components/reforma/types";
+import type { PlantaGrid, PlantaShape } from "$lib/components/planta/types";
 
 const MIN_SNAPPED_SIZE = 4;
 
@@ -22,9 +22,9 @@ export function snapDimension(size: number, gridSize: number, minSize = MIN_SNAP
 }
 
 export function snapRectShape(
-  shape: Extract<ReformaShape, { type: "rect" }>,
-  grid: Pick<ReformaGrid, "snapToGrid" | "size">
-): Extract<ReformaShape, { type: "rect" }> {
+  shape: Extract<PlantaShape, { type: "rect" }>,
+  grid: Pick<PlantaGrid, "snapToGrid" | "size">
+): Extract<PlantaShape, { type: "rect" }> {
   if (!grid.snapToGrid) return shape;
 
   const gridSize = grid.size;
@@ -38,9 +38,9 @@ export function snapRectShape(
 }
 
 export function snapSquareRect(
-  shape: Extract<ReformaShape, { type: "rect" }>,
-  grid: Pick<ReformaGrid, "snapToGrid" | "size">
-): Extract<ReformaShape, { type: "rect" }> {
+  shape: Extract<PlantaShape, { type: "rect" }>,
+  grid: Pick<PlantaGrid, "snapToGrid" | "size">
+): Extract<PlantaShape, { type: "rect" }> {
   if (!grid.snapToGrid) return shape;
 
   const gridSize = grid.size;
@@ -55,9 +55,9 @@ export function snapSquareRect(
 }
 
 export function snapLineShape(
-  shape: Extract<ReformaShape, { type: "line" }>,
-  grid: Pick<ReformaGrid, "snapToGrid" | "size">
-): Extract<ReformaShape, { type: "line" }> {
+  shape: Extract<PlantaShape, { type: "line" }>,
+  grid: Pick<PlantaGrid, "snapToGrid" | "size">
+): Extract<PlantaShape, { type: "line" }> {
   if (!grid.snapToGrid) return shape;
 
   const gridSize = grid.size;
@@ -73,14 +73,14 @@ export function snapLineShape(
   };
 }
 
-export function snapShape(shape: ReformaShape, grid: ReformaGrid): ReformaShape {
+export function snapShape(shape: PlantaShape, grid: PlantaGrid): PlantaShape {
   if (!grid.snapToGrid) return shape;
   return shape.type === "rect" ? snapRectShape(shape, grid) : snapLineShape(shape, grid);
 }
 
 export function snapPointer(
   point: { x: number; y: number },
-  grid: Pick<ReformaGrid, "snapToGrid" | "size">
+  grid: Pick<PlantaGrid, "snapToGrid" | "size">
 ): { x: number; y: number } {
   if (!grid.snapToGrid) return point;
   return snapPoint(point, grid.size);

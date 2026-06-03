@@ -1,13 +1,13 @@
 const MAX_BLUEPRINT_DIMENSION = 2000;
 const BLUEPRINT_MIME_TYPES = new Set(["image/png", "image/jpeg", "image/webp"]);
 
-export type ResizedBlueprint = {
+export type ResizedPlantaImage = {
   dataUrl: string;
   naturalWidth: number;
   naturalHeight: number;
 };
 
-export async function resizeBlueprintFile(file: File): Promise<ResizedBlueprint> {
+export async function resizePlantaFile(file: File): Promise<ResizedPlantaImage> {
   if (!BLUEPRINT_MIME_TYPES.has(file.type)) {
     throw new Error("Use uma imagem PNG, JPEG ou WebP.");
   }

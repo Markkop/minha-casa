@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { snapPoint, snapRectShape, snapShape, snapToGridValue } from "./snap";
-import type { ReformaGrid, ReformaLineShape, ReformaRectShape } from "./types";
+import type { PlantaGrid, PlantaLineShape, PlantaRectShape } from "./types";
 
-const grid: ReformaGrid = {
+const grid: PlantaGrid = {
   visible: true,
   size: 50,
   metersPerCell: 1,
@@ -25,7 +25,7 @@ describe("snapPoint", () => {
 });
 
 describe("snapRectShape", () => {
-  const rect: ReformaRectShape = {
+  const rect: PlantaRectShape = {
     id: "r1",
     type: "rect",
     x: 23,
@@ -54,7 +54,7 @@ describe("snapRectShape", () => {
 
 describe("snapShape", () => {
   it("dispatches to line snapping", () => {
-    const line: ReformaLineShape = {
+    const line: PlantaLineShape = {
       id: "l1",
       type: "line",
       points: [23, 38, 127, 73] as [number, number, number, number],

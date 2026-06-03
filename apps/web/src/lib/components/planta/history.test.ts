@@ -4,10 +4,10 @@ import {
   popUndoStack,
   pushUndoStack,
   snapshotsEqual
-} from "$lib/components/reforma/history";
-import type { ReformaRectShape } from "$lib/components/reforma/types";
+} from "$lib/components/planta/history";
+import type { PlantaRectShape } from "$lib/components/planta/types";
 
-const rect: ReformaRectShape = {
+const rect: PlantaRectShape = {
   id: "a",
   type: "rect",
   x: 0,

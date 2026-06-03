@@ -1,8 +1,8 @@
 import type {
-  ReformaDocument,
-  ReformaShape,
-  ReformaViewport
-} from "$lib/components/reforma/types";
+  PlantaDocument,
+  PlantaShape,
+  PlantaViewport
+} from "$lib/components/planta/types";
 
 export const MIN_VIEWPORT_SCALE = 0.2;
 export const MAX_VIEWPORT_SCALE = 4;
@@ -14,7 +14,7 @@ export type Bounds = {
   height: number;
 };
 
-export function createReformaDocument(): ReformaDocument {
+export function createPlantaDocument(): PlantaDocument {
   return {
     version: 1,
     blueprint: null,
@@ -37,7 +37,7 @@ export function createShapeId() {
   return `shape-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
 }
 
-export function getShapeName(shape: ReformaShape, index: number) {
+export function getShapeName(shape: PlantaShape, index: number) {
   return shape.name || `${shape.type === "rect" ? "Retangulo" : "Linha"} ${index + 1}`;
 }
 
@@ -46,11 +46,11 @@ export function clampScale(value: number) {
 }
 
 export function zoomAtPoint(
-  viewport: ReformaViewport,
+  viewport: PlantaViewport,
   pointerX: number,
   pointerY: number,
   nextScale: number
-): ReformaViewport {
+): PlantaViewport {
   const scale = clampScale(nextScale);
   const worldX = (pointerX - viewport.x) / viewport.scale;
   const worldY = (pointerY - viewport.y) / viewport.scale;
@@ -63,15 +63,15 @@ export function zoomAtPoint(
 }
 
 export function zoomAtCenter(
-  viewport: ReformaViewport,
+  viewport: PlantaViewport,
   canvasWidth: number,
   canvasHeight: number,
   nextScale: number
-): ReformaViewport {
+): PlantaViewport {
   return zoomAtPoint(viewport, canvasWidth / 2, canvasHeight / 2, nextScale);
 }
 
-export function getBlueprintBounds(planner: ReformaDocument): Bounds | null {
+export function getBlueprintBounds(planner: PlantaDocument): Bounds | null {
   if (!planner.blueprint) return null;
 
   const { blueprint } = planner;
@@ -83,7 +83,7 @@ export function getBlueprintBounds(planner: ReformaDocument): Bounds | null {
   };
 }
 
-export function getContentBounds(planner: ReformaDocument): Bounds | null {
+export function getContentBounds(planner: PlantaDocument): Bounds | null {
   const bounds: Bounds[] = [];
 
   for (const shape of planner.shapes) {
@@ -114,7 +114,7 @@ export function fitBoundsToViewport(
   canvasWidth: number,
   canvasHeight: number,
   padding = 48
-): ReformaViewport {
+): PlantaViewport {
   if (canvasWidth <= 0 || canvasHeight <= 0) {
     return { x: 80, y: 70, scale: 1 };
   }
@@ -132,7 +132,7 @@ export function fitBoundsToViewport(
   };
 }
 
-export function getShapeBounds(shape: ReformaShape) {
+export function getShapeBounds(shape: PlantaShape) {
   if (shape.type === "rect") {
     return {
       x: shape.x,
@@ -172,7 +172,7 @@ export function boundsIntersect(a: Bounds, b: Bounds) {
   );
 }
 
-export function getSelectableShapeIdsInBounds(shapes: ReformaShape[], bounds: Bounds) {
+export function getSelectableShapeIdsInBounds(shapes: PlantaShape[], bounds: Bounds) {
   return shapes
     .filter((shape) => shape.visible !== false && shape.locked !== true)
     .filter((shape) => boundsIntersect(getShapeBounds(shape), bounds))
@@ -195,18 +195,18 @@ export function unionBounds(boundsList: Bounds[]): Bounds | null {
   };
 }
 
-export function getShapesUnionBounds(shapes: ReformaShape[]): Bounds | null {
+export function getShapesUnionBounds(shapes: PlantaShape[]): Bounds | null {
   const visible = shapes.filter((shape) => shape.visible !== false);
   if (visible.length === 0) return null;
   return unionBounds(visible.map(getShapeBounds));
 }
 
-export function parseReformaDocument(raw: string | null): ReformaDocument {
-  if (!raw) return createReformaDocument();
+export function parsePlantaDocument(raw: string | null): PlantaDocument {
+  if (!raw) return createPlantaDocument();
 
   try {
-    const parsed = JSON.parse(raw) as Partial<ReformaDocument>;
-    if (parsed.version !== 1) return createReformaDocument();
+    const parsed = JSON.parse(raw) as Partial<PlantaDocument>;
+    if (parsed.version !== 1) return createPlantaDocument();
 
     return {
       version: 1,
@@ -226,11 +226,11 @@ export function parseReformaDocument(raw: string | null): ReformaDocument {
       shapes: Array.isArray(parsed.shapes) ? parsed.shapes.filter(isShape).map(normalizeShape) : []
     };
   } catch {
-    return createReformaDocument();
+    return createPlantaDocument();
   }
 }
 
-function normalizeShape(shape: ReformaShape): ReformaShape {
+function normalizeShape(shape: PlantaShape): PlantaShape {
   return {
     ...shape,
     visible: shape.visible !== false,
@@ -243,9 +243,9 @@ function clampNumber(value: number, min: number, max: number) {
   return Math.max(min, Math.min(max, value));
 }
 
-function isShape(value: unknown): value is ReformaShape {
+function isShape(value: unknown): value is PlantaShape {
   if (!value || typeof value !== "object") return false;
-  const shape = value as Partial<ReformaShape>;
+  const shape = value as Partial<PlantaShape>;
   if (typeof shape.id !== "string") return false;
   if (shape.type === "line") return Array.isArray(shape.points) && shape.points.length === 4;
   if (shape.type === "rect") {

@@ -7,8 +7,8 @@
     Home,
     LayoutDashboard,
     Link2,
-    Hammer,
     MapPinned,
+    Puzzle,
     ScanSearch
   } from "@lucide/svelte";
   import { page } from "$app/state";
@@ -79,7 +79,7 @@
     { href: "/comparacao", label: "Comparação", icon: BarChart3 },
     { href: "/analise", label: "Análise", icon: ScanSearch },
     { href: "/financiamento", label: "Financiamento", icon: CircleDollarSign },
-    { href: "/reforma", label: "Reforma", icon: Hammer },
+    { href: "/addons", label: "Addons", icon: Puzzle },
     { href: "/links", label: "Links", icon: Link2 }
   ];
 

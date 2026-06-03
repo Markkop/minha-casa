@@ -1,10 +1,10 @@
 <script lang="ts">
   import FeatureTestBanner from "$lib/addons/FeatureTestBanner.svelte";
-  import FloodRiskClient from "$lib/floodrisk/FloodRiskClient.svelte";
+  import PlantaClient from "$lib/components/planta/PlantaClient.svelte";
 </script>
 
 <svelte:head>
-  <title>Floodrisk | Minha Casa</title>
+  <title>Planta | Minha Casa</title>
 </svelte:head>
 
 <div class="flex min-h-[calc(100vh-var(--nav-height,2.75rem))] flex-col bg-app-bg">
@@ -12,6 +12,6 @@
     <FeatureTestBanner />
   </div>
   <div class="min-h-0 flex-1">
-    <FloodRiskClient />
+    <PlantaClient />
   </div>
 </div>

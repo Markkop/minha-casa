@@ -5,9 +5,9 @@ import {
   formatMeters,
   worldToMeters
 } from "./measurements";
-import type { ReformaGrid, ReformaRectShape } from "./types";
+import type { PlantaGrid, PlantaRectShape } from "./types";
 
-const grid: ReformaGrid = {
+const grid: PlantaGrid = {
   visible: true,
   size: 50,
   metersPerCell: 1,
@@ -36,7 +36,7 @@ describe("formatMeters", () => {
 
 describe("buildRectMeasurementOverlay", () => {
   it("includes edge labels and area for rectangles", () => {
-    const shape: ReformaRectShape = {
+    const shape: PlantaRectShape = {
       id: "rect-1",
       type: "rect",
       x: 0,

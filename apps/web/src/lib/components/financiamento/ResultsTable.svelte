@@ -20,15 +20,34 @@
   let {
     cenarios,
     onSelectCenario,
-    permutaDisponivel = true
+    permutaDisponivel = true,
+    compact = false,
+    hideBestColumn = false,
+    hideValorImovelColumn = false,
+    hideCustoTotalColumn = false,
+    valorImovelDiscountLabels = {}
   }: {
     cenarios: CenarioCompleto[];
     onSelectCenario?: (cenario: CenarioCompleto) => void;
     /** When false (sem seu imóvel), hides Seu imóvel and Estratégia columns. */
     permutaDisponivel?: boolean;
+    /** Denser layout for embedded previews (e.g. addons catalog). */
+    compact?: boolean;
+    hideBestColumn?: boolean;
+    hideValorImovelColumn?: boolean;
+    hideCustoTotalColumn?: boolean;
+    /** Gray “(-5%)” hint next to Imóvel alvo values, keyed by scenario valorImovel. */
+    valorImovelDiscountLabels?: Record<number, string>;
   } = $props();
 
   let sort = $state<ResultsSortState>({ key: "custoTotal", direction: "asc" });
+  let previewSortApplied = $state(false);
+
+  $effect(() => {
+    if (previewSortApplied || Object.keys(valorImovelDiscountLabels).length === 0) return;
+    sort = { key: "valorImovel", direction: "desc" };
+    previewSortApplied = true;
+  });
 
   const sortedCenarios = $derived(sortCenarios(cenarios, sort));
 
@@ -36,9 +55,16 @@
     sort = toggleSort(sort, key);
   }
 
-  const thClass =
-    "sticky top-0 z-20 border-b border-app-border bg-app-surface px-3 py-2 text-left text-xs font-medium text-app-muted";
-  const tdClass = "border-b border-app-border px-3 py-2 align-middle";
+  const thClass = $derived(
+    cn(
+      "sticky top-0 z-20 border-b border-app-border bg-app-surface text-left font-medium text-app-muted",
+      compact ? "px-1.5 py-1 text-[10px]" : "px-3 py-2 text-xs"
+    )
+  );
+  const tdClass = $derived(
+    cn("border-b border-app-border align-middle", compact ? "px-1.5 py-1" : "px-3 py-2")
+  );
+  const monoCellClass = $derived(compact ? "font-mono text-[11px]" : "font-mono text-sm");
 </script>
 
 {#snippet sortableHeader(label: string, sortKey: ResultsSortKey, tooltip?: string)}
@@ -60,7 +86,7 @@
           {/if}
         {/if}
       </button>
-      {#if tooltip}
+      {#if tooltip && !compact}
         <FloatingTooltip label={tooltip} side="bottom" align="center">
           <button
             type="button"
@@ -95,12 +121,21 @@
   </Tooltip>
 {/snippet}
 
-<div class="max-h-[min(70vh,32rem)] overflow-auto">
-  <table class="w-full min-w-[56rem] border-collapse text-sm">
+<div class={cn("overflow-auto", compact ? "max-h-none" : "max-h-[min(70vh,32rem)]")}>
+  <table
+    class={cn(
+      "w-full border-collapse",
+      compact ? "table-fixed text-[11px]" : "min-w-[56rem] text-sm"
+    )}
+  >
     <thead>
       <tr class="hover:bg-transparent">
-        <th class={cn(thClass, "sticky left-0 z-30 w-8")}></th>
-        {@render sortableHeader("Imóvel alvo", "valorImovel", TOOLTIPS.valorImovel)}
+        {#if !hideBestColumn}
+          <th class={cn(thClass, "sticky left-0 z-30 w-8")}></th>
+        {/if}
+        {#if !hideValorImovelColumn}
+          {@render sortableHeader("Imóvel alvo", "valorImovel", TOOLTIPS.valorImovel)}
+        {/if}
         {#if permutaDisponivel}
           {@render sortableHeader("Seu imóvel", "valorApartamento", TOOLTIPS.valorApartamento)}
           <th class={thClass}>Estratégia</th>
@@ -118,11 +153,13 @@
           "jurosOtimizado",
           "Total de juros que você vai pagar (com amortização extra)"
         )}
-        {@render sortableHeader(
-          "Custo Total",
-          "custoTotal",
-          "Custo total do imóvel (valor + juros + fechamento)"
-        )}
+        {#if !hideCustoTotalColumn}
+          {@render sortableHeader(
+            "Custo Total",
+            "custoTotal",
+            "Custo total do imóvel (valor + juros + fechamento)"
+          )}
+        {/if}
       </tr>
     </thead>
     <tbody>
@@ -137,16 +174,26 @@
           )}
           onclick={onSelectCenario ? () => onSelectCenario(cenario) : undefined}
         >
-          <td class={cn(tdClass, "sticky left-0 z-10 w-8 bg-inherit")}>
-            {#if cenario.isBest}
-              <CircleCheck class="size-4 text-app-accent" aria-label="Melhor cenário" />
-            {/if}
-          </td>
-          <td class={cn(tdClass, "font-mono text-sm text-app-accent")}>
-            {formatCurrencyCompact(cenario.valorImovel)}
-          </td>
+          {#if !hideBestColumn}
+            <td class={cn(tdClass, "sticky left-0 z-10 w-8 bg-inherit")}>
+              {#if cenario.isBest}
+                <CircleCheck class="size-4 text-app-accent" aria-label="Melhor cenário" />
+              {/if}
+            </td>
+          {/if}
+          {#if !hideValorImovelColumn}
+            {@const discountLabel = valorImovelDiscountLabels[cenario.valorImovel]}
+            <td class={cn(tdClass, monoCellClass, "whitespace-nowrap text-app-accent")}>
+              <span class="inline-flex items-baseline gap-0.5 whitespace-nowrap">
+                {formatCurrencyCompact(cenario.valorImovel)}
+                {#if discountLabel}
+                  <span class="font-sans text-[9px] font-normal text-app-muted">({discountLabel})</span>
+                {/if}
+              </span>
+            </td>
+          {/if}
           {#if permutaDisponivel}
-            <td class={cn(tdClass, "font-mono text-sm text-salmon")}>
+            <td class={cn(tdClass, monoCellClass, "text-salmon")}>
               {formatCurrencyCompact(
                 cenario.estrategia === "permuta"
                   ? cenario.financiamento.valorApartamentoUsado
@@ -157,10 +204,10 @@
               <EstrategiaBadge estrategia={cenario.estrategia} variant="inline" />
             </td>
           {/if}
-          <td class={cn(tdClass, "font-mono text-sm")}>
+          <td class={cn(tdClass, monoCellClass)}>
             {formatCurrencyCompact(cenario.financiamento.valorFinanciado)}
           </td>
-          <td class={cn(tdClass, "font-mono text-sm font-bold text-app-accent")}>
+          <td class={cn(tdClass, monoCellClass, "font-bold text-app-accent")}>
             {formatCurrencyCompact(
               cenario.aporteExtra + cenario.tabelaPadrao.primeiraParcelar
             )}
@@ -178,15 +225,17 @@
               </span>
             </div>
           </td>
-          <td class={cn(tdClass, "font-mono text-sm text-app-accent")}>
+          <td class={cn(tdClass, monoCellClass, "text-app-accent")}>
             {(cenario.cenarioOtimizado.prazoReal / 12).toFixed(1)}a
           </td>
-          <td class={cn(tdClass, "font-mono text-sm font-bold text-salmon")}>
+          <td class={cn(tdClass, monoCellClass, "font-bold text-salmon")}>
             {formatCurrencyCompact(cenario.cenarioOtimizado.totalJuros)}
           </td>
-          <td class={cn(tdClass, "font-mono text-sm font-bold")}>
-            {formatCurrencyCompact(cenario.custoTotalOtimizado)}
-          </td>
+          {#if !hideCustoTotalColumn}
+            <td class={cn(tdClass, monoCellClass, "font-bold")}>
+              {formatCurrencyCompact(cenario.custoTotalOtimizado)}
+            </td>
+          {/if}
         </tr>
       {/each}
     </tbody>

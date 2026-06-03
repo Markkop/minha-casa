@@ -1,8 +1,9 @@
-export const REFORMA_STORAGE_KEY = "minha-casa:reforma:v1";
+export const PLANTA_STORAGE_KEY = "minha-casa:planta:v1";
+export const LEGACY_REFORMA_STORAGE_KEY = "minha-casa:reforma:v1";
 
-export type ReformaTool = "select" | "pan" | "line" | "rect" | "square";
+export type PlantaTool = "select" | "pan" | "line" | "rect" | "square";
 
-export type ReformaBlueprint = {
+export type PlantaBlueprint = {
   dataUrl: string;
   naturalWidth: number;
   naturalHeight: number;
@@ -12,13 +13,13 @@ export type ReformaBlueprint = {
   opacity: number;
 };
 
-export type ReformaViewport = {
+export type PlantaViewport = {
   x: number;
   y: number;
   scale: number;
 };
 
-export type ReformaGrid = {
+export type PlantaGrid = {
   visible: boolean;
   size: number;
   metersPerCell: number;
@@ -26,7 +27,7 @@ export type ReformaGrid = {
   snapToGrid: boolean;
 };
 
-export type ReformaLineShape = {
+export type PlantaLineShape = {
   id: string;
   type: "line";
   name?: string;
@@ -37,7 +38,7 @@ export type ReformaLineShape = {
   strokeWidth: number;
 };
 
-export type ReformaRectShape = {
+export type PlantaRectShape = {
   id: string;
   type: "rect";
   name?: string;
@@ -52,12 +53,12 @@ export type ReformaRectShape = {
   fill: string;
 };
 
-export type ReformaShape = ReformaLineShape | ReformaRectShape;
+export type PlantaShape = PlantaLineShape | PlantaRectShape;
 
-export type ReformaDocument = {
+export type PlantaDocument = {
   version: 1;
-  blueprint: ReformaBlueprint | null;
-  viewport: ReformaViewport;
-  grid: ReformaGrid;
-  shapes: ReformaShape[];
+  blueprint: PlantaBlueprint | null;
+  viewport: PlantaViewport;
+  grid: PlantaGrid;
+  shapes: PlantaShape[];
 };
