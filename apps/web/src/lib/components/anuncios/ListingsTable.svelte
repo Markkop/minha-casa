@@ -3,7 +3,12 @@
   import { Home } from "@lucide/svelte";
   import type { Imovel } from "$lib/anuncios/types";
   import { buildListingsMarkdown } from "$lib/anuncios/listing-markdown";
-  import { LISTINGS_SECTION_CLASS, LISTINGS_TOOLBAR_CLASS, LISTINGS_TOOLBAR_INNER_CLASS } from "$lib/anuncios/listings-panel-layout";
+  import {
+    LISTINGS_SECTION_CLASS,
+    LISTINGS_SECTION_MOBILE_BREAKOUT_CLASS,
+    LISTINGS_TOOLBAR_CLASS,
+    LISTINGS_TOOLBAR_INNER_CLASS
+  } from "$lib/anuncios/listings-panel-layout";
   import { cn } from "$lib/utils";
   import { getCollectionsContext } from "$lib/collections-context.svelte";
   import { createListingsTableState } from "$lib/components/anuncios/listings-table-state.svelte";
@@ -131,7 +136,7 @@
     </div>
   </section>
 {:else}
-  <section class={LISTINGS_SECTION_CLASS}>
+  <section class={cn(LISTINGS_SECTION_CLASS, LISTINGS_SECTION_MOBILE_BREAKOUT_CLASS, "max-md:flex max-md:flex-col max-md:gap-2")}>
     <ListingsTableToolbar
       showAddInput={pendingAdd.showAddInput}
       bind:searchQuery={
@@ -171,9 +176,9 @@
       {addInputControl}
     />
 
-    <div class="min-w-0">
+    <div class="min-w-0 max-md:overflow-visible">
       {#if tableState.filteredAndSortedListings.length === 0 && pendingAdd.pendingAddRows.length === 0}
-        <div class="py-8 text-center">
+        <div class="py-8 text-center max-md:rounded-lg max-md:border max-md:border-app-border max-md:bg-app-surface">
           {#if tableState.searchQuery.trim()}
             <p class="text-muted-foreground">
               Nenhum imóvel encontrado para "{tableState.searchQuery}"
@@ -185,7 +190,7 @@
           {/if}
         </div>
       {:else}
-        <div class="overflow-x-auto">
+        <div class="overflow-x-auto max-md:overflow-visible">
           <ListingsTableDesktop
             {pendingAdd}
             visibleColumns={tableState.visibleColumns}

@@ -14,15 +14,14 @@
     onClose: () => void;
   } = $props();
 
-  let canScrollPrev = $state(false);
-  let canScrollNext = $state(false);
   let carouselRef = $state<ReturnType<typeof ListingImageCarousel> | undefined>();
+  const canNavigate = $derived(urls.length > 1);
 
   $effect(() => {
     const onKey = (event: KeyboardEvent) => {
       if (event.key === "Escape") onClose();
-      if (event.key === "ArrowLeft" && canScrollPrev) carouselRef?.scrollPrev();
-      if (event.key === "ArrowRight" && canScrollNext) carouselRef?.scrollNext();
+      if (event.key === "ArrowLeft" && urls.length > 1) carouselRef?.scrollPrev();
+      if (event.key === "ArrowRight" && urls.length > 1) carouselRef?.scrollNext();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -47,7 +46,7 @@
     <button
       type="button"
       class="absolute left-4 z-10 rounded-full bg-black/50 p-2 text-white disabled:opacity-40"
-      disabled={!canScrollPrev}
+      disabled={!canNavigate}
       onclick={() => carouselRef?.scrollPrev()}
       aria-label="Anterior"
     >
@@ -56,7 +55,7 @@
     <button
       type="button"
       class="absolute right-14 z-10 rounded-full bg-black/50 p-2 text-white disabled:opacity-40"
-      disabled={!canScrollNext}
+      disabled={!canNavigate}
       onclick={() => carouselRef?.scrollNext()}
       aria-label="Próxima"
     >
@@ -70,8 +69,6 @@
       {urls}
       preset="lightbox"
       bind:selectedIndex
-      bind:canScrollPrev
-      bind:canScrollNext
       objectFit="contain"
       viewportClass="flex max-h-[85vh] w-full items-center justify-center"
     >

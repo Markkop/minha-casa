@@ -48,9 +48,8 @@
   let isSaving = $state(false);
   let isPulling = $state(false);
   let confirmPullOpen = $state(false);
-  let canScrollPrev = $state(false);
-  let canScrollNext = $state(false);
   let modalCarouselRef = $state<ReturnType<typeof ListingImageCarousel> | undefined>();
+  const canNavigateImages = $derived(imageUrls.length > 1);
 
   const isIngesting = $derived(listing ? isListingImageIngesting(listing.imageIngestionStatus) : false);
   const currentUrl = $derived(imageUrls[currentIndex] ?? "");
@@ -142,9 +141,9 @@
       else onClose();
     } else if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
       void handleSave();
-    } else if (event.key === "ArrowLeft" && canScrollPrev) {
+    } else if (event.key === "ArrowLeft" && imageUrls.length > 1) {
       modalCarouselRef?.scrollPrev();
-    } else if (event.key === "ArrowRight" && canScrollNext) {
+    } else if (event.key === "ArrowRight" && imageUrls.length > 1) {
       modalCarouselRef?.scrollNext();
     }
   }
@@ -207,7 +206,7 @@
               type="button"
               class="absolute left-2 z-10 rounded-full bg-app-fg/60 p-2 text-app-surface hover:bg-app-fg/80 disabled:opacity-40"
               aria-label="Imagem anterior"
-              disabled={!canScrollPrev}
+              disabled={!canNavigateImages}
               onclick={() => modalCarouselRef?.scrollPrev()}
             >
               <ChevronLeft class="h-5 w-5" />
@@ -216,7 +215,7 @@
               type="button"
               class="absolute right-2 z-10 rounded-full bg-app-fg/60 p-2 text-app-surface hover:bg-app-fg/80 disabled:opacity-40"
               aria-label="Próxima imagem"
-              disabled={!canScrollNext}
+              disabled={!canNavigateImages}
               onclick={() => modalCarouselRef?.scrollNext()}
             >
               <ChevronRight class="h-5 w-5" />
@@ -234,8 +233,6 @@
               urls={imageUrls}
               preset="modal"
               bind:selectedIndex={currentIndex}
-              bind:canScrollPrev
-              bind:canScrollNext
               imageAlt={listing.titulo}
               objectFit="contain"
               viewportClass="flex min-h-[200px] max-h-[70vh] w-full items-center justify-center"

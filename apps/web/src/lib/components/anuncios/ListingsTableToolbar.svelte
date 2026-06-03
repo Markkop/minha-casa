@@ -3,8 +3,10 @@
   import { Check, Columns3, Copy, Search, Strikethrough } from "@lucide/svelte";
   import { cn } from "$lib/utils";
   import {
+    LISTINGS_MOBILE_FLOATING_TOOLBAR_CLASS,
     LISTINGS_TOOLBAR_CLASS,
-    LISTINGS_TOOLBAR_INNER_CLASS
+    LISTINGS_TOOLBAR_INNER_CLASS,
+    LISTINGS_TOOLBAR_MOBILE_CLASS
   } from "$lib/anuncios/listings-panel-layout";
   import PageToolbarButton from "$lib/components/page-toolbar/PageToolbarButton.svelte";
   import PageToolbarIconButton from "$lib/components/page-toolbar/PageToolbarIconButton.svelte";
@@ -83,7 +85,13 @@
     "h-7 border-app-border bg-app-surface py-0 text-xs text-app-fg placeholder:text-app-subtle";
 </script>
 
-<div class={LISTINGS_TOOLBAR_CLASS}>
+<div
+  class={cn(
+    LISTINGS_TOOLBAR_CLASS,
+    LISTINGS_TOOLBAR_MOBILE_CLASS,
+    LISTINGS_MOBILE_FLOATING_TOOLBAR_CLASS
+  )}
+>
   <div class={LISTINGS_TOOLBAR_INNER_CLASS}>
     {@render addListingToolbarButtons()}
 

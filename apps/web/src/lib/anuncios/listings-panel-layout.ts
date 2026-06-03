@@ -22,6 +22,20 @@ export const LISTINGS_MAP_SECTION_CLASS = `${LISTINGS_SECTION_CLASS} ${MAP_EMBED
 export const LISTINGS_TOOLBAR_CLASS =
   "border-b border-app-border bg-app-surface py-2"
 
+/** Listings table section on mobile: no outer panel; toolbar + cards sit on page background. */
+export const LISTINGS_SECTION_MOBILE_BREAKOUT_CLASS =
+  "max-md:border-0 max-md:bg-transparent max-md:rounded-none max-md:shadow-none max-md:overflow-visible"
+
+/** Mobile toolbar as a floating chip (not attached to a section panel). */
+export const LISTINGS_MOBILE_FLOATING_TOOLBAR_CLASS =
+  "max-md:rounded-lg max-md:border max-md:border-app-border max-md:bg-app-surface max-md:shadow-sm"
+
+/** Mobile toolbar: drop section-attached bottom border. */
+export const LISTINGS_TOOLBAR_MOBILE_CLASS = "max-md:border-b-0"
+
+/** Mobile card stack — no inner section padding (cards use page gutter only). */
+export const LISTINGS_MOBILE_LIST_CLASS = "space-y-2 max-md:px-0 md:hidden"
+
 /** Toolbar controls row — matches table cell horizontal inset. */
 export const LISTINGS_TOOLBAR_INNER_CLASS =
   "flex min-w-0 items-center gap-1.5 overflow-x-auto px-2 sm:px-3"

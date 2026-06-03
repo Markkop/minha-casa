@@ -54,8 +54,6 @@
   const hasImages = $derived(imageUrls.length > 0);
 
   let carouselIndex = $state(0);
-  let canScrollPrev = $state(false);
-  let canScrollNext = $state(false);
   let failedUrls = $state<Set<string>>(new Set());
   let carouselRef = $state<ReturnType<typeof ListingImageCarousel> | undefined>();
 
@@ -148,8 +146,6 @@
         preset="card"
         listingId={imovel.id}
         bind:selectedIndex={carouselIndex}
-        bind:canScrollPrev
-        bind:canScrollNext
         viewportClass="h-full"
         onSlideClick={openModal}
         onImageError={markUrlFailed}
@@ -159,7 +155,7 @@
         <button
           type="button"
           class="absolute left-0.5 top-1/2 z-10 flex h-7 w-5 -translate-y-1/2 items-center justify-center rounded-sm bg-black/50 text-white disabled:opacity-25"
-          disabled={!canScrollPrev}
+          disabled={!multipleImages}
           onclick={(event) => {
             event.stopPropagation();
             carouselRef?.scrollPrev();
@@ -171,7 +167,7 @@
         <button
           type="button"
           class="absolute right-0.5 top-1/2 z-10 flex h-7 w-5 -translate-y-1/2 items-center justify-center rounded-sm bg-black/50 text-white disabled:opacity-25"
-          disabled={!canScrollNext}
+          disabled={!multipleImages}
           onclick={(event) => {
             event.stopPropagation();
             carouselRef?.scrollNext();

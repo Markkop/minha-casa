@@ -27,8 +27,6 @@
   const carouselUrls = $derived(thumbs.map((thumb) => thumb.url));
 
   let carouselIndex = $state(0);
-  let canScrollPrev = $state(false);
-  let canScrollNext = $state(false);
 
   const lightbox = useImageLightbox(() => thumbs);
 
@@ -64,8 +62,6 @@
       urls={carouselUrls}
       preset="card"
       bind:selectedIndex={carouselIndex}
-      bind:canScrollPrev
-      bind:canScrollNext
       viewportClass="h-full"
       onSlideClick={() => {
         lightboxSlideIndex = carouselIndex;

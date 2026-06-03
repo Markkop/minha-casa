@@ -2,11 +2,11 @@ import type { EmblaOptionsType } from "embla-carousel";
 
 export type ListingCarouselPreset = "card" | "modal" | "lightbox";
 
-const baseOptions: EmblaOptionsType = {
+/** Shared gallery carousel: infinite wrap in both directions. */
+const galleryOptions: EmblaOptionsType = {
   axis: "x",
-  containScroll: "trimSnaps",
   dragFree: false,
-  loop: false
+  loop: true
 };
 
 export function getListingCarouselOptions(
@@ -15,10 +15,10 @@ export function getListingCarouselOptions(
 ): EmblaOptionsType {
   switch (preset) {
     case "card":
-      return { ...baseOptions, startIndex, watchDrag: true };
+      return { ...galleryOptions, startIndex, watchDrag: true };
     case "modal":
-      return { ...baseOptions, startIndex };
+      return { ...galleryOptions, startIndex };
     case "lightbox":
-      return { ...baseOptions, startIndex };
+      return { ...galleryOptions, startIndex };
   }
 }

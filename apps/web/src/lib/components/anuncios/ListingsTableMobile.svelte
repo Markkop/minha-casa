@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { Imovel } from "$lib/anuncios/types";
   import PendingAddMobileRow from "$lib/components/anuncios/PendingAddMobileRow.svelte";
+  import { LISTINGS_MOBILE_LIST_CLASS } from "$lib/anuncios/listings-panel-layout";
   import ListingMobileCard from "$lib/components/anuncios/ListingMobileCard.svelte";
   import type { ListingTableRowProps } from "$lib/components/anuncios/listing-table-row-types";
   import type { createListingsTablePendingAdd } from "$lib/components/anuncios/listings-table-pending-add.svelte";
@@ -30,7 +31,7 @@
   });
 </script>
 
-<div class="space-y-2 p-2 md:hidden" data-testid="listings-mobile-list">
+<div class={LISTINGS_MOBILE_LIST_CLASS} data-testid="listings-mobile-list">
   {#each pendingAdd.pendingAddRows as row (row.id)}
     <PendingAddMobileRow {row} {...pendingHandlers} />
   {/each}
