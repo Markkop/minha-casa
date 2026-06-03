@@ -42,6 +42,7 @@ export function addonActive(grant: AddonGrant) {
 }
 
 export const addonsApi = {
+  /** Dormant while ADDONS_OPEN_ACCESS is true; used again when backend grants are enforced. */
   fetchAccess: (slug: string) =>
     api.get<{ hasAccess: boolean; organizationId: string | null }>(`/addons/access/${encodeURIComponent(slug)}`),
   fetchUserAddons: () => api.get<{ addons: AddonGrant[] }>("/user/addons"),

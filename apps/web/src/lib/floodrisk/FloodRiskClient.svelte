@@ -1,8 +1,7 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { tick } from "svelte";
-  import { AlertTriangle, CloudRain, Copy, Database, Lock, Settings } from "@lucide/svelte";
-  import { addonsApi } from "$lib/addons/client";
+  import { AlertTriangle, CloudRain, Copy, Database, Settings } from "@lucide/svelte";
   import {
     customJsonPlaceholder,
     defaultBlocks,
@@ -30,9 +29,6 @@
     4: "STEP",
     5: "STEP"
   });
-  let accessLoading = $state(true);
-  let hasFloodAccess = $state(false);
-  let accessError = $state("");
   let sceneReady = $state(false);
 
   const currentScenarios = $derived(
@@ -54,25 +50,13 @@
       edgeStates;
       customScenarios;
     },
-    getSceneActive: () => sceneReady && hasFloodAccess
+    getSceneActive: () => sceneReady
   });
 
   onMount(() => {
     let disposed = false;
 
     void (async () => {
-      try {
-        const access = await addonsApi.fetchAccess("flood");
-        if (disposed) return;
-        hasFloodAccess = access.hasAccess;
-      } catch (error) {
-        if (disposed) return;
-        accessError = error instanceof Error ? error.message : "Erro ao verificar acesso";
-      } finally {
-        if (!disposed) accessLoading = false;
-      }
-
-      if (disposed || !hasFloodAccess) return;
       await tick();
       if (disposed) return;
 
@@ -143,31 +127,7 @@
   }
 </script>
 
-{#if accessLoading}
-  <div class="flex min-h-screen items-center justify-center bg-app-bg px-4 text-app-fg">
-    <div class="rounded-md border border-app-border bg-app-surface p-6 text-center text-sm text-app-muted">
-      Verificando acesso ao Floodrisk...
-    </div>
-  </div>
-{:else if !hasFloodAccess}
-  <div class="flex min-h-screen items-center justify-center bg-app-bg px-4 text-app-fg">
-    <section class="max-w-lg rounded-md border border-app-border bg-app-surface p-6 text-center">
-      <Lock class="mx-auto h-10 w-10 text-app-muted" />
-      <h1 class="mt-4 text-2xl font-semibold">Acesso Restrito</h1>
-      <p class="mt-2 text-sm leading-6 text-app-muted">
-        O acesso ao Risco de Enchente requer o addon flood na sua conta pessoal ou na organizacao ativa.
-      </p>
-      {#if accessError}
-        <p class="mt-3 rounded-md border border-amber-200 bg-amber-50 p-2 text-sm text-amber-800">{accessError}</p>
-      {/if}
-      <div class="mt-5 flex flex-wrap justify-center gap-2">
-        <a class="rounded-md bg-app-fg px-4 py-2 text-sm font-medium text-white" href="/subscribe">Ver assinatura</a>
-        <a class="rounded-md border border-app-border bg-white px-4 py-2 text-sm font-medium text-app-fg" href="/organizacoes">Organizacoes</a>
-      </div>
-    </section>
-  </div>
-{:else}
-  <div class="flex h-[calc(100vh-3.5rem)] min-h-[680px] flex-col bg-[#101820] text-white md:h-screen md:flex-row">
+<div class="flex h-[calc(100vh-3.5rem)] min-h-[680px] flex-col bg-[#101820] text-white md:h-screen md:flex-row">
     <div bind:this={canvasHost} class="order-2 min-h-[420px] flex-1 md:order-1 md:min-h-0"></div>
 
     <aside
@@ -296,4 +256,3 @@
       </section>
     </aside>
   </div>
-{/if}

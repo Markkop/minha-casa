@@ -15,6 +15,7 @@
     contatos: false,
     regioes: false,
     condominios: false,
+    explorar: false,
     deepAnalysis: false
   });
 

@@ -170,6 +170,7 @@ export interface AdminFeatureFlags {
   contatos: boolean;
   regioes: boolean;
   condominios: boolean;
+  explorar: boolean;
   deepAnalysis: boolean;
 }
 
@@ -182,6 +183,7 @@ export const defaultAdminFeatureFlags: AdminFeatureFlags = {
   contatos: false,
   regioes: false,
   condominios: false,
+  explorar: false,
   deepAnalysis: false
 };
 
@@ -219,6 +221,13 @@ export const adminFeatureFlagMeta: {
     description: "Mapeamento de condominios.",
     group: "navigation",
     navHref: "/condominios"
+  },
+  {
+    key: "explorar",
+    label: "Explorar",
+    description: "Buscas em portais com filtros unificados.",
+    group: "navigation",
+    navHref: "/explorar"
   },
   {
     key: "deepAnalysis",

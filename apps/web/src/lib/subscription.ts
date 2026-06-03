@@ -1,3 +1,5 @@
+import { ADDONS_OPEN_ACCESS, isAddonOpenRoute } from "$lib/addons/access";
+
 export const SUBSCRIPTION_COOKIE_NAME = "subscription-status";
 export const SUBSCRIPTION_ACTIVE = "active";
 export const SUBSCRIPTION_INACTIVE = "inactive";
@@ -40,6 +42,10 @@ export function isSubscriptionValid(cookieValue: string | undefined): boolean {
 }
 
 export function requiresSubscription(pathname: string): boolean {
+  if (ADDONS_OPEN_ACCESS && isAddonOpenRoute(pathname)) {
+    return false;
+  }
+
   return SUBSCRIPTION_REQUIRED_ROUTES.some(
     (route) => pathname === route || pathname.startsWith(`${route}/`)
   );

@@ -12,6 +12,7 @@
     ScanSearch
   } from "@lucide/svelte";
   import { page } from "$app/state";
+  import { ADDONS_OPEN_ACCESS, hasAddonAccess } from "$lib/addons/access";
   import { addonsApi } from "$lib/addons/client";
   import { logoutToHome } from "$lib/auth/logout";
   import {
@@ -174,14 +175,18 @@
       return;
     }
 
-    void addonsApi
-      .fetchAccess("flood")
-      .then((result) => {
-        hasFloodRisk = result.hasAccess;
-      })
-      .catch(() => {
-        hasFloodRisk = false;
-      });
+    if (ADDONS_OPEN_ACCESS) {
+      hasFloodRisk = hasAddonAccess("flood");
+    } else {
+      void addonsApi
+        .fetchAccess("flood")
+        .then((result) => {
+          hasFloodRisk = result.hasAccess;
+        })
+        .catch(() => {
+          hasFloodRisk = false;
+        });
+    }
     refreshOrganizations();
   });
 
