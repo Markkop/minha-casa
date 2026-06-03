@@ -7,7 +7,7 @@
   import FloodRiskInputPanel from "$lib/floodrisk/FloodRiskInputPanel.svelte";
   import FloodRiskScenarioPanel from "$lib/floodrisk/FloodRiskScenarioPanel.svelte";
   import type { ConnectionType, ElementHeight } from "$lib/floodrisk/flood-risk-data";
-  import { parseFloodRiskResponse, type ParseResult } from "$lib/floodrisk/flood-risk-parser";
+  import { parseFloodRiskResponse } from "$lib/floodrisk/flood-risk-parser";
   import {
     applyGlobalsToBlocks,
     cloneDefaultBlocks,

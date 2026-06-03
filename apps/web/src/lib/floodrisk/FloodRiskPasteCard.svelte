@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { FieldSummary, FloodRiskGlobals } from "$lib/floodrisk/flood-risk-scenario";
+  import type { FloodRiskGlobals } from "$lib/floodrisk/flood-risk-scenario";
   import type { ParseResult } from "$lib/floodrisk/flood-risk-parser";
   import { RECOMMENDED_SCENARIO_COUNT } from "$lib/floodrisk/flood-risk-data";
 
