@@ -137,8 +137,6 @@
 {/snippet}
 
 <div class="min-w-0 space-y-4">
-  <AnaliseImageMasthead {listing} />
-
   {#if showDeepAnalysis}
     <DeepAnalysisControls
       {listing}
@@ -168,12 +166,17 @@
       </TabsList>
 
       <TabsContent value="visao-geral" class="min-w-0">
-        <ListingAnalysisSummaryCard
-          {listing}
-          {collectionId}
-          {updateListing}
-          {removeListing}
-        />
+        <div class="grid items-stretch gap-4 lg:grid-cols-2">
+          <ListingAnalysisSummaryCard
+            {listing}
+            {collectionId}
+            {updateListing}
+            {removeListing}
+          />
+          <WorkspacePanel class="overflow-hidden p-0">
+            <AnaliseImageMasthead {listing} class="min-h-72 lg:min-h-full" />
+          </WorkspacePanel>
+        </div>
       </TabsContent>
 
       <TabsContent value="localizacao" class="min-w-0">
