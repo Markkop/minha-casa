@@ -10,6 +10,7 @@
   } from "$lib/listing-image-categories";
   import ImageLightboxOverlay from "$lib/components/analise/ImageLightboxOverlay.svelte";
   import { useImageLightbox } from "$lib/components/analise/use-image-lightbox.svelte";
+  import ListingImageCarousel from "$lib/carousel/ListingImageCarousel.svelte";
   import { cn } from "$lib/utils";
 
   let {
@@ -34,9 +35,12 @@
   const coverIndex = $derived(normalizeCoverIndex(listing.imageCoverIndex, imageUrls.length));
   const galleryImages = $derived(resolveGalleryImages(imageUrls, coverIndex, listing.imageCategories));
   const categoryOptions = $derived(buildCategoryOptions(listing));
+  const carouselUrls = $derived(galleryImages.map((image) => image.url));
 
   let selectedOriginalIndex = $state(0);
+  let heroSlideIndex = $state(0);
   let isSaving = $state(false);
+  let lightboxSlideIndex = $state(0);
 
   const lightbox = useImageLightbox(() =>
     galleryImages.map((image, index) => ({ index, url: image.url }))
@@ -63,6 +67,16 @@
       selectedOriginalIndex = galleryImages[0]?.originalIndex ?? 0;
     }
   });
+
+  $effect(() => {
+    heroSlideIndex = selectedDisplayIndex;
+  });
+
+  function handleHeroIndexChange(index: number) {
+    heroSlideIndex = index;
+    const image = galleryImages[index];
+    if (image) selectedOriginalIndex = image.originalIndex;
+  }
 
   async function persistListingUpdate(updates: Partial<Imovel>) {
     if (!updateListing) return;
@@ -94,6 +108,17 @@
       imageCategories: Object.keys(next).length > 0 ? next : null
     });
   }
+
+  function openLightbox() {
+    lightboxSlideIndex = heroSlideIndex;
+    lightbox.open(heroSlideIndex);
+  }
+
+  function selectThumb(originalIndex: number) {
+    selectedOriginalIndex = originalIndex;
+    const displayIndex = galleryImages.findIndex((image) => image.originalIndex === originalIndex);
+    if (displayIndex >= 0) heroSlideIndex = displayIndex;
+  }
 </script>
 
 {#if imageUrls.length === 0}
@@ -108,20 +133,25 @@
     <div
       class="relative h-[min(50vh,16rem)] w-full min-w-0 max-w-full overflow-hidden rounded-md border border-app-border bg-app-bg sm:aspect-[4/3] sm:h-auto"
     >
-      <button
-        type="button"
-        onclick={() => lightbox.open(selectedDisplayIndex)}
-        class="block h-full min-h-0 w-full min-w-0"
-        aria-label={`Abrir imagem ${selectedImageNumber}`}
+      <ListingImageCarousel
+        urls={carouselUrls}
+        preset="card"
+        bind:selectedIndex={heroSlideIndex}
+        onIndexChange={handleHeroIndexChange}
+        onSlideClick={openLightbox}
+        viewportClass="h-full min-h-0"
       >
-        <img
-          src={selectedImage.url}
-          alt={`Foto ${selectedImageNumber} do imóvel`}
-          class="block h-full min-h-0 w-full max-w-full object-cover"
-        />
-      </button>
+        {#snippet slide({ url })}
+          <img
+            src={url}
+            alt={`Foto do imóvel`}
+            class="block h-full min-h-0 w-full max-w-full object-cover"
+          />
+        {/snippet}
+      </ListingImageCarousel>
 
-      <div class="absolute right-2 top-2 flex items-center gap-2">
+      <div class="pointer-events-none absolute inset-0">
+        <div class="absolute right-2 top-2 flex items-center gap-2 pointer-events-auto">
         <button
           type="button"
           onclick={handleSetCover}
@@ -155,6 +185,7 @@
             <option value={option.value} class="bg-app-surface text-app-fg">{option.label}</option>
           {/each}
         </select>
+        </div>
       </div>
     </div>
 
@@ -162,7 +193,7 @@
       {#each galleryImages as image, index (image.url + image.originalIndex)}
         <button
           type="button"
-          onclick={() => (selectedOriginalIndex = image.originalIndex)}
+          onclick={() => selectThumb(image.originalIndex)}
           class={cn(
             "relative h-16 w-20 shrink-0 overflow-hidden rounded-md border bg-app-surface transition",
             index === selectedDisplayIndex
@@ -179,16 +210,11 @@
   </div>
 
   {#if lightbox.lightboxLocalIndex !== null}
-    {@const lightboxImage = galleryImages[lightbox.lightboxLocalIndex]}
-    {#if lightboxImage}
-      <ImageLightboxOverlay
-        imageUrl={lightboxImage.url}
-        canPrev={lightbox.canPrev}
-        canNext={lightbox.canNext}
-        onClose={lightbox.close}
-        onPrev={lightbox.goPrev}
-        onNext={lightbox.goNext}
-      />
-    {/if}
+    <ImageLightboxOverlay
+      urls={lightbox.urls}
+      bind:selectedIndex={lightboxSlideIndex}
+      caption={`Foto ${(galleryImages[lightboxSlideIndex]?.originalIndex ?? 0) + 1}`}
+      onClose={lightbox.close}
+    />
   {/if}
 {/if}

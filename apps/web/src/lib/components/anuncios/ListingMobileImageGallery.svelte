@@ -10,11 +10,9 @@
   } from "$lib/components/anuncios/listings-table-shared";
   import ListingImageIngestionProgressBar from "$lib/components/anuncios/ListingImageIngestionProgressBar.svelte";
   import ListingLocationMiniMap from "$lib/components/anuncios/ListingLocationMiniMap.svelte";
-  import ListingThumbnailImage from "$lib/components/anuncios/ListingThumbnailImage.svelte";
+  import ListingImageCarousel from "$lib/carousel/ListingImageCarousel.svelte";
   import { buildGoogleMapsUrl } from "$lib/components/anuncios/listing-row-urls";
   import FloatingTooltip from "$lib/components/ui/FloatingTooltip.svelte";
-
-  const SWIPE_THRESHOLD_PX = 40;
 
   let {
     imovel,
@@ -56,9 +54,10 @@
   const hasImages = $derived(imageUrls.length > 0);
 
   let carouselIndex = $state(0);
-  let touchStartX = $state(0);
-  let touchStartY = $state(0);
+  let canScrollPrev = $state(false);
+  let canScrollNext = $state(false);
   let failedUrls = $state<Set<string>>(new Set());
+  let carouselRef = $state<ReturnType<typeof ListingImageCarousel> | undefined>();
 
   const safeIndex = $derived(Math.min(carouselIndex, Math.max(imageUrls.length - 1, 0)));
   const activeUrl = $derived(imageUrls[safeIndex]);
@@ -86,31 +85,6 @@
     onOpenImageModal();
   }
 
-  function goPrev() {
-    carouselIndex = Math.max(0, safeIndex - 1);
-  }
-
-  function goNext() {
-    carouselIndex = Math.min(imageUrls.length - 1, safeIndex + 1);
-  }
-
-  function handleTouchStart(event: TouchEvent) {
-    const touch = event.touches[0];
-    if (!touch) return;
-    touchStartX = touch.clientX;
-    touchStartY = touch.clientY;
-  }
-
-  function handleTouchEnd(event: TouchEvent) {
-    const touch = event.changedTouches[0];
-    if (!touch || !multipleImages) return;
-    const dx = touch.clientX - touchStartX;
-    const dy = touch.clientY - touchStartY;
-    if (Math.abs(dx) < SWIPE_THRESHOLD_PX || Math.abs(dx) < Math.abs(dy)) return;
-    if (dx < 0) goNext();
-    else goPrev();
-  }
-
   function markUrlFailed(url: string) {
     failedUrls = new Set([...failedUrls, url]);
   }
@@ -125,8 +99,6 @@
   aria-label="Galeria de imagens do imóvel"
   data-testid="listing-mobile-gallery"
   class={cn(galleryLayoutClass, "bg-app-surface-muted", !isHero && "relative overflow-hidden", className)}
-  ontouchstart={handleTouchStart}
-  ontouchend={handleTouchEnd}
 >
   <div class={mediaShellClass}>
   {#if ingesting}
@@ -169,45 +141,47 @@
       </button>
     </FloatingTooltip>
   {:else if showCarousel}
-    <button
-      type="button"
-      onclick={openModal}
-      class="absolute inset-0 block h-full w-full cursor-pointer hover:opacity-95"
-      aria-label="Ver ou editar imagens"
-    >
-      <ListingThumbnailImage
+    <div class="absolute inset-0">
+      <ListingImageCarousel
+        bind:this={carouselRef}
+        urls={imageUrls}
+        preset="card"
         listingId={imovel.id}
-        src={activeUrl}
-        onError={() => markUrlFailed(activeUrl)}
+        bind:selectedIndex={carouselIndex}
+        bind:canScrollPrev
+        bind:canScrollNext
+        viewportClass="h-full"
+        onSlideClick={openModal}
+        onImageError={markUrlFailed}
       />
-    </button>
 
-    {#if multipleImages}
-      <button
-        type="button"
-        class="absolute left-0.5 top-1/2 z-10 flex h-7 w-5 -translate-y-1/2 items-center justify-center rounded-sm bg-black/50 text-white disabled:opacity-25"
-        disabled={safeIndex === 0}
-        onclick={(event) => {
-          event.stopPropagation();
-          goPrev();
-        }}
-        aria-label="Foto anterior"
-      >
-        <ChevronLeft class="h-4 w-4" />
-      </button>
-      <button
-        type="button"
-        class="absolute right-0.5 top-1/2 z-10 flex h-7 w-5 -translate-y-1/2 items-center justify-center rounded-sm bg-black/50 text-white disabled:opacity-25"
-        disabled={safeIndex >= imageUrls.length - 1}
-        onclick={(event) => {
-          event.stopPropagation();
-          goNext();
-        }}
-        aria-label="Próxima foto"
-      >
-        <ChevronRight class="h-4 w-4" />
-      </button>
-    {/if}
+      {#if multipleImages}
+        <button
+          type="button"
+          class="absolute left-0.5 top-1/2 z-10 flex h-7 w-5 -translate-y-1/2 items-center justify-center rounded-sm bg-black/50 text-white disabled:opacity-25"
+          disabled={!canScrollPrev}
+          onclick={(event) => {
+            event.stopPropagation();
+            carouselRef?.scrollPrev();
+          }}
+          aria-label="Foto anterior"
+        >
+          <ChevronLeft class="h-4 w-4" />
+        </button>
+        <button
+          type="button"
+          class="absolute right-0.5 top-1/2 z-10 flex h-7 w-5 -translate-y-1/2 items-center justify-center rounded-sm bg-black/50 text-white disabled:opacity-25"
+          disabled={!canScrollNext}
+          onclick={(event) => {
+            event.stopPropagation();
+            carouselRef?.scrollNext();
+          }}
+          aria-label="Próxima foto"
+        >
+          <ChevronRight class="h-4 w-4" />
+        </button>
+      {/if}
+    </div>
   {:else}
     <FloatingTooltip
       label="Clique para ver/editar imagem"

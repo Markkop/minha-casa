@@ -25,6 +25,7 @@
     isExternalListingImageUrl
   } from "$lib/listing-images";
   import { cn } from "$lib/utils";
+  import ListingImageCarousel from "$lib/carousel/ListingImageCarousel.svelte";
 
   let {
     isOpen,
@@ -47,6 +48,9 @@
   let isSaving = $state(false);
   let isPulling = $state(false);
   let confirmPullOpen = $state(false);
+  let canScrollPrev = $state(false);
+  let canScrollNext = $state(false);
+  let modalCarouselRef = $state<ReturnType<typeof ListingImageCarousel> | undefined>();
 
   const isIngesting = $derived(listing ? isListingImageIngesting(listing.imageIngestionStatus) : false);
   const currentUrl = $derived(imageUrls[currentIndex] ?? "");
@@ -138,10 +142,10 @@
       else onClose();
     } else if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
       void handleSave();
-    } else if (event.key === "ArrowLeft" && imageUrls.length > 1) {
-      currentIndex = (currentIndex - 1 + imageUrls.length) % imageUrls.length;
-    } else if (event.key === "ArrowRight" && imageUrls.length > 1) {
-      currentIndex = (currentIndex + 1) % imageUrls.length;
+    } else if (event.key === "ArrowLeft" && canScrollPrev) {
+      modalCarouselRef?.scrollPrev();
+    } else if (event.key === "ArrowRight" && canScrollNext) {
+      modalCarouselRef?.scrollNext();
     }
   }
 </script>
@@ -199,10 +203,22 @@
 
         <div class="relative flex min-h-[200px] max-h-[70vh] items-center justify-center overflow-hidden rounded-lg border border-app-border bg-app-surface-muted">
           {#if imageUrls.length > 1 && !isIngesting}
-            <button type="button" class="absolute left-2 z-10 rounded-full bg-app-fg/60 p-2 text-app-surface hover:bg-app-fg/80" aria-label="Imagem anterior" onclick={() => (currentIndex = (currentIndex - 1 + imageUrls.length) % imageUrls.length)}>
+            <button
+              type="button"
+              class="absolute left-2 z-10 rounded-full bg-app-fg/60 p-2 text-app-surface hover:bg-app-fg/80 disabled:opacity-40"
+              aria-label="Imagem anterior"
+              disabled={!canScrollPrev}
+              onclick={() => modalCarouselRef?.scrollPrev()}
+            >
               <ChevronLeft class="h-5 w-5" />
             </button>
-            <button type="button" class="absolute right-2 z-10 rounded-full bg-app-fg/60 p-2 text-app-surface hover:bg-app-fg/80" aria-label="Próxima imagem" onclick={() => (currentIndex = (currentIndex + 1) % imageUrls.length)}>
+            <button
+              type="button"
+              class="absolute right-2 z-10 rounded-full bg-app-fg/60 p-2 text-app-surface hover:bg-app-fg/80 disabled:opacity-40"
+              aria-label="Próxima imagem"
+              disabled={!canScrollNext}
+              onclick={() => modalCarouselRef?.scrollNext()}
+            >
               <ChevronRight class="h-5 w-5" />
             </button>
           {/if}
@@ -212,13 +228,39 @@
               <Loader2 class="h-10 w-10 animate-spin text-app-accent" />
               <span class="text-sm">Baixando imagens do anúncio…</span>
             </div>
-          {:else if currentUrl && !imageError}
-            <img src={currentUrl} alt={listing.titulo} class="max-h-[70vh] max-w-full object-contain" onerror={() => (imageError = true)} onload={() => (imageError = false)} />
-          {:else if currentUrl && imageError}
-            <div class="flex h-full w-full flex-col items-center justify-center text-muted-foreground">
-              <ImageIcon class="mb-2 h-12 w-12" />
-              <span class="text-sm">Erro ao carregar imagem</span>
-            </div>
+          {:else if imageUrls.length > 0}
+            <ListingImageCarousel
+              bind:this={modalCarouselRef}
+              urls={imageUrls}
+              preset="modal"
+              bind:selectedIndex={currentIndex}
+              bind:canScrollPrev
+              bind:canScrollNext
+              imageAlt={listing.titulo}
+              objectFit="contain"
+              viewportClass="flex min-h-[200px] max-h-[70vh] w-full items-center justify-center"
+            >
+              {#snippet slide({ url, isSelected })}
+                {#if isSelected && imageError}
+                  <div class="flex h-full min-h-[200px] w-full flex-col items-center justify-center text-muted-foreground">
+                    <ImageIcon class="mb-2 h-12 w-12" />
+                    <span class="text-sm">Erro ao carregar imagem</span>
+                  </div>
+                {:else}
+                  <img
+                    src={url}
+                    alt={listing.titulo}
+                    class="mx-auto max-h-[70vh] max-w-full object-contain"
+                    onerror={() => {
+                      if (isSelected) imageError = true;
+                    }}
+                    onload={() => {
+                      if (isSelected) imageError = false;
+                    }}
+                  />
+                {/if}
+              {/snippet}
+            </ListingImageCarousel>
           {:else}
             <ListingLocationMiniMap listing={listing} variant="preview" class="min-h-[200px] w-full max-h-[70vh] border-0">
               {#snippet fallback()}
