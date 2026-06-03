@@ -3,6 +3,7 @@
   import { onMount } from "svelte";
   import { page } from "$app/state";
   import AdjustmentPanel from "$lib/components/financiamento/adjustment-panel.svelte";
+  import DebtTimelineChart from "$lib/components/financiamento/DebtTimelineChart.svelte";
   import ResultsTable from "$lib/components/financiamento/ResultsTable.svelte";
   import ScenarioFilterToolbar from "$lib/components/financiamento/ScenarioFilterToolbar.svelte";
   import type { RecursosMeta } from "$lib/components/financiamento/financiamento-parameter-types";
@@ -12,6 +13,7 @@
   import WorkspaceLoadingState from "$lib/components/workspace/WorkspaceLoadingState.svelte";
   import { UI_DEFAULTS } from "$lib/financiamento/calculations-defaults";
   import { calcularReservaRecomendada, gerarMatrizCenarios } from "$lib/financiamento/calculations";
+  import { resolveEffectiveParams } from "$lib/financiamento/financing-effective-params";
   import { getSettingsContext } from "$lib/financiamento/settings-context.svelte";
   import {
     loadSimulatorParams,
@@ -32,6 +34,8 @@
     if (!browser) return;
     saveSimulatorParams(params);
   });
+
+  const effective = $derived(resolveEffectiveParams(params));
 
   const recursosMeta = $derived.by((): RecursosMeta => {
     const valorImovel = params.valorImovel;
@@ -61,24 +65,46 @@
   const cenarios = $derived(
     gerarMatrizCenarios({
       valoresImovel: valoresImovelFiltrados,
-      valoresApartamento: valoresAptoFiltrados,
+      valoresApartamento: effective.temImovelParaNegociar ? valoresAptoFiltrados : [0],
       capitalDisponivel: params.capitalDisponivel,
       taxaAnual: params.taxaAnual,
       trMensal: params.trMensal,
       aporteExtra: params.aporteExtra,
       rendaMensal: params.rendaMensal,
-      custoCondominioMensal: params.custoCondominioMensal
+      custoManutencaoImovelMensal: effective.custoManutencaoImovelMensal,
+      temImovelParaNegociar: effective.temImovelParaNegociar,
+      custoTotalReformas: effective.custoTotalReformas,
+      custoMensalMaximoReformas: effective.custoMensalMaximoReformas,
+      quantiaExtra: effective.quantiaExtra,
+      esperaQuantiaExtra: effective.esperaQuantiaExtra,
+      temposVendaPosteriorMeses: params.temposVendaPosteriorMeses,
+      temposRecebimentoExtraMeses: params.temposRecebimentoExtraMeses
     })
   );
 
-  const permutaDisponivel = $derived(params.valorApartamento > 0);
+  const permutaDisponivel = $derived(params.temImovelParaNegociar);
 
   const filteredCenarios = $derived(
     cenarios.filter((c) => {
-      if (!permutaDisponivel) {
-        return c.estrategia === "venda_posterior";
+      if (permutaDisponivel) {
+        if (!params.estrategiasFiltro.includes(c.estrategia)) {
+          return false;
+        }
+        if (c.estrategia === "venda_posterior" && c.vendaEm !== undefined) {
+          if (!params.temposVendaPosteriorMeses.includes(c.vendaEm)) {
+            return false;
+          }
+        }
       }
-      return params.estrategiasFiltro.includes(c.estrategia);
+      if (effective.esperaQuantiaExtra && c.extraEm !== undefined) {
+        if (!params.temposRecebimentoExtraMeses.includes(c.extraEm)) {
+          return false;
+        }
+      }
+      if (!effective.esperaQuantiaExtra && c.extraEm !== undefined) {
+        return false;
+      }
+      return true;
     })
   );
 
@@ -114,7 +140,10 @@
       | "valorImovel"
       | "capitalDisponivel"
       | "valorApartamento"
-      | "custoCondominio",
+      | "custoManutencao"
+      | "custoTotalReformas"
+      | "custoMensalMaximoReformas"
+      | "quantiaExtra",
     newValue: number
   ) {
     if (field === "capitalDisponivel") {
@@ -129,8 +158,20 @@
       params = { ...params, valorApartamento: snapToPropertyStep(newValue) };
       return;
     }
-    if (field === "custoCondominio") {
-      params = { ...params, custoCondominioMensal: newValue };
+    if (field === "custoManutencao") {
+      params = { ...params, custoManutencaoImovelMensal: newValue };
+      return;
+    }
+    if (field === "custoTotalReformas") {
+      params = { ...params, custoTotalReformas: newValue };
+      return;
+    }
+    if (field === "custoMensalMaximoReformas") {
+      params = { ...params, custoMensalMaximoReformas: newValue };
+      return;
+    }
+    if (field === "quantiaExtra") {
+      params = { ...params, quantiaExtra: newValue };
     }
   }
 </script>
@@ -149,10 +190,15 @@
         onEntradaChange={(v) => handleValueChange("capitalDisponivel", v)}
       />
 
-      <section class={LISTINGS_SECTION_CLASS}>
-        <ScenarioFilterToolbar {params} onChange={(next) => (params = next)} />
-        <ResultsTable cenarios={filteredCenarios} {permutaDisponivel} />
-      </section>
+      <div class="flex flex-col gap-4">
+        <section class={LISTINGS_SECTION_CLASS}>
+          <ScenarioFilterToolbar {params} onChange={(next) => (params = next)} />
+          <ResultsTable cenarios={filteredCenarios} {permutaDisponivel} />
+        </section>
+        <section class={LISTINGS_SECTION_CLASS}>
+          <DebtTimelineChart cenarios={filteredCenarios} />
+        </section>
+      </div>
     </main>
   </div>
 {/if}

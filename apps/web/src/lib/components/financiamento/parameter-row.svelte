@@ -16,14 +16,22 @@
     edit,
     extras,
     valueClassName,
-    hint
+    hint,
+    disabled = false,
+    compact = false
   }: ParameterRowProps = $props();
 
   let isEditing = $state(false);
 </script>
 
-<div class="border-b border-app-border/40 py-1 last:border-b-0">
-  <div class="mb-0.5 flex items-center justify-between gap-2">
+<div
+  class={cn(
+    "border-b border-app-border/40 last:border-b-0",
+    compact ? "py-0.5" : "py-1",
+    disabled && "opacity-60"
+  )}
+>
+  <div class={cn("flex items-center justify-between gap-2", compact ? "mb-0" : "mb-0.5")}>
     <div class="flex min-w-0 items-center gap-1.5">
       <span class="text-sm leading-tight text-app-muted">{label}</span>
       {#if tooltip}
@@ -97,8 +105,12 @@
       min={slider.min}
       max={slider.max}
       step={slider.step}
-      onValueChange={slider.onValueChange}
-      class="w-full touch-none py-0.5 [&_[data-slot=slider-thumb]]:size-[18px] [&_[data-slot=slider-track]]:h-2"
+      disabled={disabled}
+      onValueChange={disabled ? () => {} : slider.onValueChange}
+      class={cn(
+        "w-full touch-none [&_[data-slot=slider-thumb]]:size-[18px] [&_[data-slot=slider-track]]:h-2",
+        compact ? "py-0" : "py-0.5"
+      )}
     />
   {/if}
 

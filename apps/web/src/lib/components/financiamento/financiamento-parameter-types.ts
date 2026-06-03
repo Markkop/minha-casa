@@ -7,9 +7,20 @@ export const PERCENTAGE_OPTIONS = [
   { value: 0.8, label: "-20%" }
 ] as const;
 
+/** Sale / extra-receipt timing options for scenario filters (months). */
+export const TIMING_MONTH_OPTIONS = [1, 6, 12, 24] as const;
+
+export type TimingMonth = (typeof TIMING_MONTH_OPTIONS)[number];
+
 export type EstrategiaFiltro = "permuta" | "venda_posterior";
 
-export type SliderField = "valorImovel" | "valorApartamento" | "custoCondominio";
+export type SliderField =
+  | "valorImovel"
+  | "valorApartamento"
+  | "custoManutencao"
+  | "custoTotalReformas"
+  | "custoMensalMaximoReformas"
+  | "quantiaExtra";
 
 export interface SimulatorParams {
   capitalDisponivel: number;
@@ -19,10 +30,18 @@ export interface SimulatorParams {
   valorImovel: number;
   taxaAnual: number;
   trMensal: number;
-  custoCondominioMensal: number;
+  custoManutencaoImovelMensal: number;
+  temImovelParaNegociar: boolean;
+  incluirReformas: boolean;
+  custoTotalReformas: number;
+  custoMensalMaximoReformas: number;
+  esperaQuantiaExtra: boolean;
+  quantiaExtra: number;
   valoresImovelFiltroMultipliers: number[];
   valoresAptoFiltroMultipliers: number[];
   estrategiasFiltro: EstrategiaFiltro[];
+  temposVendaPosteriorMeses: number[];
+  temposRecebimentoExtraMeses: number[];
 }
 
 export interface RecursosMeta {
@@ -63,4 +82,7 @@ export interface ParameterRowProps {
   extras?: import("svelte").Snippet;
   valueClassName?: string;
   hint?: string;
+  disabled?: boolean;
+  /** Tighter vertical rhythm for dense panels (e.g. adjustment-panel). */
+  compact?: boolean;
 }

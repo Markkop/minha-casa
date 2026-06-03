@@ -1,6 +1,11 @@
 <script lang="ts">
   import { ArrowDown, ArrowUp, CircleCheck, Info } from "@lucide/svelte";
   import EstrategiaBadge from "$lib/components/financiamento/EstrategiaBadge.svelte";
+  import TotalMensalHoverBreakdown from "$lib/components/financiamento/TotalMensalHoverBreakdown.svelte";
+  import {
+    formatPrazoAnosLabel,
+    formatTimingMonthLabelLong
+  } from "$lib/components/financiamento/parameter-row-helpers";
   import FloatingTooltip from "$lib/components/ui/FloatingTooltip.svelte";
   import Tooltip from "$lib/components/ui/Tooltip.svelte";
   import {
@@ -29,14 +34,11 @@
   }: {
     cenarios: CenarioCompleto[];
     onSelectCenario?: (cenario: CenarioCompleto) => void;
-    /** When false (sem seu imóvel), hides Seu imóvel and Estratégia columns. */
     permutaDisponivel?: boolean;
-    /** Denser layout for embedded previews (e.g. addons catalog). */
     compact?: boolean;
     hideBestColumn?: boolean;
     hideValorImovelColumn?: boolean;
     hideCustoTotalColumn?: boolean;
-    /** Gray “(-5%)” hint next to Imóvel alvo values, keyed by scenario valorImovel. */
     valorImovelDiscountLabels?: Record<number, string>;
   } = $props();
 
@@ -50,19 +52,29 @@
   });
 
   const sortedCenarios = $derived(sortCenarios(cenarios, sort));
+  const showReformasColumn = $derived(cenarios.some((c) => c.totalReformas > 0));
+  const showExtraColumn = $derived(cenarios.some((c) => c.extraEm !== undefined));
 
   function handleSort(key: ResultsSortKey) {
     sort = toggleSort(sort, key);
   }
 
+  function formatTimingCell(months: number | undefined): string {
+    if (months === undefined) return "—";
+    return formatTimingMonthLabelLong(months);
+  }
+
   const thClass = $derived(
     cn(
-      "sticky top-0 z-20 border-b border-app-border bg-app-surface text-left font-medium text-app-muted",
+      "sticky top-0 z-20 whitespace-nowrap border-b border-app-border bg-app-surface text-left font-medium text-app-muted",
       compact ? "px-1.5 py-1 text-[10px]" : "px-3 py-2 text-xs"
     )
   );
   const tdClass = $derived(
-    cn("border-b border-app-border align-middle", compact ? "px-1.5 py-1" : "px-3 py-2")
+    cn(
+      "whitespace-nowrap border-b border-app-border align-middle",
+      compact ? "px-1.5 py-1" : "px-3 py-2"
+    )
   );
   const monoCellClass = $derived(compact ? "font-mono text-[11px]" : "font-mono text-sm");
 </script>
@@ -71,13 +83,13 @@
   {@const isActive = sort.key === sortKey}
   {@const isAsc = isActive && sort.direction === "asc"}
   <th class={cn(thClass, "transition-colors hover:bg-app-surface-muted/30")}>
-    <div class="flex items-center gap-1">
+    <div class="flex shrink-0 items-center gap-1 whitespace-nowrap">
       <button
         type="button"
-        class="flex items-center gap-1 text-left"
+        class="flex shrink-0 items-center gap-1 whitespace-nowrap text-left"
         onclick={() => handleSort(sortKey)}
       >
-        <span>{label}</span>
+        <span class="whitespace-nowrap">{label}</span>
         {#if isActive}
           {#if isAsc}
             <ArrowUp class="size-3 text-app-accent" />
@@ -125,7 +137,7 @@
   <table
     class={cn(
       "w-full border-collapse",
-      compact ? "table-fixed text-[11px]" : "min-w-[56rem] text-sm"
+      compact ? "table-fixed text-[11px]" : "min-w-[72rem] text-sm"
     )}
   >
     <thead>
@@ -139,25 +151,36 @@
         {#if permutaDisponivel}
           {@render sortableHeader("Seu imóvel", "valorApartamento", TOOLTIPS.valorApartamento)}
           <th class={thClass}>Estratégia</th>
+          {@render sortableHeader("Venda em", "vendaEm", "Mês da venda do imóvel (venda posterior)")}
         {/if}
-        {@render sortableHeader("Financiado", "valorFinanciado", "Valor total a ser financiado")}
+        {#if showExtraColumn}
+          {@render sortableHeader("Extra em", "extraEm", "Mês do recebimento da quantia extra")}
+        {/if}
+        {@render sortableHeader(
+          "Financiado",
+          "valorFinanciado",
+          "Valor total a ser financiado"
+        )}
         {@render sortableHeader(
           "Total/mês",
-          "parcela",
-          "Aporte extra mensal + primeira parcela (maior valor no SAC)"
+          "totalMensal",
+          "Prestação + aporte + reforma + manutenção no 1º mês do cenário otimizado"
         )}
+        {#if showReformasColumn}
+          {@render sortableHeader("Reformas", "totalReformas", "Total gasto com reformas")}
+        {/if}
         {@render sortableHeader("Compr.", "comprometimento", TOOLTIPS.comprometimento)}
         {@render sortableHeader("Prazo", "prazoReal", "Prazo real com amortização extra")}
         {@render sortableHeader(
           "Juros",
           "jurosOtimizado",
-          "Total de juros que você vai pagar (com amortização extra)"
+          "Total de juros pagos no cenário otimizado"
         )}
         {#if !hideCustoTotalColumn}
           {@render sortableHeader(
-            "Custo Total",
+            "Custo total",
             "custoTotal",
-            "Custo total do imóvel (valor + juros + fechamento)"
+            "Custo total event-aware (imóvel + juros + fechamento + reformas + manutenção + carrego)"
           )}
         {/if}
       </tr>
@@ -183,11 +206,13 @@
           {/if}
           {#if !hideValorImovelColumn}
             {@const discountLabel = valorImovelDiscountLabels[cenario.valorImovel]}
-            <td class={cn(tdClass, monoCellClass, "whitespace-nowrap text-app-accent")}>
-              <span class="inline-flex items-baseline gap-0.5 whitespace-nowrap">
+            <td class={cn(tdClass, monoCellClass, "text-app-accent")}>
+              <span class="inline-flex items-baseline gap-0.5">
                 {formatCurrencyCompact(cenario.valorImovel)}
                 {#if discountLabel}
-                  <span class="font-sans text-[9px] font-normal text-app-muted">({discountLabel})</span>
+                  <span class="font-sans text-[9px] font-normal text-app-muted"
+                    >({discountLabel})</span
+                  >
                 {/if}
               </span>
             </td>
@@ -203,17 +228,30 @@
             <td class={tdClass}>
               <EstrategiaBadge estrategia={cenario.estrategia} variant="inline" />
             </td>
+            <td class={cn(tdClass, monoCellClass)}>
+              {formatTimingCell(cenario.vendaEm)}
+            </td>
+          {/if}
+          {#if showExtraColumn}
+            <td class={cn(tdClass, monoCellClass)}>
+              {formatTimingCell(cenario.extraEm)}
+            </td>
           {/if}
           <td class={cn(tdClass, monoCellClass)}>
             {formatCurrencyCompact(cenario.financiamento.valorFinanciado)}
           </td>
           <td class={cn(tdClass, monoCellClass, "font-bold text-app-accent")}>
-            {formatCurrencyCompact(
-              cenario.aporteExtra + cenario.tabelaPadrao.primeiraParcelar
-            )}
+            <TotalMensalHoverBreakdown month={cenario.timeline[0]}>
+              {formatCurrencyCompact(cenario.totalMensal)}
+            </TotalMensalHoverBreakdown>
           </td>
+          {#if showReformasColumn}
+            <td class={cn(tdClass, monoCellClass)}>
+              {formatCurrencyCompact(cenario.totalReformas)}
+            </td>
+          {/if}
           <td class={tdClass}>
-            <div class="flex items-center gap-2">
+            <div class="flex shrink-0 items-center gap-2 whitespace-nowrap">
               {@render aprovacaoIndicator(cenario.comprometimento.dentroDoLimite)}
               <span
                 class={cn(
@@ -226,7 +264,7 @@
             </div>
           </td>
           <td class={cn(tdClass, monoCellClass, "text-app-accent")}>
-            {(cenario.cenarioOtimizado.prazoReal / 12).toFixed(1)}a
+            {formatPrazoAnosLabel(cenario.cenarioOtimizado.prazoReal)}
           </td>
           <td class={cn(tdClass, monoCellClass, "font-bold text-salmon")}>
             {formatCurrencyCompact(cenario.cenarioOtimizado.totalJuros)}

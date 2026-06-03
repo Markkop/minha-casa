@@ -31,7 +31,7 @@
     }))
   );
 
-  const permutaDisponivel = $derived(params.valorApartamento > 0);
+  const permutaDisponivel = $derived(params.temImovelParaNegociar);
 
   const estrategiasAtivas = $derived(params.estrategiasFiltro ?? ["permuta", "venda_posterior"]);
 

@@ -10,7 +10,7 @@
   } = $props();
 </script>
 
-<div class="mb-1 flex items-center justify-between gap-2 border-b border-app-border/60 pb-0.5">
+<div class="mb-0.5 flex items-center justify-between gap-2 border-b border-app-border/60 pb-0.5">
   <p class="text-xs font-semibold tracking-wide text-app-subtle uppercase">
     {title}
   </p>

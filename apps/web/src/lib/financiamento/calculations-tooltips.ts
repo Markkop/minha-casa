@@ -53,7 +53,7 @@ export function generateTooltips(params: TooltipParams = {}) {
     rendaMensal:
       "Renda mensal comprovável (pró-labore + distribuição de lucros). Bancos limitam parcela a 30% da renda.",
     comprometimento:
-      "Percentual da renda comprometido com a parcela. Acima de 30% pode dificultar aprovação do crédito.",
+      "Percentual da renda comprometido com a 1ª parcela do financiamento (SAC + juros + seguros), sem aporte extra, reformas ou manutenção. Acima de 30% pode dificultar aprovação.",
     economiaJuros: economiaText,
     cetEstimado:
       "Custo Efetivo Total estimado. Inclui juros, TR, seguros e taxas.",

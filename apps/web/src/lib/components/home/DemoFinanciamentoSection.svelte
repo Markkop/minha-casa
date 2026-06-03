@@ -45,7 +45,9 @@
       prazoMeses: DEMO_DEFAULTS.prazoMeses,
       aporteExtra,
       rendaMensal: DEMO_DEFAULTS.rendaMensal,
-      custoCondominioMensal: DEMO_DEFAULTS.custoCondominioMensal,
+      custoManutencaoImovelMensal: DEMO_DEFAULTS.custoCondominioMensal,
+      temImovelParaNegociar: true,
+      temposVendaPosteriorMeses: [6],
       seguros: DEMO_DEFAULTS.seguros
     }).filter((c) => estrategias.includes(c.estrategia));
   });

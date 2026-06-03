@@ -4,7 +4,10 @@ export type ResultsSortKey =
   | "valorImovel"
   | "valorApartamento"
   | "valorFinanciado"
-  | "parcela"
+  | "vendaEm"
+  | "extraEm"
+  | "totalMensal"
+  | "totalReformas"
   | "comprometimento"
   | "prazoReal"
   | "jurosOtimizado"
@@ -22,7 +25,10 @@ function sortValue(cenario: CenarioCompleto, key: ResultsSortKey): number {
     valorImovel: cenario.valorImovel,
     valorApartamento: cenario.valorApartamento,
     valorFinanciado: cenario.financiamento.valorFinanciado,
-    parcela: cenario.tabelaPadrao.primeiraParcelar,
+    vendaEm: cenario.vendaEm ?? 0,
+    extraEm: cenario.extraEm ?? 0,
+    totalMensal: cenario.totalMensal,
+    totalReformas: cenario.totalReformas,
     comprometimento: cenario.comprometimento.percentual,
     prazoReal: cenario.cenarioOtimizado.prazoReal,
     jurosOtimizado: cenario.cenarioOtimizado.totalJuros,
@@ -42,10 +48,7 @@ export function sortCenarios(
   });
 }
 
-export function toggleSort(
-  prev: ResultsSortState,
-  key: ResultsSortKey
-): ResultsSortState {
+export function toggleSort(prev: ResultsSortState, key: ResultsSortKey): ResultsSortState {
   return {
     key,
     direction: prev.key === key && prev.direction === "desc" ? "asc" : "desc"

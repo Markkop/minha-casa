@@ -28,7 +28,7 @@
 </script>
 
 {#if variant === "inline"}
-  <span class={cn("text-xs font-medium", item.inlineClass)}>{item.label}</span>
+  <span class={cn("whitespace-nowrap text-xs font-medium", item.inlineClass)}>{item.label}</span>
 {:else}
   <span
     class={cn(
