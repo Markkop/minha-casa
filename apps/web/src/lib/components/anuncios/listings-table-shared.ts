@@ -94,6 +94,9 @@ export const LISTING_MOBILE_GALLERY_CLASS = "min-w-0 flex-[2] basis-0 self-stret
 export const LISTING_MOBILE_GALLERY_HERO_CLASS = "relative aspect-video w-full overflow-hidden";
 export const LISTING_MOBILE_CARD_BODY_CLASS =
   "relative flex min-w-0 flex-col gap-1.5 px-3.5 pb-3.5";
+/** Aligned summary grid: price/areas | status/amenities */
+export const LISTING_MOBILE_SUMMARY_GRID_CLASS =
+  "grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1.5 leading-none";
 export const LISTING_MOBILE_ROW_GAP_CLASS = "gap-0.5";
 export const LISTING_MOBILE_TOOLBAR_GAP_CLASS = "gap-0.5";
 export const LISTING_MOBILE_ICON_BTN_CLASS =

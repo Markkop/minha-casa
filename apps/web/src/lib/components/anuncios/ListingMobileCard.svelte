@@ -3,11 +3,18 @@
   import ListingMobileMetricRow from "$lib/components/anuncios/ListingMobileMetricRow.svelte";
   import ListingMobileImageGallery from "$lib/components/anuncios/ListingMobileImageGallery.svelte";
   import ListingMobileCountFeatures from "$lib/components/anuncios/ListingMobileCountFeatures.svelte";
-  import ListingMobileAmenityStack from "$lib/components/anuncios/ListingMobileAmenityStack.svelte";
+  import ListingMobileAmenityButton from "$lib/components/anuncios/ListingMobileAmenityButton.svelte";
   import ListingTitleStatusRow from "$lib/components/anuncios/ListingTitleStatusRow.svelte";
   import ListingRowStatusSelect from "$lib/components/anuncios/ListingRowStatusSelect.svelte";
+  import {
+    getListingMobileAmenities,
+    layoutListingMobileAmenityRows
+  } from "$lib/components/anuncios/listing-mobile-amenities";
   import { calculatePrecoM2, calculatePrecoM2Privado } from "$lib/components/anuncios/listing-row-urls";
-  import { LISTING_MOBILE_CARD_BODY_CLASS } from "$lib/components/anuncios/listings-table-shared";
+  import {
+    LISTING_MOBILE_CARD_BODY_CLASS,
+    LISTING_MOBILE_SUMMARY_GRID_CLASS
+  } from "$lib/components/anuncios/listings-table-shared";
   import type { ListingTableRowProps } from "$lib/components/anuncios/listing-table-row-types";
   import { cn } from "$lib/utils";
 
@@ -39,8 +46,40 @@
       (enabledMetricVariants.has("total") || enabledMetricVariants.has("privado"))
   );
   const titleOnHero = $derived(showImage && showTitle);
-  const showLeftSummary = $derived(showPrice || showPropertyIcons);
-  const showRightSummary = $derived(showStatus || showPropertyIcons);
+  const showSummaryRow = $derived(showPrice || showPropertyIcons || showStatus);
+
+  const metricSegments = $derived([
+    ...(enabledMetricVariants.has("total")
+      ? [
+          {
+            variant: "total" as const,
+            area: imovel.m2Totais,
+            pricePerM2: calculatePrecoM2(imovel.preco, imovel.m2Totais)
+          }
+        ]
+      : []),
+    ...(enabledMetricVariants.has("privado")
+      ? [
+          {
+            variant: "privado" as const,
+            area: imovel.m2Privado,
+            pricePerM2: calculatePrecoM2Privado(imovel.preco, imovel.m2Privado)
+          }
+        ]
+      : [])
+  ]);
+
+  const amenityRows = $derived(
+    showPropertyIcons
+      ? layoutListingMobileAmenityRows(getListingMobileAmenities(imovel, interactions))
+      : []
+  );
+
+  const detailRowCount = $derived(
+    Math.max(showMetrics ? metricSegments.length : 0, amenityRows.length)
+  );
+
+  const showSummaryGrid = $derived(showSummaryRow || detailRowCount > 0);
 
   const titleStatusProps = $derived({
     listing: imovel,
@@ -104,73 +143,74 @@
       <ListingTitleStatusRow {...titleStatusProps} {displayTitle} class="min-w-0" />
     {/if}
 
-    {#if showLeftSummary || showRightSummary || showMetrics}
-      <div class="flex min-w-0 items-stretch gap-3">
-        <div class="flex min-w-0 flex-1 flex-col gap-1.5">
-          {#if showLeftSummary}
-            <div
-              data-testid="listing-mobile-summary-row"
-              class="flex min-w-0 items-center gap-1.5 overflow-hidden"
-            >
-              {#if showPrice}
-                <div data-testid="listing-mobile-price" class="shrink-0 leading-none text-app-muted">
-                  <ClickablePrice price={imovel.preco} strikethrough={imovel.strikethrough} />
-                </div>
-              {/if}
-              {#if showPropertyIcons}
-                <ListingMobileCountFeatures {imovel} {interactions} class="min-w-0" />
-              {/if}
-            </div>
-          {/if}
-
-          {#if showMetrics}
-            {@const metricSegments = [
-              ...(enabledMetricVariants.has("total")
-                ? [
-                    {
-                      variant: "total" as const,
-                      area: imovel.m2Totais,
-                      pricePerM2: calculatePrecoM2(imovel.preco, imovel.m2Totais)
-                    }
-                  ]
-                : []),
-              ...(enabledMetricVariants.has("privado")
-                ? [
-                    {
-                      variant: "privado" as const,
-                      area: imovel.m2Privado,
-                      pricePerM2: calculatePrecoM2Privado(imovel.preco, imovel.m2Privado)
-                    }
-                  ]
-                : [])
-            ]}
-            {#if metricSegments.length > 0}
-              <ListingMobileMetricRow
-                data-testid="listing-mobile-metrics"
-                segments={metricSegments}
-                tipoImovel={imovel.tipoImovel}
-                {showArea}
-                showValue={showValue}
-                activeVariant={activeMetricVariant}
-                emphasizeWhenSorted={activeMetricVariant !== null}
-                class={strikethroughClass}
-              />
-            {/if}
-          {/if}
-        </div>
-
-        {#if showRightSummary}
-          <div class="flex shrink-0 flex-col gap-1.5 self-stretch leading-none">
-            {#if showStatus}
-              <div class="flex w-full justify-end">
-                <ListingRowStatusSelect {imovel} {interactions} class="shrink-0" />
+    {#if showSummaryGrid}
+      <div
+        data-testid="listing-mobile-summary-grid"
+        class={LISTING_MOBILE_SUMMARY_GRID_CLASS}
+      >
+        {#if showSummaryRow}
+          <div class="flex min-w-0 items-center gap-1.5 overflow-hidden">
+            {#if showPrice}
+              <div data-testid="listing-mobile-price" class="shrink-0 text-app-muted">
+                <ClickablePrice price={imovel.preco} strikethrough={imovel.strikethrough} />
               </div>
             {/if}
             {#if showPropertyIcons}
-              <ListingMobileAmenityStack {imovel} {interactions} />
+              <ListingMobileCountFeatures {imovel} {interactions} class="min-w-0" />
             {/if}
           </div>
+
+          {#if showStatus}
+            <div class="flex justify-end">
+              <ListingRowStatusSelect {imovel} {interactions} class="shrink-0" />
+            </div>
+          {:else}
+            <span aria-hidden="true"></span>
+          {/if}
         {/if}
+
+        {#each Array.from({ length: detailRowCount }, (_, rowIndex) => rowIndex) as rowIndex (rowIndex)}
+          {@const metricSegment = showMetrics ? metricSegments[rowIndex] : undefined}
+          {@const amenityPair = amenityRows[rowIndex]}
+
+          {#if metricSegment}
+            <ListingMobileMetricRow
+              data-testid={rowIndex === 0 ? "listing-mobile-metrics" : undefined}
+              segments={[metricSegment]}
+              tipoImovel={imovel.tipoImovel}
+              {showArea}
+              showValue={showValue}
+              activeVariant={activeMetricVariant}
+              emphasizeWhenSorted={activeMetricVariant !== null}
+              class={cn("min-w-0", strikethroughClass)}
+            />
+          {:else}
+            <span aria-hidden="true"></span>
+          {/if}
+
+          {#if amenityPair?.[0] || amenityPair?.[1]}
+            <div class="grid grid-cols-[auto_auto] justify-items-end justify-end gap-x-3">
+              {#if amenityPair[0]}
+                <ListingMobileAmenityButton
+                  amenity={amenityPair[0]}
+                  strikethrough={imovel.strikethrough}
+                />
+              {:else}
+                <span aria-hidden="true"></span>
+              {/if}
+              {#if amenityPair[1]}
+                <ListingMobileAmenityButton
+                  amenity={amenityPair[1]}
+                  strikethrough={imovel.strikethrough}
+                />
+              {:else}
+                <span aria-hidden="true"></span>
+              {/if}
+            </div>
+          {:else}
+            <span aria-hidden="true"></span>
+          {/if}
+        {/each}
       </div>
     {/if}
   </div>
