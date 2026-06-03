@@ -211,7 +211,7 @@
         }
       };
 
-      marker.addListener("click", () => {
+      marker.addListener("gmp-click", () => {
         closeInfoWindow();
         const container = document.createElement("div");
         infoMount = mount(MapMarkerInfoContent, {
