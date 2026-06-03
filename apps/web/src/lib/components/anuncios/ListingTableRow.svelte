@@ -3,7 +3,6 @@
   import AreaM2Stack from "$lib/components/anuncios/AreaM2Stack.svelte";
   import PricePerM2Stack from "$lib/components/anuncios/PricePerM2Stack.svelte";
   import ListingImageColumnCell from "$lib/components/anuncios/ListingImageColumnCell.svelte";
-  import ListingCompactToolbar from "$lib/components/anuncios/ListingCompactToolbar.svelte";
   import ListingPropertyMetaRow from "$lib/components/anuncios/ListingPropertyMetaRow.svelte";
   import ListingTitleStatusRow from "$lib/components/anuncios/ListingTitleStatusRow.svelte";
   import { calculatePrecoM2, calculatePrecoM2Privado } from "$lib/components/anuncios/listing-row-urls";
@@ -14,7 +13,6 @@
     formatQuartosSuites
   } from "$lib/components/anuncios/listing-table-row-utils";
   import type { ListingTableRowProps } from "$lib/components/anuncios/listing-table-row-types";
-  import type { ListingsTableColumn } from "$lib/components/anuncios/listings-table-shared";
   import { cn } from "$lib/utils";
 
   let {
@@ -34,11 +32,7 @@
 
   const interactions = $derived(getRowInteractions(imovel));
 
-  const visibleColumnCount = $derived(
-    (Object.keys(visibleColumns) as ListingsTableColumn[]).filter((key) => visibleColumns[key]).length
-  );
   const showMetaRow = $derived(visibleColumns.property && propertyDisplay.showPropertyIcons);
-  const showCompactToolbar = $derived(visibleColumns.property);
   const rowSurfaceClass = $derived(
     imovel.starred
       ? "border-app-action/50 bg-app-action/20 group-hover:bg-app-action/30"
@@ -46,27 +40,9 @@
   );
 </script>
 
-{#if showCompactToolbar}
-  <tr
-    data-testid="listing-toolbar-row-{imovel.id}"
-    class={cn("group border-b-0", rowSurfaceClass)}
-  >
-    <td colspan={visibleColumnCount} class="p-0 align-top">
-      <ListingCompactToolbar
-        {imovel}
-        {interactions}
-        {openEditListing}
-        showMap={propertyDisplay.showAddress}
-        showContact={propertyDisplay.showContact}
-        showStatus={visibleColumns.status}
-      />
-    </td>
-  </tr>
-{/if}
-
 <tr
   id="listing-{imovel.id}"
-  class={cn("group border-b", rowSurfaceClass, showCompactToolbar && "border-t-0")}
+  class={cn("group border-b", rowSurfaceClass)}
 >
   {#if visibleColumns.image}
     <td class="relative sticky left-0 z-20 w-[5.5rem] bg-app-surface p-2 align-middle whitespace-nowrap">
@@ -94,6 +70,11 @@
             listing={imovel}
             {displayTitle}
             collectionId={activeCollectionId}
+            {interactions}
+            {openEditListing}
+            showMap={propertyDisplay.showAddress}
+            showContact={propertyDisplay.showContact}
+            showStatus={visibleColumns.status}
           />
           {#if showMetaRow}
             <ListingPropertyMetaRow

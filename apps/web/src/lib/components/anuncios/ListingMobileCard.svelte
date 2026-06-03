@@ -1,7 +1,6 @@
 <script lang="ts">
   import { truncateListingTitle } from "$lib/components/anuncios/ListingTitleLinks.svelte";
   import ClickablePrice from "$lib/components/anuncios/ClickablePrice.svelte";
-  import ListingCompactToolbar from "$lib/components/anuncios/ListingCompactToolbar.svelte";
   import ListingMobileMetricRow from "$lib/components/anuncios/ListingMobileMetricRow.svelte";
   import ListingMobileCardBackdrop from "$lib/components/anuncios/ListingMobileCardBackdrop.svelte";
   import ListingPropertyMetaRow from "$lib/components/anuncios/ListingPropertyMetaRow.svelte";
@@ -41,7 +40,6 @@
   const mobileTitleTruncated = $derived(truncateListingTitle(mobileCompactTitle, 48));
   const showPropertyIcons = $derived(propertyDisplay.showPropertyIcons && visibleColumns.property);
   const showMetaRow = $derived(showPropertyIcons);
-  const showCompactToolbar = $derived(visibleColumns.property);
   const showPrice = $derived(visibleColumns.price);
   const showMetrics = $derived(visibleColumns.area || visibleColumns.value);
   const showImage = $derived(visibleColumns.image);
@@ -53,17 +51,12 @@
 
   const titleStatusProps = $derived({
     listing: imovel,
-    collectionId: activeCollectionId
-  });
-
-  const compactToolbarProps = $derived({
-    imovel,
+    collectionId: activeCollectionId,
     interactions,
     openEditListing,
     showMap: propertyDisplay.showAddress,
     showContact: propertyDisplay.showContact,
-    showStatus,
-    density: "mobile" as const
+    showStatus
   });
 </script>
 
@@ -91,12 +84,6 @@
     imovel.starred ? "border-app-action/50 bg-app-action/20" : "bg-app-surface"
   )}
 >
-  {#if showCompactToolbar}
-    <div data-testid="listing-mobile-compact-toolbar" class="w-full">
-      <ListingCompactToolbar {...compactToolbarProps} />
-    </div>
-  {/if}
-
   {#if showFallbackHeader}
     <div data-testid="listing-mobile-top" class="flex min-w-0 flex-col gap-1">
       <ListingTitleStatusRow
@@ -136,7 +123,7 @@
             truncateTitle={false}
             overlayOnMedia
             titleClassName="text-[11px] drop-shadow-sm"
-            class="min-w-0 flex-1"
+            class="min-w-0 max-w-full"
           />
         </div>
       </div>

@@ -1,4 +1,8 @@
 import type { Imovel } from "$lib/anuncios/types";
+import {
+  clampListingCount,
+  type ListingCountField
+} from "$lib/anuncios/listing-count-field";
 import { buildListingMarkdown } from "$lib/anuncios/listing-markdown";
 import {
   isStrikethroughStatus,
@@ -20,6 +24,7 @@ export function createListingRowInteractions({
   let tipoImovelPopoverOpen = $state(false);
   let copyToCollectionPopoverOpen = $state(false);
   let copiedMarkdown = $state(false);
+  const countAdjustmentsInFlight = new Set<string>();
 
   async function handleToggleStar() {
     const imovel = getImovel();
@@ -92,47 +97,23 @@ export function createListingRowInteractions({
     }
   }
 
-  async function handleCycleAndar() {
+  async function handleSetCount(field: ListingCountField, nextValue: number) {
     const imovel = getImovel();
-    try {
-      const current = imovel.andar ?? 0;
-      const nextValue = current >= 10 ? 0 : current + 1;
-      await apiUpdateListing(imovel.id, { andar: nextValue });
-    } catch (error) {
-      console.error("Failed to cycle andar:", error);
-    }
-  }
+    const current = (imovel[field] as number | null) ?? 0;
+    const clamped = clampListingCount(field, nextValue);
+    if (clamped === current) return;
 
-  async function handleCycleGaragem() {
-    const imovel = getImovel();
-    try {
-      const current = imovel.garagem ?? 0;
-      const nextValue = current >= 4 ? 0 : current + 1;
-      await apiUpdateListing(imovel.id, { garagem: nextValue });
-    } catch (error) {
-      console.error("Failed to cycle garagem:", error);
-    }
-  }
+    const flightKey = `${imovel.id}:${field}`;
+    if (countAdjustmentsInFlight.has(flightKey)) return;
+    countAdjustmentsInFlight.add(flightKey);
 
-  async function handleCycleQuartos() {
-    const imovel = getImovel();
     try {
-      const current = imovel.quartos ?? 0;
-      const nextValue = current >= 6 ? 0 : current + 1;
-      await apiUpdateListing(imovel.id, { quartos: nextValue });
+      await apiUpdateListing(imovel.id, { [field]: clamped });
     } catch (error) {
-      console.error("Failed to cycle quartos:", error);
-    }
-  }
-
-  async function handleCycleBanheiros() {
-    const imovel = getImovel();
-    try {
-      const current = imovel.banheiros ?? 0;
-      const nextValue = current >= 6 ? 0 : current + 1;
-      await apiUpdateListing(imovel.id, { banheiros: nextValue });
-    } catch (error) {
-      console.error("Failed to cycle banheiros:", error);
+      console.error(`Failed to set ${field}:`, error);
+      throw error;
+    } finally {
+      countAdjustmentsInFlight.delete(flightKey);
     }
   }
 
@@ -197,10 +178,7 @@ export function createListingRowInteractions({
     handleTogglePorteiro24h,
     handleToggleAcademia,
     handleToggleVistaLivre,
-    handleCycleAndar,
-    handleCycleGaragem,
-    handleCycleQuartos,
-    handleCycleBanheiros,
+    handleSetCount,
     handleSetTipoImovel,
     handleCopyListingMarkdown,
     handleDelete,

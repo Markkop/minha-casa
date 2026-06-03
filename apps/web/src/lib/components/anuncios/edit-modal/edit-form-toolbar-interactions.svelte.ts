@@ -1,4 +1,8 @@
 import type { Imovel } from "$lib/anuncios/types";
+import {
+  clampListingCount,
+  type ListingCountField
+} from "$lib/anuncios/listing-count-field";
 import type { TipoImovelValue } from "$lib/components/anuncios/listings-table-shared";
 
 export function createEditFormToolbarInteractions(options: {
@@ -12,11 +16,12 @@ export function createEditFormToolbarInteractions(options: {
     options.patchDraft({ [field]: current === true ? false : true } as Partial<Imovel>);
   }
 
-  function cycleNumericField(field: "quartos" | "banheiros" | "garagem" | "andar", max: number) {
+  function setNumericField(field: ListingCountField, nextValue: number) {
     const draft = options.getDraft();
     const current = (draft[field] as number | null | undefined) ?? 0;
-    const nextValue = current >= max ? 0 : current + 1;
-    options.patchDraft({ [field]: nextValue } as Partial<Imovel>);
+    const clamped = clampListingCount(field, nextValue);
+    if (clamped === current) return;
+    options.patchDraft({ [field]: clamped } as Partial<Imovel>);
   }
 
   return {
@@ -45,17 +50,8 @@ export function createEditFormToolbarInteractions(options: {
     async handleToggleVistaLivre() {
       patchFromToggle("vistaLivre");
     },
-    async handleCycleQuartos() {
-      cycleNumericField("quartos", 6);
-    },
-    async handleCycleBanheiros() {
-      cycleNumericField("banheiros", 6);
-    },
-    async handleCycleGaragem() {
-      cycleNumericField("garagem", 4);
-    },
-    async handleCycleAndar() {
-      cycleNumericField("andar", 10);
+    async handleSetCount(field: ListingCountField, nextValue: number) {
+      setNumericField(field, nextValue);
     }
   };
 }

@@ -11,22 +11,19 @@ export type ListingToolbarVisibility = {
   showTipoImovel: boolean;
   showPiscina: boolean;
   showVistaLivre: boolean;
-  showQuartos: boolean;
 };
 
 export const DEFAULT_LISTING_TOOLBAR_VISIBILITY: ListingToolbarVisibility = {
   showTipoImovel: true,
   showPiscina: true,
-  showVistaLivre: true,
-  showQuartos: false
+  showVistaLivre: true
 };
 
 /** Edit dialog shows every toolbar control regardless of list uniformity. */
 export const EDIT_MODAL_TOOLBAR_VISIBILITY: ListingToolbarVisibility = {
   showTipoImovel: true,
   showPiscina: true,
-  showVistaLivre: true,
-  showQuartos: true
+  showVistaLivre: true
 };
 
 function hasPiscina(listing: Pick<Imovel, "piscina">): boolean {
@@ -50,8 +47,7 @@ export function computeListingToolbarVisibility(
     return {
       showTipoImovel: true,
       showPiscina: true,
-      showVistaLivre: true,
-      showQuartos: false
+      showVistaLivre: true
     };
   }
 
@@ -62,7 +58,6 @@ export function computeListingToolbarVisibility(
   return {
     showTipoImovel: !isUniform(tipos),
     showPiscina: !isUniform(piscinas),
-    showVistaLivre: !isUniform(vistasLivres),
-    showQuartos: false
+    showVistaLivre: !isUniform(vistasLivres)
   };
 }

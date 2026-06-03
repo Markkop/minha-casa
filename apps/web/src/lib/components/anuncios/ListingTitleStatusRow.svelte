@@ -1,6 +1,8 @@
 <script lang="ts">
   import type { Imovel } from "$lib/anuncios/types";
+  import ListingRowActionsMenu from "$lib/components/anuncios/ListingRowActionsMenu.svelte";
   import ListingTitleLinks from "$lib/components/anuncios/ListingTitleLinks.svelte";
+  import type { ListingRowInteractions } from "$lib/components/anuncios/listing-row-interactions.svelte";
   import { cn } from "$lib/utils";
 
   let {
@@ -11,7 +13,12 @@
     maxTitleLength = 50,
     truncateTitle = true,
     class: className = "",
-    titleClassName = ""
+    titleClassName = "",
+    interactions = undefined,
+    openEditListing = undefined,
+    showMap = true,
+    showContact = true,
+    showStatus = true
   }: {
     listing: Imovel;
     displayTitle: string;
@@ -21,10 +28,20 @@
     truncateTitle?: boolean;
     class?: string;
     titleClassName?: string;
+    interactions?: ListingRowInteractions;
+    openEditListing?: (listing: Imovel) => void;
+    showMap?: boolean;
+    showContact?: boolean;
+    showStatus?: boolean;
   } = $props();
+
+  const showActionsMenu = $derived(interactions !== undefined && openEditListing !== undefined);
 </script>
 
-<div data-testid="listing-title-status-row" class={cn("flex min-w-0 items-center gap-1", className)}>
+<div
+  data-testid="listing-title-status-row"
+  class={cn("inline-flex min-w-0 max-w-full items-center gap-0.5", className)}
+>
   <ListingTitleLinks
     {listing}
     {displayTitle}
@@ -32,7 +49,18 @@
     {overlayOnMedia}
     {maxTitleLength}
     {truncateTitle}
-    class="min-w-0 flex-1"
+    class="min-w-0 max-w-full flex-none"
     {titleClassName}
   />
+  {#if showActionsMenu}
+    <ListingRowActionsMenu
+      imovel={listing}
+      interactions={interactions!}
+      openEditListing={openEditListing!}
+      {showMap}
+      {showContact}
+      {showStatus}
+      {overlayOnMedia}
+    />
+  {/if}
 </div>

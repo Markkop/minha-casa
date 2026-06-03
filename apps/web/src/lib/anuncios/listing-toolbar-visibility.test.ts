@@ -6,8 +6,7 @@ describe("computeListingToolbarVisibility", () => {
     expect(computeListingToolbarVisibility([])).toEqual({
       showTipoImovel: true,
       showPiscina: true,
-      showVistaLivre: true,
-      showQuartos: false
+      showVistaLivre: true
     });
   });
 
@@ -20,8 +19,7 @@ describe("computeListingToolbarVisibility", () => {
     ).toEqual({
       showTipoImovel: false,
       showPiscina: true,
-      showVistaLivre: false,
-      showQuartos: false
+      showVistaLivre: false
     });
   });
 
@@ -34,8 +32,7 @@ describe("computeListingToolbarVisibility", () => {
     ).toEqual({
       showTipoImovel: true,
       showPiscina: false,
-      showVistaLivre: false,
-      showQuartos: false
+      showVistaLivre: false
     });
   });
 
@@ -48,8 +45,7 @@ describe("computeListingToolbarVisibility", () => {
     ).toEqual({
       showTipoImovel: false,
       showPiscina: false,
-      showVistaLivre: false,
-      showQuartos: false
+      showVistaLivre: false
     });
   });
 
@@ -62,8 +58,7 @@ describe("computeListingToolbarVisibility", () => {
     ).toEqual({
       showTipoImovel: false,
       showPiscina: false,
-      showVistaLivre: false,
-      showQuartos: false
+      showVistaLivre: false
     });
   });
 
@@ -83,13 +78,5 @@ describe("computeListingToolbarVisibility", () => {
         { tipoImovel: "casa", piscina: false, vistaLivre: true }
       ])
     ).toMatchObject({ showVistaLivre: true });
-  });
-
-  it("always hides quartos", () => {
-    expect(
-      computeListingToolbarVisibility([
-        { tipoImovel: "casa", piscina: false, vistaLivre: false }
-      ])
-    ).toMatchObject({ showQuartos: false });
   });
 });

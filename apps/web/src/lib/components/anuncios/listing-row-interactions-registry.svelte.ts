@@ -7,6 +7,7 @@ import {
 type RowInteractions = ReturnType<typeof createListingRowInteractions>;
 
 export interface ListingRowInteractionsRegistryOptions {
+  getListingById: (listingId: string) => Imovel | undefined;
   updateListing: CreateListingRowInteractionsOptions["updateListing"];
   removeListing: CreateListingRowInteractionsOptions["removeListing"];
 }
@@ -21,7 +22,7 @@ export function createListingRowInteractionsRegistry(
     if (existing) return existing;
 
     const interactions = createListingRowInteractions({
-      getImovel: () => imovel,
+      getImovel: () => options.getListingById(imovel.id) ?? imovel,
       updateListing: options.updateListing,
       removeListing: options.removeListing
     });

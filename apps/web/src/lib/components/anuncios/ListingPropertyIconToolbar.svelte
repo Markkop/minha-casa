@@ -8,6 +8,7 @@
     Car,
     WavesLadder,
     Bath,
+    BedDouble,
     Check
   } from "@lucide/svelte";
   import type { Imovel } from "$lib/anuncios/types";
@@ -16,6 +17,8 @@
     type ListingToolbarVisibility
   } from "$lib/anuncios/listing-toolbar-visibility";
   import { cn } from "$lib/utils";
+  import { formatListingCountDisplay } from "$lib/anuncios/listing-count-field";
+  import ListingCountStepperPopover from "$lib/components/anuncios/ListingCountStepperPopover.svelte";
   import {
     getTipoImovelOption,
     TIPO_IMOVEL_OPTIONS,
@@ -46,10 +49,7 @@
       | "handleTogglePorteiro24h"
       | "handleToggleAcademia"
       | "handleToggleVistaLivre"
-      | "handleCycleAndar"
-      | "handleCycleGaragem"
-      | "handleCycleQuartos"
-      | "handleCycleBanheiros"
+      | "handleSetCount"
     >;
     class?: string;
     density?: "default" | "mobile";
@@ -63,11 +63,6 @@
     isMobile ? LISTING_MOBILE_ICON_BTN_CLASS : "flex-shrink-0 p-1 transition-colors hover:opacity-80"
   );
   const iconClass = $derived(isMobile ? LISTING_MOBILE_ICON_CLASS : "h-4 w-4");
-  const cycleBtnClass = $derived(
-    isMobile
-      ? LISTING_MOBILE_ICON_BTN_CLASS
-      : "relative flex h-6 w-6 flex-shrink-0 items-center justify-center p-1 transition-colors hover:opacity-80"
-  );
 
   function featureBtnClass(active: boolean, activeClass?: string) {
     return cn(
@@ -93,6 +88,36 @@
     className
   )}
 >
+  <ListingCountStepperPopover
+    field="quartos"
+    label={`Quartos: ${imovel.quartos ?? 0}`}
+    Icon={BedDouble}
+    value={imovel.quartos ?? 0}
+    displayValue={formatListingCountDisplay("quartos", imovel.quartos)}
+    {density}
+    onSetCount={(next) => interactions.handleSetCount("quartos", next)}
+  />
+
+  <ListingCountStepperPopover
+    field="banheiros"
+    label={`Banheiros: ${imovel.banheiros ?? 0}`}
+    Icon={Bath}
+    value={imovel.banheiros ?? 0}
+    displayValue={formatListingCountDisplay("banheiros", imovel.banheiros)}
+    {density}
+    onSetCount={(next) => interactions.handleSetCount("banheiros", next)}
+  />
+
+  <ListingCountStepperPopover
+    field="garagem"
+    label={`Vagas: ${imovel.garagem ?? 0}`}
+    Icon={Car}
+    value={imovel.garagem ?? 0}
+    displayValue={formatListingCountDisplay("garagem", imovel.garagem)}
+    {density}
+    onSetCount={(next) => interactions.handleSetCount("garagem", next)}
+  />
+
   {#if visibility.showTipoImovel}
   <AnchoredPopover bind:open={interactions.tipoImovelPopoverOpen} align="auto" panelClass="w-44 p-1">
     {#snippet trigger()}
@@ -179,82 +204,16 @@
         <Dumbbell class={iconClass} />
       </button>
     </FloatingTooltip>
+    <ListingCountStepperPopover
+      field="andar"
+      label={`Andar: ${imovel.andar === 10 ? "10+" : (imovel.andar ?? 0)}`}
+      Icon={Building}
+      value={imovel.andar ?? 0}
+      displayValue={formatListingCountDisplay("andar", imovel.andar)}
+      {density}
+      onSetCount={(next) => interactions.handleSetCount("andar", next)}
+    />
   {/if}
-
-  {#if visibility.showQuartos}
-  <FloatingTooltip label={`Quartos: ${imovel.quartos ?? 0}`} side="bottom">
-    <button
-      type="button"
-      class={cycleBtnClass}
-      onclick={() => void interactions.handleCycleQuartos()}
-    >
-      <span
-        class={cn(
-          "text-[10px] font-bold",
-          (imovel.quartos ?? 0) > 0 ? "text-app-fg" : "text-app-subtle opacity-50"
-        )}
-      >
-        {imovel.quartos ?? 0}
-      </span>
-    </button>
-  </FloatingTooltip>
-  {/if}
-
-  <FloatingTooltip label={`Banheiros: ${imovel.banheiros ?? 0}`} side="bottom">
-    <button
-      type="button"
-      class={cycleBtnClass}
-      onclick={() => void interactions.handleCycleBanheiros()}
-    >
-      <Bath class={cn("absolute text-muted-foreground opacity-50", iconClass)} />
-      <span
-        class={cn(
-          "relative z-10 text-[10px] font-bold",
-          (imovel.banheiros ?? 0) > 0 ? "text-app-fg" : "text-app-subtle opacity-50"
-        )}
-      >
-        {imovel.banheiros ?? 0}
-      </span>
-    </button>
-  </FloatingTooltip>
-
-  {#if imovel.tipoImovel === "apartamento"}
-    <FloatingTooltip label={`Andar: ${imovel.andar === 10 ? "10+" : (imovel.andar ?? 0)}`} side="bottom">
-      <button
-        type="button"
-        class={cycleBtnClass}
-        onclick={() => void interactions.handleCycleAndar()}
-      >
-        <Building class={cn("absolute text-muted-foreground opacity-50", iconClass)} />
-        <span
-          class={cn(
-            "relative z-10 text-[10px] font-bold",
-            (imovel.andar ?? 0) > 0 ? "text-app-fg" : "text-app-subtle opacity-50"
-          )}
-        >
-          {imovel.andar === 10 ? "+" : (imovel.andar ?? 0)}
-        </span>
-      </button>
-    </FloatingTooltip>
-  {/if}
-
-  <FloatingTooltip label={`Vagas: ${imovel.garagem ?? 0}`} side="bottom">
-    <button
-      type="button"
-      class={cycleBtnClass}
-      onclick={() => void interactions.handleCycleGaragem()}
-    >
-      <Car class={cn("absolute text-muted-foreground opacity-50", iconClass)} />
-      <span
-        class={cn(
-          "relative z-10 text-[10px] font-bold",
-          (imovel.garagem ?? 0) > 0 ? "text-app-fg" : "text-app-subtle opacity-50"
-        )}
-      >
-        {imovel.garagem ?? 0}
-      </span>
-    </button>
-  </FloatingTooltip>
 
   {#if visibility.showVistaLivre}
   <FloatingTooltip label={imovel.vistaLivre === true ? "Remover vista livre" : "Adicionar vista livre"} side="bottom">
