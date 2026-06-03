@@ -29,12 +29,17 @@ defmodule MinhaCasaAi.Integrations.Langfuse.PromptDefinitions do
     Você é um especialista em extrair dados estruturados de anúncios de imóveis brasileiros.
 
     Extraia: endereco, bairro, cidade, m2Totais, m2Privado, quartos, suites, banheiros,
-    garagem, preco, piscina, porteiro24h, academia, vistaLivre, piscinaTermica, tipoImovel,
-    condominiumName, contactName, contactNumber, sitePublishedAt e siteUpdatedAt.
+    garagem, preco, tipoImovel, condominiumName, contactName, contactNumber, sitePublishedAt,
+    siteUpdatedAt e o objeto preferences com as chaves abaixo.
+
+    Preferências do catálogo (chave: rótulo):
+    {{preference_list}}
 
     Regras:
     - Retorne SEMPRE um JSON válido e nada além do JSON.
     - Use null para campos não encontrados.
+    - Para cada chave em preferences, use true se o anúncio mencionar claramente a preferência,
+      false se mencionar explicitamente que não possui, ou null se não houver informação.
     - Para números, retorne apenas o valor numérico.
     - tipoImovel deve ser "casa", "apartamento" ou null.
     - Campos de área (nomes JSON fixos): m2Totais e m2Privado — não renomeie as chaves.

@@ -2,14 +2,18 @@ defmodule MinhaCasaAi.Integrations.OpenAIListingParser do
   alias MinhaCasaAi.Config
   alias MinhaCasaAi.Integrations.Langfuse.PromptHelpers
   alias MinhaCasaAi.Integrations.{OpenAIResponses, OpenAISchemas}
+  alias MinhaCasaAi.Workspace.ListingPreferences
 
   @max_listings 25
   @base_max_tokens 500
   @multi_max_tokens_cap 4_000
 
-  def parse_text(raw_text) when is_binary(raw_text) do
+  def parse_text(raw_text, opts \\ []) when is_binary(raw_text) do
+    catalog = Keyword.get(opts, :catalog, ListingPreferences.default_system_options())
+    compile_vars = prompt_compile_vars(catalog)
+
     {instructions, prompt_ref} =
-      PromptHelpers.compile("listing-parser/system", %{"max_listings" => Integer.to_string(@max_listings)})
+      PromptHelpers.compile("listing-parser/system", compile_vars)
 
     lf = PromptHelpers.langfuse_ctx("listing-parser/text", prompt_ref)
 
@@ -21,16 +25,19 @@ defmodule MinhaCasaAi.Integrations.OpenAIListingParser do
              reasoning_effort: "low",
              max_output_tokens: compute_max_tokens(raw_text, false),
              timeout: 45_000,
-             schema: %{name: "listing_parse", schema: OpenAISchemas.listing_parse_schema()},
+             schema: %{name: "listing_parse", schema: OpenAISchemas.listing_parse_schema(catalog)},
              langfuse: lf
            ) do
-      decode_listings_map(map)
+      decode_listings_map(map, catalog)
     end
   end
 
-  def parse_image(base64, mime_type) when is_binary(base64) and is_binary(mime_type) do
+  def parse_image(base64, mime_type, opts \\ []) when is_binary(base64) and is_binary(mime_type) do
+    catalog = Keyword.get(opts, :catalog, ListingPreferences.default_system_options())
+    compile_vars = prompt_compile_vars(catalog)
+
     {instructions, prompt_ref} =
-      PromptHelpers.compile("listing-parser/system", %{"max_listings" => Integer.to_string(@max_listings)})
+      PromptHelpers.compile("listing-parser/system", compile_vars)
 
     {vision_user, vision_ref} = PromptHelpers.compile("listing-parser/vision-user", %{})
     lf = PromptHelpers.langfuse_ctx("listing-parser/vision", prompt_ref || vision_ref)
@@ -45,11 +52,18 @@ defmodule MinhaCasaAi.Integrations.OpenAIListingParser do
              reasoning_effort: "low",
              max_output_tokens: compute_max_tokens("vision", true),
              timeout: 45_000,
-             schema: %{name: "listing_parse", schema: OpenAISchemas.listing_parse_schema()},
+             schema: %{name: "listing_parse", schema: OpenAISchemas.listing_parse_schema(catalog)},
              langfuse: lf
            ) do
-      decode_listings_map(map)
+      decode_listings_map(map, catalog)
     end
+  end
+
+  defp prompt_compile_vars(catalog) do
+    %{
+      "max_listings" => Integer.to_string(@max_listings),
+      "preference_list" => ListingPreferences.preference_list_for_prompt(catalog)
+    }
   end
 
   defp require_key do
@@ -61,21 +75,21 @@ defmodule MinhaCasaAi.Integrations.OpenAIListingParser do
     "data:#{mime_type};base64,#{cleaned}"
   end
 
-  defp decode_listings_map(%{"listings" => listings}) when is_list(listings) do
+  defp decode_listings_map(%{"listings" => listings}, catalog) when is_list(listings) do
     normalized =
       listings
       |> Enum.filter(&valid_listing?/1)
-      |> Enum.map(&build_listing/1)
+      |> Enum.map(&build_listing(&1, catalog))
       |> Enum.take(@max_listings)
       |> MinhaCasaAi.Listings.DisplayTitle.apply_to_listings()
 
     if normalized == [], do: {:error, :invalid_ai_json}, else: {:ok, normalized}
   end
 
-  defp decode_listings_map(listing) when is_map(listing) do
+  defp decode_listings_map(listing, catalog) when is_map(listing) do
     if valid_listing?(listing) do
       [built] =
-        [build_listing(listing)]
+        [build_listing(listing, catalog)]
         |> MinhaCasaAi.Listings.DisplayTitle.apply_to_listings()
 
       {:ok, [built]}
@@ -84,7 +98,7 @@ defmodule MinhaCasaAi.Integrations.OpenAIListingParser do
     end
   end
 
-  defp decode_listings_map(_), do: {:error, :invalid_ai_json}
+  defp decode_listings_map(_, _catalog), do: {:error, :invalid_ai_json}
 
   defp valid_listing?(listing) when is_map(listing) do
     present?(listing["endereco"]) || positive_number?(listing["preco"])
@@ -92,7 +106,10 @@ defmodule MinhaCasaAi.Integrations.OpenAIListingParser do
 
   defp valid_listing?(_), do: false
 
-  defp build_listing(parsed) do
+  defp build_listing(parsed, catalog) do
+    preferences = normalize_parsed_preferences(parsed, catalog)
+    legacy = ListingPreferences.mirror_legacy_fields(preferences, catalog)
+
     %{
       "titulo" => "",
       "endereco" => parsed["endereco"] || "Endereço não informado",
@@ -106,11 +123,12 @@ defmodule MinhaCasaAi.Integrations.OpenAIListingParser do
       "garagem" => parsed["garagem"],
       "preco" => parsed["preco"],
       "precoM2" => nil,
-      "piscina" => parsed["piscina"],
-      "porteiro24h" => parsed["porteiro24h"],
-      "academia" => parsed["academia"],
-      "vistaLivre" => parsed["vistaLivre"],
-      "piscinaTermica" => parsed["piscinaTermica"],
+      "preferences" => preferences,
+      "piscina" => legacy["piscina"],
+      "porteiro24h" => legacy["porteiro24h"],
+      "academia" => legacy["academia"],
+      "vistaLivre" => legacy["vistaLivre"],
+      "piscinaTermica" => legacy["piscinaTermica"],
       "tipoImovel" => parsed["tipoImovel"],
       "link" => parsed["link"],
       "condominiumName" => parsed["condominiumName"],
@@ -120,6 +138,22 @@ defmodule MinhaCasaAi.Integrations.OpenAIListingParser do
       "sitePublishedAt" => parsed["sitePublishedAt"],
       "siteUpdatedAt" => parsed["siteUpdatedAt"]
     }
+  end
+
+  defp normalize_parsed_preferences(parsed, catalog) do
+    raw = Map.get(parsed, "preferences") || %{}
+
+    Enum.reduce(catalog, %{}, fn option, acc ->
+      value = Map.get(raw, option.key)
+
+      normalized =
+        cond do
+          value in [true, false] -> value
+          true -> nil
+        end
+
+      Map.put(acc, option.key, normalized)
+    end)
   end
 
   defp compute_max_tokens(input, true), do: compute_max_tokens(input, false) + 300

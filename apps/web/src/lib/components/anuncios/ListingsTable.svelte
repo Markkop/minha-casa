@@ -1,7 +1,13 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { Home } from "@lucide/svelte";
+  import {
+    coercePreferenceCatalog,
+    defaultPreferenceCatalog,
+    type ListingPreferenceOption
+  } from "$lib/anuncios/listing-preferences";
   import type { Imovel } from "$lib/anuncios/types";
+  import { workspaceApi } from "$lib/workspace/client";
   import { buildListingsMarkdown } from "$lib/anuncios/listing-markdown";
   import {
     LISTINGS_SECTION_CLASS,
@@ -31,6 +37,7 @@
   const pendingAdd = createListingsTablePendingAdd(() => ctx);
   const rowInteractionsRegistry = createListingRowInteractionsRegistry({
     getListingById: (listingId) => listings.find((listing: Imovel) => listing.id === listingId),
+    getPreferenceCatalog: () => preferenceCatalog,
     updateListing: (listingId, updates) => ctx.updateListing(listingId, updates),
     removeListing: (listingId) => ctx.removeListing(listingId)
   });
@@ -43,8 +50,36 @@
   let editingListing = $state<Imovel | null>(null);
   let focusImageUrl = $state(false);
   let imageModalListingId = $state<string | null>(null);
+  let preferenceCatalog = $state<ListingPreferenceOption[]>(defaultPreferenceCatalog());
+  let savingPreferenceCatalog = $state(false);
 
-  onMount(() => tableState.initFromLocalStorage());
+  onMount(() => {
+    tableState.initFromLocalStorage();
+    void loadPreferenceCatalog();
+  });
+
+  async function loadPreferenceCatalog() {
+    try {
+      const response = await workspaceApi.fetchListingPreferences();
+      preferenceCatalog = coercePreferenceCatalog(response.preferences);
+    } catch (error) {
+      console.error("Failed to load listing preferences catalog:", error);
+    }
+  }
+
+  async function handlePreferenceCatalogChange(next: ListingPreferenceOption[]) {
+    preferenceCatalog = next;
+    savingPreferenceCatalog = true;
+    try {
+      const response = await workspaceApi.saveListingPreferences(next);
+      preferenceCatalog = coercePreferenceCatalog(response.preferences);
+    } catch (error) {
+      console.error("Failed to save listing preferences catalog:", error);
+      void loadPreferenceCatalog();
+    } finally {
+      savingPreferenceCatalog = false;
+    }
+  }
 
   const uniqueContacts = $derived(extractUniqueContacts(listings));
 
@@ -86,6 +121,7 @@
     imageColumnView: tableState.imageColumnView,
     enabledMetricVariants: tableState.enabledMetricVariants,
     propertyDisplay: tableState.propertyDisplay,
+    preferenceCatalog,
     toolbarVisibility,
     activeMetricVariant: tableState.activeMetricVariant,
     hasOtherCollections,
@@ -162,6 +198,9 @@
       onCopyMarkdown={() => void handleCopyVisibleListingsMarkdown()}
       propertyDisplay={tableState.propertyDisplay}
       onPropertyDisplayChange={tableState.setPropertyDisplay}
+      {preferenceCatalog}
+      savingPreferenceCatalog={savingPreferenceCatalog}
+      onPreferenceCatalogChange={handlePreferenceCatalogChange}
       sort={tableState.sort}
       onSort={tableState.handleSort}
       bind:visibleColumns={
@@ -220,6 +259,7 @@
 <EditModal
   isOpen={editingListing !== null}
   listing={editingListing}
+  {preferenceCatalog}
   {focusImageUrl}
   {uniqueContacts}
   onClose={() => {

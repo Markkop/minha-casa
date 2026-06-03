@@ -48,6 +48,7 @@
       academia: listing.academia,
       vistaLivre: listing.vistaLivre,
       piscinaTermica: listing.piscinaTermica,
+      preferences: listing.preferences,
       andar: listing.andar,
       tipoImovel: listing.tipoImovel,
       link: listing.link,
@@ -92,7 +93,9 @@
     if (ctx.collections.length === 0) throw new Error("Nenhuma coleção para exportar");
     const collectionsWithListings = await Promise.all(
       ctx.collections.map(async (collection) => {
-        const rows = (await workspaceApi.fetchListings(collection.id)).listings.map(toImovel);
+        const rows = (await workspaceApi.fetchListings(collection.id)).listings.map((listing) =>
+          toImovel(listing)
+        );
         return {
           collection: {
             id: collection.id,

@@ -14,15 +14,13 @@
   } = $props();
 </script>
 
-<button
-  type="button"
+<span
   class={cn(
-    "inline-flex items-center gap-1 leading-none transition-opacity hover:opacity-80",
+    "inline-flex items-center gap-1 leading-none",
     strikethrough && "opacity-50",
     className
   )}
-  onclick={() => void amenity.onToggle()}
 >
   <amenity.Icon class={cn(LISTING_MOBILE_ICON_CLASS, amenity.iconClass)} />
   <span class="text-xs text-app-fg">{amenity.label}</span>
-</button>
+</span>

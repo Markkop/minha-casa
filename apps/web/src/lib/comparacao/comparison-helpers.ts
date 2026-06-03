@@ -1,5 +1,6 @@
 import type { Component } from "svelte"
 import {
+  CircleDot,
   Dumbbell,
   Mountain,
   Shield,
@@ -7,6 +8,12 @@ import {
   WavesLadder,
 } from "@lucide/svelte"
 import { areaRowLabel } from "$lib/anuncios/area-metric-labels"
+import {
+  defaultPreferenceCatalog,
+  getPreferenceValue,
+  type ListingPreferenceOption
+} from "$lib/anuncios/listing-preferences"
+import { getPreferenceIcon } from "$lib/anuncios/listing-preference-icons"
 import type { Imovel } from "$lib/anuncios/types"
 import { resolveListingDisplayTitle } from "$lib/listing-display-title"
 
@@ -247,34 +254,56 @@ export function formatGarage(value: number | null | undefined): string {
   return `${formatInteger(value)} ${value === 1 ? "vaga" : "vagas"}`
 }
 
-export type ComparisonExtraKey =
-  | "piscina"
-  | "piscinaTermica"
-  | "porteiro24h"
-  | "academia"
-  | "vistaLivre"
+export type ComparisonExtraKey = string;
 
-export const COMPARISON_EXTRA_ROWS: ReadonlyArray<{
+export type ComparisonExtraRow = {
   key: ComparisonExtraKey
   label: string
   icon: Component<{ class?: string }>
-}> = [
-  { key: "piscina", label: "Piscina", icon: WavesLadder },
-  { key: "piscinaTermica", label: "Piscina térmica", icon: Waves },
-  { key: "porteiro24h", label: "Porteiro 24h", icon: Shield },
-  { key: "academia", label: "Academia", icon: Dumbbell },
-  { key: "vistaLivre", label: "Vista livre", icon: Mountain },
-]
+};
+
+const LEGACY_COMPARISON_ICON_MAP = {
+  piscina: WavesLadder,
+  piscinaTermica: Waves,
+  porteiro24h: Shield,
+  academia: Dumbbell,
+  vistaLivre: Mountain
+} as const;
+
+export function buildComparisonExtraRows(
+  catalog: readonly ListingPreferenceOption[] = defaultPreferenceCatalog()
+): ComparisonExtraRow[] {
+  return catalog.map((option) => ({
+    key: option.key,
+    label: option.label,
+    icon:
+      getPreferenceIcon(option.key) ??
+      LEGACY_COMPARISON_ICON_MAP[option.legacyKey as keyof typeof LEGACY_COMPARISON_ICON_MAP] ??
+      CircleDot
+  }));
+}
+
+/** @deprecated Use buildComparisonExtraRows */
+export const COMPARISON_EXTRA_ROWS = buildComparisonExtraRows();
 
 export function formatExtraValue(value: boolean | null | undefined): string {
   return value === true ? "Sim" : "—"
 }
 
+export function getComparisonPreferenceValue(
+  listing: Imovel,
+  key: string,
+  catalog: readonly ListingPreferenceOption[] = defaultPreferenceCatalog()
+): boolean | null {
+  return getPreferenceValue(listing, key, catalog);
+}
+
 export function getVisibleComparisonExtraRows(
-  listings: ReadonlyArray<Pick<Imovel, ComparisonExtraKey>>
+  listings: ReadonlyArray<Imovel>,
+  catalog: readonly ListingPreferenceOption[] = defaultPreferenceCatalog()
 ) {
-  return COMPARISON_EXTRA_ROWS.filter((extra) =>
-    listings.some((listing) => listing[extra.key] === true)
+  return buildComparisonExtraRows(catalog).filter((extra) =>
+    listings.some((listing) => getComparisonPreferenceValue(listing, extra.key, catalog) === true)
   )
 }
 

@@ -261,7 +261,7 @@ export function createCollectionsState() {
     const result = await workspaceApi.fetchSharedCollection(token);
     return {
       collection: { id: result.collection.id, name: result.collection.name },
-      listings: result.listings.map(toImovel)
+      listings: result.listings.map((listing) => toImovel(listing))
     };
   }
 
@@ -288,10 +288,13 @@ export function createCollectionsState() {
       }
     }
     try {
-      const rows = (await workspaceApi.fetchListings(collectionId)).listings.map(toImovel);
+      const rows = (await workspaceApi.fetchListings(collectionId)).listings.map((listing) =>
+        toImovel(listing)
+      );
       listings = rows;
       listingsCollectionId = collectionId;
       syncCollectionListingCount(collectionId, rows.length);
+      error = null;
     } catch (err) {
       error = formatApiError(err);
     } finally {

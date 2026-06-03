@@ -361,6 +361,7 @@ export interface ListingData {
   academia: boolean | null
   vistaLivre: boolean | null
   piscinaTermica: boolean | null
+  preferences?: Record<string, boolean | null>
   andar?: number | null
   tipoImovel?: "casa" | "apartamento" | null
   link: string | null
@@ -541,6 +542,27 @@ export const condominiums = pgTable(
     index("condominiums_user_id_idx").on(table.userId),
     index("condominiums_org_id_idx").on(table.orgId),
     index("condominiums_name_idx").on(table.name),
+  ]
+)
+
+export const listingPreferenceCatalog = pgTable(
+  "listing_preference_catalog",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id").references(() => users.id, { onDelete: "cascade" }),
+    orgId: uuid("org_id").references(() => organizations.id, { onDelete: "cascade" }),
+    key: text("key").notNull(),
+    label: text("label").notNull(),
+    source: text("source").$type<"system" | "custom">().notNull().default("custom"),
+    visible: boolean("visible").notNull().default(true),
+    sortOrder: integer("sort_order").notNull().default(0),
+    legacyKey: text("legacy_key"),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    index("listing_preference_catalog_user_id_idx").on(table.userId),
+    index("listing_preference_catalog_org_id_idx").on(table.orgId),
   ]
 )
 

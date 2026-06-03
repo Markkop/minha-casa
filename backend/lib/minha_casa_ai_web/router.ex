@@ -138,6 +138,9 @@ defmodule MinhaCasaAiWeb.Router do
     put "/workspace/condominiums/:id", WorkspaceController, :condominiums_update
     delete "/workspace/condominiums/:id", WorkspaceController, :condominiums_delete
 
+    get "/workspace/listing-preferences", WorkspaceController, :listing_preferences_index
+    put "/workspace/listing-preferences", WorkspaceController, :listing_preferences_update
+
     get "/workspace/comparison-notes", WorkspaceController, :comparison_notes_index
     post "/workspace/comparison-notes", WorkspaceController, :comparison_notes_upsert
 

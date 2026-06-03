@@ -13,6 +13,8 @@
   import EditModalTabDetails from "$lib/components/anuncios/edit-modal/EditModalTabDetails.svelte";
   import EditModalTabContact from "$lib/components/anuncios/edit-modal/EditModalTabContact.svelte";
   import EditModalTabDates from "$lib/components/anuncios/edit-modal/EditModalTabDates.svelte";
+  import type { ListingPreferenceOption } from "$lib/anuncios/listing-preferences";
+  import { applyPreferencePatch } from "$lib/anuncios/listing-preferences";
   import type { Imovel } from "$lib/anuncios/types";
   import type { Condominium, Region } from "$lib/workspace/client";
   import type { UniqueContact } from "$lib/components/anuncios/edit-modal/form-field-props";
@@ -25,6 +27,7 @@
     regions,
     condominiums,
     uniqueContacts = [],
+    preferenceCatalog,
     activeTab = $bindable<EditModalTabId>("basic"),
     class: className = ""
   }: {
@@ -34,6 +37,7 @@
     regions: Region[];
     condominiums: Condominium[];
     uniqueContacts?: UniqueContact[];
+    preferenceCatalog: ListingPreferenceOption[];
     activeTab?: EditModalTabId;
     class?: string;
   } = $props();
@@ -54,6 +58,10 @@
 
   function handleBooleanChange(field: keyof Imovel, value: string) {
     handleInputChange(field, value === "null" ? null : value === "true");
+  }
+
+  function handlePreferenceChange(key: string, value: boolean | null) {
+    formData = applyPreferencePatch(formData, key, value, preferenceCatalog);
   }
 
   function handleSelectExistingContact(contact: UniqueContact) {
@@ -142,7 +150,14 @@
       </div>
     {:else if activeTab === "details"}
       <div id="edit-panel-details" role="tabpanel" aria-labelledby="edit-tab-details">
-        <EditModalTabDetails {listing} {formData} {handlers} onFormDataChange={(next) => (formData = next)} />
+        <EditModalTabDetails
+          {listing}
+          {formData}
+          {preferenceCatalog}
+          {handlers}
+          onPreferenceChange={handlePreferenceChange}
+          onFormDataChange={(next) => (formData = next)}
+        />
       </div>
     {:else if activeTab === "contact"}
       <div id="edit-panel-contact" role="tabpanel" aria-labelledby="edit-tab-contact">

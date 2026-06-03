@@ -25,7 +25,7 @@
     { key: keyof ListingsPropertyDisplayPrefs; label: string }[]
   >([
     { key: "showAddress", label: "Mapa" },
-    { key: "showPropertyIcons", label: "Detalhes do imóvel" },
+    { key: "showCountFeatures", label: "Quartos e vagas" },
     { key: "showContact", label: "Contato" },
     { key: "showMetricTotal", label: metricToggleLabels.total },
     { key: "showMetricPrivado", label: metricToggleLabels.privado }

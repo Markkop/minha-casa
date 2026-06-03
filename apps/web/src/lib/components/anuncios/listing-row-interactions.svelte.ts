@@ -1,4 +1,12 @@
 import type { Imovel } from "$lib/anuncios/types";
+import { toListingData } from "$lib/anuncios/types";
+import {
+  applyPreferencePatch,
+  defaultPreferenceCatalog,
+  getPreferenceValue,
+  togglePreferenceValue,
+  type ListingPreferenceOption
+} from "$lib/anuncios/listing-preferences";
 import {
   clampListingCount,
   type ListingCountField
@@ -12,12 +20,14 @@ import {
 
 export interface CreateListingRowInteractionsOptions {
   getImovel: () => Imovel;
+  getPreferenceCatalog?: () => ListingPreferenceOption[];
   updateListing: (listingId: string, updates: Partial<Imovel>) => Promise<Imovel>;
   removeListing: (listingId: string) => Promise<void>;
 }
 
 export function createListingRowInteractions({
   getImovel,
+  getPreferenceCatalog = () => defaultPreferenceCatalog(),
   updateListing: apiUpdateListing,
   removeListing: apiRemoveListing
 }: CreateListingRowInteractionsOptions) {
@@ -48,53 +58,38 @@ export function createListingRowInteractions({
     }
   }
 
-  async function handleTogglePiscina() {
+  async function handleTogglePreference(key: string) {
     const imovel = getImovel();
+    const catalog = getPreferenceCatalog();
+    const current = getPreferenceValue(imovel, key, catalog);
+    const next = togglePreferenceValue(current);
+    const patched = applyPreferencePatch(imovel, key, next, catalog);
+
     try {
-      await apiUpdateListing(imovel.id, { piscina: imovel.piscina === true ? false : true });
+      await apiUpdateListing(imovel.id, toListingData(patched, catalog));
     } catch (error) {
-      console.error("Failed to toggle piscina:", error);
+      console.error(`Failed to toggle preference ${key}:`, error);
     }
+  }
+
+  async function handleTogglePiscina() {
+    await handleTogglePreference("piscina");
   }
 
   async function handleTogglePiscinaTermica() {
-    const imovel = getImovel();
-    try {
-      await apiUpdateListing(imovel.id, {
-        piscinaTermica: imovel.piscinaTermica === true ? false : true
-      });
-    } catch (error) {
-      console.error("Failed to toggle piscina térmica:", error);
-    }
+    await handleTogglePreference("piscina_termica");
   }
 
   async function handleTogglePorteiro24h() {
-    const imovel = getImovel();
-    try {
-      await apiUpdateListing(imovel.id, {
-        porteiro24h: imovel.porteiro24h === true ? false : true
-      });
-    } catch (error) {
-      console.error("Failed to toggle porteiro 24h:", error);
-    }
+    await handleTogglePreference("portaria");
   }
 
   async function handleToggleAcademia() {
-    const imovel = getImovel();
-    try {
-      await apiUpdateListing(imovel.id, { academia: imovel.academia === true ? false : true });
-    } catch (error) {
-      console.error("Failed to toggle academia:", error);
-    }
+    await handleTogglePreference("academia");
   }
 
   async function handleToggleVistaLivre() {
-    const imovel = getImovel();
-    try {
-      await apiUpdateListing(imovel.id, { vistaLivre: imovel.vistaLivre === true ? false : true });
-    } catch (error) {
-      console.error("Failed to toggle vista livre:", error);
-    }
+    await handleTogglePreference("vista_livre");
   }
 
   async function handleSetCount(field: ListingCountField, nextValue: number) {
@@ -173,6 +168,7 @@ export function createListingRowInteractions({
     },
     handleToggleStar,
     handleChangeListingStatus,
+    handleTogglePreference,
     handleTogglePiscina,
     handleTogglePiscinaTermica,
     handleTogglePorteiro24h,

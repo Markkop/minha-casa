@@ -2,6 +2,7 @@ import {
   formatAreaMarkdownParts,
   formatPricePerM2MarkdownParts
 } from "$lib/anuncios/area-metric-labels";
+import { formatEnabledPreferencesForExport } from "$lib/anuncios/listing-preferences";
 import type { Imovel } from "$lib/anuncios/types";
 
 function hasValue<T extends string | number>(value: T | null | undefined): value is T {
@@ -52,15 +53,8 @@ function formatGaragem(value: number): string {
 }
 
 function formatOutros(imovel: Imovel): string | null {
-  const outros = [
-    imovel.piscina === true ? "piscina" : null,
-    imovel.piscinaTermica === true ? "piscina térmica" : null,
-    imovel.porteiro24h === true ? "porteiro 24h" : null,
-    imovel.academia === true ? "academia" : null,
-    imovel.vistaLivre === true ? "vista livre" : null,
-  ].filter((value): value is string => value !== null)
-
-  return outros.length > 0 ? outros.join(", ") : null
+  const labels = formatEnabledPreferencesForExport(imovel);
+  return labels.length > 0 ? labels.join(", ") : null;
 }
 
 export function buildListingMarkdown(imovel: Imovel): string {

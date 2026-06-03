@@ -3,11 +3,13 @@ defmodule MinhaCasaAiWeb.ParseController do
 
   alias MinhaCasaAi.Integrations.ListingParser
   alias MinhaCasaAi.Listings.DisplayTitle
+  alias MinhaCasaAi.Workspace.{ListingPreferences, Profile}
 
   def create(conn, params) do
     input = Map.merge(conn.body_params, params)
+    catalog = catalog_for(conn)
 
-    case ListingParser.parse(input) do
+    case ListingParser.parse(input, catalog: catalog) do
       {:ok, listings} ->
         json(conn, %{listings: DisplayTitle.apply_to_listings(listings)})
 
@@ -17,6 +19,13 @@ defmodule MinhaCasaAiWeb.ParseController do
         conn
         |> put_status(status)
         |> json(%{error: message})
+    end
+  end
+
+  defp catalog_for(conn) do
+    case Profile.profile_from_headers(conn.assigns[:current_user_id], conn.assigns[:current_org_id]) do
+      {:error, :missing_profile} -> ListingPreferences.default_system_options()
+      profile -> ListingPreferences.list_catalog(profile)
     end
   end
 

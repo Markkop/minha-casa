@@ -1,6 +1,12 @@
 import type { Component } from "svelte";
-import { Bath, BedDouble, Building, Car, Dumbbell, Mountain, Shield, Waves, WavesLadder } from "@lucide/svelte";
+import { Bath, BedDouble, Building, Car, CircleDot } from "@lucide/svelte";
 import type { Imovel } from "$lib/anuncios/types";
+import {
+  defaultPreferenceCatalog,
+  getEnabledPreferencesForDisplay,
+  type ListingPreferenceOption
+} from "$lib/anuncios/listing-preferences";
+import { getPreferencePresentation } from "$lib/anuncios/listing-preference-present";
 import { getTipoImovelOption, normalizeTipoImovel } from "$lib/components/anuncios/listings-table-shared";
 
 export interface ListingAmenityItem {
@@ -30,29 +36,28 @@ function formatAndarLabel(andar: number) {
   return `${andar}º andar`;
 }
 
-export function buildListingAmenityItems(listing: Imovel): ListingAmenityItem[] {
+export function buildListingAmenityItems(
+  listing: Imovel,
+  catalog: readonly ListingPreferenceOption[] = defaultPreferenceCatalog()
+): ListingAmenityItem[] {
   const items: ListingAmenityItem[] = [];
   const tipo = normalizeTipoImovel(listing.tipoImovel);
+  const catalogByKey = new Map(catalog.map((option) => [option.key, option]));
 
   if (tipo !== null) {
     const tipoOption = getTipoImovelOption(listing.tipoImovel);
     items.push({ key: "tipo", label: tipoOption.label, icon: tipoOption.Icon });
   }
 
-  if (listing.piscina === true) {
-    items.push({ key: "piscina", label: "Piscina", icon: WavesLadder, iconClassName: "text-blue-500" });
-  }
-
-  if (tipo === "apartamento" && listing.piscinaTermica === true) {
-    items.push({ key: "piscina-termica", label: "Piscina térmica", icon: Waves, iconClassName: "text-blue-500" });
-  }
-
-  if (tipo === "apartamento" && listing.porteiro24h === true) {
-    items.push({ key: "porteiro", label: "Porteiro 24h", icon: Shield, iconClassName: "text-red-500" });
-  }
-
-  if (tipo === "apartamento" && listing.academia === true) {
-    items.push({ key: "academia", label: "Academia", icon: Dumbbell, iconClassName: "text-yellow-500" });
+  for (const preference of getEnabledPreferencesForDisplay(listing, catalog)) {
+    const option = catalogByKey.get(preference.key);
+    const presentation = option ? getPreferencePresentation(option) : null;
+    items.push({
+      key: preference.key,
+      label: preference.label,
+      icon: presentation?.Icon ?? CircleDot,
+      iconClassName: presentation?.iconClass
+    });
   }
 
   const quartos = listing.quartos ?? 0;
@@ -75,10 +80,6 @@ export function buildListingAmenityItems(listing: Imovel): ListingAmenityItem[] 
     if (andar > 0) {
       items.push({ key: "andar", label: formatAndarLabel(andar), icon: Building });
     }
-  }
-
-  if (listing.vistaLivre === true) {
-    items.push({ key: "vista", label: "Vista livre", icon: Mountain, iconClassName: "text-green-500" });
   }
 
   return items;

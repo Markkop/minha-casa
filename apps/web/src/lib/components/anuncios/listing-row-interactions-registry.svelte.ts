@@ -1,3 +1,4 @@
+import type { ListingPreferenceOption } from "$lib/anuncios/listing-preferences";
 import type { Imovel } from "$lib/anuncios/types";
 import {
   createListingRowInteractions,
@@ -8,6 +9,7 @@ type RowInteractions = ReturnType<typeof createListingRowInteractions>;
 
 export interface ListingRowInteractionsRegistryOptions {
   getListingById: (listingId: string) => Imovel | undefined;
+  getPreferenceCatalog: () => ListingPreferenceOption[];
   updateListing: CreateListingRowInteractionsOptions["updateListing"];
   removeListing: CreateListingRowInteractionsOptions["removeListing"];
 }
@@ -23,6 +25,7 @@ export function createListingRowInteractionsRegistry(
 
     const interactions = createListingRowInteractions({
       getImovel: () => options.getListingById(imovel.id) ?? imovel,
+      getPreferenceCatalog: options.getPreferenceCatalog,
       updateListing: options.updateListing,
       removeListing: options.removeListing
     });

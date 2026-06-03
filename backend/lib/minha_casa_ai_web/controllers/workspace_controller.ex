@@ -1,7 +1,7 @@
 defmodule MinhaCasaAiWeb.WorkspaceController do
   use MinhaCasaAiWeb, :controller
 
-  alias MinhaCasaAi.Workspace.{DecisionData, Profile}
+  alias MinhaCasaAi.Workspace.{DecisionData, ListingPreferences, Profile}
   alias MinhaCasaAiWeb.WorkspaceJSON
 
   def contacts_index(conn, _params) do
@@ -105,6 +105,29 @@ defmodule MinhaCasaAiWeb.WorkspaceController do
       case DecisionData.delete_condominium(id, profile) do
         {:ok, _} -> json(conn, %{success: true})
         {:error, :not_found} -> not_found(conn, "Condominium")
+      end
+    end
+  end
+
+  def listing_preferences_index(conn, _params) do
+    with {:ok, profile} <- profile(conn) do
+      json(conn, %{preferences: WorkspaceJSON.listing_preferences(ListingPreferences.list_catalog(profile))})
+    end
+  end
+
+  def listing_preferences_update(conn, params) do
+    with {:ok, profile} <- profile(conn) do
+      preferences = Map.get(params, "preferences", [])
+
+      case ListingPreferences.replace_catalog(profile, preferences) do
+        {:ok, catalog} ->
+          json(conn, %{preferences: WorkspaceJSON.listing_preferences(catalog)})
+
+        {:error, :duplicate_keys} ->
+          conn |> put_status(:bad_request) |> json(%{error: "Duplicate preference keys"})
+
+        {:error, reason} ->
+          conn |> put_status(:bad_request) |> json(%{error: inspect(reason)})
       end
     end
   end

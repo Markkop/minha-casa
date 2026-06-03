@@ -4,7 +4,8 @@ export type MetricVariant = "total" | "privado"
 
 export interface ListingsPropertyDisplayPrefs {
   showAddress: boolean
-  showPropertyIcons: boolean
+  /** Quartos, banheiros, garagem e andar na listagem. */
+  showCountFeatures: boolean
   showContact: boolean
   showMetricTotal: boolean
   showMetricPrivado: boolean
@@ -12,7 +13,7 @@ export interface ListingsPropertyDisplayPrefs {
 
 export const DEFAULT_PROPERTY_DISPLAY: ListingsPropertyDisplayPrefs = {
   showAddress: true,
-  showPropertyIcons: true,
+  showCountFeatures: true,
   showContact: false,
   showMetricTotal: true,
   showMetricPrivado: true,
@@ -20,7 +21,7 @@ export const DEFAULT_PROPERTY_DISPLAY: ListingsPropertyDisplayPrefs = {
 
 const PREF_KEYS: (keyof ListingsPropertyDisplayPrefs)[] = [
   "showAddress",
-  "showPropertyIcons",
+  "showCountFeatures",
   "showContact",
   "showMetricTotal",
   "showMetricPrivado",
@@ -44,10 +45,15 @@ export function normalizePropertyDisplay(value: unknown): ListingsPropertyDispla
     return { ...DEFAULT_PROPERTY_DISPLAY }
   }
 
-  const raw = value as Partial<Record<keyof ListingsPropertyDisplayPrefs, unknown>>
+  const raw = value as Partial<
+    Record<keyof ListingsPropertyDisplayPrefs | "showPropertyIcons", unknown>
+  >
   const prefs = PREF_KEYS.reduce(
     (acc, key) => {
-      const stored = raw[key]
+      const stored =
+        key === "showCountFeatures"
+          ? (raw.showCountFeatures ?? raw.showPropertyIcons)
+          : raw[key]
       acc[key] =
         typeof stored === "boolean" ? stored : DEFAULT_PROPERTY_DISPLAY[key]
       return acc

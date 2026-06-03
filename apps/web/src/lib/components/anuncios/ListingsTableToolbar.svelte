@@ -11,6 +11,8 @@
   import PageToolbarButton from "$lib/components/page-toolbar/PageToolbarButton.svelte";
   import PageToolbarIconButton from "$lib/components/page-toolbar/PageToolbarIconButton.svelte";
   import ListingsDisplayPopover from "$lib/components/anuncios/ListingsDisplayPopover.svelte";
+  import ListingsPreferencesPopover from "$lib/components/anuncios/ListingsPreferencesPopover.svelte";
+  import type { ListingPreferenceOption } from "$lib/anuncios/listing-preferences";
   import ListingsSortPopover from "$lib/components/anuncios/ListingsSortPopover.svelte";
   import PropertyTypeFilterCycleButton from "$lib/components/anuncios/PropertyTypeFilterCycleButton.svelte";
   import ToolbarAnchoredPopover from "$lib/components/anuncios/ToolbarAnchoredPopover.svelte";
@@ -42,6 +44,9 @@
     onCopyMarkdown,
     propertyDisplay,
     onPropertyDisplayChange,
+    preferenceCatalog,
+    savingPreferenceCatalog = false,
+    onPreferenceCatalogChange,
     sort,
     onSort,
     visibleColumns = $bindable<Record<ListingsTableColumn, boolean>>(),
@@ -65,6 +70,9 @@
     onCopyMarkdown: () => void;
     propertyDisplay: ListingsPropertyDisplayPrefs;
     onPropertyDisplayChange: (prefs: ListingsPropertyDisplayPrefs) => void;
+    preferenceCatalog: ListingPreferenceOption[];
+    savingPreferenceCatalog?: boolean;
+    onPreferenceCatalogChange: (catalog: ListingPreferenceOption[]) => void | Promise<void>;
     sort: ListingsSortState;
     onSort: (key: ListingsSortKey) => void;
     visibleColumns: Record<ListingsTableColumn, boolean>;
@@ -192,6 +200,12 @@
       prefs={propertyDisplay}
       {useCasaAreaLabels}
       onChange={onPropertyDisplayChange}
+    />
+
+    <ListingsPreferencesPopover
+      catalog={preferenceCatalog}
+      saving={savingPreferenceCatalog}
+      onChange={(catalog) => void onPreferenceCatalogChange(catalog)}
     />
 
     <div class="md:hidden">

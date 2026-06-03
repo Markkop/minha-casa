@@ -29,6 +29,7 @@
     imageColumnView,
     enabledMetricVariants,
     propertyDisplay,
+    preferenceCatalog,
     toolbarVisibility,
     activeMetricVariant,
     activeCollectionId,
@@ -40,7 +41,7 @@
 
   const interactions = $derived(getRowInteractions(imovel));
 
-  const showMetaRow = $derived(visibleColumns.property && propertyDisplay.showPropertyIcons);
+  const showMetaRow = $derived(visibleColumns.property);
   const rowSurfaceClass = $derived(
     imovel.starred
       ? "border-app-action/50 bg-app-action/20 group-hover:bg-app-action/30"
@@ -90,8 +91,9 @@
             <ListingPropertyMetaRow
               {imovel}
               {interactions}
+              {preferenceCatalog}
               {toolbarVisibility}
-              showPropertyIcons={propertyDisplay.showPropertyIcons}
+              showCountFeatures={propertyDisplay.showCountFeatures}
               class="mt-1"
             />
           {/if}

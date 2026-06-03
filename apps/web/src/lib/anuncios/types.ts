@@ -1,5 +1,10 @@
 import { resolveListingImages, type ImageIngestionStatus } from "$lib/listing-images";
 import type { ListingImageCategoryKey } from "$lib/listing-image-categories";
+import {
+  defaultPreferenceCatalog,
+  listingDataWithPreferences,
+  type ListingPreferencesMap
+} from "$lib/anuncios/listing-preferences";
 import type { Collection as ApiCollection, Listing as ApiListing, ListingData } from "$lib/workspace/client";
 
 export type { ListingData };
@@ -36,6 +41,7 @@ export interface Imovel {
   academia: boolean | null;
   vistaLivre: boolean | null;
   piscinaTermica: boolean | null;
+  preferences?: ListingPreferencesMap;
   andar?: number | null;
   tipoImovel?: "casa" | "apartamento" | null;
   link: string | null;
@@ -78,8 +84,9 @@ export function toCollection(apiCollection: ApiCollection & { ownerName?: string
   };
 }
 
-export function toImovel(apiListing: ApiListing): Imovel {
+export function toImovel(apiListing: ApiListing, preferenceCatalog = defaultPreferenceCatalog()): Imovel {
   const data = apiListing.data;
+  const synced = listingDataWithPreferences(data, preferenceCatalog);
   const images = resolveListingImages({
     listingId: apiListing.id,
     imageUrl: data.imageUrl,
@@ -103,11 +110,12 @@ export function toImovel(apiListing: ApiListing): Imovel {
     garagem: (data.garagem as number | null) ?? null,
     preco: (data.preco as number | null) ?? null,
     precoM2: (data.precoM2 as number | null) ?? null,
-    piscina: (data.piscina as boolean | null) ?? null,
-    porteiro24h: (data.porteiro24h as boolean | null) ?? null,
-    academia: (data.academia as boolean | null) ?? null,
-    vistaLivre: (data.vistaLivre as boolean | null) ?? null,
-    piscinaTermica: (data.piscinaTermica as boolean | null) ?? null,
+    piscina: synced.piscina ?? null,
+    porteiro24h: synced.porteiro24h ?? null,
+    academia: synced.academia ?? null,
+    vistaLivre: synced.vistaLivre ?? null,
+    piscinaTermica: synced.piscinaTermica ?? null,
+    preferences: synced.preferences,
     andar: data.andar as number | null | undefined,
     tipoImovel: data.tipoImovel as Imovel["tipoImovel"],
     link: (data.link as string | null) ?? null,
@@ -137,7 +145,11 @@ export function toImovel(apiListing: ApiListing): Imovel {
   };
 }
 
-export function toListingData(imovel: Partial<Imovel>): Partial<ListingData> {
+export function toListingData(
+  imovel: Partial<Imovel>,
+  preferenceCatalog = defaultPreferenceCatalog()
+): Partial<ListingData> {
+  const synced = listingDataWithPreferences(imovel, preferenceCatalog);
   const data: Partial<ListingData> = {};
   const assign = <K extends keyof ListingData>(key: K, value: ListingData[K] | undefined) => {
     if (value !== undefined) data[key] = value;
@@ -156,11 +168,12 @@ export function toListingData(imovel: Partial<Imovel>): Partial<ListingData> {
   assign("garagem", imovel.garagem);
   assign("preco", imovel.preco);
   assign("precoM2", imovel.precoM2);
-  assign("piscina", imovel.piscina);
-  assign("porteiro24h", imovel.porteiro24h);
-  assign("academia", imovel.academia);
-  assign("vistaLivre", imovel.vistaLivre);
-  assign("piscinaTermica", imovel.piscinaTermica);
+  assign("piscina", synced.piscina);
+  assign("porteiro24h", synced.porteiro24h);
+  assign("academia", synced.academia);
+  assign("vistaLivre", synced.vistaLivre);
+  assign("piscinaTermica", synced.piscinaTermica);
+  assign("preferences", synced.preferences);
   assign("andar", imovel.andar ?? undefined);
   assign("tipoImovel", imovel.tipoImovel ?? undefined);
   assign("link", imovel.link ?? undefined);

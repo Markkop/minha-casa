@@ -1,4 +1,6 @@
 <script lang="ts">
+  import type { ListingPreferenceOption } from "$lib/anuncios/listing-preferences";
+  import { applyPreferencePatch } from "$lib/anuncios/listing-preferences";
   import type { Imovel } from "$lib/anuncios/types";
   import type { Condominium, Region } from "$lib/workspace/client";
   import {
@@ -20,13 +22,15 @@
     autoTitle,
     regions,
     condominiums,
-    uniqueContacts = []
+    uniqueContacts = [],
+    preferenceCatalog
   } = $props<{
     formData: Partial<Imovel>;
     autoTitle: string;
     regions: Region[];
     condominiums: Condominium[];
     uniqueContacts?: UniqueContact[];
+    preferenceCatalog: ListingPreferenceOption[];
   }>();
 
   const fieldHandlers = {
@@ -47,6 +51,10 @@
     handleInputChange(field, value === "null" ? null : value === "true");
   }
 
+  function handlePreferenceChange(key: string, value: boolean | null) {
+    formData = applyPreferencePatch(formData, key, value, preferenceCatalog);
+  }
+
   function handleSelectExistingContact(contact: UniqueContact) {
     formData = {
       ...formData,
@@ -61,7 +69,7 @@
   <EditModalLocationFields {formData} {...fieldHandlers} />
   <EditModalPropertyDetailsFields {formData} {...fieldHandlers} />
   <EditModalPricingFields {formData} {...fieldHandlers} />
-  <EditModalAmenityFields {formData} {...fieldHandlers} />
+  <EditModalAmenityFields {formData} {preferenceCatalog} onPreferenceChange={handlePreferenceChange} />
   <EditModalRegionCondominiumFields
     {formData}
     {regions}

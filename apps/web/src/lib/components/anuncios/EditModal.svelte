@@ -3,7 +3,8 @@
   import EditModalCard from "$lib/components/anuncios/edit-modal/EditModalCard.svelte";
   import type { EditModalTabId } from "$lib/components/anuncios/edit-modal/edit-modal-tabs";
   import ModalCloseButton from "$lib/components/anuncios/ModalCloseButton.svelte";
-  import type { Imovel } from "$lib/anuncios/types";
+  import { defaultPreferenceCatalog, type ListingPreferenceOption } from "$lib/anuncios/listing-preferences";
+  import { toListingData, type Imovel } from "$lib/anuncios/types";
   import { buildBaseListingTitle } from "$lib/listing-display-title";
   import { getCollectionsContext } from "$lib/collections-context.svelte";
   import { workspaceApi, type Condominium, type Region } from "$lib/workspace/client";
@@ -15,7 +16,8 @@
     listing,
     focusImageUrl = false,
     onListingUpdated,
-    uniqueContacts = []
+    uniqueContacts = [],
+    preferenceCatalog = defaultPreferenceCatalog()
   } = $props<{
     isOpen: boolean;
     onClose: () => void;
@@ -23,6 +25,7 @@
     focusImageUrl?: boolean;
     onListingUpdated?: () => void;
     uniqueContacts?: { name: string | null; number: string }[];
+    preferenceCatalog?: ListingPreferenceOption[];
   }>();
 
   const ctx = getCollectionsContext();
@@ -53,6 +56,7 @@
         academia: listing.academia,
         vistaLivre: listing.vistaLivre,
         piscinaTermica: listing.piscinaTermica,
+        preferences: listing.preferences,
         andar: listing.andar,
         tipoImovel: listing.tipoImovel,
         link: listing.link,
@@ -113,9 +117,14 @@
     try {
       const tituloManual = formData.tituloManual?.trim() || null;
       await ctx.updateListing(listing.id, {
-        ...formData,
-        tituloManual,
-        titulo: tituloManual ?? formData.titulo ?? listing.titulo
+        ...toListingData(
+          {
+            ...formData,
+            tituloManual,
+            titulo: tituloManual ?? formData.titulo ?? listing.titulo
+          },
+          preferenceCatalog
+        )
       });
       onListingUpdated?.();
       onClose();
@@ -191,6 +200,7 @@
             {regions}
             {condominiums}
             {uniqueContacts}
+            {preferenceCatalog}
           />
         {/key}
 

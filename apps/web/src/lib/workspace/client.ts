@@ -69,6 +69,15 @@ export interface ComparisonNote {
   updatedAt: string;
 }
 
+export interface ListingPreferenceOption {
+  key: string;
+  label: string;
+  source: "system" | "custom";
+  visible: boolean;
+  sortOrder: number;
+  legacyKey?: string;
+}
+
 export interface ListingData {
   titulo?: string;
   endereco?: string;
@@ -453,5 +462,12 @@ export const workspaceApi = {
 
   fetchComparisonNotes: () => api.get<{ notes: ComparisonNote[] }>("/workspace/comparison-notes"),
   saveComparisonNote: (input: Pick<ComparisonNote, "listingId" | "pros" | "cons"> & { notes?: string | null }) =>
-    api.post<{ note: ComparisonNote }>("/workspace/comparison-notes", input)
+    api.post<{ note: ComparisonNote }>("/workspace/comparison-notes", input),
+
+  fetchListingPreferences: () =>
+    api.get<{ preferences: ListingPreferenceOption[] }>("/workspace/listing-preferences"),
+  saveListingPreferences: (preferences: ListingPreferenceOption[]) =>
+    api.put<{ preferences: ListingPreferenceOption[] }>("/workspace/listing-preferences", {
+      preferences
+    })
 };

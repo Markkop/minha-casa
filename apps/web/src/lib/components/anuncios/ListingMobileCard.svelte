@@ -24,6 +24,7 @@
     imageColumnView,
     enabledMetricVariants,
     propertyDisplay,
+    preferenceCatalog,
     activeMetricVariant,
     activeCollectionId,
     openImageModal,
@@ -34,7 +35,8 @@
 
   const interactions = $derived(getRowInteractions(imovel));
 
-  const showPropertyIcons = $derived(propertyDisplay.showPropertyIcons && visibleColumns.property);
+  const showCountFeatures = $derived(propertyDisplay.showCountFeatures && visibleColumns.property);
+  const showAmenities = $derived(visibleColumns.property);
   const showTitle = $derived(visibleColumns.property);
   const showPrice = $derived(visibleColumns.price);
   const showArea = $derived(visibleColumns.area);
@@ -46,7 +48,14 @@
       (enabledMetricVariants.has("total") || enabledMetricVariants.has("privado"))
   );
   const titleOnHero = $derived(showImage && showTitle);
-  const showSummaryRow = $derived(showPrice || showPropertyIcons || showStatus);
+  const showSummaryRow = $derived(showPrice || showCountFeatures || showStatus);
+  const amenityRows = $derived(
+    showAmenities
+      ? layoutListingMobileAmenityRows(
+          getListingMobileAmenities(imovel, preferenceCatalog)
+        )
+      : []
+  );
 
   const metricSegments = $derived([
     ...(enabledMetricVariants.has("total")
@@ -69,16 +78,9 @@
       : [])
   ]);
 
-  const amenityRows = $derived(
-    showPropertyIcons
-      ? layoutListingMobileAmenityRows(getListingMobileAmenities(imovel, interactions))
-      : []
-  );
-
   const detailRowCount = $derived(
     Math.max(showMetrics ? metricSegments.length : 0, amenityRows.length)
   );
-
   const showSummaryGrid = $derived(showSummaryRow || detailRowCount > 0);
 
   const titleStatusProps = $derived({
@@ -155,7 +157,7 @@
                 <ClickablePrice price={imovel.preco} strikethrough={imovel.strikethrough} />
               </div>
             {/if}
-            {#if showPropertyIcons}
+            {#if showCountFeatures}
               <ListingMobileCountFeatures {imovel} {interactions} class="min-w-0" />
             {/if}
           </div>

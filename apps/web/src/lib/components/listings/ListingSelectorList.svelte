@@ -1,16 +1,7 @@
 <script lang="ts">
-  import {
-    Bath,
-    BedDouble,
-    Building,
-    Car,
-    Dumbbell,
-    Home,
-    Mountain,
-    Shield,
-    Waves,
-    WavesLadder
-  } from "@lucide/svelte";
+  import { Bath, BedDouble, Building, Car, CircleDot, Home } from "@lucide/svelte";
+  import { getEnabledPreferencesForDisplay } from "$lib/anuncios/listing-preferences";
+  import { getPreferenceIcon } from "$lib/anuncios/listing-preference-icons";
   import type { Imovel } from "$lib/anuncios/types";
   import { getCollectionsContext } from "$lib/collections-context.svelte";
   import { formatListingAddress, formatListingPrice } from "$lib/listings/listing-selector";
@@ -68,21 +59,12 @@
         <span>{listing.andar === 10 ? "+" : listing.andar}</span>
       </span>
     {/if}
-    {#if listing.piscina === true}
-      <WavesLadder class="size-3.5 shrink-0 text-blue-500" />
-    {/if}
-    {#if listing.piscinaTermica === true}
-      <Waves class="size-3.5 shrink-0 text-blue-500" />
-    {/if}
-    {#if listing.porteiro24h === true}
-      <Shield class="size-3.5 shrink-0 text-red-500" />
-    {/if}
-    {#if listing.academia === true}
-      <Dumbbell class="size-3.5 shrink-0 text-yellow-500" />
-    {/if}
-    {#if listing.vistaLivre === true}
-      <Mountain class="size-3.5 shrink-0 text-green-500" />
-    {/if}
+    {#each getEnabledPreferencesForDisplay(listing) as preference (preference.key)}
+      {@const PrefIcon = getPreferenceIcon(preference.key) ?? CircleDot}
+      <span class="inline-flex shrink-0" aria-label={preference.label}>
+        <PrefIcon class="size-3.5" />
+      </span>
+    {/each}
   </span>
 {/snippet}
 

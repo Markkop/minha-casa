@@ -1,17 +1,13 @@
 <script lang="ts">
-  import {
-    Waves,
-    Shield,
-    Dumbbell,
-    Mountain,
-    Building,
-    Car,
-    WavesLadder,
-    Bath,
-    BedDouble,
-    Check
-  } from "@lucide/svelte";
+  import { Building, Car, Bath, BedDouble, Check } from "@lucide/svelte";
   import type { Imovel } from "$lib/anuncios/types";
+  import { getPreferenceValue, type ListingPreferenceOption } from "$lib/anuncios/listing-preferences";
+  import {
+    APARTMENT_TOOLBAR_PREFERENCE_KEYS,
+    EXTRA_SYSTEM_TOOLBAR_KEYS,
+    getPreferencePresentation,
+    shouldShowToolbarPreference
+  } from "$lib/anuncios/listing-preference-present";
   import {
     DEFAULT_LISTING_TOOLBAR_VISIBILITY,
     type ListingToolbarVisibility
@@ -34,27 +30,31 @@
   let {
     imovel,
     interactions,
+    preferenceCatalog,
     visibility = DEFAULT_LISTING_TOOLBAR_VISIBILITY,
+    showCountFeatures = true,
     class: className = "",
     density = "default"
   }: {
     imovel: Imovel;
+    preferenceCatalog: ListingPreferenceOption[];
     visibility?: ListingToolbarVisibility;
+    showCountFeatures?: boolean;
     interactions: Pick<
       ListingRowInteractions,
       | "tipoImovelPopoverOpen"
       | "handleSetTipoImovel"
-      | "handleTogglePiscina"
-      | "handleTogglePiscinaTermica"
-      | "handleTogglePorteiro24h"
-      | "handleToggleAcademia"
-      | "handleToggleVistaLivre"
+      | "handleTogglePreference"
       | "handleSetCount"
     >;
     class?: string;
     density?: "default" | "mobile";
   } = $props();
 
+  const catalogByKey = $derived(new Map(preferenceCatalog.map((option) => [option.key, option])));
+  const customToolbarPreferences = $derived(
+    preferenceCatalog.filter((option) => option.source === "custom")
+  );
   const tipoOption = $derived(getTipoImovelOption(imovel.tipoImovel));
   const TipoIcon = $derived(tipoOption.Icon);
   const currentTipo = $derived(normalizeTipoImovel(imovel.tipoImovel));
@@ -88,142 +88,144 @@
     className
   )}
 >
-  <ListingCountStepperPopover
-    field="quartos"
-    label={`Quartos: ${imovel.quartos ?? 0}`}
-    Icon={BedDouble}
-    value={imovel.quartos ?? 0}
-    displayValue={formatListingCountDisplay("quartos", imovel.quartos)}
-    {density}
-    onSetCount={(next) => interactions.handleSetCount("quartos", next)}
-  />
-
-  <ListingCountStepperPopover
-    field="banheiros"
-    label={`Banheiros: ${imovel.banheiros ?? 0}`}
-    Icon={Bath}
-    value={imovel.banheiros ?? 0}
-    displayValue={formatListingCountDisplay("banheiros", imovel.banheiros)}
-    {density}
-    onSetCount={(next) => interactions.handleSetCount("banheiros", next)}
-  />
-
-  <ListingCountStepperPopover
-    field="garagem"
-    label={`Vagas: ${imovel.garagem ?? 0}`}
-    Icon={Car}
-    value={imovel.garagem ?? 0}
-    displayValue={formatListingCountDisplay("garagem", imovel.garagem)}
-    {density}
-    onSetCount={(next) => interactions.handleSetCount("garagem", next)}
-  />
-
-  {#if visibility.showTipoImovel}
-  <AnchoredPopover bind:open={interactions.tipoImovelPopoverOpen} align="auto" panelClass="w-44 p-1">
-    {#snippet trigger()}
-      <FloatingTooltip
-        label={`Tipo de imóvel: ${tipoOption.label}`}
-        side="bottom"
-        disabled={interactions.tipoImovelPopoverOpen}
-      >
-        <button
-          type="button"
-          class={tipoBtnClass}
-          onclick={() => (interactions.tipoImovelPopoverOpen = !interactions.tipoImovelPopoverOpen)}
-        >
-          <TipoIcon class={iconClass} />
-        </button>
-      </FloatingTooltip>
-    {/snippet}
-    {#each TIPO_IMOVEL_OPTIONS as option (option.label)}
-      {@const OptionIcon = option.Icon}
-      {@const isSelected = currentTipo === option.value}
-      <button
-        type="button"
-        onclick={() => {
-          if (isSelected) {
-            interactions.tipoImovelPopoverOpen = false;
-            return;
-          }
-          void interactions.handleSetTipoImovel(option.value);
-        }}
-        class={cn(
-          "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-app-surface-muted",
-          isSelected && "bg-app-surface-muted"
-        )}
-      >
-        <OptionIcon class="h-4 w-4 shrink-0" />
-        <span class="flex-1 text-left">{option.label}</span>
-        {#if isSelected}
-          <Check class="h-4 w-4 shrink-0 text-app-accent" />
-        {:else}
-          <span class="h-4 w-4 shrink-0" aria-hidden="true"></span>
-        {/if}
-      </button>
-    {/each}
-  </AnchoredPopover>
-  {/if}
-
-  {#if visibility.showPiscina}
-  <FloatingTooltip label={imovel.piscina === true ? "Remover piscina" : "Adicionar piscina"} side="bottom">
-    <button
-      type="button"
-      class={featureBtnClass(imovel.piscina === true, "text-blue-500")}
-      onclick={() => void interactions.handleTogglePiscina()}
-    >
-      <WavesLadder class={iconClass} />
-    </button>
-  </FloatingTooltip>
-  {/if}
-
-  {#if imovel.tipoImovel === "apartamento"}
-    <FloatingTooltip label={imovel.piscinaTermica === true ? "Remover piscina térmica" : "Adicionar piscina térmica"} side="bottom">
-      <button
-        type="button"
-        class={featureBtnClass(imovel.piscinaTermica === true, "text-blue-500")}
-        onclick={() => void interactions.handleTogglePiscinaTermica()}
-      >
-        <Waves class={iconClass} />
-      </button>
-    </FloatingTooltip>
-    <FloatingTooltip label={imovel.porteiro24h === true ? "Remover porteiro 24h" : "Adicionar porteiro 24h"} side="bottom">
-      <button
-        type="button"
-        class={featureBtnClass(imovel.porteiro24h === true, "text-red-500")}
-        onclick={() => void interactions.handleTogglePorteiro24h()}
-      >
-        <Shield class={iconClass} />
-      </button>
-    </FloatingTooltip>
-    <FloatingTooltip label={imovel.academia === true ? "Remover academia" : "Adicionar academia"} side="bottom">
-      <button
-        type="button"
-        class={featureBtnClass(imovel.academia === true, "text-yellow-500")}
-        onclick={() => void interactions.handleToggleAcademia()}
-      >
-        <Dumbbell class={iconClass} />
-      </button>
-    </FloatingTooltip>
+  {#if showCountFeatures}
     <ListingCountStepperPopover
-      field="andar"
-      label={`Andar: ${imovel.andar === 10 ? "10+" : (imovel.andar ?? 0)}`}
-      Icon={Building}
-      value={imovel.andar ?? 0}
-      displayValue={formatListingCountDisplay("andar", imovel.andar)}
+      field="quartos"
+      label={`Quartos: ${imovel.quartos ?? 0}`}
+      Icon={BedDouble}
+      value={imovel.quartos ?? 0}
+      displayValue={formatListingCountDisplay("quartos", imovel.quartos)}
       {density}
-      onSetCount={(next) => interactions.handleSetCount("andar", next)}
+      onSetCount={(next) => interactions.handleSetCount("quartos", next)}
+    />
+
+    <ListingCountStepperPopover
+      field="banheiros"
+      label={`Banheiros: ${imovel.banheiros ?? 0}`}
+      Icon={Bath}
+      value={imovel.banheiros ?? 0}
+      displayValue={formatListingCountDisplay("banheiros", imovel.banheiros)}
+      {density}
+      onSetCount={(next) => interactions.handleSetCount("banheiros", next)}
+    />
+
+    <ListingCountStepperPopover
+      field="garagem"
+      label={`Vagas: ${imovel.garagem ?? 0}`}
+      Icon={Car}
+      value={imovel.garagem ?? 0}
+      displayValue={formatListingCountDisplay("garagem", imovel.garagem)}
+      {density}
+      onSetCount={(next) => interactions.handleSetCount("garagem", next)}
     />
   {/if}
 
-  {#if visibility.showVistaLivre}
-  <FloatingTooltip label={imovel.vistaLivre === true ? "Remover vista livre" : "Adicionar vista livre"} side="bottom">
-    <button
-      type="button"
-      class={featureBtnClass(imovel.vistaLivre === true, "text-green-500")}
-      onclick={() => void interactions.handleToggleVistaLivre()}
-    >
-      <Mountain class={iconClass} />
-    </button>
-  </FloatingTooltip>
+  {#if visibility.showTipoImovel}
+    <AnchoredPopover bind:open={interactions.tipoImovelPopoverOpen} align="auto" panelClass="w-44 p-1">
+      {#snippet trigger()}
+        <FloatingTooltip
+          label={`Tipo de imóvel: ${tipoOption.label}`}
+          side="bottom"
+          disabled={interactions.tipoImovelPopoverOpen}
+        >
+          <button
+            type="button"
+            class={tipoBtnClass}
+            onclick={() => (interactions.tipoImovelPopoverOpen = !interactions.tipoImovelPopoverOpen)}
+          >
+            <TipoIcon class={iconClass} />
+          </button>
+        </FloatingTooltip>
+      {/snippet}
+      {#each TIPO_IMOVEL_OPTIONS as option (option.label)}
+        {@const OptionIcon = option.Icon}
+        {@const isSelected = currentTipo === option.value}
+        <button
+          type="button"
+          onclick={() => {
+            if (isSelected) {
+              interactions.tipoImovelPopoverOpen = false;
+              return;
+            }
+            void interactions.handleSetTipoImovel(option.value);
+          }}
+          class={cn(
+            "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-app-surface-muted",
+            isSelected && "bg-app-surface-muted"
+          )}
+        >
+          <OptionIcon class="h-4 w-4 shrink-0" />
+          <span class="flex-1 text-left">{option.label}</span>
+          {#if isSelected}
+            <Check class="h-4 w-4 shrink-0 text-app-accent" />
+          {:else}
+            <span class="h-4 w-4 shrink-0" aria-hidden="true"></span>
+          {/if}
+        </button>
+      {/each}
+    </AnchoredPopover>
   {/if}
+
+  {#snippet preferenceToggle(option: ListingPreferenceOption)}
+    {@const active = getPreferenceValue(imovel, option.key, preferenceCatalog) === true}
+    {@const presentation = getPreferencePresentation(option)}
+    <FloatingTooltip
+      label={active ? `Remover ${option.label}` : `Adicionar ${option.label}`}
+      side="bottom"
+    >
+      <button
+        type="button"
+        class={featureBtnClass(active, presentation.iconClass)}
+        onclick={() => void interactions.handleTogglePreference(option.key)}
+      >
+        <presentation.Icon class={iconClass} />
+      </button>
+    </FloatingTooltip>
+  {/snippet}
+
+  {#if visibility.showPiscina}
+    {@const piscinaOption = catalogByKey.get("piscina")}
+    {#if piscinaOption}
+      {@render preferenceToggle(piscinaOption)}
+    {/if}
+  {/if}
+
+  {#if imovel.tipoImovel === "apartamento"}
+    {#each APARTMENT_TOOLBAR_PREFERENCE_KEYS as aptKey (aptKey)}
+      {@const aptOption = catalogByKey.get(aptKey)}
+      {#if aptOption}
+        {@render preferenceToggle(aptOption)}
+      {/if}
+    {/each}
+
+    {#if showCountFeatures}
+      <ListingCountStepperPopover
+        field="andar"
+        label={`Andar: ${imovel.andar === 10 ? "10+" : (imovel.andar ?? 0)}`}
+        Icon={Building}
+        value={imovel.andar ?? 0}
+        displayValue={formatListingCountDisplay("andar", imovel.andar)}
+        {density}
+        onSetCount={(next) => interactions.handleSetCount("andar", next)}
+      />
+    {/if}
+  {/if}
+
+  {#if visibility.showVistaLivre}
+    {@const vistaOption = catalogByKey.get("vista_livre")}
+    {#if vistaOption}
+      {@render preferenceToggle(vistaOption)}
+    {/if}
+  {/if}
+
+  {#each EXTRA_SYSTEM_TOOLBAR_KEYS as extraKey (extraKey)}
+    {@const extraOption = catalogByKey.get(extraKey)}
+    {#if extraOption}
+      {@render preferenceToggle(extraOption)}
+    {/if}
+  {/each}
+
+  {#each customToolbarPreferences as option (option.key)}
+    {@render preferenceToggle(option)}
+  {/each}
 </div>

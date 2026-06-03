@@ -8,6 +8,7 @@
   } from "$lib/components/anuncios/CollectionDestinationPicker.svelte";
   import { getCollectionsContext } from "$lib/collections-context.svelte";
   import { applyGeneratedTitlesToListingData } from "$lib/listing-display-title";
+  import { listingDataWithPreferences } from "$lib/anuncios/listing-preferences";
   import type { ListingData } from "$lib/workspace/client";
   import { workspaceApi } from "$lib/workspace/client";
   import { cn } from "$lib/utils";
@@ -42,7 +43,12 @@
   });
 
   function parseListingData(listing: Record<string, unknown>): ListingData {
-    return {
+    const preferences =
+      listing.preferences && typeof listing.preferences === "object" && !Array.isArray(listing.preferences)
+        ? (listing.preferences as Record<string, boolean | null>)
+        : undefined;
+
+    const parsed = {
       titulo: String(listing.titulo ?? ""),
       endereco: String(listing.endereco ?? ""),
       bairro: typeof listing.bairro === "string" ? listing.bairro : undefined,
@@ -84,8 +90,11 @@
           ? listing.addedAt
           : new Date().toISOString().split("T")[0],
       imageIngestionStatus:
-        typeof listing.link === "string" && listing.link.trim() ? "idle" : null
+        typeof listing.link === "string" && listing.link.trim() ? "idle" : null,
+      preferences
     };
+
+    return listingDataWithPreferences(parsed) as ListingData;
   }
 
   async function handleProcessImport(jsonText?: string) {

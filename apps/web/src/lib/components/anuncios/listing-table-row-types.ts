@@ -1,3 +1,4 @@
+import type { ListingPreferenceOption } from "$lib/anuncios/listing-preferences";
 import type { Collection, Imovel } from "$lib/anuncios/types";
 import type { ListingToolbarVisibility } from "$lib/anuncios/listing-toolbar-visibility";
 import type { ListingsPropertyDisplayPrefs, MetricVariant } from "$lib/anuncios/listings-display-prefs";
@@ -10,6 +11,7 @@ export interface ListingTableRowProps {
   imageColumnView: ImageColumnView;
   enabledMetricVariants: Set<MetricVariant>;
   propertyDisplay: ListingsPropertyDisplayPrefs;
+  preferenceCatalog: ListingPreferenceOption[];
   toolbarVisibility: ListingToolbarVisibility;
   activeMetricVariant: MetricVariant | null;
   hasOtherCollections: boolean;

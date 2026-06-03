@@ -2,7 +2,9 @@ defmodule MinhaCasaAi.Integrations.OpenAISchemas do
   @moduledoc false
   # JSON schemas for OpenAI Responses structured outputs (strict mode).
 
-  def listing_fields_properties do
+  alias MinhaCasaAi.Workspace.ListingPreferences
+
+  def listing_base_properties do
     %{
       "titulo" => %{"type" => ["string", "null"]},
       "endereco" => %{"type" => ["string", "null"]},
@@ -15,11 +17,6 @@ defmodule MinhaCasaAi.Integrations.OpenAISchemas do
       "banheiros" => %{"type" => ["number", "null"]},
       "garagem" => %{"type" => ["number", "null"]},
       "preco" => %{"type" => ["number", "null"]},
-      "piscina" => %{"type" => ["boolean", "null"]},
-      "porteiro24h" => %{"type" => ["boolean", "null"]},
-      "academia" => %{"type" => ["boolean", "null"]},
-      "vistaLivre" => %{"type" => ["boolean", "null"]},
-      "piscinaTermica" => %{"type" => ["boolean", "null"]},
       "tipoImovel" => %{"type" => ["string", "null"]},
       "condominiumName" => %{"type" => ["string", "null"]},
       "contactName" => %{"type" => ["string", "null"]},
@@ -30,11 +27,18 @@ defmodule MinhaCasaAi.Integrations.OpenAISchemas do
     }
   end
 
-  def listing_parse_schema do
+  def listing_fields_properties(catalog \\ nil) do
+    catalog = catalog || ListingPreferences.default_system_options()
+
+    listing_base_properties()
+    |> Map.merge(ListingPreferences.listing_parse_schema_properties(catalog))
+  end
+
+  def listing_parse_schema(catalog \\ nil) do
     listing_object = %{
       "type" => "object",
-      "properties" => listing_fields_properties(),
-      "required" => Map.keys(listing_fields_properties()),
+      "properties" => listing_fields_properties(catalog),
+      "required" => Map.keys(listing_fields_properties(catalog)),
       "additionalProperties" => false
     }
 

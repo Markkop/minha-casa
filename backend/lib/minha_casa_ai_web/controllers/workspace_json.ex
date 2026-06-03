@@ -3,6 +3,23 @@ defmodule MinhaCasaAiWeb.WorkspaceJSON do
 
   alias MinhaCasaAi.Workspace.{Condominium, Contact, ListingComparisonNote, Region}
 
+  def listing_preference_option(option) when is_map(option) do
+    %{
+      key: option[:key] || option["key"],
+      label: option[:label] || option["label"],
+      source: option[:source] || option["source"],
+      visible: option[:visible] != false and option["visible"] != false,
+      sortOrder: option[:sort_order] || option["sortOrder"] || 0,
+      legacyKey: option[:legacy_key] || option["legacyKey"]
+    }
+    |> then(fn map ->
+      if map.legacyKey, do: map, else: Map.delete(map, :legacyKey)
+    end)
+  end
+
+  def listing_preferences(options) when is_list(options),
+    do: Enum.map(options, &listing_preference_option/1)
+
   def contact(%Contact{} = contact) do
     %{
       id: contact.id,

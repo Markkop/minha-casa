@@ -5,24 +5,31 @@
   import { mergeListingDraft } from "$lib/components/anuncios/edit-modal/merge-listing-draft";
   import { EDIT_MODAL_TOOLBAR_VISIBILITY } from "$lib/anuncios/listing-toolbar-visibility";
   import { EDIT_MODAL_INPUT_CLASS } from "$lib/components/anuncios/edit-modal-shared";
+  import type { ListingPreferenceOption } from "$lib/anuncios/listing-preferences";
   import type { Imovel } from "$lib/anuncios/types";
+  import EditModalAmenityFields from "$lib/components/anuncios/edit-modal/EditModalAmenityFields.svelte";
   import type { EditModalFieldHandlers } from "$lib/components/anuncios/edit-modal/form-field-props";
 
   let {
     listing,
     formData,
+    preferenceCatalog,
     handlers,
-    onFormDataChange
+    onFormDataChange,
+    onPreferenceChange
   }: {
     listing: Imovel;
     formData: Partial<Imovel>;
+    preferenceCatalog: ListingPreferenceOption[];
     handlers: EditModalFieldHandlers;
     onFormDataChange: (next: Partial<Imovel>) => void;
+    onPreferenceChange: (key: string, value: boolean | null) => void;
   } = $props();
 
   const draftListing = $derived(mergeListingDraft(listing, formData));
   const toolbarInteractions = createEditFormToolbarInteractions({
     getDraft: () => formData,
+    getPreferenceCatalog: () => preferenceCatalog,
     patchDraft: (updates) => {
       onFormDataChange({ ...formData, ...updates });
     }
@@ -41,9 +48,14 @@
     <ListingPropertyIconToolbar
       imovel={draftListing}
       interactions={toolbarInteractions}
+      {preferenceCatalog}
       visibility={EDIT_MODAL_TOOLBAR_VISIBILITY}
       class="justify-start"
     />
+  </div>
+
+  <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+    <EditModalAmenityFields {formData} {preferenceCatalog} {onPreferenceChange} />
   </div>
 
   <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">

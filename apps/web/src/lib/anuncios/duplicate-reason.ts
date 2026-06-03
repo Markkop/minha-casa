@@ -1,3 +1,4 @@
+import { defaultPreferenceCatalog, listingDataWithPreferences } from "$lib/anuncios/listing-preferences";
 import type { ListingData } from "$lib/workspace/client";
 
 const DUPLICATE_REASON_LABELS: Record<string, string> = {
@@ -22,23 +23,30 @@ export function formatDuplicateReason(reason: string | undefined | null): string
 
 /** Minimal listing payload for same-URL duplicate checks before AI parse. */
 export function listingDataForLinkDuplicateCheck(link: string): ListingData {
-  return {
-    titulo: "",
-    endereco: "",
-    link,
-    m2Totais: null,
-    m2Privado: null,
-    quartos: null,
-    suites: null,
-    banheiros: null,
-    garagem: null,
-    preco: null,
-    precoM2: null,
-    piscina: null,
-    porteiro24h: null,
-    academia: null,
-    vistaLivre: null,
-    piscinaTermica: null,
-    tipoImovel: undefined,
-  }
+  const catalog = defaultPreferenceCatalog();
+  const preferences = Object.fromEntries(catalog.map((option) => [option.key, null]));
+
+  return listingDataWithPreferences(
+    {
+      titulo: "",
+      endereco: "",
+      link,
+      m2Totais: null,
+      m2Privado: null,
+      quartos: null,
+      suites: null,
+      banheiros: null,
+      garagem: null,
+      preco: null,
+      precoM2: null,
+      piscina: null,
+      porteiro24h: null,
+      academia: null,
+      vistaLivre: null,
+      piscinaTermica: null,
+      tipoImovel: undefined,
+      preferences
+    },
+    catalog
+  ) as ListingData;
 }

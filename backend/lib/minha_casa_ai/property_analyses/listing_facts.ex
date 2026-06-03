@@ -24,10 +24,19 @@ defmodule MinhaCasaAi.PropertyAnalyses.ListingFacts do
   ]
 
   def from_listing_data(data) when is_map(data) do
-    @keys
-    |> Enum.map(fn key -> {key, Map.get(data, key)} end)
-    |> Enum.reject(fn {_k, v} -> is_nil(v) or v == "" end)
-    |> Map.new()
+    base =
+      @keys
+      |> Enum.map(fn key -> {key, Map.get(data, key)} end)
+      |> Enum.reject(fn {_k, v} -> is_nil(v) or v == "" end)
+      |> Map.new()
+
+    case Map.get(data, "preferences") do
+      prefs when is_map(prefs) and map_size(prefs) > 0 ->
+        Map.put(base, "preferences", prefs)
+
+      _ ->
+        base
+    end
   end
 
   def from_listing_data(_), do: %{}

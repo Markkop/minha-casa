@@ -24,6 +24,7 @@ import {
   formatGarage,
   formatInteger,
   formatPricePerM2,
+  getComparisonPreferenceValue,
   getVisibleComparisonExtraRows,
 } from "$lib/comparacao/comparison-helpers"
 
@@ -272,7 +273,7 @@ export function buildExtraMatrixRows(
     label: extra.label,
     icon: extra.icon as Component<{ class?: string }>,
     render: (listing: Imovel) => ({
-      value: formatExtraValue(listing[extra.key]),
+      value: formatExtraValue(getComparisonPreferenceValue(listing, extra.key)),
     }),
   }))
 }

@@ -1,5 +1,11 @@
 import type { Imovel } from "$lib/anuncios/types";
 import {
+  applyPreferencePatch,
+  getPreferenceValue,
+  togglePreferenceValue,
+  type ListingPreferenceOption
+} from "$lib/anuncios/listing-preferences";
+import {
   clampListingCount,
   type ListingCountField
 } from "$lib/anuncios/listing-count-field";
@@ -8,13 +14,9 @@ import type { TipoImovelValue } from "$lib/components/anuncios/listings-table-sh
 export function createEditFormToolbarInteractions(options: {
   getDraft: () => Partial<Imovel>;
   patchDraft: (updates: Partial<Imovel>) => void;
+  getPreferenceCatalog: () => ListingPreferenceOption[];
 }) {
   let tipoImovelPopoverOpen = $state(false);
-
-  function patchFromToggle<K extends keyof Imovel>(field: K) {
-    const current = options.getDraft()[field];
-    options.patchDraft({ [field]: current === true ? false : true } as Partial<Imovel>);
-  }
 
   function setNumericField(field: ListingCountField, nextValue: number) {
     const draft = options.getDraft();
@@ -35,20 +37,12 @@ export function createEditFormToolbarInteractions(options: {
       options.patchDraft({ tipoImovel: tipo });
       tipoImovelPopoverOpen = false;
     },
-    async handleTogglePiscina() {
-      patchFromToggle("piscina");
-    },
-    async handleTogglePiscinaTermica() {
-      patchFromToggle("piscinaTermica");
-    },
-    async handleTogglePorteiro24h() {
-      patchFromToggle("porteiro24h");
-    },
-    async handleToggleAcademia() {
-      patchFromToggle("academia");
-    },
-    async handleToggleVistaLivre() {
-      patchFromToggle("vistaLivre");
+    async handleTogglePreference(key: string) {
+      const catalog = options.getPreferenceCatalog();
+      const draft = options.getDraft();
+      const current = getPreferenceValue(draft, key, catalog);
+      const next = togglePreferenceValue(current);
+      options.patchDraft(applyPreferencePatch(draft, key, next, catalog));
     },
     async handleSetCount(field: ListingCountField, nextValue: number) {
       setNumericField(field, nextValue);
