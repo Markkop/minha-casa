@@ -74,6 +74,7 @@
       {imovel}
       view={imageColumnView}
       layout="hero"
+      showAddress={propertyDisplay.showAddress}
       onOpenImageModal={() => openImageModal(imovel)}
       class="rounded-t-2xl"
     >
