@@ -107,7 +107,9 @@
   });
 
   const pathname = $derived(page.url.pathname);
-  const showAnaliseListingBreadcrumb = $derived(pathname.startsWith("/analise"));
+  const showAnaliseListingBreadcrumb = $derived(
+    pathname.startsWith("/analise") || pathname.startsWith("/floodrisk")
+  );
   const showOrgBreadcrumb = $derived(hasTeamOrganizations);
 
   const orgBreadcrumbClass = $derived(
