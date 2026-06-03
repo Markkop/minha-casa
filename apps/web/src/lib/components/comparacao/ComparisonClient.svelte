@@ -1,6 +1,6 @@
 <script lang="ts">
   import EditModal from "$lib/components/anuncios/EditModal.svelte";
-  import { extractUniqueContacts } from "$lib/components/anuncios/quick-reparse-utils";
+  import { extractUniqueContacts } from "$lib/anuncios/listings-contact";
   import ComparisonMatrixCell from "$lib/components/comparacao/ComparisonMatrixCell.svelte";
   import ComparisonMatrixRowLabel from "$lib/components/comparacao/ComparisonMatrixRowLabel.svelte";
   import ComparisonSlotHeader from "$lib/components/comparacao/ComparisonSlotHeader.svelte";

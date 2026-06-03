@@ -1,41 +1,23 @@
 import type { Imovel } from "$lib/anuncios/types";
 import { buildListingMarkdown } from "$lib/anuncios/listing-markdown";
-import type { FieldChange } from "$lib/components/anuncios/QuickReparseModal.svelte";
 import {
   isStrikethroughStatus,
   type ListingStatus,
   type TipoImovelValue
 } from "$lib/components/anuncios/listings-table-shared";
 
-export type QuickReparseResult =
-  | { outcome: "no-changes" }
-  | { outcome: "changes"; changes: FieldChange[] }
-  | { outcome: "error"; message: string };
-
 export interface CreateListingRowInteractionsOptions {
   getImovel: () => Imovel;
   updateListing: (listingId: string, updates: Partial<Imovel>) => Promise<Imovel>;
   removeListing: (listingId: string) => Promise<void>;
-  onQuickReparseRequest: (listing: Imovel, input: string) => Promise<QuickReparseResult>;
-  onQuickReparseDetected: (listing: Imovel, changes: FieldChange[]) => void;
 }
 
 export function createListingRowInteractions({
   getImovel,
   updateListing: apiUpdateListing,
-  removeListing: apiRemoveListing,
-  onQuickReparseRequest,
-  onQuickReparseDetected
+  removeListing: apiRemoveListing
 }: CreateListingRowInteractionsOptions) {
   let tipoImovelPopoverOpen = $state(false);
-  let contactPopoverOpen = $state(false);
-  let contactNameInput = $state("");
-  let contactNumberInput = $state("");
-  let contactSelectorOpen = $state(false);
-  let quickReparsePopoverOpen = $state(false);
-  let quickReparseInput = $state("");
-  let quickReparseLoading = $state(false);
-  let quickReparseError = $state<string | null>(null);
   let copyToCollectionPopoverOpen = $state(false);
   let copiedMarkdown = $state(false);
 
@@ -164,70 +146,6 @@ export function createListingRowInteractions({
     }
   }
 
-  function openContactPopover() {
-    const imovel = getImovel();
-    contactNameInput = imovel.contactName || "";
-    contactNumberInput = imovel.contactNumber || "";
-    contactPopoverOpen = true;
-    contactSelectorOpen = false;
-  }
-
-  function handleSelectExistingContact(contact: { name: string | null; number: string }) {
-    contactNameInput = contact.name || "";
-    contactNumberInput = contact.number;
-    contactSelectorOpen = false;
-  }
-
-  async function handleSaveContact() {
-    const imovel = getImovel();
-    try {
-      await apiUpdateListing(imovel.id, {
-        contactName: contactNameInput.trim() || null,
-        contactNumber: contactNumberInput.trim() || null
-      });
-      contactPopoverOpen = false;
-      contactNameInput = "";
-      contactNumberInput = "";
-    } catch (error) {
-      console.error("Failed to save contact:", error);
-    }
-  }
-
-  function openQuickReparsePopover() {
-    quickReparseInput = "";
-    quickReparseError = null;
-    quickReparsePopoverOpen = true;
-  }
-
-  async function runQuickReparse() {
-    if (!quickReparseInput.trim()) return;
-    const imovel = getImovel();
-
-    quickReparseLoading = true;
-    quickReparseError = null;
-
-    try {
-      const result = await onQuickReparseRequest(imovel, quickReparseInput);
-
-      if (result.outcome === "no-changes") {
-        quickReparsePopoverOpen = false;
-        quickReparseInput = "";
-        return;
-      }
-
-      if (result.outcome === "error") {
-        quickReparseError = result.message;
-        return;
-      }
-
-      onQuickReparseDetected(imovel, result.changes);
-      quickReparsePopoverOpen = false;
-      quickReparseInput = "";
-    } finally {
-      quickReparseLoading = false;
-    }
-  }
-
   async function handleCopyListingMarkdown() {
     const imovel = getImovel();
     try {
@@ -263,51 +181,6 @@ export function createListingRowInteractions({
     set tipoImovelPopoverOpen(value: boolean) {
       tipoImovelPopoverOpen = value;
     },
-    get contactPopoverOpen() {
-      return contactPopoverOpen;
-    },
-    set contactPopoverOpen(value: boolean) {
-      contactPopoverOpen = value;
-    },
-    get contactNameInput() {
-      return contactNameInput;
-    },
-    set contactNameInput(value: string) {
-      contactNameInput = value;
-    },
-    get contactNumberInput() {
-      return contactNumberInput;
-    },
-    set contactNumberInput(value: string) {
-      contactNumberInput = value;
-    },
-    get contactSelectorOpen() {
-      return contactSelectorOpen;
-    },
-    set contactSelectorOpen(value: boolean) {
-      contactSelectorOpen = value;
-    },
-    get quickReparsePopoverOpen() {
-      return quickReparsePopoverOpen;
-    },
-    set quickReparsePopoverOpen(value: boolean) {
-      quickReparsePopoverOpen = value;
-    },
-    get quickReparseInput() {
-      return quickReparseInput;
-    },
-    set quickReparseInput(value: string) {
-      quickReparseInput = value;
-    },
-    get quickReparseLoading() {
-      return quickReparseLoading;
-    },
-    get quickReparseError() {
-      return quickReparseError;
-    },
-    set quickReparseError(value: string | null) {
-      quickReparseError = value;
-    },
     get copyToCollectionPopoverOpen() {
       return copyToCollectionPopoverOpen;
     },
@@ -329,11 +202,6 @@ export function createListingRowInteractions({
     handleCycleQuartos,
     handleCycleBanheiros,
     handleSetTipoImovel,
-    openContactPopover,
-    handleSelectExistingContact,
-    handleSaveContact,
-    openQuickReparsePopover,
-    runQuickReparse,
     handleCopyListingMarkdown,
     handleDelete,
     handleCopyToCollection

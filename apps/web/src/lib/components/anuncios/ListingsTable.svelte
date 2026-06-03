@@ -9,7 +9,7 @@
   import { createListingsTableState } from "$lib/components/anuncios/listings-table-state.svelte";
   import { createListingsTablePendingAdd } from "$lib/components/anuncios/listings-table-pending-add.svelte";
   import { createListingRowInteractionsRegistry } from "$lib/components/anuncios/listing-row-interactions-registry.svelte";
-  import { extractUniqueContacts, handleQuickReparseRequest } from "$lib/components/anuncios/quick-reparse-utils";
+  import { extractUniqueContacts } from "$lib/anuncios/listings-contact";
   import { computeListingToolbarVisibility } from "$lib/anuncios/listing-toolbar-visibility";
   import ListingsTableToolbar from "$lib/components/anuncios/ListingsTableToolbar.svelte";
   import ListingsTableAddButtons from "$lib/components/anuncios/ListingsTableAddButtons.svelte";
@@ -18,8 +18,6 @@
   import ListingsTableMobile from "$lib/components/anuncios/ListingsTableMobile.svelte";
   import EditModal from "$lib/components/anuncios/EditModal.svelte";
   import ImageModal from "$lib/components/anuncios/ImageModal.svelte";
-  import QuickReparseModal from "$lib/components/anuncios/QuickReparseModal.svelte";
-  import type { FieldChange } from "$lib/components/anuncios/QuickReparseModal.svelte";
 
   let { listings } = $props<{ listings: Imovel[] }>();
 
@@ -28,9 +26,7 @@
   const pendingAdd = createListingsTablePendingAdd(() => ctx);
   const rowInteractionsRegistry = createListingRowInteractionsRegistry({
     updateListing: (listingId, updates) => ctx.updateListing(listingId, updates),
-    removeListing: (listingId) => ctx.removeListing(listingId),
-    onQuickReparseRequest: handleQuickReparseRequest,
-    onQuickReparseDetected: handleQuickReparseDetected
+    removeListing: (listingId) => ctx.removeListing(listingId)
   });
 
   $effect(() => {
@@ -41,8 +37,6 @@
   let editingListing = $state<Imovel | null>(null);
   let focusImageUrl = $state(false);
   let imageModalListingId = $state<string | null>(null);
-  let quickReparseChanges = $state<FieldChange[] | null>(null);
-  let quickReparseListing = $state<Imovel | null>(null);
 
   onMount(() => tableState.initFromLocalStorage());
 
@@ -64,11 +58,6 @@
   function openEditListing(listing: Imovel, focusImage = false) {
     editingListing = listing;
     focusImageUrl = focusImage;
-  }
-
-  function handleQuickReparseDetected(listing: Imovel, changes: FieldChange[]) {
-    quickReparseChanges = changes;
-    quickReparseListing = listing;
   }
 
   async function handleCopyVisibleListingsMarkdown() {
@@ -93,7 +82,6 @@
     propertyDisplay: tableState.propertyDisplay,
     toolbarVisibility,
     activeMetricVariant: tableState.activeMetricVariant,
-    uniqueContacts,
     hasOtherCollections,
     collections: ctx.collections,
     activeCollectionId: ctx.activeCollection?.id ?? null,
@@ -101,8 +89,6 @@
     removeListing: ctx.removeListing,
     openImageModal,
     openEditListing,
-    onQuickReparseRequest: handleQuickReparseRequest,
-    onQuickReparseDetected: handleQuickReparseDetected,
     getRowInteractions: (listing: Imovel) => rowInteractionsRegistry.getForListing(listing)
   });
 </script>
@@ -236,19 +222,4 @@
   listing={imageModalListing}
   onClose={() => (imageModalListingId = null)}
   onListingUpdated={reloadActiveListings}
-/>
-
-<QuickReparseModal
-  isOpen={quickReparseChanges !== null && quickReparseListing !== null}
-  changes={quickReparseChanges ?? []}
-  onClose={() => {
-    quickReparseChanges = null;
-    quickReparseListing = null;
-  }}
-  onApplyChanges={async (changes) => {
-    if (!quickReparseListing) return;
-    await ctx.updateListing(quickReparseListing.id, changes);
-    quickReparseChanges = null;
-    quickReparseListing = null;
-  }}
 />

@@ -1,14 +1,11 @@
 <script lang="ts">
-  import ListingTitleLinks from "$lib/components/anuncios/ListingTitleLinks.svelte";
   import ClickablePrice from "$lib/components/anuncios/ClickablePrice.svelte";
   import AreaM2Stack from "$lib/components/anuncios/AreaM2Stack.svelte";
   import PricePerM2Stack from "$lib/components/anuncios/PricePerM2Stack.svelte";
   import ListingImageColumnCell from "$lib/components/anuncios/ListingImageColumnCell.svelte";
+  import ListingCompactToolbar from "$lib/components/anuncios/ListingCompactToolbar.svelte";
   import ListingPropertyMetaRow from "$lib/components/anuncios/ListingPropertyMetaRow.svelte";
-  import ListingRowStatusActions from "$lib/components/anuncios/ListingRowStatusActions.svelte";
-  import WhatsAppIcon from "$lib/components/anuncios/WhatsAppIcon.svelte";
-  import FloatingTooltip from "$lib/components/ui/FloatingTooltip.svelte";
-  import { buildWhatsAppUrl } from "$lib/anuncios/listings-contact";
+  import ListingTitleStatusRow from "$lib/components/anuncios/ListingTitleStatusRow.svelte";
   import { calculatePrecoM2, calculatePrecoM2Privado } from "$lib/components/anuncios/listing-row-urls";
   import {
     formatDate,
@@ -17,6 +14,7 @@
     formatQuartosSuites
   } from "$lib/components/anuncios/listing-table-row-utils";
   import type { ListingTableRowProps } from "$lib/components/anuncios/listing-table-row-types";
+  import type { ListingsTableColumn } from "$lib/components/anuncios/listings-table-shared";
   import { cn } from "$lib/utils";
 
   let {
@@ -27,9 +25,6 @@
     propertyDisplay,
     toolbarVisibility,
     activeMetricVariant,
-    uniqueContacts,
-    hasOtherCollections,
-    collections,
     activeCollectionId,
     openImageModal,
     openEditListing,
@@ -39,21 +34,39 @@
 
   const interactions = $derived(getRowInteractions(imovel));
 
-  const showMetaRow = $derived(
-    visibleColumns.property &&
-      ((propertyDisplay.showPropertyIcons || propertyDisplay.showAddress) ||
-        visibleColumns.status)
+  const visibleColumnCount = $derived(
+    (Object.keys(visibleColumns) as ListingsTableColumn[]).filter((key) => visibleColumns[key]).length
+  );
+  const showMetaRow = $derived(visibleColumns.property && propertyDisplay.showPropertyIcons);
+  const showCompactToolbar = $derived(visibleColumns.property);
+  const rowSurfaceClass = $derived(
+    imovel.starred
+      ? "border-app-action/50 bg-app-action/20 group-hover:bg-app-action/30"
+      : "border-app-border group-hover:bg-app-bg"
   );
 </script>
 
+{#if showCompactToolbar}
+  <tr
+    data-testid="listing-toolbar-row-{imovel.id}"
+    class={cn("group border-b-0", rowSurfaceClass)}
+  >
+    <td colspan={visibleColumnCount} class="p-0 align-top">
+      <ListingCompactToolbar
+        {imovel}
+        {interactions}
+        {openEditListing}
+        showMap={propertyDisplay.showAddress}
+        showContact={propertyDisplay.showContact}
+        showStatus={visibleColumns.status}
+      />
+    </td>
+  </tr>
+{/if}
+
 <tr
   id="listing-{imovel.id}"
-  class={cn(
-    "group border-b",
-    imovel.starred
-      ? "border-app-action/50 bg-app-action/20 hover:bg-app-action/30"
-      : "border-app-border hover:bg-app-bg"
-  )}
+  class={cn("group border-b", rowSurfaceClass, showCompactToolbar && "border-t-0")}
 >
   {#if visibleColumns.image}
     <td class="relative sticky left-0 z-20 w-[5.5rem] bg-app-surface p-2 align-middle whitespace-nowrap">
@@ -77,45 +90,17 @@
     <td class="min-w-[320px] p-2 align-middle whitespace-nowrap">
       <div class="flex min-w-0 flex-col gap-2">
         <div class="min-w-0">
-          <div class="flex min-w-0 items-center gap-1">
-            <ListingTitleLinks
-              listing={imovel}
-              {displayTitle}
-              collectionId={activeCollectionId}
-            />
-          </div>
-          {#if propertyDisplay.showContact && imovel.contactNumber}
-            {@const url = buildWhatsAppUrl(imovel.contactNumber)}
-            {#if url}
-              <FloatingTooltip
-                label={imovel.contactName ? `WhatsApp — ${imovel.contactName}` : "Abrir WhatsApp"}
-                side="bottom"
-                align="start"
-                wrapperClass="mt-1 inline-flex w-fit max-w-full"
-              >
-                <a
-                  href={url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  class={cn(
-                    "flex min-w-0 max-w-full items-center gap-1 truncate text-xs text-green-600 transition-colors hover:text-green-500",
-                    imovel.strikethrough && "line-through opacity-50"
-                  )}
-                >
-                  <WhatsAppIcon class="h-3 w-3 shrink-0" />
-                  <span class="truncate">{imovel.contactName ?? imovel.contactNumber}</span>
-                </a>
-              </FloatingTooltip>
-            {/if}
-          {/if}
+          <ListingTitleStatusRow
+            listing={imovel}
+            {displayTitle}
+            collectionId={activeCollectionId}
+          />
           {#if showMetaRow}
             <ListingPropertyMetaRow
               {imovel}
               {interactions}
               {toolbarVisibility}
               showPropertyIcons={propertyDisplay.showPropertyIcons}
-              showMap={propertyDisplay.showAddress}
-              showRowStatus={visibleColumns.status}
               class="mt-1"
             />
           {/if}
@@ -187,22 +172,6 @@
             </span>
           {/if}
         </div>
-    </td>
-  {/if}
-
-  {#if visibleColumns.status}
-    <td class="min-w-[148px] p-2 align-middle">
-      <ListingRowStatusActions
-        {imovel}
-        {interactions}
-        {uniqueContacts}
-        {hasOtherCollections}
-        {collections}
-        {activeCollectionId}
-        {openEditListing}
-        part="actions"
-        showStar
-      />
     </td>
   {/if}
 </tr>

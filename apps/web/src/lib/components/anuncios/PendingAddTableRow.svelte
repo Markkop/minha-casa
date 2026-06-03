@@ -95,9 +95,21 @@
         </div>
       {:else}
         <div class="flex min-w-0 flex-col gap-2">
-          <span class="font-medium text-app-fg">
-            {row.status === "error" ? "Erro ao adicionar" : "Processando..."}
-          </span>
+          <div class="flex min-w-0 flex-wrap items-center gap-2">
+            <span class="font-medium text-app-fg">
+              {row.status === "error" ? "Erro ao adicionar" : "Processando..."}
+            </span>
+            {#if row.status === "error"}
+              <div class="flex shrink-0 items-center gap-1.5">
+                <button type="button" class="inline-flex h-7 items-center justify-center rounded bg-app-action px-2 text-xs font-medium text-app-action-foreground hover:bg-app-action-hover" onclick={() => onRetry(row.id)}>
+                  Tentar
+                </button>
+                <button type="button" class="inline-flex h-7 items-center justify-center rounded border border-app-border px-2 text-xs font-medium text-app-muted hover:text-app-fg" aria-label="Dispensar erro" onclick={() => onReject(row.id)}>
+                  <X class="h-3.5 w-3.5" />
+                </button>
+              </div>
+            {/if}
+          </div>
           <p class="max-w-md truncate text-xs text-app-muted">{row.message || "Verificando..."}</p>
         </div>
       {/if}
@@ -152,19 +164,5 @@
   {/if}
   {#if visibleColumns.dates}
     <td class="text-right"><span class="inline-block h-3 w-24 animate-pulse rounded bg-app-surface-muted"></span></td>
-  {/if}
-  {#if visibleColumns.status}
-    <td class="min-w-[154px] align-middle">
-      {#if row.status === "error"}
-        <div class="flex items-center justify-center gap-1.5">
-          <button type="button" class="inline-flex h-7 items-center justify-center rounded bg-app-action px-2 text-xs font-medium text-app-action-foreground hover:bg-app-action-hover" onclick={() => onRetry(row.id)}>
-            Tentar
-          </button>
-          <button type="button" class="inline-flex h-7 items-center justify-center rounded border border-app-border px-2 text-xs font-medium text-app-muted hover:text-app-fg" aria-label="Dispensar erro" onclick={() => onReject(row.id)}>
-            <X class="h-3.5 w-3.5" />
-          </button>
-        </div>
-      {/if}
-    </td>
   {/if}
 </tr>

@@ -1,7 +1,5 @@
 <script lang="ts">
   import type { Collection, Imovel } from "$lib/anuncios/types";
-  import ListingRowContactPopover from "$lib/components/anuncios/ListingRowContactPopover.svelte";
-  import ListingRowQuickReparsePopover from "$lib/components/anuncios/ListingRowQuickReparsePopover.svelte";
   import { buildWhatsAppUrl } from "$lib/anuncios/listings-contact";
   import AnchoredPopover from "$lib/components/ui/AnchoredPopover.svelte";
   import { cn } from "$lib/utils";
@@ -35,7 +33,6 @@
   let {
     imovel,
     interactions,
-    uniqueContacts = [],
     hasOtherCollections = false,
     collections = [],
     activeCollectionId = null,
@@ -50,7 +47,6 @@
   }: {
     imovel: Imovel;
     interactions: ListingRowInteractions;
-    uniqueContacts?: { name: string | null; number: string }[];
     hasOtherCollections?: boolean;
     collections?: Collection[];
     activeCollectionId?: string | null;
@@ -77,23 +73,8 @@
     includeExternalLink && typeof imovel.link === "string" && imovel.link.trim() !== ""
   );
 
-  const inputClass =
-    "border-app-border bg-app-surface-muted text-sm text-app-fg placeholder:text-muted-foreground";
-
   function actionLinkClass(...extra: (string | false | undefined)[]) {
     return cn(actionMutedClass, "inline-flex items-center justify-center", ...extra);
-  }
-
-  function closeContactPopover() {
-    interactions.contactPopoverOpen = false;
-    interactions.contactNameInput = "";
-    interactions.contactNumberInput = "";
-  }
-
-  function closeQuickReparsePopover() {
-    interactions.quickReparsePopoverOpen = false;
-    interactions.quickReparseInput = "";
-    interactions.quickReparseError = null;
   }
 </script>
 
@@ -178,24 +159,7 @@
           <WhatsAppIcon class={cn(actionIconClass, "size-3.5")} />
         </a>
       </FloatingTooltip>
-    {:else}
-      <ListingRowContactPopover
-        {interactions}
-        {uniqueContacts}
-        {actionMutedClass}
-        {actionIconClass}
-        {inputClass}
-        onClose={closeContactPopover}
-      />
     {/if}
-
-    <ListingRowQuickReparsePopover
-      {interactions}
-      {actionMutedClass}
-      {actionIconClass}
-      {inputClass}
-      onClose={closeQuickReparsePopover}
-    />
 
     <FloatingTooltip label="Editar imóvel" side="bottom">
       <button

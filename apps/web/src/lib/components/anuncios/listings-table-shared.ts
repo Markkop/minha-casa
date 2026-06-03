@@ -93,6 +93,16 @@ export const LISTING_MOBILE_TOOLBAR_GAP_CLASS = "gap-0.5";
 export const LISTING_MOBILE_ICON_BTN_CLASS =
   "flex h-6 w-6 shrink-0 items-center justify-center transition-colors";
 export const LISTING_MOBILE_ICON_CLASS = "h-3.5 w-3.5 shrink-0 stroke-[1.5]";
+export const LISTING_COMPACT_TOOLBAR_GAP_CLASS = "gap-0.5";
+export const LISTING_COMPACT_TOOLBAR_BTN_CLASS =
+  "inline-flex h-6 shrink-0 items-center gap-1 rounded border border-app-border bg-app-bg px-1.5 text-[10px] font-medium leading-none transition-colors hover:border-app-border-strong hover:bg-app-surface-muted";
+export const LISTING_COMPACT_TOOLBAR_BTN_MOBILE_CLASS =
+  "inline-flex h-6 shrink-0 items-center gap-0.5 rounded border border-app-border bg-app-bg px-1 text-[10px] font-medium leading-none transition-colors hover:border-app-border-strong hover:bg-app-surface-muted";
+export const LISTING_COMPACT_TOOLBAR_ICON_CLASS = "h-3 w-3 shrink-0";
+export const LISTING_COMPACT_TOOLBAR_BAR_CLASS =
+  "flex w-full min-w-0 items-center justify-between gap-1.5 border-b border-app-border/60 px-1.5 py-0.5";
+export const LISTING_COMPACT_TOOLBAR_STATUS_CLASS =
+  "h-6 min-h-6 shrink-0 rounded-full border px-1.5 py-0 text-[10px] font-medium leading-none shadow-none";
 
 /** Deep-link flash from ?listing= (inset ring stays visible on overflow-hidden mobile cards). */
 export const LISTING_DEEP_LINK_HIGHLIGHT_CLASS = "ring-2 ring-inset ring-primary/60";

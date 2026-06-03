@@ -84,9 +84,6 @@
       {#if visibleColumns.dates}
         <SortableHeader label="Datas" sortKey="addedAt" currentSort={sort} {onSort} align="center" />
       {/if}
-      {#if visibleColumns.status}
-        <th class="p-2 text-center text-app-muted">Estado</th>
-      {/if}
     </tr>
   </thead>
   <tbody>

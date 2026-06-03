@@ -1,18 +1,10 @@
 <script lang="ts">
-  import { MapPin } from "@lucide/svelte";
   import type { Imovel } from "$lib/anuncios/types";
   import type { ListingToolbarVisibility } from "$lib/anuncios/listing-toolbar-visibility";
   import ListingPropertyIconToolbar from "$lib/components/anuncios/ListingPropertyIconToolbar.svelte";
-  import ListingRowStatusActions from "$lib/components/anuncios/ListingRowStatusActions.svelte";
-  import FloatingTooltip from "$lib/components/ui/FloatingTooltip.svelte";
-  import { buildGoogleMapsUrl } from "$lib/components/anuncios/listing-row-urls";
   import type { ListingRowInteractions } from "$lib/components/anuncios/listing-row-interactions.svelte";
   import {
-    LISTING_MOBILE_ICON_BTN_CLASS,
-    LISTING_MOBILE_ICON_CLASS,
-    LISTING_MOBILE_TOOLBAR_GAP_CLASS,
-    ROW_ACTION_BTN_CLASS,
-    ROW_ACTION_ICON_CLASS
+    LISTING_MOBILE_TOOLBAR_GAP_CLASS
   } from "$lib/components/anuncios/listings-table-shared";
   import { cn } from "$lib/utils";
 
@@ -21,8 +13,6 @@
     interactions,
     toolbarVisibility,
     showPropertyIcons = true,
-    showMap = true,
-    showRowStatus = false,
     density = "default",
     class: className = ""
   }: {
@@ -30,25 +20,14 @@
     interactions: ListingRowInteractions;
     toolbarVisibility: ListingToolbarVisibility;
     showPropertyIcons?: boolean;
-    showMap?: boolean;
-    showRowStatus?: boolean;
     density?: "default" | "mobile";
     class?: string;
   } = $props();
 
   const isMobile = $derived(density === "mobile");
-  const mapBtnClass = $derived(
-    isMobile
-      ? LISTING_MOBILE_ICON_BTN_CLASS
-      : cn(ROW_ACTION_BTN_CLASS, "text-muted-foreground hover:text-app-accent")
-  );
-  const mapIconClass = $derived(isMobile ? LISTING_MOBILE_ICON_CLASS : ROW_ACTION_ICON_CLASS);
-  const mapsUrl = $derived(imovel.endereco?.trim() ? buildGoogleMapsUrl(imovel.endereco) : null);
-  const showMetaToolbar = $derived(showPropertyIcons || (showMap && mapsUrl));
-  const showStatusDivider = $derived(showMetaToolbar && showRowStatus);
 </script>
 
-{#if showMetaToolbar || showRowStatus}
+{#if showPropertyIcons}
   <div
     data-testid="listing-property-meta-row"
     class={cn(
@@ -57,66 +36,12 @@
       className
     )}
   >
-    {#if showMetaToolbar}
-      <div
-        class={cn(
-          "flex min-w-0 flex-wrap items-center",
-          isMobile ? LISTING_MOBILE_TOOLBAR_GAP_CLASS : "gap-1"
-        )}
-      >
-        {#if showPropertyIcons}
-          <ListingPropertyIconToolbar
-            {imovel}
-            {interactions}
-            visibility={toolbarVisibility}
-            {density}
-            class="justify-start"
-          />
-        {/if}
-        {#if showMap && mapsUrl}
-          <FloatingTooltip
-            label={`Abrir ${imovel.endereco} no Google Maps`}
-            side="bottom"
-            align="start"
-          >
-            <a
-              data-testid="listing-maps-link"
-              href={mapsUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              class={cn(
-                mapBtnClass,
-                "inline-flex items-center justify-center",
-                imovel.strikethrough && "opacity-50"
-              )}
-              aria-label="Abrir no Google Maps"
-              onclick={(event) => event.stopPropagation()}
-            >
-              <MapPin class={mapIconClass} />
-            </a>
-          </FloatingTooltip>
-        {/if}
-      </div>
-    {/if}
-
-    {#if showStatusDivider}
-      <div
-        class={cn(
-          "h-5 w-px shrink-0 bg-app-border",
-          isMobile ? "mx-0.5" : "mx-1"
-        )}
-        aria-hidden="true"
-      ></div>
-    {/if}
-
-    {#if showRowStatus}
-      <ListingRowStatusActions
-        {imovel}
-        {interactions}
-        part="status"
-        {density}
-        class="min-w-0"
-      />
-    {/if}
+    <ListingPropertyIconToolbar
+      {imovel}
+      {interactions}
+      visibility={toolbarVisibility}
+      {density}
+      class="justify-start"
+    />
   </div>
 {/if}

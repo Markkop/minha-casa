@@ -6,14 +6,8 @@
 </script>
 
 <script lang="ts">
-  import { ExternalLink } from "@lucide/svelte";
   import { buildListingAnaliseHref } from "$lib/listing-analise-url";
   import { cn } from "$lib/utils";
-  import FloatingTooltip from "$lib/components/ui/FloatingTooltip.svelte";
-  import {
-    LISTING_MOBILE_ICON_BTN_CLASS,
-    LISTING_MOBILE_ICON_CLASS
-  } from "$lib/components/anuncios/listings-table-shared";
 
   let {
     listing,
@@ -22,7 +16,6 @@
     class: className = "",
     titleClassName = "",
     maxTitleLength = 50,
-    showExternalIcon = true,
     overlayOnMedia = false,
     wrapTitle = false,
     truncateTitle = true
@@ -33,7 +26,6 @@
     class?: string;
     titleClassName?: string;
     maxTitleLength?: number;
-    showExternalIcon?: boolean;
     overlayOnMedia?: boolean;
     wrapTitle?: boolean;
     truncateTitle?: boolean;
@@ -44,9 +36,6 @@
     wrapTitle || !truncateTitle ? resolvedTitle : truncateListingTitle(resolvedTitle, maxTitleLength)
   );
   const analiseHref = $derived(buildListingAnaliseHref(listing.id, collectionId));
-  const hasExternalLink = $derived(
-    showExternalIcon && typeof listing.link === "string" && listing.link.trim() !== ""
-  );
 </script>
 
 <span
@@ -73,24 +62,4 @@
   >
     {displayTitle}
   </a>
-  {#if hasExternalLink}
-    <FloatingTooltip label="Abrir anúncio original" side="bottom">
-      <a
-        href={listing.link!}
-        target="_blank"
-        rel="noopener noreferrer"
-        class={cn(
-          overlayOnMedia
-            ? cn(LISTING_MOBILE_ICON_BTN_CLASS, "text-white/80 hover:text-white")
-            : "shrink-0 rounded p-1 text-muted-foreground transition-colors hover:text-app-accent",
-          !overlayOnMedia && listing.strikethrough && "opacity-50",
-          overlayOnMedia && listing.strikethrough && "opacity-50"
-        )}
-        aria-label="Abrir anúncio original"
-        onclick={(event) => event.stopPropagation()}
-      >
-        <ExternalLink class={overlayOnMedia ? LISTING_MOBILE_ICON_CLASS : "h-3.5 w-3.5"} />
-      </a>
-    </FloatingTooltip>
-  {/if}
 </span>
