@@ -1,7 +1,10 @@
 <script lang="ts">
   import type { Imovel } from "$lib/anuncios/types";
   import type { ListingPreferenceOption } from "$lib/anuncios/listing-preferences";
-  import type { ListingToolbarVisibility } from "$lib/anuncios/listing-toolbar-visibility";
+  import {
+    resolveListingToolbarVisibility,
+    type ListingToolbarVisibility
+  } from "$lib/anuncios/listing-toolbar-visibility";
   import ListingPropertyIconToolbar from "$lib/components/anuncios/ListingPropertyIconToolbar.svelte";
   import type { ListingRowInteractions } from "$lib/components/anuncios/listing-row-interactions.svelte";
   import {
