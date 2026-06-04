@@ -2,6 +2,13 @@ import type { Imovel } from "$lib/anuncios/types";
 
 type TipoImovelValue = "casa" | "apartamento" | null;
 
+const INACTIVE_LISTING_STATUSES = new Set(["descartado", "vendido"]);
+
+export type ListingToolbarListingSlice = Pick<
+  Imovel,
+  "tipoImovel" | "piscina" | "vistaLivre" | "strikethrough" | "listingStatus"
+>;
+
 function normalizeTipoImovel(value: Imovel["tipoImovel"]): TipoImovelValue {
   if (value === "casa" || value === "apartamento") return value;
   return null;
@@ -26,6 +33,25 @@ export const EDIT_MODAL_TOOLBAR_VISIBILITY: ListingToolbarVisibility = {
   showVistaLivre: true
 };
 
+/** Vendido/descartado rows keep the full preference toolbar for editing. */
+export function isListingInactiveForToolbar(
+  listing: Pick<Imovel, "strikethrough" | "listingStatus">
+): boolean {
+  if (listing.strikethrough) return true;
+  const status = listing.listingStatus;
+  return status != null && INACTIVE_LISTING_STATUSES.has(status);
+}
+
+export function resolveListingToolbarVisibility(
+  listing: Pick<Imovel, "strikethrough" | "listingStatus">,
+  collectionVisibility: ListingToolbarVisibility
+): ListingToolbarVisibility {
+  if (isListingInactiveForToolbar(listing)) {
+    return DEFAULT_LISTING_TOOLBAR_VISIBILITY;
+  }
+  return collectionVisibility;
+}
+
 function hasPiscina(listing: Pick<Imovel, "piscina">): boolean {
   return listing.piscina === true;
 }
@@ -41,19 +67,18 @@ function isUniform<T>(values: T[]): boolean {
 }
 
 export function computeListingToolbarVisibility(
-  listings: Pick<Imovel, "tipoImovel" | "piscina" | "vistaLivre">[]
+  listings: ListingToolbarListingSlice[]
 ): ListingToolbarVisibility {
   if (listings.length === 0) {
-    return {
-      showTipoImovel: true,
-      showPiscina: true,
-      showVistaLivre: true
-    };
+    return DEFAULT_LISTING_TOOLBAR_VISIBILITY;
   }
 
-  const tipos = listings.map((listing) => normalizeTipoImovel(listing.tipoImovel));
-  const piscinas = listings.map((listing) => hasPiscina(listing));
-  const vistasLivres = listings.map((listing) => hasVistaLivre(listing));
+  const activeListings = listings.filter((listing) => !isListingInactiveForToolbar(listing));
+  const source = activeListings.length > 0 ? activeListings : listings;
+
+  const tipos = source.map((listing) => normalizeTipoImovel(listing.tipoImovel));
+  const piscinas = source.map((listing) => hasPiscina(listing));
+  const vistasLivres = source.map((listing) => hasVistaLivre(listing));
 
   return {
     showTipoImovel: !isUniform(tipos),
