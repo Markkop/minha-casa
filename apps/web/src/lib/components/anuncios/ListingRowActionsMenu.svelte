@@ -23,8 +23,7 @@
     Copy,
     ExternalLink,
     MapPin,
-    Pencil,
-    Star
+    Pencil
   } from "@lucide/svelte";
 
   let {
@@ -132,27 +131,6 @@
         >
           <Pencil class={LISTING_POPOVER_MENU_ICON_CLASS} />
           <span class="min-w-0 flex-1">Editar</span>
-        </button>
-
-        <button
-          type="button"
-          data-testid="listing-actions-favorite"
-          role="menuitem"
-          class={menuItemClass()}
-          onclick={(event) => {
-            event.stopPropagation();
-            void interactions.handleToggleStar();
-            closeMenu();
-          }}
-        >
-          <Star
-            class={cn(
-              LISTING_POPOVER_MENU_ICON_CLASS,
-              imovel.starred && "fill-current text-yellow"
-            )}
-            fill={imovel.starred ? "currentColor" : "none"}
-          />
-          <span class="min-w-0 flex-1">{imovel.starred ? "Desfavoritar" : "Favoritar"}</span>
         </button>
 
         {#if hasExternalLink}

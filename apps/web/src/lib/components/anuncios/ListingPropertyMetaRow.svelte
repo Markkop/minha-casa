@@ -2,6 +2,7 @@
   import type { Imovel } from "$lib/anuncios/types";
   import type { ListingPreferenceOption } from "$lib/anuncios/listing-preferences";
   import type { ListingToolbarVisibility } from "$lib/anuncios/listing-toolbar-visibility";
+  import { hasPresentToolbarContent } from "$lib/anuncios/listing-present-display";
   import ListingPropertyIconToolbar from "$lib/components/anuncios/ListingPropertyIconToolbar.svelte";
   import type { ListingRowInteractions } from "$lib/components/anuncios/listing-row-interactions.svelte";
   import {
@@ -28,23 +29,29 @@
   } = $props();
 
   const isMobile = $derived(density === "mobile");
+  const hasContent = $derived(
+    hasPresentToolbarContent(imovel, preferenceCatalog, showCountFeatures)
+  );
 </script>
 
-<div
-  data-testid="listing-property-meta-row"
-  class={cn(
-    "flex min-w-0 flex-wrap items-center",
-    isMobile ? LISTING_MOBILE_TOOLBAR_GAP_CLASS : "gap-1",
-    className
-  )}
->
-  <ListingPropertyIconToolbar
-    {imovel}
-    {interactions}
-    {preferenceCatalog}
-    visibility={toolbarVisibility}
-    {showCountFeatures}
-    {density}
-    class="justify-start"
-  />
-</div>
+{#if hasContent}
+  <div
+    data-testid="listing-property-meta-row"
+    class={cn(
+      "flex min-w-0 flex-wrap items-center",
+      isMobile ? LISTING_MOBILE_TOOLBAR_GAP_CLASS : "gap-1",
+      className
+    )}
+  >
+    <ListingPropertyIconToolbar
+      {imovel}
+      {interactions}
+      {preferenceCatalog}
+      visibility={toolbarVisibility}
+      {showCountFeatures}
+      {density}
+      mode="present"
+      class="justify-start"
+    />
+  </div>
+{/if}

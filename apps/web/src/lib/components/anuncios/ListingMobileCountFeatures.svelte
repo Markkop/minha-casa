@@ -1,6 +1,7 @@
 <script lang="ts">
   import { Building, Car, Bath, BedDouble } from "@lucide/svelte";
   import type { Imovel } from "$lib/anuncios/types";
+  import { shouldShowListingCountField } from "$lib/anuncios/listing-present-display";
   import { cn } from "$lib/utils";
   import { formatListingCountDisplay } from "$lib/anuncios/listing-count-field";
   import ListingCountStepperPopover from "$lib/components/anuncios/ListingCountStepperPopover.svelte";
@@ -17,11 +18,10 @@
     class?: string;
   } = $props();
 
-  const isApartment = $derived(imovel.tipoImovel === "apartamento");
-  const showQuartos = $derived((imovel.quartos ?? 0) > 0);
-  const showBanheiros = $derived((imovel.banheiros ?? 0) > 0);
-  const showGaragem = $derived((imovel.garagem ?? 0) > 0);
-  const showAndar = $derived(isApartment && (imovel.andar ?? 0) > 0);
+  const showQuartos = $derived(shouldShowListingCountField("quartos", imovel));
+  const showBanheiros = $derived(shouldShowListingCountField("banheiros", imovel));
+  const showGaragem = $derived(shouldShowListingCountField("garagem", imovel));
+  const showAndar = $derived(shouldShowListingCountField("andar", imovel));
   const hasCounts = $derived(showQuartos || showBanheiros || showGaragem || showAndar);
 </script>
 

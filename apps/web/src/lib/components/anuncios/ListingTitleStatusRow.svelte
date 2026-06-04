@@ -39,17 +39,21 @@
   } = $props();
 
   const showActionsMenu = $derived(interactions !== undefined && openEditListing !== undefined);
+  const starToggle = $derived(
+    onToggleStar ??
+      (interactions ? () => void interactions.handleToggleStar() : undefined)
+  );
 </script>
 
 <div
   data-testid="listing-title-status-row"
   class={cn("flex w-full min-w-0 max-w-full items-center gap-0.5", className)}
 >
-  {#if onToggleStar}
+  {#if starToggle}
     <ListingStarButton
       starred={listing.starred}
       variant={overlayOnMedia ? "on-media" : "default"}
-      onToggle={onToggleStar}
+      onToggle={starToggle}
       class="shrink-0"
     />
   {/if}

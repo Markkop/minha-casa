@@ -90,8 +90,7 @@
     openEditListing,
     showMap: propertyDisplay.showAddress,
     showContact: propertyDisplay.showContact,
-    showStatus,
-    onToggleStar: () => void interactions.handleToggleStar()
+    showStatus
   });
 
   const strikethroughClass = $derived(

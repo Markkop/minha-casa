@@ -8,6 +8,7 @@
     sortPreferenceCatalog,
     type ListingPreferenceOption
   } from "$lib/anuncios/listing-preferences";
+  import { getPreferencePresentation } from "$lib/anuncios/listing-preference-present";
   import { cn } from "$lib/utils";
 
   let {
@@ -69,12 +70,10 @@
 
   <div class="flex flex-col gap-2">
     <p class="px-2 text-xs font-medium text-app-fg">Preferências</p>
-    <p class="px-2 text-[11px] leading-snug text-app-muted">
-      Controla quais preferências aparecem nos chips da listagem. Todas continuam editáveis no imóvel.
-    </p>
 
     <div class="flex max-h-52 flex-col gap-0.5 overflow-y-auto">
       {#each sortedCatalog as option (option.key)}
+        {@const presentation = getPreferencePresentation(option)}
         <label
           class={cn(
             "flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-sm text-app-muted transition-colors hover:bg-app-surface-muted hover:text-app-fg",
@@ -86,7 +85,11 @@
             checked={option.visible}
             disabled={saving}
             onchange={(event) => toggleVisible(option.key, event.currentTarget.checked)}
-            class="h-3.5 w-3.5 accent-app-action"
+            class="h-3.5 w-3.5 shrink-0 accent-app-action"
+          />
+          <presentation.Icon
+            class={cn("h-4 w-4 shrink-0", presentation.iconClass)}
+            aria-hidden="true"
           />
           <span class="min-w-0 flex-1 truncate">{option.label}</span>
           {#if option.source === "custom"}
