@@ -16,7 +16,7 @@
     LISTING_TABLE_DATA_HEADER_CLASS,
     LISTING_TABLE_IMAGE_HEADER_CLASS,
     LISTING_TABLE_PROPERTY_HEADER_CLASS,
-    LISTING_TABLE_STATUS_HEADER_CLASS,
+    LISTING_TABLE_ETAPA_HEADER_CLASS,
     listingTablePropertyWidthStyle
   } from "$lib/components/anuncios/listing-table-column-layout";
   import {
@@ -178,8 +178,8 @@
           class={LISTING_TABLE_COMPACT_HEADER_CENTER_CLASS}
         />
       {/if}
-      {#if visibleColumns.status}
-        <th class={LISTING_TABLE_STATUS_HEADER_CLASS}>Estado</th>
+      {#if visibleColumns.etapa}
+        <th class={LISTING_TABLE_ETAPA_HEADER_CLASS}>Etapa</th>
       {/if}
     </tr>
   </thead>

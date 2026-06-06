@@ -34,49 +34,28 @@
   });
 
   const displayTitle = $derived(getListingDisplayTitle(listing));
-  const imageSlots = $derived([
-    orderedImageUrls[0] ?? null,
-    orderedImageUrls[1] ?? null,
-    orderedImageUrls[2] ?? null
-  ]);
 </script>
 
 <section
-  class={cn("relative isolate h-full min-h-64 overflow-hidden bg-app-surface-muted", className)}
+  class={cn("bg-app-surface-muted p-1.5", className)}
   aria-label="Fotos do imóvel"
 >
-  <div class="grid h-full min-h-64 grid-cols-[minmax(0,2fr)_minmax(0,1fr)] gap-1.5">
-    <div class="relative min-w-0 overflow-hidden bg-app-surface-muted">
-      {#if imageSlots[0]}
-        <img
-          src={imageSlots[0]}
-          alt={`Foto principal de ${displayTitle}`}
-          class="h-full w-full object-cover"
-        />
-      {:else}
-        <div class="flex h-full w-full items-center justify-center bg-app-surface-muted text-sm text-app-muted">
-          Sem imagem
-        </div>
-      {/if}
-    </div>
-
-    <div class="grid min-w-0 grid-rows-2 gap-1.5">
-      {#each imageSlots.slice(1) as imageUrl, index}
-        <div class="relative min-h-0 overflow-hidden bg-app-surface-muted">
-          {#if imageUrl}
-            <img
-              src={imageUrl}
-              alt={`Foto ${index + 2} de ${displayTitle}`}
-              class="h-full w-full object-cover"
-              loading="lazy"
-            />
-          {:else}
-            <div class="flex h-full w-full items-center justify-center bg-app-surface-muted text-sm text-app-muted">
-              Sem imagem
-            </div>
-          {/if}
-        </div>
+  {#if orderedImageUrls.length > 0}
+    <ul class="flex flex-col gap-2">
+      {#each orderedImageUrls as imageUrl, index (imageUrl)}
+        <li class="overflow-hidden rounded-md border border-app-border/60 bg-app-bg">
+          <img
+            src={imageUrl}
+            alt={`Foto ${index + 1} de ${displayTitle}`}
+            class="aspect-[2/1] w-full object-cover"
+            loading={index === 0 ? "eager" : "lazy"}
+          />
+        </li>
       {/each}
+    </ul>
+  {:else}
+    <div class="flex min-h-full items-center justify-center p-4 text-sm text-app-muted">
+      Sem imagem
     </div>
-  </div>
+  {/if}
 </section>

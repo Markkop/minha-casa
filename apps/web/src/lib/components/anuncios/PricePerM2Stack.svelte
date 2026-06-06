@@ -10,7 +10,8 @@
     tipoImovel = null,
     activeVariant = null,
     enabledVariants,
-    align = "end"
+    align = "end",
+    layout = "stack"
   } = $props<{
     total: number | null;
     privado: number | null;
@@ -18,6 +19,7 @@
     activeVariant?: MetricVariant | null;
     enabledVariants: Set<MetricVariant>;
     align?: "start" | "center" | "end";
+    layout?: "stack" | "inline";
   }>();
 </script>
 
@@ -29,4 +31,5 @@
   {enabledVariants}
   formatValue={formatPrecoM2Value}
   {align}
+  {layout}
 />

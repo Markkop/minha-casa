@@ -19,7 +19,7 @@
     openEditListing = undefined,
     showMap = true,
     showContact = true,
-    showStatus = true,
+    showEtapa = true,
     showStar = true,
     onToggleStar = undefined
   }: {
@@ -35,7 +35,7 @@
     openEditListing?: (listing: Imovel) => void;
     showMap?: boolean;
     showContact?: boolean;
-    showStatus?: boolean;
+    showEtapa?: boolean;
     showStar?: boolean;
     onToggleStar?: () => void;
   } = $props();
@@ -48,7 +48,7 @@
 </script>
 
 <div
-  data-testid="listing-title-status-row"
+  data-testid="listing-title-etapa-row"
   class={cn("flex w-full min-w-0 max-w-full items-center gap-0.5", className)}
 >
   {#if showStar && starToggle}
@@ -76,7 +76,7 @@
       openEditListing={openEditListing!}
       {showMap}
       {showContact}
-      {showStatus}
+      {showEtapa}
       {overlayOnMedia}
     />
   {/if}

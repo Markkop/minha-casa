@@ -4,15 +4,13 @@
   import { ChevronDown, Home } from "@lucide/svelte";
   import { getCollectionsContext } from "$lib/collections-context.svelte";
   import ListingSelectorPanel from "$lib/components/listings/ListingSelectorPanel.svelte";
+  import AnchoredPopover from "$lib/components/ui/AnchoredPopover.svelte";
   import {
     getListingThumbUrl,
     LISTING_SELECTOR_POPOVER_CLASS,
     sortSelectableListings
   } from "$lib/listings/listing-selector";
-  import {
-    compactListingDisplayTitle,
-    mobileCompactListingDisplayTitle
-  } from "$lib/listing-display-title";
+  import { mobileCompactListingDisplayTitle } from "$lib/listing-display-title";
   import { cn } from "$lib/utils";
   import { workspaceTopBarControlClass } from "$lib/workspace-chrome";
 
@@ -31,17 +29,13 @@
 
   const fallbackLabel = $derived(ctx.isLoadingListings ? "Carregando..." : "Nenhum imóvel");
 
-  const selectedFullTitle = $derived(selected ? ctx.getListingDisplayTitle(selected) : null);
-  const selectedCompactTitle = $derived(
-    selectedFullTitle ? compactListingDisplayTitle(selectedFullTitle) : null
+  const selectedDisplayTitle = $derived(
+    selected ? ctx.getAnunciosListingDisplayTitle(selected) : null
   );
+  const selectedCompactTitle = $derived(selectedDisplayTitle);
   const selectedMobileTitle = $derived(
-    selectedFullTitle ? mobileCompactListingDisplayTitle(selectedFullTitle) : null
+    selectedDisplayTitle ? mobileCompactListingDisplayTitle(selectedDisplayTitle) : null
   );
-
-  $effect(() => {
-    if (!open) panel?.resetQuery();
-  });
 
   function handleSelect(listing: (typeof ctx.listings)[number]) {
     const params = new URLSearchParams(page.url.searchParams);
@@ -55,62 +49,60 @@
     });
     open = false;
   }
-
-  function closeOnOutside(event: MouseEvent) {
-    const target = event.target as HTMLElement | null;
-    if (!target?.closest("[data-analise-listing-breadcrumb]")) open = false;
-  }
 </script>
 
-<svelte:window onclick={closeOnOutside} />
-
-<div data-analise-listing-breadcrumb class={cn("relative min-w-0", className)}>
-  <button
-    type="button"
-    data-testid="analise-listing-breadcrumb"
-    class={cn(
-      workspaceTopBarControlClass,
-      "h-8 w-full max-w-full px-2.5 py-1 text-sm font-medium leading-snug disabled:pointer-events-none disabled:opacity-60"
-    )}
-    aria-label={selectedCompactTitle ? `Selecionar imóvel: ${selectedCompactTitle}` : "Selecionar imóvel"}
-    disabled={ctx.isLoadingListings}
-    onclick={(event) => {
-      event.stopPropagation();
-      open = !open;
-    }}
+<div data-analise-listing-breadcrumb class={cn("pointer-events-none w-fit min-w-0 max-w-full", className)}>
+  <AnchoredPopover
+    bind:open
+    align="auto"
+    side="auto"
+    rootClass="pointer-events-auto relative w-fit min-w-0 max-w-full"
+    panelClass={LISTING_SELECTOR_POPOVER_CLASS}
+    onClose={() => panel?.resetQuery()}
   >
-    {#if selected && getListingThumbUrl(selected)}
-      <span class="size-6 shrink-0 overflow-hidden rounded-md border border-app-border bg-app-surface-muted">
-        <img src={getListingThumbUrl(selected)!} alt="" class="h-full w-full object-cover" />
-      </span>
-    {:else}
-      <Home class="size-4 shrink-0 text-app-muted" />
-    {/if}
-    <span class="min-w-0 flex-1 truncate text-left">
-      {#if selectedMobileTitle != null && selectedCompactTitle != null}
-        <span class="sm:hidden">{selectedMobileTitle}</span>
-        <span class="hidden sm:inline">{selectedCompactTitle}</span>
-      {:else}
-        {fallbackLabel}
-      {/if}
-    </span>
-    <ChevronDown class="size-3.5 shrink-0 text-app-muted" />
-  </button>
+    {#snippet trigger()}
+      <button
+        type="button"
+        data-testid="analise-listing-breadcrumb"
+        class={cn(
+          workspaceTopBarControlClass,
+          "h-8 max-w-full px-2.5 py-1 text-sm font-medium leading-snug disabled:pointer-events-none disabled:opacity-60"
+        )}
+        aria-label={selectedCompactTitle ? `Selecionar imóvel: ${selectedCompactTitle}` : "Selecionar imóvel"}
+        disabled={ctx.isLoadingListings}
+        onclick={(event) => {
+          event.stopPropagation();
+          open = !open;
+        }}
+      >
+        {#if selected && getListingThumbUrl(selected)}
+          <span class="size-6 shrink-0 overflow-hidden rounded-md border border-app-border bg-app-surface-muted">
+            <img src={getListingThumbUrl(selected)!} alt="" class="h-full w-full object-cover" />
+          </span>
+        {:else}
+          <Home class="size-4 shrink-0 text-app-muted" />
+        {/if}
+        <span class="inline-flex min-w-0 max-w-full items-center gap-0.5">
+          <span class="truncate text-left">
+            {#if selectedMobileTitle != null && selectedCompactTitle != null}
+              <span class="sm:hidden">{selectedMobileTitle}</span>
+              <span class="hidden sm:inline">{selectedCompactTitle}</span>
+            {:else}
+              {fallbackLabel}
+            {/if}
+          </span>
+          <ChevronDown class="size-3.5 shrink-0 text-app-muted" />
+        </span>
+      </button>
+    {/snippet}
 
-  {#if open}
-    <div
-      role="menu"
-      class={cn(
-        "absolute left-0 top-10 z-50 overflow-hidden rounded-md border border-app-border bg-app-surface text-app-fg shadow-lg",
-        LISTING_SELECTOR_POPOVER_CLASS
-      )}
-    >
+    {#snippet children()}
       <ListingSelectorPanel
         bind:this={panel}
         listings={ctx.listings}
         selectedId={selected?.id ?? null}
         onSelect={handleSelect}
       />
-    </div>
-  {/if}
+    {/snippet}
+  </AnchoredPopover>
 </div>

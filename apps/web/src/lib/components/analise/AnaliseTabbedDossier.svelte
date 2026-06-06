@@ -166,15 +166,19 @@
       </TabsList>
 
       <TabsContent value="visao-geral" class="min-w-0">
-        <div class="grid items-stretch gap-4 lg:grid-cols-2">
+        <div class="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,17.5rem)] lg:items-stretch">
           <ListingAnalysisSummaryCard
             {listing}
             {collectionId}
             {updateListing}
             {removeListing}
           />
-          <WorkspacePanel class="overflow-hidden p-0">
-            <AnaliseImageMasthead {listing} class="min-h-72 lg:min-h-full" />
+          <WorkspacePanel class="relative min-h-0 overflow-hidden p-0 max-lg:h-56">
+            <div
+              class="absolute inset-0 overflow-y-auto overscroll-contain [-webkit-overflow-scrolling:touch]"
+            >
+              <AnaliseImageMasthead {listing} />
+            </div>
           </WorkspacePanel>
         </div>
       </TabsContent>

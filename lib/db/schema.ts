@@ -381,7 +381,7 @@ export interface ListingData {
   visited?: boolean
   strikethrough?: boolean
   discardedReason?: string | null
-  listingStatus?: string | null
+  listingEtapa?: string | null
   customLat?: number | null
   customLng?: number | null
   addedAt?: string

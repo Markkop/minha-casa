@@ -84,12 +84,20 @@
 </script>
 
 {#if loading || organizations.length > 0}
-  <div data-org-switcher data-testid={breadcrumb ? "organization-breadcrumb" : undefined} class={cn("relative min-w-0", className)}>
+  <div
+    data-org-switcher
+    data-testid={breadcrumb ? "organization-breadcrumb" : undefined}
+    class={cn("relative min-w-0 max-w-full", breadcrumb ? "" : className)}
+  >
     <button
       type="button"
       class={cn(
         breadcrumb
-          ? cn(workspaceTopBarControlClass, "max-w-[38vw] md:max-w-[260px]")
+          ? cn(
+              workspaceTopBarControlClass,
+              "min-w-0 max-w-full",
+              className || "max-w-[38vw] md:max-w-[260px]"
+            )
           : "inline-flex h-9 min-w-0 items-center gap-2 rounded-md border border-app-border bg-app-surface px-3 text-sm text-app-fg shadow-xs transition hover:bg-app-surface-muted",
         !breadcrumb && compact ? "max-w-[13rem]" : "",
         !breadcrumb && !compact ? "w-full max-w-[18rem]" : ""

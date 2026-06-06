@@ -126,7 +126,9 @@
   const collectionBreadcrumbClass = $derived(
     cn(
       showAnaliseListingBreadcrumb
-        ? "max-w-[min(26vw,7.5rem)] sm:max-w-[220px] md:max-w-[300px]"
+        ? showOrgBreadcrumb
+          ? "max-w-[min(26vw,7.5rem)] sm:max-w-[220px] md:max-w-[300px]"
+          : "max-w-[min(38vw,10rem)] sm:max-w-[220px] md:max-w-[300px]"
         : showOrgBreadcrumb
           ? "max-w-[44vw] md:max-w-[340px]"
           : "max-w-[44vw] md:max-w-[380px]"

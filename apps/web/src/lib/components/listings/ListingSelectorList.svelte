@@ -5,7 +5,7 @@
   import type { Imovel } from "$lib/anuncios/types";
   import { getCollectionsContext } from "$lib/collections-context.svelte";
   import { formatListingAddress, formatListingPrice } from "$lib/listings/listing-selector";
-  import { compactListingDisplayTitle } from "$lib/listing-display-title";
+  import { mobileListingDisplayTitle } from "$lib/listing-display-title";
   import { cn } from "$lib/utils";
 
   let {
@@ -38,31 +38,31 @@
   {@const garagem = listing.garagem ?? 0}
   {@const quartos = listing.quartos ?? 0}
   {@const banheiros = listing.banheiros ?? 0}
-  <span class="flex min-w-0 items-center gap-1.5">
+  <span class="flex min-w-0 items-center gap-1.5 text-[10px] sm:text-[11px]">
     <span class="shrink-0">{formatListingPrice(listing.preco)}</span>
     <span class="shrink-0 text-app-muted">-</span>
     <span class="inline-flex shrink-0 items-center gap-0.5">
-      <BedDouble class="size-3.5 text-app-muted" />
+      <BedDouble class="size-3 text-app-muted sm:size-3.5" />
       <span>{quartos}</span>
     </span>
     <span class="inline-flex shrink-0 items-center gap-0.5">
-      <Bath class="size-3.5 text-app-muted" />
+      <Bath class="size-3 text-app-muted sm:size-3.5" />
       <span>{banheiros}</span>
     </span>
     <span class="inline-flex shrink-0 items-center gap-0.5">
-      <Car class="size-3.5 text-app-muted" />
+      <Car class="size-3 text-app-muted sm:size-3.5" />
       <span>{garagem}</span>
     </span>
     {#if listing.tipoImovel === "apartamento" && (listing.andar ?? 0) > 0}
       <span class="inline-flex shrink-0 items-center gap-0.5">
-        <Building class="size-3.5 text-app-muted" />
+        <Building class="size-3 text-app-muted sm:size-3.5" />
         <span>{listing.andar === 10 ? "+" : listing.andar}</span>
       </span>
     {/if}
     {#each getEnabledPreferencesForDisplay(listing) as preference (preference.key)}
       {@const PrefIcon = getPreferenceIcon(preference.key) ?? CircleDot}
       <span class="inline-flex shrink-0" aria-label={preference.label}>
-        <PrefIcon class="size-3.5" />
+        <PrefIcon class="size-3 sm:size-3.5" />
       </span>
     {/each}
   </span>
@@ -85,9 +85,9 @@
             {@render ListingOptionThumb({ listing })}
             <div class="min-w-0 flex-1 space-y-0.5">
               <div class="break-words font-medium leading-snug text-app-fg">
-                {compactListingDisplayTitle(ctx.getListingDisplayTitle(listing))}
+                {mobileListingDisplayTitle(ctx.getAnunciosListingDisplayTitle(listing))}
               </div>
-              <div class="text-[11px] font-normal leading-4 text-app-muted">
+              <div class="font-normal leading-4 text-app-muted">
                 {@render ListingSummary({ listing })}
               </div>
               <div class="break-words text-[11px] font-normal leading-4 text-app-muted">

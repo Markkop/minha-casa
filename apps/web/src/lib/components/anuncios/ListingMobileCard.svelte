@@ -4,8 +4,8 @@
   import ListingMobileImageGallery from "$lib/components/anuncios/ListingMobileImageGallery.svelte";
   import ListingMobileCountFeatures from "$lib/components/anuncios/ListingMobileCountFeatures.svelte";
   import ListingMobileAmenityButton from "$lib/components/anuncios/ListingMobileAmenityButton.svelte";
-  import ListingTitleStatusRow from "$lib/components/anuncios/ListingTitleStatusRow.svelte";
-  import ListingRowStatusSelect from "$lib/components/anuncios/ListingRowStatusSelect.svelte";
+  import ListingTitleEtapaRow from "$lib/components/anuncios/ListingTitleEtapaRow.svelte";
+  import ListingRowEtapaSelect from "$lib/components/anuncios/ListingRowEtapaSelect.svelte";
   import {
     getListingMobileAmenities,
     layoutListingMobileAmenityRows
@@ -42,13 +42,13 @@
   const showArea = $derived(visibleColumns.area);
   const showValue = $derived(visibleColumns.value);
   const showImage = $derived(visibleColumns.image);
-  const showStatus = $derived(visibleColumns.status);
+  const showEtapa = $derived(visibleColumns.etapa);
   const showMetrics = $derived(
     (showArea || showValue) &&
       (enabledMetricVariants.has("total") || enabledMetricVariants.has("privado"))
   );
   const titleOnHero = $derived(showImage && showTitle);
-  const showSummaryRow = $derived(showPrice || showCountFeatures || showStatus);
+  const showSummaryRow = $derived(showPrice || showCountFeatures || showEtapa);
   const amenityRows = $derived(
     showAmenities
       ? layoutListingMobileAmenityRows(
@@ -83,14 +83,14 @@
   );
   const showSummaryGrid = $derived(showSummaryRow || detailRowCount > 0);
 
-  const titleStatusProps = $derived({
+  const titleEtapaProps = $derived({
     listing: imovel,
     collectionId: activeCollectionId,
     interactions,
     openEditListing,
     showMap: propertyDisplay.showAddress,
     showContact: propertyDisplay.showContact,
-    showStatus
+    showEtapa
   });
 
   const strikethroughClass = $derived(
@@ -123,8 +123,8 @@
             class="pointer-events-none absolute inset-x-0 top-0 z-10 bg-gradient-to-b from-black/80 via-black/50 to-transparent px-3.5 pb-5 pt-3"
           >
             <div class="pointer-events-auto min-w-0">
-              <ListingTitleStatusRow
-                {...titleStatusProps}
+              <ListingTitleEtapaRow
+                {...titleEtapaProps}
                 {displayTitle}
                 overlayOnMedia
                 class="min-w-0"
@@ -141,7 +141,7 @@
     class={cn(LISTING_MOBILE_CARD_BODY_CLASS, showImage ? "pt-2.5" : "pt-3.5")}
   >
     {#if showTitle && !titleOnHero}
-      <ListingTitleStatusRow {...titleStatusProps} {displayTitle} class="min-w-0" />
+      <ListingTitleEtapaRow {...titleEtapaProps} {displayTitle} class="min-w-0" />
     {/if}
 
     {#if showSummaryGrid}
@@ -166,9 +166,9 @@
             {/if}
           </div>
 
-          {#if showStatus}
+          {#if showEtapa}
             <div class="flex justify-end">
-              <ListingRowStatusSelect {imovel} {interactions} class="shrink-0" />
+              <ListingRowEtapaSelect {imovel} {interactions} class="shrink-0" />
             </div>
           {:else}
             <span aria-hidden="true"></span>

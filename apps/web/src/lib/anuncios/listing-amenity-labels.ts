@@ -7,7 +7,7 @@ import {
   type ListingPreferenceOption
 } from "$lib/anuncios/listing-preferences";
 import { getPreferencePresentation } from "$lib/anuncios/listing-preference-present";
-import { getTipoImovelOption, normalizeTipoImovel } from "$lib/components/anuncios/listings-table-shared";
+import { normalizeTipoImovel } from "$lib/components/anuncios/listings-table-shared";
 
 export interface ListingAmenityItem {
   key: string;
@@ -36,29 +36,9 @@ function formatAndarLabel(andar: number) {
   return `${andar}º andar`;
 }
 
-export function buildListingAmenityItems(
-  listing: Imovel,
-  catalog: readonly ListingPreferenceOption[] = defaultPreferenceCatalog()
-): ListingAmenityItem[] {
+export function buildListingCoreAmenityItems(listing: Imovel): ListingAmenityItem[] {
   const items: ListingAmenityItem[] = [];
   const tipo = normalizeTipoImovel(listing.tipoImovel);
-  const catalogByKey = new Map(catalog.map((option) => [option.key, option]));
-
-  if (tipo !== null) {
-    const tipoOption = getTipoImovelOption(listing.tipoImovel);
-    items.push({ key: "tipo", label: tipoOption.label, icon: tipoOption.Icon });
-  }
-
-  for (const preference of getEnabledPreferencesForDisplay(listing, catalog)) {
-    const option = catalogByKey.get(preference.key);
-    const presentation = option ? getPreferencePresentation(option) : null;
-    items.push({
-      key: preference.key,
-      label: preference.label,
-      icon: presentation?.Icon ?? CircleDot,
-      iconClassName: presentation?.iconClass
-    });
-  }
 
   const quartos = listing.quartos ?? 0;
   if (quartos > 0) {
@@ -80,6 +60,27 @@ export function buildListingAmenityItems(
     if (andar > 0) {
       items.push({ key: "andar", label: formatAndarLabel(andar), icon: Building });
     }
+  }
+
+  return items;
+}
+
+export function buildListingAmenityItems(
+  listing: Imovel,
+  catalog: readonly ListingPreferenceOption[] = defaultPreferenceCatalog()
+): ListingAmenityItem[] {
+  const items: ListingAmenityItem[] = [];
+  const catalogByKey = new Map(catalog.map((option) => [option.key, option]));
+
+  for (const preference of getEnabledPreferencesForDisplay(listing, catalog)) {
+    const option = catalogByKey.get(preference.key);
+    const presentation = option ? getPreferencePresentation(option) : null;
+    items.push({
+      key: preference.key,
+      label: preference.label,
+      icon: presentation?.Icon ?? CircleDot,
+      iconClassName: presentation?.iconClass
+    });
   }
 
   return items;

@@ -6,13 +6,13 @@
   import WhatsAppIcon from "$lib/components/anuncios/WhatsAppIcon.svelte";
   import AnchoredPopover from "$lib/components/ui/AnchoredPopover.svelte";
   import {
-    getListingStatus,
-    getListingStatusOption,
+    getListingEtapa,
+    getListingEtapaOption,
+    LISTING_ETAPA_OPTIONS,
     LISTING_POPOVER_MENU_ICON_CLASS,
     LISTING_POPOVER_MENU_ITEM_ACTIVE_CLASS,
     LISTING_POPOVER_MENU_ITEM_CLASS,
-    LISTING_STATUS_OPTIONS,
-    type ListingStatus
+    type ListingEtapa
   } from "$lib/components/anuncios/listings-table-shared";
   import { cn } from "$lib/utils";
   import {
@@ -32,7 +32,7 @@
     openEditListing = () => {},
     showMap = true,
     showContact = true,
-    showStatus = true,
+    showEtapa = true,
     overlayOnMedia = false
   }: {
     imovel: Imovel;
@@ -40,12 +40,12 @@
     openEditListing?: (listing: Imovel) => void;
     showMap?: boolean;
     showContact?: boolean;
-    showStatus?: boolean;
+    showEtapa?: boolean;
     overlayOnMedia?: boolean;
   } = $props();
 
   let open = $state(false);
-  let panelView = $state<"main" | "status">("main");
+  let panelView = $state<"main" | "etapa">("main");
 
   const whatsappUrl = $derived(buildWhatsAppUrl(imovel.contactNumber));
   const mapsUrl = $derived(imovel.endereco?.trim() ? buildGoogleMapsUrl(imovel.endereco) : null);
@@ -53,8 +53,8 @@
   const showContactItem = $derived(showContact && Boolean(whatsappUrl));
   const externalLink = $derived(typeof imovel.link === "string" ? imovel.link.trim() : "");
   const hasExternalLink = $derived(externalLink.length > 0);
-  const status = $derived(getListingStatus(imovel));
-  const statusOption = $derived(getListingStatusOption(status));
+  const etapa = $derived(getListingEtapa(imovel));
+  const etapaOption = $derived(getListingEtapaOption(etapa));
 
   const triggerClass = $derived(
     cn(
@@ -83,16 +83,16 @@
     resetPanel();
   }
 
-  function openStatusPanel() {
-    panelView = "status";
+  function openEtapaPanel() {
+    panelView = "etapa";
   }
 
-  async function selectStatus(nextStatus: ListingStatus) {
-    if (nextStatus === status) {
+  async function selectEtapa(nextEtapa: ListingEtapa) {
+    if (nextEtapa === etapa) {
       closeMenu();
       return;
     }
-    await interactions.handleChangeListingStatus(nextStatus);
+    await interactions.handleChangeListingEtapa(nextEtapa);
     closeMenu();
   }
 </script>
@@ -207,24 +207,24 @@
           </span>
         </button>
 
-        {#if showStatus}
+        {#if showEtapa}
           <button
             type="button"
-            data-testid="listing-actions-status"
+            data-testid="listing-actions-etapa"
             role="menuitem"
-            aria-label={`Estado: ${statusOption.label}. Escolher outro estado`}
+            aria-label={`Etapa: ${etapaOption.label}. Escolher outra etapa`}
             class={menuItemClass(false, "justify-between")}
             onclick={(event) => {
               event.stopPropagation();
-              openStatusPanel();
+              openEtapaPanel();
             }}
           >
             <span class="flex min-w-0 flex-1 items-center gap-2">
               <span
-                class={cn("size-2 shrink-0 rounded-full border", statusOption.className)}
+                class={cn("size-2 shrink-0 rounded-full border", etapaOption.className)}
                 aria-hidden="true"
               ></span>
-              <span class="min-w-0 truncate">{statusOption.label}</span>
+              <span class="min-w-0 truncate">{etapaOption.label}</span>
             </span>
             <ChevronRight class="h-3.5 w-3.5 shrink-0" />
           </button>
@@ -234,7 +234,7 @@
       <div class="flex flex-col gap-0.5" role="menu">
         <button
           type="button"
-          data-testid="listing-actions-status-back"
+          data-testid="listing-actions-etapa-back"
           role="menuitem"
           class={menuItemClass()}
           onclick={(event) => {
@@ -245,11 +245,11 @@
           <ChevronLeft class={LISTING_POPOVER_MENU_ICON_CLASS} />
           <span class="min-w-0 flex-1">Voltar</span>
         </button>
-        {#each LISTING_STATUS_OPTIONS as statusOption (statusOption.value)}
-          {@const isSelected = status === statusOption.value}
+        {#each LISTING_ETAPA_OPTIONS as etapaOption (etapaOption.value)}
+          {@const isSelected = etapa === etapaOption.value}
           <button
             type="button"
-            data-testid="listing-actions-status-{statusOption.value}"
+            data-testid="listing-actions-etapa-{etapaOption.value}"
             role="menuitem"
             class={cn(
               "flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm transition-colors hover:bg-app-surface-muted",
@@ -257,14 +257,14 @@
             )}
             onclick={(event) => {
               event.stopPropagation();
-              void selectStatus(statusOption.value);
+              void selectEtapa(etapaOption.value);
             }}
           >
             <span
-              class={cn("size-2 shrink-0 rounded-full border", statusOption.className)}
+              class={cn("size-2 shrink-0 rounded-full border", etapaOption.className)}
               aria-hidden="true"
             ></span>
-            <span class="min-w-0 flex-1">{statusOption.label}</span>
+            <span class="min-w-0 flex-1">{etapaOption.label}</span>
             {#if isSelected}
               <Check class="h-4 w-4 shrink-0 text-app-accent" />
             {:else}

@@ -14,7 +14,7 @@
     LISTING_TABLE_DATA_CELL_CENTER_CLASS,
     LISTING_TABLE_IMAGE_BODY_CELL_CLASS,
     LISTING_TABLE_PROPERTY_CELL_CLASS,
-    LISTING_TABLE_STATUS_CELL_CENTER_CLASS
+    LISTING_TABLE_ETAPA_CELL_CENTER_CLASS
   } from "$lib/components/anuncios/listing-table-column-layout";
   import { cn } from "$lib/utils";
 
@@ -183,7 +183,7 @@
       <span class="mx-auto inline-block h-3 w-24 animate-pulse rounded bg-app-surface-muted"></span>
     </td>
   {/if}
-  {#if visibleColumns.status}
-    <td class={LISTING_TABLE_STATUS_CELL_CENTER_CLASS}></td>
+  {#if visibleColumns.etapa}
+    <td class={LISTING_TABLE_ETAPA_CELL_CENTER_CLASS}></td>
   {/if}
 </tr>

@@ -61,7 +61,7 @@ export interface Imovel {
   visited?: boolean;
   strikethrough?: boolean;
   discardedReason?: string | null;
-  listingStatus?: string | null;
+  listingEtapa?: string | null;
   customLat?: number | null;
   customLng?: number | null;
   createdAt: string;
@@ -135,7 +135,7 @@ export function toImovel(apiListing: ApiListing, preferenceCatalog = defaultPref
     visited: data.visited === true,
     strikethrough: data.strikethrough === true,
     discardedReason: data.discardedReason as string | null | undefined,
-    listingStatus: data.listingStatus as string | null | undefined,
+    listingEtapa: (data.listingEtapa ?? data.listingStatus) as string | null | undefined,
     customLat: data.customLat as number | null | undefined,
     customLng: data.customLng as number | null | undefined,
     createdAt: apiListing.createdAt,
@@ -189,7 +189,7 @@ export function toListingData(
   assign("visited", imovel.visited);
   assign("strikethrough", imovel.strikethrough);
   assign("discardedReason", imovel.discardedReason ?? undefined);
-  assign("listingStatus", imovel.listingStatus ?? undefined);
+  assign("listingEtapa", imovel.listingEtapa ?? undefined);
   assign("customLat", imovel.customLat ?? undefined);
   assign("customLng", imovel.customLng ?? undefined);
   assign("addedAt", imovel.addedAt);

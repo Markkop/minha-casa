@@ -3,12 +3,12 @@
   import PricePerM2Stack from "$lib/components/anuncios/PricePerM2Stack.svelte";
   import { EDIT_MODAL_INPUT_CLASS } from "$lib/components/anuncios/edit-modal-shared";
   import {
-    getListingStatus,
-    getListingStatusOption,
-    isStrikethroughStatus,
-    LISTING_STATUS_OPTIONS,
-    LISTING_STATUS_SELECT_APPEARANCE_CLASS,
-    type ListingStatus
+    getListingEtapa,
+    getListingEtapaOption,
+    isStrikethroughEtapa,
+    LISTING_ETAPA_OPTIONS,
+    LISTING_ETAPA_SELECT_APPEARANCE_CLASS,
+    type ListingEtapa
   } from "$lib/components/anuncios/listings-table-shared";
   import { getAreaInputLabels } from "$lib/anuncios/area-metric-labels";
   import { calculatePrecoM2, calculatePrecoM2Privado } from "$lib/components/anuncios/listing-row-urls";
@@ -30,16 +30,16 @@
   } = $props();
 
   const draftListing = $derived(mergeListingDraft(listing, formData));
-  const status = $derived(getListingStatus(draftListing));
-  const statusOption = $derived(getListingStatusOption(status));
-  const showDiscardedReason = $derived(status === "descartado" || status === "descartando");
+  const etapa = $derived(getListingEtapa(draftListing));
+  const etapaOption = $derived(getListingEtapaOption(etapa));
+  const showDiscardedReason = $derived(etapa === "descartado" || etapa === "descartando");
   const metricVariants = new Set<"total" | "privado">(["total", "privado"]);
   const areaInputLabels = $derived(getAreaInputLabels(draftListing.tipoImovel));
 
-  function handleStatusChange(nextStatus: ListingStatus) {
-    handlers.onInputChange("listingStatus", nextStatus);
-    handlers.onInputChange("strikethrough", isStrikethroughStatus(nextStatus));
-    handlers.onInputChange("visited", nextStatus === "visitado");
+  function handleEtapaChange(nextEtapa: ListingEtapa) {
+    handlers.onInputChange("listingEtapa", nextEtapa);
+    handlers.onInputChange("strikethrough", isStrikethroughEtapa(nextEtapa));
+    handlers.onInputChange("visited", nextEtapa === "visitado");
   }
 </script>
 
@@ -97,19 +97,19 @@
   </div>
 
   <div class="space-y-2">
-    <label for="listing-status" class="text-sm text-app-muted">Estado</label>
+    <label for="listing-etapa" class="text-sm text-app-muted">Etapa</label>
     <select
-      id="listing-status"
-      data-testid="edit-modal-status-select"
-      value={status}
-      onchange={(e) => handleStatusChange(e.currentTarget.value as ListingStatus)}
+      id="listing-etapa"
+      data-testid="edit-modal-etapa-select"
+      value={etapa}
+      onchange={(e) => handleEtapaChange(e.currentTarget.value as ListingEtapa)}
       class={cn(
         "h-9 w-full min-h-9 rounded-full border px-3 py-0 text-sm font-medium leading-none shadow-none",
-        LISTING_STATUS_SELECT_APPEARANCE_CLASS,
-        statusOption.className
+        LISTING_ETAPA_SELECT_APPEARANCE_CLASS,
+        etapaOption.className
       )}
     >
-      {#each LISTING_STATUS_OPTIONS as item (item.value)}
+      {#each LISTING_ETAPA_OPTIONS as item (item.value)}
         <option value={item.value}>{item.label}</option>
       {/each}
     </select>

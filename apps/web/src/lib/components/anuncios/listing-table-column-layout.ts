@@ -45,13 +45,13 @@ export const LISTING_TABLE_COMPACT_HEADER_CENTER_CLASS = `${LISTING_TABLE_COMPAC
 
 export const LISTING_TABLE_COMPACT_CELL_CENTER_CLASS = LISTING_TABLE_COMPACT_HEADER_CENTER_CLASS;
 
-export const LISTING_TABLE_STATUS_HEADER_CLASS =
+export const LISTING_TABLE_ETAPA_HEADER_CLASS =
   "w-[8.5rem] min-w-[8.5rem] px-2 py-2 text-center align-middle text-app-muted whitespace-nowrap";
 
-export const LISTING_TABLE_STATUS_CELL_CLASS =
+export const LISTING_TABLE_ETAPA_CELL_CLASS =
   "w-[8.5rem] min-w-[8.5rem] px-2 py-2 align-middle whitespace-nowrap";
 
-export const LISTING_TABLE_STATUS_CELL_CENTER_CLASS = `${LISTING_TABLE_STATUS_CELL_CLASS} ${LISTING_TABLE_HEADER_CENTER_CLASS}`;
+export const LISTING_TABLE_ETAPA_CELL_CENTER_CLASS = `${LISTING_TABLE_ETAPA_CELL_CLASS} ${LISTING_TABLE_HEADER_CENTER_CLASS}`;
 
 export function listingTablePropertyWidthStyle(widthPx: number): string {
   return `--listing-property-col-w: ${widthPx}px`;

@@ -36,7 +36,7 @@
     </button>
 
     <nav class="flex min-h-0 min-w-0 flex-1 items-center" aria-label="Breadcrumb">
-      <ol class="flex min-w-0 flex-1 flex-nowrap items-center gap-3">
+      <ol class="flex min-w-0 flex-1 flex-nowrap items-center gap-2 sm:gap-3">
         {#if showSubscriptionPendingChrome}
           <li class="min-w-0">
             <div
@@ -64,22 +64,22 @@
           {/if}
         {:else}
           {#if showOrgBreadcrumb}
-            <li class="min-w-0">
+            <li class="relative z-[2] min-w-0 shrink">
               <OrganizationSwitcher breadcrumb class={orgBreadcrumbClass} />
             </li>
-            <li class="text-app-subtle" aria-hidden="true">
+            <li class="relative z-[1] shrink-0 text-app-subtle" aria-hidden="true">
               <span class="text-sm leading-none">/</span>
             </li>
           {/if}
-          <li class="min-w-0">
+          <li class="relative z-[2] min-w-0 shrink">
             <CollectionBreadcrumb class={collectionBreadcrumbClass} />
           </li>
           {#if showAnaliseListingBreadcrumb}
-            <li class="text-app-subtle" aria-hidden="true">
+            <li class="relative z-[1] shrink-0 text-app-subtle" aria-hidden="true">
               <span class="text-sm leading-none">/</span>
             </li>
-            <li class="min-w-0 flex-1">
-              <AnaliseListingBreadcrumb class="w-full max-w-full" />
+            <li class="relative z-0 min-w-0 shrink">
+              <AnaliseListingBreadcrumb class="w-fit min-w-0 max-w-full" />
             </li>
           {/if}
         {/if}

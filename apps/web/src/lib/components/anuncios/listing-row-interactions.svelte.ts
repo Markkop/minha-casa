@@ -13,8 +13,8 @@ import {
 } from "$lib/anuncios/listing-count-field";
 import { buildListingMarkdown } from "$lib/anuncios/listing-markdown";
 import {
-  isStrikethroughStatus,
-  type ListingStatus,
+  isStrikethroughEtapa,
+  type ListingEtapa,
   type TipoImovelValue
 } from "$lib/components/anuncios/listings-table-shared";
 
@@ -45,16 +45,16 @@ export function createListingRowInteractions({
     }
   }
 
-  async function handleChangeListingStatus(nextStatus: ListingStatus) {
+  async function handleChangeListingEtapa(nextEtapa: ListingEtapa) {
     const imovel = getImovel();
     try {
       await apiUpdateListing(imovel.id, {
-        listingStatus: nextStatus,
-        strikethrough: isStrikethroughStatus(nextStatus),
-        visited: nextStatus === "visitado"
+        listingEtapa: nextEtapa,
+        strikethrough: isStrikethroughEtapa(nextEtapa),
+        visited: nextEtapa === "visitado"
       });
     } catch (error) {
-      console.error("Failed to change listing status:", error);
+      console.error("Failed to change listing etapa:", error);
     }
   }
 
@@ -167,7 +167,7 @@ export function createListingRowInteractions({
       return copiedMarkdown;
     },
     handleToggleStar,
-    handleChangeListingStatus,
+    handleChangeListingEtapa,
     handleTogglePreference,
     handleTogglePiscina,
     handleTogglePiscinaTermica,

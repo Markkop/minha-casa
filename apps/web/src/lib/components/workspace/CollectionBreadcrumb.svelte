@@ -70,11 +70,15 @@
 
 <svelte:window onclick={closeOnOutside} />
 
-<div data-collection-breadcrumb class={cn("relative min-w-0", className)}>
+<div data-collection-breadcrumb class="relative z-[2] min-w-0 max-w-full">
   <button
     type="button"
     data-testid="global-collection-breadcrumb"
-    class={cn(workspaceTopBarControlClass, "max-w-[44vw] md:max-w-[340px]")}
+    class={cn(
+      workspaceTopBarControlClass,
+      "min-w-0 max-w-full",
+      className || "max-w-[44vw] md:max-w-[340px]"
+    )}
     aria-label="Selecionar coleção"
     disabled={ctx.isLoading}
     onclick={(event) => {
@@ -83,7 +87,7 @@
     }}
   >
     <FolderOpen class="size-3.5 shrink-0 text-app-muted" />
-    <span class="truncate">{label}</span>
+    <span class="min-w-0 truncate">{label}</span>
     <ChevronDown class="size-3.5 shrink-0 text-app-muted" />
   </button>
 

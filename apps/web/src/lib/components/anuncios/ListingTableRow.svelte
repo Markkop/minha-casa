@@ -4,9 +4,9 @@
   import PricePerM2Stack from "$lib/components/anuncios/PricePerM2Stack.svelte";
   import ListingImageColumnCell from "$lib/components/anuncios/ListingImageColumnCell.svelte";
   import ListingPropertyMetaRow from "$lib/components/anuncios/ListingPropertyMetaRow.svelte";
-  import ListingRowStatusSelect from "$lib/components/anuncios/ListingRowStatusSelect.svelte";
+  import ListingRowEtapaSelect from "$lib/components/anuncios/ListingRowEtapaSelect.svelte";
   import ListingStarButton from "$lib/components/anuncios/ListingStarButton.svelte";
-  import ListingTitleStatusRow from "$lib/components/anuncios/ListingTitleStatusRow.svelte";
+  import ListingTitleEtapaRow from "$lib/components/anuncios/ListingTitleEtapaRow.svelte";
   import {
     buildGoogleMapsUrl,
     calculatePrecoM2,
@@ -24,7 +24,7 @@
     LISTING_TABLE_DATA_CELL_CENTER_CLASS,
     LISTING_TABLE_IMAGE_BODY_CELL_CLASS,
     LISTING_TABLE_PROPERTY_CELL_CLASS,
-    LISTING_TABLE_STATUS_CELL_CENTER_CLASS
+    LISTING_TABLE_ETAPA_CELL_CENTER_CLASS
   } from "$lib/components/anuncios/listing-table-column-layout";
   import { LISTING_COUNT_BTN_CLASS } from "$lib/components/anuncios/listings-table-shared";
   import { cn } from "$lib/utils";
@@ -97,7 +97,7 @@
             iconClass="h-3.5 w-3.5 shrink-0 stroke-[1.5]"
           />
         {/if}
-        <ListingTitleStatusRow
+        <ListingTitleEtapaRow
           listing={imovel}
           {displayTitle}
           collectionId={activeCollectionId}
@@ -106,7 +106,7 @@
           showStar={false}
           showMap={propertyDisplay.showAddress}
           showContact={propertyDisplay.showContact}
-          showStatus={visibleColumns.status}
+          showEtapa={visibleColumns.etapa}
           class={cn("min-w-0", !showStarButton && "col-span-2")}
         />
         {#if showMetaRow}
@@ -216,9 +216,9 @@
     </td>
   {/if}
 
-  {#if visibleColumns.status}
-    <td class={LISTING_TABLE_STATUS_CELL_CENTER_CLASS}>
-      <ListingRowStatusSelect {imovel} {interactions} />
+  {#if visibleColumns.etapa}
+    <td class={LISTING_TABLE_ETAPA_CELL_CENTER_CLASS}>
+      <ListingRowEtapaSelect {imovel} {interactions} />
     </td>
   {/if}
 </tr>

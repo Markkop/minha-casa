@@ -6,7 +6,7 @@ export type ImageColumnView = "image" | "map";
 export type ListingsTableColumn =
   | "image"
   | "property"
-  | "status"
+  | "etapa"
   | "price"
   | "area"
   | "value"
@@ -14,7 +14,7 @@ export type ListingsTableColumn =
   | "bathrooms"
   | "dates";
 
-export type ListingStatus =
+export type ListingEtapa =
   | "analisando"
   | "considerando"
   | "marcando_visita"
@@ -28,7 +28,7 @@ export type ListingStatus =
   | "descartado"
   | "vendido";
 
-export const LISTING_STATUS_OPTIONS: { value: ListingStatus; label: string; className: string }[] = [
+export const LISTING_ETAPA_OPTIONS: { value: ListingEtapa; label: string; className: string }[] = [
   { value: "analisando", label: "Analisando", className: "border-sky-500/30 bg-sky-500/10 text-sky-700" },
   { value: "considerando", label: "Considerando", className: "border-emerald-500/30 bg-emerald-500/10 text-emerald-700" },
   { value: "marcando_visita", label: "Marcando visita", className: "border-amber-500/30 bg-amber-500/10 text-amber-700" },
@@ -43,11 +43,11 @@ export const LISTING_STATUS_OPTIONS: { value: ListingStatus; label: string; clas
   { value: "vendido", label: "Vendido", className: "border-slate-500/30 bg-slate-500/10 text-slate-600" }
 ];
 
-const LISTING_STATUS_VALUES = new Set<ListingStatus>(LISTING_STATUS_OPTIONS.map((option) => option.value));
-const STRIKETHROUGH_STATUSES = new Set<ListingStatus>(["descartado", "vendido"]);
+const LISTING_ETAPA_VALUES = new Set<ListingEtapa>(LISTING_ETAPA_OPTIONS.map((option) => option.value));
+const STRIKETHROUGH_ETAPAS = new Set<ListingEtapa>(["descartado", "vendido"]);
 
-export function isStrikethroughStatus(status: ListingStatus): boolean {
-  return STRIKETHROUGH_STATUSES.has(status);
+export function isStrikethroughEtapa(etapa: ListingEtapa): boolean {
+  return STRIKETHROUGH_ETAPAS.has(etapa);
 }
 
 export const LISTING_THUMB_SIZE_CLASS = "h-20 w-20 flex-shrink-0 aspect-square";
@@ -69,20 +69,20 @@ export function getTipoImovelOption(value: Imovel["tipoImovel"]) {
   return TIPO_IMOVEL_OPTIONS.find((option) => option.value === normalized) ?? TIPO_IMOVEL_OPTIONS[0];
 }
 
-export function getListingStatus(imovel: Pick<Imovel, "listingStatus" | "strikethrough" | "visited">): ListingStatus {
-  if (imovel.listingStatus && LISTING_STATUS_VALUES.has(imovel.listingStatus as ListingStatus)) {
-    return imovel.listingStatus as ListingStatus;
+export function getListingEtapa(imovel: Pick<Imovel, "listingEtapa" | "strikethrough" | "visited">): ListingEtapa {
+  if (imovel.listingEtapa && LISTING_ETAPA_VALUES.has(imovel.listingEtapa as ListingEtapa)) {
+    return imovel.listingEtapa as ListingEtapa;
   }
   if (imovel.strikethrough) return "descartado";
   if (imovel.visited) return "visitado";
   return "analisando";
 }
 
-export function getListingStatusOption(status: ListingStatus) {
-  return LISTING_STATUS_OPTIONS.find((option) => option.value === status) ?? LISTING_STATUS_OPTIONS[0];
+export function getListingEtapaOption(etapa: ListingEtapa) {
+  return LISTING_ETAPA_OPTIONS.find((option) => option.value === etapa) ?? LISTING_ETAPA_OPTIONS[0];
 }
 
-export const STATUS_TRIGGER_WIDTH = "w-[128px]";
+export const ETAPA_TRIGGER_WIDTH = "w-[128px]";
 export const ROW_ACTIONS_WIDTH = "w-[148px]";
 export const ROW_ACTION_BTN_CLASS =
   "inline-flex flex-shrink-0 items-center justify-center p-0.5 transition-colors";
@@ -94,7 +94,7 @@ export const LISTING_MOBILE_GALLERY_CLASS = "min-w-0 flex-[2] basis-0 self-stret
 export const LISTING_MOBILE_GALLERY_HERO_CLASS = "relative aspect-video w-full overflow-hidden";
 export const LISTING_MOBILE_CARD_BODY_CLASS =
   "relative flex min-w-0 flex-col gap-1.5 px-3.5 pb-3.5";
-/** Aligned summary grid: price/areas | status/amenities */
+/** Aligned summary grid: price/areas | etapa/amenities */
 export const LISTING_MOBILE_SUMMARY_GRID_CLASS =
   "grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1.5 leading-none";
 export const LISTING_MOBILE_ROW_GAP_CLASS = "gap-0.5";
@@ -135,8 +135,8 @@ export function applyListingDeepLinkHighlight(element: HTMLElement): () => void 
   return () => element.classList.remove(...LISTING_DEEP_LINK_HIGHLIGHT_CLASSES);
 }
 
-/** Native status chip: matches Radix select trigger spacing and chevron. */
-export const LISTING_STATUS_SELECT_APPEARANCE_CLASS =
+/** Native etapa chip: matches Radix select trigger spacing and chevron. */
+export const LISTING_ETAPA_SELECT_APPEARANCE_CLASS =
   "cursor-pointer appearance-none bg-[length:0.75rem] bg-[position:right_0.35rem_center] bg-no-repeat pr-6 bg-[url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2212%22%20height%3D%2212%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%235a6578%22%20stroke-width%3D%222%22%3E%3Cpath%20d%3D%22m6%209%206%206%206-6%22%2F%3E%3C%2Fsvg%3E')]";
 
 export const LISTINGS_TABLE_COLUMNS: { id: ListingsTableColumn; label: string }[] = [
@@ -148,7 +148,7 @@ export const LISTINGS_TABLE_COLUMNS: { id: ListingsTableColumn; label: string }[
   { id: "rooms", label: "Quartos" },
   { id: "bathrooms", label: "WC" },
   { id: "dates", label: "Datas" },
-  { id: "status", label: "Estado" }
+  { id: "etapa", label: "Etapa" }
 ];
 
 export const HIDDEN_BY_DEFAULT_COLUMNS = new Set<ListingsTableColumn>(["rooms", "bathrooms", "dates"]);
@@ -164,12 +164,17 @@ export const DEFAULT_VISIBLE_COLUMNS = LISTINGS_TABLE_COLUMNS.reduce(
 export const COLUMN_STORAGE_KEY = "minha-casa:listings-table-visible-columns";
 export const IMAGE_COLUMN_VIEW_KEY = "minha-casa:listings-table-image-column-view";
 
+const LEGACY_STATUS_COLUMN_KEY = "status";
+
 export function normalizeVisibleColumns(value: unknown): Record<ListingsTableColumn, boolean> {
   if (!value || typeof value !== "object") return { ...DEFAULT_VISIBLE_COLUMNS };
-  const raw = value as Partial<Record<ListingsTableColumn, unknown>>;
+  const raw = value as Partial<Record<ListingsTableColumn | typeof LEGACY_STATUS_COLUMN_KEY, unknown>>;
   return LISTINGS_TABLE_COLUMNS.reduce(
     (acc, column) => {
-      const storedValue = raw[column.id];
+      const storedValue =
+        column.id === "etapa" && typeof raw.etapa !== "boolean" && typeof raw[LEGACY_STATUS_COLUMN_KEY] === "boolean"
+          ? raw[LEGACY_STATUS_COLUMN_KEY]
+          : raw[column.id];
       acc[column.id] = typeof storedValue === "boolean" ? storedValue : DEFAULT_VISIBLE_COLUMNS[column.id];
       return acc;
     },

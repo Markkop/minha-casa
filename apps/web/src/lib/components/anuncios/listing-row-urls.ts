@@ -1,36 +1,5 @@
-export function normalizeText(text: string): string {
-  return text
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .trim()
-}
-
-export function buildGoogleSearchUrl(
-  titulo: string,
-  endereco: string,
-  m2Totais: number | null,
-  quartos: number | null,
-  banheiros: number | null
-) {
-  const normalizedTitle = normalizeText(titulo)
-  const normalizedEndereco = normalizeText(endereco)
-  const titleParts = normalizedTitle.split(/\s+/).filter(Boolean)
-  const enderecoParts = normalizedEndereco.split(/\s+/).filter(Boolean)
-  const queryParts = [...titleParts, ...enderecoParts]
-
-  if (m2Totais !== null) {
-    queryParts.push(`${m2Totais}m2`)
-  }
-  if (quartos !== null) {
-    queryParts.push(`${quartos}`, "quartos")
-  }
-  if (banheiros !== null) {
-    queryParts.push(`${banheiros}`, "banheiros")
-  }
-
-  const query = queryParts.join("+")
-  return `https://www.google.com/search?q=${query}`
+export function buildGoogleSearchUrl(endereco: string) {
+  return `https://www.google.com/search?q=${encodeURIComponent(endereco.trim())}`
 }
 
 function parseAddressForGoogleMaps(endereco: string): string {
