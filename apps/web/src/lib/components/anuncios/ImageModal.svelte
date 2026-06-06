@@ -18,6 +18,7 @@
   import type { Imovel } from "$lib/anuncios/types";
   import { getCollectionsContext } from "$lib/collections-context.svelte";
   import { workspaceApi } from "$lib/workspace/client";
+  import { resolveListingGalleryImages } from "$lib/listing-gallery";
   import {
     resolveListingImages,
     syncListingImageFields,
@@ -57,13 +58,7 @@
 
   $effect(() => {
     if (isOpen && listing) {
-      const resolved = resolveListingImages({
-        listingId: listing.id,
-        imageUrl: listing.imageUrl,
-        imageUrls: listing.imageUrls,
-        imageStorageKeys: listing.imageStorageKeys
-      });
-      imageUrls = resolved.imageUrls;
+      imageUrls = resolveListingGalleryImages(listing).map((image) => image.url);
       currentIndex = 0;
       error = null;
       imageError = false;

@@ -54,8 +54,7 @@
         Análise profunda
       </h2>
       <p class="mt-1 max-w-xl text-sm text-app-muted">
-        Pesquisa de clima, riscos naturais e mercado; reconhecimento dos ambientes pelas fotos;
-        estimativa de idade e orçamento por ponto de atenção.
+        Pesquisa de clima, riscos naturais, mercado e estimativa de idade do imóvel.
       </p>
     </div>
     <div class="flex flex-wrap items-center gap-2">

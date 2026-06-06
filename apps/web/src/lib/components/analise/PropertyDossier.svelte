@@ -41,7 +41,7 @@
     </div>
 
     <WorkspacePanel class="min-w-0 overflow-hidden p-3">
-      <PropertyImageGallery {listing} {updateListing} />
+      <PropertyImageGallery {listing} {collectionId} {updateListing} />
     </WorkspacePanel>
   </div>
 

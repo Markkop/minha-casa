@@ -3,6 +3,7 @@
   import { onMount } from "svelte";
   import { page } from "$app/state";
   import AnaliseQuerySync from "$lib/components/analise/AnaliseQuerySync.svelte";
+  import WorkspaceListingQuerySync from "$lib/components/workspace/WorkspaceListingQuerySync.svelte";
   import AdjustmentPanel from "$lib/components/financiamento/adjustment-panel.svelte";
   import DebtTimelineChart from "$lib/components/financiamento/DebtTimelineChart.svelte";
   import ResultsTable from "$lib/components/financiamento/ResultsTable.svelte";
@@ -218,6 +219,7 @@
 {:else}
   <div class="min-h-[calc(100vh-var(--nav-height,2.75rem))] bg-app-bg text-app-fg">
     <AnaliseQuerySync />
+    <WorkspaceListingQuerySync />
     <main class="{WORKSPACE_CONTENT_CLASS} {WORKSPACE_STACK_CLASS}">
       <AdjustmentPanel
         {params}

@@ -2,6 +2,7 @@
   import { onMount } from "svelte";
   import { page } from "$app/state";
   import AnaliseQuerySync from "$lib/components/analise/AnaliseQuerySync.svelte";
+  import WorkspaceListingQuerySync from "$lib/components/workspace/WorkspaceListingQuerySync.svelte";
   import AnaliseTabbedDossier from "$lib/components/analise/AnaliseTabbedDossier.svelte";
   import { getCollectionsContext } from "$lib/collections-context.svelte";
   import { getAdminFeatureFlag, readAdminFeatureFlags } from "$lib/admin/client";
@@ -50,6 +51,7 @@
 
 <div class="min-h-[calc(100vh-var(--nav-height,2.75rem))] bg-app-bg text-app-fg">
   <AnaliseQuerySync />
+  <WorkspaceListingQuerySync />
 
   <div class={cn(WORKSPACE_CONTENT_CLASS, WORKSPACE_STACK_CLASS, "min-w-0")}>
     {#if !ctx.activeCollection}

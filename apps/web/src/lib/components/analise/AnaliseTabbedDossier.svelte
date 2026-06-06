@@ -6,7 +6,7 @@
   import ListingLocationMiniMap from "$lib/components/anuncios/ListingLocationMiniMap.svelte";
   import WorkspacePanel from "$lib/components/workspace/WorkspacePanel.svelte";
   import AnaliseImageMasthead from "$lib/components/analise/AnaliseImageMasthead.svelte";
-  import AmbientesPanel from "$lib/components/analise/AmbientesPanel.svelte";
+  import AmbientesBoard from "$lib/components/analise/AmbientesBoard.svelte";
   import DeepAnalysisControls from "$lib/components/analise/DeepAnalysisControls.svelte";
   import DossierCard from "$lib/components/analise/DossierCard.svelte";
   import DossierFieldRow from "$lib/components/analise/DossierFieldRow.svelte";
@@ -22,7 +22,6 @@
   import TabsList from "$lib/components/ui/TabsList.svelte";
   import TabsTrigger from "$lib/components/ui/TabsTrigger.svelte";
   import { getCollectionsContext } from "$lib/collections-context.svelte";
-  import { resolveListingImages } from "$lib/listing-images";
   import { createPropertyAnalysis } from "$lib/property-analysis/use-property-analysis.svelte";
   import { isLegacyAnalysisResult } from "$lib/property-analysis/stale-result";
   import { isListingAnalysisV6 } from "$lib/property-analysis/types";
@@ -68,15 +67,6 @@
   let activeTab = $state<AnaliseTab>(normalizeTab(page.url.searchParams.get("tab")));
 
   const analysisResult = $derived(analysisState.analysis?.result ?? null);
-  const listingImageUrls = $derived(
-    resolveListingImages({
-      listingId: listing.id,
-      imageUrl: listing.imageUrl,
-      imageUrls: listing.imageUrls,
-      imageStorageKeys: listing.imageStorageKeys,
-      imageCoverIndex: listing.imageCoverIndex
-    }).imageUrls
-  );
 
   $effect(() => {
     const next = normalizeTab(page.url.searchParams.get("tab"));
@@ -227,21 +217,12 @@
 
       <TabsContent value="imagens" class="min-w-0">
         <WorkspacePanel class="min-w-0 overflow-hidden p-3">
-          <PropertyImageGallery {listing} {updateListing} />
+          <PropertyImageGallery {listing} {collectionId} {updateListing} />
         </WorkspacePanel>
       </TabsContent>
 
       <TabsContent value="ambientes" class="min-w-0">
-        {@render analysisUnavailable()}
-        {#if showDeepAnalysis && (analysisState.isRunning || (analysisResult && isListingAnalysisV6(analysisResult)))}
-          <AmbientesPanel
-            result={analysisResult}
-            isRunning={analysisState.isRunning}
-            imageUrls={listingImageUrls}
-            onRetryStep={(step) => void analysisState.retryStep(step)}
-            onRetryAmbienteXray={(ambienteId) => void analysisState.retryAmbienteXray(ambienteId)}
-          />
-        {/if}
+        <AmbientesBoard {listing} {updateListing} />
       </TabsContent>
 
       <TabsContent value="pesquisa" class="min-w-0">

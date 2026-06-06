@@ -42,7 +42,6 @@ export function buildCategoryOptions(listing: {
     ...quartos,
     ...banheiros,
     { value: "sala" as const, label: "Sala" },
-    { value: "fachada" as const, label: "Fachada" },
     { value: "areaExterna" as const, label: "Área externa" }
   ];
 }

@@ -2,7 +2,8 @@
   import { ChevronLeft, ChevronRight, ImageIcon } from "@lucide/svelte";
   import type { Imovel } from "$lib/anuncios/types";
   import { cn } from "$lib/utils";
-  import { isListingImageIngesting, resolveListingImages } from "$lib/listing-images";
+  import { resolveListingGalleryImages } from "$lib/listing-gallery";
+  import { isListingImageIngesting } from "$lib/listing-images";
   import type { ImageColumnView } from "$lib/components/anuncios/listings-table-shared";
   import {
     LISTING_MOBILE_GALLERY_CLASS,
@@ -41,16 +42,8 @@
   const mapVariant = $derived(layout === "hero" ? "hero" : "thumbnail");
 
   const ingesting = $derived(isListingImageIngesting(imovel.imageIngestionStatus));
-  const resolved = $derived(
-    resolveListingImages({
-      listingId: imovel.id,
-      imageUrl: imovel.imageUrl,
-      imageUrls: imovel.imageUrls,
-      imageStorageKeys: imovel.imageStorageKeys,
-      imageCoverIndex: imovel.imageCoverIndex
-    })
-  );
-  const imageUrls = $derived(resolved.imageUrls);
+  const galleryImages = $derived(resolveListingGalleryImages(imovel));
+  const imageUrls = $derived(galleryImages.map((image) => image.url));
   const hasImages = $derived(imageUrls.length > 0);
 
   let carouselIndex = $state(0);

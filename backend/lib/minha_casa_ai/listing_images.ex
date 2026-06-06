@@ -59,7 +59,8 @@ defmodule MinhaCasaAi.ListingImages do
       "imageUrls" => [],
       "imageUrl" => nil,
       "imageCoverIndex" => nil,
-      "imageCategories" => nil
+      "imageCategories" => nil,
+      "imageEnvironments" => nil
     })
   end
 

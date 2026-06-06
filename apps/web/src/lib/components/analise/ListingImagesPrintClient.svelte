@@ -10,11 +10,7 @@
     serializePrintItemsForStorage,
     writeStoredListingImagesPrintPrefs
   } from "$lib/components/analise/listing-images-print-storage";
-  import { resolveListingImages } from "$lib/listing-images";
-  import {
-    normalizeCoverIndex,
-    resolveGalleryImages
-  } from "$lib/listing-image-categories";
+  import { resolveListingGalleryImages } from "$lib/listing-gallery";
   import { buildListingAnaliseHref } from "$lib/listing-analise-url";
   import { workspaceApi } from "$lib/workspace/client";
   import { cn } from "$lib/utils";
@@ -29,23 +25,7 @@
   const collectionId = $derived(page.url.searchParams.get("collection"));
   const listingId = $derived(page.url.searchParams.get("listing"));
 
-  const resolvedImages = $derived(
-    listing
-      ? resolveListingImages({
-          listingId: listing.id,
-          imageUrl: listing.imageUrl,
-          imageUrls: listing.imageUrls,
-          imageStorageKeys: listing.imageStorageKeys,
-          imageCoverIndex: listing.imageCoverIndex
-        })
-      : { imageUrls: [], imageUrl: null }
-  );
-
-  const imageUrls = $derived(resolvedImages.imageUrls);
-  const coverIndex = $derived(normalizeCoverIndex(listing?.imageCoverIndex, imageUrls.length));
-  const galleryImages = $derived(
-    listing ? resolveGalleryImages(imageUrls, coverIndex, listing.imageCategories) : []
-  );
+  const galleryImages = $derived(listing ? resolveListingGalleryImages(listing) : []);
 
   const gallerySignature = $derived(
     galleryImages.map((image) => `${image.originalIndex}:${image.url}`).join("|")

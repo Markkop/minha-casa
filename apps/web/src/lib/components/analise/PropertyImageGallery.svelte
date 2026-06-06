@@ -2,43 +2,34 @@
   import { Printer, Star } from "@lucide/svelte";
   import { page } from "$app/state";
   import type { Imovel } from "$lib/anuncios/types";
-  import { resolveListingImages } from "$lib/listing-images";
-  import {
-    buildCategoryOptions,
-    normalizeCoverIndex,
-    resolveGalleryImages,
-    type CategorySelectValue
-  } from "$lib/listing-image-categories";
+  import { normalizeCoverIndex } from "$lib/listing-image-categories";
+  import { getImageEnvironmentLabel, resolveListingGalleryImages } from "$lib/listing-gallery";
   import ImageLightboxOverlay from "$lib/components/analise/ImageLightboxOverlay.svelte";
   import { useImageLightbox } from "$lib/components/analise/use-image-lightbox.svelte";
   import ListingImageCarousel from "$lib/carousel/ListingImageCarousel.svelte";
+  import { getCollectionsContext } from "$lib/collections-context.svelte";
   import { buildListingImagesPrintHref } from "$lib/listing-analise-url";
   import { cn } from "$lib/utils";
 
   let {
     listing,
+    collectionId: collectionIdProp = null,
     updateListing
   }: {
     listing: Imovel;
+    collectionId?: string | null;
     updateListing?: (listingId: string, updates: Partial<Imovel>) => Promise<Imovel>;
   } = $props();
 
-  const resolvedImages = $derived(
-    resolveListingImages({
-      listingId: listing.id,
-      imageUrl: listing.imageUrl,
-      imageUrls: listing.imageUrls,
-      imageStorageKeys: listing.imageStorageKeys,
-      imageCoverIndex: listing.imageCoverIndex
-    })
-  );
+  const ctx = getCollectionsContext();
 
-  const imageUrls = $derived(resolvedImages.imageUrls);
+  const galleryImages = $derived(resolveListingGalleryImages(listing));
+  const imageUrls = $derived(galleryImages.map((image) => image.url));
   const coverIndex = $derived(normalizeCoverIndex(listing.imageCoverIndex, imageUrls.length));
-  const galleryImages = $derived(resolveGalleryImages(imageUrls, coverIndex, listing.imageCategories));
-  const categoryOptions = $derived(buildCategoryOptions(listing));
   const carouselUrls = $derived(galleryImages.map((image) => image.url));
-  const collectionId = $derived(page.url.searchParams.get("collection"));
+  const collectionId = $derived(
+    collectionIdProp ?? page.url.searchParams.get("collection") ?? ctx.activeCollection?.id ?? null
+  );
   const printHref = $derived(buildListingImagesPrintHref(listing.id, collectionId));
 
   let selectedOriginalIndex = $state(0);
@@ -58,6 +49,9 @@
   );
 
   const selectedImage = $derived(galleryImages[selectedDisplayIndex]);
+  const selectedEnvironmentLabel = $derived(
+    selectedImage ? getImageEnvironmentLabel(listing, selectedImage.originalIndex) : null
+  );
 
   $effect(() => {
     void listing.id;
@@ -97,22 +91,6 @@
     void persistListingUpdate({ imageCoverIndex: selectedImage.originalIndex });
   }
 
-  function handleCategoryChange(value: CategorySelectValue) {
-    if (!selectedImage) return;
-    const next = { ...(listing.imageCategories ?? {}) };
-    const key = String(selectedImage.originalIndex);
-
-    if (value === "none") {
-      delete next[key];
-    } else {
-      next[key] = value;
-    }
-
-    void persistListingUpdate({
-      imageCategories: Object.keys(next).length > 0 ? next : null
-    });
-  }
-
   function openLightbox() {
     lightboxSlideIndex = heroSlideIndex;
     lightbox.open(heroSlideIndex);
@@ -129,8 +107,6 @@
   <p class="text-sm text-app-muted">Sem imagens para este imóvel.</p>
 {:else if selectedImage}
   {@const selectedImageNumber = selectedImage.originalIndex + 1}
-  {@const selectedCategory = listing.imageCategories?.[String(selectedImage.originalIndex)]}
-  {@const selectedCategoryValue = selectedCategory ?? "none"}
   {@const isCover = selectedImage.originalIndex === coverIndex}
 
   <div class="min-w-0 max-w-full space-y-2">
@@ -168,39 +144,35 @@
 
       <div class="pointer-events-none absolute inset-0">
         <div class="absolute right-2 top-2 flex items-center gap-2 pointer-events-auto">
-        <button
-          type="button"
-          onclick={handleSetCover}
-          disabled={isSaving || isCover || !updateListing}
-          class={cn(
-            "inline-flex h-8 items-center gap-1 rounded-md border px-2 text-xs font-medium shadow-sm backdrop-blur",
-            isCover
-              ? "border-amber-300 bg-amber-100/90 text-amber-950"
-              : "border-white/30 bg-black/55 text-white hover:bg-black/70",
-            (isSaving || !updateListing) && "cursor-not-allowed opacity-70"
-          )}
-          aria-label={
-            isCover
-              ? `Imagem ${selectedImageNumber} é a capa`
-              : `Definir imagem ${selectedImageNumber} como capa`
-          }
-        >
-          <Star class={cn("size-3.5", isCover && "fill-current")} />
-          Capa
-        </button>
+          <button
+            type="button"
+            onclick={handleSetCover}
+            disabled={isSaving || isCover || !updateListing}
+            class={cn(
+              "inline-flex h-8 items-center gap-1 rounded-md border px-2 text-xs font-medium shadow-sm backdrop-blur",
+              isCover
+                ? "border-amber-300 bg-amber-100/90 text-amber-950"
+                : "border-white/30 bg-black/55 text-white hover:bg-black/70",
+              (isSaving || !updateListing) && "cursor-not-allowed opacity-70"
+            )}
+            aria-label={
+              isCover
+                ? `Imagem ${selectedImageNumber} é a capa`
+                : `Definir imagem ${selectedImageNumber} como capa`
+            }
+          >
+            <Star class={cn("size-3.5", isCover && "fill-current")} />
+            Capa
+          </button>
 
-        <select
-          value={selectedCategoryValue}
-          onchange={(event) =>
-            handleCategoryChange(event.currentTarget.value as CategorySelectValue)}
-          disabled={isSaving || !updateListing}
-          aria-label={`Categoria da imagem ${selectedImageNumber}`}
-          class="h-8 max-w-40 rounded-md border border-white/30 bg-black/55 px-2 text-xs font-medium text-white shadow-sm backdrop-blur hover:bg-black/70 disabled:cursor-not-allowed disabled:opacity-70"
-        >
-          {#each categoryOptions as option (option.value)}
-            <option value={option.value} class="bg-app-surface text-app-fg">{option.label}</option>
-          {/each}
-        </select>
+          {#if selectedEnvironmentLabel}
+            <span
+              class="inline-flex h-8 max-w-40 items-center truncate rounded-md border border-white/30 bg-black/55 px-2 text-xs font-medium text-white shadow-sm backdrop-blur"
+              title={selectedEnvironmentLabel}
+            >
+              {selectedEnvironmentLabel}
+            </span>
+          {/if}
         </div>
       </div>
     </div>

@@ -341,6 +341,25 @@ export type ListingImageCategoryKey =
   | "fachada"
   | "areaExterna"
 
+export type ImageEnvironmentKind =
+  | "areaExterna"
+  | "sala"
+  | "cozinha"
+  | "quarto"
+  | "banheiro"
+  | "garagem"
+  | "varanda"
+  | "areaServico"
+  | "custom"
+
+export interface ImageEnvironmentColumn {
+  id: string
+  kind: ImageEnvironmentKind
+  label: string
+  ordinal?: number
+  imageIndices: number[]
+}
+
 export interface ListingData {
   titulo: string
   /** When set, auto title generation is skipped; titulo mirrors this value. */
@@ -370,6 +389,7 @@ export interface ListingData {
   imageStorageKeys?: string[] | null
   imageCoverIndex?: number | null
   imageCategories?: Record<string, ListingImageCategoryKey> | null
+  imageEnvironments?: ImageEnvironmentColumn[] | null
   imageIngestionStatus?: "idle" | "pending" | "processing" | "ready" | "failed" | null
   imageIngestionError?: string | null
   contactName?: string | null

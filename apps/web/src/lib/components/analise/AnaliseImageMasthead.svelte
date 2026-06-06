@@ -1,8 +1,7 @@
 <script lang="ts">
   import type { Imovel } from "$lib/anuncios/types";
   import { getCollectionsContext } from "$lib/collections-context.svelte";
-  import { normalizeCoverIndex } from "$lib/listing-image-categories";
-  import { resolveListingImages } from "$lib/listing-images";
+  import { resolveListingGalleryImages } from "$lib/listing-gallery";
   import { cn } from "$lib/utils";
 
   let {
@@ -15,23 +14,7 @@
 
   const { getListingDisplayTitle } = getCollectionsContext();
 
-  const resolvedImages = $derived(
-    resolveListingImages({
-      listingId: listing.id,
-      imageUrl: listing.imageUrl,
-      imageUrls: listing.imageUrls,
-      imageStorageKeys: listing.imageStorageKeys,
-      imageCoverIndex: listing.imageCoverIndex
-    })
-  );
-
-  const orderedImageUrls = $derived.by(() => {
-    const urls = resolvedImages.imageUrls;
-    if (urls.length === 0) return [];
-
-    const coverIndex = normalizeCoverIndex(listing.imageCoverIndex, urls.length);
-    return [urls[coverIndex], ...urls.filter((_url, index) => index !== coverIndex)];
-  });
+  const orderedImageUrls = $derived(resolveListingGalleryImages(listing).map((image) => image.url));
 
   const displayTitle = $derived(getListingDisplayTitle(listing));
 </script>
