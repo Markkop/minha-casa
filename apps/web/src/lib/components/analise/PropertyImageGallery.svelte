@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { Star } from "@lucide/svelte";
+  import { Printer, Star } from "@lucide/svelte";
+  import { page } from "$app/state";
   import type { Imovel } from "$lib/anuncios/types";
   import { resolveListingImages } from "$lib/listing-images";
   import {
@@ -11,6 +12,7 @@
   import ImageLightboxOverlay from "$lib/components/analise/ImageLightboxOverlay.svelte";
   import { useImageLightbox } from "$lib/components/analise/use-image-lightbox.svelte";
   import ListingImageCarousel from "$lib/carousel/ListingImageCarousel.svelte";
+  import { buildListingImagesPrintHref } from "$lib/listing-analise-url";
   import { cn } from "$lib/utils";
 
   let {
@@ -36,6 +38,8 @@
   const galleryImages = $derived(resolveGalleryImages(imageUrls, coverIndex, listing.imageCategories));
   const categoryOptions = $derived(buildCategoryOptions(listing));
   const carouselUrls = $derived(galleryImages.map((image) => image.url));
+  const collectionId = $derived(page.url.searchParams.get("collection"));
+  const printHref = $derived(buildListingImagesPrintHref(listing.id, collectionId));
 
   let selectedOriginalIndex = $state(0);
   let heroSlideIndex = $state(0);
@@ -130,6 +134,18 @@
   {@const isCover = selectedImage.originalIndex === coverIndex}
 
   <div class="min-w-0 max-w-full space-y-2">
+    <div class="flex justify-end">
+      <a
+        href={printHref}
+        target="_blank"
+        rel="noopener noreferrer"
+        class="inline-flex h-8 items-center gap-1.5 rounded-md border border-app-border bg-app-surface px-2.5 text-xs font-medium text-app-fg shadow-sm hover:bg-app-bg"
+      >
+        <Printer class="size-3.5" />
+        Imprimir
+      </a>
+    </div>
+
     <div
       class="relative h-[min(50vh,16rem)] w-full min-w-0 max-w-full overflow-hidden rounded-md border border-app-border bg-app-bg sm:aspect-[4/3] sm:h-auto"
     >

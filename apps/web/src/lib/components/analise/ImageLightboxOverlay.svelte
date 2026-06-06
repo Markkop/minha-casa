@@ -33,11 +33,15 @@
   role="dialog"
   aria-modal="true"
   aria-label="Visualização ampliada"
+  onclick={onClose}
 >
   <button
     type="button"
     class="absolute right-4 top-4 z-10 rounded-full bg-black/50 p-2 text-white"
-    onclick={onClose}
+    onclick={(event) => {
+      event.stopPropagation();
+      onClose();
+    }}
     aria-label="Fechar"
   >
     <X class="size-5" />
@@ -47,7 +51,10 @@
       type="button"
       class="absolute left-4 z-10 rounded-full bg-black/50 p-2 text-white disabled:opacity-40"
       disabled={!canNavigate}
-      onclick={() => carouselRef?.scrollPrev()}
+      onclick={(event) => {
+        event.stopPropagation();
+        carouselRef?.scrollPrev();
+      }}
       aria-label="Anterior"
     >
       <ChevronLeft class="size-6" />
@@ -56,14 +63,20 @@
       type="button"
       class="absolute right-14 z-10 rounded-full bg-black/50 p-2 text-white disabled:opacity-40"
       disabled={!canNavigate}
-      onclick={() => carouselRef?.scrollNext()}
+      onclick={(event) => {
+        event.stopPropagation();
+        carouselRef?.scrollNext();
+      }}
       aria-label="Próxima"
     >
       <ChevronRight class="size-6" />
     </button>
   {/if}
 
-  <div class="max-h-[85vh] w-full max-w-5xl">
+  <div
+    class="max-h-[85vh] w-full max-w-5xl"
+    onclick={(event) => event.stopPropagation()}
+  >
     <ListingImageCarousel
       bind:this={carouselRef}
       {urls}
@@ -79,6 +92,11 @@
   </div>
 
   {#if caption}
-    <p class="absolute bottom-6 left-0 right-0 text-center text-sm text-white/90">{caption}</p>
+    <p
+      class="absolute bottom-6 left-0 right-0 text-center text-sm text-white/90"
+      onclick={(event) => event.stopPropagation()}
+    >
+      {caption}
+    </p>
   {/if}
 </div>

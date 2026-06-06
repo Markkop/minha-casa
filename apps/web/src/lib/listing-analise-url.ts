@@ -19,3 +19,18 @@ export function buildListingAnaliseHref(
 
   return `/analise?${params.toString()}`;
 }
+
+export function buildListingImagesPrintHref(
+  listingId: string,
+  collectionId?: string | null
+): string {
+  const params = new URLSearchParams();
+
+  if (collectionId) {
+    params.set("collection", collectionId);
+  }
+
+  params.set("listing", listingId);
+
+  return `/analise/imagens/imprimir?${params.toString()}`;
+}
