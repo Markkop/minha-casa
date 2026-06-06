@@ -1,14 +1,19 @@
 <script lang="ts">
   import { goto } from "$app/navigation";
+  import { buildListingFinanciamentoHref } from "$lib/listing-analise-url";
   import { cn } from "$lib/utils";
   import FloatingTooltip from "$lib/components/ui/FloatingTooltip.svelte";
 
   let {
     price,
+    listingId = null,
+    collectionId = null,
     strikethrough = false,
     class: className = ""
   } = $props<{
     price: number | null;
+    listingId?: string | null;
+    collectionId?: string | null;
     strikethrough?: boolean;
     class?: string;
   }>();
@@ -23,6 +28,10 @@
   }
 
   function handleClick() {
+    if (listingId) {
+      void goto(buildListingFinanciamentoHref(listingId, collectionId));
+      return;
+    }
     if (price !== null) void goto(`/financiamento?price=${price}`);
   }
 

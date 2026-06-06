@@ -177,7 +177,12 @@
     <div class="min-w-0">
       <p class="text-[10px] font-medium uppercase tracking-wide text-app-muted">Preço</p>
       <div class="mt-0.5 text-sm text-app-fg">
-        <ClickablePrice price={listing.preco} strikethrough={listing.strikethrough} />
+        <ClickablePrice
+          price={listing.preco}
+          listingId={listing.id}
+          {collectionId}
+          strikethrough={listing.strikethrough}
+        />
       </div>
     </div>
     <div class="min-w-0">

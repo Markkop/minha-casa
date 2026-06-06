@@ -42,6 +42,8 @@ export interface SimulatorParams {
   estrategiasFiltro: EstrategiaFiltro[];
   temposVendaPosteriorMeses: number[];
   temposRecebimentoExtraMeses: number[];
+  /** Listing id that last drove valorImovel via breadcrumb; null when unlinked. */
+  linkedListingId: string | null;
 }
 
 export interface RecursosMeta {

@@ -108,7 +108,9 @@
 
   const pathname = $derived(page.url.pathname);
   const showAnaliseListingBreadcrumb = $derived(
-    pathname.startsWith("/analise") || pathname.startsWith("/floodrisk")
+    pathname.startsWith("/analise") ||
+      pathname.startsWith("/floodrisk") ||
+      pathname.startsWith("/financiamento")
   );
   const showOrgBreadcrumb = $derived(hasTeamOrganizations);
 

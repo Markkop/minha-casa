@@ -12,6 +12,7 @@ export function createInitialSimulatorParams(): SimulatorParams {
     valoresAptoFiltroMultipliers: [1.0, 0.95],
     estrategiasFiltro: ["permuta", "venda_posterior"],
     temposVendaPosteriorMeses: [...DEFAULT_VENDA_POSTERIOR_TIMING_MONTHS],
-    temposRecebimentoExtraMeses: [...DEFAULT_RECEBIMENTO_EXTRA_TIMING_MONTHS]
+    temposRecebimentoExtraMeses: [...DEFAULT_RECEBIMENTO_EXTRA_TIMING_MONTHS],
+    linkedListingId: null
   };
 }

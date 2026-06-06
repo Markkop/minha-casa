@@ -63,4 +63,17 @@ describe("normalizeSimulatorParams", () => {
     expect(params.temposVendaPosteriorMeses).toEqual([6]);
     expect(params.temposRecebimentoExtraMeses).toEqual([12]);
   });
+
+  it("defaults linkedListingId to null", () => {
+    expect(normalizeSimulatorParams({}).linkedListingId).toBeNull();
+    expect(createInitialSimulatorParams().linkedListingId).toBeNull();
+  });
+
+  it("keeps valid linkedListingId and rejects invalid values", () => {
+    expect(normalizeSimulatorParams({ linkedListingId: "listing-123" }).linkedListingId).toBe(
+      "listing-123"
+    );
+    expect(normalizeSimulatorParams({ linkedListingId: "" }).linkedListingId).toBeNull();
+    expect(normalizeSimulatorParams({ linkedListingId: 42 }).linkedListingId).toBeNull();
+  });
 });

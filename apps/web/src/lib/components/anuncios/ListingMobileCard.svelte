@@ -153,7 +153,12 @@
           <div class="flex min-w-0 items-center gap-1.5 overflow-hidden">
             {#if showPrice}
               <div data-testid="listing-mobile-price" class="shrink-0 text-app-muted">
-                <ClickablePrice price={imovel.preco} strikethrough={imovel.strikethrough} />
+                <ClickablePrice
+                  price={imovel.preco}
+                  listingId={imovel.id}
+                  collectionId={activeCollectionId}
+                  strikethrough={imovel.strikethrough}
+                />
               </div>
             {/if}
             {#if showCountFeatures}

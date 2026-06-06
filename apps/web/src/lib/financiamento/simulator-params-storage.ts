@@ -45,6 +45,10 @@ function validTimingMonthList(value: unknown, fallback: number[]): number[] {
   return filtered.length > 0 ? filtered : fallback;
 }
 
+function validListingId(value: unknown): string | null {
+  return typeof value === "string" && value.length > 0 ? value : null;
+}
+
 function validEstrategiaList(value: unknown, fallback: EstrategiaFiltro[]): EstrategiaFiltro[] {
   if (!Array.isArray(value)) {
     return fallback;
@@ -109,7 +113,8 @@ export function normalizeSimulatorParams(parsed: LegacySimulatorParams): Simulat
     temposRecebimentoExtraMeses: validTimingMonthList(
       parsed.temposRecebimentoExtraMeses,
       defaults.temposRecebimentoExtraMeses
-    )
+    ),
+    linkedListingId: validListingId(parsed.linkedListingId)
   };
 }
 

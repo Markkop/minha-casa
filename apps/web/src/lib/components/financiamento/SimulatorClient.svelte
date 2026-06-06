@@ -2,6 +2,7 @@
   import { browser } from "$app/environment";
   import { onMount } from "svelte";
   import { page } from "$app/state";
+  import AnaliseQuerySync from "$lib/components/analise/AnaliseQuerySync.svelte";
   import AdjustmentPanel from "$lib/components/financiamento/adjustment-panel.svelte";
   import DebtTimelineChart from "$lib/components/financiamento/DebtTimelineChart.svelte";
   import ResultsTable from "$lib/components/financiamento/ResultsTable.svelte";
@@ -10,10 +11,12 @@
   import type { SimulatorParams } from "$lib/components/financiamento/financiamento-parameter-types";
   import { snapToPropertyStep } from "$lib/components/financiamento/parameter-row-helpers";
   import { LISTINGS_SECTION_CLASS } from "$lib/anuncios/listings-panel-layout";
+  import { getCollectionsContext } from "$lib/collections-context.svelte";
   import WorkspaceLoadingState from "$lib/components/workspace/WorkspaceLoadingState.svelte";
   import { UI_DEFAULTS } from "$lib/financiamento/calculations-defaults";
   import { calcularReservaRecomendada, gerarMatrizCenarios } from "$lib/financiamento/calculations";
   import { resolveEffectiveParams } from "$lib/financiamento/financing-effective-params";
+  import { valorImovelFromListing } from "$lib/financiamento/listing-valor-imovel";
   import { getSettingsContext } from "$lib/financiamento/settings-context.svelte";
   import {
     loadSimulatorParams,
@@ -24,15 +27,49 @@
   import { WORKSPACE_CONTENT_CLASS, WORKSPACE_STACK_CLASS } from "$lib/workspace-chrome";
 
   const settingsContext = getSettingsContext();
+  const ctx = getCollectionsContext();
 
   let params = $state<SimulatorParams>(
     browser ? (loadSimulatorParams() ?? createInitialSimulatorParams()) : createInitialSimulatorParams()
   );
   let priceInitialized = $state(false);
 
+  const selectedListingId = $derived(page.url.searchParams.get("listing"));
+
+  const sortedListings = $derived(
+    [...ctx.listings]
+      .filter((listing) => !listing.strikethrough)
+      .sort((a, b) => (a.titulo ?? "").localeCompare(b.titulo ?? "", "pt-BR"))
+  );
+
   $effect(() => {
     if (!browser) return;
     saveSimulatorParams(params);
+  });
+
+  $effect(() => {
+    if (!browser || ctx.isLoadingListings) return;
+
+    const listingId = selectedListingId;
+
+    if (listingId === params.linkedListingId) return;
+
+    if (!listingId) {
+      if (params.linkedListingId !== null) {
+        params = { ...params, linkedListingId: null };
+      }
+      return;
+    }
+
+    const listing = sortedListings.find((item) => item.id === listingId);
+    if (!listing) return;
+
+    const valorFromListing = valorImovelFromListing(listing.preco);
+    params = {
+      ...params,
+      linkedListingId: listingId,
+      ...(valorFromListing !== null ? { valorImovel: valorFromListing } : {})
+    };
   });
 
   const effective = $derived(resolveEffectiveParams(params));
@@ -180,6 +217,7 @@
   <WorkspaceLoadingState />
 {:else}
   <div class="min-h-[calc(100vh-var(--nav-height,2.75rem))] bg-app-bg text-app-fg">
+    <AnaliseQuerySync />
     <main class="{WORKSPACE_CONTENT_CLASS} {WORKSPACE_STACK_CLASS}">
       <AdjustmentPanel
         {params}

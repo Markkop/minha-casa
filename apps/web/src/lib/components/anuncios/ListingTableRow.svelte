@@ -105,7 +105,12 @@
   {#if visibleColumns.price}
     <td class={LISTING_TABLE_DATA_CELL_CENTER_CLASS}>
       <div class="flex justify-center">
-        <ClickablePrice price={imovel.preco} strikethrough={imovel.strikethrough} />
+        <ClickablePrice
+          price={imovel.preco}
+          listingId={imovel.id}
+          collectionId={activeCollectionId}
+          strikethrough={imovel.strikethrough}
+        />
       </div>
     </td>
   {/if}

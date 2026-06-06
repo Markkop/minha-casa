@@ -1,6 +1,7 @@
 <script lang="ts">
   import { ArrowDown, ArrowUp, CircleCheck, Info } from "@lucide/svelte";
   import EstrategiaBadge from "$lib/components/financiamento/EstrategiaBadge.svelte";
+  import CustoTotalHoverBreakdown from "$lib/components/financiamento/CustoTotalHoverBreakdown.svelte";
   import TotalMensalHoverBreakdown from "$lib/components/financiamento/TotalMensalHoverBreakdown.svelte";
   import {
     formatPrazoAnosLabel,
@@ -166,9 +167,6 @@
           "totalMensal",
           "Prestação + aporte + reforma + manutenção no 1º mês do cenário otimizado"
         )}
-        {#if showReformasColumn}
-          {@render sortableHeader("Reformas", "totalReformas", "Total gasto com reformas")}
-        {/if}
         {@render sortableHeader("Compr.", "comprometimento", TOOLTIPS.comprometimento)}
         {@render sortableHeader("Prazo", "prazoReal", "Prazo real com amortização extra")}
         {@render sortableHeader(
@@ -176,6 +174,9 @@
           "jurosOtimizado",
           "Total de juros pagos no cenário otimizado"
         )}
+        {#if showReformasColumn}
+          {@render sortableHeader("Reformas", "totalReformas", "Total gasto com reformas")}
+        {/if}
         {#if !hideCustoTotalColumn}
           {@render sortableHeader(
             "Custo total",
@@ -245,11 +246,6 @@
               {formatCurrencyCompact(cenario.totalMensal)}
             </TotalMensalHoverBreakdown>
           </td>
-          {#if showReformasColumn}
-            <td class={cn(tdClass, monoCellClass)}>
-              {formatCurrencyCompact(cenario.totalReformas)}
-            </td>
-          {/if}
           <td class={tdClass}>
             <div class="flex shrink-0 items-center gap-2 whitespace-nowrap">
               {@render aprovacaoIndicator(cenario.comprometimento.dentroDoLimite)}
@@ -269,9 +265,16 @@
           <td class={cn(tdClass, monoCellClass, "font-bold text-salmon")}>
             {formatCurrencyCompact(cenario.cenarioOtimizado.totalJuros)}
           </td>
+          {#if showReformasColumn}
+            <td class={cn(tdClass, monoCellClass)}>
+              {formatCurrencyCompact(cenario.totalReformas)}
+            </td>
+          {/if}
           {#if !hideCustoTotalColumn}
             <td class={cn(tdClass, monoCellClass, "font-bold")}>
-              {formatCurrencyCompact(cenario.custoTotalOtimizado)}
+              <CustoTotalHoverBreakdown {cenario}>
+                {formatCurrencyCompact(cenario.custoTotalOtimizado)}
+              </CustoTotalHoverBreakdown>
             </td>
           {/if}
         </tr>

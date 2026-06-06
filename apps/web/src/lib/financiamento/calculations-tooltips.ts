@@ -39,8 +39,7 @@ export function generateTooltips(params: TooltipParams = {}) {
     : `Com aportes de ${formatCurrency(aporteExtra)}/mês, você pode economizar significativamente em juros.`;
 
   return {
-    valorImovel:
-      "Valor de compra do imóvel. Negocie! Uma entrada robusta dá poder de barganha.",
+    valorImovel: "Valor de compra do imóvel.",
     capitalDisponivel: "Total de recursos líquidos disponíveis para dar entrada no imóvel.",
     valorApartamento:
       "Valor de mercado do imóvel que pode entrar como permuta ou ser vendido posteriormente.",
@@ -48,10 +47,9 @@ export function generateTooltips(params: TooltipParams = {}) {
       "Permuta: usar o apto como parte da entrada (aceita com desconto). Venda Posterior: financiar mais e vender o apto em até 180 dias para amortizar (isento de IR via Lei do Bem).",
     taxaAnual: `Taxa de juros nominal anual. Taxas de balcão variam de ${taxaAnualRange.min}% a ${taxaAnualRange.max}% a.a.`,
     trMensal: `Taxa Referencial mensal. A TR oscila entre ${trMensalRange.min.toFixed(2)}% e ${trMensalRange.max.toFixed(2)}% ao mês, adicionando ${trAnualMin}% a ${trAnualMax}% ao ano ao custo real.`,
-    aporteExtra:
-      "Valor extra mensal para amortização. SEMPRE escolha 'Reduzir Prazo' para maximizar a economia de juros.",
+    aporteExtra: "Valor extra mensal para amortização.",
     rendaMensal:
-      "Renda mensal comprovável (pró-labore + distribuição de lucros). Bancos limitam parcela a 30% da renda.",
+      "Renda mensal comprovável.",
     comprometimento:
       "Percentual da renda comprometido com a 1ª parcela do financiamento (SAC + juros + seguros), sem aporte extra, reformas ou manutenção. Acima de 30% pode dificultar aprovação.",
     economiaJuros: economiaText,
