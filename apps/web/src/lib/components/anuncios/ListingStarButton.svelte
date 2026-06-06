@@ -11,12 +11,14 @@
     starred = false,
     onToggle,
     variant = "default",
-    class: className = ""
+    class: className = "",
+    iconClass: iconClassName = ""
   } = $props<{
     starred?: boolean;
     onToggle: () => void;
     variant?: "default" | "on-media" | "floating";
     class?: string;
+    iconClass?: string;
   }>();
 </script>
 
@@ -48,11 +50,12 @@
   >
     <Star
       class={cn(
-        variant === "floating"
-          ? "h-4 w-4"
-          : variant === "on-media"
-            ? LISTING_MOBILE_ICON_CLASS
-            : "h-4 w-4",
+        iconClassName ||
+          (variant === "floating"
+            ? "h-4 w-4"
+            : variant === "on-media"
+              ? LISTING_MOBILE_ICON_CLASS
+              : "h-4 w-4"),
         starred && "fill-current"
       )}
       fill={starred ? "currentColor" : "none"}

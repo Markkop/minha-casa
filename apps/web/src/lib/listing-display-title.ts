@@ -94,10 +94,20 @@ export function extractAddressNumber(endereco: string): string | null {
   return match?.[1] ?? null
 }
 
-function propertyTypeLabel(tipoImovel: ListingTitleInput["tipoImovel"]): string {
+function propertyTypeLabel(
+  tipoImovel: ListingTitleInput["tipoImovel"],
+  compact = false
+): string {
   if (tipoImovel === "casa") return "Casa"
-  if (tipoImovel === "apartamento") return "Apartamento"
+  if (tipoImovel === "apartamento") return compact ? "Apto" : "Apartamento"
   return "Imóvel"
+}
+
+/** Shorten property-type prefix in listing titles on narrow screens. */
+export function mobileListingDisplayTitle(title: string): string {
+  const trimmed = title.trim()
+  if (!trimmed) return trimmed
+  return trimmed.replace(/^Apartamento\b/, "Apto")
 }
 
 function quartosPhrase(quartos: number | null | undefined): string | null {
@@ -189,15 +199,18 @@ function isPlaceholderEndereco(endereco: string | undefined): boolean {
   return trimmed === "" || trimmed === "endereço não informado"
 }
 
-function defaultLocationLabel(listing: ListingTitleInput): string {
+function defaultLocationLabel(
+  listing: ListingTitleInput,
+  options?: ListingDisplayTitleOptions
+): string {
+  const bairro = locationAtLevel(listing, "bairro")
+  const cidade = locationAtLevel(listing, "cidade")
+  if (options?.excludeStreet) {
+    return bairro ?? cidade ?? "Sem local"
+  }
   const street =
     !isPlaceholderEndereco(listing.endereco) ? locationAtLevel(listing, "rua") : null
-  return (
-    locationAtLevel(listing, "bairro") ??
-    locationAtLevel(listing, "cidade") ??
-    street ??
-    "Sem local"
-  )
+  return bairro ?? cidade ?? street ?? "Sem local"
 }
 
 function formatCompactPrice(preco: number | null | undefined): string | null {
@@ -272,6 +285,29 @@ const SAME_STREET_ESCALATION_LEVELS: LocationLevel[] = [
   "id",
 ]
 
+export type ListingDisplayTitleOptions = {
+  excludeStreet?: boolean
+}
+
+export const ANUNCIOS_LISTING_TITLE_OPTIONS = {
+  excludeStreet: true,
+} satisfies ListingDisplayTitleOptions
+
+function escalationLevelsFor(options?: ListingDisplayTitleOptions): LocationLevel[] {
+  if (options?.excludeStreet) {
+    return ESCALATION_LEVELS.filter((level) => level !== "rua" && level !== "numero")
+  }
+  return ESCALATION_LEVELS
+}
+
+function sameStreetBaseLocation(listing: ListingTitleInput): string {
+  return (
+    locationAtLevel(listing, "numero") ??
+    locationAtLevel(listing, "rua") ??
+    defaultLocationLabel(listing)
+  )
+}
+
 /** Separator between location disambiguation segments in generated titles. */
 export const LISTING_TITLE_DISAMBIGUATION_SEPARATOR = " · "
 
@@ -290,7 +326,7 @@ const LISTING_TITLE_LOCATION_SUFFIX_PATTERN = /\s+(?:em|na)\s+.+$/i
 export function comparisonMobileSlotListingLabel(
   listing: Pick<ListingTitleInput, "tipoImovel" | "quartos">
 ): string {
-  const tipo = propertyTypeLabel(listing.tipoImovel)
+  const tipo = propertyTypeLabel(listing.tipoImovel, true)
   const quartos = listing.quartos
 
   if (quartos == null || quartos < 0) {
@@ -305,8 +341,9 @@ export function comparisonMobileSlotListingLabel(
 export function mobileCompactListingDisplayTitle(title: string): string {
   const compact = compactListingDisplayTitle(title)
   const match = compact.match(LISTING_TITLE_LOCATION_SUFFIX_PATTERN)
-  if (!match || match.index == null) return compact
-  return compact.slice(0, match.index).trim()
+  const withoutLocation =
+    match && match.index != null ? compact.slice(0, match.index).trim() : compact
+  return mobileListingDisplayTitle(withoutLocation)
 }
 
 function buildSameStreetTitle(
@@ -314,10 +351,7 @@ function buildSameStreetTitle(
   escalationIndex: number,
   showPropertyTypePrefix: boolean
 ): string {
-  const base =
-    locationAtLevel(listing, "numero") ??
-    locationAtLevel(listing, "rua") ??
-    defaultLocationLabel(listing)
+  const base = sameStreetBaseLocation(listing)
 
   const extras: string[] = []
   for (
@@ -346,9 +380,11 @@ function buildTitleWithEscalation(
   listing: ListingTitleInput,
   baseLocation: string,
   escalationIndex: number,
-  showPropertyTypePrefix: boolean
+  showPropertyTypePrefix: boolean,
+  options?: ListingDisplayTitleOptions
 ): string {
   const titleOptions = { showPropertyTypePrefix }
+  const escalationLevels = escalationLevelsFor(options)
 
   if (escalationIndex <= 0) {
     return buildBaseListingTitle(listing, baseLocation, {
@@ -357,11 +393,11 @@ function buildTitleWithEscalation(
     })
   }
 
-  const street = locationAtLevel(listing, "rua")
+  const street = options?.excludeStreet ? null : locationAtLevel(listing, "rua")
   if (street) {
     const extras: string[] = []
-    for (let i = 1; i < escalationIndex && i < ESCALATION_LEVELS.length; i++) {
-      const extra = locationAtLevel(listing, ESCALATION_LEVELS[i]!)
+    for (let i = 1; i < escalationIndex && i < escalationLevels.length; i++) {
+      const extra = locationAtLevel(listing, escalationLevels[i]!)
       if (extra && !extras.some((p) => normalizeKey(p) === normalizeKey(extra))) {
         extras.push(extra)
       }
@@ -376,8 +412,8 @@ function buildTitleWithEscalation(
   }
 
   const parts: string[] = [baseLocation]
-  for (let i = 0; i < escalationIndex && i < ESCALATION_LEVELS.length; i++) {
-    const extra = locationAtLevel(listing, ESCALATION_LEVELS[i]!)
+  for (let i = 0; i < escalationIndex && i < escalationLevels.length; i++) {
+    const extra = locationAtLevel(listing, escalationLevels[i]!)
     if (extra && !parts.some((p) => normalizeKey(p) === normalizeKey(extra))) {
       parts.push(extra)
     }
@@ -394,6 +430,24 @@ function buildTitleWithEscalation(
     ...titleOptions,
     locationPreposition: "em",
   })
+}
+
+function assignNumberedCollisionTitles(
+  group: ListingTitleInput[],
+  showPropertyTypePrefix: boolean,
+  baseLocations: Map<string, string>
+): Map<string, string> {
+  const assigned = new Map<string, string>()
+  const sorted = [...group].sort((a, b) => (a.id ?? "").localeCompare(b.id ?? ""))
+
+  sorted.forEach((listing, index) => {
+    const id = listing.id ?? ""
+    const loc = baseLocations.get(id) ?? "Sem local"
+    const base = buildBaseListingTitle(listing, loc, { showPropertyTypePrefix })
+    assigned.set(id, `${base} (${index + 1})`)
+  })
+
+  return assigned
 }
 
 function assignUniqueTitles(
@@ -435,44 +489,48 @@ function assignUniqueTitles(
  * Build display titles for a collection, with disambiguation for colliding base keys.
  */
 export function buildListingDisplayTitles(
-  listings: ListingTitleInput[]
+  listings: ListingTitleInput[],
+  options?: ListingDisplayTitleOptions
 ): Map<string, string> {
   const result = new Map<string, string>()
   const showPropertyTypePrefix = collectionShowsPropertyTypePrefix(listings)
   const autoListings = listings.filter((l) => !l.tituloManual?.trim())
+  const escalationLevels = escalationLevelsFor(options)
 
   const baseLocations = new Map<string, string>()
   for (const listing of autoListings) {
     const id = listing.id ?? ""
-    baseLocations.set(id, defaultLocationLabel(listing))
-  }
-
-  const streetGroups = new Map<string, ListingTitleInput[]>()
-  for (const listing of autoListings) {
-    const key = streetGroupKey(listing)
-    if (!key) continue
-    const group = streetGroups.get(key) ?? []
-    group.push(listing)
-    streetGroups.set(key, group)
+    baseLocations.set(id, defaultLocationLabel(listing, options))
   }
 
   const sameStreetIds = new Set<string>()
 
-  for (const group of streetGroups.values()) {
-    if (group.length < 2) continue
+  if (!options?.excludeStreet) {
+    const streetGroups = new Map<string, ListingTitleInput[]>()
+    for (const listing of autoListings) {
+      const key = streetGroupKey(listing)
+      if (!key) continue
+      const group = streetGroups.get(key) ?? []
+      group.push(listing)
+      streetGroups.set(key, group)
+    }
 
-    const titles = assignUniqueTitles(
-      group,
-      showPropertyTypePrefix,
-      0,
-      SAME_STREET_ESCALATION_LEVELS.length,
-      (listing, escalation) =>
-        buildSameStreetTitle(listing, escalation, showPropertyTypePrefix)
-    )
+    for (const group of streetGroups.values()) {
+      if (group.length < 2) continue
 
-    for (const [id, title] of titles) {
-      result.set(id, title)
-      sameStreetIds.add(id)
+      const titles = assignUniqueTitles(
+        group,
+        showPropertyTypePrefix,
+        0,
+        SAME_STREET_ESCALATION_LEVELS.length,
+        (listing, escalation) =>
+          buildSameStreetTitle(listing, escalation, showPropertyTypePrefix)
+      )
+
+      for (const [id, title] of titles) {
+        result.set(id, title)
+        sameStreetIds.add(id)
+      }
     }
   }
 
@@ -502,21 +560,24 @@ export function buildListingDisplayTitles(
     const pending = group.filter((l) => !sameStreetIds.has(l.id ?? ""))
     if (pending.length === 0) continue
 
-    const titles = assignUniqueTitles(
-      pending,
-      showPropertyTypePrefix,
-      1,
-      ESCALATION_LEVELS.length,
-      (listing, escalation) => {
-        const baseLoc = baseLocations.get(listing.id ?? "") ?? "Sem local"
-        return buildTitleWithEscalation(
-          listing,
-          baseLoc,
-          escalation,
-          showPropertyTypePrefix
+    const titles = options?.excludeStreet
+      ? assignNumberedCollisionTitles(pending, showPropertyTypePrefix, baseLocations)
+      : assignUniqueTitles(
+          pending,
+          showPropertyTypePrefix,
+          1,
+          escalationLevels.length,
+          (listing, escalation) => {
+            const baseLoc = baseLocations.get(listing.id ?? "") ?? "Sem local"
+            return buildTitleWithEscalation(
+              listing,
+              baseLoc,
+              escalation,
+              showPropertyTypePrefix,
+              options
+            )
+          }
         )
-      }
-    )
 
     for (const [id, title] of titles) {
       result.set(id, title)
@@ -543,6 +604,13 @@ export function buildListingDisplayTitles(
   }
 
   return result
+}
+
+/** Anuncios table/map titles: bairro only, no street name or number. */
+export function buildAnunciosListingDisplayTitles(
+  listings: ListingTitleInput[]
+): Map<string, string> {
+  return buildListingDisplayTitles(listings, ANUNCIOS_LISTING_TITLE_OPTIONS)
 }
 
 export function resolveListingDisplayTitle(

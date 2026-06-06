@@ -242,13 +242,13 @@
             activeMetricVariant={tableState.activeMetricVariant}
             filteredListings={tableState.filteredAndSortedListings}
             {sharedRowProps}
-            getDisplayTitle={ctx.getListingDisplayTitle}
+            getDisplayTitle={ctx.getAnunciosListingDisplayTitle}
           />
           <ListingsTableMobile
             {pendingAdd}
             filteredListings={tableState.filteredAndSortedListings}
             {sharedRowProps}
-            getDisplayTitle={ctx.getListingDisplayTitle}
+            getDisplayTitle={ctx.getAnunciosListingDisplayTitle}
           />
         </div>
       {/if}

@@ -19,7 +19,7 @@
   } = $props();
 
   const ctx = getCollectionsContext();
-  const displayTitle = $derived(ctx.getListingDisplayTitle(listing));
+  const displayTitle = $derived(ctx.getAnunciosListingDisplayTitle(listing));
   const collectionId = $derived(ctx.activeCollection?.id ?? null);
 </script>
 

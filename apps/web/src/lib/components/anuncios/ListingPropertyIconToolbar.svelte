@@ -152,8 +152,8 @@
     {#snippet preferenceDisplay(option: ListingPreferenceOption)}
       {@const presentation = getPreferencePresentation(option)}
       <FloatingTooltip label={option.label} side="bottom">
-        <span class={cn("inline-flex flex-shrink-0 p-1", presentation.iconClass)} aria-label={option.label}>
-          <presentation.Icon class={iconClass} />
+        <span class={cn("inline-flex flex-shrink-0 p-0.5", presentation.iconClass)} aria-label={option.label}>
+          <presentation.Icon class={LISTING_MOBILE_ICON_CLASS} />
         </span>
       </FloatingTooltip>
     {/snippet}

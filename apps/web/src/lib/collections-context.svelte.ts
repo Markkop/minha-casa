@@ -1,5 +1,6 @@
 import { createContext } from "svelte";
 import {
+  buildAnunciosListingDisplayTitles,
   buildListingDisplayTitles,
   resolveListingDisplayTitle,
   type ListingTitleInput
@@ -60,6 +61,7 @@ export interface CollectionsContextValue {
   refreshListing: (listingId: string) => Promise<Imovel | null>;
   parseListingInput: (input: ParseRequest) => Promise<ListingData[]>;
   getListingDisplayTitle: (listing: Imovel) => string;
+  getAnunciosListingDisplayTitle: (listing: Imovel) => string;
 }
 
 export const [getCollectionsContext, setCollectionsContext] =
@@ -74,43 +76,37 @@ export function createCollectionsState() {
   let error = $state<string | null>(null);
   let listingsCollectionId = $state<string | null>(null);
 
+  function toListingTitleInput(listing: Imovel): ListingTitleInput & { id: string } {
+    return {
+      id: listing.id,
+      titulo: listing.titulo,
+      tituloManual: listing.tituloManual,
+      tipoImovel: listing.tipoImovel,
+      quartos: listing.quartos,
+      bairro: listing.bairro,
+      cidade: listing.cidade,
+      endereco: listing.endereco,
+      preco: listing.preco,
+      m2Totais: listing.m2Totais,
+      andar: listing.andar,
+      condominiumName: listing.condominiumName
+    };
+  }
+
   const displayTitles = $derived.by(() =>
-    buildListingDisplayTitles(
-      listings.map((listing) => ({
-        id: listing.id,
-        titulo: listing.titulo,
-        tituloManual: listing.tituloManual,
-        tipoImovel: listing.tipoImovel,
-        quartos: listing.quartos,
-        bairro: listing.bairro,
-        cidade: listing.cidade,
-        endereco: listing.endereco,
-        preco: listing.preco,
-        m2Totais: listing.m2Totais,
-        andar: listing.andar,
-        condominiumName: listing.condominiumName
-      } satisfies ListingTitleInput & { id: string }))
-    )
+    buildListingDisplayTitles(listings.map(toListingTitleInput))
+  );
+
+  const anunciosDisplayTitles = $derived.by(() =>
+    buildAnunciosListingDisplayTitles(listings.map(toListingTitleInput))
   );
 
   function getListingDisplayTitle(listing: Imovel): string {
-    return resolveListingDisplayTitle(
-      {
-        id: listing.id,
-        titulo: listing.titulo,
-        tituloManual: listing.tituloManual,
-        tipoImovel: listing.tipoImovel,
-        quartos: listing.quartos,
-        bairro: listing.bairro,
-        cidade: listing.cidade,
-        endereco: listing.endereco,
-        preco: listing.preco,
-        m2Totais: listing.m2Totais,
-        andar: listing.andar,
-        condominiumName: listing.condominiumName
-      },
-      displayTitles
-    );
+    return resolveListingDisplayTitle(toListingTitleInput(listing), displayTitles);
+  }
+
+  function getAnunciosListingDisplayTitle(listing: Imovel): string {
+    return resolveListingDisplayTitle(toListingTitleInput(listing), anunciosDisplayTitles);
   }
 
   function syncCollectionListingCount(collectionId: string, count: number) {
@@ -385,7 +381,8 @@ export function createCollectionsState() {
     removeListing,
     refreshListing,
     parseListingInput,
-    getListingDisplayTitle
+    getListingDisplayTitle,
+    getAnunciosListingDisplayTitle
   } satisfies CollectionsContextValue;
 }
 

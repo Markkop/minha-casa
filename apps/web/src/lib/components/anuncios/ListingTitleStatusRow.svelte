@@ -20,6 +20,7 @@
     showMap = true,
     showContact = true,
     showStatus = true,
+    showStar = true,
     onToggleStar = undefined
   }: {
     listing: Imovel;
@@ -35,6 +36,7 @@
     showMap?: boolean;
     showContact?: boolean;
     showStatus?: boolean;
+    showStar?: boolean;
     onToggleStar?: () => void;
   } = $props();
 
@@ -49,7 +51,7 @@
   data-testid="listing-title-status-row"
   class={cn("flex w-full min-w-0 max-w-full items-center gap-0.5", className)}
 >
-  {#if starToggle}
+  {#if showStar && starToggle}
     <ListingStarButton
       starred={listing.starred}
       variant={overlayOnMedia ? "on-media" : "default"}

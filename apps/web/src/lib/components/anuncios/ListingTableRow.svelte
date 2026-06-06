@@ -5,8 +5,13 @@
   import ListingImageColumnCell from "$lib/components/anuncios/ListingImageColumnCell.svelte";
   import ListingPropertyMetaRow from "$lib/components/anuncios/ListingPropertyMetaRow.svelte";
   import ListingRowStatusSelect from "$lib/components/anuncios/ListingRowStatusSelect.svelte";
+  import ListingStarButton from "$lib/components/anuncios/ListingStarButton.svelte";
   import ListingTitleStatusRow from "$lib/components/anuncios/ListingTitleStatusRow.svelte";
-  import { calculatePrecoM2, calculatePrecoM2Privado } from "$lib/components/anuncios/listing-row-urls";
+  import {
+    buildGoogleMapsUrl,
+    calculatePrecoM2,
+    calculatePrecoM2Privado
+  } from "$lib/components/anuncios/listing-row-urls";
   import {
     formatDate,
     formatFullDateTime,
@@ -21,6 +26,7 @@
     LISTING_TABLE_PROPERTY_CELL_CLASS,
     LISTING_TABLE_STATUS_CELL_CENTER_CLASS
   } from "$lib/components/anuncios/listing-table-column-layout";
+  import { LISTING_COUNT_BTN_CLASS } from "$lib/components/anuncios/listings-table-shared";
   import { cn } from "$lib/utils";
 
   let {
@@ -42,6 +48,11 @@
   const interactions = $derived(getRowInteractions(imovel));
 
   const showMetaRow = $derived(visibleColumns.property);
+  const mapsUrl = $derived(
+    imovel.endereco?.trim() ? buildGoogleMapsUrl(imovel.endereco) : null
+  );
+  const showAddress = $derived(propertyDisplay.showAddress && Boolean(mapsUrl));
+  const showStarButton = $derived(Boolean(interactions));
   const rowSurfaceClass = $derived(
     imovel.starred
       ? "border-app-action/50 bg-app-action/20 group-hover:bg-app-action/30"
@@ -75,29 +86,51 @@
 
   {#if visibleColumns.property}
     <td class={LISTING_TABLE_PROPERTY_CELL_CLASS}>
-      <div class="flex w-full min-w-0 max-w-full flex-col justify-center gap-1">
-        <div class="min-w-0 max-w-full">
-          <ListingTitleStatusRow
-            listing={imovel}
-            {displayTitle}
-            collectionId={activeCollectionId}
-            {interactions}
-            {openEditListing}
-            showMap={propertyDisplay.showAddress}
-            showContact={propertyDisplay.showContact}
-            showStatus={visibleColumns.status}
+      <div
+        class="grid w-full min-w-0 grid-cols-[auto_minmax(0,1fr)] items-center gap-x-0.5 gap-y-px"
+      >
+        {#if showStarButton}
+          <ListingStarButton
+            starred={imovel.starred}
+            onToggle={() => void interactions.handleToggleStar()}
+            class={LISTING_COUNT_BTN_CLASS}
+            iconClass="h-3.5 w-3.5 shrink-0 stroke-[1.5]"
           />
-          {#if showMetaRow}
+        {/if}
+        <ListingTitleStatusRow
+          listing={imovel}
+          {displayTitle}
+          collectionId={activeCollectionId}
+          {interactions}
+          {openEditListing}
+          showStar={false}
+          showMap={propertyDisplay.showAddress}
+          showContact={propertyDisplay.showContact}
+          showStatus={visibleColumns.status}
+          class={cn("min-w-0", !showStarButton && "col-span-2")}
+        />
+        {#if showMetaRow}
+          <div class="col-span-2 min-w-0">
             <ListingPropertyMetaRow
               {imovel}
               {interactions}
               {preferenceCatalog}
               {toolbarVisibility}
               showCountFeatures={propertyDisplay.showCountFeatures}
-              class="mt-1"
             />
-          {/if}
-        </div>
+          </div>
+        {/if}
+        {#if showAddress}
+          <a
+            href={mapsUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            data-testid="listing-desktop-address"
+            class="col-span-2 block min-w-0 max-w-full truncate text-xs leading-snug text-app-muted underline-offset-2 hover:text-app-accent hover:underline"
+          >
+            {imovel.endereco}
+          </a>
+        {/if}
       </div>
     </td>
   {/if}

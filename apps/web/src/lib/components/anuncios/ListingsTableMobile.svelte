@@ -5,6 +5,7 @@
   import ListingMobileCard from "$lib/components/anuncios/ListingMobileCard.svelte";
   import type { ListingTableRowProps } from "$lib/components/anuncios/listing-table-row-types";
   import type { createListingsTablePendingAdd } from "$lib/components/anuncios/listings-table-pending-add.svelte";
+  import { mobileListingDisplayTitle } from "$lib/listing-display-title";
 
   type PendingAddState = ReturnType<typeof createListingsTablePendingAdd>;
 
@@ -39,7 +40,7 @@
     <ListingMobileCard
       {...sharedRowProps}
       {imovel}
-      displayTitle={getDisplayTitle(imovel)}
+      displayTitle={mobileListingDisplayTitle(getDisplayTitle(imovel))}
     />
   {/each}
 </div>

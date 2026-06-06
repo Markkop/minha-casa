@@ -1,10 +1,13 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildAnunciosListingDisplayTitles,
   buildListingDisplayTitles,
   collectionShowsPropertyTypePrefix,
   extractAddressNumber,
   extractStreetLabelTwoWords,
-  listingTitleRegenFieldChanged
+  listingTitleRegenFieldChanged,
+  mobileCompactListingDisplayTitle,
+  mobileListingDisplayTitle
 } from "./listing-display-title";
 
 describe("listingTitleRegenFieldChanged", () => {
@@ -51,6 +54,29 @@ describe("collectionShowsPropertyTypePrefix", () => {
         { tipoImovel: "casa", quartos: 4 }
       ])
     ).toBe(false);
+  });
+});
+
+describe("mobileListingDisplayTitle", () => {
+  it("shortens Apartamento prefix to Apto", () => {
+    expect(mobileListingDisplayTitle("Apartamento com 4 quartos em Itacorubi")).toBe(
+      "Apto com 4 quartos em Itacorubi"
+    );
+  });
+
+  it("leaves titles without Apartamento prefix unchanged", () => {
+    expect(mobileListingDisplayTitle("Casa com 3 quartos em Itacorubi")).toBe(
+      "Casa com 3 quartos em Itacorubi"
+    );
+    expect(mobileListingDisplayTitle("Vista Mar Apartamento")).toBe("Vista Mar Apartamento");
+  });
+});
+
+describe("mobileCompactListingDisplayTitle", () => {
+  it("drops location suffix and shortens Apartamento on mobile", () => {
+    expect(mobileCompactListingDisplayTitle("Apartamento com 4 quartos em Itacorubi")).toBe(
+      "Apto com 4 quartos"
+    );
   });
 });
 
@@ -141,5 +167,91 @@ describe("buildListingDisplayTitles", () => {
 
     expect(titles.get("a")).toBe("Casa com 3 quartos na Maria Luiza, 45");
     expect(titles.get("b")).toBe("Apartamento com 4 quartos na Maria Luiza, 102");
+  });
+});
+
+describe("buildAnunciosListingDisplayTitles", () => {
+  it("uses bairro only when multiple listings share a street", () => {
+    const titles = buildAnunciosListingDisplayTitles([
+      {
+        id: "a",
+        tipoImovel: "casa",
+        quartos: 3,
+        bairro: "Itacorubi",
+        endereco: "Rua Maria Luiza Agostinho, 45"
+      },
+      {
+        id: "b",
+        tipoImovel: "apartamento",
+        quartos: 4,
+        bairro: "Itacorubi",
+        endereco: "Rua Maria Luiza Agostinho, 102"
+      }
+    ]);
+
+    expect(titles.get("a")).toBe("Casa com 3 quartos em Itacorubi");
+    expect(titles.get("b")).toBe("Apartamento com 4 quartos em Itacorubi");
+  });
+
+  it("disambiguates same-bairro collisions with numbered suffixes", () => {
+    const titles = buildAnunciosListingDisplayTitles([
+      {
+        id: "a",
+        tipoImovel: "casa",
+        quartos: 3,
+        bairro: "Itacorubi",
+        endereco: "Rua Maria Luiza Agostinho, 45",
+        preco: 500_000
+      },
+      {
+        id: "b",
+        tipoImovel: "casa",
+        quartos: 3,
+        bairro: "Itacorubi",
+        endereco: "Rua Maria Luiza Agostinho, 102",
+        preco: 800_000
+      }
+    ]);
+
+    expect(titles.get("a")).toBe("3 quartos em Itacorubi (1)");
+    expect(titles.get("b")).toBe("3 quartos em Itacorubi (2)");
+  });
+
+  it("omits street names when multiple casas share a bairro on different streets", () => {
+    const titles = buildAnunciosListingDisplayTitles([
+      {
+        id: "a",
+        tipoImovel: "casa",
+        quartos: 3,
+        bairro: "Itacorubi",
+        endereco: "Avenida Buriti, 5000",
+        preco: 500_000
+      },
+      {
+        id: "b",
+        tipoImovel: "casa",
+        quartos: 3,
+        bairro: "Itacorubi",
+        endereco: "Rua Maria Luiza Agostinho, 102",
+        preco: 800_000
+      }
+    ]);
+
+    expect(titles.get("a")).toBe("3 quartos em Itacorubi (1)");
+    expect(titles.get("b")).toBe("3 quartos em Itacorubi (2)");
+  });
+
+  it("leaves single-listing titles with bairro unchanged", () => {
+    const titles = buildAnunciosListingDisplayTitles([
+      {
+        id: "a",
+        tipoImovel: "casa",
+        quartos: 3,
+        bairro: "Itacorubi",
+        endereco: "Avenida Buriti, 5000"
+      }
+    ]);
+
+    expect(titles.get("a")).toBe("Casa com 3 quartos em Itacorubi");
   });
 });
