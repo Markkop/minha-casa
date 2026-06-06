@@ -12,9 +12,10 @@ const VALID_ESTRATEGIAS = new Set<EstrategiaFiltro>(["permuta", "venda_posterior
 const VALID_MULTIPLIERS = new Set<number>(PERCENTAGE_OPTIONS.map((o) => o.value));
 const VALID_TIMING_MONTHS = new Set<number>(TIMING_MONTH_OPTIONS);
 
-/** Legacy stored shape before event-based upgrade. */
-interface LegacySimulatorParams extends Partial<SimulatorParams> {
+/** Stored shape, including fields used before the capital/entrada split. */
+interface StoredSimulatorParams extends Partial<Omit<SimulatorParams, "linkedListingId">> {
   custoCondominioMensal?: number;
+  linkedListingId?: unknown;
 }
 
 function finiteNumber(value: unknown, fallback: number): number {
@@ -59,7 +60,7 @@ function validEstrategiaList(value: unknown, fallback: EstrategiaFiltro[]): Estr
   return filtered.length > 0 ? filtered : fallback;
 }
 
-function resolveManutencaoMensal(parsed: LegacySimulatorParams, defaults: SimulatorParams): number {
+function resolveManutencaoMensal(parsed: StoredSimulatorParams, defaults: SimulatorParams): number {
   if (typeof parsed.custoManutencaoImovelMensal === "number") {
     return finiteNumber(parsed.custoManutencaoImovelMensal, defaults.custoManutencaoImovelMensal);
   }
@@ -69,8 +70,9 @@ function resolveManutencaoMensal(parsed: LegacySimulatorParams, defaults: Simula
   return defaults.custoManutencaoImovelMensal;
 }
 
-export function normalizeSimulatorParams(parsed: LegacySimulatorParams): SimulatorParams {
+export function normalizeSimulatorParams(parsed: StoredSimulatorParams): SimulatorParams {
   const defaults = createInitialSimulatorParams();
+  const hasEntradaDisponivel = Object.prototype.hasOwnProperty.call(parsed, "entradaDisponivel");
   const valorApartamento = finiteNumber(parsed.valorApartamento, defaults.valorApartamento);
   const temImovelParaNegociar =
     parsed.temImovelParaNegociar !== undefined
@@ -80,7 +82,12 @@ export function normalizeSimulatorParams(parsed: LegacySimulatorParams): Simulat
         : defaults.temImovelParaNegociar;
 
   return {
-    capitalDisponivel: finiteNumber(parsed.capitalDisponivel, defaults.capitalDisponivel),
+    capitalDisponivel: hasEntradaDisponivel
+      ? finiteNumber(parsed.capitalDisponivel, defaults.capitalDisponivel)
+      : defaults.capitalDisponivel,
+    entradaDisponivel: hasEntradaDisponivel
+      ? finiteNumber(parsed.entradaDisponivel, defaults.entradaDisponivel)
+      : finiteNumber(parsed.capitalDisponivel, defaults.entradaDisponivel),
     valorApartamento,
     rendaMensal: finiteNumber(parsed.rendaMensal, defaults.rendaMensal),
     aporteExtra: finiteNumber(parsed.aporteExtra, defaults.aporteExtra),
@@ -128,7 +135,7 @@ export function loadSimulatorParams(): SimulatorParams | null {
     if (!stored) {
       return null;
     }
-    const parsed = JSON.parse(stored) as LegacySimulatorParams;
+    const parsed = JSON.parse(stored) as StoredSimulatorParams;
     return normalizeSimulatorParams(parsed);
   } catch {
     return null;

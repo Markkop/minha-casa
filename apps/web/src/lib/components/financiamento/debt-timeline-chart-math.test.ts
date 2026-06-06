@@ -1,16 +1,42 @@
 import { describe, expect, it } from "vitest";
 import {
   buildMonthGridTicks,
+  buildNiceYAxisScale,
   buildXAxisLabelTicks,
+  maxChartValue,
   monthAtX,
   monthAxisLabelStep,
   monthPitch,
+  monthTotalOutflow,
+  niceTickStep,
   pickChartHover,
+  pickChartHoverForTotal,
   plotWidthForChart,
   timelineIndexAtMonth,
   xForMonth
 } from "./debt-timeline-chart-math";
 import type { CenarioCompleto } from "$lib/financiamento/calculations";
+import type { TimelineMonth } from "$lib/financiamento/financing-timeline";
+
+function mockTimelineMonth(
+  partial: Partial<TimelineMonth> & Pick<TimelineMonth, "mes">
+): TimelineMonth {
+  return {
+    saldoDevedor: 0,
+    prestacao: 0,
+    aporteExtra: 0,
+    reformaMensal: 0,
+    manutencaoMensal: 0,
+    amortizacaoExtraordinaria: 0,
+    amortizacaoVenda: 0,
+    amortizacaoQuantiaExtra: 0,
+    saldoLivre: 0,
+    eventoVenda: false,
+    eventoExtra: false,
+    reformaConcluida: false,
+    ...partial
+  };
+}
 
 function mockCenario(
   id: string,
@@ -18,21 +44,19 @@ function mockCenario(
 ): CenarioCompleto {
   return {
     id,
-    timeline: timeline.map((t) => ({
-      mes: t.mes,
-      saldoDevedor: t.saldoDevedor,
-      prestacao: 0,
-      aporteExtra: 0,
-      reformaMensal: 0,
-      manutencaoMensal: 0,
-      amortizacaoExtraordinaria: 0,
-      amortizacaoVenda: 0,
-      amortizacaoQuantiaExtra: 0,
-      saldoLivre: 0,
-      eventoVenda: false,
-      eventoExtra: false,
-      reformaConcluida: false
-    }))
+    timeline: timeline.map((t) =>
+      mockTimelineMonth({ mes: t.mes, saldoDevedor: t.saldoDevedor })
+    )
+  } as CenarioCompleto;
+}
+
+function mockCenarioWithTotals(
+  id: string,
+  timeline: (Partial<TimelineMonth> & Pick<TimelineMonth, "mes">)[]
+): CenarioCompleto {
+  return {
+    id,
+    timeline: timeline.map((t) => mockTimelineMonth(t))
   } as CenarioCompleto;
 }
 
@@ -175,5 +199,109 @@ describe("timelineIndexAtMonth", () => {
     ]);
     expect(timelineIndexAtMonth(c, 2)).toBe(0);
     expect(timelineIndexAtMonth(c, 3)).toBe(1);
+  });
+});
+
+describe("monthTotalOutflow", () => {
+  it("sums prestação, aporte, reforma and manutenção", () => {
+    const month = mockTimelineMonth({
+      mes: 1,
+      prestacao: 5_000,
+      aporteExtra: 1_000,
+      reformaMensal: 2_000,
+      manutencaoMensal: 500
+    });
+    expect(monthTotalOutflow(month)).toBe(8_500);
+  });
+});
+
+describe("buildNiceYAxisScale", () => {
+  it("uses 100k steps for ~806k saldo devedor", () => {
+    const scale = buildNiceYAxisScale(806_000);
+    expect(scale.step).toBe(100_000);
+    expect(scale.max).toBe(900_000);
+    expect(scale.ticks).toEqual([
+      0, 100_000, 200_000, 300_000, 400_000, 500_000, 600_000, 700_000, 800_000, 900_000
+    ]);
+  });
+
+  it("uses 10k steps for ~45k renda / total mensal", () => {
+    const scale = buildNiceYAxisScale(45_000);
+    expect(scale.step).toBe(10_000);
+    expect(scale.max).toBe(50_000);
+    expect(scale.ticks).toEqual([0, 10_000, 20_000, 30_000, 40_000, 50_000]);
+  });
+
+  it("always starts at zero with evenly spaced ticks", () => {
+    const scale = buildNiceYAxisScale(320_000);
+    expect(scale.ticks[0]).toBe(0);
+    for (let i = 1; i < scale.ticks.length; i++) {
+      expect(scale.ticks[i]! - scale.ticks[i - 1]!).toBe(scale.step);
+    }
+    expect(scale.ticks.at(-1)).toBe(scale.max);
+  });
+});
+
+describe("niceTickStep", () => {
+  it("returns round step sizes for typical financing ranges", () => {
+    expect(niceTickStep(0, 870_000, 9)).toBe(100_000);
+    expect(niceTickStep(0, 48_600, 6)).toBe(10_000);
+  });
+});
+
+describe("maxChartValue", () => {
+  it("includes rendaMensal even when all monthly totals are lower", () => {
+    const c = mockCenarioWithTotals("a", [
+      { mes: 1, prestacao: 3_000 },
+      { mes: 2, prestacao: 4_000, reformaMensal: 1_000 }
+    ]);
+    expect(maxChartValue([c], 50_000)).toBe(60_000);
+  });
+
+  it("uses the highest monthly total when it exceeds renda", () => {
+    const c = mockCenarioWithTotals("a", [
+      { mes: 1, prestacao: 60_000 },
+      { mes: 2, prestacao: 45_000 }
+    ]);
+    expect(maxChartValue([c], 40_000)).toBe(70_000);
+  });
+});
+
+describe("pickChartHoverForTotal", () => {
+  const width = 800;
+  const maxMonth = 12;
+  const maxValue = 50_000;
+
+  it("snaps to month from X and picks closest line by total/mês Y", () => {
+    const timeline = Array.from({ length: 12 }, (_, i) => ({
+      mes: i + 1,
+      prestacao: 20_000 - i * 500
+    }));
+    const a = mockCenarioWithTotals("a", timeline);
+    const b = mockCenarioWithTotals(
+      "b",
+      timeline.map((t) => ({ ...t, prestacao: t.prestacao! + 2_000 }))
+    );
+
+    const month6X = monthCenterX(6);
+    const yNearA = 16 + (1 - timeline[5]!.prestacao! / maxValue) * (280 - 16 - 52);
+
+    const hover = pickChartHoverForTotal([a, b], month6X, yNearA, maxMonth, maxValue, width, null);
+    expect(hover?.cenarioId).toBe("a");
+    expect(hover?.monthIndex).toBe(5);
+    expect(a.timeline[hover!.monthIndex]?.mes).toBe(6);
+  });
+
+  it("keeps previous series with Y hysteresis on the same month", () => {
+    const a = mockCenarioWithTotals("a", [{ mes: 6, prestacao: 25_000 }]);
+    const b = mockCenarioWithTotals("b", [{ mes: 6, prestacao: 26_000 }]);
+    const month6X = monthCenterX(6);
+    const yMid = 16 + (1 - 25_500 / maxValue) * (280 - 16 - 52);
+
+    const first = pickChartHoverForTotal([a, b], month6X, yMid, maxMonth, maxValue, width, null);
+    expect(first?.cenarioId).toBeDefined();
+
+    const second = pickChartHoverForTotal([a, b], month6X, yMid, maxMonth, maxValue, width, first);
+    expect(second).toEqual(first);
   });
 });

@@ -10,10 +10,48 @@ describe("normalizeSimulatorParams", () => {
   it("keeps valid numeric fields", () => {
     const result = normalizeSimulatorParams({
       valorImovel: 3_500_000,
-      capitalDisponivel: 800_000
+      capitalDisponivel: 1_200_000,
+      entradaDisponivel: 800_000
     });
     expect(result.valorImovel).toBe(3_500_000);
-    expect(result.capitalDisponivel).toBe(800_000);
+    expect(result.capitalDisponivel).toBe(1_200_000);
+    expect(result.entradaDisponivel).toBe(800_000);
+  });
+
+  it("defaults capital to 50% of the initial target property value", () => {
+    const params = createInitialSimulatorParams();
+    expect(params.capitalDisponivel).toBe(params.valorImovel * 0.5);
+    expect(params.entradaDisponivel).toBe(600_000);
+  });
+
+  it("migrates legacy capitalDisponivel to entradaDisponivel", () => {
+    const defaults = createInitialSimulatorParams();
+    const result = normalizeSimulatorParams({
+      capitalDisponivel: 800_000
+    });
+
+    expect(result.capitalDisponivel).toBe(defaults.capitalDisponivel);
+    expect(result.entradaDisponivel).toBe(800_000);
+  });
+
+  it("preserves split capital and entrada values from the current stored shape", () => {
+    const result = normalizeSimulatorParams({
+      capitalDisponivel: 1_500_000,
+      entradaDisponivel: 700_000
+    });
+
+    expect(result.capitalDisponivel).toBe(1_500_000);
+    expect(result.entradaDisponivel).toBe(700_000);
+  });
+
+  it("uses the new capital default when current stored shape omits capital", () => {
+    const defaults = createInitialSimulatorParams();
+    const result = normalizeSimulatorParams({
+      entradaDisponivel: 700_000
+    });
+
+    expect(result.capitalDisponivel).toBe(defaults.capitalDisponivel);
+    expect(result.entradaDisponivel).toBe(700_000);
   });
 
   it("falls back when multipliers or estrategias are invalid", () => {

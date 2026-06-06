@@ -3,6 +3,8 @@ export const WORKSPACE_NAV_HEIGHT = "2.75rem";
 
 export const WORKSPACE_SIDEBAR_WIDTH = "11rem";
 
+export const WORKSPACE_RIGHT_SIDEBAR_WIDTH = "20rem";
+
 /** Primary chrome row: top bar + sidebar brand row (44px incl. border). */
 export const workspaceChromeRowClass =
   "box-border flex h-11 shrink-0 items-center border-b border-app-border bg-app-surface px-3 shadow-xs";

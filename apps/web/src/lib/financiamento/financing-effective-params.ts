@@ -2,7 +2,7 @@ import type { SimulatorParams } from "$lib/components/financiamento/financiament
 
 /** Simulation inputs with checkbox-off sections zeroed out. */
 export interface EffectiveSimulationParams {
-  capitalDisponivel: number;
+  entradaDisponivel: number;
   valorApartamento: number;
   rendaMensal: number;
   aporteExtra: number;
@@ -23,7 +23,7 @@ export function resolveEffectiveParams(params: SimulatorParams): EffectiveSimula
   const esperaExtra = params.esperaQuantiaExtra;
 
   return {
-    capitalDisponivel: params.capitalDisponivel,
+    entradaDisponivel: params.entradaDisponivel,
     valorApartamento: temImovel ? params.valorApartamento : 0,
     rendaMensal: params.rendaMensal,
     aporteExtra: params.aporteExtra,

@@ -10,8 +10,6 @@
     VALOR_IMOVEL_RANGE
   } from "$lib/components/financiamento/parameter-row-helpers";
   import ParameterRow from "$lib/components/financiamento/parameter-row.svelte";
-  import Card from "$lib/components/ui/Card.svelte";
-  import CardContent from "$lib/components/ui/CardContent.svelte";
   import { formatCurrency, generateTooltips } from "$lib/financiamento/calculations";
   import { UI_DEFAULTS } from "$lib/financiamento/calculations-defaults";
   import { getSettingsContext } from "$lib/financiamento/settings-context.svelte";
@@ -46,20 +44,22 @@
   const entradaSlider = $derived(
     recursosMeta?.capitalSlider ?? {
       min: 0,
-      max: Math.max(params.capitalDisponivel, 1_400_000),
+      max: Math.max(params.entradaDisponivel, 1_400_000),
       step: 10_000
     }
   );
+
+  const capitalSlider = $derived({
+    min: 0,
+    max: Math.max(params.capitalDisponivel, params.valorImovel, UI_DEFAULTS.capitalDisponivel),
+    step: 10_000
+  });
 
   function patch(partial: Partial<typeof params>) {
     onChange({ ...params, ...partial });
   }
 
-  function updateEntrada(value: number) {
-    if (onEntradaChange) {
-      onEntradaChange(value);
-      return;
-    }
+  function updateCapital(value: number) {
     if (onCapitalChange) {
       onCapitalChange(value);
       return;
@@ -67,9 +67,18 @@
     patch({ capitalDisponivel: value });
   }
 
+  function updateEntrada(value: number) {
+    if (onEntradaChange) {
+      onEntradaChange(value);
+      return;
+    }
+    patch({ entradaDisponivel: value });
+  }
+
   function resetEntradaSection() {
     patch({
       capitalDisponivel: UI_DEFAULTS.capitalDisponivel,
+      entradaDisponivel: UI_DEFAULTS.entradaDisponivel,
       valorImovel: UI_DEFAULTS.valorImovel
     });
   }
@@ -125,21 +134,36 @@
   </label>
 {/snippet}
 
-<Card class="flex flex-col rounded-md border border-app-border bg-app-surface-muted py-3 shadow-sm">
-  <CardContent class="pt-0 pb-1">
-    <div class="grid grid-cols-1 gap-x-5 gap-y-4 lg:grid-cols-3 lg:gap-y-0">
-      <!-- Col 1: Entrada + Imóvel para negociar -->
-      <div class="flex min-w-0 flex-col gap-3">
-      <section>
+<div class="flex min-w-0 flex-col px-3 py-3">
+      <section class="border-b border-app-border pb-4">
         <ColumnHeader title="Entrada" onReset={resetEntradaSection} />
         <ParameterRow
           compact={rowCompact}
-          label="Entrada disponível"
-          tooltip="Valor em dinheiro disponível para entrada."
+          label="Capital disponível"
+          tooltip="Capital total disponível para acompanhar o saldo ao longo do tempo."
           valueDisplay={formatCurrency(params.capitalDisponivel)}
           valueClassName="font-semibold text-app-accent"
           slider={{
             value: params.capitalDisponivel,
+            min: capitalSlider.min,
+            max: capitalSlider.max,
+            step: capitalSlider.step,
+            onValueChange: updateCapital
+          }}
+          edit={{
+            type: "currency",
+            value: params.capitalDisponivel,
+            onChange: updateCapital
+          }}
+        />
+        <ParameterRow
+          compact={rowCompact}
+          label="Entrada disponível"
+          tooltip="Valor em dinheiro disponível para entrada."
+          valueDisplay={formatCurrency(params.entradaDisponivel)}
+          valueClassName="font-semibold text-app-accent"
+          slider={{
+            value: params.entradaDisponivel,
             min: entradaSlider.min,
             max: entradaSlider.max,
             step: entradaSlider.step,
@@ -147,7 +171,7 @@
           }}
           edit={{
             type: "currency",
-            value: params.capitalDisponivel,
+            value: params.entradaDisponivel,
             onChange: updateEntrada
           }}
         />
@@ -173,7 +197,7 @@
         />
       </section>
 
-      <section>
+      <section class="border-b border-app-border py-4">
         <ColumnHeader title="Imóvel para negociar" onReset={resetImovelSection} />
         {@render sectionCheckbox(
           "tem-imovel",
@@ -228,11 +252,8 @@
           />
         {/if}
       </section>
-      </div>
 
-      <!-- Col 2: Quitação -->
-      <div class="flex min-w-0 flex-col gap-3">
-      <section>
+      <section class="border-b border-app-border py-4">
         <ColumnHeader title="Quitação" onReset={resetQuitacaoSection} />
         <ParameterRow
           compact={rowCompact}
@@ -299,11 +320,8 @@
           />
         {/if}
       </section>
-      </div>
 
-      <!-- Col 3: Taxas + Reformas -->
-      <div class="flex min-w-0 flex-col gap-3">
-      <section>
+      <section class="border-b border-app-border py-4">
         <ColumnHeader title="Taxas" onReset={resetTaxasSection} />
         <ParameterRow
           compact={rowCompact}
@@ -343,7 +361,7 @@
         />
       </section>
 
-      <section>
+      <section class="pt-4">
         <ColumnHeader title="Reformas" onReset={resetReformasSection} />
         {@render sectionCheckbox(
           "incluir-reformas",
@@ -402,7 +420,4 @@
           />
         {/if}
       </section>
-      </div>
-    </div>
-  </CardContent>
-</Card>
+</div>

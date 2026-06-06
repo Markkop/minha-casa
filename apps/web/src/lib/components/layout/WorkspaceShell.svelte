@@ -23,16 +23,22 @@
   } from "$lib/admin/client";
   import CollectionsProvider from "$lib/components/anuncios/CollectionsProvider.svelte";
   import WorkspaceNav from "$lib/components/layout/WorkspaceNav.svelte";
+  import WorkspaceRightSidebar from "$lib/components/layout/WorkspaceRightSidebar.svelte";
   import WorkspaceTopBar from "$lib/components/layout/WorkspaceTopBar.svelte";
   import { cn } from "$lib/utils";
   import {
     WORKSPACE_NAV_HEIGHT,
+    WORKSPACE_RIGHT_SIDEBAR_WIDTH,
     WORKSPACE_SIDEBAR_WIDTH,
     workspaceTopBarControlClass
   } from "$lib/workspace-chrome";
   import { syncSubscriptionCookie } from "$lib/sync-subscription-cookie";
   import { workspaceApi } from "$lib/workspace/client";
   import ImportExportMenuItems from "$lib/components/anuncios/ImportExportMenuItems.svelte";
+  import {
+    createWorkspaceRightSidebarState,
+    setWorkspaceRightSidebarContext
+  } from "$lib/workspace-right-sidebar.svelte";
 
   type ShellUser = {
     name?: string | null;
@@ -67,6 +73,8 @@
   });
   let subscriptionReady = $state(false);
   let hasActiveSubscription = $state(false);
+  const rightSidebar = createWorkspaceRightSidebarState();
+  setWorkspaceRightSidebarContext(rightSidebar);
 
   const shouldLoadCollections = $derived(
     Boolean(user) &&
@@ -258,7 +266,7 @@
   <div
     data-slot="sidebar-wrapper"
     class="min-h-svh bg-app-bg text-app-fg"
-    style={`--sidebar-width: ${WORKSPACE_SIDEBAR_WIDTH}; --nav-height: ${WORKSPACE_NAV_HEIGHT};`}
+    style={`--sidebar-width: ${WORKSPACE_SIDEBAR_WIDTH}; --right-sidebar-width: ${WORKSPACE_RIGHT_SIDEBAR_WIDTH}; --nav-height: ${WORKSPACE_NAV_HEIGHT};`}
   >
     <WorkspaceNav
       {visibleLinks}
@@ -277,7 +285,13 @@
 
     <div
       data-slot="sidebar-inset"
-      class={cn("min-h-svh", sidebarOpen && "md:pl-[var(--sidebar-width)]")}
+      class={cn(
+        "min-h-svh",
+        sidebarOpen && "md:pl-[var(--sidebar-width)]",
+        rightSidebar.registration &&
+          rightSidebar.desktopOpen &&
+          "lg:pr-[var(--right-sidebar-width)]"
+      )}
     >
       <WorkspaceTopBar
         {showSubscriptionPendingChrome}
@@ -286,9 +300,13 @@
         {orgBreadcrumbClass}
         {collectionBreadcrumbClass}
         onToggleSidebar={toggleSidebar}
+        showRightSidebarToggle={Boolean(rightSidebar.registration)}
+        onToggleRightSidebar={rightSidebar.toggle}
       />
 
       {@render children?.()}
     </div>
+
+    <WorkspaceRightSidebar sidebar={rightSidebar} />
   </div>
 </CollectionsProvider>

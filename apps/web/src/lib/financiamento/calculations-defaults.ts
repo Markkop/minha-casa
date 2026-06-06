@@ -1,8 +1,11 @@
 /** Initial values for the adjustment-panel fields. */
+const INITIAL_VALOR_IMOVEL = 2_000_000;
+
 export const UI_DEFAULTS = {
-  valorImovel: 2_000_000,
+  valorImovel: INITIAL_VALOR_IMOVEL,
   valorApartamento: 550_000,
-  capitalDisponivel: 600_000,
+  capitalDisponivel: INITIAL_VALOR_IMOVEL * 0.5,
+  entradaDisponivel: 600_000,
   taxaAnual: 0.115,
   trMensal: 0.0015,
   aporteExtra: 10_000,

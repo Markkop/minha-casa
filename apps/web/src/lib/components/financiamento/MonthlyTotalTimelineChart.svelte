@@ -5,9 +5,10 @@
     buildXAxisLabelTicks,
     CHART_HEIGHT,
     CHART_PADDING,
-    maxSaldoDevedorData,
-    pickChartHover,
-    polylinePoints,
+    maxMonthlyTotalData,
+    monthTotalOutflow,
+    pickChartHoverForTotal,
+    polylinePointsForTotal,
     svgPointFromPointer,
     xForMonth,
     yForBalance,
@@ -44,8 +45,12 @@
     Math.max(1, ...cenarios.flatMap((c) => c.timeline.map((m) => m.mes)), 1)
   );
 
-  const yAxis = $derived(buildNiceYAxisScale(maxSaldoDevedorData(cenarios)));
-  const maxBalance = $derived(yAxis.max);
+  const rendaMensal = $derived(cenarios[0]?.rendaMensal ?? 0);
+
+  const yAxis = $derived(buildNiceYAxisScale(maxMonthlyTotalData(cenarios, rendaMensal)));
+  const maxValue = $derived(yAxis.max);
+
+  const rendaY = $derived(yForBalance(rendaMensal, maxValue, height, padding));
 
   let chartContainer = $state<HTMLDivElement | null>(null);
   let containerWidth = $state(0);
@@ -77,7 +82,7 @@
   const yTicks = $derived.by(() =>
     yAxis.ticks.map((value) => ({
       label: formatCurrencyCompact(value),
-      y: yForBalance(value, maxBalance, height, padding)
+      y: yForBalance(value, maxValue, height, padding)
     }))
   );
 
@@ -114,7 +119,7 @@
   function handleChartPointerMove(event: PointerEvent) {
     if (!svgEl) return;
     const { x, y } = svgPointFromPointer(svgEl, event, chartWidth, height);
-    const next = pickChartHover(cenarios, x, y, maxMonth, maxBalance, chartWidth, hover);
+    const next = pickChartHoverForTotal(cenarios, x, y, maxMonth, maxValue, chartWidth, hover);
     if (
       next &&
       hover &&
@@ -142,7 +147,7 @@
   </p>
 {:else}
   <header class="border-b border-app-border px-2 py-2 sm:px-3">
-    <h3 class="text-sm font-medium text-app-fg">Saldo devedor ao longo do tempo</h3>
+    <h3 class="text-sm font-medium text-app-fg">Total/mês ao longo do tempo</h3>
   </header>
 
   <div class="px-2 py-3 sm:px-3">
@@ -152,7 +157,7 @@
         viewBox="0 0 {chartWidth} {height}"
         class="h-auto w-full select-none touch-none"
         role="img"
-        aria-label="Gráfico de saldo devedor por cenário"
+        aria-label="Gráfico de total mensal por cenário"
       >
         {#each yTicks as tick}
           <line
@@ -208,9 +213,28 @@
         {/each}
 
         <g class="pointer-events-none">
+          <line
+            x1={padding.left}
+            y1={rendaY}
+            x2={chartWidth - padding.right}
+            y2={rendaY}
+            class="stroke-app-fg"
+            stroke-width="1.5"
+            stroke-dasharray="6 4"
+            opacity="0.55"
+          />
+          <text
+            x={padding.left - 8}
+            y={rendaY + 4}
+            text-anchor="end"
+            class="fill-app-fg pointer-events-none text-[10px] font-medium"
+          >
+            Renda
+          </text>
+
           {#each cenarios as cenario, i (cenario.id)}
             {@const color = CHART_COLORS[i % CHART_COLORS.length]}
-            {@const points = polylinePoints(cenario, maxMonth, maxBalance, chartWidth)}
+            {@const points = polylinePointsForTotal(cenario, maxMonth, maxValue, chartWidth)}
             {@const isActive = hover?.cenarioId === cenario.id}
             {#if points}
               <polyline
@@ -294,7 +318,7 @@
               {#if idx >= 0}
                 {@const om = other.timeline[idx]}
                 {@const ox = xForMonth(om.mes, maxMonth, chartWidth, padding)}
-                {@const oy = yForBalance(om.saldoDevedor, maxBalance, height, padding)}
+                {@const oy = yForBalance(monthTotalOutflow(om), maxValue, height, padding)}
                 {@const oc = CHART_COLORS[i % CHART_COLORS.length]}
                 <circle
                   cx={ox}
@@ -313,11 +337,7 @@
 
       {#if hoveredPoint}
         {@const { cenario, month } = hoveredPoint}
-        {@const totalMes =
-          month.prestacao +
-          month.aporteExtra +
-          month.reformaMensal +
-          month.manutencaoMensal}
+        {@const totalMes = monthTotalOutflow(month)}
         <div
           class="pointer-events-none absolute top-2 right-2 z-10 max-w-xs rounded-md border border-app-border bg-app-surface/95 p-2 text-xs shadow-md backdrop-blur-sm"
         >
@@ -325,10 +345,9 @@
           <dl class="grid grid-cols-[auto_1fr] gap-x-2 gap-y-0.5 text-app-muted">
             <dt>Mês</dt>
             <dd class="font-mono text-app-fg">
-              {month.mes} <span class="font-sans text-app-subtle">({formatTimingMonthLabelLong(month.mes)})</span>
+              {month.mes}
+              <span class="font-sans text-app-subtle">({formatTimingMonthLabelLong(month.mes)})</span>
             </dd>
-            <dt>Saldo devedor</dt>
-            <dd class="font-mono text-app-fg">{formatCurrency(month.saldoDevedor)}</dd>
             <dt>Prestação</dt>
             <dd class="font-mono">{formatCurrency(month.prestacao)}</dd>
             {#if month.aporteExtra > 0}
@@ -342,14 +361,6 @@
             {#if month.manutencaoMensal > 0}
               <dt>Manutenção</dt>
               <dd class="font-mono">{formatCurrency(month.manutencaoMensal)}</dd>
-            {/if}
-            {#if month.amortizacaoVenda > 0}
-              <dt>Venda</dt>
-              <dd class="font-mono text-green">{formatCurrency(month.amortizacaoVenda)}</dd>
-            {/if}
-            {#if month.amortizacaoQuantiaExtra > 0}
-              <dt>Quantia extra</dt>
-              <dd class="font-mono text-green">{formatCurrency(month.amortizacaoQuantiaExtra)}</dd>
             {/if}
             <dt class="font-bold text-app-accent">Total/mês</dt>
             <dd class="font-mono font-bold text-app-accent">{formatCurrency(totalMes)}</dd>
@@ -376,10 +387,17 @@
           </span>
         </li>
       {/each}
+      <li class="flex items-center gap-1.5">
+        <span
+          class="inline-block h-0 w-4 border-t border-dashed border-app-fg opacity-55"
+        ></span>
+        <span>Renda mensal ({formatCurrencyCompact(rendaMensal)})</span>
+      </li>
     </ul>
     <p class="mt-2 text-[10px] text-app-subtle">
-      Passe o mouse sobre o gráfico para ver cada mês · linhas tracejadas: venda · círculo no topo:
-      quantia extra · quadrado inferior: reforma concluída
+      Passe o mouse sobre o gráfico para ver cada mês · linha tracejada horizontal: renda mensal
+      · linhas tracejadas verticais: venda · círculo no topo: quantia extra · quadrado inferior:
+      reforma concluída
     </p>
   </div>
 {/if}

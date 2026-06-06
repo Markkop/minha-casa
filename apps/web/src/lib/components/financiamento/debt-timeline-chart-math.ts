@@ -1,4 +1,5 @@
 import type { CenarioCompleto } from "$lib/financiamento/calculations";
+import type { TimelineMonth } from "$lib/financiamento/financing-timeline";
 
 export const CHART_PADDING = { top: 16, right: 16, bottom: 52, left: 56 } as const;
 export const CHART_HEIGHT = 280;
@@ -220,4 +221,149 @@ export function polylinePoints(
         `${xForMonth(m.mes, maxMonth, width)},${yForBalance(m.saldoDevedor, maxBalance)}`
     )
     .join(" ");
+}
+
+export function monthTotalOutflow(month: TimelineMonth): number {
+  return month.prestacao + month.aporteExtra + month.reformaMensal + month.manutencaoMensal;
+}
+
+const NICE_STEP_BASES = [1, 2, 2.5, 5, 10] as const;
+
+/** Round step size to 1, 2, 2.5, 5, or 10 × 10^n (D3-style nice ticks). */
+export function niceTickStep(start: number, stop: number, count: number): number {
+  const span = Math.max(stop - start, 0);
+  if (span === 0 || count <= 0) return 1;
+
+  const raw = span / count;
+  const power = 10 ** Math.floor(Math.log10(raw));
+  const normalized = raw / power;
+
+  let base: number = NICE_STEP_BASES[NICE_STEP_BASES.length - 1];
+  for (const candidate of NICE_STEP_BASES) {
+    if (candidate >= normalized) {
+      base = candidate;
+      break;
+    }
+  }
+
+  return base * power;
+}
+
+export type YAxisScale = {
+  max: number;
+  step: number;
+  ticks: number[];
+};
+
+/** Pick round Y-axis ticks (e.g. 20k/40k/60k or 100k/200k/…) with minimal headroom above data. */
+export function buildNiceYAxisScale(dataMax: number): YAxisScale {
+  const padded = Math.max(1, dataMax) * 1.08;
+  let best: YAxisScale | null = null;
+
+  for (let targetCount = 4; targetCount <= 10; targetCount++) {
+    const step = niceTickStep(0, padded, targetCount);
+    if (step <= 0) continue;
+
+    const max = Math.ceil(padded / step) * step;
+    const ticks: number[] = [];
+    for (let value = 0; value <= max + step * 1e-9; value += step) {
+      ticks.push(Math.round(value));
+    }
+
+    if (ticks.length < 4 || ticks.length > 11) continue;
+
+    const candidate = { max, step, ticks };
+    if (
+      !best ||
+      candidate.max < best.max ||
+      (candidate.max === best.max && candidate.step > best.step)
+    ) {
+      best = candidate;
+    }
+  }
+
+  if (best) return best;
+
+  const step = niceTickStep(0, padded, 5);
+  const max = Math.ceil(padded / step) * step;
+  const ticks: number[] = [];
+  for (let value = 0; value <= max + step * 1e-9; value += step) {
+    ticks.push(Math.round(value));
+  }
+  return { max, step, ticks };
+}
+
+export function maxSaldoDevedorData(cenarios: CenarioCompleto[]): number {
+  return Math.max(1, ...cenarios.flatMap((c) => c.timeline.map((m) => m.saldoDevedor)));
+}
+
+export function maxMonthlyTotalData(cenarios: CenarioCompleto[], rendaMensal: number): number {
+  const maxTotal = cenarios.flatMap((c) => c.timeline.map(monthTotalOutflow));
+  return Math.max(1, rendaMensal, ...maxTotal);
+}
+
+/** @deprecated Use buildNiceYAxisScale(maxMonthlyTotalData(...)).max */
+export function maxChartValue(cenarios: CenarioCompleto[], rendaMensal: number): number {
+  return buildNiceYAxisScale(maxMonthlyTotalData(cenarios, rendaMensal)).max;
+}
+
+export function polylinePointsForTotal(
+  cenario: CenarioCompleto,
+  maxMonth: number,
+  maxValue: number,
+  width: number
+): string {
+  return cenario.timeline
+    .map(
+      (m) =>
+        `${xForMonth(m.mes, maxMonth, width)},${yForBalance(monthTotalOutflow(m), maxValue)}`
+    )
+    .join(" ");
+}
+
+export function pickChartHoverForTotal(
+  cenarios: CenarioCompleto[],
+  svgX: number,
+  svgY: number,
+  maxMonth: number,
+  maxValue: number,
+  width: number,
+  previous: ChartHover | null
+): ChartHover | null {
+  if (cenarios.length === 0) return null;
+
+  const targetMonth = monthAtX(svgX, maxMonth, width);
+  let bestId: string | null = null;
+  let bestIndex = 0;
+  let bestYDist = Infinity;
+
+  for (const cenario of cenarios) {
+    if (cenario.timeline.length === 0) continue;
+    const monthIndex = timelineIndexAtMonth(cenario, targetMonth);
+    const month = cenario.timeline[monthIndex];
+    const cy = yForBalance(monthTotalOutflow(month), maxValue);
+    const yDist = Math.abs(svgY - cy);
+    if (yDist < bestYDist) {
+      bestYDist = yDist;
+      bestId = cenario.id;
+      bestIndex = monthIndex;
+    }
+  }
+
+  if (!bestId) return null;
+
+  if (previous) {
+    const prevCenario = cenarios.find((c) => c.id === previous.cenarioId);
+    const prevMonth = prevCenario?.timeline[previous.monthIndex];
+    if (prevCenario && prevMonth) {
+      const prevCy = yForBalance(monthTotalOutflow(prevMonth), maxValue);
+      const prevYDist = Math.abs(svgY - prevCy);
+      const sameMonth = prevMonth.mes === targetMonth;
+      if (sameMonth && prevYDist - bestYDist < HOVER_Y_HYSTERESIS) {
+        return previous;
+      }
+    }
+  }
+
+  return { cenarioId: bestId, monthIndex: bestIndex };
 }

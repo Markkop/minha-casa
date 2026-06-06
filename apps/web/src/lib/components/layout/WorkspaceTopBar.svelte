@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { PanelLeft } from "@lucide/svelte";
+  import { PanelLeft, PanelRight } from "@lucide/svelte";
   import { cn } from "$lib/utils";
   import { workspaceChromeRowClass, workspaceTopBarControlClass } from "$lib/workspace-chrome";
   import AnaliseListingBreadcrumb from "$lib/components/analise/AnaliseListingBreadcrumb.svelte";
@@ -12,7 +12,9 @@
     showOrgBreadcrumb,
     orgBreadcrumbClass,
     collectionBreadcrumbClass,
-    onToggleSidebar
+    onToggleSidebar,
+    showRightSidebarToggle = false,
+    onToggleRightSidebar
   }: {
     showSubscriptionPendingChrome: boolean;
     showAnaliseListingBreadcrumb: boolean;
@@ -20,6 +22,8 @@
     orgBreadcrumbClass: string;
     collectionBreadcrumbClass: string;
     onToggleSidebar: () => void;
+    showRightSidebarToggle?: boolean;
+    onToggleRightSidebar?: () => void;
   } = $props();
 </script>
 
@@ -85,5 +89,17 @@
         {/if}
       </ol>
     </nav>
+
+    {#if showRightSidebarToggle && onToggleRightSidebar}
+      <button
+        type="button"
+        data-slot="right-sidebar-trigger"
+        class="inline-flex size-8 shrink-0 items-center justify-center rounded-md text-app-muted transition hover:bg-app-surface-muted hover:text-app-fg"
+        aria-label="Alternar parâmetros do financiamento"
+        onclick={onToggleRightSidebar}
+      >
+        <PanelRight class="h-4 w-4" />
+      </button>
+    {/if}
   </div>
 </header>

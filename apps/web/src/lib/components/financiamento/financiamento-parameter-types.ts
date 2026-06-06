@@ -24,6 +24,7 @@ export type SliderField =
 
 export interface SimulatorParams {
   capitalDisponivel: number;
+  entradaDisponivel: number;
   valorApartamento: number;
   rendaMensal: number;
   aporteExtra: number;
@@ -54,7 +55,10 @@ export interface ParameterCardProps {
   params: SimulatorParams;
   recursosMeta?: RecursosMeta;
   onChange: (params: SimulatorParams) => void;
-  onValueChange?: (field: SliderField | "capitalDisponivel", newValue: number) => void;
+  onValueChange?: (
+    field: SliderField | "capitalDisponivel" | "entradaDisponivel",
+    newValue: number
+  ) => void;
   onCapitalChange?: (newCapital: number) => void;
   onEntradaChange?: (newEntrada: number) => void;
 }

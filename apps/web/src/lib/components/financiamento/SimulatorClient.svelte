@@ -4,8 +4,11 @@
   import { page } from "$app/state";
   import AnaliseQuerySync from "$lib/components/analise/AnaliseQuerySync.svelte";
   import WorkspaceListingQuerySync from "$lib/components/workspace/WorkspaceListingQuerySync.svelte";
+  import WorkspaceRightSidebarContent from "$lib/components/layout/WorkspaceRightSidebarContent.svelte";
   import AdjustmentPanel from "$lib/components/financiamento/adjustment-panel.svelte";
   import DebtTimelineChart from "$lib/components/financiamento/DebtTimelineChart.svelte";
+  import MonthlyTotalTimelineChart from "$lib/components/financiamento/MonthlyTotalTimelineChart.svelte";
+  import TotalBalanceTimelineChart from "$lib/components/financiamento/TotalBalanceTimelineChart.svelte";
   import ResultsTable from "$lib/components/financiamento/ResultsTable.svelte";
   import ScenarioFilterToolbar from "$lib/components/financiamento/ScenarioFilterToolbar.svelte";
   import type { RecursosMeta } from "$lib/components/financiamento/financiamento-parameter-types";
@@ -81,7 +84,7 @@
     const capitalMax = Math.max(
       Math.round(valorImovel * 0.75),
       reservaRecomendada * 10,
-      UI_DEFAULTS.capitalDisponivel * 3
+      UI_DEFAULTS.entradaDisponivel * 3
     );
     return {
       capitalSlider: { min: 0, max: capitalMax, step: 10_000 }
@@ -104,7 +107,7 @@
     gerarMatrizCenarios({
       valoresImovel: valoresImovelFiltrados,
       valoresApartamento: effective.temImovelParaNegociar ? valoresAptoFiltrados : [0],
-      capitalDisponivel: params.capitalDisponivel,
+      capitalDisponivel: params.entradaDisponivel,
       taxaAnual: params.taxaAnual,
       trMensal: params.trMensal,
       aporteExtra: params.aporteExtra,
@@ -177,6 +180,7 @@
     field:
       | "valorImovel"
       | "capitalDisponivel"
+      | "entradaDisponivel"
       | "valorApartamento"
       | "custoManutencao"
       | "custoTotalReformas"
@@ -186,6 +190,10 @@
   ) {
     if (field === "capitalDisponivel") {
       params = { ...params, capitalDisponivel: Math.max(0, Math.round(newValue)) };
+      return;
+    }
+    if (field === "entradaDisponivel") {
+      params = { ...params, entradaDisponivel: Math.max(0, Math.round(newValue)) };
       return;
     }
     if (field === "valorImovel") {
@@ -220,16 +228,17 @@
   <div class="min-h-[calc(100vh-var(--nav-height,2.75rem))] bg-app-bg text-app-fg">
     <AnaliseQuerySync />
     <WorkspaceListingQuerySync />
-    <main class="{WORKSPACE_CONTENT_CLASS} {WORKSPACE_STACK_CLASS}">
+    <WorkspaceRightSidebarContent title="Parâmetros">
       <AdjustmentPanel
         {params}
         {recursosMeta}
         onChange={(next) => (params = next)}
         onValueChange={handleValueChange}
         onCapitalChange={(v) => handleValueChange("capitalDisponivel", v)}
-        onEntradaChange={(v) => handleValueChange("capitalDisponivel", v)}
+        onEntradaChange={(v) => handleValueChange("entradaDisponivel", v)}
       />
-
+    </WorkspaceRightSidebarContent>
+    <main class="{WORKSPACE_CONTENT_CLASS} {WORKSPACE_STACK_CLASS}">
       <div class="flex flex-col gap-4">
         <section class={LISTINGS_SECTION_CLASS}>
           <ScenarioFilterToolbar {params} onChange={(next) => (params = next)} />
@@ -237,6 +246,16 @@
         </section>
         <section class={LISTINGS_SECTION_CLASS}>
           <DebtTimelineChart cenarios={filteredCenarios} />
+        </section>
+        <section class={LISTINGS_SECTION_CLASS}>
+          <MonthlyTotalTimelineChart cenarios={filteredCenarios} />
+        </section>
+        <section class={LISTINGS_SECTION_CLASS}>
+          <TotalBalanceTimelineChart
+            cenarios={filteredCenarios}
+            capitalDisponivel={params.capitalDisponivel}
+            quantiaExtra={effective.quantiaExtra}
+          />
         </section>
       </div>
     </main>
