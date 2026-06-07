@@ -193,7 +193,12 @@
     if (draggingColumnId) return;
     event.preventDefault();
     event.stopPropagation();
-    if (dropTarget?.columnId !== columnId || dropTarget?.position !== position) {
+    if (
+      typeof dropTarget !== "object" ||
+      dropTarget === null ||
+      dropTarget.columnId !== columnId ||
+      dropTarget.position !== position
+    ) {
       dropTarget = { columnId, position };
     }
     event.dataTransfer!.dropEffect = "move";

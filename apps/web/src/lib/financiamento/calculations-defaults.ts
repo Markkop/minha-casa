@@ -10,6 +10,7 @@ export const UI_DEFAULTS = {
   trMensal: 0.0015,
   aporteExtra: 10_000,
   rendaMensal: 45_000,
+  custoMensal: 5_000,
   custoManutencaoImovelMensal: 1_000,
   temImovelParaNegociar: false,
   incluirReformas: false,

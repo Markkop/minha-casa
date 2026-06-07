@@ -979,7 +979,6 @@ export const gerarCenarioCompleto = ({
     cenarioOtimizado.totalJuros,
     custosFechamento.total,
     timeline.totalReformas,
-    timeline.totalManutencao,
     timeline.custoCarregoApto
   )
 

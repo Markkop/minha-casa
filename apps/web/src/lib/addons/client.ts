@@ -15,8 +15,9 @@ export interface AddonGrant {
 
 export const ADDON_METADATA: Record<string, { name: string; description: string }> = {
   financiamento: {
-    name: "Simulador de Financiamento",
-    description: "Simule financiamentos imobiliarios e veja suas parcelas"
+    name: "Financeiro",
+    description:
+      "Planeje a compra do imovel comparando entrada, financiamento, reformas e fluxo mensal"
   },
   flood: {
     name: "Risco de Enchente",

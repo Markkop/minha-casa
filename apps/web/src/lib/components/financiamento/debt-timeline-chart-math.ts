@@ -1,5 +1,18 @@
 import type { CenarioCompleto } from "$lib/financiamento/calculations";
 import type { TimelineMonth } from "$lib/financiamento/financing-timeline";
+import {
+  debtChartVertices,
+  monthlyTotalVertices,
+  renderedDebtBalance,
+  renderedMonthlyTotal,
+  verticesToPolyline
+} from "$lib/components/financiamento/chart-event-path";
+import {
+  monthlyExpenseBreakdown,
+  prePurchaseMonthlyOutflow
+} from "./monthly-cash-flow";
+
+export const CHART_MIN_MONTH = 0;
 
 export const CHART_PADDING = { top: 16, right: 16, bottom: 52, left: 56 } as const;
 export const CHART_HEIGHT = 280;
@@ -15,10 +28,15 @@ export function plotWidthForChart(width: number, pad = CHART_PADDING): number {
   return Math.max(0, width - pad.left - pad.right);
 }
 
+export function chartMonthCount(maxMonth: number): number {
+  return maxMonth - CHART_MIN_MONTH + 1;
+}
+
 /** Horizontal space per month so the plot fills the chart width. */
 export function monthPitch(plotWidth: number, maxMonth: number): number {
-  if (maxMonth <= 0) return plotWidth;
-  return plotWidth / maxMonth;
+  const count = chartMonthCount(maxMonth);
+  if (count <= 0) return plotWidth;
+  return plotWidth / count;
 }
 
 /** X at the center of the month column. */
@@ -29,7 +47,8 @@ export function xForMonth(
   pad = CHART_PADDING
 ): number {
   const pitch = monthPitch(plotWidthForChart(width, pad), maxMonth);
-  return pad.left + (month - 0.5) * pitch;
+  const index = month - CHART_MIN_MONTH;
+  return pad.left + (index + 0.5) * pitch;
 }
 
 export function yForBalance(
@@ -49,9 +68,10 @@ export function monthAtX(
   pad = CHART_PADDING
 ): number {
   const pitch = monthPitch(plotWidthForChart(width, pad), maxMonth);
-  if (pitch <= 0) return 1;
-  const month = Math.floor((svgX - pad.left) / pitch) + 1;
-  return Math.max(1, Math.min(maxMonth, month));
+  if (pitch <= 0) return CHART_MIN_MONTH;
+  const index = Math.floor((svgX - pad.left) / pitch);
+  const month = index + CHART_MIN_MONTH;
+  return Math.max(CHART_MIN_MONTH, Math.min(maxMonth, month));
 }
 
 export function timelineIndexAtMonth(cenario: CenarioCompleto, targetMonth: number): number {
@@ -84,6 +104,20 @@ export function svgPointFromPointer(
   };
 }
 
+export function svgCoordsToClient(
+  svg: SVGSVGElement,
+  svgX: number,
+  svgY: number,
+  viewWidth: number,
+  viewHeight: number
+): { x: number; y: number } {
+  const rect = svg.getBoundingClientRect();
+  return {
+    x: rect.left + (svgX / viewWidth) * rect.width,
+    y: rect.top + (svgY / viewHeight) * rect.height
+  };
+}
+
 export function pickChartHover(
   cenarios: CenarioCompleto[],
   svgX: number,
@@ -101,10 +135,20 @@ export function pickChartHover(
   let bestYDist = Infinity;
 
   for (const cenario of cenarios) {
+    if (targetMonth === 0) {
+      const cy = yForBalance(cenario.financiamento.valorFinanciado, maxBalance);
+      const yDist = Math.abs(svgY - cy);
+      if (yDist < bestYDist) {
+        bestYDist = yDist;
+        bestId = cenario.id;
+        bestIndex = 0;
+      }
+      continue;
+    }
+
     if (cenario.timeline.length === 0) continue;
     const monthIndex = timelineIndexAtMonth(cenario, targetMonth);
-    const month = cenario.timeline[monthIndex];
-    const cy = yForBalance(month.saldoDevedor, maxBalance);
+    const cy = yForBalance(debtBalanceAtHover(cenario, monthIndex), maxBalance);
     const yDist = Math.abs(svgY - cy);
     if (yDist < bestYDist) {
       bestYDist = yDist;
@@ -117,11 +161,17 @@ export function pickChartHover(
 
   if (previous) {
     const prevCenario = cenarios.find((c) => c.id === previous.cenarioId);
-    const prevMonth = prevCenario?.timeline[previous.monthIndex];
-    if (prevCenario && prevMonth) {
-      const prevCy = yForBalance(prevMonth.saldoDevedor, maxBalance);
+    if (prevCenario) {
+      const prevMonthNum =
+        previous.monthIndex === 0 && targetMonth === 0
+          ? 0
+          : prevCenario.timeline[previous.monthIndex]?.mes;
+      const prevCy =
+        previous.monthIndex === 0 && targetMonth === 0
+          ? yForBalance(prevCenario.financiamento.valorFinanciado, maxBalance)
+          : yForBalance(debtBalanceAtHover(prevCenario, previous.monthIndex), maxBalance);
       const prevYDist = Math.abs(svgY - prevCy);
-      const sameMonth = prevMonth.mes === targetMonth;
+      const sameMonth = prevMonthNum === targetMonth;
       if (sameMonth && prevYDist - bestYDist < HOVER_Y_HYSTERESIS) {
         return previous;
       }
@@ -138,7 +188,7 @@ export function buildMonthGridTicks(
   pad = CHART_PADDING
 ): { month: number; x: number }[] {
   const ticks: { month: number; x: number }[] = [];
-  for (let month = 1; month <= maxMonth; month++) {
+  for (let month = CHART_MIN_MONTH; month <= maxMonth; month++) {
     ticks.push({ month, x: xForMonth(month, maxMonth, width, pad) });
   }
   return ticks;
@@ -181,6 +231,7 @@ export function buildXAxisLabelTicks(
     });
   };
 
+  push(0, "Compra", "year");
   push(1, labelForYear(1), "year");
 
   for (let month = 12; month <= maxMonth; month += 12) {
@@ -215,16 +266,25 @@ export function polylinePoints(
   maxBalance: number,
   width: number
 ): string {
-  return cenario.timeline
-    .map(
-      (m) =>
-        `${xForMonth(m.mes, maxMonth, width)},${yForBalance(m.saldoDevedor, maxBalance)}`
-    )
-    .join(" ");
+  return verticesToPolyline(
+    debtChartVertices(cenario),
+    maxMonth,
+    width,
+    (value) => yForBalance(value, maxBalance)
+  );
 }
 
-export function monthTotalOutflow(month: TimelineMonth): number {
-  return month.prestacao + month.aporteExtra + month.reformaMensal + month.manutencaoMensal;
+export function debtBalanceAtHover(
+  cenario: CenarioCompleto,
+  monthIndex: number
+): number {
+  const month = cenario.timeline[monthIndex];
+  if (!month) return 0;
+  return renderedDebtBalance(month);
+}
+
+export function monthTotalOutflow(month: TimelineMonth, custoMensal = 0): number {
+  return monthlyExpenseBreakdown(month, custoMensal).total;
 }
 
 const NICE_STEP_BASES = [1, 2, 2.5, 5, 10] as const;
@@ -294,31 +354,58 @@ export function buildNiceYAxisScale(dataMax: number): YAxisScale {
 }
 
 export function maxSaldoDevedorData(cenarios: CenarioCompleto[]): number {
-  return Math.max(1, ...cenarios.flatMap((c) => c.timeline.map((m) => m.saldoDevedor)));
+  return Math.max(
+    1,
+    ...cenarios.flatMap((c) => [
+      c.financiamento.valorFinanciado,
+      ...c.timeline.flatMap((m) => [m.saldoDevedor, m.saldoDevedorFim])
+    ])
+  );
 }
 
-export function maxMonthlyTotalData(cenarios: CenarioCompleto[], rendaMensal: number): number {
-  const maxTotal = cenarios.flatMap((c) => c.timeline.map(monthTotalOutflow));
-  return Math.max(1, rendaMensal, ...maxTotal);
+export function maxMonthlyTotalData(
+  cenarios: CenarioCompleto[],
+  rendaMensal: number,
+  custoMensal = 0
+): number {
+  const maxTotal = cenarios.flatMap((c) =>
+    c.timeline.map((month) => renderedMonthlyTotal(month, custoMensal))
+  );
+  return Math.max(1, rendaMensal, prePurchaseMonthlyOutflow(custoMensal), ...maxTotal);
 }
 
 /** @deprecated Use buildNiceYAxisScale(maxMonthlyTotalData(...)).max */
-export function maxChartValue(cenarios: CenarioCompleto[], rendaMensal: number): number {
-  return buildNiceYAxisScale(maxMonthlyTotalData(cenarios, rendaMensal)).max;
+export function maxChartValue(
+  cenarios: CenarioCompleto[],
+  rendaMensal: number,
+  custoMensal = 0
+): number {
+  return buildNiceYAxisScale(maxMonthlyTotalData(cenarios, rendaMensal, custoMensal)).max;
 }
 
 export function polylinePointsForTotal(
   cenario: CenarioCompleto,
   maxMonth: number,
   maxValue: number,
-  width: number
+  width: number,
+  custoMensal = 0
 ): string {
-  return cenario.timeline
-    .map(
-      (m) =>
-        `${xForMonth(m.mes, maxMonth, width)},${yForBalance(monthTotalOutflow(m), maxValue)}`
-    )
-    .join(" ");
+  return verticesToPolyline(
+    monthlyTotalVertices(cenario, custoMensal),
+    maxMonth,
+    width,
+    (value) => yForBalance(value, maxValue)
+  );
+}
+
+export function monthlyTotalAtHover(
+  cenario: CenarioCompleto,
+  monthIndex: number,
+  custoMensal = 0
+): number {
+  const month = cenario.timeline[monthIndex];
+  if (!month) return prePurchaseMonthlyOutflow(custoMensal);
+  return renderedMonthlyTotal(month, custoMensal);
 }
 
 export function pickChartHoverForTotal(
@@ -328,7 +415,8 @@ export function pickChartHoverForTotal(
   maxMonth: number,
   maxValue: number,
   width: number,
-  previous: ChartHover | null
+  previous: ChartHover | null,
+  custoMensal = 0
 ): ChartHover | null {
   if (cenarios.length === 0) return null;
 
@@ -338,10 +426,25 @@ export function pickChartHoverForTotal(
   let bestYDist = Infinity;
 
   for (const cenario of cenarios) {
+    if (targetMonth === 0) {
+      const cy = yForBalance(
+        cenario.timeline.length > 0
+          ? monthlyTotalAtHover(cenario, 0, custoMensal)
+          : prePurchaseMonthlyOutflow(custoMensal),
+        maxValue
+      );
+      const yDist = Math.abs(svgY - cy);
+      if (yDist < bestYDist) {
+        bestYDist = yDist;
+        bestId = cenario.id;
+        bestIndex = 0;
+      }
+      continue;
+    }
+
     if (cenario.timeline.length === 0) continue;
     const monthIndex = timelineIndexAtMonth(cenario, targetMonth);
-    const month = cenario.timeline[monthIndex];
-    const cy = yForBalance(monthTotalOutflow(month), maxValue);
+    const cy = yForBalance(monthlyTotalAtHover(cenario, monthIndex, custoMensal), maxValue);
     const yDist = Math.abs(svgY - cy);
     if (yDist < bestYDist) {
       bestYDist = yDist;
@@ -354,11 +457,17 @@ export function pickChartHoverForTotal(
 
   if (previous) {
     const prevCenario = cenarios.find((c) => c.id === previous.cenarioId);
-    const prevMonth = prevCenario?.timeline[previous.monthIndex];
-    if (prevCenario && prevMonth) {
-      const prevCy = yForBalance(monthTotalOutflow(prevMonth), maxValue);
+    if (prevCenario) {
+      const prevMonthNum =
+        previous.monthIndex === 0 && targetMonth === 0
+          ? 0
+          : prevCenario.timeline[previous.monthIndex]?.mes;
+      const prevCy = yForBalance(
+        monthlyTotalAtHover(prevCenario, previous.monthIndex, custoMensal),
+        maxValue
+      );
       const prevYDist = Math.abs(svgY - prevCy);
-      const sameMonth = prevMonth.mes === targetMonth;
+      const sameMonth = prevMonthNum === targetMonth;
       if (sameMonth && prevYDist - bestYDist < HOVER_Y_HYSTERESIS) {
         return previous;
       }

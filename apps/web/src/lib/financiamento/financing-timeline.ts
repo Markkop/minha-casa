@@ -38,7 +38,10 @@ function calcularValorVendaPosteriorLocal(
 
 export interface TimelineMonth {
   mes: number;
+  /** Debt at the start of the month, before in-month payments. */
   saldoDevedor: number;
+  /** Debt at the end of the month, after regular and extraordinary amortization. */
+  saldoDevedorFim: number;
   prestacao: number;
   aporteExtra: number;
   reformaMensal: number;
@@ -89,12 +92,9 @@ export function calcularCustoTotalEventAware(
   totalJuros: number,
   custosFechamentoTotal: number,
   totalReformas: number,
-  totalManutencao: number,
   custoCarregoApto: number
 ): number {
-  return (
-    valorImovel + totalJuros + custosFechamentoTotal + totalReformas + totalManutencao + custoCarregoApto
-  );
+  return valorImovel + totalJuros + custosFechamentoTotal + totalReformas + custoCarregoApto;
 }
 
 export function simularTimelineMensal(input: SimularTimelineInput): TimelineResult {
@@ -167,7 +167,7 @@ export function simularTimelineMensal(input: SimularTimelineInput): TimelineResu
     if (
       estrategia === "venda_posterior" &&
       mesVenda !== undefined &&
-      mes < mesVenda &&
+      mes <= mesVenda &&
       custoManutencaoImovelMensal > 0
     ) {
       manutencaoMensal = custoManutencaoImovelMensal;
@@ -205,6 +205,7 @@ export function simularTimelineMensal(input: SimularTimelineInput): TimelineResu
     meses.push({
       mes,
       saldoDevedor: saldoInicio,
+      saldoDevedorFim: saldoDevedor,
       prestacao,
       aporteExtra: aporteAplicado,
       reformaMensal,

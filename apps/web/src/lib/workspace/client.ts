@@ -91,6 +91,12 @@ export interface ListingData {
   preco?: number | null;
   m2Totais?: number | null;
   m2Privado?: number | null;
+  piscina?: boolean | null;
+  porteiro24h?: boolean | null;
+  academia?: boolean | null;
+  vistaLivre?: boolean | null;
+  piscinaTermica?: boolean | null;
+  preferences?: Record<string, boolean | null>;
   link?: string;
   corretor?: string;
   telefone?: string;

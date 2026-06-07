@@ -5,7 +5,7 @@
   import { formatCurrency, gerarMatrizCenarios } from "$lib/financiamento/calculations";
   import { DEMO_DEFAULTS } from "$lib/components/home/demo-financiamento/demo-financiamento-types";
 
-  /** Same chips as /financiamento (Original, -5%, -10%, -15%) — always on, no toolbar in preview. */
+  /** Same chips as /financeiro (Original, -5%, -10%, -15%) — always on, no toolbar in preview. */
   const PREVIEW_IMOVEL_MULTIPLIERS = PERCENTAGE_OPTIONS.slice(0, 4).map((option) => option.value);
 
   const IMOVEL_MIN = 400_000;

@@ -2,9 +2,13 @@
   import { Pencil, Save } from "@lucide/svelte";
   import AnaliseListingEditForm from "$lib/components/analise/AnaliseListingEditForm.svelte";
   import ModalCloseButton from "$lib/components/anuncios/ModalCloseButton.svelte";
-  import { defaultPreferenceCatalog, type ListingPreferenceOption } from "$lib/anuncios/listing-preferences";
+  import {
+    defaultPreferenceCatalog,
+    listingDataWithPreferences,
+    type ListingPreferenceOption
+  } from "$lib/anuncios/listing-preferences";
   import { extractUniqueContacts } from "$lib/anuncios/listings-contact";
-  import { toListingData, type Imovel } from "$lib/anuncios/types";
+  import type { Imovel } from "$lib/anuncios/types";
   import { buildBaseListingTitle } from "$lib/listing-display-title";
   import { getCollectionsContext } from "$lib/collections-context.svelte";
   import { workspaceApi, type Condominium, type Region } from "$lib/workspace/client";
@@ -103,8 +107,9 @@
     }
     try {
       const tituloManual = formData.tituloManual?.trim() || null;
-      await ctx.updateListing(listing.id, {
-        ...toListingData(
+      await ctx.updateListing(
+        listing.id,
+        listingDataWithPreferences(
           {
             ...formData,
             tituloManual,
@@ -112,7 +117,7 @@
           },
           preferenceCatalog
         )
-      });
+      );
       onClose();
     } catch (err) {
       error = err instanceof Error ? err.message : "Erro ao salvar alterações";

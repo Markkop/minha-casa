@@ -118,84 +118,87 @@
 
 <div class={LISTINGS_TOOLBAR_CLASS}>
   <div class={cn(LISTINGS_TOOLBAR_INNER_CLASS, "w-full justify-between")}>
-    <div class="flex min-w-0 shrink-0 flex-wrap items-center gap-1.5">
-      <ScenarioFilterPopover
-        icon={DollarSign}
-        buttonLabel="Preço"
-        ariaLabel="Preço do imóvel alvo"
-        headerText="Preço do imóvel alvo"
-        options={priceOptions}
-        selected={params.valoresImovelFiltroMultipliers}
-        onToggle={(value) =>
-          patch({
-            valoresImovelFiltroMultipliers: toggleNumber(
-              params.valoresImovelFiltroMultipliers,
-              value
-            )
-          })}
-      />
-
-      {#if permutaDisponivel}
+    <div class="flex min-w-0 shrink-0 flex-wrap items-center gap-2">
+      <h2 class="shrink-0 text-sm font-semibold text-app-fg">Financiamento</h2>
+      <div class="flex min-w-0 flex-wrap items-center gap-1.5">
         <ScenarioFilterPopover
-          icon={House}
-          buttonLabel="Venda"
-          ariaLabel="Valor de venda do seu imóvel"
-          headerText="Valor de venda do seu imóvel"
-          options={propertyOptions}
-          selected={params.valoresAptoFiltroMultipliers}
+          icon={DollarSign}
+          buttonLabel="Preço"
+          ariaLabel="Preço do imóvel alvo"
+          headerText="Preço do imóvel alvo"
+          options={priceOptions}
+          selected={params.valoresImovelFiltroMultipliers}
           onToggle={(value) =>
             patch({
-              valoresAptoFiltroMultipliers: toggleNumber(
-                params.valoresAptoFiltroMultipliers,
+              valoresImovelFiltroMultipliers: toggleNumber(
+                params.valoresImovelFiltroMultipliers,
                 value
               )
             })}
         />
 
-        <ScenarioFilterPopover
-          icon={Map}
-          buttonLabel="Estratégia"
-          ariaLabel="Estratégia de venda do seu imóvel"
-          headerText="Estratégia de venda do seu imóvel"
-          options={estrategiaOptions}
-          selected={params.estrategiasFiltro}
-          onToggle={(value) =>
-            patch({
-              estrategiasFiltro: toggleEstrategia(params.estrategiasFiltro, value)
-            })}
-        />
+        {#if permutaDisponivel}
+          <ScenarioFilterPopover
+            icon={House}
+            buttonLabel="Venda"
+            ariaLabel="Valor de venda do seu imóvel"
+            headerText="Valor de venda do seu imóvel"
+            options={propertyOptions}
+            selected={params.valoresAptoFiltroMultipliers}
+            onToggle={(value) =>
+              patch({
+                valoresAptoFiltroMultipliers: toggleNumber(
+                  params.valoresAptoFiltroMultipliers,
+                  value
+                )
+              })}
+          />
 
-        <ScenarioFilterPopover
-          icon={CalendarClock}
-          buttonLabel="Venda em"
-          ariaLabel="Meses até a venda do imóvel"
-          headerText="Meses até vender o imóvel (venda posterior)"
-          options={saleTimingOptions}
-          selected={params.temposVendaPosteriorMeses}
-          onToggle={(value) =>
-            patch({
-              temposVendaPosteriorMeses: toggleNumber(params.temposVendaPosteriorMeses, value)
-            })}
-        />
-      {/if}
+          <ScenarioFilterPopover
+            icon={Map}
+            buttonLabel="Estratégia"
+            ariaLabel="Estratégia de venda do seu imóvel"
+            headerText="Estratégia de venda do seu imóvel"
+            options={estrategiaOptions}
+            selected={params.estrategiasFiltro}
+            onToggle={(value) =>
+              patch({
+                estrategiasFiltro: toggleEstrategia(params.estrategiasFiltro, value)
+              })}
+          />
 
-      {#if params.esperaQuantiaExtra}
-        <ScenarioFilterPopover
-          icon={Clock}
-          buttonLabel="Extra em"
-          ariaLabel="Meses até receber quantia extra"
-          headerText="Meses até receber a quantia extra"
-          options={extraTimingOptions}
-          selected={params.temposRecebimentoExtraMeses}
-          onToggle={(value) =>
-            patch({
-              temposRecebimentoExtraMeses: toggleNumber(
-                params.temposRecebimentoExtraMeses,
-                value
-              )
-            })}
-        />
-      {/if}
+          <ScenarioFilterPopover
+            icon={CalendarClock}
+            buttonLabel="Venda em"
+            ariaLabel="Meses até a venda do imóvel"
+            headerText="Meses até vender o imóvel (venda posterior)"
+            options={saleTimingOptions}
+            selected={params.temposVendaPosteriorMeses}
+            onToggle={(value) =>
+              patch({
+                temposVendaPosteriorMeses: toggleNumber(params.temposVendaPosteriorMeses, value)
+              })}
+          />
+        {/if}
+
+        {#if params.esperaQuantiaExtra}
+          <ScenarioFilterPopover
+            icon={Clock}
+            buttonLabel="Extra em"
+            ariaLabel="Meses até receber quantia extra"
+            headerText="Meses até receber a quantia extra"
+            options={extraTimingOptions}
+            selected={params.temposRecebimentoExtraMeses}
+            onToggle={(value) =>
+              patch({
+                temposRecebimentoExtraMeses: toggleNumber(
+                  params.temposRecebimentoExtraMeses,
+                  value
+                )
+              })}
+          />
+        {/if}
+      </div>
     </div>
 
     <PageToolbarIconButton

@@ -11,6 +11,7 @@ const SUBSCRIPTION_REQUIRED_ROUTES = [
   "/anuncios",
   "/comparacao",
   "/analise",
+  "/financeiro",
   "/financiamento",
   "/casa",
   "/links",

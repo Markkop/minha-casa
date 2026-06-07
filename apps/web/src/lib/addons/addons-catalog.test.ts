@@ -4,15 +4,20 @@ import { ADDONS_CATALOG } from "./addons-catalog";
 describe("ADDONS_CATALOG", () => {
   it("lists three addons with expected routes and titles", () => {
     expect(ADDONS_CATALOG).toHaveLength(3);
+    expect(ADDONS_CATALOG.map((entry) => entry.id)).toEqual([
+      "flood",
+      "planta",
+      "financiamento"
+    ]);
     expect(ADDONS_CATALOG.map((entry) => entry.href)).toEqual([
       "/floodrisk",
       "/planta",
-      "/financiamento"
+      "/financeiro"
     ]);
     expect(ADDONS_CATALOG.map((entry) => entry.title)).toEqual([
       "Risco de alagamento",
       "Planta",
-      "Financiamento"
+      "Financeiro"
     ]);
   });
 });

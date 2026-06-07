@@ -78,6 +78,13 @@
       "when": 1779800000000,
       "tag": "0013_rename_listing_status_to_etapa",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1780740000000,
+      "tag": "0014_rename_financiamento_addon_to_financeiro",
+      "breakpoints": true
     }
   ]
 }

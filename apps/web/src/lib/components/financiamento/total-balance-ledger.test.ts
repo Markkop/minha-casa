@@ -10,10 +10,11 @@ import {
   xForLedgerMonth,
   yForLedgerValue
 } from "./total-balance-ledger";
+import { xForMonth } from "./debt-timeline-chart-math";
 
 function month(partial: Partial<TimelineMonth> & Pick<TimelineMonth, "mes">): TimelineMonth {
+  const saldoDevedor = partial.saldoDevedor ?? 0;
   return {
-    saldoDevedor: 0,
     prestacao: 0,
     aporteExtra: 0,
     reformaMensal: 0,
@@ -25,6 +26,8 @@ function month(partial: Partial<TimelineMonth> & Pick<TimelineMonth, "mes">): Ti
     eventoVenda: false,
     eventoExtra: false,
     reformaConcluida: false,
+    saldoDevedor,
+    saldoDevedorFim: partial.saldoDevedorFim ?? saldoDevedor,
     ...partial
   };
 }
@@ -110,6 +113,38 @@ describe("buildBalanceLedger", () => {
     );
     expect(ledger.points.map((point) => point.saldo)).toEqual([-50_000, -90_000]);
   });
+
+  it("subtracts living costs from monthly cash flow without altering the scenario timeline", () => {
+    const source = scenario("living-cost", [month({ mes: 1, prestacao: 20_000 })]);
+    const ledger = buildBalanceLedger(source, 600_000, 0, 5_000);
+
+    expect(ledger.points[1]).toMatchObject({
+      custoMensal: 5_000,
+      totalDespesas: 25_000,
+      fluxoLiquido: 15_000,
+      saldo: 265_000
+    });
+    expect(source.timeline[0]?.prestacao).toBe(20_000);
+    expect(source.timeline[0]?.saldoLivre).toBe(0);
+  });
+
+  it("records pre-event balance on sale and extra months", () => {
+    const ledger = buildBalanceLedger(
+      scenario("events", [
+        month({
+          mes: 6,
+          eventoVenda: true,
+          amortizacaoVenda: 200_000,
+          amortizacaoExtraordinaria: 200_000
+        })
+      ]),
+      400_000,
+      50_000
+    );
+
+    expect(ledger.points[1]?.saldoPreEvento).toBe(50_000);
+    expect(ledger.points[1]?.saldo).not.toBe(ledger.points[1]?.saldoPreEvento);
+  });
 });
 
 describe("signed ledger chart helpers", () => {
@@ -120,9 +155,9 @@ describe("signed ledger chart helpers", () => {
     expect(scale.ticks).toContain(0);
   });
 
-  it("maps month zero and the final month to the chart edges", () => {
-    expect(xForLedgerMonth(0, 12, 800)).toBe(56);
-    expect(xForLedgerMonth(12, 12, 800)).toBe(784);
+  it("maps purchase and final months across the chart width", () => {
+    expect(xForLedgerMonth(0, 12, 800)).toBe(xForMonth(0, 12, 800));
+    expect(xForLedgerMonth(12, 12, 800)).toBe(xForMonth(12, 12, 800));
     expect(ledgerMonthAtX(xForLedgerMonth(6, 12, 800), 12, 800)).toBe(6);
   });
 
@@ -144,7 +179,7 @@ describe("signed ledger chart helpers", () => {
     const svgX = xForLedgerMonth(1, 1, width);
     const svgY = yForLedgerValue(a.points[1]!.saldo, scale);
 
-    expect(polylinePointsForLedger(a, 1, scale, width).split(" ")).toHaveLength(2);
+    expect(polylinePointsForLedger(a, 1, scale, width).split(" ")).toHaveLength(3);
     expect(pickLedgerHover([a, b], svgX, svgY, 1, scale, width, null)).toEqual({
       cenarioId: "a",
       monthIndex: 1

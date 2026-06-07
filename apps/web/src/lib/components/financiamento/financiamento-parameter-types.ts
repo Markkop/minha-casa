@@ -27,6 +27,7 @@ export interface SimulatorParams {
   entradaDisponivel: number;
   valorApartamento: number;
   rendaMensal: number;
+  custoMensal: number;
   aporteExtra: number;
   valorImovel: number;
   taxaAnual: number;

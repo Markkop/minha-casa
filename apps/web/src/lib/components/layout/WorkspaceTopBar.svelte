@@ -95,7 +95,7 @@
         type="button"
         data-slot="right-sidebar-trigger"
         class="inline-flex size-8 shrink-0 items-center justify-center rounded-md text-app-muted transition hover:bg-app-surface-muted hover:text-app-fg"
-        aria-label="Alternar parâmetros do financiamento"
+        aria-label="Alternar parâmetros financeiros"
         onclick={onToggleRightSidebar}
       >
         <PanelRight class="h-4 w-4" />

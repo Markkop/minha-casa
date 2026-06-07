@@ -6,18 +6,24 @@
     CHART_HEIGHT,
     CHART_PADDING,
     maxMonthlyTotalData,
-    monthTotalOutflow,
+    monthlyTotalAtHover,
     pickChartHoverForTotal,
     polylinePointsForTotal,
+    svgCoordsToClient,
     svgPointFromPointer,
     xForMonth,
     yForBalance,
     type ChartHover
   } from "$lib/components/financiamento/debt-timeline-chart-math";
+  import ChartHoverBreakdownPanel from "$lib/components/financiamento/ChartHoverBreakdownPanel.svelte";
+  import { renderedFreeBalance, renderedMonthlyTotal } from "$lib/components/financiamento/chart-event-path";
   import {
     formatTimingMonthLabel,
     formatTimingMonthLabelLong
   } from "$lib/components/financiamento/parameter-row-helpers";
+  import {
+    monthlyExpenseBreakdown
+  } from "$lib/components/financiamento/monthly-cash-flow";
   import {
     formatCurrency,
     formatCurrencyCompact,
@@ -25,7 +31,13 @@
   } from "$lib/financiamento/calculations";
   import { cn } from "$lib/utils";
 
-  let { cenarios }: { cenarios: CenarioCompleto[] } = $props();
+  let {
+    cenarios,
+    custoMensal = 0
+  }: {
+    cenarios: CenarioCompleto[];
+    custoMensal?: number;
+  } = $props();
 
   const CHART_COLORS = [
     "var(--color-app-accent)",
@@ -47,7 +59,9 @@
 
   const rendaMensal = $derived(cenarios[0]?.rendaMensal ?? 0);
 
-  const yAxis = $derived(buildNiceYAxisScale(maxMonthlyTotalData(cenarios, rendaMensal)));
+  const yAxis = $derived(
+    buildNiceYAxisScale(maxMonthlyTotalData(cenarios, rendaMensal, custoMensal))
+  );
   const maxValue = $derived(yAxis.max);
 
   const rendaY = $derived(yForBalance(rendaMensal, maxValue, height, padding));
@@ -101,6 +115,7 @@
 
   let svgEl = $state<SVGSVGElement | null>(null);
   let hover = $state<ChartHover | null>(null);
+  let pointerAnchor = $state<{ x: number; y: number } | null>(null);
 
   const hoveredPoint = $derived.by(() => {
     const active = hover;
@@ -113,13 +128,42 @@
   });
 
   const hoverX = $derived(
-    hoveredPoint ? xForMonth(hoveredPoint.month.mes, maxMonth, chartWidth, padding) : null
+    hoveredPoint
+      ? xForMonth(hoveredPoint.month.mes, maxMonth, chartWidth, padding)
+      : null
   );
+
+  const hoverY = $derived.by(() => {
+    if (!hover) return null;
+    const cenario = cenarios.find((c) => c.id === hover.cenarioId);
+    if (!cenario) return null;
+    return yForBalance(
+      monthlyTotalAtHover(cenario, hover.monthIndex, custoMensal),
+      maxValue,
+      height,
+      padding
+    );
+  });
+
+  const avoidPoints = $derived.by(() => {
+    if (!svgEl || hoverX === null || hoverY === null) return [];
+    return [svgCoordsToClient(svgEl, hoverX, hoverY, chartWidth, height)];
+  });
 
   function handleChartPointerMove(event: PointerEvent) {
     if (!svgEl) return;
+    pointerAnchor = { x: event.clientX, y: event.clientY };
     const { x, y } = svgPointFromPointer(svgEl, event, chartWidth, height);
-    const next = pickChartHoverForTotal(cenarios, x, y, maxMonth, maxValue, chartWidth, hover);
+    const next = pickChartHoverForTotal(
+      cenarios,
+      x,
+      y,
+      maxMonth,
+      maxValue,
+      chartWidth,
+      hover,
+      custoMensal
+    );
     if (
       next &&
       hover &&
@@ -132,6 +176,7 @@
   }
 
   function handleChartPointerLeave() {
+    pointerAnchor = null;
     hover = null;
   }
 
@@ -147,7 +192,7 @@
   </p>
 {:else}
   <header class="border-b border-app-border px-2 py-2 sm:px-3">
-    <h3 class="text-sm font-medium text-app-fg">Total/mês ao longo do tempo</h3>
+    <h3 class="text-sm font-medium text-app-fg">Gasto mensal</h3>
   </header>
 
   <div class="px-2 py-3 sm:px-3">
@@ -234,14 +279,20 @@
 
           {#each cenarios as cenario, i (cenario.id)}
             {@const color = CHART_COLORS[i % CHART_COLORS.length]}
-            {@const points = polylinePointsForTotal(cenario, maxMonth, maxValue, chartWidth)}
+            {@const points = polylinePointsForTotal(
+              cenario,
+              maxMonth,
+              maxValue,
+              chartWidth,
+              custoMensal
+            )}
             {@const isActive = hover?.cenarioId === cenario.id}
             {#if points}
               <polyline
                 fill="none"
                 stroke={color}
                 stroke-width={isActive ? 2.5 : 2}
-                stroke-linejoin="round"
+                stroke-linejoin="miter"
                 stroke-linecap="round"
                 points={points}
                 opacity={hover && !isActive ? 0.3 : 1}
@@ -301,7 +352,6 @@
         />
 
         {#if hoveredPoint && hoverX !== null}
-          {@const { cenario, month } = hoveredPoint}
           <g class="pointer-events-none">
             <line
               x1={hoverX}
@@ -313,12 +363,18 @@
               class="text-app-muted"
               opacity="0.9"
             />
+            {@const { cenario, month } = hoveredPoint}
             {#each cenarios as other, i (other.id)}
               {@const idx = other.timeline.findIndex((m) => m.mes === month.mes)}
               {#if idx >= 0}
                 {@const om = other.timeline[idx]}
                 {@const ox = xForMonth(om.mes, maxMonth, chartWidth, padding)}
-                {@const oy = yForBalance(monthTotalOutflow(om), maxValue, height, padding)}
+                {@const oy = yForBalance(
+                  monthlyTotalAtHover(other, idx, custoMensal),
+                  maxValue,
+                  height,
+                  padding
+                )}
                 {@const oc = CHART_COLORS[i % CHART_COLORS.length]}
                 <circle
                   cx={ox}
@@ -336,42 +392,48 @@
       </svg>
 
       {#if hoveredPoint}
-        {@const { cenario, month } = hoveredPoint}
-        {@const totalMes = monthTotalOutflow(month)}
-        <div
-          class="pointer-events-none absolute top-2 right-2 z-10 max-w-xs rounded-md border border-app-border bg-app-surface/95 p-2 text-xs shadow-md backdrop-blur-sm"
-        >
+        {@const { cenario } = hoveredPoint}
+        <ChartHoverBreakdownPanel open={!!hoveredPoint} anchor={pointerAnchor} {avoidPoints}>
           <p class="mb-1 font-medium text-app-fg">{scenarioLabel(cenario)}</p>
           <dl class="grid grid-cols-[auto_1fr] gap-x-2 gap-y-0.5 text-app-muted">
+            {@const { month } = hoveredPoint}
+            {@const gastos = monthlyExpenseBreakdown(month, custoMensal)}
+            {@const saldoLivre = renderedFreeBalance(month, cenario.rendaMensal, custoMensal)}
             <dt>Mês</dt>
             <dd class="font-mono text-app-fg">
               {month.mes}
-              <span class="font-sans text-app-subtle">({formatTimingMonthLabelLong(month.mes)})</span>
+              <span class="font-sans text-app-subtle">
+                ({formatTimingMonthLabelLong(month.mes)})
+              </span>
             </dd>
             <dt>Prestação</dt>
-            <dd class="font-mono">{formatCurrency(month.prestacao)}</dd>
-            {#if month.aporteExtra > 0}
-              <dt>Aporte</dt>
-              <dd class="font-mono">{formatCurrency(month.aporteExtra)}</dd>
-            {/if}
-            {#if month.reformaMensal > 0}
-              <dt>Reforma</dt>
-              <dd class="font-mono">{formatCurrency(month.reformaMensal)}</dd>
-            {/if}
-            {#if month.manutencaoMensal > 0}
-              <dt>Manutenção</dt>
-              <dd class="font-mono">{formatCurrency(month.manutencaoMensal)}</dd>
-            {/if}
-            <dt class="font-bold text-app-accent">Total/mês</dt>
-            <dd class="font-mono font-bold text-app-accent">{formatCurrency(totalMes)}</dd>
-            <dt>Saldo livre</dt>
-            <dd
-              class={cn("font-mono", month.saldoLivre < 0 ? "text-salmon" : "text-green")}
-            >
-              {formatCurrency(month.saldoLivre)}
-            </dd>
+            <dd class="font-mono">{formatCurrency(gastos.prestacao)}</dd>
+              {#if gastos.aporteExtra > 0}
+                <dt>Aporte</dt>
+                <dd class="font-mono">{formatCurrency(gastos.aporteExtra)}</dd>
+              {/if}
+              {#if gastos.reforma > 0}
+                <dt>Reforma</dt>
+                <dd class="font-mono">{formatCurrency(gastos.reforma)}</dd>
+              {/if}
+              {#if gastos.manutencao > 0}
+                <dt>Manutenção</dt>
+                <dd class="font-mono">{formatCurrency(gastos.manutencao)}</dd>
+              {/if}
+              {#if gastos.custoMensal > 0}
+                <dt>Custo mensal</dt>
+                <dd class="font-mono">{formatCurrency(gastos.custoMensal)}</dd>
+              {/if}
+              <dt class="font-bold text-app-accent">Gasto mensal</dt>
+              <dd class="font-mono font-bold text-app-accent">
+                {formatCurrency(renderedMonthlyTotal(month, custoMensal))}
+              </dd>
+              <dt>Saldo livre</dt>
+              <dd class={cn("font-mono", saldoLivre < 0 ? "text-salmon" : "text-green")}>
+                {formatCurrency(saldoLivre)}
+              </dd>
           </dl>
-        </div>
+        </ChartHoverBreakdownPanel>
       {/if}
     </div>
 

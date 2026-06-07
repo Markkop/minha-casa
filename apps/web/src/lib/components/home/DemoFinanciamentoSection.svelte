@@ -82,7 +82,7 @@
     <div>
       <h2 class="flex items-center gap-2 text-2xl font-bold text-app-fg">
         <span>🏠</span>
-        <span>Simulador de Financiamento</span>
+        <span>Financeiro</span>
         <span
           class="inline-flex items-center gap-1 rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-xs text-amber-800"
         >
@@ -91,7 +91,7 @@
         </span>
       </h2>
       <p class="text-sm text-app-muted">
-        Sistema SAC com análise de cenários e estratégias permuta vs venda.
+        Planejamento da compra com cenários de financiamento, permuta e venda.
       </p>
     </div>
   </div>

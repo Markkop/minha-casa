@@ -49,7 +49,7 @@
     onDragEnd: () => void;
   } = $props();
 
-  let labelDraft = $state(column.label);
+  let labelDraft = $state("");
 
   const isColumnDragging = $derived(draggingColumnId === column.id);
   const isColumnDropTarget = $derived(
@@ -144,6 +144,7 @@
       {@const url = imageUrls[imageIndex]}
       {#if url}
         <div
+          role="listitem"
           class={cn(
             "ambientes-column-slot",
             dropTarget?.columnId === column.id &&
@@ -172,6 +173,8 @@
       </div>
     {:else}
       <div
+        role="listitem"
+        aria-label={`Adicionar foto ao final de ${column.label}`}
         class="ambientes-column-append"
         ondragover={(event) => onDragOverPosition(column.imageIndices.length, event)}
         ondrop={(event) => onDropPosition(column.imageIndices.length, event)}

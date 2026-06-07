@@ -32,7 +32,7 @@
       void goto(buildListingFinanciamentoHref(listingId, collectionId));
       return;
     }
-    if (price !== null) void goto(`/financiamento?price=${price}`);
+    if (price !== null) void goto(`/financeiro?price=${price}`);
   }
 
   function handleKeyDown(event: KeyboardEvent) {
@@ -51,7 +51,7 @@
     {formatCurrency(price)}
   </span>
 {:else}
-  <FloatingTooltip label="Simular financiamento" side="bottom">
+  <FloatingTooltip label="Abrir Financeiro" side="bottom">
     <span
       role="button"
       tabindex="0"

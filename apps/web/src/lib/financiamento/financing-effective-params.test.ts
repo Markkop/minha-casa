@@ -13,4 +13,15 @@ describe("resolveEffectiveParams", () => {
     expect(resolveEffectiveParams(withDifferentCapital)).toEqual(resolveEffectiveParams(params));
     expect(resolveEffectiveParams(params).entradaDisponivel).toBe(params.entradaDisponivel);
   });
+
+  it("keeps living costs out of financing scenario parameters", () => {
+    const params = createInitialSimulatorParams();
+
+    expect(
+      resolveEffectiveParams({
+        ...params,
+        custoMensal: params.custoMensal + 25_000
+      })
+    ).toEqual(resolveEffectiveParams(params));
+  });
 });

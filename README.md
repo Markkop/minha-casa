@@ -185,7 +185,7 @@ The platform features a flexible addon system that allows granular feature acces
 
 | Addon | Slug | Description |
 |-------|------|-------------|
-| Simulador de Financiamento | `financiamento` | Financing simulator access; `/casa` redirects to `/financiamento` |
+| Financeiro | `financiamento` | Purchase planning and financing analysis at `/financeiro`; `/financiamento` and `/casa` are compatibility redirects |
 | Risco de Enchente | `flood` | Access to `/floodrisk` flood risk analysis and 3D visualization |
 
 ### Access Control Logic
@@ -229,7 +229,7 @@ Feature flags control visibility of incomplete or optional features. Configure v
 | `publicCollections` | `PUBLIC_FF_PUBLIC_COLLECTIONS` | `true` | Enable public sharing |
 | `mapProvider` | `PUBLIC_FF_MAP_PROVIDER` | `auto` | Map provider (`google`, `leaflet`, `auto`) |
 
-**Note**: Access to `/floodrisk` (Flood Forecast) is controlled by the addon system instead of feature flags. Financing is available to Plus workspace users through `/financiamento`, with `/casa` kept as a compatibility redirect.
+**Note**: Access to `/floodrisk` (Flood Forecast) is controlled by the addon system instead of feature flags. Financeiro is available to Plus workspace users through `/financeiro`, with `/financiamento` and `/casa` kept as compatibility redirects.
 
 ## Database Schema
 

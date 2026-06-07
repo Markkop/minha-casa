@@ -87,10 +87,9 @@
             onchange={(event) => toggleVisible(option.key, event.currentTarget.checked)}
             class="h-3.5 w-3.5 shrink-0 accent-app-action"
           />
-          <presentation.Icon
-            class={cn("h-4 w-4 shrink-0", presentation.iconClass)}
-            aria-hidden="true"
-          />
+          <span aria-hidden="true">
+            <presentation.Icon class={cn("h-4 w-4 shrink-0", presentation.iconClass)} />
+          </span>
           <span class="min-w-0 flex-1 truncate">{option.label}</span>
           {#if option.source === "custom"}
             <span class="text-[10px] uppercase tracking-wide text-app-muted/70">custom</span>

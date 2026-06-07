@@ -8,15 +8,23 @@
     maxSaldoDevedorData,
     pickChartHover,
     polylinePoints,
+    debtBalanceAtHover,
+    svgCoordsToClient,
     svgPointFromPointer,
     xForMonth,
     yForBalance,
     type ChartHover
   } from "$lib/components/financiamento/debt-timeline-chart-math";
+  import ChartHoverBreakdownPanel from "$lib/components/financiamento/ChartHoverBreakdownPanel.svelte";
+  import { renderedDebtBalance } from "$lib/components/financiamento/chart-event-path";
   import {
     formatTimingMonthLabel,
     formatTimingMonthLabelLong
   } from "$lib/components/financiamento/parameter-row-helpers";
+  import {
+    monthlyExpenseBreakdown,
+    monthlyFreeBalance
+  } from "$lib/components/financiamento/monthly-cash-flow";
   import {
     formatCurrency,
     formatCurrencyCompact,
@@ -24,7 +32,13 @@
   } from "$lib/financiamento/calculations";
   import { cn } from "$lib/utils";
 
-  let { cenarios }: { cenarios: CenarioCompleto[] } = $props();
+  let {
+    cenarios,
+    custoMensal = 0
+  }: {
+    cenarios: CenarioCompleto[];
+    custoMensal?: number;
+  } = $props();
 
   const CHART_COLORS = [
     "var(--color-app-accent)",
@@ -96,6 +110,7 @@
 
   let svgEl = $state<SVGSVGElement | null>(null);
   let hover = $state<ChartHover | null>(null);
+  let pointerAnchor = $state<{ x: number; y: number } | null>(null);
 
   const hoveredPoint = $derived.by(() => {
     const active = hover;
@@ -108,11 +123,31 @@
   });
 
   const hoverX = $derived(
-    hoveredPoint ? xForMonth(hoveredPoint.month.mes, maxMonth, chartWidth, padding) : null
+    hoveredPoint
+      ? xForMonth(hoveredPoint.month.mes, maxMonth, chartWidth, padding)
+      : null
   );
+
+  const hoverY = $derived.by(() => {
+    if (!hover) return null;
+    const cenario = cenarios.find((c) => c.id === hover.cenarioId);
+    if (!cenario) return null;
+    return yForBalance(
+      debtBalanceAtHover(cenario, hover.monthIndex),
+      maxBalance,
+      height,
+      padding
+    );
+  });
+
+  const avoidPoints = $derived.by(() => {
+    if (!svgEl || hoverX === null || hoverY === null) return [];
+    return [svgCoordsToClient(svgEl, hoverX, hoverY, chartWidth, height)];
+  });
 
   function handleChartPointerMove(event: PointerEvent) {
     if (!svgEl) return;
+    pointerAnchor = { x: event.clientX, y: event.clientY };
     const { x, y } = svgPointFromPointer(svgEl, event, chartWidth, height);
     const next = pickChartHover(cenarios, x, y, maxMonth, maxBalance, chartWidth, hover);
     if (
@@ -127,6 +162,7 @@
   }
 
   function handleChartPointerLeave() {
+    pointerAnchor = null;
     hover = null;
   }
 
@@ -142,7 +178,7 @@
   </p>
 {:else}
   <header class="border-b border-app-border px-2 py-2 sm:px-3">
-    <h3 class="text-sm font-medium text-app-fg">Saldo devedor ao longo do tempo</h3>
+    <h3 class="text-sm font-medium text-app-fg">Saldo devedor (Financiamento)</h3>
   </header>
 
   <div class="px-2 py-3 sm:px-3">
@@ -277,7 +313,6 @@
         />
 
         {#if hoveredPoint && hoverX !== null}
-          {@const { cenario, month } = hoveredPoint}
           <g class="pointer-events-none">
             <line
               x1={hoverX}
@@ -289,12 +324,13 @@
               class="text-app-muted"
               opacity="0.9"
             />
+            {@const { cenario, month } = hoveredPoint}
             {#each cenarios as other, i (other.id)}
               {@const idx = other.timeline.findIndex((m) => m.mes === month.mes)}
               {#if idx >= 0}
                 {@const om = other.timeline[idx]}
                 {@const ox = xForMonth(om.mes, maxMonth, chartWidth, padding)}
-                {@const oy = yForBalance(om.saldoDevedor, maxBalance, height, padding)}
+                {@const oy = yForBalance(debtBalanceAtHover(other, idx), maxBalance, height, padding)}
                 {@const oc = CHART_COLORS[i % CHART_COLORS.length]}
                 <circle
                   cx={ox}
@@ -312,55 +348,56 @@
       </svg>
 
       {#if hoveredPoint}
-        {@const { cenario, month } = hoveredPoint}
-        {@const totalMes =
-          month.prestacao +
-          month.aporteExtra +
-          month.reformaMensal +
-          month.manutencaoMensal}
-        <div
-          class="pointer-events-none absolute top-2 right-2 z-10 max-w-xs rounded-md border border-app-border bg-app-surface/95 p-2 text-xs shadow-md backdrop-blur-sm"
-        >
+        {@const { cenario } = hoveredPoint}
+        <ChartHoverBreakdownPanel open={!!hoveredPoint} anchor={pointerAnchor} {avoidPoints}>
           <p class="mb-1 font-medium text-app-fg">{scenarioLabel(cenario)}</p>
           <dl class="grid grid-cols-[auto_1fr] gap-x-2 gap-y-0.5 text-app-muted">
+            {@const { month } = hoveredPoint}
+            {@const gastos = monthlyExpenseBreakdown(month, custoMensal)}
+            {@const saldoLivre = monthlyFreeBalance(month, cenario.rendaMensal, custoMensal)}
             <dt>Mês</dt>
             <dd class="font-mono text-app-fg">
-              {month.mes} <span class="font-sans text-app-subtle">({formatTimingMonthLabelLong(month.mes)})</span>
+              {month.mes}
+              <span class="font-sans text-app-subtle">
+                ({formatTimingMonthLabelLong(month.mes)})
+              </span>
             </dd>
             <dt>Saldo devedor</dt>
-            <dd class="font-mono text-app-fg">{formatCurrency(month.saldoDevedor)}</dd>
+            <dd class="font-mono text-app-fg">{formatCurrency(renderedDebtBalance(month))}</dd>
             <dt>Prestação</dt>
-            <dd class="font-mono">{formatCurrency(month.prestacao)}</dd>
-            {#if month.aporteExtra > 0}
-              <dt>Aporte</dt>
-              <dd class="font-mono">{formatCurrency(month.aporteExtra)}</dd>
-            {/if}
-            {#if month.reformaMensal > 0}
-              <dt>Reforma</dt>
-              <dd class="font-mono">{formatCurrency(month.reformaMensal)}</dd>
-            {/if}
-            {#if month.manutencaoMensal > 0}
-              <dt>Manutenção</dt>
-              <dd class="font-mono">{formatCurrency(month.manutencaoMensal)}</dd>
-            {/if}
-            {#if month.amortizacaoVenda > 0}
-              <dt>Venda</dt>
-              <dd class="font-mono text-green">{formatCurrency(month.amortizacaoVenda)}</dd>
-            {/if}
-            {#if month.amortizacaoQuantiaExtra > 0}
-              <dt>Quantia extra</dt>
-              <dd class="font-mono text-green">{formatCurrency(month.amortizacaoQuantiaExtra)}</dd>
-            {/if}
-            <dt class="font-bold text-app-accent">Total/mês</dt>
-            <dd class="font-mono font-bold text-app-accent">{formatCurrency(totalMes)}</dd>
-            <dt>Saldo livre</dt>
-            <dd
-              class={cn("font-mono", month.saldoLivre < 0 ? "text-salmon" : "text-green")}
-            >
-              {formatCurrency(month.saldoLivre)}
-            </dd>
+            <dd class="font-mono">{formatCurrency(gastos.prestacao)}</dd>
+              {#if gastos.aporteExtra > 0}
+                <dt>Aporte</dt>
+                <dd class="font-mono">{formatCurrency(gastos.aporteExtra)}</dd>
+              {/if}
+              {#if gastos.reforma > 0}
+                <dt>Reforma</dt>
+                <dd class="font-mono">{formatCurrency(gastos.reforma)}</dd>
+              {/if}
+              {#if gastos.manutencao > 0}
+                <dt>Manutenção</dt>
+                <dd class="font-mono">{formatCurrency(gastos.manutencao)}</dd>
+              {/if}
+              {#if gastos.custoMensal > 0}
+                <dt>Custo mensal</dt>
+                <dd class="font-mono">{formatCurrency(gastos.custoMensal)}</dd>
+              {/if}
+              {#if month.amortizacaoVenda > 0}
+                <dt>Venda</dt>
+                <dd class="font-mono text-green">{formatCurrency(month.amortizacaoVenda)}</dd>
+              {/if}
+              {#if month.amortizacaoQuantiaExtra > 0}
+                <dt>Quantia extra</dt>
+                <dd class="font-mono text-green">{formatCurrency(month.amortizacaoQuantiaExtra)}</dd>
+              {/if}
+              <dt class="font-bold text-app-accent">Gasto mensal</dt>
+              <dd class="font-mono font-bold text-app-accent">{formatCurrency(gastos.total)}</dd>
+              <dt>Saldo livre</dt>
+              <dd class={cn("font-mono", saldoLivre < 0 ? "text-salmon" : "text-green")}>
+                {formatCurrency(saldoLivre)}
+              </dd>
           </dl>
-        </div>
+        </ChartHoverBreakdownPanel>
       {/if}
     </div>
 

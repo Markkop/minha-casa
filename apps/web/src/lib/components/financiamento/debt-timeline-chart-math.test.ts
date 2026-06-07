@@ -23,6 +23,7 @@ function mockTimelineMonth(
 ): TimelineMonth {
   return {
     saldoDevedor: 0,
+    saldoDevedorFim: 0,
     prestacao: 0,
     aporteExtra: 0,
     reformaMensal: 0,
@@ -45,7 +46,7 @@ function mockCenario(
   return {
     id,
     timeline: timeline.map((t) =>
-      mockTimelineMonth({ mes: t.mes, saldoDevedor: t.saldoDevedor })
+      mockTimelineMonth({ mes: t.mes, saldoDevedor: t.saldoDevedor, saldoDevedorFim: t.saldoDevedor })
     )
   } as CenarioCompleto;
 }
@@ -139,25 +140,27 @@ describe("pickChartHover", () => {
 });
 
 describe("buildMonthGridTicks", () => {
-  it("emits one grid line per month", () => {
+  it("emits one grid line per month starting at purchase", () => {
     const grid = buildMonthGridTicks(12, 800);
-    expect(grid).toHaveLength(12);
-    expect(grid[0]?.month).toBe(1);
-    expect(grid[11]?.month).toBe(12);
-    expect(grid[5]?.x).toBe(xForMonth(6, 12, 800));
+    expect(grid).toHaveLength(13);
+    expect(grid[0]?.month).toBe(0);
+    expect(grid[1]?.month).toBe(1);
+    expect(grid[12]?.month).toBe(12);
+    expect(grid[6]?.x).toBe(xForMonth(6, 12, 800));
   });
 });
 
 describe("buildXAxisLabelTicks", () => {
-  it("labels every month for short spans and years at 12-month marks", () => {
+  it("labels purchase, every month for short spans and years at 12-month marks", () => {
     const short = buildXAxisLabelTicks(18, 800, (m) => `y${m}`);
+    expect(short.find((t) => t.month === 0)?.label).toBe("Compra");
     expect(short.find((t) => t.month === 1)?.kind).toBe("year");
     expect(short.find((t) => t.month === 12)?.label).toBe("y12");
     expect(short.some((t) => t.kind === "month" && t.month === 6)).toBe(true);
 
     const long = buildXAxisLabelTicks(60, 800, (m) => `y${m}`);
     expect(long.filter((t) => t.kind === "year").map((t) => t.month)).toEqual([
-      1, 12, 24, 36, 48, 60
+      0, 1, 12, 24, 36, 48, 60
     ]);
     expect(monthAxisLabelStep(60)).toBe(3);
   });
@@ -165,7 +168,7 @@ describe("buildXAxisLabelTicks", () => {
 
 describe("monthAtX", () => {
   it("maps pointer X to the month column under the cursor", () => {
-    expect(monthAtX(56, TEST_MAX_MONTH, TEST_WIDTH)).toBe(1);
+    expect(monthAtX(56, TEST_MAX_MONTH, TEST_WIDTH)).toBe(0);
     expect(monthAtX(monthCenterX(6), TEST_MAX_MONTH, TEST_WIDTH)).toBe(6);
     const pitch = pitchFor();
     expect(monthAtX(monthCenterX(6) + pitch * 0.4, TEST_MAX_MONTH, TEST_WIDTH)).toBe(6);
@@ -178,8 +181,8 @@ describe("monthPitch", () => {
     const narrow = monthPitch(plotWidthForChart(400), 12);
     const wide = monthPitch(plotWidthForChart(800), 12);
     expect(wide).toBeGreaterThan(narrow);
-    expect(narrow * 12).toBeCloseTo(plotWidthForChart(400), 5);
-    expect(wide * 12).toBeCloseTo(plotWidthForChart(800), 5);
+    expect(narrow * 13).toBeCloseTo(plotWidthForChart(400), 5);
+    expect(wide * 13).toBeCloseTo(plotWidthForChart(800), 5);
   });
 });
 
@@ -212,6 +215,12 @@ describe("monthTotalOutflow", () => {
       manutencaoMensal: 500
     });
     expect(monthTotalOutflow(month)).toBe(8_500);
+  });
+
+  it("adds living costs only when explicitly provided", () => {
+    const month = mockTimelineMonth({ mes: 1, prestacao: 5_000 });
+    expect(monthTotalOutflow(month)).toBe(5_000);
+    expect(monthTotalOutflow(month, 3_000)).toBe(8_000);
   });
 });
 
@@ -264,6 +273,12 @@ describe("maxChartValue", () => {
       { mes: 2, prestacao: 45_000 }
     ]);
     expect(maxChartValue([c], 40_000)).toBe(70_000);
+  });
+
+  it("includes living costs in the chart scale without changing the timeline", () => {
+    const c = mockCenarioWithTotals("a", [{ mes: 1, prestacao: 40_000 }]);
+    expect(maxChartValue([c], 30_000, 15_000)).toBe(60_000);
+    expect(c.timeline[0]?.prestacao).toBe(40_000);
   });
 });
 

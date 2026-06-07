@@ -7,6 +7,7 @@
   import WorkspaceRightSidebarContent from "$lib/components/layout/WorkspaceRightSidebarContent.svelte";
   import AdjustmentPanel from "$lib/components/financiamento/adjustment-panel.svelte";
   import DebtTimelineChart from "$lib/components/financiamento/DebtTimelineChart.svelte";
+  import FreeBalanceTimelineChart from "$lib/components/financiamento/FreeBalanceTimelineChart.svelte";
   import MonthlyTotalTimelineChart from "$lib/components/financiamento/MonthlyTotalTimelineChart.svelte";
   import TotalBalanceTimelineChart from "$lib/components/financiamento/TotalBalanceTimelineChart.svelte";
   import ResultsTable from "$lib/components/financiamento/ResultsTable.svelte";
@@ -245,16 +246,20 @@
           <ResultsTable cenarios={filteredCenarios} {permutaDisponivel} />
         </section>
         <section class={LISTINGS_SECTION_CLASS}>
-          <DebtTimelineChart cenarios={filteredCenarios} />
+          <DebtTimelineChart cenarios={filteredCenarios} custoMensal={params.custoMensal} />
         </section>
         <section class={LISTINGS_SECTION_CLASS}>
-          <MonthlyTotalTimelineChart cenarios={filteredCenarios} />
+          <MonthlyTotalTimelineChart cenarios={filteredCenarios} custoMensal={params.custoMensal} />
+        </section>
+        <section class={LISTINGS_SECTION_CLASS}>
+          <FreeBalanceTimelineChart cenarios={filteredCenarios} custoMensal={params.custoMensal} />
         </section>
         <section class={LISTINGS_SECTION_CLASS}>
           <TotalBalanceTimelineChart
             cenarios={filteredCenarios}
             capitalDisponivel={params.capitalDisponivel}
             quantiaExtra={effective.quantiaExtra}
+            custoMensal={params.custoMensal}
           />
         </section>
       </div>

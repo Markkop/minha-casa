@@ -5,6 +5,7 @@ export const ADDON_OPEN_ROUTES = [
   "/addons",
   "/floodrisk",
   "/planta",
+  "/financeiro",
   "/financiamento",
   "/casa"
 ] as const;

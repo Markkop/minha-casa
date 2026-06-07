@@ -2,10 +2,15 @@ import {
   CHART_HEIGHT,
   CHART_PADDING,
   HOVER_Y_HYSTERESIS,
+  monthAtX,
   niceTickStep,
-  plotWidthForChart,
+  xForMonth,
   type ChartHover
 } from "$lib/components/financiamento/debt-timeline-chart-math";
+import {
+  ledgerVertices,
+  verticesToPolyline
+} from "$lib/components/financiamento/chart-event-path";
 import type { CenarioCompleto } from "$lib/financiamento/calculations";
 
 export type BalanceLedgerPoint = {
@@ -20,12 +25,15 @@ export type BalanceLedgerPoint = {
   aporteExtra: number;
   reforma: number;
   manutencao: number;
+  custoMensal: number;
   amortizacaoVenda: number;
   amortizacaoExtra: number;
   totalReceitas: number;
   totalDespesas: number;
   fluxoLiquido: number;
   saldo: number;
+  /** Balance before event-month flows (purchase, sale, extra). */
+  saldoPreEvento?: number;
 };
 
 export type BalanceLedgerSeries = {
@@ -43,7 +51,8 @@ export type SignedYAxisScale = {
 export function buildBalanceLedger(
   cenario: CenarioCompleto,
   capitalDisponivel: number,
-  quantiaExtra: number
+  quantiaExtra: number,
+  custoMensal = 0
 ): BalanceLedgerSeries {
   const openingExpenses = cenario.entrada + cenario.custosFechamento.total;
   let saldo = capitalDisponivel - openingExpenses;
@@ -60,12 +69,14 @@ export function buildBalanceLedger(
       aporteExtra: 0,
       reforma: 0,
       manutencao: 0,
+      custoMensal: 0,
       amortizacaoVenda: 0,
       amortizacaoExtra: 0,
       totalReceitas: capitalDisponivel,
       totalDespesas: openingExpenses,
       fluxoLiquido: saldo,
-      saldo
+      saldo,
+      saldoPreEvento: capitalDisponivel
     }
   ];
 
@@ -80,9 +91,12 @@ export function buildBalanceLedger(
       month.aporteExtra +
       month.reformaMensal +
       month.manutencaoMensal +
+      custoMensal +
       month.amortizacaoVenda +
       month.amortizacaoQuantiaExtra;
     const fluxoLiquido = totalReceitas - totalDespesas;
+    const saldoPreEvento =
+      month.eventoVenda || month.eventoExtra ? saldo : undefined;
     saldo += fluxoLiquido;
 
     points.push({
@@ -97,12 +111,14 @@ export function buildBalanceLedger(
       aporteExtra: month.aporteExtra,
       reforma: month.reformaMensal,
       manutencao: month.manutencaoMensal,
+      custoMensal,
       amortizacaoVenda: month.amortizacaoVenda,
       amortizacaoExtra: month.amortizacaoQuantiaExtra,
       totalReceitas,
       totalDespesas,
       fluxoLiquido,
-      saldo
+      saldo,
+      saldoPreEvento
     });
   }
 
@@ -112,9 +128,12 @@ export function buildBalanceLedger(
 export function buildBalanceLedgers(
   cenarios: CenarioCompleto[],
   capitalDisponivel: number,
-  quantiaExtra: number
+  quantiaExtra: number,
+  custoMensal = 0
 ): BalanceLedgerSeries[] {
-  return cenarios.map((cenario) => buildBalanceLedger(cenario, capitalDisponivel, quantiaExtra));
+  return cenarios.map((cenario) =>
+    buildBalanceLedger(cenario, capitalDisponivel, quantiaExtra, custoMensal)
+  );
 }
 
 export function buildSignedYAxisScale(values: number[]): SignedYAxisScale {
@@ -143,8 +162,7 @@ export function xForLedgerMonth(
   width: number,
   pad = CHART_PADDING
 ): number {
-  if (maxMonth <= 0) return pad.left;
-  return pad.left + (month / maxMonth) * plotWidthForChart(width, pad);
+  return xForMonth(month, maxMonth, width, pad);
 }
 
 export function ledgerMonthAtX(
@@ -153,10 +171,7 @@ export function ledgerMonthAtX(
   width: number,
   pad = CHART_PADDING
 ): number {
-  const plotWidth = plotWidthForChart(width, pad);
-  if (plotWidth <= 0 || maxMonth <= 0) return 0;
-  const ratio = (svgX - pad.left) / plotWidth;
-  return Math.max(0, Math.min(maxMonth, Math.round(ratio * maxMonth)));
+  return monthAtX(svgX, maxMonth, width, pad);
 }
 
 export function yForLedgerValue(
@@ -176,12 +191,12 @@ export function polylinePointsForLedger(
   scale: SignedYAxisScale,
   width: number
 ): string {
-  return series.points
-    .map(
-      (point) =>
-        `${xForLedgerMonth(point.mes, maxMonth, width)},${yForLedgerValue(point.saldo, scale)}`
-    )
-    .join(" ");
+  return verticesToPolyline(
+    ledgerVertices(series),
+    maxMonth,
+    width,
+    (value) => yForLedgerValue(value, scale)
+  );
 }
 
 export function pickLedgerHover(
@@ -200,7 +215,8 @@ export function pickLedgerHover(
   let bestYDistance = Infinity;
 
   for (const item of series) {
-    const monthIndex = Math.min(targetMonth, item.points.length - 1);
+    const monthIndex = item.points.findIndex((point) => point.mes === targetMonth);
+    if (monthIndex < 0) continue;
     const point = item.points[monthIndex];
     if (!point) continue;
     const distance = Math.abs(svgY - yForLedgerValue(point.saldo, scale));

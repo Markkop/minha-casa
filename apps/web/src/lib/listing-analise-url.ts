@@ -32,7 +32,7 @@ export function buildListingFinanciamentoHref(
 
   params.set("listing", listingId);
 
-  return `/financiamento?${params.toString()}`;
+  return `/financeiro?${params.toString()}`;
 }
 
 export function buildListingImagesPrintHref(

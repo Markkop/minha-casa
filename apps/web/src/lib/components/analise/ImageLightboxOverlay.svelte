@@ -33,8 +33,14 @@
   role="dialog"
   aria-modal="true"
   aria-label="Visualização ampliada"
-  onclick={onClose}
+  tabindex="-1"
 >
+  <button
+    type="button"
+    class="absolute inset-0 cursor-default"
+    aria-label="Fechar visualização ampliada"
+    onclick={onClose}
+  ></button>
   <button
     type="button"
     class="absolute right-4 top-4 z-10 rounded-full bg-black/50 p-2 text-white"
@@ -74,8 +80,7 @@
   {/if}
 
   <div
-    class="max-h-[85vh] w-full max-w-5xl"
-    onclick={(event) => event.stopPropagation()}
+    class="relative max-h-[85vh] w-full max-w-5xl"
   >
     <ListingImageCarousel
       bind:this={carouselRef}
@@ -92,10 +97,7 @@
   </div>
 
   {#if caption}
-    <p
-      class="absolute bottom-6 left-0 right-0 text-center text-sm text-white/90"
-      onclick={(event) => event.stopPropagation()}
-    >
+    <p class="pointer-events-none absolute bottom-6 left-0 right-0 text-center text-sm text-white/90">
       {caption}
     </p>
   {/if}

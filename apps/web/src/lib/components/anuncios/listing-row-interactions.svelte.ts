@@ -1,5 +1,4 @@
 import type { Imovel } from "$lib/anuncios/types";
-import { toListingData } from "$lib/anuncios/types";
 import {
   applyPreferencePatch,
   defaultPreferenceCatalog,
@@ -66,7 +65,7 @@ export function createListingRowInteractions({
     const patched = applyPreferencePatch(imovel, key, next, catalog);
 
     try {
-      await apiUpdateListing(imovel.id, toListingData(patched, catalog));
+      await apiUpdateListing(imovel.id, patched);
     } catch (error) {
       console.error(`Failed to toggle preference ${key}:`, error);
     }

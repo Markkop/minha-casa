@@ -3,8 +3,12 @@
   import EditModalCard from "$lib/components/anuncios/edit-modal/EditModalCard.svelte";
   import type { EditModalTabId } from "$lib/components/anuncios/edit-modal/edit-modal-tabs";
   import ModalCloseButton from "$lib/components/anuncios/ModalCloseButton.svelte";
-  import { defaultPreferenceCatalog, type ListingPreferenceOption } from "$lib/anuncios/listing-preferences";
-  import { toListingData, type Imovel } from "$lib/anuncios/types";
+  import {
+    defaultPreferenceCatalog,
+    listingDataWithPreferences,
+    type ListingPreferenceOption
+  } from "$lib/anuncios/listing-preferences";
+  import type { Imovel } from "$lib/anuncios/types";
   import { buildBaseListingTitle } from "$lib/listing-display-title";
   import { getCollectionsContext } from "$lib/collections-context.svelte";
   import { workspaceApi, type Condominium, type Region } from "$lib/workspace/client";
@@ -116,8 +120,9 @@
     }
     try {
       const tituloManual = formData.tituloManual?.trim() || null;
-      await ctx.updateListing(listing.id, {
-        ...toListingData(
+      await ctx.updateListing(
+        listing.id,
+        listingDataWithPreferences(
           {
             ...formData,
             tituloManual,
@@ -125,7 +130,7 @@
           },
           preferenceCatalog
         )
-      });
+      );
       onListingUpdated?.();
       onClose();
     } catch (err) {

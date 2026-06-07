@@ -170,12 +170,15 @@ export function mirrorLegacyFields(
   return legacy;
 }
 
-export function applyPreferencePatch(
-  listing: ListingPreferenceListingSlice,
+export function applyPreferencePatch<T extends ListingPreferenceListingSlice>(
+  listing: T,
   key: string,
   value: boolean | null,
   catalog: readonly ListingPreferenceOption[] = DEFAULT_SYSTEM_PREFERENCE_OPTIONS
-): ListingPreferenceListingSlice & { preferences: ListingPreferencesMap } {
+): T &
+  Pick<ListingPreferenceListingSlice, LegacyAmenityKey> & {
+    preferences: ListingPreferencesMap;
+  } {
   const preferences = normalizeListingPreferences(listing, catalog);
   preferences[key] = value;
   const legacy = mirrorLegacyFields(preferences, catalog);
@@ -223,10 +226,13 @@ export function formatEnabledPreferencesForExport(
   return getEnabledPreferencesForDisplay(listing, catalog).map((item) => item.label);
 }
 
-export function listingDataWithPreferences(
-  listing: ListingPreferenceListingSlice,
+export function listingDataWithPreferences<T extends ListingPreferenceListingSlice>(
+  listing: T,
   catalog: readonly ListingPreferenceOption[] = DEFAULT_SYSTEM_PREFERENCE_OPTIONS
-): ListingPreferenceListingSlice & { preferences: ListingPreferencesMap } {
+): T &
+  Pick<ListingPreferenceListingSlice, LegacyAmenityKey> & {
+    preferences: ListingPreferencesMap;
+  } {
   const preferences = normalizeListingPreferences(listing, catalog);
   return { ...listing, ...mirrorLegacyFields(preferences, catalog), preferences };
 }

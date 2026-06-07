@@ -55,7 +55,7 @@ describe("simularTimelineMensal", () => {
     expect(month6?.amortizacaoQuantiaExtra).toBe(50_000);
   });
 
-  it("charges maintenance only before sale for venda_posterior", () => {
+  it("charges maintenance through the sale month for venda_posterior", () => {
     const result = simularTimelineMensal({
       ...baseTimeline,
       estrategia: "venda_posterior",
@@ -63,9 +63,49 @@ describe("simularTimelineMensal", () => {
       mesVenda: 6,
       custoManutencaoImovelMensal: 2_000
     });
-    expect(result.totalManutencao).toBe(2_000 * 5);
+    expect(result.totalManutencao).toBe(2_000 * 6);
+    expect(result.meses.find((m) => m.mes === 6)?.manutencaoMensal).toBe(2_000);
     const afterSale = result.meses.filter((m) => m.mes > 6);
     expect(afterSale.every((m) => m.manutencaoMensal === 0)).toBe(true);
+  });
+
+  it("stores end-of-month debt after extraordinary amortization", () => {
+    const result = simularTimelineMensal({
+      ...baseTimeline,
+      estrategia: "financiamento",
+      mesExtra: 12,
+      quantiaExtra: 200_000
+    });
+    const month12 = result.meses.find((m) => m.mes === 12);
+    expect(month12?.saldoDevedorFim).toBe(month12!.saldoDevedor - 200_000);
+  });
+
+  it("counts property maintenance once in optimized total via carrego apto", () => {
+    const cenario = gerarCenarioCompleto({
+      valorImovel: 2_000_000,
+      capitalDisponivel: 400_000,
+      reservaEmergencia: 0,
+      valorApartamento: 500_000,
+      estrategia: "venda_posterior",
+      taxaAnual: 0.11,
+      trMensal: 0.0015,
+      prazoMeses: 360,
+      aporteExtra: 5_000,
+      rendaMensal: 45_000,
+      mesVenda: 6,
+      custoManutencaoImovelMensal: 2_000
+    });
+    const maintenanceInCarrego = cenario.custoCarregoApto > 0;
+    expect(maintenanceInCarrego).toBe(true);
+    expect(cenario.custoTotalOtimizado).toBeGreaterThan(cenario.valorImovel);
+    expect(cenario.custoTotalOtimizado).toBeLessThan(
+      cenario.valorImovel +
+        cenario.cenarioOtimizado.totalJuros +
+        cenario.custosFechamento.total +
+        cenario.totalReformas +
+        cenario.totalManutencao +
+        cenario.custoCarregoApto
+    );
   });
 
   it("keeps prestacao separate from aporte extra mensal", () => {

@@ -20,8 +20,9 @@ export const ADDONS_CATALOG: AddonCatalogEntry[] = [
   },
   {
     id: "financiamento",
-    title: "Financiamento",
-    description: "Compare cenarios de financiamento, entrada e parcelas para a sua compra.",
-    href: "/financiamento"
+    title: "Financeiro",
+    description:
+      "Planeje a compra do imóvel comparando entrada, financiamento, reformas e fluxo mensal.",
+    href: "/financeiro"
   }
 ];

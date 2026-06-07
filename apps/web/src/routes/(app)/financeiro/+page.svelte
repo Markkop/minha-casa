@@ -4,10 +4,10 @@
 </script>
 
 <svelte:head>
-  <title>Financiamento | Minha Casa</title>
+  <title>Financeiro | Minha Casa</title>
   <meta
     name="description"
-    content="Simulador de financiamento imobiliário com cenários, amortização e análise de compra."
+    content="Planeje a compra do imóvel com cenários de financiamento, amortização e fluxo financeiro."
   />
 </svelte:head>
 

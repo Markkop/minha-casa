@@ -87,7 +87,7 @@
     { href: "/anuncios", label: "Anúncios", icon: Home },
     { href: "/comparacao", label: "Comparação", icon: BarChart3 },
     { href: "/analise", label: "Análise", icon: ScanSearch },
-    { href: "/financiamento", label: "Financiamento", icon: CircleDollarSign },
+    { href: "/financeiro", label: "Financeiro", icon: CircleDollarSign },
     { href: "/addons", label: "Addons", icon: Puzzle },
     { href: "/links", label: "Links", icon: Link2 }
   ];
@@ -118,7 +118,7 @@
   const showAnaliseListingBreadcrumb = $derived(
     pathname.startsWith("/analise") ||
       pathname.startsWith("/floodrisk") ||
-      pathname.startsWith("/financiamento")
+      pathname.startsWith("/financeiro")
   );
   const showOrgBreadcrumb = $derived(hasTeamOrganizations);
 
@@ -207,7 +207,8 @@
   const isActive = (href: string, currentPath: string) =>
     currentPath === href ||
     currentPath.startsWith(`${href}/`) ||
-    (href === "/financiamento" && currentPath === "/casa");
+    (href === "/financeiro" &&
+      (currentPath === "/financiamento" || currentPath === "/casa"));
 
   const initials = $derived.by(() => {
     const source: string = user?.name || user?.email || "U";

@@ -48,7 +48,7 @@
         ? (listing.preferences as Record<string, boolean | null>)
         : undefined;
 
-    const parsed = {
+    const parsed: ListingData = {
       titulo: String(listing.titulo ?? ""),
       endereco: String(listing.endereco ?? ""),
       bairro: typeof listing.bairro === "string" ? listing.bairro : undefined,
@@ -94,7 +94,7 @@
       preferences
     };
 
-    return listingDataWithPreferences(parsed) as ListingData;
+    return listingDataWithPreferences(parsed);
   }
 
   async function handleProcessImport(jsonText?: string) {

@@ -96,13 +96,11 @@
       </button>
     {/snippet}
 
-    {#snippet children()}
-      <ListingSelectorPanel
-        bind:this={panel}
-        listings={ctx.listings}
-        selectedId={selected?.id ?? null}
-        onSelect={handleSelect}
-      />
-    {/snippet}
+    <ListingSelectorPanel
+      bind:this={panel}
+      listings={ctx.listings}
+      selectedId={selected?.id ?? null}
+      onSelect={handleSelect}
+    />
   </AnchoredPopover>
 </div>

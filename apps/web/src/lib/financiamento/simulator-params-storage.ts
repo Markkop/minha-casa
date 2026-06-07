@@ -6,7 +6,8 @@ import {
 } from "$lib/components/financiamento/financiamento-parameter-types";
 import { createInitialSimulatorParams } from "$lib/financiamento/simulator-recursos";
 
-const STORAGE_KEY = "minha-casa-financiamento-params";
+export const SIMULATOR_PARAMS_STORAGE_KEY = "minha-casa-financeiro-params";
+export const LEGACY_SIMULATOR_PARAMS_STORAGE_KEY = "minha-casa-financiamento-params";
 
 const VALID_ESTRATEGIAS = new Set<EstrategiaFiltro>(["permuta", "venda_posterior"]);
 const VALID_MULTIPLIERS = new Set<number>(PERCENTAGE_OPTIONS.map((o) => o.value));
@@ -90,6 +91,7 @@ export function normalizeSimulatorParams(parsed: StoredSimulatorParams): Simulat
       : finiteNumber(parsed.capitalDisponivel, defaults.entradaDisponivel),
     valorApartamento,
     rendaMensal: finiteNumber(parsed.rendaMensal, defaults.rendaMensal),
+    custoMensal: finiteNumber(parsed.custoMensal, defaults.custoMensal),
     aporteExtra: finiteNumber(parsed.aporteExtra, defaults.aporteExtra),
     valorImovel: finiteNumber(parsed.valorImovel, defaults.valorImovel),
     taxaAnual: finiteNumber(parsed.taxaAnual, defaults.taxaAnual),
@@ -131,12 +133,19 @@ export function loadSimulatorParams(): SimulatorParams | null {
   }
 
   try {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (!stored) {
+    const currentStored = window.localStorage.getItem(SIMULATOR_PARAMS_STORAGE_KEY);
+    if (currentStored) {
+      return normalizeSimulatorParams(JSON.parse(currentStored) as StoredSimulatorParams);
+    }
+
+    const legacyStored = window.localStorage.getItem(LEGACY_SIMULATOR_PARAMS_STORAGE_KEY);
+    if (!legacyStored) {
       return null;
     }
-    const parsed = JSON.parse(stored) as StoredSimulatorParams;
-    return normalizeSimulatorParams(parsed);
+
+    const migrated = normalizeSimulatorParams(JSON.parse(legacyStored) as StoredSimulatorParams);
+    window.localStorage.setItem(SIMULATOR_PARAMS_STORAGE_KEY, JSON.stringify(migrated));
+    return migrated;
   } catch {
     return null;
   }
@@ -148,9 +157,9 @@ export function saveSimulatorParams(params: SimulatorParams): void {
   }
 
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(params));
+    window.localStorage.setItem(SIMULATOR_PARAMS_STORAGE_KEY, JSON.stringify(params));
   } catch {
-    console.error("Failed to save financiamento params to localStorage");
+    console.error("Failed to save simulator params to localStorage");
   }
 }
 
@@ -160,8 +169,9 @@ export function clearSimulatorParams(): void {
   }
 
   try {
-    localStorage.removeItem(STORAGE_KEY);
+    window.localStorage.removeItem(SIMULATOR_PARAMS_STORAGE_KEY);
+    window.localStorage.removeItem(LEGACY_SIMULATOR_PARAMS_STORAGE_KEY);
   } catch {
-    console.error("Failed to clear financiamento params from localStorage");
+    console.error("Failed to clear simulator params from localStorage");
   }
 }

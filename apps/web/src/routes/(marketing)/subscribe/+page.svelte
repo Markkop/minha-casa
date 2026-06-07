@@ -39,7 +39,7 @@
       fallbackPrice: "R$ 200,00",
       features: [
         "Tudo do Plus",
-        "Simulador de financiamento imobiliário",
+        "Financeiro: simulação de compra e financiamento",
         "Mapa de risco de enchente por região",
         "Criar organizações (times / imobiliárias)",
         "Feedback direto com o desenvolvedor"

@@ -20,7 +20,6 @@
   import { workspaceApi } from "$lib/workspace/client";
   import { resolveListingGalleryImages } from "$lib/listing-gallery";
   import {
-    resolveListingImages,
     syncListingImageFields,
     isListingImageIngesting,
     isExternalListingImageUrl

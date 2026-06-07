@@ -78,13 +78,10 @@
         dropIndex === index && dragIndex !== null && dragIndex !== index && "print-picker-item--drop"
       )}
     >
-      <label
-        class="print-picker-check"
-        onclick={(event) => event.stopPropagation()}
-        onmousedown={(event) => event.stopPropagation()}
-      >
+      <label class="print-picker-check">
         <input
           type="checkbox"
+          draggable="false"
           checked={item.selected}
           onchange={() => toggleSelected(index)}
           aria-label={`Incluir imagem ${item.originalIndex + 1}`}
@@ -93,8 +90,9 @@
 
       <button
         type="button"
-        class="print-picker-preview"
-        aria-label={`Visualizar imagem ${item.originalIndex + 1}`}
+          class="print-picker-preview"
+          draggable="false"
+          aria-label={`Visualizar imagem ${item.originalIndex + 1}`}
         onclick={() => openPreview(index)}
         onmousedown={(event) => event.stopPropagation()}
         ondragstart={(event) => {

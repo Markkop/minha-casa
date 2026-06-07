@@ -22,8 +22,11 @@
       { label: "Fechamento", value: c.custosFechamento.total }
     ];
     if (c.totalReformas > 0) breakdown.push({ label: "Reformas", value: c.totalReformas });
-    if (c.totalManutencao > 0) breakdown.push({ label: "Manutenção", value: c.totalManutencao });
-    if (c.custoCarregoApto > 0) breakdown.push({ label: "Carrego apto", value: c.custoCarregoApto });
+    if (c.custoCarregoApto > 0) {
+      breakdown.push({ label: "Carrego apto", value: c.custoCarregoApto });
+    } else if (c.totalManutencao > 0) {
+      breakdown.push({ label: "Manutenção", value: c.totalManutencao });
+    }
     return breakdown;
   }
 </script>

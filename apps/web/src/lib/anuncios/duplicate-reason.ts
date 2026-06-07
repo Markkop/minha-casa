@@ -25,28 +25,26 @@ export function formatDuplicateReason(reason: string | undefined | null): string
 export function listingDataForLinkDuplicateCheck(link: string): ListingData {
   const catalog = defaultPreferenceCatalog();
   const preferences = Object.fromEntries(catalog.map((option) => [option.key, null]));
+  const data: ListingData = {
+    titulo: "",
+    endereco: "",
+    link,
+    m2Totais: null,
+    m2Privado: null,
+    quartos: null,
+    suites: null,
+    banheiros: null,
+    garagem: null,
+    preco: null,
+    precoM2: null,
+    piscina: null,
+    porteiro24h: null,
+    academia: null,
+    vistaLivre: null,
+    piscinaTermica: null,
+    tipoImovel: undefined,
+    preferences
+  };
 
-  return listingDataWithPreferences(
-    {
-      titulo: "",
-      endereco: "",
-      link,
-      m2Totais: null,
-      m2Privado: null,
-      quartos: null,
-      suites: null,
-      banheiros: null,
-      garagem: null,
-      preco: null,
-      precoM2: null,
-      piscina: null,
-      porteiro24h: null,
-      academia: null,
-      vistaLivre: null,
-      piscinaTermica: null,
-      tipoImovel: undefined,
-      preferences
-    },
-    catalog
-  ) as ListingData;
+  return listingDataWithPreferences(data, catalog);
 }

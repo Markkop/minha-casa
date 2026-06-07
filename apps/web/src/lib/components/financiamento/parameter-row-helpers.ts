@@ -20,6 +20,12 @@ export const CUSTO_MANUTENCAO_RANGE: SliderRange = {
   step: 100
 };
 
+export const CUSTO_MENSAL_RANGE: SliderRange = {
+  min: 0,
+  max: 50_000,
+  step: 500
+};
+
 /** @deprecated Use CUSTO_MANUTENCAO_RANGE */
 export const CUSTO_CONDOMINIO_RANGE = CUSTO_MANUTENCAO_RANGE;
 
