@@ -1,17 +1,26 @@
 <script lang="ts">
-  import { onDestroy, tick, type Snippet } from "svelte";
+  import { X } from "@lucide/svelte";
+  import { tick, type Snippet } from "svelte";
   import { TOOLTIP_SURFACE_FLOATING_CLASS } from "$lib/components/ui/tooltip-content";
-  import { computeChartBreakdownPlacement } from "$lib/floating-position";
+  import {
+    buildChartBreakdownAvoidZones,
+    computeChartBreakdownPlacement,
+    type BoundsRect
+  } from "$lib/floating-position";
   import { cn } from "$lib/utils";
 
   let {
     open = false,
-    anchor = null,
+    dismissable = false,
+    onDismiss,
+    chartBounds = null,
     avoidPoints = [],
     children
   }: {
     open?: boolean;
-    anchor?: { x: number; y: number } | null;
+    dismissable?: boolean;
+    onDismiss?: () => void;
+    chartBounds?: BoundsRect | null;
     avoidPoints?: { x: number; y: number }[];
     children: Snippet;
   } = $props();
@@ -19,55 +28,62 @@
   let panelRef = $state<HTMLDivElement | null>(null);
   let panelStyle = $state("left: -9999px; top: -9999px");
 
-  function appendToBody(node: HTMLDivElement) {
-    document.body.appendChild(node);
-    return {
-      destroy() {
-        node.remove();
-      }
-    };
-  }
-
-  async function updatePosition() {
-    if (!open || !anchor || !panelRef) return;
+  async function updatePosition(
+    bounds: BoundsRect | null = chartBounds,
+    points: { x: number; y: number }[] = avoidPoints
+  ) {
+    if (!open || !bounds || !panelRef) return;
     await tick();
-    if (!anchor || !panelRef) return;
+    if (!bounds || !panelRef) return;
 
     const panelRect = panelRef.getBoundingClientRect();
-    const avoidZones = avoidPoints.map((point) => ({
-      left: point.x - 8,
-      top: point.y - 8,
-      right: point.x + 8,
-      bottom: point.y + 8
-    }));
-    const placement = computeChartBreakdownPlacement(anchor, panelRect, avoidZones);
+    const container = panelRef.parentElement;
+    const avoidZones = buildChartBreakdownAvoidZones(points);
+    const placement = computeChartBreakdownPlacement(bounds, panelRect, avoidZones, {
+      padding: 0,
+      viewportWidth: container?.clientWidth ?? bounds.right,
+      viewportHeight: container?.clientHeight ?? bounds.bottom
+    });
     panelStyle = `left: ${placement.left}px; top: ${placement.top}px`;
   }
 
+  function updateCurrentPosition() {
+    void updatePosition(chartBounds, avoidPoints);
+  }
+
   $effect(() => {
-    if (!open || !anchor) return;
-    void updatePosition();
+    const bounds = chartBounds;
+    const points = avoidPoints;
+    if (!open || !bounds) return;
+    void updatePosition(bounds, points);
   });
 
-  onDestroy(() => {
-    open = false;
-  });
 </script>
 
-<svelte:window onresize={updatePosition} onscroll={updatePosition} />
+<svelte:window onresize={updateCurrentPosition} />
 
-{#if open && anchor}
+{#if open && chartBounds}
   <div
     bind:this={panelRef}
-    use:appendToBody
     role="tooltip"
     class={cn(
-      "pointer-events-none fixed z-[2147483000] max-w-xs",
+      "pointer-events-none absolute z-50 max-w-xs",
       TOOLTIP_SURFACE_FLOATING_CLASS,
-      "p-2 text-xs shadow-md backdrop-blur-sm"
+      "p-2 text-xs shadow-md backdrop-blur-sm",
+      dismissable && "pr-7"
     )}
     style={panelStyle}
   >
+    {#if dismissable}
+      <button
+        type="button"
+        class="pointer-events-auto absolute right-1 top-1 rounded p-0.5 text-app-muted hover:bg-app-border/40 hover:text-app-fg"
+        aria-label="Fechar detalhes"
+        onclick={() => onDismiss?.()}
+      >
+        <X class="h-3 w-3" />
+      </button>
+    {/if}
     {@render children()}
   </div>
 {/if}

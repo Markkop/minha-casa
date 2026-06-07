@@ -10,6 +10,7 @@ import {
 
 const PANEL = { width: 200, height: 120 };
 const VIEWPORT = { viewportWidth: 800, viewportHeight: 600, padding: 8 };
+const CHART_BOUNDS = { left: 100, top: 50, right: 700, bottom: 400 };
 
 function expectInsideViewport(
   placement: { left: number; top: number },
@@ -26,38 +27,56 @@ function expectInsideViewport(
 }
 
 describe("computeChartBreakdownPlacement", () => {
-  it("defaults to topLeft when marker is centered with room", () => {
-    const anchor = { x: 400, y: 300 };
+  it("sticks to the right side when the active point is on the left half", () => {
+    const marker = { x: 160, y: 300 };
     const placement = computeChartBreakdownPlacement(
-      anchor,
+      CHART_BOUNDS,
       PANEL,
-      buildChartBreakdownAvoidZones([anchor], null),
+      buildChartBreakdownAvoidZones([marker]),
       VIEWPORT
     );
 
-    expect(placement.corner).toBe("topLeft");
-    expect(placement.left).toBe(anchor.x + CHART_BREAKDOWN_OFFSET);
-    expect(placement.top).toBe(anchor.y + CHART_BREAKDOWN_OFFSET);
+    expect(placement.side).toBe("right");
+    expect(placement.corner).toBe("topRight");
+    expect(placement.left).toBe(CHART_BOUNDS.right - PANEL.width - CHART_BREAKDOWN_OFFSET);
+    expect(placement.top).toBe(CHART_BOUNDS.top + CHART_BREAKDOWN_OFFSET);
     expectInsideViewport(placement, PANEL);
   });
 
-  it("prefers another corner when topLeft would overlap the cursor", () => {
-    const marker = { x: 400, y: 300 };
-    const cursor = { x: 410, y: 310 };
-    const avoidZones = buildChartBreakdownAvoidZones([marker], cursor);
-    const placement = computeChartBreakdownPlacement(marker, PANEL, avoidZones, VIEWPORT);
+  it("sticks to the left side when the active point is on the right half", () => {
+    const marker = { x: 640, y: 300 };
+    const avoidZones = buildChartBreakdownAvoidZones([marker]);
+    const placement = computeChartBreakdownPlacement(CHART_BOUNDS, PANEL, avoidZones, VIEWPORT);
     const panel = panelBoundsAt(placement.left, placement.top, PANEL.width, PANEL.height);
 
-    expect(placement.corner).not.toBe("topLeft");
+    expect(placement.side).toBe("left");
+    expect(placement.corner).toBe("topLeft");
+    expect(placement.left).toBe(CHART_BOUNDS.left + CHART_BREAKDOWN_OFFSET);
     expect(avoidZones.some((zone) => rectsOverlap(panel, zone))).toBe(false);
   });
 
-  it("keeps the panel inside the viewport near the right edge", () => {
-    const anchor = { x: 770, y: 300 };
+  it("stays at the top corner when the active point is near the top", () => {
+    const marker = { x: 640, y: 70 };
     const placement = computeChartBreakdownPlacement(
-      anchor,
+      CHART_BOUNDS,
       PANEL,
-      buildChartBreakdownAvoidZones([anchor], null),
+      buildChartBreakdownAvoidZones([marker]),
+      VIEWPORT
+    );
+
+    expect(placement.side).toBe("left");
+    expect(placement.corner).toBe("topLeft");
+    expect(placement.top).toBe(CHART_BOUNDS.top + CHART_BREAKDOWN_OFFSET);
+    expectInsideViewport(placement, PANEL);
+  });
+
+  it("keeps the panel inside the viewport near the right edge", () => {
+    const chartBounds = { left: 560, top: 50, right: 792, bottom: 400 };
+    const marker = { x: 700, y: 300 };
+    const placement = computeChartBreakdownPlacement(
+      chartBounds,
+      PANEL,
+      buildChartBreakdownAvoidZones([marker]),
       VIEWPORT
     );
 
@@ -65,11 +84,12 @@ describe("computeChartBreakdownPlacement", () => {
   });
 
   it("keeps the panel inside the viewport near the bottom edge", () => {
-    const anchor = { x: 400, y: 560 };
+    const chartBounds = { left: 100, top: 50, right: 700, bottom: 560 };
+    const marker = { x: 400, y: 520 };
     const placement = computeChartBreakdownPlacement(
-      anchor,
+      chartBounds,
       PANEL,
-      buildChartBreakdownAvoidZones([anchor], null),
+      buildChartBreakdownAvoidZones([marker]),
       VIEWPORT
     );
 
@@ -77,28 +97,27 @@ describe("computeChartBreakdownPlacement", () => {
   });
 
   it("falls back to the least-bad corner when every option overlaps or overflows", () => {
-    const anchor = { x: 400, y: 300 };
+    const marker = { x: 400, y: 300 };
     const hugePanel = { width: 700, height: 500 };
     const placement = computeChartBreakdownPlacement(
-      anchor,
+      CHART_BOUNDS,
       hugePanel,
-      [pointKeepOutZone(anchor.x, anchor.y, 20)],
+      [pointKeepOutZone(marker.x, marker.y, 20)],
       VIEWPORT
     );
 
-    expect(["topLeft", "topRight", "bottomLeft", "bottomRight"]).toContain(placement.corner);
+    expect(["topLeft", "topRight"]).toContain(placement.corner);
+    expect(["left", "right"]).toContain(placement.side);
     expectInsideViewport(placement, hugePanel);
   });
 });
 
 describe("buildChartBreakdownAvoidZones", () => {
-  it("includes zones for markers and cursor", () => {
+  it("includes keep-out zones for marker points", () => {
     const marker = { x: 100, y: 200 };
-    const cursor = { x: 110, y: 210 };
-    const zones = buildChartBreakdownAvoidZones([marker], cursor);
+    const zones = buildChartBreakdownAvoidZones([marker]);
 
-    expect(zones).toHaveLength(2);
+    expect(zones).toHaveLength(1);
     expect(zones[0]).toEqual(pointKeepOutZone(marker.x, marker.y));
-    expect(zones[1]).toEqual(pointKeepOutZone(cursor.x, cursor.y));
   });
 });

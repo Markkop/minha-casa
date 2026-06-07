@@ -118,6 +118,68 @@ export function svgCoordsToClient(
   };
 }
 
+export function svgCoordsToLocal(
+  svg: SVGSVGElement,
+  svgX: number,
+  svgY: number,
+  viewWidth: number,
+  viewHeight: number
+): { x: number; y: number } {
+  const rect = svg.getBoundingClientRect();
+  const parentRect = svg.parentElement?.getBoundingClientRect();
+  const localLeft = parentRect ? rect.left - parentRect.left : 0;
+  const localTop = parentRect ? rect.top - parentRect.top : 0;
+
+  return {
+    x: localLeft + (svgX / viewWidth) * rect.width,
+    y: localTop + (svgY / viewHeight) * rect.height
+  };
+}
+
+export function svgPlotBoundsToClient(
+  svg: SVGSVGElement,
+  viewWidth: number,
+  viewHeight: number,
+  pad = CHART_PADDING
+): { left: number; top: number; right: number; bottom: number } {
+  const topLeft = svgCoordsToClient(svg, pad.left, pad.top, viewWidth, viewHeight);
+  const bottomRight = svgCoordsToClient(
+    svg,
+    viewWidth - pad.right,
+    viewHeight - pad.bottom,
+    viewWidth,
+    viewHeight
+  );
+  return {
+    left: topLeft.x,
+    top: topLeft.y,
+    right: bottomRight.x,
+    bottom: bottomRight.y
+  };
+}
+
+export function svgPlotBoundsToLocal(
+  svg: SVGSVGElement,
+  viewWidth: number,
+  viewHeight: number,
+  pad = CHART_PADDING
+): { left: number; top: number; right: number; bottom: number } {
+  const topLeft = svgCoordsToLocal(svg, pad.left, pad.top, viewWidth, viewHeight);
+  const bottomRight = svgCoordsToLocal(
+    svg,
+    viewWidth - pad.right,
+    viewHeight - pad.bottom,
+    viewWidth,
+    viewHeight
+  );
+  return {
+    left: topLeft.x,
+    top: topLeft.y,
+    right: bottomRight.x,
+    bottom: bottomRight.y
+  };
+}
+
 export function pickChartHover(
   cenarios: CenarioCompleto[],
   svgX: number,

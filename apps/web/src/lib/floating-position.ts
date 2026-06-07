@@ -152,7 +152,8 @@ export type BoundsRect = {
 export const CHART_BREAKDOWN_KEEP_OUT_RADIUS = 20;
 export const CHART_BREAKDOWN_OFFSET = CHART_BREAKDOWN_KEEP_OUT_RADIUS + 2;
 
-export type ChartBreakdownCorner = "bottomRight" | "bottomLeft" | "topRight" | "topLeft";
+export type ChartBreakdownCorner = "topRight" | "topLeft";
+export type ChartBreakdownSide = "left" | "right";
 
 export function pointKeepOutZone(
   x: number,
@@ -167,31 +168,41 @@ export function pointKeepOutZone(
   };
 }
 
-export function chartBreakdownCornerPositions(
-  anchor: { x: number; y: number },
-  panelSize: { width: number; height: number },
-  offset = CHART_BREAKDOWN_OFFSET
-): { corner: ChartBreakdownCorner; left: number; top: number }[] {
-  const { width, height } = panelSize;
+function boundsCenter(bounds: BoundsRect): { x: number; y: number } {
+  return {
+    x: (bounds.left + bounds.right) / 2,
+    y: (bounds.top + bounds.bottom) / 2
+  };
+}
 
-  return [
-    { corner: "topLeft", left: anchor.x + offset, top: anchor.y + offset },
-    { corner: "topRight", left: anchor.x - width - offset, top: anchor.y + offset },
-    { corner: "bottomLeft", left: anchor.x + offset, top: anchor.y - height - offset },
-    { corner: "bottomRight", left: anchor.x - width - offset, top: anchor.y - height - offset }
-  ];
+export function chartBreakdownSidePositions(
+  chartBounds: BoundsRect,
+  panelSize: { width: number; height: number },
+  avoidZones: BoundsRect[] = [],
+  offset = CHART_BREAKDOWN_OFFSET
+): { corner: ChartBreakdownCorner; side: ChartBreakdownSide; left: number; top: number }[] {
+  const { width } = panelSize;
+  const { left, top, right } = chartBounds;
+  const activePoint = avoidZones[0] ? boundsCenter(avoidZones[0]) : null;
+  const chartCenter = boundsCenter(chartBounds);
+
+  const sideOrder: ChartBreakdownSide[] =
+    !activePoint || activePoint.x < chartCenter.x ? ["right", "left"] : ["left", "right"];
+  const panelTop = top + offset;
+
+  return sideOrder.map((side) => ({
+    corner: side === "left" ? "topLeft" : "topRight",
+    side,
+    left: side === "left" ? left + offset : right - width - offset,
+    top: panelTop
+  }));
 }
 
 export function buildChartBreakdownAvoidZones(
   markerPoints: { x: number; y: number }[],
-  cursor: { x: number; y: number } | null,
   radius = CHART_BREAKDOWN_KEEP_OUT_RADIUS
 ): BoundsRect[] {
-  const zones = markerPoints.map((point) => pointKeepOutZone(point.x, point.y, radius));
-  if (cursor) {
-    zones.push(pointKeepOutZone(cursor.x, cursor.y, radius));
-  }
-  return zones;
+  return markerPoints.map((point) => pointKeepOutZone(point.x, point.y, radius));
 }
 
 export function panelBoundsAt(
@@ -209,6 +220,16 @@ export function rectsOverlap(a: BoundsRect, b: BoundsRect): boolean {
 
 function overlapsAny(panel: BoundsRect, zones: BoundsRect[]): boolean {
   return zones.some((zone) => rectsOverlap(panel, zone));
+}
+
+function overlapArea(a: BoundsRect, b: BoundsRect): number {
+  const width = Math.max(0, Math.min(a.right, b.right) - Math.max(a.left, b.left));
+  const height = Math.max(0, Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top));
+  return width * height;
+}
+
+function totalOverlapArea(panel: BoundsRect, zones: BoundsRect[]): number {
+  return zones.reduce((total, zone) => total + overlapArea(panel, zone), 0);
 }
 
 function viewportOverflow(
@@ -230,7 +251,7 @@ function viewportOverflow(
 }
 
 export function computeChartBreakdownPlacement(
-  anchor: { x: number; y: number },
+  chartBounds: BoundsRect,
   panelSize: { width: number; height: number },
   avoidZones: BoundsRect[],
   options: {
@@ -239,7 +260,7 @@ export function computeChartBreakdownPlacement(
     viewportWidth?: number;
     viewportHeight?: number;
   } = {}
-): { left: number; top: number; corner: ChartBreakdownCorner } {
+): { left: number; top: number; corner: ChartBreakdownCorner; side: ChartBreakdownSide } {
   const {
     offset = CHART_BREAKDOWN_OFFSET,
     padding = VIEWPORT_PADDING,
@@ -248,32 +269,38 @@ export function computeChartBreakdownPlacement(
   } = options;
 
   const { width, height } = panelSize;
-  const candidates = chartBreakdownCornerPositions(anchor, panelSize, offset);
+  const candidates = chartBreakdownSidePositions(chartBounds, panelSize, avoidZones, offset);
 
   const clampPosition = (left: number, top: number) => ({
     left: clamp(left, padding, Math.max(padding, viewportWidth - width - padding)),
     top: clamp(top, padding, Math.max(padding, viewportHeight - height - padding))
   });
 
-  let best: { left: number; top: number; corner: ChartBreakdownCorner; score: number } | null =
+  let best: {
+    left: number;
+    top: number;
+    corner: ChartBreakdownCorner;
+    side: ChartBreakdownSide;
+    score: number;
+  } | null =
     null;
 
   for (let i = 0; i < candidates.length; i++) {
-    const { corner, left: rawLeft, top: rawTop } = candidates[i];
+    const { corner, side, left: rawLeft, top: rawTop } = candidates[i];
     const { left, top } = clampPosition(rawLeft, rawTop);
     const panel = panelBoundsAt(left, top, width, height);
     const overlap = overlapsAny(panel, avoidZones);
     const overflow = viewportOverflow(panel, viewportWidth, viewportHeight, padding);
-    const score = (overlap ? 1000 : 0) + overflow + i;
+    const score = totalOverlapArea(panel, avoidZones) + overflow * 1000 + i;
 
     if (!best || score < best.score) {
-      best = { left, top, corner, score };
+      best = { left, top, corner, side, score };
     }
 
     if (!overlap && overflow === 0) {
-      return { left, top, corner };
+      return { left, top, corner, side };
     }
   }
 
-  return { left: best!.left, top: best!.top, corner: best!.corner };
+  return { left: best!.left, top: best!.top, corner: best!.corner, side: best!.side };
 }

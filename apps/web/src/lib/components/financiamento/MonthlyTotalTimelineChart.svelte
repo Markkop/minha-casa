@@ -10,14 +10,17 @@
     monthlyTotalAtHover,
     pickChartHoverForTotal,
     polylinePointsForTotal,
-    svgCoordsToClient,
+    svgCoordsToLocal,
+    svgPlotBoundsToLocal,
     svgPointFromPointer,
     xForMonth,
     yForBalance,
     type ChartHover
   } from "$lib/components/financiamento/debt-timeline-chart-math";
   import ChartHoverBreakdownPanel from "$lib/components/financiamento/ChartHoverBreakdownPanel.svelte";
+  import ChartSelectionColumnDismiss from "$lib/components/financiamento/ChartSelectionColumnDismiss.svelte";
   import {
+    hoverMatchesSelection,
     isChartPointerClick,
     resolveTimelineSelection,
     selectionFromTimelinePointer
@@ -122,7 +125,6 @@
 
   let svgEl = $state<SVGSVGElement | null>(null);
   let hover = $state<ChartHover | null>(null);
-  let pointerAnchor = $state<{ x: number; y: number } | null>(null);
   let pointerDown = $state<{ x: number; y: number } | null>(null);
 
   const chartSelection = getChartSelectionContext();
@@ -142,22 +144,54 @@
     return resolveTimelineSelection(chartSelection.selection, cenarios);
   });
 
-  const activePoint = $derived(hoveredPoint ?? selectedPoint);
-  const activeCenarioId = $derived(hover?.cenarioId ?? chartSelection.selection?.cenarioId ?? null);
-  const isSelectionPinned = $derived(!hover && !!selectedPoint);
+  const focusPoint = $derived(selectedPoint ?? hoveredPoint);
+  const isSelectionPinned = $derived(!!selectedPoint);
+  const breakdownPoint = $derived(
+    isSelectionPinned && !chartSelection.breakdownDismissed ? selectedPoint : hoveredPoint
+  );
+  const isHoveringSelectedPoint = $derived(
+    !!hover &&
+      !!chartSelection.selection &&
+      hoverMatchesSelection(hover, chartSelection.selection, cenarios)
+  );
+  const activeCenarioId = $derived(chartSelection.selection?.cenarioId ?? hover?.cenarioId ?? null);
+  const showBreakdownPanel = $derived(
+    (isSelectionPinned && !chartSelection.breakdownDismissed) ||
+      (isSelectionPinned && chartSelection.breakdownDismissed && isHoveringSelectedPoint) ||
+      (!isSelectionPinned && !!hoveredPoint)
+  );
+  const breakdownDismissable = $derived(isSelectionPinned && !chartSelection.breakdownDismissed);
 
-  const activeX = $derived(
-    activePoint
-      ? xForMonth(activePoint.month.mes, maxMonth, chartWidth, padding)
+  const focusX = $derived(
+    focusPoint
+      ? xForMonth(focusPoint.month.mes, maxMonth, chartWidth, padding)
       : null
   );
 
-  const activeY = $derived.by(() => {
-    if (!activePoint) return null;
-    const idx = activePoint.cenario.timeline.findIndex((m) => m.mes === activePoint.month.mes);
+  const focusY = $derived.by(() => {
+    if (!focusPoint) return null;
+    const idx = focusPoint.cenario.timeline.findIndex((m) => m.mes === focusPoint.month.mes);
     if (idx < 0) return null;
     return yForBalance(
-      monthlyTotalAtHover(activePoint.cenario, idx, custoMensal),
+      monthlyTotalAtHover(focusPoint.cenario, idx, custoMensal),
+      maxValue,
+      height,
+      padding
+    );
+  });
+
+  const breakdownX = $derived(
+    breakdownPoint
+      ? xForMonth(breakdownPoint.month.mes, maxMonth, chartWidth, padding)
+      : null
+  );
+
+  const breakdownY = $derived.by(() => {
+    if (!breakdownPoint) return null;
+    const idx = breakdownPoint.cenario.timeline.findIndex((m) => m.mes === breakdownPoint.month.mes);
+    if (idx < 0) return null;
+    return yForBalance(
+      monthlyTotalAtHover(breakdownPoint.cenario, idx, custoMensal),
       maxValue,
       height,
       padding
@@ -166,28 +200,22 @@
 
   const columnPitch = $derived(monthPitch(plotWidth, maxMonth));
 
-  const breakdownAnchor = $derived.by(() => {
-    if (hover) return pointerAnchor;
-    if (selectedPoint && svgEl && activeX !== null) {
-      return svgCoordsToClient(
-        svgEl,
-        activeX,
-        padding.top + plotHeight / 2,
-        chartWidth,
-        height
-      );
-    }
-    return null;
+  const breakdownChartBounds = $derived.by(() => {
+    if (!svgEl) return null;
+    return svgPlotBoundsToLocal(svgEl, chartWidth, height, padding);
   });
 
   const avoidPoints = $derived.by(() => {
-    if (!svgEl || activeX === null || activeY === null) return [];
-    return [svgCoordsToClient(svgEl, activeX, activeY, chartWidth, height)];
+    if (!showBreakdownPanel || !svgEl || breakdownX === null || breakdownY === null) return [];
+    return [svgCoordsToLocal(svgEl, breakdownX, breakdownY, chartWidth, height)];
   });
 
   function handleChartPointerMove(event: PointerEvent) {
     if (!svgEl) return;
-    pointerAnchor = { x: event.clientX, y: event.clientY };
+    if (chartSelection.selection && !chartSelection.breakdownDismissed) {
+      hover = null;
+      return;
+    }
     const { x, y } = svgPointFromPointer(svgEl, event, chartWidth, height);
     const next = pickChartHoverForTotal(
       cenarios,
@@ -199,6 +227,11 @@
       hover,
       custoMensal
     );
+    if (chartSelection.selection && chartSelection.breakdownDismissed) {
+      hover =
+        next && hoverMatchesSelection(next, chartSelection.selection, cenarios) ? next : null;
+      return;
+    }
     if (
       next &&
       hover &&
@@ -237,7 +270,6 @@
 
   function handleChartPointerLeave() {
     pointerDown = null;
-    pointerAnchor = null;
     hover = null;
   }
 
@@ -265,7 +297,7 @@
         role="img"
         aria-label="Gráfico de total mensal por cenário"
       >
-        {#each yTicks as tick}
+        {#each yTicks as tick (tick.label)}
           <line
             x1={padding.left}
             y1={tick.y}
@@ -285,7 +317,7 @@
           </text>
         {/each}
 
-        {#each xMonthGrid as tick}
+        {#each xMonthGrid as tick (tick.month)}
           <line
             x1={tick.x}
             y1={padding.top}
@@ -296,7 +328,7 @@
           />
         {/each}
 
-        {#each xLabelTicks as tick}
+        {#each xLabelTicks as tick (tick.month)}
           <line
             x1={tick.x}
             y1={height - padding.bottom}
@@ -414,11 +446,12 @@
           onpointerleave={handleChartPointerLeave}
         />
 
-        {#if activePoint && activeX !== null}
+        {#if focusPoint && focusX !== null}
+          {@const { cenario, month } = focusPoint}
           <g class="pointer-events-none">
             {#if isSelectionPinned}
               <rect
-                x={activeX - columnPitch / 2}
+                x={focusX - columnPitch / 2}
                 y={padding.top}
                 width={columnPitch}
                 height={plotHeight}
@@ -427,9 +460,9 @@
               />
             {/if}
             <line
-              x1={activeX}
+              x1={focusX}
               y1={padding.top}
-              x2={activeX}
+              x2={focusX}
               y2={height - padding.bottom}
               stroke={isSelectionPinned
                 ? "var(--color-app-accent)"
@@ -439,7 +472,6 @@
               opacity={isSelectionPinned ? 1 : 0.9}
             />
             {#each cenarios as other, i (other.id)}
-              {@const { cenario, month } = activePoint}
               {@const idx = other.timeline.findIndex((m) => m.mes === month.mes)}
               {#if idx >= 0}
                 {@const om = other.timeline[idx]}
@@ -464,15 +496,26 @@
             {/each}
           </g>
         {/if}
+
+        {#if isSelectionPinned && focusX !== null}
+          <ChartSelectionColumnDismiss
+            columnCenterX={focusX}
+            {columnPitch}
+            columnTop={padding.top}
+            onDismiss={() => chartSelection.clearSelection()}
+          />
+        {/if}
       </svg>
 
-      {#if activePoint}
-        {@const { cenario, month } = activePoint}
+      {#if showBreakdownPanel && breakdownPoint}
+        {@const { cenario, month } = breakdownPoint}
         {@const gastos = monthlyExpenseBreakdown(month, custoMensal)}
         {@const saldoLivre = renderedFreeBalance(month, cenario.rendaMensal, custoMensal)}
         <ChartHoverBreakdownPanel
-          open={!!activePoint}
-          anchor={breakdownAnchor}
+          open={showBreakdownPanel}
+          dismissable={breakdownDismissable}
+          onDismiss={() => chartSelection.dismissBreakdown()}
+          chartBounds={breakdownChartBounds}
           {avoidPoints}
         >
           <p class="mb-1 font-medium text-app-fg">{scenarioLabel(cenario)}</p>

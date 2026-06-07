@@ -81,3 +81,31 @@ export function isChartPointerClick(
   const dy = event.clientY - down.y;
   return dx * dx + dy * dy <= CHART_CLICK_DRAG_THRESHOLD_PX * CHART_CLICK_DRAG_THRESHOLD_PX;
 }
+
+export function hoverMatchesSelection(
+  hover: ChartHover,
+  selection: ChartPointSelection,
+  cenarios: CenarioCompleto[]
+): boolean {
+  if (hover.cenarioId !== selection.cenarioId) return false;
+
+  const cenario = cenarios.find((item) => item.id === selection.cenarioId);
+  if (!cenario) return false;
+
+  const month = cenario.timeline[hover.monthIndex];
+  if (!month) return selection.mes === 0 && hover.monthIndex === 0;
+
+  return month.mes === selection.mes;
+}
+
+export function hoverMatchesLedgerSelection(
+  hover: ChartHover,
+  selection: ChartPointSelection,
+  ledgers: BalanceLedgerSeries[]
+): boolean {
+  if (hover.cenarioId !== selection.cenarioId) return false;
+
+  const series = ledgers.find((item) => item.cenario.id === hover.cenarioId);
+  const point = series?.points[hover.monthIndex];
+  return point?.mes === selection.mes;
+}

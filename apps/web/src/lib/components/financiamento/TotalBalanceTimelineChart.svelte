@@ -5,12 +5,15 @@
     CHART_HEIGHT,
     CHART_PADDING,
     monthPitch,
-    svgCoordsToClient,
+    svgCoordsToLocal,
+    svgPlotBoundsToLocal,
     svgPointFromPointer,
     type ChartHover
   } from "$lib/components/financiamento/debt-timeline-chart-math";
   import ChartHoverBreakdownPanel from "$lib/components/financiamento/ChartHoverBreakdownPanel.svelte";
+  import ChartSelectionColumnDismiss from "$lib/components/financiamento/ChartSelectionColumnDismiss.svelte";
   import {
+    hoverMatchesLedgerSelection,
     isChartPointerClick,
     mesFromLedgerHover,
     resolveLedgerSelection
@@ -74,7 +77,6 @@
   let containerWidth = $state(0);
   let svgEl = $state<SVGSVGElement | null>(null);
   let hover = $state<ChartHover | null>(null);
-  let pointerAnchor = $state<{ x: number; y: number } | null>(null);
   let pointerDown = $state<{ x: number; y: number } | null>(null);
 
   $effect(() => {
@@ -108,41 +110,58 @@
     return resolveLedgerSelection(chartSelection.selection, ledgers);
   });
 
-  const activePoint = $derived(hoveredPoint ?? selectedPoint);
-  const activeCenarioId = $derived(hover?.cenarioId ?? chartSelection.selection?.cenarioId ?? null);
-  const isSelectionPinned = $derived(!hover && !!selectedPoint);
+  const focusPoint = $derived(selectedPoint ?? hoveredPoint);
+  const isSelectionPinned = $derived(!!selectedPoint);
+  const breakdownPoint = $derived(
+    isSelectionPinned && !chartSelection.breakdownDismissed ? selectedPoint : hoveredPoint
+  );
+  const isHoveringSelectedPoint = $derived(
+    !!hover &&
+      !!chartSelection.selection &&
+      hoverMatchesLedgerSelection(hover, chartSelection.selection, ledgers)
+  );
+  const activeCenarioId = $derived(chartSelection.selection?.cenarioId ?? hover?.cenarioId ?? null);
+  const showBreakdownPanel = $derived(
+    (isSelectionPinned && !chartSelection.breakdownDismissed) ||
+      (isSelectionPinned && chartSelection.breakdownDismissed && isHoveringSelectedPoint) ||
+      (!isSelectionPinned && !!hoveredPoint)
+  );
+  const breakdownDismissable = $derived(isSelectionPinned && !chartSelection.breakdownDismissed);
 
-  const activeX = $derived(
-    activePoint
-      ? xForLedgerMonth(activePoint.point.mes, maxMonth, chartWidth, padding)
+  const focusX = $derived(
+    focusPoint
+      ? xForLedgerMonth(focusPoint.point.mes, maxMonth, chartWidth, padding)
       : null
   );
 
-  const activeY = $derived(
-    activePoint
-      ? yForLedgerValue(activePoint.point.saldo, yAxis, height, padding)
+  const focusY = $derived(
+    focusPoint
+      ? yForLedgerValue(focusPoint.point.saldo, yAxis, height, padding)
+      : null
+  );
+
+  const breakdownX = $derived(
+    breakdownPoint
+      ? xForLedgerMonth(breakdownPoint.point.mes, maxMonth, chartWidth, padding)
+      : null
+  );
+
+  const breakdownY = $derived(
+    breakdownPoint
+      ? yForLedgerValue(breakdownPoint.point.saldo, yAxis, height, padding)
       : null
   );
 
   const columnPitch = $derived(monthPitch(plotWidth, maxMonth));
 
-  const breakdownAnchor = $derived.by(() => {
-    if (hover) return pointerAnchor;
-    if (selectedPoint && svgEl && activeX !== null) {
-      return svgCoordsToClient(
-        svgEl,
-        activeX,
-        padding.top + plotHeight / 2,
-        chartWidth,
-        height
-      );
-    }
-    return null;
+  const breakdownChartBounds = $derived.by(() => {
+    if (!svgEl) return null;
+    return svgPlotBoundsToLocal(svgEl, chartWidth, height, padding);
   });
 
   const avoidPoints = $derived.by(() => {
-    if (!svgEl || activeX === null || activeY === null) return [];
-    return [svgCoordsToClient(svgEl, activeX, activeY, chartWidth, height)];
+    if (!showBreakdownPanel || !svgEl || breakdownX === null || breakdownY === null) return [];
+    return [svgCoordsToLocal(svgEl, breakdownX, breakdownY, chartWidth, height)];
   });
 
   const zeroY = $derived(yForLedgerValue(0, yAxis, height, padding));
@@ -176,9 +195,18 @@
 
   function handleChartPointerMove(event: PointerEvent) {
     if (!svgEl) return;
-    pointerAnchor = { x: event.clientX, y: event.clientY };
+    if (chartSelection.selection && !chartSelection.breakdownDismissed) {
+      hover = null;
+      return;
+    }
     const { x, y } = svgPointFromPointer(svgEl, event, chartWidth, height);
-    hover = pickLedgerHover(ledgers, x, y, maxMonth, yAxis, chartWidth, hover);
+    const next = pickLedgerHover(ledgers, x, y, maxMonth, yAxis, chartWidth, hover);
+    if (chartSelection.selection && chartSelection.breakdownDismissed) {
+      hover =
+        next && hoverMatchesLedgerSelection(next, chartSelection.selection, ledgers) ? next : null;
+      return;
+    }
+    hover = next;
   }
 
   function handleChartPointerDown(event: PointerEvent) {
@@ -202,7 +230,6 @@
 
   function handleChartPointerLeave() {
     pointerDown = null;
-    pointerAnchor = null;
     hover = null;
   }
 
@@ -231,7 +258,7 @@
         role="img"
         aria-label="Gráfico de saldo total disponível por cenário"
       >
-        {#each yTicks as tick}
+        {#each yTicks as tick (tick.value)}
           <line
             x1={padding.left}
             y1={tick.y}
@@ -267,7 +294,7 @@
           />
         {/if}
 
-        {#each xMonthGrid as tick}
+        {#each xMonthGrid as tick (tick.month)}
           <line
             x1={tick.x}
             y1={padding.top}
@@ -278,7 +305,7 @@
           />
         {/each}
 
-        {#each xLabelTicks as tick}
+        {#each xLabelTicks as tick (tick.month)}
           <line
             x1={tick.x}
             y1={height - padding.bottom}
@@ -353,11 +380,11 @@
           onpointerleave={handleChartPointerLeave}
         />
 
-        {#if activePoint && activeX !== null}
+        {#if focusPoint && focusX !== null}
           <g class="pointer-events-none">
             {#if isSelectionPinned}
               <rect
-                x={activeX - columnPitch / 2}
+                x={focusX - columnPitch / 2}
                 y={padding.top}
                 width={columnPitch}
                 height={plotHeight}
@@ -366,9 +393,9 @@
               />
             {/if}
             <line
-              x1={activeX}
+              x1={focusX}
               y1={padding.top}
-              x2={activeX}
+              x2={focusX}
               y2={height - padding.bottom}
               stroke={isSelectionPinned
                 ? "var(--color-app-accent)"
@@ -378,30 +405,41 @@
               opacity={isSelectionPinned ? 1 : 0.9}
             />
             {#each ledgers as other, i (other.cenario.id)}
-              {@const point = other.points.find((item) => item.mes === activePoint.point.mes)}
+              {@const point = other.points.find((item) => item.mes === focusPoint.point.mes)}
               {#if point}
                 <circle
                   cx={xForLedgerMonth(point.mes, maxMonth, chartWidth, padding)}
                   cy={yForLedgerValue(point.saldo, yAxis, height, padding)}
-                  r={other.cenario.id === activePoint.series.cenario.id ? 5 : 3}
+                  r={other.cenario.id === focusPoint.series.cenario.id ? 5 : 3}
                   fill={CHART_COLORS[i % CHART_COLORS.length]}
-                  opacity={other.cenario.id === activePoint.series.cenario.id ? 1 : 0.35}
-                  class={other.cenario.id === activePoint.series.cenario.id
+                  opacity={other.cenario.id === focusPoint.series.cenario.id ? 1 : 0.35}
+                  class={other.cenario.id === focusPoint.series.cenario.id
                     ? "stroke-app-surface"
                     : ""}
-                  stroke-width={other.cenario.id === activePoint.series.cenario.id ? 2 : 0}
+                  stroke-width={other.cenario.id === focusPoint.series.cenario.id ? 2 : 0}
                 />
               {/if}
             {/each}
           </g>
         {/if}
+
+        {#if isSelectionPinned && focusX !== null}
+          <ChartSelectionColumnDismiss
+            columnCenterX={focusX}
+            {columnPitch}
+            columnTop={padding.top}
+            onDismiss={() => chartSelection.clearSelection()}
+          />
+        {/if}
       </svg>
 
-      {#if activePoint}
-        {@const { series, point } = activePoint}
+      {#if showBreakdownPanel && breakdownPoint}
+        {@const { series, point } = breakdownPoint}
         <ChartHoverBreakdownPanel
-          open={!!activePoint}
-          anchor={breakdownAnchor}
+          open={showBreakdownPanel}
+          dismissable={breakdownDismissable}
+          onDismiss={() => chartSelection.dismissBreakdown()}
+          chartBounds={breakdownChartBounds}
           {avoidPoints}
         >
           <p class="mb-1 font-medium text-app-fg">{scenarioLabel(series.cenario)}</p>
