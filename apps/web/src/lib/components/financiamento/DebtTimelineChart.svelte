@@ -6,6 +6,7 @@
     CHART_HEIGHT,
     CHART_PADDING,
     maxSaldoDevedorData,
+    monthPitch,
     pickChartHover,
     polylinePoints,
     debtBalanceAtHover,
@@ -16,6 +17,12 @@
     type ChartHover
   } from "$lib/components/financiamento/debt-timeline-chart-math";
   import ChartHoverBreakdownPanel from "$lib/components/financiamento/ChartHoverBreakdownPanel.svelte";
+  import {
+    isChartPointerClick,
+    resolveTimelineSelection,
+    selectionFromTimelinePointer
+  } from "$lib/components/financiamento/chart-selection";
+  import { getChartSelectionContext } from "$lib/components/financiamento/chart-selection-context.svelte";
   import { renderedDebtBalance } from "$lib/components/financiamento/chart-event-path";
   import {
     formatTimingMonthLabel,
@@ -111,6 +118,9 @@
   let svgEl = $state<SVGSVGElement | null>(null);
   let hover = $state<ChartHover | null>(null);
   let pointerAnchor = $state<{ x: number; y: number } | null>(null);
+  let pointerDown = $state<{ x: number; y: number } | null>(null);
+
+  const chartSelection = getChartSelectionContext();
 
   const hoveredPoint = $derived.by(() => {
     const active = hover;
@@ -122,27 +132,52 @@
     return { cenario, month };
   });
 
-  const hoverX = $derived(
-    hoveredPoint
-      ? xForMonth(hoveredPoint.month.mes, maxMonth, chartWidth, padding)
+  const selectedPoint = $derived.by(() => {
+    if (!chartSelection.selection) return null;
+    return resolveTimelineSelection(chartSelection.selection, cenarios);
+  });
+
+  const activePoint = $derived(hoveredPoint ?? selectedPoint);
+  const activeCenarioId = $derived(hover?.cenarioId ?? chartSelection.selection?.cenarioId ?? null);
+  const isSelectionPinned = $derived(!hover && !!selectedPoint);
+
+  const activeX = $derived(
+    activePoint
+      ? xForMonth(activePoint.month.mes, maxMonth, chartWidth, padding)
       : null
   );
 
-  const hoverY = $derived.by(() => {
-    if (!hover) return null;
-    const cenario = cenarios.find((c) => c.id === hover.cenarioId);
-    if (!cenario) return null;
+  const activeY = $derived.by(() => {
+    if (!activePoint) return null;
+    const idx = activePoint.cenario.timeline.findIndex((m) => m.mes === activePoint.month.mes);
+    if (idx < 0) return null;
     return yForBalance(
-      debtBalanceAtHover(cenario, hover.monthIndex),
+      debtBalanceAtHover(activePoint.cenario, idx),
       maxBalance,
       height,
       padding
     );
   });
 
+  const columnPitch = $derived(monthPitch(plotWidth, maxMonth));
+
+  const breakdownAnchor = $derived.by(() => {
+    if (hover) return pointerAnchor;
+    if (selectedPoint && svgEl && activeX !== null) {
+      return svgCoordsToClient(
+        svgEl,
+        activeX,
+        padding.top + plotHeight / 2,
+        chartWidth,
+        height
+      );
+    }
+    return null;
+  });
+
   const avoidPoints = $derived.by(() => {
-    if (!svgEl || hoverX === null || hoverY === null) return [];
-    return [svgCoordsToClient(svgEl, hoverX, hoverY, chartWidth, height)];
+    if (!svgEl || activeX === null || activeY === null) return [];
+    return [svgCoordsToClient(svgEl, activeX, activeY, chartWidth, height)];
   });
 
   function handleChartPointerMove(event: PointerEvent) {
@@ -161,7 +196,24 @@
     hover = next;
   }
 
+  function handleChartPointerDown(event: PointerEvent) {
+    pointerDown = { x: event.clientX, y: event.clientY };
+  }
+
+  function handleChartPointerUp(event: PointerEvent) {
+    if (!svgEl || !isChartPointerClick(pointerDown, event)) {
+      pointerDown = null;
+      return;
+    }
+    pointerDown = null;
+    const { x, y } = svgPointFromPointer(svgEl, event, chartWidth, height);
+    const pick = pickChartHover(cenarios, x, y, maxMonth, maxBalance, chartWidth, hover);
+    if (!pick) return;
+    chartSelection.toggleSelection(selectionFromTimelinePointer(x, pick, maxMonth, chartWidth));
+  }
+
   function handleChartPointerLeave() {
+    pointerDown = null;
     pointerAnchor = null;
     hover = null;
   }
@@ -247,7 +299,7 @@
           {#each cenarios as cenario, i (cenario.id)}
             {@const color = CHART_COLORS[i % CHART_COLORS.length]}
             {@const points = polylinePoints(cenario, maxMonth, maxBalance, chartWidth)}
-            {@const isActive = hover?.cenarioId === cenario.id}
+            {@const isActive = activeCenarioId === cenario.id}
             {#if points}
               <polyline
                 fill="none"
@@ -256,7 +308,7 @@
                 stroke-linejoin="round"
                 stroke-linecap="round"
                 points={points}
-                opacity={hover && !isActive ? 0.3 : 1}
+                opacity={activeCenarioId && !isActive ? 0.3 : 1}
               />
             {/if}
 
@@ -308,23 +360,37 @@
           fill="transparent"
           class="cursor-crosshair"
           aria-hidden="true"
+          onpointerdown={handleChartPointerDown}
           onpointermove={handleChartPointerMove}
+          onpointerup={handleChartPointerUp}
           onpointerleave={handleChartPointerLeave}
         />
 
-        {#if hoveredPoint && hoverX !== null}
+        {#if activePoint && activeX !== null}
           <g class="pointer-events-none">
+            {#if isSelectionPinned}
+              <rect
+                x={activeX - columnPitch / 2}
+                y={padding.top}
+                width={columnPitch}
+                height={plotHeight}
+                fill="var(--color-app-accent)"
+                opacity="0.08"
+              />
+            {/if}
             <line
-              x1={hoverX}
+              x1={activeX}
               y1={padding.top}
-              x2={hoverX}
+              x2={activeX}
               y2={height - padding.bottom}
-              stroke="var(--color-app-border-strong, currentColor)"
-              stroke-width="1"
-              class="text-app-muted"
-              opacity="0.9"
+              stroke={isSelectionPinned
+                ? "var(--color-app-accent)"
+                : "var(--color-app-border-strong, currentColor)"}
+              stroke-width={isSelectionPinned ? 2 : 1}
+              class={isSelectionPinned ? "" : "text-app-muted"}
+              opacity={isSelectionPinned ? 1 : 0.9}
             />
-            {@const { cenario, month } = hoveredPoint}
+            {@const { cenario, month } = activePoint}
             {#each cenarios as other, i (other.id)}
               {@const idx = other.timeline.findIndex((m) => m.mes === month.mes)}
               {#if idx >= 0}
@@ -347,14 +413,17 @@
         {/if}
       </svg>
 
-      {#if hoveredPoint}
-        {@const { cenario } = hoveredPoint}
-        <ChartHoverBreakdownPanel open={!!hoveredPoint} anchor={pointerAnchor} {avoidPoints}>
+      {#if activePoint}
+        {@const { cenario, month } = activePoint}
+        {@const gastos = monthlyExpenseBreakdown(month, custoMensal)}
+        {@const saldoLivre = monthlyFreeBalance(month, cenario.rendaMensal, custoMensal)}
+        <ChartHoverBreakdownPanel
+          open={!!activePoint}
+          anchor={breakdownAnchor}
+          {avoidPoints}
+        >
           <p class="mb-1 font-medium text-app-fg">{scenarioLabel(cenario)}</p>
           <dl class="grid grid-cols-[auto_1fr] gap-x-2 gap-y-0.5 text-app-muted">
-            {@const { month } = hoveredPoint}
-            {@const gastos = monthlyExpenseBreakdown(month, custoMensal)}
-            {@const saldoLivre = monthlyFreeBalance(month, cenario.rendaMensal, custoMensal)}
             <dt>Mês</dt>
             <dd class="font-mono text-app-fg">
               {month.mes}
@@ -415,8 +484,9 @@
       {/each}
     </ul>
     <p class="mt-2 text-[10px] text-app-subtle">
-      Passe o mouse sobre o gráfico para ver cada mês · linhas tracejadas: venda · círculo no topo:
-      quantia extra · quadrado inferior: reforma concluída
+      Passe o mouse sobre o gráfico para ver cada mês · clique para selecionar ou desselecionar ·
+      linhas tracejadas: venda · círculo no topo: quantia extra · quadrado inferior: reforma
+      concluída
     </p>
   </div>
 {/if}

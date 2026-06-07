@@ -1,9 +1,8 @@
 <script lang="ts">
-  import { tick, type Snippet } from "svelte";
-  import {
-    buildChartBreakdownAvoidZones,
-    computeChartBreakdownPlacement
-  } from "$lib/floating-position";
+  import { onDestroy, tick, type Snippet } from "svelte";
+  import { TOOLTIP_SURFACE_FLOATING_CLASS } from "$lib/components/ui/tooltip-content";
+  import { computeChartBreakdownPlacement } from "$lib/floating-position";
+  import { cn } from "$lib/utils";
 
   let {
     open = false,
@@ -20,8 +19,6 @@
   let panelRef = $state<HTMLDivElement | null>(null);
   let panelStyle = $state("left: -9999px; top: -9999px");
 
-  const placementAnchor = $derived(avoidPoints[0] ?? anchor);
-
   function appendToBody(node: HTMLDivElement) {
     document.body.appendChild(node);
     return {
@@ -32,40 +29,43 @@
   }
 
   async function updatePosition() {
-    if (!open || !placementAnchor || !panelRef) return;
+    if (!open || !anchor || !panelRef) return;
     await tick();
-    if (!placementAnchor || !panelRef) return;
+    if (!anchor || !panelRef) return;
 
     const panelRect = panelRef.getBoundingClientRect();
-    if (panelRect.width === 0 || panelRect.height === 0) return;
-
-    const avoidZones = buildChartBreakdownAvoidZones(avoidPoints, anchor);
-    const placement = computeChartBreakdownPlacement(
-      placementAnchor,
-      { width: panelRect.width, height: panelRect.height },
-      avoidZones
-    );
-
+    const avoidZones = avoidPoints.map((point) => ({
+      left: point.x - 8,
+      top: point.y - 8,
+      right: point.x + 8,
+      bottom: point.y + 8
+    }));
+    const placement = computeChartBreakdownPlacement(anchor, panelRect, avoidZones);
     panelStyle = `left: ${placement.left}px; top: ${placement.top}px`;
   }
 
   $effect(() => {
-    if (!open) return;
-    open;
-    anchor;
-    avoidPoints;
+    if (!open || !anchor) return;
     void updatePosition();
+  });
+
+  onDestroy(() => {
+    open = false;
   });
 </script>
 
 <svelte:window onresize={updatePosition} onscroll={updatePosition} />
 
-{#if open}
+{#if open && anchor}
   <div
     bind:this={panelRef}
     use:appendToBody
     role="tooltip"
-    class="pointer-events-none fixed z-[2147483000] max-w-xs rounded-md border border-app-border bg-app-surface/95 p-2 text-xs shadow-md backdrop-blur-sm"
+    class={cn(
+      "pointer-events-none fixed z-[2147483000] max-w-xs",
+      TOOLTIP_SURFACE_FLOATING_CLASS,
+      "p-2 text-xs shadow-md backdrop-blur-sm"
+    )}
     style={panelStyle}
   >
     {@render children()}

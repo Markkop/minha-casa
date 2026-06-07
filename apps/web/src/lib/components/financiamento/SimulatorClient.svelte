@@ -22,6 +22,10 @@
   import { calcularReservaRecomendada, gerarMatrizCenarios } from "$lib/financiamento/calculations";
   import { resolveEffectiveParams } from "$lib/financiamento/financing-effective-params";
   import { valorImovelFromListing } from "$lib/financiamento/listing-valor-imovel";
+  import {
+    createChartSelectionState,
+    setChartSelectionContext
+  } from "$lib/components/financiamento/chart-selection-context.svelte";
   import { getSettingsContext } from "$lib/financiamento/settings-context.svelte";
   import {
     loadSimulatorParams,
@@ -126,6 +130,9 @@
 
   const permutaDisponivel = $derived(params.temImovelParaNegociar);
 
+  const chartSelection = createChartSelectionState();
+  setChartSelectionContext(chartSelection);
+
   const filteredCenarios = $derived(
     cenarios.filter((c) => {
       if (permutaDisponivel) {
@@ -149,6 +156,14 @@
       return true;
     })
   );
+
+  $effect(() => {
+    const selected = chartSelection.selection;
+    if (!selected) return;
+    if (!filteredCenarios.some((cenario) => cenario.id === selected.cenarioId)) {
+      chartSelection.clearSelection();
+    }
+  });
 
   function uniqueNumbers(values: number[]) {
     return Array.from(new Set(values));
