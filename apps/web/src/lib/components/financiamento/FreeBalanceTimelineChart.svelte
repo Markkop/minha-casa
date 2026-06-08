@@ -12,8 +12,18 @@
     xForMonth,
     type ChartHover
   } from "$lib/components/financiamento/debt-timeline-chart-math";
+  import ChartLegend from "$lib/components/financiamento/charts/ChartLegend.svelte";
   import ChartHoverBreakdownPanel from "$lib/components/financiamento/ChartHoverBreakdownPanel.svelte";
-  import ChartSelectionColumnDismiss from "$lib/components/financiamento/ChartSelectionColumnDismiss.svelte";
+  import CollapsibleChartPanel from "$lib/components/financiamento/charts/CollapsibleChartPanel.svelte";
+  import ScenarioChartMarkers from "$lib/components/financiamento/charts/ScenarioChartMarkers.svelte";
+  import TimelineChartAxes from "$lib/components/financiamento/charts/TimelineChartAxes.svelte";
+  import TimelineFocusLayer from "$lib/components/financiamento/charts/TimelineFocusLayer.svelte";
+  import {
+    chartColor,
+    scenarioLabel,
+    scenarioLegendEntries
+  } from "$lib/components/financiamento/charts/chart-shared";
+  import { useResponsiveChartWidth } from "$lib/components/financiamento/charts/use-responsive-chart-width.svelte";
   import {
     hoverMatchesSelection,
     isChartPointerClick,
@@ -29,10 +39,7 @@
   } from "$lib/components/financiamento/free-balance-chart-math";
   import { renderedFreeBalance } from "$lib/components/financiamento/chart-event-path";
   import { monthlyExpenseBreakdown } from "$lib/components/financiamento/monthly-cash-flow";
-  import {
-    formatTimingMonthLabel,
-    formatTimingMonthLabelLong
-  } from "$lib/components/financiamento/parameter-row-helpers";
+  import { formatTimingMonthLabelLong } from "$lib/components/financiamento/parameter-row-helpers";
   import {
     buildSignedYAxisScale,
     yForLedgerValue
@@ -52,44 +59,21 @@
     custoMensal?: number;
   } = $props();
 
-  const CHART_COLORS = [
-    "var(--color-app-accent)",
-    "var(--color-salmon)",
-    "#22c55e",
-    "#a855f7",
-    "#f59e0b",
-    "#06b6d4",
-    "#ec4899",
-    "#84cc16"
-  ];
-
   const padding = CHART_PADDING;
   const height = CHART_HEIGHT;
+  const legendNote =
+    "Renda mensal menos todos os gastos mensais · clique para selecionar ou desselecionar · linha horizontal tracejada: saldo zero · linhas verticais tracejadas: venda · círculo no topo: quantia extra · quadrado inferior: reforma concluída";
   const maxMonth = $derived(
     Math.max(1, ...cenarios.flatMap((cenario) => cenario.timeline.map((month) => month.mes)))
   );
   const yAxis = $derived(buildSignedYAxisScale(freeBalanceValues(cenarios, custoMensal)));
 
   let chartContainer = $state<HTMLDivElement | null>(null);
-  let containerWidth = $state(0);
   let svgEl = $state<SVGSVGElement | null>(null);
   let hover = $state<ChartHover | null>(null);
   let pointerDown = $state<{ x: number; y: number } | null>(null);
-
-  $effect(() => {
-    const el = chartContainer;
-    if (!el || typeof ResizeObserver === "undefined") return;
-
-    const observer = new ResizeObserver((entries) => {
-      const next = entries[0]?.contentRect.width ?? 0;
-      if (next > 0) containerWidth = next;
-    });
-    observer.observe(el);
-    containerWidth = el.clientWidth;
-    return () => observer.disconnect();
-  });
-
-  const chartWidth = $derived(Math.max(280, containerWidth));
+  const chartSize = useResponsiveChartWidth(() => chartContainer);
+  const chartWidth = $derived(chartSize.chartWidth);
   const plotWidth = $derived(chartWidth - padding.left - padding.right);
   const plotHeight = $derived(height - padding.top - padding.bottom);
 
@@ -133,18 +117,6 @@
       : null
   );
 
-  const focusY = $derived.by(() => {
-    if (!focusPoint) return null;
-    const idx = focusPoint.cenario.timeline.findIndex((m) => m.mes === focusPoint.month.mes);
-    if (idx < 0) return null;
-    return yForLedgerValue(
-      freeBalanceAtHover(focusPoint.cenario, idx, custoMensal),
-      yAxis,
-      height,
-      padding
-    );
-  });
-
   const breakdownX = $derived(
     breakdownPoint
       ? xForMonth(breakdownPoint.mes, maxMonth, chartWidth, padding)
@@ -183,27 +155,38 @@
   );
   const yTicks = $derived(
     yAxis.ticks.map((value) => ({
+      key: value,
       value,
       label: formatCurrencyCompact(value),
+      emphasized: value === 0,
       y: yForLedgerValue(value, yAxis, height, padding)
     }))
   );
+  const referenceLines = $derived(yAxis.ticks.includes(0) ? [] : [{ id: "zero", y: zeroY }]);
 
-  function scenarioLabel(cenario: CenarioCompleto): string {
-    const parts = [formatCurrencyCompact(cenario.valorImovel)];
-    if (cenario.estrategia === "permuta") {
-      parts.push("permuta");
-    } else if (cenario.vendaEm !== undefined) {
-      parts.push(`venda ${formatTimingMonthLabel(cenario.vendaEm)}`);
-    }
-    if (cenario.extraEm !== undefined) {
-      parts.push(`extra ${formatTimingMonthLabel(cenario.extraEm)}`);
-    }
-    if (cenario.reformaEm !== undefined) {
-      parts.push(`reforma ${formatTimingMonthLabel(cenario.reformaEm)}`);
-    }
-    return parts.join(" · ");
-  }
+  const focusDots = $derived.by(() => {
+    if (!focusPoint) return [];
+    return cenarios.flatMap((other, index) => {
+      const month =
+        focusPoint.mes === 0
+          ? other.timeline[0]
+          : other.timeline.find((item) => item.mes === focusPoint.month.mes);
+      if (!month) return [];
+      const idx = other.timeline.findIndex((item) => item.mes === month.mes);
+      const value = freeBalanceAtHover(other, idx, custoMensal);
+      return [
+        {
+          id: other.id,
+          x: xForMonth(focusPoint.mes, maxMonth, chartWidth, padding),
+          y: yForLedgerValue(value, yAxis, height, padding),
+          color: chartColor(index),
+          active: other.id === focusPoint.cenario.id
+        }
+      ];
+    });
+  });
+
+  const legendEntries = $derived(scenarioLegendEntries(cenarios));
 
   function handleChartPointerMove(event: PointerEvent) {
     if (!svgEl) return;
@@ -267,232 +250,76 @@
   }
 </script>
 
-{#if cenarios.length === 0}
-  <p class="px-2 py-6 text-sm text-app-muted sm:px-3">
-    Nenhum cenário visível para exibir o gráfico.
-  </p>
-{:else}
-  <header class="border-b border-app-border px-2 py-2 sm:px-3">
-    <h3 class="text-sm font-medium text-app-fg">Saldo livre</h3>
-  </header>
+<CollapsibleChartPanel title="Saldo livre" empty={cenarios.length === 0}>
+  <div bind:this={chartContainer} class="relative w-full">
+    <svg
+      bind:this={svgEl}
+      viewBox="0 0 {chartWidth} {height}"
+      class="h-auto w-full select-none touch-none"
+      role="img"
+      aria-label="Gráfico de saldo livre mensal por cenário"
+    >
+      <TimelineChartAxes
+        {yTicks}
+        {xMonthGrid}
+        {xLabelTicks}
+        {prePurchaseX}
+        {chartWidth}
+        {height}
+        {padding}
+        {referenceLines}
+      />
 
-  <div class="px-2 py-3 sm:px-3">
-    <div bind:this={chartContainer} class="relative w-full">
-      <svg
-        bind:this={svgEl}
-        viewBox="0 0 {chartWidth} {height}"
-        class="h-auto w-full select-none touch-none"
-        role="img"
-        aria-label="Gráfico de saldo livre mensal por cenário"
-      >
-        {#each yTicks as tick (tick.value)}
-          <line
-            x1={padding.left}
-            y1={tick.y}
-            x2={chartWidth - padding.right}
-            y2={tick.y}
-            class={tick.value === 0 ? "stroke-app-fg" : "stroke-app-border"}
-            stroke-width={tick.value === 0 ? 1.5 : 1}
-            stroke-dasharray={tick.value === 0 ? "6 4" : "4 4"}
-            opacity={tick.value === 0 ? 0.65 : 1}
-          />
-          <text
-            x={padding.left - 8}
-            y={tick.y + 4}
-            text-anchor="end"
-            class={tick.value === 0
-              ? "fill-app-fg pointer-events-none text-[10px] font-medium"
-              : "fill-app-muted pointer-events-none text-[10px]"}
-          >
-            {tick.label}
-          </text>
-        {/each}
-
-        {#if !yAxis.ticks.includes(0)}
-          <line
-            x1={padding.left}
-            y1={zeroY}
-            x2={chartWidth - padding.right}
-            y2={zeroY}
-            class="stroke-app-fg"
-            stroke-width="1.5"
-            stroke-dasharray="6 4"
-            opacity="0.65"
-          />
-        {/if}
-
-        {#each xMonthGrid as tick (tick.month)}
-          <line
-            x1={tick.x}
-            y1={padding.top}
-            x2={tick.x}
-            y2={height - padding.bottom}
-            class="pointer-events-none stroke-app-border/40"
-            stroke-width="1"
-          />
-        {/each}
-
-        <line
-          x1={prePurchaseX}
-          y1={padding.top}
-          x2={prePurchaseX}
-          y2={height - padding.bottom}
-          class="pointer-events-none stroke-app-border/40"
-          stroke-width="1"
-        />
-
-        {#each xLabelTicks as tick (tick.month)}
-          <line
-            x1={tick.x}
-            y1={height - padding.bottom}
-            x2={tick.x}
-            y2={height - padding.bottom + 4}
-            class="pointer-events-none stroke-app-border"
-            stroke-width="1"
-          />
-          <text
-            x={tick.x}
-            y={height - (tick.kind === "year" ? 8 : 20)}
-            text-anchor="middle"
-            class={cn(
-              "pointer-events-none text-[10px]",
-              tick.kind === "year" ? "fill-app-fg font-medium" : "fill-app-subtle"
+      <g class="pointer-events-none">
+        {#each cenarios as cenario, i (cenario.id)}
+          {@const color = chartColor(i)}
+          {@const isActive = activeCenarioId === cenario.id}
+          <polyline
+            fill="none"
+            stroke={color}
+            stroke-width={isActive ? 2.5 : 2}
+            stroke-linejoin="miter"
+            stroke-linecap="round"
+            points={polylinePointsForFreeBalance(
+              cenario,
+              maxMonth,
+              yAxis,
+              chartWidth,
+              custoMensal
             )}
-          >
-            {tick.label}
-          </text>
-        {/each}
-
-        <g class="pointer-events-none">
-          {#each cenarios as cenario, i (cenario.id)}
-            {@const color = CHART_COLORS[i % CHART_COLORS.length]}
-            {@const isActive = activeCenarioId === cenario.id}
-            <polyline
-              fill="none"
-              stroke={color}
-              stroke-width={isActive ? 2.5 : 2}
-              stroke-linejoin="miter"
-              stroke-linecap="round"
-              points={polylinePointsForFreeBalance(
-                cenario,
-                maxMonth,
-                yAxis,
-                chartWidth,
-                custoMensal
-              )}
-              opacity={activeCenarioId && !isActive ? 0.3 : 1}
-            />
-
-            {#if cenario.vendaEm}
-              {@const mx = markerX(cenario.vendaEm)}
-              {#if mx !== null}
-                <line
-                  x1={mx}
-                  y1={padding.top}
-                  x2={mx}
-                  y2={height - padding.bottom}
-                  stroke={color}
-                  stroke-width="1"
-                  stroke-dasharray="3 3"
-                  opacity="0.45"
-                />
-              {/if}
-            {/if}
-
-            {#if cenario.extraEm}
-              {@const mx = markerX(cenario.extraEm)}
-              {#if mx !== null}
-                <circle cx={mx} cy={padding.top + 6} r="4" fill={color} class="opacity-80" />
-              {/if}
-            {/if}
-
-            {#if cenario.timeline.some((month) => month.reformaConcluida)}
-              {@const reformMonth = cenario.timeline.find((month) => month.reformaConcluida)?.mes}
-              {@const mx = reformMonth !== undefined ? markerX(reformMonth) : null}
-              {#if mx !== null}
-                <rect
-                  x={mx - 3}
-                  y={height - padding.bottom - 10}
-                  width="6"
-                  height="6"
-                  fill={color}
-                  class="opacity-70"
-                />
-              {/if}
-            {/if}
-          {/each}
-        </g>
-
-        <rect
-          x={padding.left}
-          y={padding.top}
-          width={plotWidth}
-          height={plotHeight}
-          fill="transparent"
-          class="cursor-crosshair"
-          aria-hidden="true"
-          onpointerdown={handleChartPointerDown}
-          onpointermove={handleChartPointerMove}
-          onpointerup={handleChartPointerUp}
-          onpointerleave={handleChartPointerLeave}
-        />
-
-        {#if focusPoint && focusX !== null}
-          <g class="pointer-events-none">
-            {#if isSelectionPinned}
-              <rect
-                x={focusX - columnPitch / 2}
-                y={padding.top}
-                width={columnPitch}
-                height={plotHeight}
-                fill="var(--color-app-accent)"
-                opacity="0.08"
-              />
-            {/if}
-            <line
-              x1={focusX}
-              y1={padding.top}
-              x2={focusX}
-              y2={height - padding.bottom}
-              stroke={isSelectionPinned
-                ? "var(--color-app-accent)"
-                : "var(--color-app-border-strong, currentColor)"}
-              stroke-width={isSelectionPinned ? 2 : 1}
-              class={isSelectionPinned ? "" : "text-app-muted"}
-              opacity={isSelectionPinned ? 1 : 0.9}
-            />
-            {#each cenarios as other, i (other.id)}
-              {@const month = focusPoint.mes === 0
-                ? other.timeline[0]
-                : other.timeline.find((item) => item.mes === focusPoint.month.mes)}
-              {#if month}
-                {@const idx = other.timeline.findIndex((item) => item.mes === month.mes)}
-                {@const value = freeBalanceAtHover(other, idx, custoMensal)}
-                <circle
-                  cx={xForMonth(focusPoint.mes, maxMonth, chartWidth, padding)}
-                  cy={yForLedgerValue(value, yAxis, height, padding)}
-                  r={other.id === focusPoint.cenario.id ? 5 : 3}
-                  fill={CHART_COLORS[i % CHART_COLORS.length]}
-                  opacity={other.id === focusPoint.cenario.id ? 1 : 0.35}
-                  class={other.id === focusPoint.cenario.id ? "stroke-app-surface" : ""}
-                  stroke-width={other.id === focusPoint.cenario.id ? 2 : 0}
-                />
-              {/if}
-            {/each}
-          </g>
-        {/if}
-
-        {#if isSelectionPinned && focusX !== null}
-          <ChartSelectionColumnDismiss
-            columnCenterX={focusX}
-            {columnPitch}
-            columnTop={padding.top}
-            onDismiss={() => chartSelection.clearSelection()}
+            opacity={activeCenarioId && !isActive ? 0.3 : 1}
           />
-        {/if}
-      </svg>
+          <ScenarioChartMarkers {cenario} {color} {markerX} {padding} {height} />
+        {/each}
+      </g>
 
-      {#if showBreakdownPanel && breakdownPoint}
+      <rect
+        x={padding.left}
+        y={padding.top}
+        width={plotWidth}
+        height={plotHeight}
+        fill="transparent"
+        class="cursor-crosshair"
+        aria-hidden="true"
+        onpointerdown={handleChartPointerDown}
+        onpointermove={handleChartPointerMove}
+        onpointerup={handleChartPointerUp}
+        onpointerleave={handleChartPointerLeave}
+      />
+
+      <TimelineFocusLayer
+        {focusX}
+        dots={focusDots}
+        {isSelectionPinned}
+        {columnPitch}
+        {padding}
+        {plotHeight}
+        {height}
+        onDismiss={() => chartSelection.clearSelection()}
+      />
+    </svg>
+
+    {#if showBreakdownPanel && breakdownPoint}
         {@const { cenario, month } = breakdownPoint}
         {@const mes = breakdownPoint.mes}
         {@const gastos = monthlyExpenseBreakdown(month, custoMensal)}
@@ -550,26 +377,8 @@
               </dd>
           </dl>
         </ChartHoverBreakdownPanel>
-      {/if}
-    </div>
-
-    <ul class="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-app-muted">
-      {#each cenarios as cenario, i (cenario.id)}
-        <li class="flex items-center gap-1.5">
-          <span
-            class="inline-block h-0.5 w-4 rounded-full"
-            style="background: {CHART_COLORS[i % CHART_COLORS.length]}"
-          ></span>
-          <span class="max-w-[14rem] truncate" title={scenarioLabel(cenario)}>
-            {scenarioLabel(cenario)}
-          </span>
-        </li>
-      {/each}
-    </ul>
-    <p class="mt-2 text-[10px] text-app-subtle">
-      Renda mensal menos todos os gastos mensais · clique para selecionar ou desselecionar · linha
-      horizontal tracejada: saldo zero · linhas verticais tracejadas: venda · círculo no topo:
-      quantia extra · quadrado inferior: reforma concluída
-    </p>
+    {/if}
   </div>
-{/if}
+
+  <ChartLegend entries={legendEntries} note={legendNote} />
+</CollapsibleChartPanel>

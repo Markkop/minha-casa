@@ -29,6 +29,17 @@ export type ChartHover = {
   mes?: number;
 };
 
+type ScenarioTimelineHoverOptions = {
+  cenarios: CenarioCompleto[];
+  svgX: number;
+  svgY: number;
+  maxMonth: number;
+  width: number;
+  previous: ChartHover | null;
+  valueAtHover: (cenario: CenarioCompleto, monthIndex: number, targetMonth: number) => number;
+  yForValue: (value: number) => number;
+};
+
 export function plotWidthForChart(width: number, pad = CHART_PADDING): number {
   return Math.max(0, width - pad.left - pad.right);
 }
@@ -202,61 +213,17 @@ export function pickChartHover(
   width: number,
   previous: ChartHover | null
 ): ChartHover | null {
-  if (cenarios.length === 0) return null;
-
-  const targetMonth = monthAtX(svgX, maxMonth, width);
-  if (targetMonth < CHART_MIN_MONTH) return null;
-
-  let bestId: string | null = null;
-  let bestIndex = 0;
-  let bestYDist = Infinity;
-
-  for (const cenario of cenarios) {
-    if (targetMonth === 0) {
-      const cy = yForBalance(cenario.financiamento.valorFinanciado, maxBalance);
-      const yDist = Math.abs(svgY - cy);
-      if (yDist < bestYDist) {
-        bestYDist = yDist;
-        bestId = cenario.id;
-        bestIndex = 0;
-      }
-      continue;
-    }
-
-    if (cenario.timeline.length === 0) continue;
-    const monthIndex = timelineIndexAtMonth(cenario, targetMonth);
-    const cy = yForBalance(debtBalanceAtHover(cenario, monthIndex), maxBalance);
-    const yDist = Math.abs(svgY - cy);
-    if (yDist < bestYDist) {
-      bestYDist = yDist;
-      bestId = cenario.id;
-      bestIndex = monthIndex;
-    }
-  }
-
-  if (!bestId) return null;
-
-  if (previous) {
-    const prevCenario = cenarios.find((c) => c.id === previous.cenarioId);
-    if (prevCenario) {
-      const prevMonthNum =
-        previous.mes ??
-        (previous.monthIndex === 0 && targetMonth === 0
-          ? 0
-          : prevCenario.timeline[previous.monthIndex]?.mes);
-      const prevCy =
-        previous.monthIndex === 0 && targetMonth === 0
-          ? yForBalance(prevCenario.financiamento.valorFinanciado, maxBalance)
-          : yForBalance(debtBalanceAtHover(prevCenario, previous.monthIndex), maxBalance);
-      const prevYDist = Math.abs(svgY - prevCy);
-      const sameMonth = prevMonthNum === targetMonth;
-      if (sameMonth && prevYDist - bestYDist < HOVER_Y_HYSTERESIS) {
-        return previous;
-      }
-    }
-  }
-
-  return { cenarioId: bestId, monthIndex: bestIndex, mes: targetMonth };
+  return pickScenarioTimelineHover({
+    cenarios,
+    svgX,
+    svgY,
+    maxMonth,
+    width,
+    previous,
+    valueAtHover: (cenario, monthIndex, targetMonth) =>
+      targetMonth === 0 ? cenario.financiamento.valorFinanciado : debtBalanceAtHover(cenario, monthIndex),
+    yForValue: (value) => yForBalance(value, maxBalance)
+  });
 }
 
 /** Vertical grid line for every month in the plot. */
@@ -496,44 +463,59 @@ export function pickChartHoverForTotal(
   previous: ChartHover | null,
   custoMensal = 0
 ): ChartHover | null {
+  return pickScenarioTimelineHover({
+    cenarios,
+    svgX,
+    svgY,
+    maxMonth,
+    width,
+    previous,
+    valueAtHover: (cenario, monthIndex) =>
+      cenario.timeline.length > 0
+        ? monthlyTotalAtHover(cenario, monthIndex, custoMensal)
+        : prePurchaseMonthlyOutflow(custoMensal),
+    yForValue: (value) => yForBalance(value, maxValue)
+  });
+}
+
+export function pickScenarioTimelineHover({
+  cenarios,
+  svgX,
+  svgY,
+  maxMonth,
+  width,
+  previous,
+  valueAtHover,
+  yForValue
+}: ScenarioTimelineHoverOptions): ChartHover | null {
   if (cenarios.length === 0) return null;
 
   const targetMonth = monthAtX(svgX, maxMonth, width);
   if (targetMonth < CHART_MIN_MONTH) return null;
 
-  let bestId: string | null = null;
-  let bestIndex = 0;
-  let bestYDist = Infinity;
+  let best: ChartHover | null = null;
+  let bestYDistance = Infinity;
 
   for (const cenario of cenarios) {
     if (targetMonth === 0) {
-      const cy = yForBalance(
-        cenario.timeline.length > 0
-          ? monthlyTotalAtHover(cenario, 0, custoMensal)
-          : prePurchaseMonthlyOutflow(custoMensal),
-        maxValue
-      );
-      const yDist = Math.abs(svgY - cy);
-      if (yDist < bestYDist) {
-        bestYDist = yDist;
-        bestId = cenario.id;
-        bestIndex = 0;
+      const distance = Math.abs(svgY - yForValue(valueAtHover(cenario, 0, targetMonth)));
+      if (distance < bestYDistance) {
+        bestYDistance = distance;
+        best = { cenarioId: cenario.id, monthIndex: 0, mes: targetMonth };
       }
       continue;
     }
 
     if (cenario.timeline.length === 0) continue;
     const monthIndex = timelineIndexAtMonth(cenario, targetMonth);
-    const cy = yForBalance(monthlyTotalAtHover(cenario, monthIndex, custoMensal), maxValue);
-    const yDist = Math.abs(svgY - cy);
-    if (yDist < bestYDist) {
-      bestYDist = yDist;
-      bestId = cenario.id;
-      bestIndex = monthIndex;
+    const distance = Math.abs(svgY - yForValue(valueAtHover(cenario, monthIndex, targetMonth)));
+    if (distance < bestYDistance) {
+      bestYDistance = distance;
+      best = { cenarioId: cenario.id, monthIndex, mes: targetMonth };
     }
   }
 
-  if (!bestId) return null;
+  if (!best) return null;
 
   if (previous) {
     const prevCenario = cenarios.find((c) => c.id === previous.cenarioId);
@@ -543,17 +525,15 @@ export function pickChartHoverForTotal(
         (previous.monthIndex === 0 && targetMonth === 0
           ? 0
           : prevCenario.timeline[previous.monthIndex]?.mes);
-      const prevCy = yForBalance(
-        monthlyTotalAtHover(prevCenario, previous.monthIndex, custoMensal),
-        maxValue
+      const prevYDist = Math.abs(
+        svgY - yForValue(valueAtHover(prevCenario, previous.monthIndex, targetMonth))
       );
-      const prevYDist = Math.abs(svgY - prevCy);
       const sameMonth = prevMonthNum === targetMonth;
-      if (sameMonth && prevYDist - bestYDist < HOVER_Y_HYSTERESIS) {
+      if (sameMonth && prevYDist - bestYDistance < HOVER_Y_HYSTERESIS) {
         return previous;
       }
     }
   }
 
-  return { cenarioId: bestId, monthIndex: bestIndex, mes: targetMonth };
+  return best;
 }

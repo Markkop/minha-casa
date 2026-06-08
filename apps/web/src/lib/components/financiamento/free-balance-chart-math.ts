@@ -1,8 +1,5 @@
 import {
-  CHART_MIN_MONTH,
-  HOVER_Y_HYSTERESIS,
-  timelineIndexAtMonth,
-  monthAtX,
+  pickScenarioTimelineHover,
   type ChartHover
 } from "$lib/components/financiamento/debt-timeline-chart-math";
 import {
@@ -64,52 +61,17 @@ export function pickChartHoverForFreeBalance(
   previous: ChartHover | null,
   custoMensal = 0
 ): ChartHover | null {
-  if (cenarios.length === 0) return null;
-
-  const targetMonth = monthAtX(svgX, maxMonth, width);
-  if (targetMonth < CHART_MIN_MONTH) return null;
-
-  let best: ChartHover | null = null;
-  let bestYDistance = Infinity;
-
-  for (const cenario of cenarios) {
-    if (targetMonth === 0) {
-      const value =
-        cenario.timeline.length > 0
-          ? freeBalanceAtHover(cenario, 0, custoMensal)
-          : prePurchaseFreeBalance(cenario.rendaMensal, custoMensal);
-      const distance = Math.abs(svgY - yForLedgerValue(value, scale));
-      if (distance < bestYDistance) {
-        bestYDistance = distance;
-        best = { cenarioId: cenario.id, monthIndex: 0, mes: targetMonth };
-      }
-      continue;
-    }
-
-    if (cenario.timeline.length === 0) continue;
-    const monthIndex = timelineIndexAtMonth(cenario, targetMonth);
-    const value = freeBalanceAtHover(cenario, monthIndex, custoMensal);
-    const distance = Math.abs(svgY - yForLedgerValue(value, scale));
-
-    if (distance < bestYDistance) {
-      bestYDistance = distance;
-      best = { cenarioId: cenario.id, monthIndex, mes: targetMonth };
-    }
-  }
-
-  if (!best || !previous) return best;
-
-  const previousScenario = cenarios.find((cenario) => cenario.id === previous.cenarioId);
-  if (!previousScenario) return best;
-
-  const previousMonthNum =
-    previous.mes ??
-    (previous.monthIndex === 0 && targetMonth === 0
-      ? 0
-      : previousScenario.timeline[previous.monthIndex]?.mes);
-  if (previousMonthNum !== targetMonth) return best;
-
-  const previousValue = freeBalanceAtHover(previousScenario, previous.monthIndex, custoMensal);
-  const previousDistance = Math.abs(svgY - yForLedgerValue(previousValue, scale));
-  return previousDistance - bestYDistance < HOVER_Y_HYSTERESIS ? previous : best;
+  return pickScenarioTimelineHover({
+    cenarios,
+    svgX,
+    svgY,
+    maxMonth,
+    width,
+    previous,
+    valueAtHover: (cenario, monthIndex) =>
+      cenario.timeline.length > 0
+        ? freeBalanceAtHover(cenario, monthIndex, custoMensal)
+        : prePurchaseFreeBalance(cenario.rendaMensal, custoMensal),
+    yForValue: (value) => yForLedgerValue(value, scale)
+  });
 }
