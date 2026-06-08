@@ -5,6 +5,7 @@
     CHART_HEIGHT,
     CHART_PADDING,
     monthPitch,
+    prePurchaseReferenceLineX,
     svgCoordsToLocal,
     svgPlotBoundsToLocal,
     svgPointFromPointer,
@@ -100,7 +101,7 @@
     const cenario = cenarios.find((item) => item.id === active.cenarioId);
     if (!cenario) return null;
     const month = cenario.timeline[active.monthIndex];
-    return month ? { cenario, month } : null;
+    return month ? { cenario, month, mes: active.mes ?? month.mes } : null;
   });
 
   const selectedPoint = $derived.by(() => {
@@ -128,7 +129,7 @@
 
   const focusX = $derived(
     focusPoint
-      ? xForMonth(focusPoint.month.mes, maxMonth, chartWidth, padding)
+      ? xForMonth(focusPoint.mes, maxMonth, chartWidth, padding)
       : null
   );
 
@@ -146,7 +147,7 @@
 
   const breakdownX = $derived(
     breakdownPoint
-      ? xForMonth(breakdownPoint.month.mes, maxMonth, chartWidth, padding)
+      ? xForMonth(breakdownPoint.mes, maxMonth, chartWidth, padding)
       : null
   );
 
@@ -176,6 +177,7 @@
 
   const zeroY = $derived(yForLedgerValue(0, yAxis, height, padding));
   const xMonthGrid = $derived(buildMonthGridTicks(maxMonth, chartWidth, padding));
+  const prePurchaseX = $derived(prePurchaseReferenceLineX(maxMonth, chartWidth, padding));
   const xLabelTicks = $derived(
     buildXAxisLabelTicks(maxMonth, chartWidth, formatTimingMonthLabelLong, padding)
   );
@@ -196,6 +198,9 @@
     }
     if (cenario.extraEm !== undefined) {
       parts.push(`extra ${formatTimingMonthLabel(cenario.extraEm)}`);
+    }
+    if (cenario.reformaEm !== undefined) {
+      parts.push(`reforma ${formatTimingMonthLabel(cenario.reformaEm)}`);
     }
     return parts.join(" · ");
   }
@@ -247,7 +252,9 @@
       custoMensal
     );
     if (!pick) return;
-    chartSelection.toggleSelection(selectionFromTimelinePointer(x, pick, maxMonth, chartWidth));
+    const selection = selectionFromTimelinePointer(x, pick, maxMonth, chartWidth);
+    if (!selection) return;
+    chartSelection.toggleSelection(selection);
   }
 
   function handleChartPointerLeave() {
@@ -324,6 +331,15 @@
             stroke-width="1"
           />
         {/each}
+
+        <line
+          x1={prePurchaseX}
+          y1={padding.top}
+          x2={prePurchaseX}
+          y2={height - padding.bottom}
+          class="pointer-events-none stroke-app-border/40"
+          stroke-width="1"
+        />
 
         {#each xLabelTicks as tick (tick.month)}
           <line
@@ -446,14 +462,14 @@
               opacity={isSelectionPinned ? 1 : 0.9}
             />
             {#each cenarios as other, i (other.id)}
-              {@const month = other.timeline.find(
-                (item) => item.mes === focusPoint.month.mes
-              )}
+              {@const month = focusPoint.mes === 0
+                ? other.timeline[0]
+                : other.timeline.find((item) => item.mes === focusPoint.month.mes)}
               {#if month}
                 {@const idx = other.timeline.findIndex((item) => item.mes === month.mes)}
                 {@const value = freeBalanceAtHover(other, idx, custoMensal)}
                 <circle
-                  cx={xForMonth(month.mes, maxMonth, chartWidth, padding)}
+                  cx={xForMonth(focusPoint.mes, maxMonth, chartWidth, padding)}
                   cy={yForLedgerValue(value, yAxis, height, padding)}
                   r={other.id === focusPoint.cenario.id ? 5 : 3}
                   fill={CHART_COLORS[i % CHART_COLORS.length]}
@@ -478,6 +494,7 @@
 
       {#if showBreakdownPanel && breakdownPoint}
         {@const { cenario, month } = breakdownPoint}
+        {@const mes = breakdownPoint.mes}
         {@const gastos = monthlyExpenseBreakdown(month, custoMensal)}
         {@const saldoLivre = renderedFreeBalance(month, cenario.rendaMensal, custoMensal)}
         <ChartHoverBreakdownPanel
@@ -491,10 +508,14 @@
           <dl class="grid grid-cols-[auto_1fr] gap-x-2 gap-y-0.5 text-app-muted">
             <dt>Mês</dt>
             <dd class="font-mono text-app-fg">
-              {month.mes}
-              <span class="font-sans text-app-subtle">
-                ({formatTimingMonthLabelLong(month.mes)})
-              </span>
+              {#if mes === 0}
+                Compra
+              {:else}
+                {mes}
+                <span class="font-sans text-app-subtle">
+                  ({formatTimingMonthLabelLong(mes)})
+                </span>
+              {/if}
             </dd>
             <dt>Renda</dt>
             <dd class="font-mono text-green">{formatCurrency(cenario.rendaMensal)}</dd>

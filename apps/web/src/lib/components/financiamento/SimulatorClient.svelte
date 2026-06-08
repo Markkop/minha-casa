@@ -120,11 +120,13 @@
       custoManutencaoImovelMensal: effective.custoManutencaoImovelMensal,
       temImovelParaNegociar: effective.temImovelParaNegociar,
       custoTotalReformas: effective.custoTotalReformas,
+      custoInicialReformas: effective.custoInicialReformas,
       custoMensalMaximoReformas: effective.custoMensalMaximoReformas,
       quantiaExtra: effective.quantiaExtra,
       esperaQuantiaExtra: effective.esperaQuantiaExtra,
       temposVendaPosteriorMeses: params.temposVendaPosteriorMeses,
-      temposRecebimentoExtraMeses: params.temposRecebimentoExtraMeses
+      temposRecebimentoExtraMeses: params.temposRecebimentoExtraMeses,
+      temposReformaMeses: params.temposReformaMeses
     })
   );
 
@@ -147,6 +149,11 @@
       }
       if (effective.esperaQuantiaExtra && c.extraEm !== undefined) {
         if (!params.temposRecebimentoExtraMeses.includes(c.extraEm)) {
+          return false;
+        }
+      }
+      if (effective.custoTotalReformas > 0 && c.reformaEm !== undefined) {
+        if (!params.temposReformaMeses.includes(c.reformaEm)) {
           return false;
         }
       }
@@ -200,6 +207,7 @@
       | "valorApartamento"
       | "custoManutencao"
       | "custoTotalReformas"
+      | "custoInicialReformas"
       | "custoMensalMaximoReformas"
       | "quantiaExtra",
     newValue: number
@@ -226,6 +234,10 @@
     }
     if (field === "custoTotalReformas") {
       params = { ...params, custoTotalReformas: newValue };
+      return;
+    }
+    if (field === "custoInicialReformas") {
+      params = { ...params, custoInicialReformas: newValue };
       return;
     }
     if (field === "custoMensalMaximoReformas") {

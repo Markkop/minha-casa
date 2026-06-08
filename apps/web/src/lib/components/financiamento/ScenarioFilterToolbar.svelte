@@ -47,6 +47,11 @@
     label: formatTimingMonthLabel(m)
   }));
 
+  const reformTimingOptions: ScenarioFilterOption<number>[] = TIMING_MONTH_OPTIONS.map((m) => ({
+    value: m,
+    label: formatTimingMonthLabel(m)
+  }));
+
   const defaults = createInitialSimulatorParams();
 
   const anyFilterCustom = $derived(
@@ -71,6 +76,11 @@
         !arraysEqual(
           [...params.temposRecebimentoExtraMeses].sort(),
           [...defaults.temposRecebimentoExtraMeses].sort()
+        )) ||
+      (params.incluirReformas &&
+        !arraysEqual(
+          [...params.temposReformaMeses].sort(),
+          [...defaults.temposReformaMeses].sort()
         ))
   );
 
@@ -111,7 +121,8 @@
       valoresAptoFiltroMultipliers: defaults.valoresAptoFiltroMultipliers,
       estrategiasFiltro: defaults.estrategiasFiltro,
       temposVendaPosteriorMeses: defaults.temposVendaPosteriorMeses,
-      temposRecebimentoExtraMeses: defaults.temposRecebimentoExtraMeses
+      temposRecebimentoExtraMeses: defaults.temposRecebimentoExtraMeses,
+      temposReformaMeses: defaults.temposReformaMeses
     });
   }
 </script>
@@ -195,6 +206,21 @@
                   params.temposRecebimentoExtraMeses,
                   value
                 )
+              })}
+          />
+        {/if}
+
+        {#if params.incluirReformas}
+          <ScenarioFilterPopover
+            icon={CalendarClock}
+            buttonLabel="Reforma em"
+            ariaLabel="Meses até iniciar a reforma"
+            headerText="Meses até pagar o custo inicial e iniciar a reforma"
+            options={reformTimingOptions}
+            selected={params.temposReformaMeses}
+            onToggle={(value) =>
+              patch({
+                temposReformaMeses: toggleNumber(params.temposReformaMeses, value)
               })}
           />
         {/if}

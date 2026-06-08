@@ -1,4 +1,5 @@
 import {
+  CHART_MIN_MONTH,
   HOVER_Y_HYSTERESIS,
   timelineIndexAtMonth,
   monthAtX,
@@ -20,11 +21,12 @@ export function freeBalanceValues(
   cenarios: CenarioCompleto[],
   custoMensal = 0
 ): number[] {
-  return cenarios.flatMap((cenario) =>
-    cenario.timeline.map((month) =>
+  return cenarios.flatMap((cenario) => [
+    prePurchaseFreeBalance(cenario.rendaMensal, custoMensal),
+    ...cenario.timeline.map((month) =>
       renderedFreeBalance(month, cenario.rendaMensal, custoMensal)
     )
-  );
+  ]);
 }
 
 export function freeBalanceAtHover(
@@ -65,6 +67,8 @@ export function pickChartHoverForFreeBalance(
   if (cenarios.length === 0) return null;
 
   const targetMonth = monthAtX(svgX, maxMonth, width);
+  if (targetMonth < CHART_MIN_MONTH) return null;
+
   let best: ChartHover | null = null;
   let bestYDistance = Infinity;
 
@@ -77,7 +81,7 @@ export function pickChartHoverForFreeBalance(
       const distance = Math.abs(svgY - yForLedgerValue(value, scale));
       if (distance < bestYDistance) {
         bestYDistance = distance;
-        best = { cenarioId: cenario.id, monthIndex: 0 };
+        best = { cenarioId: cenario.id, monthIndex: 0, mes: targetMonth };
       }
       continue;
     }
@@ -89,7 +93,7 @@ export function pickChartHoverForFreeBalance(
 
     if (distance < bestYDistance) {
       bestYDistance = distance;
-      best = { cenarioId: cenario.id, monthIndex };
+      best = { cenarioId: cenario.id, monthIndex, mes: targetMonth };
     }
   }
 
@@ -99,9 +103,10 @@ export function pickChartHoverForFreeBalance(
   if (!previousScenario) return best;
 
   const previousMonthNum =
-    previous.monthIndex === 0 && targetMonth === 0
+    previous.mes ??
+    (previous.monthIndex === 0 && targetMonth === 0
       ? 0
-      : previousScenario.timeline[previous.monthIndex]?.mes;
+      : previousScenario.timeline[previous.monthIndex]?.mes);
   if (previousMonthNum !== targetMonth) return best;
 
   const previousValue = freeBalanceAtHover(previousScenario, previous.monthIndex, custoMensal);

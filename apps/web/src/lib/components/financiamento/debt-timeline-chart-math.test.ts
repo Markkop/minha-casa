@@ -12,6 +12,7 @@ import {
   pickChartHover,
   pickChartHoverForTotal,
   plotWidthForChart,
+  prePurchaseReferenceLineX,
   timelineIndexAtMonth,
   xForMonth
 } from "./debt-timeline-chart-math";
@@ -26,6 +27,7 @@ function mockTimelineMonth(
     saldoDevedorFim: 0,
     prestacao: 0,
     aporteExtra: 0,
+    reformaInicial: 0,
     reformaMensal: 0,
     manutencaoMensal: 0,
     amortizacaoExtraordinaria: 0,
@@ -41,10 +43,12 @@ function mockTimelineMonth(
 
 function mockCenario(
   id: string,
-  timeline: { mes: number; saldoDevedor: number }[]
+  timeline: { mes: number; saldoDevedor: number }[],
+  valorFinanciado = 1_000_000
 ): CenarioCompleto {
   return {
     id,
+    financiamento: { valorFinanciado },
     timeline: timeline.map((t) =>
       mockTimelineMonth({ mes: t.mes, saldoDevedor: t.saldoDevedor, saldoDevedorFim: t.saldoDevedor })
     )
@@ -57,6 +61,7 @@ function mockCenarioWithTotals(
 ): CenarioCompleto {
   return {
     id,
+    financiamento: { valorFinanciado: 1_000_000 },
     timeline: timeline.map((t) => mockTimelineMonth(t))
   } as CenarioCompleto;
 }
@@ -77,6 +82,14 @@ describe("pickChartHover", () => {
   const maxMonth = 12;
   const maxBalance = 1_000_000;
 
+  it("returns null in the pre-purchase reference column", () => {
+    const a = mockCenario("a", [{ mes: 1, saldoDevedor: 500_000 }]);
+    const prePurchaseX = monthCenterX(-1);
+    expect(
+      pickChartHover([a], prePurchaseX, 100, maxMonth, maxBalance, width, null)
+    ).toBeNull();
+  });
+
   it("snaps to month from X and picks closest line by Y", () => {
     const timeline = Array.from({ length: 12 }, (_, i) => ({
       mes: i + 1,
@@ -94,7 +107,23 @@ describe("pickChartHover", () => {
     const hover = pickChartHover([a, b], month6X, yNearA, maxMonth, maxBalance, width, null);
     expect(hover?.cenarioId).toBe("a");
     expect(hover?.monthIndex).toBe(5);
+    expect(hover?.mes).toBe(6);
     expect(a.timeline[hover!.monthIndex]?.mes).toBe(6);
+  });
+
+  it("returns month 0 for the purchase column", () => {
+    const a = mockCenario("a", [{ mes: 1, saldoDevedor: 500_000 }], 700_000);
+    const hover = pickChartHover(
+      [a],
+      monthCenterX(0),
+      16 + (1 - 700_000 / maxBalance) * (280 - 16 - 52),
+      maxMonth,
+      maxBalance,
+      width,
+      null
+    );
+
+    expect(hover).toMatchObject({ cenarioId: "a", monthIndex: 0, mes: 0 });
   });
 
   it("keeps previous series with Y hysteresis on the same month", () => {
@@ -154,6 +183,7 @@ describe("buildXAxisLabelTicks", () => {
   it("labels purchase, every month for short spans and years at 12-month marks", () => {
     const short = buildXAxisLabelTicks(18, 800, (m) => `y${m}`);
     expect(short.find((t) => t.month === 0)?.label).toBe("Compra");
+    expect(short.some((t) => t.month === -1)).toBe(false);
     expect(short.find((t) => t.month === 1)?.kind).toBe("year");
     expect(short.find((t) => t.month === 12)?.label).toBe("y12");
     expect(short.some((t) => t.kind === "month" && t.month === 6)).toBe(true);
@@ -168,11 +198,19 @@ describe("buildXAxisLabelTicks", () => {
 
 describe("monthAtX", () => {
   it("maps pointer X to the month column under the cursor", () => {
-    expect(monthAtX(56, TEST_MAX_MONTH, TEST_WIDTH)).toBe(0);
+    expect(monthAtX(56, TEST_MAX_MONTH, TEST_WIDTH)).toBe(-1);
+    expect(monthAtX(monthCenterX(-1), TEST_MAX_MONTH, TEST_WIDTH)).toBe(-1);
+    expect(monthAtX(monthCenterX(0), TEST_MAX_MONTH, TEST_WIDTH)).toBe(0);
     expect(monthAtX(monthCenterX(6), TEST_MAX_MONTH, TEST_WIDTH)).toBe(6);
     const pitch = pitchFor();
     expect(monthAtX(monthCenterX(6) + pitch * 0.4, TEST_MAX_MONTH, TEST_WIDTH)).toBe(6);
     expect(monthAtX(monthCenterX(6) + pitch * 0.6, TEST_MAX_MONTH, TEST_WIDTH)).toBe(7);
+  });
+});
+
+describe("prePurchaseReferenceLineX", () => {
+  it("matches the layout position for month -1", () => {
+    expect(prePurchaseReferenceLineX(12, 800)).toBe(xForMonth(-1, 12, 800));
   });
 });
 
@@ -181,8 +219,8 @@ describe("monthPitch", () => {
     const narrow = monthPitch(plotWidthForChart(400), 12);
     const wide = monthPitch(plotWidthForChart(800), 12);
     expect(wide).toBeGreaterThan(narrow);
-    expect(narrow * 13).toBeCloseTo(plotWidthForChart(400), 5);
-    expect(wide * 13).toBeCloseTo(plotWidthForChart(800), 5);
+    expect(narrow * 14).toBeCloseTo(plotWidthForChart(400), 5);
+    expect(wide * 14).toBeCloseTo(plotWidthForChart(800), 5);
   });
 });
 
@@ -211,6 +249,7 @@ describe("monthTotalOutflow", () => {
       mes: 1,
       prestacao: 5_000,
       aporteExtra: 1_000,
+      reformaInicial: 3_000,
       reformaMensal: 2_000,
       manutencaoMensal: 500
     });
@@ -304,7 +343,23 @@ describe("pickChartHoverForTotal", () => {
     const hover = pickChartHoverForTotal([a, b], month6X, yNearA, maxMonth, maxValue, width, null);
     expect(hover?.cenarioId).toBe("a");
     expect(hover?.monthIndex).toBe(5);
+    expect(hover?.mes).toBe(6);
     expect(a.timeline[hover!.monthIndex]?.mes).toBe(6);
+  });
+
+  it("returns month 0 for the purchase column in total monthly chart", () => {
+    const a = mockCenarioWithTotals("a", [{ mes: 1, prestacao: 20_000 }]);
+    const hover = pickChartHoverForTotal(
+      [a],
+      monthCenterX(0),
+      16 + (1 - 20_000 / maxValue) * (280 - 16 - 52),
+      maxMonth,
+      maxValue,
+      width,
+      null
+    );
+
+    expect(hover).toMatchObject({ cenarioId: "a", monthIndex: 0, mes: 0 });
   });
 
   it("keeps previous series with Y hysteresis on the same month", () => {

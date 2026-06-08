@@ -49,6 +49,7 @@ export interface TimelineMonth {
   amortizacaoExtraordinaria: number;
   amortizacaoVenda: number;
   amortizacaoQuantiaExtra: number;
+  reformaInicial: number;
   saldoLivre: number;
   eventoVenda: boolean;
   eventoExtra: boolean;
@@ -84,7 +85,9 @@ export interface SimularTimelineInput {
   quantiaExtra?: number;
   custoManutencaoImovelMensal?: number;
   custoTotalReformas?: number;
+  custoInicialReformas?: number;
   custoMensalMaximoReformas?: number;
+  mesReforma?: number;
 }
 
 export function calcularCustoTotalEventAware(
@@ -112,7 +115,9 @@ export function simularTimelineMensal(input: SimularTimelineInput): TimelineResu
     quantiaExtra = 0,
     custoManutencaoImovelMensal = 0,
     custoTotalReformas = 0,
-    custoMensalMaximoReformas = 0
+    custoInicialReformas = 0,
+    custoMensalMaximoReformas = 0,
+    mesReforma = 1
   } = input;
 
   if (valorFinanciado <= 0) {
@@ -128,6 +133,7 @@ export function simularTimelineMensal(input: SimularTimelineInput): TimelineResu
   let totalManutencao = 0;
   let saldoLivreMinimo = Infinity;
   let reformaRestante = custoTotalReformas;
+  let reformaInicialAplicada = false;
   let mesReformaConcluida: number | null = null;
   let vendaApartamento: VendaPosteriorResult | null = null;
   let mes = 0;
@@ -153,14 +159,25 @@ export function simularTimelineMensal(input: SimularTimelineInput): TimelineResu
     totalJuros += parcelaSAC.juros;
     totalPago += prestacao + aporteAplicado;
 
+    let reformaInicial = 0;
     let reformaMensal = 0;
-    if (reformaRestante > 0 && custoMensalMaximoReformas > 0) {
+    if (!reformaInicialAplicada && reformaRestante > 0 && mes >= mesReforma) {
+      reformaInicial = Math.min(Math.max(0, custoInicialReformas), reformaRestante);
+      reformaRestante -= reformaInicial;
+      totalReformas += reformaInicial;
+      reformaInicialAplicada = true;
+    }
+    if (reformaRestante > 0 && custoMensalMaximoReformas > 0 && mes >= mesReforma) {
       reformaMensal = Math.min(custoMensalMaximoReformas, reformaRestante);
       reformaRestante -= reformaMensal;
       totalReformas += reformaMensal;
-      if (reformaRestante <= 0 && mesReformaConcluida === null) {
-        mesReformaConcluida = mes;
-      }
+    }
+    if (
+      reformaRestante <= 0 &&
+      mesReformaConcluida === null &&
+      (reformaInicial > 0 || reformaMensal > 0)
+    ) {
+      mesReformaConcluida = mes;
     }
 
     let manutencaoMensal = 0;
@@ -213,6 +230,7 @@ export function simularTimelineMensal(input: SimularTimelineInput): TimelineResu
       amortizacaoExtraordinaria,
       amortizacaoVenda,
       amortizacaoQuantiaExtra,
+      reformaInicial,
       saldoLivre,
       eventoVenda,
       eventoExtra,

@@ -12,7 +12,11 @@ import {
   prePurchaseMonthlyOutflow
 } from "./monthly-cash-flow";
 
+/** Minimum month included in hover, click, and selection. */
 export const CHART_MIN_MONTH = 0;
+/** Minimum month reserved in X-axis layout (decorative -1 reference line). */
+export const CHART_LAYOUT_MIN_MONTH = -1;
+export const CHART_PRE_PURCHASE_REFERENCE_MONTH = -1;
 
 export const CHART_PADDING = { top: 16, right: 16, bottom: 52, left: 56 } as const;
 export const CHART_HEIGHT = 280;
@@ -22,6 +26,7 @@ export const HOVER_Y_HYSTERESIS = 14;
 export type ChartHover = {
   cenarioId: string;
   monthIndex: number;
+  mes?: number;
 };
 
 export function plotWidthForChart(width: number, pad = CHART_PADDING): number {
@@ -29,7 +34,7 @@ export function plotWidthForChart(width: number, pad = CHART_PADDING): number {
 }
 
 export function chartMonthCount(maxMonth: number): number {
-  return maxMonth - CHART_MIN_MONTH + 1;
+  return maxMonth - CHART_LAYOUT_MIN_MONTH + 1;
 }
 
 /** Horizontal space per month so the plot fills the chart width. */
@@ -47,8 +52,16 @@ export function xForMonth(
   pad = CHART_PADDING
 ): number {
   const pitch = monthPitch(plotWidthForChart(width, pad), maxMonth);
-  const index = month - CHART_MIN_MONTH;
+  const index = month - CHART_LAYOUT_MIN_MONTH;
   return pad.left + (index + 0.5) * pitch;
+}
+
+export function prePurchaseReferenceLineX(
+  maxMonth: number,
+  width: number,
+  pad = CHART_PADDING
+): number {
+  return xForMonth(CHART_PRE_PURCHASE_REFERENCE_MONTH, maxMonth, width, pad);
 }
 
 export function yForBalance(
@@ -68,10 +81,10 @@ export function monthAtX(
   pad = CHART_PADDING
 ): number {
   const pitch = monthPitch(plotWidthForChart(width, pad), maxMonth);
-  if (pitch <= 0) return CHART_MIN_MONTH;
+  if (pitch <= 0) return CHART_LAYOUT_MIN_MONTH;
   const index = Math.floor((svgX - pad.left) / pitch);
-  const month = index + CHART_MIN_MONTH;
-  return Math.max(CHART_MIN_MONTH, Math.min(maxMonth, month));
+  const month = index + CHART_LAYOUT_MIN_MONTH;
+  return Math.max(CHART_LAYOUT_MIN_MONTH, Math.min(maxMonth, month));
 }
 
 export function timelineIndexAtMonth(cenario: CenarioCompleto, targetMonth: number): number {
@@ -192,6 +205,8 @@ export function pickChartHover(
   if (cenarios.length === 0) return null;
 
   const targetMonth = monthAtX(svgX, maxMonth, width);
+  if (targetMonth < CHART_MIN_MONTH) return null;
+
   let bestId: string | null = null;
   let bestIndex = 0;
   let bestYDist = Infinity;
@@ -225,9 +240,10 @@ export function pickChartHover(
     const prevCenario = cenarios.find((c) => c.id === previous.cenarioId);
     if (prevCenario) {
       const prevMonthNum =
-        previous.monthIndex === 0 && targetMonth === 0
+        previous.mes ??
+        (previous.monthIndex === 0 && targetMonth === 0
           ? 0
-          : prevCenario.timeline[previous.monthIndex]?.mes;
+          : prevCenario.timeline[previous.monthIndex]?.mes);
       const prevCy =
         previous.monthIndex === 0 && targetMonth === 0
           ? yForBalance(prevCenario.financiamento.valorFinanciado, maxBalance)
@@ -240,7 +256,7 @@ export function pickChartHover(
     }
   }
 
-  return { cenarioId: bestId, monthIndex: bestIndex };
+  return { cenarioId: bestId, monthIndex: bestIndex, mes: targetMonth };
 }
 
 /** Vertical grid line for every month in the plot. */
@@ -483,6 +499,8 @@ export function pickChartHoverForTotal(
   if (cenarios.length === 0) return null;
 
   const targetMonth = monthAtX(svgX, maxMonth, width);
+  if (targetMonth < CHART_MIN_MONTH) return null;
+
   let bestId: string | null = null;
   let bestIndex = 0;
   let bestYDist = Infinity;
@@ -521,9 +539,10 @@ export function pickChartHoverForTotal(
     const prevCenario = cenarios.find((c) => c.id === previous.cenarioId);
     if (prevCenario) {
       const prevMonthNum =
-        previous.monthIndex === 0 && targetMonth === 0
+        previous.mes ??
+        (previous.monthIndex === 0 && targetMonth === 0
           ? 0
-          : prevCenario.timeline[previous.monthIndex]?.mes;
+          : prevCenario.timeline[previous.monthIndex]?.mes);
       const prevCy = yForBalance(
         monthlyTotalAtHover(prevCenario, previous.monthIndex, custoMensal),
         maxValue
@@ -536,5 +555,5 @@ export function pickChartHoverForTotal(
     }
   }
 
-  return { cenarioId: bestId, monthIndex: bestIndex };
+  return { cenarioId: bestId, monthIndex: bestIndex, mes: targetMonth };
 }

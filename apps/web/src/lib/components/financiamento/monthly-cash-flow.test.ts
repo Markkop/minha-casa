@@ -14,6 +14,7 @@ function month(partial: Partial<TimelineMonth> = {}): TimelineMonth {
     saldoDevedorFim: partial.saldoDevedorFim ?? saldoDevedor,
     prestacao: 0,
     aporteExtra: 0,
+    reformaInicial: 0,
     reformaMensal: 0,
     manutencaoMensal: 0,
     amortizacaoExtraordinaria: 0,
@@ -33,6 +34,7 @@ describe("monthlyExpenseBreakdown", () => {
       month({
         prestacao: 5_000,
         aporteExtra: 1_000,
+        reformaInicial: 1_500,
         reformaMensal: 2_000,
         manutencaoMensal: 500
       }),
@@ -46,6 +48,22 @@ describe("monthlyExpenseBreakdown", () => {
       manutencao: 500,
       custoMensal: 3_000,
       total: 11_500
+    });
+  });
+
+  it("excludes initial reform cost from monthly expense totals", () => {
+    const result = monthlyExpenseBreakdown(
+      month({
+        prestacao: 5_000,
+        reformaInicial: 20_000,
+        reformaMensal: 2_000
+      }),
+      3_000
+    );
+
+    expect(result).toMatchObject({
+      reforma: 2_000,
+      total: 10_000
     });
   });
 

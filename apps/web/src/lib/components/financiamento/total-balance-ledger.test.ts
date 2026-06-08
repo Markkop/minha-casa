@@ -17,6 +17,7 @@ function month(partial: Partial<TimelineMonth> & Pick<TimelineMonth, "mes">): Ti
   return {
     prestacao: 0,
     aporteExtra: 0,
+    reformaInicial: 0,
     reformaMensal: 0,
     manutencaoMensal: 0,
     amortizacaoExtraordinaria: 0,
@@ -128,6 +129,23 @@ describe("buildBalanceLedger", () => {
     expect(source.timeline[0]?.saldoLivre).toBe(0);
   });
 
+  it("includes initial and monthly reform costs in the reform outflow", () => {
+    const ledger = buildBalanceLedger(
+      scenario("reform", [
+        month({ mes: 1, prestacao: 20_000, reformaInicial: 25_000, reformaMensal: 5_000 })
+      ]),
+      600_000,
+      0
+    );
+
+    expect(ledger.points[1]).toMatchObject({
+      reforma: 30_000,
+      totalDespesas: 50_000,
+      fluxoLiquido: -10_000,
+      saldo: 240_000
+    });
+  });
+
   it("records pre-event balance on sale and extra months", () => {
     const ledger = buildBalanceLedger(
       scenario("events", [
@@ -179,10 +197,11 @@ describe("signed ledger chart helpers", () => {
     const svgX = xForLedgerMonth(1, 1, width);
     const svgY = yForLedgerValue(a.points[1]!.saldo, scale);
 
-    expect(polylinePointsForLedger(a, 1, scale, width).split(" ")).toHaveLength(3);
+    expect(polylinePointsForLedger(a, 1, scale, width).split(" ")).toHaveLength(4);
     expect(pickLedgerHover([a, b], svgX, svgY, 1, scale, width, null)).toEqual({
       cenarioId: "a",
-      monthIndex: 1
+      monthIndex: 1,
+      mes: 1
     });
   });
 });

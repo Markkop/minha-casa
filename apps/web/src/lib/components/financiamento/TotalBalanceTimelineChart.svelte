@@ -5,6 +5,7 @@
     CHART_HEIGHT,
     CHART_PADDING,
     monthPitch,
+    prePurchaseReferenceLineX,
     svgCoordsToLocal,
     svgPlotBoundsToLocal,
     svgPointFromPointer,
@@ -22,6 +23,7 @@
   import {
     buildBalanceLedgers,
     buildSignedYAxisScale,
+    ledgerYAxisValues,
     pickLedgerHover,
     polylinePointsForLedger,
     xForLedgerMonth,
@@ -69,9 +71,7 @@
   const maxMonth = $derived(
     Math.max(1, ...ledgers.flatMap((series) => series.points.map((point) => point.mes)))
   );
-  const yAxis = $derived(
-    buildSignedYAxisScale(ledgers.flatMap((series) => series.points.map((point) => point.saldo)))
-  );
+  const yAxis = $derived(buildSignedYAxisScale(ledgerYAxisValues(ledgers)));
 
   let chartContainer = $state<HTMLDivElement | null>(null);
   let containerWidth = $state(0);
@@ -166,6 +166,7 @@
 
   const zeroY = $derived(yForLedgerValue(0, yAxis, height, padding));
   const xMonthGrid = $derived(buildMonthGridTicks(maxMonth, chartWidth, padding));
+  const prePurchaseX = $derived(prePurchaseReferenceLineX(maxMonth, chartWidth, padding));
   const xLabelTicks = $derived(
     buildXAxisLabelTicks(maxMonth, chartWidth, formatTimingMonthLabelLong, padding).map((tick) => ({
       ...tick,
@@ -189,6 +190,9 @@
     }
     if (cenario.extraEm !== undefined) {
       parts.push(`extra ${formatTimingMonthLabel(cenario.extraEm)}`);
+    }
+    if (cenario.reformaEm !== undefined) {
+      parts.push(`reforma ${formatTimingMonthLabel(cenario.reformaEm)}`);
     }
     return parts.join(" · ");
   }
@@ -304,6 +308,15 @@
             stroke-width="1"
           />
         {/each}
+
+        <line
+          x1={prePurchaseX}
+          y1={padding.top}
+          x2={prePurchaseX}
+          y2={height - padding.bottom}
+          class="pointer-events-none stroke-app-border/40"
+          stroke-width="1"
+        />
 
         {#each xLabelTicks as tick (tick.month)}
           <line

@@ -12,6 +12,7 @@ export interface EffectiveSimulationParams {
   custoManutencaoImovelMensal: number;
   temImovelParaNegociar: boolean;
   custoTotalReformas: number;
+  custoInicialReformas: number;
   custoMensalMaximoReformas: number;
   quantiaExtra: number;
   esperaQuantiaExtra: boolean;
@@ -33,6 +34,7 @@ export function resolveEffectiveParams(params: SimulatorParams): EffectiveSimula
     custoManutencaoImovelMensal: temImovel ? params.custoManutencaoImovelMensal : 0,
     temImovelParaNegociar: temImovel,
     custoTotalReformas: incluirReformas ? params.custoTotalReformas : 0,
+    custoInicialReformas: incluirReformas ? params.custoInicialReformas : 0,
     custoMensalMaximoReformas: incluirReformas ? params.custoMensalMaximoReformas : 0,
     quantiaExtra: esperaExtra ? params.quantiaExtra : 0,
     esperaQuantiaExtra: esperaExtra

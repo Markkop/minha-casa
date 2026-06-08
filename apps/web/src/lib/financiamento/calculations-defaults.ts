@@ -15,6 +15,7 @@ export const UI_DEFAULTS = {
   temImovelParaNegociar: false,
   incluirReformas: false,
   custoTotalReformas: 150_000,
+  custoInicialReformas: 0,
   custoMensalMaximoReformas: 15_000,
   esperaQuantiaExtra: false,
   quantiaExtra: 100_000
@@ -28,6 +29,9 @@ export const DEFAULT_VENDA_POSTERIOR_TIMING_MONTHS = [6] as const;
 
 /** Default selected “Extra em” filter when quantia extra is on. */
 export const DEFAULT_RECEBIMENTO_EXTRA_TIMING_MONTHS = [12] as const;
+
+/** Default selected “Reforma em” filter when reformas are on. */
+export const DEFAULT_REFORMA_TIMING_MONTHS = [1] as const;
 
 /** Fixed assumptions for scenario generation (not exposed in the adjustment UI). */
 export const SIMULATION_ASSUMPTIONS = {

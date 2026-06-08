@@ -100,6 +100,10 @@ export function normalizeSimulatorParams(parsed: StoredSimulatorParams): Simulat
     temImovelParaNegociar,
     incluirReformas: finiteBoolean(parsed.incluirReformas, defaults.incluirReformas),
     custoTotalReformas: finiteNumber(parsed.custoTotalReformas, defaults.custoTotalReformas),
+    custoInicialReformas: finiteNumber(
+      parsed.custoInicialReformas,
+      defaults.custoInicialReformas
+    ),
     custoMensalMaximoReformas: finiteNumber(
       parsed.custoMensalMaximoReformas,
       defaults.custoMensalMaximoReformas
@@ -122,6 +126,10 @@ export function normalizeSimulatorParams(parsed: StoredSimulatorParams): Simulat
     temposRecebimentoExtraMeses: validTimingMonthList(
       parsed.temposRecebimentoExtraMeses,
       defaults.temposRecebimentoExtraMeses
+    ),
+    temposReformaMeses: validTimingMonthList(
+      parsed.temposReformaMeses,
+      defaults.temposReformaMeses
     ),
     linkedListingId: validListingId(parsed.linkedListingId)
   };

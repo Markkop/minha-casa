@@ -55,6 +55,7 @@
   const sortedCenarios = $derived(sortCenarios(cenarios, sort));
   const showReformasColumn = $derived(cenarios.some((c) => c.totalReformas > 0));
   const showExtraColumn = $derived(cenarios.some((c) => c.extraEm !== undefined));
+  const showReformaTimingColumn = $derived(cenarios.some((c) => c.reformaEm !== undefined));
 
   function handleSort(key: ResultsSortKey) {
     sort = toggleSort(sort, key);
@@ -157,6 +158,9 @@
         {#if showExtraColumn}
           {@render sortableHeader("Extra em", "extraEm", "Mês do recebimento da quantia extra")}
         {/if}
+        {#if showReformaTimingColumn}
+          {@render sortableHeader("Reforma em", "reformaEm", "Mês de início da reforma")}
+        {/if}
         {@render sortableHeader(
           "Financiado",
           "valorFinanciado",
@@ -236,6 +240,11 @@
           {#if showExtraColumn}
             <td class={cn(tdClass, monoCellClass)}>
               {formatTimingCell(cenario.extraEm)}
+            </td>
+          {/if}
+          {#if showReformaTimingColumn}
+            <td class={cn(tdClass, monoCellClass)}>
+              {formatTimingCell(cenario.reformaEm)}
             </td>
           {/if}
           <td class={cn(tdClass, monoCellClass)}>

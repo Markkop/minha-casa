@@ -1,5 +1,6 @@
 import {
   CHART_HEIGHT,
+  CHART_MIN_MONTH,
   CHART_PADDING,
   HOVER_Y_HYSTERESIS,
   monthAtX,
@@ -89,6 +90,7 @@ export function buildBalanceLedger(
     const totalDespesas =
       month.prestacao +
       month.aporteExtra +
+      month.reformaInicial +
       month.reformaMensal +
       month.manutencaoMensal +
       custoMensal +
@@ -109,7 +111,7 @@ export function buildBalanceLedger(
       receitaExtra,
       prestacao: month.prestacao,
       aporteExtra: month.aporteExtra,
-      reforma: month.reformaMensal,
+      reforma: month.reformaInicial + month.reformaMensal,
       manutencao: month.manutencaoMensal,
       custoMensal,
       amortizacaoVenda: month.amortizacaoVenda,
@@ -185,6 +187,19 @@ export function yForLedgerValue(
   return pad.top + (1 - (value - scale.min) / range) * innerHeight;
 }
 
+export function ledgerYAxisValues(series: BalanceLedgerSeries[]): number[] {
+  return series.flatMap((item) => {
+    const first = item.points[0];
+    const prePurchase = first?.saldoPreEvento ?? first?.capitalInicial ?? first?.saldo ?? 0;
+    return [
+      prePurchase,
+      ...item.points.flatMap((point) =>
+        point.saldoPreEvento !== undefined ? [point.saldoPreEvento, point.saldo] : [point.saldo]
+      )
+    ];
+  });
+}
+
 export function polylinePointsForLedger(
   series: BalanceLedgerSeries,
   maxMonth: number,
@@ -211,6 +226,8 @@ export function pickLedgerHover(
   if (series.length === 0) return null;
 
   const targetMonth = ledgerMonthAtX(svgX, maxMonth, width);
+  if (targetMonth < CHART_MIN_MONTH) return null;
+
   let best: ChartHover | null = null;
   let bestYDistance = Infinity;
 
@@ -222,7 +239,7 @@ export function pickLedgerHover(
     const distance = Math.abs(svgY - yForLedgerValue(point.saldo, scale));
     if (distance < bestYDistance) {
       bestYDistance = distance;
-      best = { cenarioId: item.cenario.id, monthIndex };
+      best = { cenarioId: item.cenario.id, monthIndex, mes: targetMonth };
     }
   }
 

@@ -234,7 +234,9 @@ export interface CenarioCompletoParams {
   mesExtra?: number | null
   quantiaExtra?: number
   custoTotalReformas?: number
+  custoInicialReformas?: number
   custoMensalMaximoReformas?: number
+  mesReforma?: number
 }
 
 export interface CenarioCompleto {
@@ -262,6 +264,7 @@ export interface CenarioCompleto {
   isBest?: boolean
   vendaEm?: number
   extraEm?: number
+  reformaEm?: number
   timeline: TimelineMonth[]
   saldoLivreMinimo: number
   totalReformas: number
@@ -283,11 +286,13 @@ export interface MatrizCenariosParams {
   custoCondominioMensal?: number
   temImovelParaNegociar?: boolean
   custoTotalReformas?: number
+  custoInicialReformas?: number
   custoMensalMaximoReformas?: number
   quantiaExtra?: number
   esperaQuantiaExtra?: boolean
   temposVendaPosteriorMeses?: readonly number[]
   temposRecebimentoExtraMeses?: readonly number[]
+  temposReformaMeses?: readonly number[]
   reservaEmergencia?: number
   haircut?: number
   prazoMeses?: number
@@ -909,7 +914,9 @@ export const gerarCenarioCompleto = ({
   mesExtra = null,
   quantiaExtra = 0,
   custoTotalReformas = 0,
-  custoMensalMaximoReformas = 0
+  custoInicialReformas = 0,
+  custoMensalMaximoReformas = 0,
+  mesReforma
 }: CenarioCompletoParams): CenarioCompleto => {
   const manutencao = custoManutencaoImovelMensal ?? custoCondominioMensal ?? 0
   const entrada = calcularEntrada({ capitalDisponivel, reservaEmergencia })
@@ -952,7 +959,9 @@ export const gerarCenarioCompleto = ({
     quantiaExtra,
     custoManutencaoImovelMensal: manutencao,
     custoTotalReformas,
-    custoMensalMaximoReformas
+    custoInicialReformas,
+    custoMensalMaximoReformas,
+    mesReforma
   })
 
   const cenarioOtimizado = buildCenarioOtimizadoResumo(
@@ -984,9 +993,10 @@ export const gerarCenarioCompleto = ({
 
   const vendaEm = estrategia === "venda_posterior" ? mesVenda : undefined
   const extraEm = mesExtra ?? undefined
+  const reformaEm = custoTotalReformas > 0 ? (mesReforma ?? 1) : undefined
 
   return {
-    id: `${valorImovel}-${valorApartamento}-${estrategia}-v${vendaEm ?? "n"}-e${extraEm ?? "n"}`,
+    id: `${valorImovel}-${valorApartamento}-${estrategia}-v${vendaEm ?? "n"}-e${extraEm ?? "n"}-r${reformaEm ?? "n"}`,
     valorImovel,
     valorApartamento,
     estrategia,
@@ -1012,6 +1022,7 @@ export const gerarCenarioCompleto = ({
     custoTotalOtimizado,
     vendaEm,
     extraEm,
+    reformaEm,
     timeline: timeline.meses,
     saldoLivreMinimo: timeline.saldoLivreMinimo,
     totalReformas: timeline.totalReformas,
@@ -1031,6 +1042,16 @@ function extraMonthVariants(
   return [...temposRecebimentoExtraMeses]
 }
 
+function reformMonthVariants(
+  custoTotalReformas: number,
+  temposReformaMeses: readonly number[]
+): (number | undefined)[] {
+  if (custoTotalReformas <= 0) {
+    return [undefined]
+  }
+  return [...temposReformaMeses]
+}
+
 /**
  * Gera a matriz completa de cenários
  */
@@ -1046,11 +1067,13 @@ export const gerarMatrizCenarios = ({
   custoCondominioMensal,
   temImovelParaNegociar,
   custoTotalReformas = 0,
+  custoInicialReformas = 0,
   custoMensalMaximoReformas = 0,
   quantiaExtra = 0,
   esperaQuantiaExtra = false,
   temposVendaPosteriorMeses = [6],
   temposRecebimentoExtraMeses = [12],
+  temposReformaMeses = [1],
   reservaEmergencia = SIMULATION_ASSUMPTIONS.reservaEmergencia,
   haircut = SIMULATION_ASSUMPTIONS.haircut,
   prazoMeses = SIMULATION_ASSUMPTIONS.prazoMeses,
@@ -1075,49 +1098,60 @@ export const gerarMatrizCenarios = ({
     seguros,
     quantiaExtra,
     custoTotalReformas,
+    custoInicialReformas,
     custoMensalMaximoReformas
   }
+  const reformMonths = reformMonthVariants(custoTotalReformas, temposReformaMeses)
 
   if (!temImovel) {
     for (const valorImovel of valoresImovel) {
       for (const mesExtra of extraMonths) {
-        cenarios.push(
-          gerarCenarioCompleto({
-            ...baseCenario,
-            valorImovel,
-            valorApartamento: 0,
-            estrategia: "venda_posterior",
-            mesExtra
-          })
-        )
+        for (const mesReforma of reformMonths) {
+          cenarios.push(
+            gerarCenarioCompleto({
+              ...baseCenario,
+              valorImovel,
+              valorApartamento: 0,
+              estrategia: "venda_posterior",
+              mesExtra,
+              mesReforma
+            })
+          )
+        }
       }
     }
   } else {
     for (const valorImovel of valoresImovel) {
       for (const valorApartamento of valoresApartamento) {
         for (const mesExtra of extraMonths) {
-          cenarios.push(
-            gerarCenarioCompleto({
-              ...baseCenario,
-              valorImovel,
-              valorApartamento,
-              estrategia: "permuta",
-              mesExtra
-            })
-          )
-        }
-        for (const mesVenda of temposVendaPosteriorMeses) {
-          for (const mesExtra of extraMonths) {
+          for (const mesReforma of reformMonths) {
             cenarios.push(
               gerarCenarioCompleto({
                 ...baseCenario,
                 valorImovel,
                 valorApartamento,
-                estrategia: "venda_posterior",
-                mesVenda,
-                mesExtra
+                estrategia: "permuta",
+                mesExtra,
+                mesReforma
               })
             )
+          }
+        }
+        for (const mesVenda of temposVendaPosteriorMeses) {
+          for (const mesExtra of extraMonths) {
+            for (const mesReforma of reformMonths) {
+              cenarios.push(
+                gerarCenarioCompleto({
+                  ...baseCenario,
+                  valorImovel,
+                  valorApartamento,
+                  estrategia: "venda_posterior",
+                  mesVenda,
+                  mesExtra,
+                  mesReforma
+                })
+              )
+            }
           }
         }
       }
@@ -1139,4 +1173,3 @@ export {
   generateTooltips,
   type TooltipParams
 } from "$lib/financiamento/calculations-tooltips";
-

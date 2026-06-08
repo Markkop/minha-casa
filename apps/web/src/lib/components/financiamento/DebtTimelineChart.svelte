@@ -10,6 +10,7 @@
     pickChartHover,
     polylinePoints,
     debtBalanceAtHover,
+    prePurchaseReferenceLineX,
     svgCoordsToLocal,
     svgPlotBoundsToLocal,
     svgPointFromPointer,
@@ -93,6 +94,7 @@
   const plotHeight = $derived(height - padding.top - padding.bottom);
 
   const xMonthGrid = $derived(buildMonthGridTicks(maxMonth, chartWidth, padding));
+  const prePurchaseX = $derived(prePurchaseReferenceLineX(maxMonth, chartWidth, padding));
 
   const xLabelTicks = $derived(
     buildXAxisLabelTicks(maxMonth, chartWidth, formatTimingMonthLabelLong, padding)
@@ -115,6 +117,9 @@
     if (cenario.extraEm !== undefined) {
       parts.push(`extra ${formatTimingMonthLabel(cenario.extraEm)}`);
     }
+    if (cenario.reformaEm !== undefined) {
+      parts.push(`reforma ${formatTimingMonthLabel(cenario.reformaEm)}`);
+    }
     return parts.join(" · ");
   }
 
@@ -131,7 +136,7 @@
     if (!cenario) return null;
     const month = cenario.timeline[active.monthIndex];
     if (!month) return null;
-    return { cenario, month };
+    return { cenario, month, mes: active.mes ?? month.mes };
   });
 
   const selectedPoint = $derived.by(() => {
@@ -159,12 +164,20 @@
 
   const focusX = $derived(
     focusPoint
-      ? xForMonth(focusPoint.month.mes, maxMonth, chartWidth, padding)
+      ? xForMonth(focusPoint.mes, maxMonth, chartWidth, padding)
       : null
   );
 
   const focusY = $derived.by(() => {
     if (!focusPoint) return null;
+    if (focusPoint.mes === 0) {
+      return yForBalance(
+        focusPoint.cenario.financiamento.valorFinanciado,
+        maxBalance,
+        height,
+        padding
+      );
+    }
     const idx = focusPoint.cenario.timeline.findIndex((m) => m.mes === focusPoint.month.mes);
     if (idx < 0) return null;
     return yForBalance(
@@ -177,12 +190,20 @@
 
   const breakdownX = $derived(
     breakdownPoint
-      ? xForMonth(breakdownPoint.month.mes, maxMonth, chartWidth, padding)
+      ? xForMonth(breakdownPoint.mes, maxMonth, chartWidth, padding)
       : null
   );
 
   const breakdownY = $derived.by(() => {
     if (!breakdownPoint) return null;
+    if (breakdownPoint.mes === 0) {
+      return yForBalance(
+        breakdownPoint.cenario.financiamento.valorFinanciado,
+        maxBalance,
+        height,
+        padding
+      );
+    }
     const idx = breakdownPoint.cenario.timeline.findIndex((m) => m.mes === breakdownPoint.month.mes);
     if (idx < 0) return null;
     return yForBalance(
@@ -222,7 +243,8 @@
       next &&
       hover &&
       next.cenarioId === hover.cenarioId &&
-      next.monthIndex === hover.monthIndex
+      next.monthIndex === hover.monthIndex &&
+      next.mes === hover.mes
     ) {
       return;
     }
@@ -242,7 +264,9 @@
     const { x, y } = svgPointFromPointer(svgEl, event, chartWidth, height);
     const pick = pickChartHover(cenarios, x, y, maxMonth, maxBalance, chartWidth, hover);
     if (!pick) return;
-    chartSelection.toggleSelection(selectionFromTimelinePointer(x, pick, maxMonth, chartWidth));
+    const selection = selectionFromTimelinePointer(x, pick, maxMonth, chartWidth);
+    if (!selection) return;
+    chartSelection.toggleSelection(selection);
   }
 
   function handleChartPointerLeave() {
@@ -304,6 +328,15 @@
             stroke-width="1"
           />
         {/each}
+
+        <line
+          x1={prePurchaseX}
+          y1={padding.top}
+          x2={prePurchaseX}
+          y2={height - padding.bottom}
+          class="pointer-events-none stroke-app-border/40"
+          stroke-width="1"
+        />
 
         {#each xLabelTicks as tick (tick.month)}
           <line
@@ -424,11 +457,17 @@
               opacity={isSelectionPinned ? 1 : 0.9}
             />
             {#each cenarios as other, i (other.id)}
-              {@const idx = other.timeline.findIndex((m) => m.mes === month.mes)}
+              {@const idx = focusPoint.mes === 0 ? 0 : other.timeline.findIndex((m) => m.mes === month.mes)}
               {#if idx >= 0}
-                {@const om = other.timeline[idx]}
-                {@const ox = xForMonth(om.mes, maxMonth, chartWidth, padding)}
-                {@const oy = yForBalance(debtBalanceAtHover(other, idx), maxBalance, height, padding)}
+                {@const ox = xForMonth(focusPoint.mes, maxMonth, chartWidth, padding)}
+                {@const oy = yForBalance(
+                  focusPoint.mes === 0
+                    ? other.financiamento.valorFinanciado
+                    : debtBalanceAtHover(other, idx),
+                  maxBalance,
+                  height,
+                  padding
+                )}
                 {@const oc = CHART_COLORS[i % CHART_COLORS.length]}
                 <circle
                   cx={ox}
@@ -456,6 +495,7 @@
 
       {#if showBreakdownPanel && breakdownPoint}
         {@const { cenario, month } = breakdownPoint}
+        {@const mes = breakdownPoint.mes}
         {@const gastos = monthlyExpenseBreakdown(month, custoMensal)}
         {@const saldoLivre = monthlyFreeBalance(month, cenario.rendaMensal, custoMensal)}
         <ChartHoverBreakdownPanel
@@ -469,13 +509,21 @@
           <dl class="grid grid-cols-[auto_1fr] gap-x-2 gap-y-0.5 text-app-muted">
             <dt>Mês</dt>
             <dd class="font-mono text-app-fg">
-              {month.mes}
-              <span class="font-sans text-app-subtle">
-                ({formatTimingMonthLabelLong(month.mes)})
-              </span>
+              {#if mes === 0}
+                Compra
+              {:else}
+                {mes}
+                <span class="font-sans text-app-subtle">
+                  ({formatTimingMonthLabelLong(mes)})
+                </span>
+              {/if}
             </dd>
             <dt>Saldo devedor</dt>
-            <dd class="font-mono text-app-fg">{formatCurrency(renderedDebtBalance(month))}</dd>
+            <dd class="font-mono text-app-fg">
+              {formatCurrency(
+                mes === 0 ? cenario.financiamento.valorFinanciado : renderedDebtBalance(month)
+              )}
+            </dd>
             <dt>Prestação</dt>
             <dd class="font-mono">{formatCurrency(gastos.prestacao)}</dd>
               {#if gastos.aporteExtra > 0}

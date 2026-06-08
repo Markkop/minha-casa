@@ -116,16 +116,30 @@ describe("normalizeSimulatorParams", () => {
     const defaults = createInitialSimulatorParams();
     const result = normalizeSimulatorParams({
       temposVendaPosteriorMeses: [2, 99],
-      temposRecebimentoExtraMeses: []
+      temposRecebimentoExtraMeses: [],
+      temposReformaMeses: [6, 99]
     });
     expect(result.temposVendaPosteriorMeses).toEqual(defaults.temposVendaPosteriorMeses);
     expect(result.temposRecebimentoExtraMeses).toEqual(defaults.temposRecebimentoExtraMeses);
+    expect(result.temposReformaMeses).toEqual([6]);
   });
 
-  it("defaults venda em to 6m and extra em to 1 ano", () => {
+  it("defaults venda em to 6m, extra em to 1 ano, and reforma em to 1m", () => {
     const params = createInitialSimulatorParams();
     expect(params.temposVendaPosteriorMeses).toEqual([6]);
     expect(params.temposRecebimentoExtraMeses).toEqual([12]);
+    expect(params.temposReformaMeses).toEqual([1]);
+  });
+
+  it("defaults new reform fields for older saved params", () => {
+    const defaults = createInitialSimulatorParams();
+    const result = normalizeSimulatorParams({
+      incluirReformas: true,
+      custoTotalReformas: 120_000
+    });
+
+    expect(result.custoInicialReformas).toBe(defaults.custoInicialReformas);
+    expect(result.temposReformaMeses).toEqual(defaults.temposReformaMeses);
   });
 
   it("defaults linkedListingId to null", () => {

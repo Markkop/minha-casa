@@ -26,6 +26,53 @@ describe("simularTimelineMensal", () => {
     expect(Math.max(...reformMonths.map((m) => m.reformaMensal))).toBeLessThanOrEqual(15_000);
   });
 
+  it("uses initial reform cost before monthly reform installments", () => {
+    const result = simularTimelineMensal({
+      ...baseTimeline,
+      estrategia: "financiamento",
+      custoTotalReformas: 50_000,
+      custoInicialReformas: 20_000,
+      custoMensalMaximoReformas: 15_000
+    });
+
+    expect(result.totalReformas).toBe(50_000);
+    expect(result.meses[0]).toMatchObject({ reformaInicial: 20_000, reformaMensal: 15_000 });
+    expect(result.meses[1]).toMatchObject({ reformaInicial: 0, reformaMensal: 15_000 });
+    expect(result.mesReformaConcluida).toBe(2);
+  });
+
+  it("caps initial reform cost at total reform cost", () => {
+    const result = simularTimelineMensal({
+      ...baseTimeline,
+      estrategia: "financiamento",
+      custoTotalReformas: 30_000,
+      custoInicialReformas: 50_000,
+      custoMensalMaximoReformas: 15_000
+    });
+
+    expect(result.totalReformas).toBe(30_000);
+    expect(result.meses[0]).toMatchObject({ reformaInicial: 30_000, reformaMensal: 0 });
+    expect(result.mesReformaConcluida).toBe(1);
+  });
+
+  it("delays initial and monthly reform costs until the selected reform month", () => {
+    const result = simularTimelineMensal({
+      ...baseTimeline,
+      estrategia: "financiamento",
+      custoTotalReformas: 40_000,
+      custoInicialReformas: 10_000,
+      custoMensalMaximoReformas: 15_000,
+      mesReforma: 6
+    });
+
+    expect(result.meses.slice(0, 5).every((m) => m.reformaInicial + m.reformaMensal === 0)).toBe(
+      true
+    );
+    expect(result.meses[5]).toMatchObject({ mes: 6, reformaInicial: 10_000, reformaMensal: 15_000 });
+    expect(result.meses[6]).toMatchObject({ mes: 7, reformaInicial: 0, reformaMensal: 15_000 });
+    expect(result.mesReformaConcluida).toBe(7);
+  });
+
   it("applies extra amount at selected month", () => {
     const result = simularTimelineMensal({
       ...baseTimeline,
@@ -77,7 +124,13 @@ describe("simularTimelineMensal", () => {
       quantiaExtra: 200_000
     });
     const month12 = result.meses.find((m) => m.mes === 12);
-    expect(month12?.saldoDevedorFim).toBe(month12!.saldoDevedor - 200_000);
+    expect(month12?.saldoDevedorFim).toBeCloseTo(
+      month12!.saldoDevedor -
+        baseTimeline.valorFinanciado / baseTimeline.prazoMeses -
+        month12!.aporteExtra -
+        month12!.amortizacaoQuantiaExtra,
+      2
+    );
   });
 
   it("counts property maintenance once in optimized total via carrego apto", () => {
@@ -135,7 +188,12 @@ describe("simularTimelineMensal", () => {
     });
     const manualMin = Math.min(
       ...result.meses.map(
-        (m) => rendaMensal - m.prestacao - m.aporteExtra - m.reformaMensal - m.manutencaoMensal
+        (m) =>
+          rendaMensal -
+          m.prestacao -
+          m.aporteExtra -
+          m.reformaMensal -
+          m.manutencaoMensal
       )
     );
     expect(result.saldoLivreMinimo).toBeCloseTo(manualMin, 2);
@@ -188,6 +246,36 @@ describe("gerarMatrizCenarios", () => {
       .filter((r) => r.estrategia === "venda_posterior")
       .map((r) => r.vendaEm);
     expect(vendaMonths.sort((a, b) => (a ?? 0) - (b ?? 0))).toEqual([1, 6, 12, 24]);
+  });
+
+  it("expands scenarios across selected reform months when reforms are enabled", () => {
+    const rows = gerarMatrizCenarios({
+      ...matrixBase,
+      valoresApartamento: [0],
+      temImovelParaNegociar: false,
+      esperaQuantiaExtra: false,
+      custoTotalReformas: 80_000,
+      custoInicialReformas: 20_000,
+      custoMensalMaximoReformas: 15_000,
+      temposReformaMeses: [1, 6]
+    });
+
+    expect(rows).toHaveLength(2);
+    expect(rows.map((r) => r.reformaEm).sort((a, b) => (a ?? 0) - (b ?? 0))).toEqual([1, 6]);
+  });
+
+  it("does not expand reform timing when reforms are disabled", () => {
+    const rows = gerarMatrizCenarios({
+      ...matrixBase,
+      valoresApartamento: [0],
+      temImovelParaNegociar: false,
+      esperaQuantiaExtra: false,
+      custoTotalReformas: 0,
+      temposReformaMeses: [1, 6, 12]
+    });
+
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.reformaEm).toBeUndefined();
   });
 
   it("marks best scenario by lowest event-aware custo total", () => {

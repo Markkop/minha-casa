@@ -65,9 +65,13 @@ export function renderedFreeBalance(
     : monthlyFreeBalance(month, rendaMensal, custoMensal);
 }
 
+/** Decorative pre-purchase column; matches CHART_PRE_PURCHASE_REFERENCE_MONTH in chart math. */
+const PRE_PURCHASE_MONTH = -1;
+
 export function debtChartVertices(cenario: CenarioCompleto): ChartPathVertex[] {
   const valorFinanciado = cenario.financiamento.valorFinanciado;
   const vertices: ChartPathVertex[] = [
+    { month: PRE_PURCHASE_MONTH, y: 0 },
     { month: 0, y: 0, yAfterEvent: valorFinanciado }
   ];
 
@@ -93,6 +97,7 @@ export function monthlyTotalVertices(
   const prePurchase = prePurchaseMonthlyOutflow(custoMensal);
   const firstMonth = cenario.timeline[0];
   const vertices: ChartPathVertex[] = [
+    { month: PRE_PURCHASE_MONTH, y: prePurchase },
     firstMonth
       ? {
           month: 0,
@@ -125,6 +130,7 @@ export function freeBalanceVertices(
   const prePurchase = prePurchaseFreeBalance(cenario.rendaMensal, custoMensal);
   const firstMonth = cenario.timeline[0];
   const vertices: ChartPathVertex[] = [
+    { month: PRE_PURCHASE_MONTH, y: prePurchase },
     firstMonth
       ? {
           month: 0,
@@ -151,10 +157,19 @@ export function freeBalanceVertices(
 }
 
 export function ledgerVertices(series: BalanceLedgerSeries): ChartPathVertex[] {
-  return series.points.map((point) => {
+  const first = series.points[0];
+  if (!first) return [];
+
+  const prePurchaseBalance = first.saldoPreEvento ?? first.capitalInicial ?? first.saldo;
+  const vertices: ChartPathVertex[] = [{ month: PRE_PURCHASE_MONTH, y: prePurchaseBalance }];
+
+  for (const point of series.points) {
     if (point.saldoPreEvento !== undefined) {
-      return { month: point.mes, y: point.saldoPreEvento, yAfterEvent: point.saldo };
+      vertices.push({ month: point.mes, y: point.saldoPreEvento, yAfterEvent: point.saldo });
+    } else {
+      vertices.push({ month: point.mes, y: point.saldo });
     }
-    return { month: point.mes, y: point.saldo };
-  });
+  }
+
+  return vertices;
 }

@@ -24,4 +24,20 @@ describe("resolveEffectiveParams", () => {
       })
     ).toEqual(resolveEffectiveParams(params));
   });
+
+  it("zeros all reform costs when reforms are disabled", () => {
+    const params = {
+      ...createInitialSimulatorParams(),
+      incluirReformas: false,
+      custoTotalReformas: 150_000,
+      custoInicialReformas: 50_000,
+      custoMensalMaximoReformas: 15_000
+    };
+
+    expect(resolveEffectiveParams(params)).toMatchObject({
+      custoTotalReformas: 0,
+      custoInicialReformas: 0,
+      custoMensalMaximoReformas: 0
+    });
+  });
 });

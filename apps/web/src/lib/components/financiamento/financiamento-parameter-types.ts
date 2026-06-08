@@ -19,6 +19,7 @@ export type SliderField =
   | "valorApartamento"
   | "custoManutencao"
   | "custoTotalReformas"
+  | "custoInicialReformas"
   | "custoMensalMaximoReformas"
   | "quantiaExtra";
 
@@ -36,6 +37,7 @@ export interface SimulatorParams {
   temImovelParaNegociar: boolean;
   incluirReformas: boolean;
   custoTotalReformas: number;
+  custoInicialReformas: number;
   custoMensalMaximoReformas: number;
   esperaQuantiaExtra: boolean;
   quantiaExtra: number;
@@ -44,6 +46,7 @@ export interface SimulatorParams {
   estrategiasFiltro: EstrategiaFiltro[];
   temposVendaPosteriorMeses: number[];
   temposRecebimentoExtraMeses: number[];
+  temposReformaMeses: number[];
   /** Listing id that last drove valorImovel via breadcrumb; null when unlinked. */
   linkedListingId: string | null;
 }

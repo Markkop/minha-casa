@@ -1,4 +1,8 @@
-import { monthAtX, type ChartHover } from "$lib/components/financiamento/debt-timeline-chart-math";
+import {
+  CHART_MIN_MONTH,
+  monthAtX,
+  type ChartHover
+} from "$lib/components/financiamento/debt-timeline-chart-math";
 import type { BalanceLedgerSeries } from "$lib/components/financiamento/total-balance-ledger";
 import type { CenarioCompleto } from "$lib/financiamento/calculations";
 import type { TimelineMonth } from "$lib/financiamento/financing-timeline";
@@ -29,9 +33,11 @@ export function selectionFromTimelinePointer(
   hover: ChartHover,
   maxMonth: number,
   chartWidth: number
-): ChartPointSelection {
+): ChartPointSelection | null {
+  const mes = hover.mes ?? monthAtX(svgX, maxMonth, chartWidth);
+  if (mes < CHART_MIN_MONTH) return null;
   return {
-    mes: monthAtX(svgX, maxMonth, chartWidth),
+    mes,
     cenarioId: hover.cenarioId
   };
 }
@@ -41,21 +47,21 @@ export function mesFromLedgerHover(
   ledgers: BalanceLedgerSeries[]
 ): number {
   const series = ledgers.find((item) => item.cenario.id === hover.cenarioId);
-  return series?.points[hover.monthIndex]?.mes ?? 0;
+  return hover.mes ?? series?.points[hover.monthIndex]?.mes ?? 0;
 }
 
 export function resolveTimelineSelection(
   selection: ChartPointSelection,
   cenarios: CenarioCompleto[]
-): { cenario: CenarioCompleto; month: TimelineMonth } | null {
+): { cenario: CenarioCompleto; month: TimelineMonth; mes: number } | null {
   const cenario = cenarios.find((item) => item.id === selection.cenarioId);
   if (!cenario) return null;
 
   const month = cenario.timeline.find((item) => item.mes === selection.mes);
-  if (month) return { cenario, month };
+  if (month) return { cenario, month, mes: month.mes };
 
   if (selection.mes === 0 && cenario.timeline.length > 0) {
-    return { cenario, month: cenario.timeline[0] };
+    return { cenario, month: cenario.timeline[0], mes: 0 };
   }
 
   return null;
@@ -93,6 +99,7 @@ export function hoverMatchesSelection(
   if (!cenario) return false;
 
   const month = cenario.timeline[hover.monthIndex];
+  if (hover.mes !== undefined) return hover.mes === selection.mes;
   if (!month) return selection.mes === 0 && hover.monthIndex === 0;
 
   return month.mes === selection.mes;

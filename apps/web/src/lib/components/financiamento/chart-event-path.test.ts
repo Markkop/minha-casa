@@ -20,6 +20,7 @@ function timelineMonth(
   return {
     prestacao: 5_000,
     aporteExtra: 0,
+    reformaInicial: 0,
     reformaMensal: 0,
     manutencaoMensal: 0,
     amortizacaoExtraordinaria: 0,
@@ -52,6 +53,30 @@ const WIDTH = 800;
 const MAX_MONTH = 12;
 
 describe("event-aware polyline paths", () => {
+  it("starts polylines at month -1 with pre-purchase values", () => {
+    const debt = debtChartVertices(cenario("a", [timelineMonth({ mes: 1 })]));
+    expect(debt[0]).toEqual({ month: -1, y: 0 });
+
+    const spending = monthlyTotalVertices(cenario("a", [timelineMonth({ mes: 1 })]), 2_000);
+    expect(spending[0]).toEqual({ month: -1, y: 2_000 });
+
+    const free = freeBalanceVertices(cenario("a", [timelineMonth({ mes: 1 })]), 2_000);
+    expect(free[0]).toEqual({ month: -1, y: 38_000 });
+
+    const ledger = buildBalanceLedger(
+      {
+        id: "ledger",
+        entrada: 100_000,
+        custosFechamento: { total: 20_000 },
+        rendaMensal: 30_000,
+        timeline: [timelineMonth({ mes: 1 })]
+      } as CenarioCompleto,
+      500_000,
+      0
+    );
+    expect(ledgerVertices(ledger)[0]).toEqual({ month: -1, y: 500_000 });
+  });
+
   it("creates a vertical segment at purchase (month 0)", () => {
     const polyline = polylinePoints(cenario("a", [timelineMonth({ mes: 1 })]), MAX_MONTH, 1_000_000, WIDTH);
     expect(hasRepeatedX(polyline)).toBe(true);
@@ -112,6 +137,21 @@ describe("event-aware polyline paths", () => {
     );
     const saleVertex = vertices.find((vertex) => vertex.month === 6);
     expect(saleVertex?.yAfterEvent).toBe(450_000);
+  });
+
+  it("renders monthly total paths without initial reform costs", () => {
+    const vertices = monthlyTotalVertices(
+      cenario("reform", [
+        timelineMonth({
+          mes: 1,
+          prestacao: 5_000,
+          reformaInicial: 20_000,
+          reformaMensal: 5_000
+        })
+      ])
+    );
+
+    expect(vertices.find((vertex) => vertex.month === 1)?.y).toBe(10_000);
   });
 
   it("keeps ordinary months without vertical transitions", () => {

@@ -53,6 +53,7 @@ describe("chart-selection", () => {
           saldoDevedorFim: 399_000,
           prestacao: 3_000,
           aporteExtra: 0,
+          reformaInicial: 0,
           reformaMensal: 0,
           manutencaoMensal: 0,
           amortizacaoExtraordinaria: 0,
@@ -67,6 +68,10 @@ describe("chart-selection", () => {
     });
 
     expect(resolveTimelineSelection({ mes: 1, cenarioId: "a" }, [cenario])?.month.mes).toBe(1);
+    expect(resolveTimelineSelection({ mes: 0, cenarioId: "a" }, [cenario])).toMatchObject({
+      mes: 0,
+      month: { mes: 1 }
+    });
     expect(resolveTimelineSelection({ mes: 9, cenarioId: "a" }, [cenario])).toBeNull();
   });
 

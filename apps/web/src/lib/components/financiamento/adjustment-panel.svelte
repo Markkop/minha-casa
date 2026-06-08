@@ -6,6 +6,7 @@
     CUSTO_MANUTENCAO_RANGE,
     CUSTO_MENSAL_RANGE,
     QUANTIA_EXTRA_RANGE,
+    REFORMA_INICIAL_RANGE,
     REFORMA_MENSAL_MAX_RANGE,
     REFORMA_TOTAL_RANGE,
     VALOR_APARTAMENTO_RANGE,
@@ -115,6 +116,7 @@
       valorImovel: UI_DEFAULTS.valorImovel,
       incluirReformas: UI_DEFAULTS.incluirReformas,
       custoTotalReformas: UI_DEFAULTS.custoTotalReformas,
+      custoInicialReformas: UI_DEFAULTS.custoInicialReformas,
       custoMensalMaximoReformas: UI_DEFAULTS.custoMensalMaximoReformas
     });
   }
@@ -340,6 +342,30 @@
                 onValueChange
                   ? onValueChange("custoTotalReformas", value)
                   : patch({ custoTotalReformas: value })
+            }}
+          />
+          <ParameterRow
+            compact={rowCompact}
+            label="Custo inicial"
+            tooltip="Parte do custo total de reformas paga no mês selecionado em Reforma em."
+            valueDisplay={formatCurrency(params.custoInicialReformas)}
+            slider={{
+              value: params.custoInicialReformas,
+              min: REFORMA_INICIAL_RANGE.min,
+              max: REFORMA_INICIAL_RANGE.max,
+              step: REFORMA_INICIAL_RANGE.step,
+              onValueChange: (value) =>
+                onValueChange
+                  ? onValueChange("custoInicialReformas", value)
+                  : patch({ custoInicialReformas: value })
+            }}
+            edit={{
+              type: "currency",
+              value: params.custoInicialReformas,
+              onChange: (value) =>
+                onValueChange
+                  ? onValueChange("custoInicialReformas", value)
+                  : patch({ custoInicialReformas: value })
             }}
           />
           <ParameterRow

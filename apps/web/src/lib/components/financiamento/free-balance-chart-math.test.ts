@@ -16,6 +16,7 @@ function scenario(id: string, rendaMensal: number, gastos: number[]): CenarioCom
       saldoDevedorFim: 0,
       prestacao,
       aporteExtra: 0,
+      reformaInicial: 0,
       reformaMensal: 0,
       manutencaoMensal: 0,
       amortizacaoExtraordinaria: 0,
@@ -33,7 +34,7 @@ function scenario(id: string, rendaMensal: number, gastos: number[]): CenarioCom
 describe("freeBalanceValues", () => {
   it("includes positive, zero, and negative monthly balances", () => {
     expect(freeBalanceValues([scenario("a", 10_000, [8_000, 10_000, 12_000])])).toEqual([
-      2_000, 0, -2_000
+      10_000, 2_000, 0, -2_000
     ]);
   });
 });
@@ -54,6 +55,23 @@ describe("pickChartHoverForFreeBalance", () => {
       null
     );
 
-    expect(hover).toEqual({ cenarioId: "b", monthIndex: 0 });
+    expect(hover).toEqual({ cenarioId: "b", monthIndex: 0, mes: 1 });
+  });
+
+  it("returns month 0 for the purchase column", () => {
+    const a = scenario("a", 10_000, [8_000]);
+    const scale = buildSignedYAxisScale(freeBalanceValues([a]));
+    const width = 800;
+    const hover = pickChartHoverForFreeBalance(
+      [a],
+      xForMonth(0, 1, width),
+      yForLedgerValue(2_000, scale),
+      1,
+      scale,
+      width,
+      null
+    );
+
+    expect(hover).toEqual({ cenarioId: "a", monthIndex: 0, mes: 0 });
   });
 });
