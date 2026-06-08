@@ -5,12 +5,12 @@
     buildXAxisLabelTicks,
     CHART_HEIGHT,
     CHART_PADDING,
-    breakdownMarkerLocal,
-    maxMonthlyTotalData,
+    maxPaymentData,
     monthPitch,
-    monthlyTotalAtHover,
-    pickChartHoverForTotal,
-    polylinePointsForTotal,
+    breakdownMarkerLocal,
+    paymentAtHover,
+    pickChartHoverForPayment,
+    polylinePointsForPayment,
     prePurchaseReferenceLineX,
     svgPlotBoundsToLocal,
     svgPointFromPointer,
@@ -38,27 +38,19 @@
     selectionFromTimelinePointer
   } from "$lib/components/financiamento/chart-selection";
   import { getChartSelectionContext } from "$lib/components/financiamento/chart-selection-context.svelte";
-  import {
-    renderedFreeBalance,
-    renderedMonthlyTotal
-  } from "$lib/components/financiamento/chart-event-path";
   import { formatTimingMonthLabelLong } from "$lib/components/financiamento/parameter-row-helpers";
-  import { monthlyExpenseBreakdown } from "$lib/components/financiamento/monthly-cash-flow";
   import {
     formatCurrency,
     formatCurrencyCompact,
     type CenarioCompleto
   } from "$lib/financiamento/calculations";
-  import { cn } from "$lib/utils";
 
   let {
     cenarios,
-    custoMensal = 0,
     scenarioColorIndex,
     breakdownAnchorSide
   }: {
     cenarios: CenarioCompleto[];
-    custoMensal?: number;
     scenarioColorIndex?: Map<string, number>;
     breakdownAnchorSide?: "left" | "right";
   } = $props();
@@ -68,20 +60,14 @@
   const padding = CHART_PADDING;
   const height = CHART_HEIGHT;
   const legendNote =
-    "Passe o mouse sobre o gráfico para ver cada mês · clique para selecionar ou desselecionar · linha tracejada horizontal: renda mensal · linhas tracejadas verticais: venda · círculo no topo: quantia extra · quadrado inferior: reforma concluída";
+    "Prestação do financiamento ao longo do tempo · clique para selecionar ou desselecionar · linhas tracejadas verticais: venda · círculo no topo: quantia extra · quadrado inferior: reforma concluída";
 
   const maxMonth = $derived(
     Math.max(1, ...cenarios.flatMap((c) => c.timeline.map((m) => m.mes)), 1)
   );
 
-  const rendaMensal = $derived(cenarios[0]?.rendaMensal ?? 0);
-
-  const yAxis = $derived(
-    buildNiceYAxisScale(maxMonthlyTotalData(cenarios, rendaMensal, custoMensal))
-  );
+  const yAxis = $derived(buildNiceYAxisScale(maxPaymentData(cenarios)));
   const maxValue = $derived(yAxis.max);
-
-  const rendaY = $derived(yForBalance(rendaMensal, maxValue, height, padding));
 
   let chartContainer = $state<HTMLDivElement | null>(null);
   const chartSize = useResponsiveChartWidth(() => chartContainer);
@@ -164,12 +150,7 @@
       breakdownPoint.mes === 0 ? 0 : cenario.timeline.findIndex((item) => item.mes === month.mes);
     if (idx < 0) return null;
     const svgX = xForMonth(breakdownPoint.mes, maxMonth, chartWidth, padding);
-    const svgY = yForBalance(
-      monthlyTotalAtHover(cenario, idx, custoMensal),
-      maxValue,
-      height,
-      padding
-    );
+    const svgY = yForBalance(paymentAtHover(cenario, idx), maxValue, height, padding);
     return breakdownMarkerLocal(svgEl, svgX, svgY, chartWidth, height);
   });
 
@@ -183,12 +164,7 @@
         {
           id: other.id,
           x: xForMonth(focusPoint.mes, maxMonth, chartWidth, padding),
-          y: yForBalance(
-            monthlyTotalAtHover(other, idx, custoMensal),
-            maxValue,
-            height,
-            padding
-          ),
+          y: yForBalance(paymentAtHover(other, idx), maxValue, height, padding),
           color: scenarioChartColor(other.id, resolvedColorIndex),
           active: other.id === cenario.id
         }
@@ -197,12 +173,6 @@
   });
 
   const legendEntries = $derived(scenarioLegendEntries(cenarios, resolvedColorIndex));
-  const referenceLegendEntries = $derived([
-    { id: "renda", label: `Renda mensal (${formatCurrencyCompact(rendaMensal)})` }
-  ]);
-  const referenceLines = $derived([
-    { id: "renda", y: rendaY, label: "Renda", opacity: 0.55 }
-  ]);
 
   function handleChartPointerMove(event: PointerEvent) {
     if (!svgEl) return;
@@ -211,15 +181,14 @@
       return;
     }
     const { x, y } = svgPointFromPointer(svgEl, event, chartWidth, height);
-    const next = pickChartHoverForTotal(
+    const next = pickChartHoverForPayment(
       cenarios,
       x,
       y,
       maxMonth,
       maxValue,
       chartWidth,
-      hover,
-      custoMensal
+      hover
     );
     if (chartSelection.selection && chartSelection.breakdownDismissed) {
       hover =
@@ -249,15 +218,14 @@
     }
     pointerDown = null;
     const { x, y } = svgPointFromPointer(svgEl, event, chartWidth, height);
-    const pick = pickChartHoverForTotal(
+    const pick = pickChartHoverForPayment(
       cenarios,
       x,
       y,
       maxMonth,
       maxValue,
       chartWidth,
-      hover,
-      custoMensal
+      hover
     );
     if (!pick) return;
     const selection = selectionFromTimelinePointer(x, pick, maxMonth, chartWidth);
@@ -276,14 +244,14 @@
   }
 </script>
 
-<CollapsibleChartPanel title="Gasto mensal" empty={cenarios.length === 0}>
+<CollapsibleChartPanel title="Prestações" empty={cenarios.length === 0}>
   <div bind:this={chartContainer} class="relative w-full">
     <svg
       bind:this={svgEl}
       viewBox="0 0 {chartWidth} {height}"
       class="h-auto w-full select-none touch-none"
       role="img"
-      aria-label="Gráfico de total mensal por cenário"
+      aria-label="Gráfico de prestações por cenário"
     >
       <TimelineChartAxes
         {yTicks}
@@ -293,18 +261,16 @@
         {chartWidth}
         {height}
         {padding}
-        {referenceLines}
       />
 
       <g class="pointer-events-none">
         {#each cenarios as cenario, i (cenario.id)}
           {@const color = scenarioChartColor(cenario.id, resolvedColorIndex)}
-          {@const points = polylinePointsForTotal(
+          {@const points = polylinePointsForPayment(
             cenario,
             maxMonth,
             maxValue,
-            chartWidth,
-            custoMensal
+            chartWidth
           )}
           {@const isActive = activeCenarioId === cenario.id}
           {#if points}
@@ -351,8 +317,11 @@
     {#if showBreakdownPanel && breakdownPoint}
       {@const { cenario, month } = breakdownPoint}
       {@const mes = breakdownPoint.mes}
-      {@const gastos = monthlyExpenseBreakdown(month, custoMensal)}
-      {@const saldoLivre = renderedFreeBalance(month, cenario.rendaMensal, custoMensal)}
+      {@const amortizacaoRegular = Math.max(
+        0,
+        month.saldoDevedor - month.saldoDevedorFim - month.amortizacaoExtraordinaria
+      )}
+      {@const jurosEstimado = Math.max(0, month.prestacao - amortizacaoRegular)}
       <ChartHoverBreakdownPanel
         open={showBreakdownPanel}
         dismissable={breakdownDismissable}
@@ -375,40 +344,18 @@
               </span>
             {/if}
           </dd>
-          <dt>Prestação</dt>
-          <dd class="font-mono">{formatCurrency(gastos.prestacao)}</dd>
-          {#if gastos.aporteExtra > 0}
-            <dt>Aporte</dt>
-            <dd class="font-mono">{formatCurrency(gastos.aporteExtra)}</dd>
-          {/if}
-          {#if gastos.reforma > 0}
-            <dt>Reforma</dt>
-            <dd class="font-mono">{formatCurrency(gastos.reforma)}</dd>
-          {/if}
-          {#if gastos.manutencao > 0}
-            <dt>Manutenção</dt>
-            <dd class="font-mono">{formatCurrency(gastos.manutencao)}</dd>
-          {/if}
-          {#if gastos.custoMensal > 0}
-            <dt>Custo mensal</dt>
-            <dd class="font-mono">{formatCurrency(gastos.custoMensal)}</dd>
-          {/if}
-          <dt class="font-bold text-app-accent">Gasto mensal</dt>
-          <dd class="font-mono font-bold text-app-accent">
-            {formatCurrency(renderedMonthlyTotal(month, custoMensal))}
-          </dd>
-          <dt>Saldo livre</dt>
-          <dd class={cn("font-mono", saldoLivre < 0 ? "text-salmon" : "text-green")}>
-            {formatCurrency(saldoLivre)}
-          </dd>
+          <dt class="font-bold text-app-accent">Prestação</dt>
+          <dd class="font-mono font-bold text-app-accent">{formatCurrency(month.prestacao)}</dd>
+          <dt>Amortização</dt>
+          <dd class="font-mono">{formatCurrency(amortizacaoRegular)}</dd>
+          <dt>Juros</dt>
+          <dd class="font-mono text-salmon">{formatCurrency(jurosEstimado)}</dd>
+          <dt>Saldo devedor</dt>
+          <dd class="font-mono text-app-fg">{formatCurrency(month.saldoDevedorFim)}</dd>
         </dl>
       </ChartHoverBreakdownPanel>
     {/if}
   </div>
 
-  <ChartLegend
-    entries={legendEntries}
-    referenceEntries={referenceLegendEntries}
-    note={legendNote}
-  />
+  <ChartLegend entries={legendEntries} note={legendNote} />
 </CollapsibleChartPanel>

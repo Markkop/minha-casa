@@ -175,6 +175,61 @@ function boundsCenter(bounds: BoundsRect): { x: number; y: number } {
   };
 }
 
+export const CHART_BREAKDOWN_OUTSIDE_MIN_VISIBLE_RATIO = 0.8;
+
+export function chartBreakdownOutsidePosition(
+  chartBounds: BoundsRect,
+  panelSize: { width: number; height: number },
+  side: ChartBreakdownSide,
+  offset = CHART_BREAKDOWN_OFFSET
+): { corner: ChartBreakdownCorner; side: ChartBreakdownSide; left: number; top: number } {
+  const { width } = panelSize;
+  const { left, top, right } = chartBounds;
+  return {
+    corner: side === "left" ? "topLeft" : "topRight",
+    side,
+    left: side === "left" ? left - width - offset : right + offset,
+    top: top + offset
+  };
+}
+
+export function outsidePlacementVisibleWidth(
+  left: number,
+  width: number,
+  viewportWidth: number,
+  padding: number
+): number {
+  const visibleLeft = Math.max(left, padding);
+  const visibleRight = Math.min(left + width, viewportWidth - padding);
+  return Math.max(0, visibleRight - visibleLeft);
+}
+
+export function outsidePlacementFits(
+  left: number,
+  width: number,
+  chartBounds: BoundsRect,
+  side: ChartBreakdownSide,
+  viewportWidth: number,
+  padding: number,
+  offset = CHART_BREAKDOWN_OFFSET,
+  minVisibleRatio = CHART_BREAKDOWN_OUTSIDE_MIN_VISIBLE_RATIO
+): boolean {
+  const plotWidth = chartBounds.right - chartBounds.left;
+  const minPlotWidth = width * 0.5;
+
+  if (side === "left") {
+    const availableLeft = chartBounds.left - padding;
+    if (availableLeft >= width + offset) return true;
+    if (viewportWidth >= 480 && plotWidth >= minPlotWidth) return true;
+  } else {
+    const availableRight = viewportWidth - padding - chartBounds.right;
+    if (availableRight >= width + offset) return true;
+    if (viewportWidth >= 480 && plotWidth >= minPlotWidth) return true;
+  }
+
+  return outsidePlacementVisibleWidth(left, width, viewportWidth, padding) >= width * minVisibleRatio;
+}
+
 export function chartBreakdownSidePositions(
   chartBounds: BoundsRect,
   panelSize: { width: number; height: number },
@@ -250,7 +305,7 @@ function viewportOverflow(
   return overflow;
 }
 
-export function computeChartBreakdownPlacement(
+export function computeChartBreakdownInsidePlacement(
   chartBounds: BoundsRect,
   panelSize: { width: number; height: number },
   avoidZones: BoundsRect[],
@@ -259,7 +314,7 @@ export function computeChartBreakdownPlacement(
     padding?: number;
     viewportWidth?: number;
     viewportHeight?: number;
-  } = {}
+  }
 ): { left: number; top: number; corner: ChartBreakdownCorner; side: ChartBreakdownSide } {
   const {
     offset = CHART_BREAKDOWN_OFFSET,
@@ -282,8 +337,7 @@ export function computeChartBreakdownPlacement(
     corner: ChartBreakdownCorner;
     side: ChartBreakdownSide;
     score: number;
-  } | null =
-    null;
+  } | null = null;
 
   for (let i = 0; i < candidates.length; i++) {
     const { corner, side, left: rawLeft, top: rawTop } = candidates[i];
@@ -303,4 +357,45 @@ export function computeChartBreakdownPlacement(
   }
 
   return { left: best!.left, top: best!.top, corner: best!.corner, side: best!.side };
+}
+
+export function computeChartBreakdownPlacement(
+  chartBounds: BoundsRect,
+  panelSize: { width: number; height: number },
+  avoidZones: BoundsRect[],
+  options: {
+    offset?: number;
+    padding?: number;
+    viewportWidth?: number;
+    viewportHeight?: number;
+    anchorSide?: ChartBreakdownSide;
+    placement?: "outside" | "inside";
+  } = {}
+): { left: number; top: number; corner: ChartBreakdownCorner; side: ChartBreakdownSide } {
+  const {
+    offset = CHART_BREAKDOWN_OFFSET,
+    padding = VIEWPORT_PADDING,
+    viewportWidth = typeof window !== "undefined" ? window.innerWidth : 800,
+    viewportHeight = typeof window !== "undefined" ? window.innerHeight : 600,
+    anchorSide,
+    placement = anchorSide ? "outside" : "inside"
+  } = options;
+
+  if (placement === "outside" && anchorSide) {
+    const { width, height } = panelSize;
+    const outside = chartBreakdownOutsidePosition(chartBounds, panelSize, anchorSide, offset);
+    const top = clamp(
+      outside.top,
+      padding,
+      Math.max(padding, viewportHeight - height - padding)
+    );
+
+    if (outsidePlacementFits(outside.left, width, chartBounds, anchorSide, viewportWidth, padding, offset)) {
+      return { left: outside.left, top, corner: outside.corner, side: outside.side };
+    }
+
+    return computeChartBreakdownInsidePlacement(chartBounds, panelSize, avoidZones, options);
+  }
+
+  return computeChartBreakdownInsidePlacement(chartBounds, panelSize, avoidZones, options);
 }

@@ -161,6 +161,48 @@ describe("simularTimelineMensal", () => {
     );
   });
 
+  it("ramps aporte extra when progressive mode is enabled", () => {
+    const result = simularTimelineMensal({
+      ...baseTimeline,
+      estrategia: "financiamento",
+      aporteExtra: 10_000,
+      aporteProgressivo: {
+        enabled: true,
+        max: 10_000,
+        inicial: 0,
+        progressao: 1_000,
+        intervaloMeses: 1
+      }
+    });
+
+    expect(result.meses[0]?.aporteExtra).toBe(0);
+    expect(result.meses[1]?.aporteExtra).toBe(1_000);
+    expect(result.meses[9]?.aporteExtra).toBe(9_000);
+    expect(result.meses[10]?.aporteExtra).toBe(10_000);
+    expect(result.meses[20]?.aporteExtra).toBe(10_000);
+  });
+
+  it("steps progressive aporte every interval months", () => {
+    const result = simularTimelineMensal({
+      ...baseTimeline,
+      estrategia: "financiamento",
+      aporteExtra: 10_000,
+      aporteProgressivo: {
+        enabled: true,
+        max: 10_000,
+        inicial: 0,
+        progressao: 1_000,
+        intervaloMeses: 3
+      }
+    });
+
+    expect(result.meses[0]?.aporteExtra).toBe(0);
+    expect(result.meses[2]?.aporteExtra).toBe(0);
+    expect(result.meses[3]?.aporteExtra).toBe(1_000);
+    expect(result.meses[5]?.aporteExtra).toBe(1_000);
+    expect(result.meses[6]?.aporteExtra).toBe(2_000);
+  });
+
   it("keeps prestacao separate from aporte extra mensal", () => {
     const semAporte = simularTimelineMensal({
       ...baseTimeline,

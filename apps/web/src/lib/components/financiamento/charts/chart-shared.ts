@@ -33,6 +33,17 @@ export function chartColor(index: number): string {
   return CHART_COLORS[index % CHART_COLORS.length] ?? CHART_COLORS[0];
 }
 
+export function scenarioColorIndexMap(cenarios: CenarioCompleto[]): Map<string, number> {
+  return new Map(cenarios.map((cenario, index) => [cenario.id, index]));
+}
+
+export function scenarioChartColor(
+  cenarioId: string,
+  colorIndex: Map<string, number>
+): string {
+  return chartColor(colorIndex.get(cenarioId) ?? 0);
+}
+
 export function scenarioLabel(cenario: CenarioCompleto): string {
   const parts = [formatCurrencyCompact(cenario.valorImovel)];
   if (cenario.estrategia === "permuta") {
@@ -49,10 +60,13 @@ export function scenarioLabel(cenario: CenarioCompleto): string {
   return parts.join(" · ");
 }
 
-export function scenarioLegendEntries(cenarios: CenarioCompleto[]): ChartLegendEntry[] {
-  return cenarios.map((cenario, index) => ({
+export function scenarioLegendEntries(
+  cenarios: CenarioCompleto[],
+  colorIndex: Map<string, number> = scenarioColorIndexMap(cenarios)
+): ChartLegendEntry[] {
+  return cenarios.map((cenario) => ({
     id: cenario.id,
     label: scenarioLabel(cenario),
-    color: chartColor(index)
+    color: scenarioChartColor(cenario.id, colorIndex)
   }));
 }

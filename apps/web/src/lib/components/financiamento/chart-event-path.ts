@@ -9,7 +9,10 @@ import {
   prePurchaseFreeBalance,
   prePurchaseMonthlyOutflow
 } from "$lib/components/financiamento/monthly-cash-flow";
-import type { BalanceLedgerSeries } from "$lib/components/financiamento/total-balance-ledger";
+import type {
+  BalanceLedgerSeries,
+  ExpenseLedgerSeries
+} from "$lib/components/financiamento/total-balance-ledger";
 
 export type ChartPathVertex = {
   month: number;
@@ -123,6 +126,22 @@ export function monthlyTotalVertices(
   return vertices;
 }
 
+export function paymentVertices(cenario: CenarioCompleto): ChartPathVertex[] {
+  const firstMonth = cenario.timeline[0];
+  const vertices: ChartPathVertex[] = [
+    { month: PRE_PURCHASE_MONTH, y: 0 },
+    firstMonth
+      ? { month: 0, y: 0, yAfterEvent: firstMonth.prestacao }
+      : { month: 0, y: 0 }
+  ];
+
+  for (const month of cenario.timeline) {
+    vertices.push({ month: month.mes, y: month.prestacao });
+  }
+
+  return vertices;
+}
+
 export function freeBalanceVertices(
   cenario: CenarioCompleto,
   custoMensal = 0
@@ -168,6 +187,29 @@ export function ledgerVertices(series: BalanceLedgerSeries): ChartPathVertex[] {
       vertices.push({ month: point.mes, y: point.saldoPreEvento, yAfterEvent: point.saldo });
     } else {
       vertices.push({ month: point.mes, y: point.saldo });
+    }
+  }
+
+  return vertices;
+}
+
+export function expenseLedgerVertices(series: ExpenseLedgerSeries): ChartPathVertex[] {
+  const first = series.points[0];
+  if (!first) return [];
+
+  const vertices: ChartPathVertex[] = [
+    { month: PRE_PURCHASE_MONTH, y: first.gastoPreEvento ?? 0 }
+  ];
+
+  for (const point of series.points) {
+    if (point.gastoPreEvento !== undefined) {
+      vertices.push({
+        month: point.mes,
+        y: point.gastoPreEvento,
+        yAfterEvent: point.gastoAcumulado
+      });
+    } else {
+      vertices.push({ month: point.mes, y: point.gastoAcumulado });
     }
   }
 

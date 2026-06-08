@@ -1,4 +1,4 @@
-/** Percentage multipliers for scenario filter chips. */
+/** Legacy percentage multipliers (preview/demo only). */
 export const PERCENTAGE_OPTIONS = [
   { value: 1.0, label: "Original" },
   { value: 0.95, label: "-5%" },
@@ -30,6 +30,10 @@ export interface SimulatorParams {
   rendaMensal: number;
   custoMensal: number;
   aporteExtra: number;
+  aporteProgressivo: boolean;
+  aporteInicial: number;
+  aporteProgressao: number;
+  aporteIntervaloMeses: number;
   valorImovel: number;
   taxaAnual: number;
   trMensal: number;
@@ -41,12 +45,16 @@ export interface SimulatorParams {
   custoMensalMaximoReformas: number;
   esperaQuantiaExtra: boolean;
   quantiaExtra: number;
+  /** Selected approximate property prices (R$) for scenario matrix — not multipliers. */
   valoresImovelFiltroMultipliers: number[];
+  /** Selected approximate sale-property prices (R$) for scenario matrix — not multipliers. */
   valoresAptoFiltroMultipliers: number[];
   estrategiasFiltro: EstrategiaFiltro[];
   temposVendaPosteriorMeses: number[];
   temposRecebimentoExtraMeses: number[];
   temposReformaMeses: number[];
+  /** Scenario ids hidden from timeline charts (table rows remain visible). */
+  cenariosOcultosGraficos: string[];
   /** Listing id that last drove valorImovel via breadcrumb; null when unlinked. */
   linkedListingId: string | null;
 }

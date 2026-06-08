@@ -3,6 +3,7 @@
  * Todas as fórmulas e cálculos para financiamento habitacional
  */
 
+import type { AporteProgressivoConfig } from "$lib/financiamento/aporte-progressivo";
 import { SIMULATION_ASSUMPTIONS } from "$lib/financiamento/calculations-defaults";
 import {
   calcularCustoTotalEventAware,
@@ -225,6 +226,7 @@ export interface CenarioCompletoParams {
   trMensal: number
   prazoMeses: number
   aporteExtra: number
+  aporteProgressivo?: AporteProgressivoConfig
   rendaMensal: number
   custoManutencaoImovelMensal?: number
   /** @deprecated Use custoManutencaoImovelMensal */
@@ -280,6 +282,7 @@ export interface MatrizCenariosParams {
   taxaAnual: number
   trMensal: number
   aporteExtra: number
+  aporteProgressivo?: AporteProgressivoConfig
   rendaMensal: number
   custoManutencaoImovelMensal?: number
   /** @deprecated Use custoManutencaoImovelMensal */
@@ -906,6 +909,7 @@ export const gerarCenarioCompleto = ({
   trMensal,
   prazoMeses,
   aporteExtra,
+  aporteProgressivo,
   rendaMensal,
   custoManutencaoImovelMensal,
   custoCondominioMensal,
@@ -950,6 +954,7 @@ export const gerarCenarioCompleto = ({
     prazoMeses,
     taxaMensalEfetiva,
     aporteExtra,
+    aporteProgressivo,
     rendaMensal,
     seguros,
     estrategia: timelineEstrategia,
@@ -1062,6 +1067,7 @@ export const gerarMatrizCenarios = ({
   taxaAnual,
   trMensal,
   aporteExtra,
+  aporteProgressivo,
   rendaMensal,
   custoManutencaoImovelMensal,
   custoCondominioMensal,
@@ -1093,6 +1099,7 @@ export const gerarMatrizCenarios = ({
     trMensal,
     prazoMeses,
     aporteExtra,
+    aporteProgressivo,
     rendaMensal,
     custoManutencaoImovelMensal: manutencao,
     seguros,

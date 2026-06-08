@@ -3,6 +3,7 @@ import type { TimelineMonth } from "$lib/financiamento/financing-timeline";
 import {
   debtChartVertices,
   monthlyTotalVertices,
+  paymentVertices,
   renderedDebtBalance,
   renderedMonthlyTotal,
   verticesToPolyline
@@ -158,6 +159,16 @@ export function svgCoordsToLocal(
     x: localLeft + (svgX / viewWidth) * rect.width,
     y: localTop + (svgY / viewHeight) * rect.height
   };
+}
+
+export function breakdownMarkerLocal(
+  svg: SVGSVGElement,
+  svgX: number,
+  svgY: number,
+  viewWidth: number,
+  viewHeight: number
+): { x: number; y: number } {
+  return svgCoordsToLocal(svg, svgX, svgY, viewWidth, viewHeight);
 }
 
 export function svgPlotBoundsToClient(
@@ -474,6 +485,48 @@ export function pickChartHoverForTotal(
       cenario.timeline.length > 0
         ? monthlyTotalAtHover(cenario, monthIndex, custoMensal)
         : prePurchaseMonthlyOutflow(custoMensal),
+    yForValue: (value) => yForBalance(value, maxValue)
+  });
+}
+
+export function maxPaymentData(cenarios: CenarioCompleto[]): number {
+  return Math.max(1, ...cenarios.flatMap((c) => c.timeline.map((month) => month.prestacao)));
+}
+
+export function polylinePointsForPayment(
+  cenario: CenarioCompleto,
+  maxMonth: number,
+  maxValue: number,
+  width: number
+): string {
+  return verticesToPolyline(paymentVertices(cenario), maxMonth, width, (value) =>
+    yForBalance(value, maxValue)
+  );
+}
+
+export function paymentAtHover(cenario: CenarioCompleto, monthIndex: number): number {
+  const month = cenario.timeline[monthIndex];
+  return month?.prestacao ?? 0;
+}
+
+export function pickChartHoverForPayment(
+  cenarios: CenarioCompleto[],
+  svgX: number,
+  svgY: number,
+  maxMonth: number,
+  maxValue: number,
+  width: number,
+  previous: ChartHover | null
+): ChartHover | null {
+  return pickScenarioTimelineHover({
+    cenarios,
+    svgX,
+    svgY,
+    maxMonth,
+    width,
+    previous,
+    valueAtHover: (cenario, monthIndex, targetMonth) =>
+      targetMonth === 0 ? paymentAtHover(cenario, 0) : paymentAtHover(cenario, monthIndex),
     yForValue: (value) => yForBalance(value, maxValue)
   });
 }

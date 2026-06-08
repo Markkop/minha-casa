@@ -104,7 +104,7 @@
       {cenarios}
       permutaDisponivel={false}
       compact
-      hideBestColumn
+      hideVisibilityColumn
       hideCustoTotalColumn
       {valorImovelDiscountLabels}
     />

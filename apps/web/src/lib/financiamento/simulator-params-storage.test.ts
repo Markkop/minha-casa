@@ -80,14 +80,22 @@ describe("normalizeSimulatorParams", () => {
     expect(result.entradaDisponivel).toBe(700_000);
   });
 
-  it("falls back when multipliers or estrategias are invalid", () => {
+  it("falls back when price filters or estrategias are invalid", () => {
     const defaults = createInitialSimulatorParams();
     const result = normalizeSimulatorParams({
-      valoresImovelFiltroMultipliers: [0.5, 2],
+      valoresImovelFiltroMultipliers: [123, 999_999_999],
       estrategiasFiltro: ["invalid" as never]
     });
     expect(result.valoresImovelFiltroMultipliers).toEqual(defaults.valoresImovelFiltroMultipliers);
     expect(result.estrategiasFiltro).toEqual(defaults.estrategiasFiltro);
+  });
+
+  it("migrates legacy multiplier price filters to approximate values", () => {
+    const result = normalizeSimulatorParams({
+      valorImovel: 730_000,
+      valoresImovelFiltroMultipliers: [1, 0.95]
+    });
+    expect(result.valoresImovelFiltroMultipliers).toEqual([730_000, 700_000]);
   });
 
   it("migrates custoCondominioMensal to custoManutencaoImovelMensal", () => {
@@ -112,6 +120,21 @@ describe("normalizeSimulatorParams", () => {
     expect(normalizeSimulatorParams({ valorApartamento: 0 }).temImovelParaNegociar).toBe(false);
   });
 
+  it("normalizes progressive aporte fields", () => {
+    const result = normalizeSimulatorParams({
+      aporteExtra: 5_000,
+      aporteProgressivo: true,
+      aporteInicial: 7_000,
+      aporteProgressao: 9_000,
+      aporteIntervaloMeses: 20
+    });
+
+    expect(result.aporteProgressivo).toBe(true);
+    expect(result.aporteInicial).toBe(5_000);
+    expect(result.aporteProgressao).toBe(1_000);
+    expect(result.aporteIntervaloMeses).toBe(12);
+  });
+
   it("validates timing month filters", () => {
     const defaults = createInitialSimulatorParams();
     const result = normalizeSimulatorParams({
@@ -124,9 +147,10 @@ describe("normalizeSimulatorParams", () => {
     expect(result.temposReformaMeses).toEqual([6]);
   });
 
-  it("defaults venda em to 6m, extra em to 1 ano, and reforma em to 1m", () => {
+  it("defaults venda em to permuta + 1 ano, extra em to 1 ano, and reforma em to 1m", () => {
     const params = createInitialSimulatorParams();
-    expect(params.temposVendaPosteriorMeses).toEqual([6]);
+    expect(params.estrategiasFiltro).toEqual(["permuta", "venda_posterior"]);
+    expect(params.temposVendaPosteriorMeses).toEqual([12]);
     expect(params.temposRecebimentoExtraMeses).toEqual([12]);
     expect(params.temposReformaMeses).toEqual([1]);
   });
@@ -154,6 +178,21 @@ describe("normalizeSimulatorParams", () => {
     expect(normalizeSimulatorParams({ linkedListingId: "" }).linkedListingId).toBeNull();
     expect(normalizeSimulatorParams({ linkedListingId: 42 }).linkedListingId).toBeNull();
   });
+
+  it("defaults cenariosOcultosGraficos to empty and normalizes stored values", () => {
+    expect(normalizeSimulatorParams({}).cenariosOcultosGraficos).toEqual([]);
+    expect(
+      normalizeSimulatorParams({
+        cenariosOcultosGraficos: [
+          "900000-0-permuta-vn-en-rn",
+          "900000-0-permuta-vn-en-rn",
+          "",
+          42,
+          "800000-0-venda_posterior-v12-en-rn"
+        ] as unknown as string[]
+      }).cenariosOcultosGraficos
+    ).toEqual(["900000-0-permuta-vn-en-rn", "800000-0-venda_posterior-v12-en-rn"]);
+  });
 });
 
 describe("simulator params storage", () => {
@@ -168,7 +207,8 @@ describe("simulator params storage", () => {
   it("saves and loads parameters from the primary Financeiro key", () => {
     const params = {
       ...createInitialSimulatorParams(),
-      custoMensal: 8_000
+      custoMensal: 8_000,
+      cenariosOcultosGraficos: ["scenario-a", "scenario-b"]
     };
 
     saveSimulatorParams(params);

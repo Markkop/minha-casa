@@ -9,6 +9,10 @@ export const UI_DEFAULTS = {
   taxaAnual: 0.115,
   trMensal: 0.0015,
   aporteExtra: 10_000,
+  aporteProgressivo: false,
+  aporteInicial: 0,
+  aporteProgressao: 1_000,
+  aporteIntervaloMeses: 1,
   rendaMensal: 45_000,
   custoMensal: 5_000,
   custoManutencaoImovelMensal: 1_000,
@@ -25,7 +29,7 @@ export const UI_DEFAULTS = {
 export const DEFAULT_TIMING_MONTHS = [1, 6, 12, 24] as const;
 
 /** Default selected “Venda em” filter when imóvel para negociar is on. */
-export const DEFAULT_VENDA_POSTERIOR_TIMING_MONTHS = [6] as const;
+export const DEFAULT_VENDA_POSTERIOR_TIMING_MONTHS = [12] as const;
 
 /** Default selected “Extra em” filter when quantia extra is on. */
 export const DEFAULT_RECEBIMENTO_EXTRA_TIMING_MONTHS = [12] as const;

@@ -1,4 +1,8 @@
 import type { SimulatorParams } from "$lib/components/financiamento/financiamento-parameter-types";
+import {
+  buildAporteProgressivoConfig,
+  type AporteProgressivoConfig
+} from "$lib/financiamento/aporte-progressivo";
 
 /** Simulation inputs with checkbox-off sections zeroed out. */
 export interface EffectiveSimulationParams {
@@ -6,6 +10,7 @@ export interface EffectiveSimulationParams {
   valorApartamento: number;
   rendaMensal: number;
   aporteExtra: number;
+  aporteProgressivo: AporteProgressivoConfig;
   valorImovel: number;
   taxaAnual: number;
   trMensal: number;
@@ -28,6 +33,13 @@ export function resolveEffectiveParams(params: SimulatorParams): EffectiveSimula
     valorApartamento: temImovel ? params.valorApartamento : 0,
     rendaMensal: params.rendaMensal,
     aporteExtra: params.aporteExtra,
+    aporteProgressivo: buildAporteProgressivoConfig({
+      aporteExtra: params.aporteExtra,
+      aporteProgressivo: params.aporteProgressivo,
+      aporteInicial: params.aporteInicial,
+      aporteProgressao: params.aporteProgressao,
+      aporteIntervaloMeses: params.aporteIntervaloMeses
+    }),
     valorImovel: params.valorImovel,
     taxaAnual: params.taxaAnual,
     trMensal: params.trMensal,

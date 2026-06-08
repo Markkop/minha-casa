@@ -1,3 +1,8 @@
+import {
+  calcularAporteExtraProgramado,
+  type AporteProgressivoConfig
+} from "$lib/financiamento/aporte-progressivo";
+
 export interface VendaPosteriorResult {
   valorBruto: number;
   jurosCarrego: number;
@@ -76,6 +81,7 @@ export interface SimularTimelineInput {
   prazoMeses: number;
   taxaMensalEfetiva: number;
   aporteExtra: number;
+  aporteProgressivo?: AporteProgressivoConfig;
   rendaMensal: number;
   seguros?: number;
   estrategia: "permuta" | "venda_posterior" | "financiamento";
@@ -106,6 +112,7 @@ export function simularTimelineMensal(input: SimularTimelineInput): TimelineResu
     prazoMeses,
     taxaMensalEfetiva,
     aporteExtra,
+    aporteProgressivo,
     rendaMensal,
     seguros = 0,
     estrategia,
@@ -150,7 +157,15 @@ export function simularTimelineMensal(input: SimularTimelineInput): TimelineResu
     );
 
     const amortizacaoContrato = Math.min(amortizacaoMensal, saldoDevedor);
-    const aporteAplicado = Math.min(aporteExtra, Math.max(0, saldoDevedor - amortizacaoContrato));
+    const aporteConfig: AporteProgressivoConfig = aporteProgressivo ?? {
+      enabled: false,
+      max: aporteExtra,
+      inicial: 0,
+      progressao: 0,
+      intervaloMeses: 1
+    };
+    const aporteMes = calcularAporteExtraProgramado(mes, aporteConfig);
+    const aporteAplicado = Math.min(aporteMes, Math.max(0, saldoDevedor - amortizacaoContrato));
     const amortizacaoTotal = amortizacaoContrato + aporteAplicado;
     /** Parcela do financiamento (SAC + juros + seguros), sem aporte extra voluntário. */
     const prestacao = amortizacaoContrato + parcelaSAC.juros + seguros;

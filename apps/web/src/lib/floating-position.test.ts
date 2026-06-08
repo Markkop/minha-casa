@@ -27,13 +27,55 @@ function expectInsideViewport(
 }
 
 describe("computeChartBreakdownPlacement", () => {
+  it("places outside left when anchorSide is left and space allows", () => {
+    const marker = { x: 400, y: 300 };
+    const placement = computeChartBreakdownPlacement(
+      CHART_BOUNDS,
+      PANEL,
+      buildChartBreakdownAvoidZones([marker]),
+      { ...VIEWPORT, anchorSide: "left" }
+    );
+
+    expect(placement.side).toBe("left");
+    expect(placement.left).toBe(CHART_BOUNDS.left - PANEL.width - CHART_BREAKDOWN_OFFSET);
+    expect(placement.top).toBe(CHART_BOUNDS.top + CHART_BREAKDOWN_OFFSET);
+  });
+
+  it("places outside right when anchorSide is right and space allows", () => {
+    const marker = { x: 400, y: 300 };
+    const placement = computeChartBreakdownPlacement(
+      CHART_BOUNDS,
+      PANEL,
+      buildChartBreakdownAvoidZones([marker]),
+      { ...VIEWPORT, anchorSide: "right" }
+    );
+
+    expect(placement.side).toBe("right");
+    expect(placement.left).toBe(CHART_BOUNDS.right + CHART_BREAKDOWN_OFFSET);
+    expect(placement.top).toBe(CHART_BOUNDS.top + CHART_BREAKDOWN_OFFSET);
+  });
+
+  it("falls back to inside placement when outside left does not fit", () => {
+    const narrowChart = { left: 40, top: 50, right: 360, bottom: 400 };
+    const marker = { x: 200, y: 300 };
+    const placement = computeChartBreakdownPlacement(
+      narrowChart,
+      PANEL,
+      buildChartBreakdownAvoidZones([marker]),
+      { viewportWidth: 360, viewportHeight: 600, padding: 0, anchorSide: "left" }
+    );
+
+    expect(placement.left).toBe(narrowChart.left + CHART_BREAKDOWN_OFFSET);
+    expect(placement.side).toBe("left");
+  });
+
   it("sticks to the right side when the active point is on the left half", () => {
     const marker = { x: 160, y: 300 };
     const placement = computeChartBreakdownPlacement(
       CHART_BOUNDS,
       PANEL,
       buildChartBreakdownAvoidZones([marker]),
-      VIEWPORT
+      { ...VIEWPORT, placement: "inside" }
     );
 
     expect(placement.side).toBe("right");
@@ -46,7 +88,10 @@ describe("computeChartBreakdownPlacement", () => {
   it("sticks to the left side when the active point is on the right half", () => {
     const marker = { x: 640, y: 300 };
     const avoidZones = buildChartBreakdownAvoidZones([marker]);
-    const placement = computeChartBreakdownPlacement(CHART_BOUNDS, PANEL, avoidZones, VIEWPORT);
+    const placement = computeChartBreakdownPlacement(CHART_BOUNDS, PANEL, avoidZones, {
+      ...VIEWPORT,
+      placement: "inside"
+    });
     const panel = panelBoundsAt(placement.left, placement.top, PANEL.width, PANEL.height);
 
     expect(placement.side).toBe("left");
@@ -61,7 +106,7 @@ describe("computeChartBreakdownPlacement", () => {
       CHART_BOUNDS,
       PANEL,
       buildChartBreakdownAvoidZones([marker]),
-      VIEWPORT
+      { ...VIEWPORT, placement: "inside" }
     );
 
     expect(placement.side).toBe("left");
@@ -77,7 +122,7 @@ describe("computeChartBreakdownPlacement", () => {
       chartBounds,
       PANEL,
       buildChartBreakdownAvoidZones([marker]),
-      VIEWPORT
+      { ...VIEWPORT, placement: "inside" }
     );
 
     expectInsideViewport(placement, PANEL);
@@ -90,7 +135,7 @@ describe("computeChartBreakdownPlacement", () => {
       chartBounds,
       PANEL,
       buildChartBreakdownAvoidZones([marker]),
-      VIEWPORT
+      { ...VIEWPORT, placement: "inside" }
     );
 
     expectInsideViewport(placement, PANEL);
@@ -103,7 +148,7 @@ describe("computeChartBreakdownPlacement", () => {
       CHART_BOUNDS,
       hugePanel,
       [pointKeepOutZone(marker.x, marker.y, 20)],
-      VIEWPORT
+      { ...VIEWPORT, placement: "inside" }
     );
 
     expect(["topLeft", "topRight"]).toContain(placement.corner);

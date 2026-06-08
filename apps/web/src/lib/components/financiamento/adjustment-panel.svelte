@@ -13,6 +13,20 @@
     VALOR_IMOVEL_RANGE
   } from "$lib/components/financiamento/parameter-row-helpers";
   import ParameterRow from "$lib/components/financiamento/parameter-row.svelte";
+  import ScenarioFilterPills from "$lib/components/financiamento/ScenarioFilterPills.svelte";
+  import {
+    buildApproximatePricePills,
+    buildSaleTimingPills,
+    buildTimingMonthPills,
+    patchSaleTimingToggle,
+    selectedSaleTimingValues,
+    toggleNumberList
+  } from "$lib/components/financiamento/scenario-filter-actions";
+  import {
+    APORTE_PROGRESSIVO_STEP,
+    clampAporteProgressivoFields,
+    formatIntervaloMeses
+  } from "$lib/financiamento/aporte-progressivo";
   import { formatCurrency, generateTooltips } from "$lib/financiamento/calculations";
   import { UI_DEFAULTS } from "$lib/financiamento/calculations-defaults";
   import {
@@ -22,6 +36,7 @@
     type FinanceiroSectionId
   } from "$lib/financiamento/financeiro-section-state";
   import { getSettingsContext } from "$lib/financiamento/settings-context.svelte";
+  import { createInitialSimulatorParams } from "$lib/financiamento/simulator-recursos";
 
   let {
     params,
@@ -80,6 +95,32 @@
     onChange({ ...params, ...partial });
   }
 
+  function patchAporteProgressivo(
+    partial: Partial<
+      Pick<
+        typeof params,
+        | "aporteExtra"
+        | "aporteProgressivo"
+        | "aporteInicial"
+        | "aporteProgressao"
+        | "aporteIntervaloMeses"
+      >
+    >
+  ) {
+    const clamped = clampAporteProgressivoFields({
+      aporteExtra: partial.aporteExtra ?? params.aporteExtra,
+      aporteProgressivo: partial.aporteProgressivo ?? params.aporteProgressivo,
+      aporteInicial: partial.aporteInicial ?? params.aporteInicial,
+      aporteProgressao: partial.aporteProgressao ?? params.aporteProgressao,
+      aporteIntervaloMeses: partial.aporteIntervaloMeses ?? params.aporteIntervaloMeses
+    });
+    patch(clamped);
+  }
+
+  const aporteProgressaoMax = $derived(
+    Math.max(APORTE_PROGRESSIVO_STEP, params.aporteExtra - params.aporteInicial)
+  );
+
   function updateCapital(value: number) {
     if (onCapitalChange) {
       onCapitalChange(value);
@@ -100,6 +141,8 @@
     sectionState = { ...sectionState, [section]: !sectionState[section] };
   }
 
+  const filterDefaults = createInitialSimulatorParams();
+
   function resetVoceSection() {
     patch({
       capitalDisponivel: UI_DEFAULTS.capitalDisponivel,
@@ -107,7 +150,10 @@
       custoMensal: UI_DEFAULTS.custoMensal,
       temImovelParaNegociar: UI_DEFAULTS.temImovelParaNegociar,
       valorApartamento: UI_DEFAULTS.valorApartamento,
-      custoManutencaoImovelMensal: UI_DEFAULTS.custoManutencaoImovelMensal
+      custoManutencaoImovelMensal: UI_DEFAULTS.custoManutencaoImovelMensal,
+      valoresAptoFiltroMultipliers: filterDefaults.valoresAptoFiltroMultipliers,
+      estrategiasFiltro: filterDefaults.estrategiasFiltro,
+      temposVendaPosteriorMeses: filterDefaults.temposVendaPosteriorMeses
     });
   }
 
@@ -117,7 +163,9 @@
       incluirReformas: UI_DEFAULTS.incluirReformas,
       custoTotalReformas: UI_DEFAULTS.custoTotalReformas,
       custoInicialReformas: UI_DEFAULTS.custoInicialReformas,
-      custoMensalMaximoReformas: UI_DEFAULTS.custoMensalMaximoReformas
+      custoMensalMaximoReformas: UI_DEFAULTS.custoMensalMaximoReformas,
+      valoresImovelFiltroMultipliers: filterDefaults.valoresImovelFiltroMultipliers,
+      temposReformaMeses: filterDefaults.temposReformaMeses
     });
   }
 
@@ -125,12 +173,24 @@
     patch({
       entradaDisponivel: UI_DEFAULTS.entradaDisponivel,
       aporteExtra: UI_DEFAULTS.aporteExtra,
+      aporteProgressivo: UI_DEFAULTS.aporteProgressivo,
+      aporteInicial: UI_DEFAULTS.aporteInicial,
+      aporteProgressao: UI_DEFAULTS.aporteProgressao,
+      aporteIntervaloMeses: UI_DEFAULTS.aporteIntervaloMeses,
       taxaAnual: UI_DEFAULTS.taxaAnual,
       trMensal: UI_DEFAULTS.trMensal,
       esperaQuantiaExtra: UI_DEFAULTS.esperaQuantiaExtra,
-      quantiaExtra: UI_DEFAULTS.quantiaExtra
+      quantiaExtra: UI_DEFAULTS.quantiaExtra,
+      temposRecebimentoExtraMeses: filterDefaults.temposRecebimentoExtraMeses
     });
   }
+
+  const imovelPricePills = $derived(buildApproximatePricePills(params.valorImovel));
+  const apartamentoPricePills = $derived(buildApproximatePricePills(params.valorApartamento));
+  const saleTimingPills = buildSaleTimingPills();
+  const extraTimingPills = buildTimingMonthPills();
+  const reformTimingPills = buildTimingMonthPills();
+  const selectedSaleTiming = $derived(selectedSaleTimingValues(params));
 </script>
 
 {#snippet sectionCheckbox(
@@ -249,7 +309,22 @@
                   ? onValueChange("valorApartamento", value)
                   : patch({ valorApartamento: value })
             }}
-          />
+          >
+            {#snippet extras()}
+              <ScenarioFilterPills
+                options={apartamentoPricePills}
+                selected={params.valoresAptoFiltroMultipliers}
+                ariaLabel="Cenários de valor do imóvel"
+                onToggle={(value) =>
+                  patch({
+                    valoresAptoFiltroMultipliers: toggleNumberList(
+                      params.valoresAptoFiltroMultipliers,
+                      value
+                    )
+                  })}
+              />
+            {/snippet}
+          </ParameterRow>
           <ParameterRow
             compact={rowCompact}
             label="Custo mensal do imóvel"
@@ -273,7 +348,16 @@
                   ? onValueChange("custoManutencao", value)
                   : patch({ custoManutencaoImovelMensal: value })
             }}
-          />
+          >
+            {#snippet extras()}
+              <ScenarioFilterPills
+                options={saleTimingPills}
+                selected={selectedSaleTiming}
+                ariaLabel="Permuta ou meses até vender o imóvel"
+                onToggle={(value) => patch(patchSaleTimingToggle(params, value))}
+              />
+            {/snippet}
+          </ParameterRow>
         {/if}
       </div>
     {/if}
@@ -309,7 +393,22 @@
             onChange: (value) =>
               onValueChange ? onValueChange("valorImovel", value) : patch({ valorImovel: value })
           }}
-        />
+        >
+          {#snippet extras()}
+            <ScenarioFilterPills
+              options={imovelPricePills}
+              selected={params.valoresImovelFiltroMultipliers}
+              ariaLabel="Cenários de preço do imóvel alvo"
+              onToggle={(value) =>
+                patch({
+                  valoresImovelFiltroMultipliers: toggleNumberList(
+                    params.valoresImovelFiltroMultipliers,
+                    value
+                  )
+                })}
+            />
+          {/snippet}
+        </ParameterRow>
 
         <div class="pt-2">
           {@render sectionCheckbox(
@@ -347,7 +446,7 @@
           <ParameterRow
             compact={rowCompact}
             label="Custo inicial"
-            tooltip="Parte do custo total de reformas paga no mês selecionado em Reforma em."
+            tooltip="Parte do custo total de reformas paga no mês selecionado nos cenários abaixo."
             valueDisplay={formatCurrency(params.custoInicialReformas)}
             slider={{
               value: params.custoInicialReformas,
@@ -367,7 +466,19 @@
                   ? onValueChange("custoInicialReformas", value)
                   : patch({ custoInicialReformas: value })
             }}
-          />
+          >
+            {#snippet extras()}
+              <ScenarioFilterPills
+                options={reformTimingPills}
+                selected={params.temposReformaMeses}
+                ariaLabel="Meses até iniciar a reforma"
+                onToggle={(value) =>
+                  patch({
+                    temposReformaMeses: toggleNumberList(params.temposReformaMeses, value)
+                  })}
+              />
+            {/snippet}
+          </ParameterRow>
           <ParameterRow
             compact={rowCompact}
             label="Custo mensal máximo"
@@ -429,20 +540,80 @@
           compact={rowCompact}
           label="Aporte extra mensal"
           tooltip={tooltips.aporteExtra}
+          hint={params.aporteProgressivo ? "Teto do aporte progressivo" : undefined}
           valueDisplay={formatCurrency(params.aporteExtra)}
           slider={{
             value: params.aporteExtra,
             min: aporteExtraRange.min,
             max: aporteExtraRange.max,
             step: aporteExtraRange.step,
-            onValueChange: (value) => patch({ aporteExtra: value })
+            onValueChange: (value) => patchAporteProgressivo({ aporteExtra: value })
           }}
           edit={{
             type: "currency",
             value: params.aporteExtra,
-            onChange: (value) => patch({ aporteExtra: value })
+            onChange: (value) => patchAporteProgressivo({ aporteExtra: value })
           }}
         />
+        <div class="pt-2">
+          {@render sectionCheckbox(
+            "aporte-progressivo",
+            "Aporte progressivo",
+            params.aporteProgressivo,
+            (checked) => patchAporteProgressivo({ aporteProgressivo: checked })
+          )}
+        </div>
+        {#if params.aporteProgressivo}
+          <ParameterRow
+            compact={rowCompact}
+            label="Aporte inicial"
+            tooltip="Valor do aporte extra no início da progressão."
+            valueDisplay={formatCurrency(params.aporteInicial)}
+            slider={{
+              value: params.aporteInicial,
+              min: 0,
+              max: params.aporteExtra,
+              step: APORTE_PROGRESSIVO_STEP,
+              onValueChange: (value) => patchAporteProgressivo({ aporteInicial: value })
+            }}
+            edit={{
+              type: "currency",
+              value: params.aporteInicial,
+              onChange: (value) => patchAporteProgressivo({ aporteInicial: value })
+            }}
+          />
+          <ParameterRow
+            compact={rowCompact}
+            label="Progressão"
+            tooltip="Quanto o aporte aumenta a cada intervalo, até o teto."
+            valueDisplay={formatCurrency(params.aporteProgressao)}
+            slider={{
+              value: params.aporteProgressao,
+              min: APORTE_PROGRESSIVO_STEP,
+              max: aporteProgressaoMax,
+              step: APORTE_PROGRESSIVO_STEP,
+              onValueChange: (value) => patchAporteProgressivo({ aporteProgressao: value })
+            }}
+            edit={{
+              type: "currency",
+              value: params.aporteProgressao,
+              onChange: (value) => patchAporteProgressivo({ aporteProgressao: value })
+            }}
+          />
+          <ParameterRow
+            compact={rowCompact}
+            label="Intervalo"
+            tooltip="A cada quantos meses o aporte aumenta pela progressão."
+            valueDisplay={formatIntervaloMeses(params.aporteIntervaloMeses)}
+            slider={{
+              value: params.aporteIntervaloMeses,
+              min: 1,
+              max: 12,
+              step: 1,
+              onValueChange: (value) => patchAporteProgressivo({ aporteIntervaloMeses: value })
+            }}
+          />
+        {/if}
         <ParameterRow
           compact={rowCompact}
           label="Taxa de juros a.a"
@@ -512,7 +683,22 @@
                   ? onValueChange("quantiaExtra", value)
                   : patch({ quantiaExtra: value })
             }}
-          />
+          >
+            {#snippet extras()}
+              <ScenarioFilterPills
+                options={extraTimingPills}
+                selected={params.temposRecebimentoExtraMeses}
+                ariaLabel="Meses até receber a quantia extra"
+                onToggle={(value) =>
+                  patch({
+                    temposRecebimentoExtraMeses: toggleNumberList(
+                      params.temposRecebimentoExtraMeses,
+                      value
+                    )
+                  })}
+              />
+            {/snippet}
+          </ParameterRow>
         {/if}
       </div>
     {/if}

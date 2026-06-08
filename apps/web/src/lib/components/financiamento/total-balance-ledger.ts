@@ -9,6 +9,7 @@ import {
   type ChartHover
 } from "$lib/components/financiamento/debt-timeline-chart-math";
 import {
+  expenseLedgerVertices,
   ledgerVertices,
   verticesToPolyline
 } from "$lib/components/financiamento/chart-event-path";
@@ -40,6 +41,16 @@ export type BalanceLedgerPoint = {
 export type BalanceLedgerSeries = {
   cenario: CenarioCompleto;
   points: BalanceLedgerPoint[];
+};
+
+export type ExpenseLedgerPoint = BalanceLedgerPoint & {
+  gastoAcumulado: number;
+  gastoPreEvento?: number;
+};
+
+export type ExpenseLedgerSeries = {
+  cenario: CenarioCompleto;
+  points: ExpenseLedgerPoint[];
 };
 
 export type SignedYAxisScale = {
@@ -138,6 +149,41 @@ export function buildBalanceLedgers(
   );
 }
 
+export function buildExpenseLedger(
+  cenario: CenarioCompleto,
+  capitalDisponivel: number,
+  quantiaExtra: number,
+  custoMensal = 0
+): ExpenseLedgerSeries {
+  const balanceLedger = buildBalanceLedger(cenario, capitalDisponivel, quantiaExtra, custoMensal);
+  let gastoAcumulado = 0;
+
+  return {
+    cenario,
+    points: balanceLedger.points.map((point) => {
+      const gastoPreEvento =
+        point.mes === 0 || point.saldoPreEvento !== undefined ? gastoAcumulado : undefined;
+      gastoAcumulado += point.totalDespesas;
+      return {
+        ...point,
+        gastoAcumulado,
+        gastoPreEvento
+      };
+    })
+  };
+}
+
+export function buildExpenseLedgers(
+  cenarios: CenarioCompleto[],
+  capitalDisponivel: number,
+  quantiaExtra: number,
+  custoMensal = 0
+): ExpenseLedgerSeries[] {
+  return cenarios.map((cenario) =>
+    buildExpenseLedger(cenario, capitalDisponivel, quantiaExtra, custoMensal)
+  );
+}
+
 export function buildSignedYAxisScale(values: number[]): SignedYAxisScale {
   const dataMin = Math.min(0, ...values);
   const dataMax = Math.max(0, ...values);
@@ -200,6 +246,16 @@ export function ledgerYAxisValues(series: BalanceLedgerSeries[]): number[] {
   });
 }
 
+export function expenseLedgerYAxisValues(series: ExpenseLedgerSeries[]): number[] {
+  return series.flatMap((item) =>
+    item.points.flatMap((point) =>
+      point.gastoPreEvento !== undefined
+        ? [point.gastoPreEvento, point.gastoAcumulado]
+        : [point.gastoAcumulado]
+    )
+  );
+}
+
 export function polylinePointsForLedger(
   series: BalanceLedgerSeries,
   maxMonth: number,
@@ -208,6 +264,20 @@ export function polylinePointsForLedger(
 ): string {
   return verticesToPolyline(
     ledgerVertices(series),
+    maxMonth,
+    width,
+    (value) => yForLedgerValue(value, scale)
+  );
+}
+
+export function polylinePointsForExpenseLedger(
+  series: ExpenseLedgerSeries,
+  maxMonth: number,
+  scale: SignedYAxisScale,
+  width: number
+): string {
+  return verticesToPolyline(
+    expenseLedgerVertices(series),
     maxMonth,
     width,
     (value) => yForLedgerValue(value, scale)
@@ -250,5 +320,44 @@ export function pickLedgerHover(
   if (previousPoint?.mes !== targetMonth) return best;
 
   const previousDistance = Math.abs(svgY - yForLedgerValue(previousPoint.saldo, scale));
+  return previousDistance - bestYDistance < HOVER_Y_HYSTERESIS ? previous : best;
+}
+
+export function pickExpenseLedgerHover(
+  series: ExpenseLedgerSeries[],
+  svgX: number,
+  svgY: number,
+  maxMonth: number,
+  scale: SignedYAxisScale,
+  width: number,
+  previous: ChartHover | null
+): ChartHover | null {
+  if (series.length === 0) return null;
+
+  const targetMonth = ledgerMonthAtX(svgX, maxMonth, width);
+  if (targetMonth < CHART_MIN_MONTH) return null;
+
+  let best: ChartHover | null = null;
+  let bestYDistance = Infinity;
+
+  for (const item of series) {
+    const monthIndex = item.points.findIndex((point) => point.mes === targetMonth);
+    if (monthIndex < 0) continue;
+    const point = item.points[monthIndex];
+    if (!point) continue;
+    const distance = Math.abs(svgY - yForLedgerValue(point.gastoAcumulado, scale));
+    if (distance < bestYDistance) {
+      bestYDistance = distance;
+      best = { cenarioId: item.cenario.id, monthIndex, mes: targetMonth };
+    }
+  }
+
+  if (!best || !previous) return best;
+
+  const previousSeries = series.find((item) => item.cenario.id === previous.cenarioId);
+  const previousPoint = previousSeries?.points[previous.monthIndex];
+  if (previousPoint?.mes !== targetMonth) return best;
+
+  const previousDistance = Math.abs(svgY - yForLedgerValue(previousPoint.gastoAcumulado, scale));
   return previousDistance - bestYDistance < HOVER_Y_HYSTERESIS ? previous : best;
 }

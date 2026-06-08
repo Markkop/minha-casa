@@ -4,9 +4,9 @@
     buildXAxisLabelTicks,
     CHART_HEIGHT,
     CHART_PADDING,
+    breakdownMarkerLocal,
     monthPitch,
     prePurchaseReferenceLineX,
-    svgCoordsToLocal,
     svgPlotBoundsToLocal,
     svgPointFromPointer,
     xForMonth,
@@ -19,7 +19,8 @@
   import TimelineChartAxes from "$lib/components/financiamento/charts/TimelineChartAxes.svelte";
   import TimelineFocusLayer from "$lib/components/financiamento/charts/TimelineFocusLayer.svelte";
   import {
-    chartColor,
+    scenarioChartColor,
+    scenarioColorIndexMap,
     scenarioLabel,
     scenarioLegendEntries
   } from "$lib/components/financiamento/charts/chart-shared";
@@ -53,11 +54,17 @@
 
   let {
     cenarios,
-    custoMensal = 0
+    custoMensal = 0,
+    scenarioColorIndex,
+    breakdownAnchorSide
   }: {
     cenarios: CenarioCompleto[];
     custoMensal?: number;
+    scenarioColorIndex?: Map<string, number>;
+    breakdownAnchorSide?: "left" | "right";
   } = $props();
+
+  const resolvedColorIndex = $derived(scenarioColorIndex ?? scenarioColorIndexMap(cenarios));
 
   const padding = CHART_PADDING;
   const height = CHART_HEIGHT;
@@ -117,24 +124,6 @@
       : null
   );
 
-  const breakdownX = $derived(
-    breakdownPoint
-      ? xForMonth(breakdownPoint.mes, maxMonth, chartWidth, padding)
-      : null
-  );
-
-  const breakdownY = $derived.by(() => {
-    if (!breakdownPoint) return null;
-    const idx = breakdownPoint.cenario.timeline.findIndex((m) => m.mes === breakdownPoint.month.mes);
-    if (idx < 0) return null;
-    return yForLedgerValue(
-      freeBalanceAtHover(breakdownPoint.cenario, idx, custoMensal),
-      yAxis,
-      height,
-      padding
-    );
-  });
-
   const columnPitch = $derived(monthPitch(plotWidth, maxMonth));
 
   const breakdownChartBounds = $derived.by(() => {
@@ -142,9 +131,22 @@
     return svgPlotBoundsToLocal(svgEl, chartWidth, height, padding);
   });
 
-  const avoidPoints = $derived.by(() => {
-    if (!showBreakdownPanel || !svgEl || breakdownX === null || breakdownY === null) return [];
-    return [svgCoordsToLocal(svgEl, breakdownX, breakdownY, chartWidth, height)];
+  const breakdownMarkerPoint = $derived.by(() => {
+    if (!showBreakdownPanel || !svgEl || !breakdownPoint) return null;
+    const { cenario, month } = breakdownPoint;
+    const resolvedMonth =
+      breakdownPoint.mes === 0 ? cenario.timeline[0] : month;
+    if (!resolvedMonth) return null;
+    const idx = cenario.timeline.findIndex((item) => item.mes === resolvedMonth.mes);
+    if (idx < 0) return null;
+    const svgX = xForMonth(breakdownPoint.mes, maxMonth, chartWidth, padding);
+    const svgY = yForLedgerValue(
+      freeBalanceAtHover(cenario, idx, custoMensal),
+      yAxis,
+      height,
+      padding
+    );
+    return breakdownMarkerLocal(svgEl, svgX, svgY, chartWidth, height);
   });
 
   const zeroY = $derived(yForLedgerValue(0, yAxis, height, padding));
@@ -166,7 +168,7 @@
 
   const focusDots = $derived.by(() => {
     if (!focusPoint) return [];
-    return cenarios.flatMap((other, index) => {
+    return cenarios.flatMap((other) => {
       const month =
         focusPoint.mes === 0
           ? other.timeline[0]
@@ -179,14 +181,14 @@
           id: other.id,
           x: xForMonth(focusPoint.mes, maxMonth, chartWidth, padding),
           y: yForLedgerValue(value, yAxis, height, padding),
-          color: chartColor(index),
+          color: scenarioChartColor(other.id, resolvedColorIndex),
           active: other.id === focusPoint.cenario.id
         }
       ];
     });
   });
 
-  const legendEntries = $derived(scenarioLegendEntries(cenarios));
+  const legendEntries = $derived(scenarioLegendEntries(cenarios, resolvedColorIndex));
 
   function handleChartPointerMove(event: PointerEvent) {
     if (!svgEl) return;
@@ -272,7 +274,7 @@
 
       <g class="pointer-events-none">
         {#each cenarios as cenario, i (cenario.id)}
-          {@const color = chartColor(i)}
+          {@const color = scenarioChartColor(cenario.id, resolvedColorIndex)}
           {@const isActive = activeCenarioId === cenario.id}
           <polyline
             fill="none"
@@ -328,8 +330,10 @@
           open={showBreakdownPanel}
           dismissable={breakdownDismissable}
           onDismiss={() => chartSelection.dismissBreakdown()}
+          anchorEl={chartContainer}
           chartBounds={breakdownChartBounds}
-          {avoidPoints}
+          anchorSide={breakdownAnchorSide}
+          markerPoint={breakdownMarkerPoint}
         >
           <p class="mb-1 font-medium text-app-fg">{scenarioLabel(cenario)}</p>
           <dl class="grid grid-cols-[auto_1fr] gap-x-2 gap-y-0.5 text-app-muted">

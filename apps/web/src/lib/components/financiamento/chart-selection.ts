@@ -3,7 +3,6 @@ import {
   monthAtX,
   type ChartHover
 } from "$lib/components/financiamento/debt-timeline-chart-math";
-import type { BalanceLedgerSeries } from "$lib/components/financiamento/total-balance-ledger";
 import type { CenarioCompleto } from "$lib/financiamento/calculations";
 import type { TimelineMonth } from "$lib/financiamento/financing-timeline";
 
@@ -13,6 +12,11 @@ export type ChartPointSelection = {
 };
 
 export const CHART_CLICK_DRAG_THRESHOLD_PX = 4;
+
+type LedgerSelectionSeries = {
+  cenario: CenarioCompleto;
+  points: { mes: number }[];
+};
 
 export function isSameChartSelection(
   a: ChartPointSelection | null | undefined,
@@ -44,7 +48,7 @@ export function selectionFromTimelinePointer(
 
 export function mesFromLedgerHover(
   hover: ChartHover,
-  ledgers: BalanceLedgerSeries[]
+  ledgers: LedgerSelectionSeries[]
 ): number {
   const series = ledgers.find((item) => item.cenario.id === hover.cenarioId);
   return hover.mes ?? series?.points[hover.monthIndex]?.mes ?? 0;
@@ -67,10 +71,10 @@ export function resolveTimelineSelection(
   return null;
 }
 
-export function resolveLedgerSelection(
+export function resolveLedgerSelection<T extends LedgerSelectionSeries>(
   selection: ChartPointSelection,
-  ledgers: BalanceLedgerSeries[]
-): { series: BalanceLedgerSeries; point: BalanceLedgerSeries["points"][number] } | null {
+  ledgers: T[]
+): { series: T; point: T["points"][number] } | null {
   const series = ledgers.find((item) => item.cenario.id === selection.cenarioId);
   if (!series) return null;
   const point = series.points.find((item) => item.mes === selection.mes);
@@ -108,7 +112,7 @@ export function hoverMatchesSelection(
 export function hoverMatchesLedgerSelection(
   hover: ChartHover,
   selection: ChartPointSelection,
-  ledgers: BalanceLedgerSeries[]
+  ledgers: LedgerSelectionSeries[]
 ): boolean {
   if (hover.cenarioId !== selection.cenarioId) return false;
 

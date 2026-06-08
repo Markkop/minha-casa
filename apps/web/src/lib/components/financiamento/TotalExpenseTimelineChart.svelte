@@ -32,11 +32,11 @@
   } from "$lib/components/financiamento/chart-selection";
   import { getChartSelectionContext } from "$lib/components/financiamento/chart-selection-context.svelte";
   import {
-    buildBalanceLedgers,
+    buildExpenseLedgers,
     buildSignedYAxisScale,
-    ledgerYAxisValues,
-    pickLedgerHover,
-    polylinePointsForLedger,
+    expenseLedgerYAxisValues,
+    pickExpenseLedgerHover,
+    polylinePointsForExpenseLedger,
     xForLedgerMonth,
     yForLedgerValue
   } from "$lib/components/financiamento/total-balance-ledger";
@@ -46,7 +46,6 @@
     formatCurrencyCompact,
     type CenarioCompleto
   } from "$lib/financiamento/calculations";
-  import { cn } from "$lib/utils";
 
   let {
     cenarios,
@@ -69,14 +68,14 @@
   const padding = CHART_PADDING;
   const height = CHART_HEIGHT;
   const legendNote =
-    "Saldo disponível após entrada, fechamento, renda e despesas · clique para selecionar ou desselecionar · linha horizontal tracejada: saldo zero · linhas verticais tracejadas: venda · círculo no topo: quantia extra";
+    "Despesas acumuladas desde a compra · clique para selecionar ou desselecionar · linhas tracejadas verticais: venda · círculo no topo: quantia extra";
   const ledgers = $derived(
-    buildBalanceLedgers(cenarios, capitalDisponivel, quantiaExtra, custoMensal)
+    buildExpenseLedgers(cenarios, capitalDisponivel, quantiaExtra, custoMensal)
   );
   const maxMonth = $derived(
     Math.max(1, ...ledgers.flatMap((series) => series.points.map((point) => point.mes)))
   );
-  const yAxis = $derived(buildSignedYAxisScale(ledgerYAxisValues(ledgers)));
+  const yAxis = $derived(buildSignedYAxisScale(expenseLedgerYAxisValues(ledgers)));
 
   let chartContainer = $state<HTMLDivElement | null>(null);
   let svgEl = $state<SVGSVGElement | null>(null);
@@ -136,7 +135,7 @@
     if (!showBreakdownPanel || !svgEl || !breakdownPoint) return null;
     const { point } = breakdownPoint;
     const svgX = xForLedgerMonth(point.mes, maxMonth, chartWidth, padding);
-    const svgY = yForLedgerValue(point.saldo, yAxis, height, padding);
+    const svgY = yForLedgerValue(point.gastoAcumulado, yAxis, height, padding);
     return breakdownMarkerLocal(svgEl, svgX, svgY, chartWidth, height);
   });
 
@@ -170,7 +169,7 @@
         {
           id: other.cenario.id,
           x: xForLedgerMonth(point.mes, maxMonth, chartWidth, padding),
-          y: yForLedgerValue(point.saldo, yAxis, height, padding),
+          y: yForLedgerValue(point.gastoAcumulado, yAxis, height, padding),
           color: scenarioChartColor(other.cenario.id, resolvedColorIndex),
           active: other.cenario.id === focusPoint.series.cenario.id
         }
@@ -187,7 +186,7 @@
       return;
     }
     const { x, y } = svgPointFromPointer(svgEl, event, chartWidth, height);
-    const next = pickLedgerHover(ledgers, x, y, maxMonth, yAxis, chartWidth, hover);
+    const next = pickExpenseLedgerHover(ledgers, x, y, maxMonth, yAxis, chartWidth, hover);
     if (chartSelection.selection && chartSelection.breakdownDismissed) {
       hover =
         next && hoverMatchesLedgerSelection(next, chartSelection.selection, ledgers) ? next : null;
@@ -207,7 +206,7 @@
     }
     pointerDown = null;
     const { x, y } = svgPointFromPointer(svgEl, event, chartWidth, height);
-    const pick = pickLedgerHover(ledgers, x, y, maxMonth, yAxis, chartWidth, hover);
+    const pick = pickExpenseLedgerHover(ledgers, x, y, maxMonth, yAxis, chartWidth, hover);
     if (!pick) return;
     chartSelection.toggleSelection({
       mes: mesFromLedgerHover(pick, ledgers),
@@ -227,14 +226,14 @@
   }
 </script>
 
-<CollapsibleChartPanel title="Saldo total ao longo do tempo" empty={cenarios.length === 0}>
+<CollapsibleChartPanel title="Gasto total ao longo do tempo" empty={cenarios.length === 0}>
   <div bind:this={chartContainer} class="relative w-full">
     <svg
       bind:this={svgEl}
       viewBox="0 0 {chartWidth} {height}"
       class="h-auto w-full select-none touch-none"
       role="img"
-      aria-label="Gráfico de saldo total disponível por cenário"
+      aria-label="Gráfico de gasto total acumulado por cenário"
     >
       <TimelineChartAxes
         {yTicks}
@@ -257,7 +256,7 @@
             stroke-width={isActive ? 2.5 : 2}
             stroke-linejoin="round"
             stroke-linecap="round"
-            points={polylinePointsForLedger(series, maxMonth, yAxis, chartWidth)}
+            points={polylinePointsForExpenseLedger(series, maxMonth, yAxis, chartWidth)}
             opacity={activeCenarioId && !isActive ? 0.3 : 1}
           />
           <ScenarioChartMarkers
@@ -322,23 +321,11 @@
               {/if}
             </dd>
             {#if point.mes === 0}
-              <dt>Capital disponível</dt>
-              <dd class="font-mono text-green">{formatCurrency(point.capitalInicial)}</dd>
               <dt>Entrada</dt>
               <dd class="font-mono text-salmon">−{formatCurrency(point.entrada)}</dd>
               <dt>Fechamento</dt>
               <dd class="font-mono text-salmon">−{formatCurrency(point.custosFechamento)}</dd>
             {:else}
-              <dt>Renda</dt>
-              <dd class="font-mono text-green">{formatCurrency(point.renda)}</dd>
-              {#if point.receitaVenda > 0}
-                <dt>Receita da venda</dt>
-                <dd class="font-mono text-green">{formatCurrency(point.receitaVenda)}</dd>
-              {/if}
-              {#if point.receitaExtra > 0}
-                <dt>Quantia recebida</dt>
-                <dd class="font-mono text-green">{formatCurrency(point.receitaExtra)}</dd>
-              {/if}
               <dt>Prestação</dt>
               <dd class="font-mono">{formatCurrency(point.prestacao)}</dd>
               {#if point.aporteExtra > 0}
@@ -365,23 +352,12 @@
                 <dt>Amortização extra</dt>
                 <dd class="font-mono">{formatCurrency(point.amortizacaoExtra)}</dd>
               {/if}
-              <dt>Total de receitas</dt>
-              <dd class="font-mono text-green">{formatCurrency(point.totalReceitas)}</dd>
-              <dt>Total de despesas</dt>
-              <dd class="font-mono text-salmon">{formatCurrency(point.totalDespesas)}</dd>
             {/if}
-            <dt>Fluxo líquido</dt>
-            <dd class={cn("font-mono", point.fluxoLiquido < 0 ? "text-salmon" : "text-green")}>
-              {formatCurrency(point.fluxoLiquido)}
-            </dd>
-            <dt class="font-bold text-app-accent">Saldo acumulado</dt>
-            <dd
-              class={cn(
-                "font-mono font-bold",
-                point.saldo < 0 ? "text-salmon" : "text-app-accent"
-              )}
-            >
-              {formatCurrency(point.saldo)}
+            <dt>Total do período</dt>
+            <dd class="font-mono text-salmon">{formatCurrency(point.totalDespesas)}</dd>
+            <dt class="font-bold text-app-accent">Gasto acumulado</dt>
+            <dd class="font-mono font-bold text-app-accent">
+              {formatCurrency(point.gastoAcumulado)}
             </dd>
           </dl>
         </ChartHoverBreakdownPanel>

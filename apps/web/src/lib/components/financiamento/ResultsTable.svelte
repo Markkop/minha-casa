@@ -1,6 +1,6 @@
 <script lang="ts">
-  import { ArrowDown, ArrowUp, CircleCheck, Info } from "@lucide/svelte";
-  import EstrategiaBadge from "$lib/components/financiamento/EstrategiaBadge.svelte";
+  import { ArrowDown, ArrowUp, Info } from "@lucide/svelte";
+  import { scenarioChartColor } from "$lib/components/financiamento/charts/chart-shared";
   import CustoTotalHoverBreakdown from "$lib/components/financiamento/CustoTotalHoverBreakdown.svelte";
   import TotalMensalHoverBreakdown from "$lib/components/financiamento/TotalMensalHoverBreakdown.svelte";
   import {
@@ -28,20 +28,30 @@
     onSelectCenario,
     permutaDisponivel = true,
     compact = false,
-    hideBestColumn = false,
+    hideVisibilityColumn = false,
     hideValorImovelColumn = false,
     hideCustoTotalColumn = false,
-    valorImovelDiscountLabels = {}
+    valorImovelDiscountLabels = {},
+    scenarioColorIndex,
+    hiddenChartIds = new Set<string>(),
+    onToggleChartVisibility
   }: {
     cenarios: CenarioCompleto[];
     onSelectCenario?: (cenario: CenarioCompleto) => void;
     permutaDisponivel?: boolean;
     compact?: boolean;
-    hideBestColumn?: boolean;
+    hideVisibilityColumn?: boolean;
     hideValorImovelColumn?: boolean;
     hideCustoTotalColumn?: boolean;
     valorImovelDiscountLabels?: Record<number, string>;
+    scenarioColorIndex?: Map<string, number>;
+    hiddenChartIds?: Set<string>;
+    onToggleChartVisibility?: (cenarioId: string) => void;
   } = $props();
+
+  const showVisibilityColumn = $derived(
+    !hideVisibilityColumn && !!onToggleChartVisibility && !!scenarioColorIndex
+  );
 
   let sort = $state<ResultsSortState>({ key: "custoTotal", direction: "asc" });
   let previewSortApplied = $state(false);
@@ -144,16 +154,15 @@
   >
     <thead>
       <tr class="hover:bg-transparent">
-        {#if !hideBestColumn}
-          <th class={cn(thClass, "sticky left-0 z-30 w-8")}></th>
+        {#if showVisibilityColumn}
+          <th class={cn(thClass, "sticky left-0 z-30 w-14")} aria-label="Visibilidade nos gráficos"></th>
         {/if}
         {#if !hideValorImovelColumn}
           {@render sortableHeader("Imóvel alvo", "valorImovel", TOOLTIPS.valorImovel)}
         {/if}
         {#if permutaDisponivel}
           {@render sortableHeader("Seu imóvel", "valorApartamento", TOOLTIPS.valorApartamento)}
-          <th class={thClass}>Estratégia</th>
-          {@render sortableHeader("Venda em", "vendaEm", "Mês da venda do imóvel (venda posterior)")}
+          {@render sortableHeader("Venda em", "vendaEm", "Permuta ou mês da venda do imóvel")}
         {/if}
         {#if showExtraColumn}
           {@render sortableHeader("Extra em", "extraEm", "Mês do recebimento da quantia extra")}
@@ -192,21 +201,38 @@
     </thead>
     <tbody>
       {#each sortedCenarios as cenario (cenario.id)}
+        {@const isChartVisible = !hiddenChartIds.has(cenario.id)}
+        {@const chartColor = scenarioColorIndex
+          ? scenarioChartColor(cenario.id, scenarioColorIndex)
+          : undefined}
         <tr
           class={cn(
             "border-app-border transition-colors",
             onSelectCenario && "cursor-pointer",
-            cenario.isBest
-              ? "bg-app-action/10 hover:bg-app-action-hover/20"
-              : "hover:bg-app-surface-muted/30"
+            !isChartVisible && showVisibilityColumn && "opacity-60",
+            "hover:bg-app-surface-muted/30"
           )}
           onclick={onSelectCenario ? () => onSelectCenario(cenario) : undefined}
         >
-          {#if !hideBestColumn}
-            <td class={cn(tdClass, "sticky left-0 z-10 w-8 bg-inherit")}>
-              {#if cenario.isBest}
-                <CircleCheck class="size-4 text-app-accent" aria-label="Melhor cenário" />
-              {/if}
+          {#if showVisibilityColumn && onToggleChartVisibility && scenarioColorIndex}
+            <td class={cn(tdClass, "sticky left-0 z-10 w-14 bg-inherit")}>
+              <div class="flex items-center gap-1.5">
+                <input
+                  type="checkbox"
+                  checked={isChartVisible}
+                  aria-label="Exibir no gráfico"
+                  class="h-3.5 w-3.5 accent-app-action"
+                  onclick={(event) => event.stopPropagation()}
+                  onchange={() => onToggleChartVisibility(cenario.id)}
+                />
+                {#if chartColor}
+                  <span
+                    class="size-2.5 shrink-0 rounded-full"
+                    style:background-color={chartColor}
+                    aria-hidden="true"
+                  ></span>
+                {/if}
+              </div>
             </td>
           {/if}
           {#if !hideValorImovelColumn}
@@ -230,11 +256,8 @@
                   : cenario.valorApartamento
               )}
             </td>
-            <td class={tdClass}>
-              <EstrategiaBadge estrategia={cenario.estrategia} variant="inline" />
-            </td>
             <td class={cn(tdClass, monoCellClass)}>
-              {formatTimingCell(cenario.vendaEm)}
+              {cenario.estrategia === "permuta" ? "Permuta" : formatTimingCell(cenario.vendaEm)}
             </td>
           {/if}
           {#if showExtraColumn}

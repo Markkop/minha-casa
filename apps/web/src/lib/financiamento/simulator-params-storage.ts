@@ -1,17 +1,23 @@
 import {
-  PERCENTAGE_OPTIONS,
   TIMING_MONTH_OPTIONS,
   type EstrategiaFiltro,
   type SimulatorParams
 } from "$lib/components/financiamento/financiamento-parameter-types";
+import {
+  buildApproximatePriceValues,
+  defaultSelectedPriceFilters,
+  isLegacyMultiplierPriceFilter,
+  migrateMultiplierPriceFilter
+} from "$lib/components/financiamento/price-filter-approx";
+import { clampAporteProgressivoFields } from "$lib/financiamento/aporte-progressivo";
 import { createInitialSimulatorParams } from "$lib/financiamento/simulator-recursos";
 
 export const SIMULATOR_PARAMS_STORAGE_KEY = "minha-casa-financeiro-params";
 export const LEGACY_SIMULATOR_PARAMS_STORAGE_KEY = "minha-casa-financiamento-params";
 
 const VALID_ESTRATEGIAS = new Set<EstrategiaFiltro>(["permuta", "venda_posterior"]);
-const VALID_MULTIPLIERS = new Set<number>(PERCENTAGE_OPTIONS.map((o) => o.value));
 const VALID_TIMING_MONTHS = new Set<number>(TIMING_MONTH_OPTIONS);
+const MAX_PRICE_FILTER_VALUE = 50_000_000;
 
 /** Stored shape, including fields used before the capital/entrada split. */
 interface StoredSimulatorParams extends Partial<Omit<SimulatorParams, "linkedListingId">> {
@@ -27,14 +33,28 @@ function finiteBoolean(value: unknown, fallback: boolean): boolean {
   return typeof value === "boolean" ? value : fallback;
 }
 
-function validMultiplierList(value: unknown, fallback: number[]): number[] {
+function validPriceFilterList(value: unknown, fallback: number[], baseValue: number): number[] {
   if (!Array.isArray(value)) {
     return fallback;
   }
-  const filtered = value.filter(
-    (v): v is number => typeof v === "number" && VALID_MULTIPLIERS.has(v)
+
+  const numeric = value.filter(
+    (item): item is number => typeof item === "number" && Number.isFinite(item)
   );
-  return filtered.length > 0 ? filtered : fallback;
+  if (numeric.length === 0) {
+    return fallback;
+  }
+
+  if (isLegacyMultiplierPriceFilter(numeric)) {
+    return migrateMultiplierPriceFilter(numeric, baseValue);
+  }
+
+  const options = new Set(buildApproximatePriceValues(baseValue));
+  const filtered = [...new Set(numeric)]
+    .filter((item) => item > 0 && item <= MAX_PRICE_FILTER_VALUE && options.has(item))
+    .sort((a, b) => b - a);
+
+  return filtered.length > 0 ? filtered : defaultSelectedPriceFilters(baseValue);
 }
 
 function validTimingMonthList(value: unknown, fallback: number[]): number[] {
@@ -61,6 +81,22 @@ function validEstrategiaList(value: unknown, fallback: EstrategiaFiltro[]): Estr
   return filtered.length > 0 ? filtered : fallback;
 }
 
+function validScenarioIdList(value: unknown, fallback: string[]): string[] {
+  if (!Array.isArray(value)) {
+    return fallback;
+  }
+  const seen = new Set<string>();
+  const filtered: string[] = [];
+  for (const item of value) {
+    if (typeof item !== "string" || item.length === 0 || seen.has(item)) {
+      continue;
+    }
+    seen.add(item);
+    filtered.push(item);
+  }
+  return filtered;
+}
+
 function resolveManutencaoMensal(parsed: StoredSimulatorParams, defaults: SimulatorParams): number {
   if (typeof parsed.custoManutencaoImovelMensal === "number") {
     return finiteNumber(parsed.custoManutencaoImovelMensal, defaults.custoManutencaoImovelMensal);
@@ -82,6 +118,18 @@ export function normalizeSimulatorParams(parsed: StoredSimulatorParams): Simulat
         ? valorApartamento > 0
         : defaults.temImovelParaNegociar;
 
+  const aporteExtra = finiteNumber(parsed.aporteExtra, defaults.aporteExtra);
+  const aporteProgressivoFields = clampAporteProgressivoFields({
+    aporteExtra,
+    aporteProgressivo: finiteBoolean(parsed.aporteProgressivo, defaults.aporteProgressivo),
+    aporteInicial: finiteNumber(parsed.aporteInicial, defaults.aporteInicial),
+    aporteProgressao: finiteNumber(parsed.aporteProgressao, defaults.aporteProgressao),
+    aporteIntervaloMeses: finiteNumber(
+      parsed.aporteIntervaloMeses,
+      defaults.aporteIntervaloMeses
+    )
+  });
+
   return {
     capitalDisponivel: hasEntradaDisponivel
       ? finiteNumber(parsed.capitalDisponivel, defaults.capitalDisponivel)
@@ -92,7 +140,11 @@ export function normalizeSimulatorParams(parsed: StoredSimulatorParams): Simulat
     valorApartamento,
     rendaMensal: finiteNumber(parsed.rendaMensal, defaults.rendaMensal),
     custoMensal: finiteNumber(parsed.custoMensal, defaults.custoMensal),
-    aporteExtra: finiteNumber(parsed.aporteExtra, defaults.aporteExtra),
+    aporteExtra: aporteProgressivoFields.aporteExtra,
+    aporteProgressivo: aporteProgressivoFields.aporteProgressivo,
+    aporteInicial: aporteProgressivoFields.aporteInicial,
+    aporteProgressao: aporteProgressivoFields.aporteProgressao,
+    aporteIntervaloMeses: aporteProgressivoFields.aporteIntervaloMeses,
     valorImovel: finiteNumber(parsed.valorImovel, defaults.valorImovel),
     taxaAnual: finiteNumber(parsed.taxaAnual, defaults.taxaAnual),
     trMensal: finiteNumber(parsed.trMensal, defaults.trMensal),
@@ -110,13 +162,15 @@ export function normalizeSimulatorParams(parsed: StoredSimulatorParams): Simulat
     ),
     esperaQuantiaExtra: finiteBoolean(parsed.esperaQuantiaExtra, defaults.esperaQuantiaExtra),
     quantiaExtra: finiteNumber(parsed.quantiaExtra, defaults.quantiaExtra),
-    valoresImovelFiltroMultipliers: validMultiplierList(
+    valoresImovelFiltroMultipliers: validPriceFilterList(
       parsed.valoresImovelFiltroMultipliers,
-      defaults.valoresImovelFiltroMultipliers
+      defaults.valoresImovelFiltroMultipliers,
+      finiteNumber(parsed.valorImovel, defaults.valorImovel)
     ),
-    valoresAptoFiltroMultipliers: validMultiplierList(
+    valoresAptoFiltroMultipliers: validPriceFilterList(
       parsed.valoresAptoFiltroMultipliers,
-      defaults.valoresAptoFiltroMultipliers
+      defaults.valoresAptoFiltroMultipliers,
+      finiteNumber(parsed.valorApartamento, defaults.valorApartamento)
     ),
     estrategiasFiltro: validEstrategiaList(parsed.estrategiasFiltro, defaults.estrategiasFiltro),
     temposVendaPosteriorMeses: validTimingMonthList(
@@ -130,6 +184,10 @@ export function normalizeSimulatorParams(parsed: StoredSimulatorParams): Simulat
     temposReformaMeses: validTimingMonthList(
       parsed.temposReformaMeses,
       defaults.temposReformaMeses
+    ),
+    cenariosOcultosGraficos: validScenarioIdList(
+      parsed.cenariosOcultosGraficos,
+      defaults.cenariosOcultosGraficos
     ),
     linkedListingId: validListingId(parsed.linkedListingId)
   };
