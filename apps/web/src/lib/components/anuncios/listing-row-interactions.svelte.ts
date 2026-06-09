@@ -1,3 +1,4 @@
+import { tick } from "svelte";
 import type { Imovel } from "$lib/anuncios/types";
 import {
   applyPreferencePatch,
@@ -14,6 +15,7 @@ import { buildListingMarkdown } from "$lib/anuncios/listing-markdown";
 import {
   isStrikethroughEtapa,
   type ListingEtapa,
+  scrollListingIntoViewIfNeeded,
   type TipoImovelValue
 } from "$lib/components/anuncios/listings-table-shared";
 
@@ -37,8 +39,13 @@ export function createListingRowInteractions({
 
   async function handleToggleStar() {
     const imovel = getImovel();
+    const wasStarred = imovel.starred;
     try {
-      await apiUpdateListing(imovel.id, { starred: !imovel.starred });
+      const updated = await apiUpdateListing(imovel.id, { starred: !imovel.starred });
+      if (!wasStarred && updated.starred) {
+        await tick();
+        scrollListingIntoViewIfNeeded(imovel.id);
+      }
     } catch (error) {
       console.error("Failed to toggle star:", error);
     }

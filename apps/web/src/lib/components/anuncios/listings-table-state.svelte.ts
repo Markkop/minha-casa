@@ -135,6 +135,10 @@ export function createListingsTableState(getListings: () => Imovel[]) {
       filtered = filtered.filter((imovel) => imovel.tipoImovel === propertyTypeFilter);
     }
     return [...filtered].sort((a, b) => {
+      const aStarred = a.starred ? 1 : 0;
+      const bStarred = b.starred ? 1 : 0;
+      if (aStarred !== bStarred) return bStarred - aStarred;
+
       const aVal = getSortValue(a, sort.key);
       const bVal = getSortValue(b, sort.key);
       if (typeof aVal === "string" && typeof bVal === "string") {

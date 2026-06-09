@@ -1,6 +1,42 @@
 /** Workspace header height (Tailwind h-11). */
 export const WORKSPACE_NAV_HEIGHT = "2.75rem";
 
+const DEFAULT_NAV_HEIGHT_PX = 44;
+
+function parseCssLengthToPx(value: string, context: Element = document.documentElement): number {
+  const trimmed = value.trim();
+  if (!trimmed) return DEFAULT_NAV_HEIGHT_PX;
+  if (trimmed.endsWith("px")) return parseFloat(trimmed) || DEFAULT_NAV_HEIGHT_PX;
+  if (trimmed.endsWith("rem")) {
+    const fontSize = parseFloat(getComputedStyle(context).fontSize) || 16;
+    return (parseFloat(trimmed) || 2.75) * fontSize;
+  }
+  return parseFloat(trimmed) || DEFAULT_NAV_HEIGHT_PX;
+}
+
+/** Bottom edge of the sticky workspace top bar — content should scroll below this. */
+export function getStickyPageHeaderOffset(): number {
+  const header = document.getElementById("page-header");
+  if (header) {
+    return Math.max(0, header.getBoundingClientRect().bottom);
+  }
+
+  const navHeight = getComputedStyle(document.documentElement).getPropertyValue("--nav-height").trim();
+  if (navHeight) return parseCssLengthToPx(navHeight);
+
+  return DEFAULT_NAV_HEIGHT_PX;
+}
+
+export function scrollElementBelowStickyHeader(
+  element: HTMLElement,
+  topOffset = getStickyPageHeaderOffset(),
+  gap = 8
+): void {
+  const rect = element.getBoundingClientRect();
+  const targetTop = window.scrollY + rect.top - topOffset - gap;
+  window.scrollTo({ top: Math.max(0, targetTop), behavior: "smooth" });
+}
+
 export const WORKSPACE_SIDEBAR_WIDTH = "11rem";
 
 export const WORKSPACE_RIGHT_SIDEBAR_WIDTH = "20rem";

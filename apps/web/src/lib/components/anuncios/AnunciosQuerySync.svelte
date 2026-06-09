@@ -2,7 +2,11 @@
   import { tick } from "svelte";
   import { page } from "$app/state";
   import { getCollectionsContext } from "$lib/collections-context.svelte";
-  import { applyListingDeepLinkHighlight } from "$lib/components/anuncios/listings-table-shared";
+  import {
+    applyListingDeepLinkHighlight,
+    getVisibleListingElement,
+    scrollListingIntoView
+  } from "$lib/components/anuncios/listings-table-shared";
 
   const ctx = getCollectionsContext();
 
@@ -26,9 +30,9 @@
 
     void tick().then(() => {
       if (cancelled) return;
-      const element = document.getElementById(`listing-${id}`);
+      scrollListingIntoView(id);
+      const element = getVisibleListingElement(id);
       if (!element) return;
-      element.scrollIntoView({ behavior: "smooth", block: "center" });
       removeHighlight = applyListingDeepLinkHighlight(element);
       timer = window.setTimeout(() => removeHighlight?.(), 3000);
     });

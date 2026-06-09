@@ -1,5 +1,9 @@
 import { Home, Building } from "@lucide/svelte";
 import type { Imovel } from "$lib/anuncios/types";
+import {
+  getStickyPageHeaderOffset,
+  scrollElementBelowStickyHeader
+} from "$lib/workspace-chrome";
 
 export type ImageColumnView = "image" | "map";
 
@@ -118,6 +122,37 @@ export const LISTING_POPOVER_MENU_ITEM_ACTIVE_CLASS = "bg-app-action/15 text-app
 export const LISTING_DEEP_LINK_HIGHLIGHT_CLASS = "ring-2 ring-inset ring-primary/60";
 
 const LISTING_DEEP_LINK_HIGHLIGHT_CLASSES = LISTING_DEEP_LINK_HIGHLIGHT_CLASS.split(/\s+/);
+
+export function getVisibleListingElement(listingId: string): HTMLElement | null {
+  const elements = document.querySelectorAll(`#listing-${CSS.escape(listingId)}`);
+  for (const element of elements) {
+    if (element instanceof HTMLElement && element.offsetParent !== null) {
+      return element;
+    }
+  }
+  const first = elements[0];
+  return first instanceof HTMLElement ? first : null;
+}
+
+export function isListingElementInView(element: HTMLElement, topOffset = getStickyPageHeaderOffset()): boolean {
+  const rect = element.getBoundingClientRect();
+  const viewHeight = window.innerHeight || document.documentElement.clientHeight;
+  return rect.top >= topOffset && rect.bottom <= viewHeight;
+}
+
+export function scrollListingIntoViewIfNeeded(listingId: string): void {
+  const element = getVisibleListingElement(listingId);
+  if (!element) return;
+  const topOffset = getStickyPageHeaderOffset();
+  if (isListingElementInView(element, topOffset)) return;
+  scrollElementBelowStickyHeader(element, topOffset);
+}
+
+export function scrollListingIntoView(listingId: string): void {
+  const element = getVisibleListingElement(listingId);
+  if (!element) return;
+  scrollElementBelowStickyHeader(element, getStickyPageHeaderOffset());
+}
 
 export function applyListingDeepLinkHighlight(element: HTMLElement): () => void {
   if (element instanceof HTMLTableRowElement) {
