@@ -24,6 +24,8 @@ FROM alpine:3.22 AS app
 
 RUN apk add --no-cache openssl ncurses-libs libstdc++ poppler-utils curl
 
+ENV VIPS_CONCURRENCY=2
+
 WORKDIR /app
 
 ENV HOME=/app

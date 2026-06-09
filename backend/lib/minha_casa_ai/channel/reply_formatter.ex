@@ -1,7 +1,9 @@
 defmodule MinhaCasaAi.Channel.ReplyFormatter do
   alias MinhaCasaAi.ListingShortLinks
 
-  def ingestion_result(%{pending_type: "multi_import", multi_count: count, collection: collection} = result) do
+  def ingestion_result(
+        %{pending_type: "multi_import", multi_count: count, collection: collection} = result
+      ) do
     name = collection_name(collection)
 
     numbered =
@@ -24,7 +26,11 @@ defmodule MinhaCasaAi.Channel.ReplyFormatter do
     |> String.trim()
   end
 
-  def ingestion_result(%{pending_type: "duplicate_resolution", duplicates: [first | _], collection: collection}) do
+  def ingestion_result(%{
+        pending_type: "duplicate_resolution",
+        duplicates: [first | _],
+        collection: collection
+      }) do
     title = Map.get(first.listing_data, "titulo") || "Imóvel"
     name = collection_name(collection)
     candidate = hd(first.candidates)
@@ -37,8 +43,9 @@ defmodule MinhaCasaAi.Channel.ReplyFormatter do
 
     Responda:
     1 — Salvar mesmo assim
-    2 — Ignorar
-    3 — Ver no site
+    2 — Mesclar com o anúncio existente
+    3 — Ignorar
+    4 — Ver anúncio existente
     """
     |> String.trim()
   end
@@ -162,14 +169,20 @@ defmodule MinhaCasaAi.Channel.ReplyFormatter do
   def tool_message(text) when is_binary(text), do: text
 
   def error(:empty_text), do: "Envie um texto, link, imagem ou PDF com o anúncio."
-  def error(:unsupported_audio), do: "Áudio ainda não é suportado. Envie texto, link, imagem ou PDF."
+
+  def error(:unsupported_audio),
+    do: "Áudio ainda não é suportado. Envie texto, link, imagem ou PDF."
 
   def error(:unsupported_document),
     do: "Esse tipo de arquivo não é suportado. Envie PDF, imagem, texto ou link."
 
   def error(:unsupported_message_type), do: "Esse tipo de mensagem não é suportado ainda."
   def error(:pending_expired), do: "Esta ação expirou. Envie o anúncio novamente."
-  def error(:invalid_pending_reply), do: "Não entendi. Responda 1, 2 ou 3, ou digite cancelar."
+
+  def error(:invalid_pending_reply),
+    do:
+      "Não entendi. Responda 1 para salvar, 2 para mesclar, 3 para ignorar ou 4 para ver o anúncio existente. Você também pode digitar cancelar."
+
   def error(_), do: "Não foi possível processar sua mensagem. Tente novamente."
 
   defp header_line(data) do

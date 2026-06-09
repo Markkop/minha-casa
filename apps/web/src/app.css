@@ -93,6 +93,7 @@
   --color-yellow: var(--app-action);
 
   --animate-listing-image-ingest: listing-image-ingest 1.25s ease-in-out infinite;
+  --animate-clipboard-glow: clipboard-glow 3s ease-in-out infinite;
 
   @keyframes listing-image-ingest {
     0% {
@@ -101,6 +102,38 @@
     100% {
       transform: translateX(420%);
     }
+  }
+
+  @keyframes clipboard-glow {
+    0%,
+    100% {
+      box-shadow:
+        0 0 0 0 color-mix(in srgb, var(--app-action) 0%, transparent),
+        0 0 0 0 color-mix(in srgb, var(--app-action) 0%, transparent),
+        0 0 0 0 color-mix(in srgb, var(--app-action) 0%, transparent);
+    }
+    50% {
+      box-shadow:
+        0 0 0 3px color-mix(in srgb, var(--app-action) 45%, transparent),
+        0 0 28px 10px color-mix(in srgb, var(--app-action) 32%, transparent),
+        0 0 52px 20px color-mix(in srgb, var(--app-action) 14%, transparent);
+    }
+  }
+}
+
+.animate-clipboard-glow {
+  background-color: color-mix(in srgb, var(--app-action) 45%, var(--app-surface));
+  border-color: color-mix(in srgb, var(--app-action) 70%, var(--app-border));
+  color: var(--app-action-foreground);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-clipboard-glow {
+    animation: none !important;
+    box-shadow:
+      0 0 0 3px color-mix(in srgb, var(--app-action) 45%, transparent),
+      0 0 28px 10px color-mix(in srgb, var(--app-action) 32%, transparent),
+      0 0 52px 20px color-mix(in srgb, var(--app-action) 14%, transparent);
   }
 }
 

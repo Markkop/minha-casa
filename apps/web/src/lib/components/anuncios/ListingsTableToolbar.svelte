@@ -16,7 +16,9 @@
   import ListingsSortPopover from "$lib/components/anuncios/ListingsSortPopover.svelte";
   import PropertyTypeFilterCycleButton from "$lib/components/anuncios/PropertyTypeFilterCycleButton.svelte";
   import ToolbarAnchoredPopover from "$lib/components/anuncios/ToolbarAnchoredPopover.svelte";
+  import ListingsTableConfigButton from "$lib/components/anuncios/ListingsTableConfigButton.svelte";
   import Input from "$lib/components/ui/Input.svelte";
+  import type { ClipboardAutoDetectState } from "$lib/anuncios/clipboard-auto-detect.svelte";
   import ImageColumnHeaderToggle from "$lib/components/anuncios/ImageColumnHeaderToggle.svelte";
   import {
     LISTINGS_TABLE_COLUMNS,
@@ -29,7 +31,7 @@
   type PropertyTypeFilter = "all" | "casa" | "apartamento";
 
   let {
-    showAddInput,
+    clipboardAutoDetect,
     searchQuery = $bindable(""),
     showTypeFilters,
     propertyTypeFilter = $bindable("all"),
@@ -52,10 +54,9 @@
     visibleColumns = $bindable<Record<ListingsTableColumn, boolean>>(),
     imageColumnView = $bindable<ImageColumnView>("image"),
     onImageColumnViewChange,
-    addListingToolbarButtons,
-    addInputControl
+    addListingToolbarButtons
   }: {
-    showAddInput: boolean;
+    clipboardAutoDetect: ClipboardAutoDetectState;
     searchQuery?: string;
     showTypeFilters: boolean;
     propertyTypeFilter?: PropertyTypeFilter;
@@ -79,7 +80,6 @@
     imageColumnView?: ImageColumnView;
     onImageColumnViewChange?: (view: ImageColumnView) => void;
     addListingToolbarButtons: Snippet<[large?: boolean]>;
-    addInputControl: Snippet;
   } = $props();
 
   function setImageColumnView(view: ImageColumnView) {
@@ -103,28 +103,8 @@
   <div class={LISTINGS_TOOLBAR_INNER_CLASS}>
     {@render addListingToolbarButtons()}
 
-    <div
-      class={cn(
-        "flex min-w-0 flex-1 items-center md:min-w-[280px]",
-        showAddInput ? "gap-0 md:gap-1.5" : "gap-0"
-      )}
-    >
-      <div
-        class={cn(
-          "min-w-0 transition-[flex-basis,width] duration-300 ease-out",
-          showAddInput
-            ? "max-md:flex-1 max-md:basis-full md:basis-1/2"
-            : "w-0 basis-0 overflow-hidden"
-        )}
-      >
-        {@render addInputControl()}
-      </div>
-      <div
-        class={cn(
-          "relative min-w-0 transition-[flex-basis] duration-300 ease-out",
-          showAddInput ? "max-md:hidden md:basis-1/2" : "max-md:flex-1 md:basis-full"
-        )}
-      >
+    <div class="flex min-w-0 flex-1 items-center md:min-w-[280px]">
+      <div class="relative min-w-0 max-md:flex-1 md:basis-full">
         <Search
           class="absolute left-1.5 top-1/2 h-3 w-3 -translate-y-1/2 text-muted-foreground md:left-2 md:h-3.5 md:w-3.5"
         />
@@ -259,5 +239,7 @@
         {/if}
       </div>
     </ToolbarAnchoredPopover>
+
+    <ListingsTableConfigButton {clipboardAutoDetect} />
   </div>
 </div>

@@ -12,13 +12,41 @@ defmodule MinhaCasaAi.ListingImages.Storage do
   def put_listing_image(listing_id, index, bytes, content_type)
       when is_binary(listing_id) and is_integer(index) and index >= 0 and is_binary(bytes) do
     key = listing_image_key(listing_id, index, content_type)
+    put_object(key, bytes, content_type)
+  end
 
+  def put_staged_merge_image(session_id, image_id, bytes, content_type)
+      when is_binary(session_id) and is_binary(image_id) and is_binary(bytes) do
+    ext = Map.get(@content_type_ext, content_type, "jpg")
+    key = "listing-merge-sessions/#{session_id}/#{image_id}.#{ext}"
+
+    case put_object(key, bytes, content_type) do
+      {:ok, _} -> {:ok, key}
+      error -> error
+    end
+  end
+
+  def put_object(key, bytes, content_type)
+      when is_binary(key) and is_binary(bytes) and is_binary(content_type) do
     if Config.configured?(:minio) do
       ExAws.S3.put_object(Config.minio_bucket(), key, bytes, content_type: content_type)
       |> ExAws.request(ex_aws_config())
       |> case do
         {:ok, _} -> {:ok, key}
         {:error, reason} -> {:error, {:minio_upload_failed, reason}}
+      end
+    else
+      {:error, :minio_not_configured}
+    end
+  end
+
+  def delete_object(key) when is_binary(key) do
+    if Config.configured?(:minio) do
+      ExAws.S3.delete_object(Config.minio_bucket(), key)
+      |> ExAws.request(ex_aws_config())
+      |> case do
+        {:ok, _} -> :ok
+        {:error, reason} -> {:error, {:minio_delete_failed, reason}}
       end
     else
       {:error, :minio_not_configured}

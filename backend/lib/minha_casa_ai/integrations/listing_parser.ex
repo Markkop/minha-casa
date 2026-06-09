@@ -35,7 +35,12 @@ defmodule MinhaCasaAi.Integrations.ListingParser do
              "URL do anúncio: #{scraped.source_url}\n\n#{scraped.text}",
              parser_opts(input, opts)
            ) do
-      {:ok, Enum.map(listings, &ensure_link(&1, scraped.source_url))}
+      listings =
+        listings
+        |> Enum.map(&ensure_link(&1, scraped.source_url))
+        |> Enum.map(&ensure_cover(&1, Map.get(scraped, :og_image_url)))
+
+      {:ok, listings}
     end
   end
 
@@ -49,6 +54,12 @@ defmodule MinhaCasaAi.Integrations.ListingParser do
 
     [catalog: catalog]
   end
+
+  defp ensure_cover(listing, og_image_url) when is_binary(og_image_url) and og_image_url != "" do
+    Map.put_new(listing, "coverImageUrl", og_image_url)
+  end
+
+  defp ensure_cover(listing, _og_image_url), do: listing
 
   defp ensure_link(listing, source_url) do
     case Map.get(listing, "link") do

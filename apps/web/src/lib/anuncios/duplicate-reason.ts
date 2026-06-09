@@ -6,6 +6,8 @@ const DUPLICATE_REASON_LABELS: Record<string, string> = {
   same_address_price_area: "mesmo endereço, preço e área",
   same_address_price: "mesmo endereço e preço",
   same_address: "mesmo endereço",
+  same_address_similar_cover: "mesmo endereço e foto parecida",
+  similar_cover_image: "foto de capa parecida",
   none: "similaridade alta",
 }
 

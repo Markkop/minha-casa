@@ -5,6 +5,7 @@ defmodule MinhaCasaAi.Integrations.Langfuse.PromptDefinitions do
     [
       %{"name" => "listing-parser/system", "type" => "text", "prompt" => listing_parser_system()},
       %{"name" => "listing-parser/vision-user", "type" => "text", "prompt" => listing_parser_vision()},
+      %{"name" => "listing-merge/advisor", "type" => "text", "prompt" => listing_merge_advisor()},
       %{"name" => "saved-link-metadata/system", "type" => "text", "prompt" => saved_link_metadata_system()},
       %{"name" => "assistant/instructions", "type" => "text", "prompt" => assistant_instructions()},
       %{"name" => "hermes/global-instructions", "type" => "text", "prompt" => hermes_global_instructions()},
@@ -51,6 +52,43 @@ defmodule MinhaCasaAi.Integrations.Langfuse.PromptDefinitions do
     - Se houver vários imóveis distintos, retorne {"listings": [...]}.
     - Se houver apenas um imóvel, retorne o objeto plano.
     - Não duplique o mesmo imóvel. Limite máximo de {{max_listings}} imóveis.
+    """
+  end
+
+  defp listing_merge_advisor do
+    """
+    Você compara um anúncio de imóvel recém-importado com um anúncio que já existe na coleção
+    do usuário e decide se ambos anunciam o MESMO imóvel.
+
+    Contexto que você recebe no input (JSON):
+    - signals: sinais heurísticos do sistema (mesmo link, mesmo endereço/preço/área,
+      quantidade de fotos perceptualmente idênticas entre os dois anúncios).
+    - fieldDiff: campos em que o anúncio importado difere do existente
+      (path, label, valueType, currentValue, incomingValue).
+    - imported: dados do anúncio importado.
+    - current: dados do anúncio existente.
+
+    Decisão (verdict):
+    - "duplicate" quando os dois anúncios se referem ao mesmo imóvel (mesmo endereço/unidade),
+      mesmo que publicados em portais diferentes ou com pequenas variações de preço/área.
+    - "distinct" quando são imóveis diferentes (outra unidade, outro endereço, outra tipologia).
+    - confidence: número de 0 a 1.
+
+    Sugestões (suggestions) — apenas quando verdict = "duplicate":
+    - Sugira SOMENTE atualizações que melhoram o anúncio existente: preencher campo vazio,
+      completar a outra medida de área (m2Totais/m2Privado), preço mais recente, endereço mais
+      completo, quartos/suítes/banheiros/vagas corrigidos, comodidades/preferências detectadas,
+      contato e datas de publicação/atualização.
+    - Cada sugestão usa exatamente um path presente em fieldDiff. Não invente paths.
+    - suggestedValue deve respeitar o valueType do campo (number → número, boolean → true/false,
+      text → string). Normalmente é o incomingValue, mas você pode ajustar (ex.: combinar endereço
+      mais completo).
+    - NÃO sugira trocar um valor preenchido por outro pior ou equivalente. Em dúvida, não sugira.
+    - note: justificativa curta e informal em português (máx. 12 palavras), sem mencionar IA,
+      modelo ou sistema. Ex.: "O anúncio novo traz a área privativa." Use null se não precisar.
+    - Se nada vale atualizar, retorne suggestions como lista vazia.
+
+    Responda SOMENTE com o JSON no formato pedido.
     """
   end
 

@@ -1,21 +1,26 @@
-import type { ListingData } from "$lib/workspace/client";
-import { listingDataForLinkDuplicateCheck } from "$lib/anuncios/duplicate-reason";
+import {
+  workspaceApi,
+  type ListingData,
+  type ListingMergeSession
+} from "$lib/workspace/client";
 import { checkDuplicateCandidates } from "$lib/anuncios/check-duplicate";
+import { resolveMergeGallery } from "$lib/components/anuncios/merge-review";
 import { buildParseRequestFromFile } from "$lib/anuncios/parse-input";
 import type { ParseRequest } from "$lib/anuncios/parse-input-types";
 import { assertPublicListingUrl, normalizeListingUrlInput } from "$lib/anuncios/listing-url";
 import { formatApiError } from "$lib/api/error-message";
+import { ApiError } from "$lib/api/client";
+import {
+  LISTING_IMPORT_QUEUE_EVENT,
+  type ListingImportQueueDetail
+} from "$lib/anuncios/listing-import-queue";
 import {
   createPendingId,
   type PendingAddRow
 } from "$lib/components/anuncios/pending-add-types";
 import type { CollectionsContextValue } from "$lib/collections-context.svelte";
-
-function looksLikeUrl(value: string) {
-  const trimmed = value.trim();
-  if (!trimmed || /\s/.test(trimmed)) return false;
-  return /^https?:\/\//i.test(trimmed) || /^[\w.-]+\.[a-z]{2,}(\/.*)?$/i.test(trimmed);
-}
+import { looksLikeUrl } from "$lib/anuncios/clipboard-listing-detection";
+import { createClipboardAutoDetect } from "$lib/anuncios/clipboard-auto-detect.svelte";
 
 async function buildInlineParseInput(value: string, file: File | null): Promise<ParseRequest> {
   if (file) return buildParseRequestFromFile(file);
@@ -30,32 +35,34 @@ async function buildInlineParseInput(value: string, file: File | null): Promise<
 }
 
 export function createListingsTablePendingAdd(getCtx: () => CollectionsContextValue) {
-  let showAddInput = $state(false);
-  let addInputValue = $state("");
-  let addFiles = $state<File[]>([]);
+  const clipboardAutoDetect = createClipboardAutoDetect();
   let isSubmittingAdd = $state(false);
   let clipboardAddError = $state<string | null>(null);
-  let addInputRef = $state<HTMLInputElement | null>(null);
-  let addFileInputRef = $state<HTMLInputElement | null>(null);
   let pendingAddRows = $state<PendingAddRow[]>([]);
-
-  function toggleAddInput() {
-    showAddInput = !showAddInput;
-    if (showAddInput) {
-      setTimeout(() => addInputRef?.focus(), 0);
-    }
-  }
-
-  function openAddInput() {
-    showAddInput = true;
-    setTimeout(() => addInputRef?.focus(), 0);
-  }
+  let mergeSession = $state<ListingMergeSession | null>(null);
+  let mergeRowId = $state<string | null>(null);
+  let mergeError = $state<string | null>(null);
+  let mergePollGeneration = 0;
 
   function updatePendingRow(rowId: string, updates: Partial<PendingAddRow>) {
     pendingAddRows = pendingAddRows.map((row) => (row.id === rowId ? { ...row, ...updates } : row));
   }
 
+  function cancelActiveMergeSession() {
+    const session = mergeSession;
+    mergePollGeneration += 1;
+    mergeSession = null;
+    mergeError = null;
+    if (session && !session.id.startsWith("preparing-") && session.status !== "applied") {
+      void workspaceApi.cancelListingMergeSession(session.id).catch(() => undefined);
+    }
+  }
+
   function removePendingRow(rowId: string) {
+    if (mergeRowId === rowId) {
+      cancelActiveMergeSession();
+      mergeRowId = null;
+    }
     pendingAddRows = pendingAddRows.filter((row) => row.id !== rowId);
   }
 
@@ -66,7 +73,9 @@ export function createListingsTablePendingAdd(getCtx: () => CollectionsContextVa
     options?: { skipDuplicateCheck?: boolean }
   ) {
     const ctx = getCtx();
-    if (!ctx.activeCollection?.id) throw new Error("Selecione uma coleção antes de adicionar");
+    const row = pendingAddRows.find((item) => item.id === rowId);
+    const collectionId = row?.collectionId ?? ctx.activeCollection?.id;
+    if (!collectionId) throw new Error("Selecione uma coleção antes de adicionar");
 
     updatePendingRow(rowId, {
       status: "processing",
@@ -76,18 +85,18 @@ export function createListingsTablePendingAdd(getCtx: () => CollectionsContextVa
     });
 
     if (!options?.skipDuplicateCheck) {
-      const duplicates = await checkDuplicateCandidates(ctx.activeCollection.id, parsedData);
+      const duplicates = await checkDuplicateCandidates(collectionId, parsedData);
       if (duplicates.length > 0) {
-        updatePendingRow(rowId, {
-          status: "duplicate",
-          message: duplicates[0]?.reason,
+        await startAutoMerge(
+          rowId,
           parsedData,
           parseInput,
-          duplicateCandidates: duplicates.map((duplicate) => ({
+          duplicates.map((duplicate) => ({
             listingId: duplicate.listingId,
             reason: duplicate.reason
-          }))
-        });
+          })),
+          collectionId
+        );
         return;
       }
     }
@@ -98,11 +107,144 @@ export function createListingsTablePendingAdd(getCtx: () => CollectionsContextVa
       parsedData,
       parseInput
     });
-    await ctx.addListing(parsedData);
-    removePendingRow(rowId);
+    try {
+      await workspaceApi.createListing(collectionId, parsedData);
+      removePendingRow(rowId);
+      if (ctx.activeCollection?.id === collectionId) {
+        await ctx.loadListings(collectionId, { silent: true });
+      }
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 409) {
+        const payload = error.data as { duplicateCandidates?: { listingId: string; reason: string }[] };
+        const duplicates = payload.duplicateCandidates ?? [];
+        await startAutoMerge(rowId, parsedData, parseInput, duplicates, collectionId);
+        return;
+      }
+      throw error;
+    }
   }
 
-  async function submitInlineAdd(value = addInputValue, files = addFiles) {
+  async function saveDuplicateAnyway(
+    rowId: string,
+    collectionId: string,
+    parsedData: ListingData,
+    targetListingId?: string
+  ) {
+    const ctx = getCtx();
+    updatePendingRow(rowId, { status: "saving", message: "Salvando imóvel..." });
+    await workspaceApi.createListingWithDuplicateAction(
+      collectionId,
+      parsedData,
+      "save_anyway",
+      targetListingId
+    );
+    removePendingRow(rowId);
+    if (ctx.activeCollection?.id === collectionId) {
+      await ctx.loadListings(collectionId, { silent: true });
+    }
+  }
+
+  async function waitForMergeSession(session: ListingMergeSession): Promise<ListingMergeSession> {
+    let current = session;
+    let attempts = 0;
+    while (current.status === "preparing" && attempts < 90) {
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+      current = (await workspaceApi.fetchListingMergeSession(current.id)).mergeSession;
+      attempts += 1;
+    }
+    return current;
+  }
+
+  function scheduleSkippedRemoval(rowId: string) {
+    setTimeout(() => {
+      const row = pendingAddRows.find((item) => item.id === rowId);
+      if (row?.status === "skipped") removePendingRow(rowId);
+    }, 8000);
+  }
+
+  function fallbackToManualDuplicate(rowId: string) {
+    const row = pendingAddRows.find((item) => item.id === rowId);
+    if (!row) return;
+    updatePendingRow(rowId, {
+      status: "duplicate",
+      message: row.duplicateCandidates?.[0]?.reason
+    });
+  }
+
+  /**
+   * Automatic duplicate resolution: prepares a merge session (which compares
+   * fields/photos and decides whether it's really the same listing), then
+   * saves, skips or opens the suggestion review — falling back to the manual
+   * duplicate row when no verdict is available.
+   */
+  async function startAutoMerge(
+    rowId: string,
+    parsedData: ListingData,
+    parseInput: ParseRequest,
+    duplicates: { listingId: string; reason: string }[],
+    collectionId: string
+  ) {
+    updatePendingRow(rowId, {
+      status: "processing",
+      message: "Comparando com um anúncio parecido...",
+      parsedData,
+      parseInput,
+      duplicateCandidates: duplicates
+    });
+
+    let session: ListingMergeSession;
+    try {
+      const response = await workspaceApi.createListingMergeSession(
+        collectionId,
+        parsedData,
+        duplicates[0]?.listingId
+      );
+      session = await waitForMergeSession(response.mergeSession);
+    } catch {
+      fallbackToManualDuplicate(rowId);
+      return;
+    }
+
+    if (session.status !== "ready" || !session.verdict) {
+      if (session.status === "ready" || session.status === "preparing") {
+        void workspaceApi.cancelListingMergeSession(session.id).catch(() => undefined);
+      }
+      fallbackToManualDuplicate(rowId);
+      return;
+    }
+
+    if (session.verdict === "distinct") {
+      void workspaceApi.cancelListingMergeSession(session.id).catch(() => undefined);
+      try {
+        await saveDuplicateAnyway(rowId, collectionId, parsedData, session.targetListingId);
+      } catch (error) {
+        updatePendingRow(rowId, { status: "error", message: formatApiError(error) });
+      }
+      return;
+    }
+
+    const hasSuggestions = (session.suggestions ?? []).some((suggestion) =>
+      session.fields.some((field) => field.path === suggestion.path)
+    );
+    const hasNewPhotos = resolveMergeGallery(session).some((item) => item.status === "new");
+
+    if (hasSuggestions || hasNewPhotos) {
+      fallbackToManualDuplicate(rowId);
+      mergeRowId = rowId;
+      mergeError = null;
+      mergeSession = session;
+      return;
+    }
+
+    void workspaceApi.cancelListingMergeSession(session.id).catch(() => undefined);
+    updatePendingRow(rowId, {
+      status: "skipped",
+      message: "Esse anúncio já está na coleção."
+    });
+    scheduleSkippedRemoval(rowId);
+  }
+
+  async function submitAdd(value: string, files: File[] = []) {
     const ctx = getCtx();
     if (isSubmittingAdd) return;
     const selectedFiles = files.filter(Boolean);
@@ -119,6 +261,7 @@ export function createListingsTablePendingAdd(getCtx: () => CollectionsContextVa
         ({ rowId, file }) =>
           ({
             id: rowId,
+            collectionId: ctx.activeCollection?.id,
             status: "processing",
             message: file ? `Lendo ${file.name}...` : "Verificando...",
             retryValue: file ? "" : value,
@@ -129,35 +272,12 @@ export function createListingsTablePendingAdd(getCtx: () => CollectionsContextVa
     ];
 
     isSubmittingAdd = true;
-    addInputValue = "";
-    addFiles = [];
-    if (addFileInputRef) addFileInputRef.value = "";
 
     try {
       await Promise.all(
         jobs.map(async ({ rowId, value: jobValue, file }) => {
           try {
             const parseInput = await buildInlineParseInput(jobValue, file);
-
-            if (parseInput.kind === "url" && ctx.activeCollection?.id) {
-              updatePendingRow(rowId, { parseInput, message: "Verificando duplicidade..." });
-              const urlDuplicates = await checkDuplicateCandidates(
-                ctx.activeCollection.id,
-                listingDataForLinkDuplicateCheck(parseInput.url)
-              );
-              if (urlDuplicates.length > 0) {
-                updatePendingRow(rowId, {
-                  status: "duplicate",
-                  message: urlDuplicates[0]?.reason,
-                  parseInput,
-                  duplicateCandidates: urlDuplicates.map((duplicate) => ({
-                    listingId: duplicate.listingId,
-                    reason: duplicate.reason
-                  }))
-                });
-                return;
-              }
-            }
 
             updatePendingRow(rowId, {
               parseInput,
@@ -192,45 +312,262 @@ export function createListingsTablePendingAdd(getCtx: () => CollectionsContextVa
   }
 
   function handleConfirmDuplicate(rowId: string) {
+    void resolveDuplicateAction(rowId, "save_anyway");
+  }
+
+  async function parsedDataForDuplicate(rowId: string) {
     const ctx = getCtx();
     const row = pendingAddRows.find((item) => item.id === rowId);
-    if (!row?.parseInput) return;
-    void (async () => {
-      try {
-        let parsedData = row.parsedData;
-        if (!parsedData) {
-          updatePendingRow(rowId, {
-            status: "processing",
-            message: row.parseInput!.kind === "url" ? "Buscando página..." : "Lendo..."
-          });
-          const parsedListings = await ctx.parseListingInput(row.parseInput!);
-          if (parsedListings.length === 0) throw new Error("Nenhum imóvel encontrado no conteúdo");
-          if (parsedListings.length > 1) {
-            updatePendingRow(rowId, {
-              status: "review",
-              message: `${parsedListings.length} imóveis encontrados`,
-              parseInput: row.parseInput,
-              reviewItems: parsedListings.map((data) => ({ data, selected: true }))
-            });
-            return;
-          }
-          parsedData = parsedListings[0];
-        }
-        await finishPendingListing(rowId, parsedData, row.parseInput!, { skipDuplicateCheck: true });
-      } catch (error) {
-        updatePendingRow(rowId, {
-          status: "error",
-          message: formatApiError(error)
-        });
+    if (!row) throw new Error("Importação não encontrada");
+    if (row.parsedData) return row.parsedData;
+    if (!row.parseInput) throw new Error("Dados da importação não disponíveis");
+
+    updatePendingRow(rowId, {
+      status: "processing",
+      message: row.parseInput.kind === "url" ? "Buscando página..." : "Lendo..."
+    });
+    const parsedListings = await ctx.parseListingInput(row.parseInput);
+    if (parsedListings.length === 0) throw new Error("Nenhum imóvel encontrado no conteúdo");
+    if (parsedListings.length > 1) {
+      updatePendingRow(rowId, {
+        status: "review",
+        message: `${parsedListings.length} imóveis encontrados`,
+        parseInput: row.parseInput,
+        reviewItems: parsedListings.map((data) => ({ data, selected: true }))
+      });
+      return null;
+    }
+    updatePendingRow(rowId, { status: "duplicate", parsedData: parsedListings[0] });
+    return parsedListings[0];
+  }
+
+  async function resolveDuplicateAction(rowId: string, action: "save_anyway" | "merge") {
+    const ctx = getCtx();
+    try {
+      const row = pendingAddRows.find((item) => item.id === rowId);
+      if (!row) return;
+      const parsedData = await parsedDataForDuplicate(rowId);
+      if (!parsedData) return;
+      const collectionId = row.collectionId ?? ctx.activeCollection?.id;
+      if (!collectionId) throw new Error("Selecione uma coleção antes de adicionar");
+
+      if (action === "merge") {
+        mergeRowId = rowId;
+        mergeError = null;
+        mergeSession = preparingMergeSession(row.duplicateCandidates?.[0]?.listingId ?? "");
+        const response = await workspaceApi.createListingMergeSession(
+          collectionId,
+          parsedData,
+          row.duplicateCandidates?.[0]?.listingId
+        );
+        mergeSession = response.mergeSession;
+        pollMergeSession(response.mergeSession.id);
+        return;
       }
-    })();
+
+      updatePendingRow(rowId, { status: "saving", message: "Salvando imóvel..." });
+      await workspaceApi.createListingWithDuplicateAction(
+        collectionId,
+        parsedData,
+        "save_anyway",
+        row.duplicateCandidates?.[0]?.listingId
+      );
+      removePendingRow(rowId);
+      if (ctx.activeCollection?.id === collectionId) {
+        await ctx.loadListings(collectionId, { silent: true });
+      }
+    } catch (error) {
+      if (action === "merge") {
+        mergePollGeneration += 1;
+        mergeSession = null;
+        mergeRowId = null;
+        mergeError = null;
+      }
+      updatePendingRow(rowId, { status: "error", message: formatApiError(error) });
+    }
+  }
+
+  function preparingMergeSession(targetListingId: string): ListingMergeSession {
+    return {
+      id: `preparing-${Date.now()}`,
+      status: "preparing",
+      targetListingId,
+      collectionId: "",
+      currentData: {},
+      importedData: {},
+      fields: [],
+      gallery: [],
+      stats: { duplicates: 0, failed: 0, limitSkipped: 0 }
+    };
+  }
+
+  function pollMergeSession(id: string) {
+    const generation = ++mergePollGeneration;
+    void (async () => {
+      while (generation === mergePollGeneration) {
+        const response = await workspaceApi.fetchListingMergeSession(id);
+        mergeSession = response.mergeSession;
+        if (response.mergeSession.status !== "preparing") return;
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+      }
+    })().catch((error) => {
+      if (generation === mergePollGeneration) mergeError = formatApiError(error);
+    });
+  }
+
+  async function openExistingMergeSession(id: string) {
+    mergeRowId = null;
+    mergeError = null;
+    mergeSession = preparingMergeSession("");
+    try {
+      const response = await workspaceApi.fetchListingMergeSession(id);
+      mergeSession = response.mergeSession;
+      if (response.mergeSession.status === "preparing") pollMergeSession(id);
+    } catch (error) {
+      mergeError = formatApiError(error);
+    }
+  }
+
+  async function applyMerge(selection: {
+    fieldPaths: string[];
+    fieldValues: Record<string, string | number | boolean>;
+    imageRefs: string[];
+  }) {
+    const ctx = getCtx();
+    if (!mergeSession || mergeSession.id.startsWith("preparing-")) return;
+    try {
+      const response = await workspaceApi.applyListingMergeSession(mergeSession.id, selection);
+      const collectionId = response.listing.collectionId;
+      if (mergeRowId) removePendingRow(mergeRowId);
+      mergePollGeneration += 1;
+      mergeSession = null;
+      mergeRowId = null;
+      mergeError = null;
+      if (ctx.activeCollection?.id === collectionId) {
+        await ctx.loadListings(collectionId, { silent: true });
+      }
+    } catch (error) {
+      mergeError =
+        error instanceof ApiError && error.status === 409
+          ? "O anúncio atual mudou. Prepare uma nova comparação."
+          : formatApiError(error);
+      throw error;
+    }
+  }
+
+  async function retryMerge() {
+    if (!mergeSession) return;
+    const collectionId = mergeSession.collectionId;
+    const importedData = mergeSession.importedData as ListingData;
+    const targetListingId = mergeSession.targetListingId;
+    mergeError = null;
+    mergeSession = preparingMergeSession(targetListingId);
+    const response = await workspaceApi.createListingMergeSession(
+      collectionId,
+      importedData,
+      targetListingId
+    );
+    mergeSession = response.mergeSession;
+    pollMergeSession(response.mergeSession.id);
+  }
+
+  function closeMerge() {
+    const rowId = mergeRowId;
+    cancelActiveMergeSession();
+    mergeRowId = null;
+    if (rowId) {
+      const row = pendingAddRows.find((item) => item.id === rowId);
+      if (row?.status === "processing") {
+        fallbackToManualDuplicate(rowId);
+      }
+    }
+  }
+
+  function handleMergeDuplicate(rowId: string) {
+    void resolveDuplicateAction(rowId, "merge");
+  }
+
+  /** Escape hatch from the merge dialog: save the import as a brand-new listing. */
+  async function saveMergeAsNew() {
+    const ctx = getCtx();
+    const session = mergeSession;
+    if (!session || session.id.startsWith("preparing-")) return;
+
+    const rowId = mergeRowId;
+    const row = rowId ? pendingAddRows.find((item) => item.id === rowId) : undefined;
+    const collectionId = session.collectionId || row?.collectionId || ctx.activeCollection?.id;
+    const parsedData = (row?.parsedData ?? session.importedData) as ListingData;
+    const targetListingId = session.targetListingId || undefined;
+
+    mergePollGeneration += 1;
+    mergeSession = null;
+    mergeError = null;
+    mergeRowId = null;
+    if (session.status !== "applied") {
+      void workspaceApi.cancelListingMergeSession(session.id).catch(() => undefined);
+    }
+
+    if (!collectionId || !parsedData) return;
+
+    try {
+      if (rowId && row) {
+        await saveDuplicateAnyway(rowId, collectionId, parsedData, targetListingId);
+      } else {
+        await workspaceApi.createListingWithDuplicateAction(
+          collectionId,
+          parsedData,
+          "save_anyway",
+          targetListingId
+        );
+        if (ctx.activeCollection?.id === collectionId) {
+          await ctx.loadListings(collectionId, { silent: true });
+        }
+      }
+    } catch (error) {
+      if (rowId) updatePendingRow(rowId, { status: "error", message: formatApiError(error) });
+    }
+  }
+
+  function queueParsedListings(listings: ListingData[], collectionId: string) {
+    const rows = listings.map(
+      (data) =>
+        ({
+          id: createPendingId(),
+          collectionId,
+          status: "processing",
+          message: "Verificando duplicidade...",
+          parsedData: data
+        }) satisfies PendingAddRow
+    );
+    pendingAddRows = [...rows, ...pendingAddRows];
+    for (const row of rows) {
+      void finishPendingListing(row.id, row.parsedData!, { kind: "text", rawText: "" }).catch(
+        (error) => updatePendingRow(row.id, { status: "error", message: formatApiError(error) })
+      );
+    }
+  }
+
+  function attachImportQueueListener() {
+    const listener = (event: Event) => {
+      const detail = (event as CustomEvent<ListingImportQueueDetail>).detail;
+      if (detail?.collectionId && detail.listings?.length) {
+        queueParsedListings(detail.listings, detail.collectionId);
+      }
+    };
+    window.addEventListener(LISTING_IMPORT_QUEUE_EVENT, listener);
+    return () => window.removeEventListener(LISTING_IMPORT_QUEUE_EVENT, listener);
+  }
+
+  function attachClipboardAutoDetect() {
+    clipboardAutoDetect.attachListeners();
+    return () => clipboardAutoDetect.detachListeners();
   }
 
   function handleRetryPending(rowId: string) {
     const row = pendingAddRows.find((item) => item.id === rowId);
     if (!row) return;
     removePendingRow(rowId);
-    void submitInlineAdd(row.retryValue || "", row.retryFiles || []);
+    void submitAdd(row.retryValue || "", row.retryFiles || []);
   }
 
   function handleToggleReviewItem(rowId: string, index: number) {
@@ -271,6 +608,7 @@ export function createListingsTablePendingAdd(getCtx: () => CollectionsContextVa
     removePendingRow(rowId);
     const rows: PendingAddRow[] = selected.map((item) => ({
       id: createPendingId(),
+      collectionId: row.collectionId,
       status: "processing",
       message: "Preparando importação...",
       parseInput,
@@ -315,103 +653,49 @@ export function createListingsTablePendingAdd(getCtx: () => CollectionsContextVa
         return;
       }
       clipboardAddError = null;
-      await submitInlineAdd(text, files);
+      clipboardAutoDetect.clearMatch();
+      await submitAdd(text, files);
     } catch {
       clipboardAddError = "Não foi possível ler a área de transferência.";
     }
   }
 
-  function readClipboardFile(event: ClipboardEvent): File | null {
-    const items = event.clipboardData?.items;
-    if (!items) return null;
-    for (const item of items) {
-      if (item.kind === "file") {
-        const file = item.getAsFile();
-        if (file) return file;
-      }
-    }
-    return null;
-  }
-
-  function handleInlinePaste(event: ClipboardEvent) {
-    const file = readClipboardFile(event);
-    if (file) {
-      event.preventDefault();
-      addFiles = [...addFiles, file];
-      addInputValue = "";
-      setTimeout(() => addInputRef?.focus(), 0);
-    }
-  }
-
-  function handleInlineDrop(event: DragEvent) {
-    event.preventDefault();
-    const files = Array.from(event.dataTransfer?.files ?? []);
-    if (files.length > 0) {
-      addFiles = [...addFiles, ...files];
-      addInputValue = "";
-      setTimeout(() => addInputRef?.focus(), 0);
-    }
-  }
-
-  function removeAddFile(index: number) {
-    addFiles = addFiles.filter((_, fileIndex) => fileIndex !== index);
-    setTimeout(() => addInputRef?.focus(), 0);
-  }
-
-  function appendAddFiles(files: File[]) {
-    addFiles = [...addFiles, ...files];
-    addInputValue = "";
-    setTimeout(() => addInputRef?.focus(), 0);
-  }
-
   return {
-    get showAddInput() {
-      return showAddInput;
-    },
-    get addInputValue() {
-      return addInputValue;
-    },
-    set addInputValue(value: string) {
-      addInputValue = value;
-    },
-    get addFiles() {
-      return addFiles;
-    },
     get isSubmittingAdd() {
       return isSubmittingAdd;
     },
     get clipboardAddError() {
       return clipboardAddError;
     },
-    get addInputRef() {
-      return addInputRef;
-    },
-    set addInputRef(value: HTMLInputElement | null) {
-      addInputRef = value;
-    },
-    get addFileInputRef() {
-      return addFileInputRef;
-    },
-    set addFileInputRef(value: HTMLInputElement | null) {
-      addFileInputRef = value;
+    get clipboardAutoDetect() {
+      return clipboardAutoDetect;
     },
     get pendingAddRows() {
       return pendingAddRows;
     },
-    toggleAddInput,
-    openAddInput,
-    submitInlineAdd,
+    get mergeSession() {
+      return mergeSession;
+    },
+    get mergeError() {
+      return mergeError;
+    },
+    submitAdd,
     addFromClipboard,
-    handleInlinePaste,
-    handleInlineDrop,
-    removeAddFile,
-    appendAddFiles,
     handleConfirmDuplicate,
+    handleMergeDuplicate,
     handleRetryPending,
     handleToggleReviewItem,
     handleSelectAllReview,
     handleDeselectAllReview,
     handleImportReview,
+    openExistingMergeSession,
+    applyMerge,
+    retryMerge,
+    closeMerge,
+    saveMergeAsNew,
+    queueParsedListings,
+    attachImportQueueListener,
+    attachClipboardAutoDetect,
     removePendingRow
   };
 }

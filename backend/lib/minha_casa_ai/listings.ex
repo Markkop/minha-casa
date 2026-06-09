@@ -47,13 +47,37 @@ defmodule MinhaCasaAi.Listings do
     :ok
   end
 
-  def duplicate_candidates(collection_id, listing_data) do
+  def duplicate_candidates(collection_id, listing_data, opts \\ []) do
     listings =
       Listing
       |> where([l], l.collection_id == ^collection_id)
       |> Repo.all()
 
-    Duplicates.candidates(listings, listing_data)
+    cover_fingerprint =
+      Keyword.get_lazy(opts, :cover_fingerprint, fn ->
+        maybe_probe_cover(listings, listing_data)
+      end)
+
+    Duplicates.candidates(listings, listing_data, cover_fingerprint: cover_fingerprint)
+  end
+
+  # Only download the incoming cover when at least one existing listing has
+  # fingerprints to compare against — otherwise the probe is wasted work.
+  defp maybe_probe_cover(listings, listing_data) do
+    has_fingerprints? =
+      Enum.any?(listings, fn listing ->
+        (listing.data || %{})
+        |> Map.get("imageFingerprints")
+        |> List.wrap()
+        |> Enum.any?(&is_map/1)
+      end)
+
+    if has_fingerprints? do
+      case MinhaCasaAi.ListingImages.CoverProbe.fingerprint(listing_data) do
+        {:ok, fingerprint} -> fingerprint
+        _ -> nil
+      end
+    end
   end
 
   def list_listings(collection_id, opts \\ []) do

@@ -27,7 +27,11 @@ defmodule MinhaCasaAiWeb.Router do
     post "/api/webhooks/stripe", StripeWebhookController, :receive
     post "/mcp", McpController, :handle
     get "/api/shared/:token", CollectionController, :shared
-    get "/api/shared/:token/listings/:listing_id/images/:index", ListingImageController, :shared_show
+
+    get "/api/shared/:token/listings/:listing_id/images/:index",
+        ListingImageController,
+        :shared_show
+
     get "/api/collections/public", CollectionController, :public_index
     get "/api/collections/public/:id", CollectionController, :public_show
     get "/api/short-links/:short_id", ShortLinkController, :show
@@ -102,6 +106,19 @@ defmodule MinhaCasaAiWeb.Router do
     get "/listings/:listing_id/analyses/latest", PropertyAnalysisController, :latest
     post "/workspace/parse", ParseController, :create
     post "/workspace/listings/check-duplicate", ListingsDuplicateController, :check
+    post "/workspace/listing-merge-sessions", ListingMergeSessionController, :create
+    get "/workspace/listing-merge-sessions/:id", ListingMergeSessionController, :show
+
+    post "/workspace/listing-merge-sessions/:id/apply",
+         ListingMergeSessionController,
+         :apply_merge
+
+    delete "/workspace/listing-merge-sessions/:id", ListingMergeSessionController, :delete
+
+    get "/workspace/listing-merge-sessions/:id/images/:image_id",
+        ListingMergeSessionController,
+        :image
+
     post "/workspace/listings/:id/ingest-images", ListingImageController, :ingest
     get "/workspace/listings/:id/images/:index", ListingImageController, :show
     get "/workspace/listings/:listing_id/nearby", ListingNearbyController, :show
@@ -165,6 +182,11 @@ defmodule MinhaCasaAiWeb.Router do
 
     post "/parse", ParseController, :create
     post "/listings/check-duplicate", ListingsDuplicateController, :check
+    post "/listing-merge-sessions", ListingMergeSessionController, :create
+    get "/listing-merge-sessions/:id", ListingMergeSessionController, :show
+    post "/listing-merge-sessions/:id/apply", ListingMergeSessionController, :apply_merge
+    delete "/listing-merge-sessions/:id", ListingMergeSessionController, :delete
+    get "/listing-merge-sessions/:id/images/:image_id", ListingMergeSessionController, :image
     post "/listings/:id/ingest-images", ListingImageController, :ingest
     get "/listings/:id/images/:index", ListingImageController, :show
     post "/attachments", AttachmentController, :create

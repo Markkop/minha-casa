@@ -39,6 +39,7 @@
     activeMetricVariant,
     filteredListings,
     sharedRowProps,
+    getListingById,
     getDisplayTitle
   }: {
     pendingAdd: PendingAddState;
@@ -52,11 +53,13 @@
     activeMetricVariant: MetricVariant | null;
     filteredListings: Imovel[];
     sharedRowProps: Omit<ListingTableRowProps, "imovel" | "displayTitle">;
+    getListingById: (listingId: string) => Imovel | undefined;
     getDisplayTitle: (listing: Imovel) => string;
   } = $props();
 
   const pendingHandlers = $derived({
     onConfirmDuplicate: pendingAdd.handleConfirmDuplicate,
+    onMergeDuplicate: pendingAdd.handleMergeDuplicate,
     onReject: (id: string) => pendingAdd.removePendingRow(id),
     onRetry: pendingAdd.handleRetryPending,
     onToggleReviewItem: pendingAdd.handleToggleReviewItem,
@@ -190,6 +193,7 @@
         {visibleColumns}
         {enabledMetricVariants}
         {activeMetricVariant}
+        {getListingById}
         {...pendingHandlers}
       />
     {/each}

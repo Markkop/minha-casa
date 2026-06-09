@@ -107,6 +107,7 @@ export interface ListingData {
   imageUrl?: string | null;
   imageUrls?: string[] | null;
   imageStorageKeys?: string[] | null;
+  imageFingerprints?: Record<string, unknown>[] | null;
   imageIngestionStatus?: "idle" | "pending" | "processing" | "ready" | "failed" | null;
   imageIngestionError?: string | null;
   observacoes?: string;
@@ -141,6 +142,72 @@ export interface DuplicateCandidate {
   listingId: string;
   score: number;
   reason: string;
+}
+
+export type ListingMergeFieldValueType = "text" | "number" | "boolean";
+
+export interface ListingMergeField {
+  path: string;
+  label: string;
+  group: string;
+  valueType?: ListingMergeFieldValueType;
+  currentValue: unknown;
+  incomingValue: unknown;
+}
+
+export type ListingMergeGalleryStatus =
+  | "existing"
+  | "new"
+  | "duplicate"
+  | "failed"
+  | "limit_skipped";
+
+export interface ListingMergeGalleryItem {
+  ref: string;
+  status: ListingMergeGalleryStatus;
+  previewUrl: string;
+  sourceUrl?: string;
+  duplicateOf?: number;
+  width?: number;
+  height?: number;
+}
+
+export type ListingMergeVerdict = "duplicate" | "distinct";
+
+export interface ListingMergeSuggestion {
+  path: string;
+  suggestedValue: unknown;
+  note?: string | null;
+}
+
+export interface ListingMergeSignals {
+  reason?: string;
+  score?: number;
+  matchingImages?: number;
+}
+
+export interface ListingMergeSession {
+  id: string;
+  status: "preparing" | "ready" | "failed" | "applied" | "expired";
+  targetListingId: string;
+  collectionId: string;
+  currentData: Record<string, unknown>;
+  importedData: Record<string, unknown>;
+  fields: ListingMergeField[];
+  verdict?: ListingMergeVerdict | null;
+  confidence?: number | null;
+  suggestions?: ListingMergeSuggestion[];
+  signals?: ListingMergeSignals;
+  gallery: ListingMergeGalleryItem[];
+  stats: { duplicates: number; failed: number; limitSkipped: number };
+  error?: string | null;
+  expiresAt?: string;
+}
+
+export interface ListingMergeApplyPayload {
+  fieldPaths: string[];
+  fieldValues?: Record<string, string | number | boolean>;
+  imageRefs: string[];
 }
 
 export type WhatsAppStatus =
@@ -352,6 +419,22 @@ export const workspaceApi = {
   fetchListings: (collectionId: string) => api.get<{ listings: Listing[] }>(`/collections/${collectionId}/listings`),
   createListing: (collectionId: string, data: ListingData) =>
     api.post<{ listing: Listing }>(`/collections/${collectionId}/listings`, { data }),
+  createListingWithDuplicateAction: (
+    collectionId: string,
+    data: ListingData,
+    duplicateAction: "save_anyway" | "ignore" | "merge",
+    targetListingId?: string
+  ) =>
+    api.post<{
+      listing?: Listing;
+      ignored?: boolean;
+      duplicateCandidates?: DuplicateCandidate[];
+      mergeSession?: ListingMergeSession;
+    }>(`/collections/${collectionId}/listings`, {
+      data,
+      duplicateAction,
+      targetListingId
+    }),
   updateListing: (collectionId: string, listingId: string, data: Partial<ListingData>) =>
     api.put<{ listing: Listing }>(`/collections/${collectionId}/listings/${listingId}`, { data }),
   deleteListing: (collectionId: string, listingId: string) =>
@@ -372,6 +455,29 @@ export const workspaceApi = {
       throw error;
     }
   },
+  createListingMergeSession: (
+    collectionId: string,
+    data: ListingData,
+    targetListingId?: string
+  ) =>
+    api.post<{ mergeSession: ListingMergeSession }>("/workspace/listing-merge-sessions", {
+      collectionId,
+      data,
+      targetListingId
+    }),
+  fetchListingMergeSession: (id: string) =>
+    api.get<{ mergeSession: ListingMergeSession }>(
+      `/workspace/listing-merge-sessions/${encodeURIComponent(id)}`
+    ),
+  applyListingMergeSession: (id: string, payload: ListingMergeApplyPayload) =>
+    api.post<{ listing: Listing }>(
+      `/workspace/listing-merge-sessions/${encodeURIComponent(id)}/apply`,
+      payload
+    ),
+  cancelListingMergeSession: (id: string) =>
+    api.delete<{ success: true }>(
+      `/workspace/listing-merge-sessions/${encodeURIComponent(id)}`
+    ),
   ingestListingImages: (listingId: string, overwrite = true) =>
     api.post<{ status: "pending" | string }>(`/workspace/listings/${listingId}/ingest-images`, { overwrite }),
 

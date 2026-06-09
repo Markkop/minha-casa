@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { Check, Compass, Trash2, X } from "@lucide/svelte";
+  import { Check, ClipboardPaste, Compass, Trash2, X } from "@lucide/svelte";
+  import PageToolbarIconButton from "$lib/components/page-toolbar/PageToolbarIconButton.svelte";
   import Button from "$lib/components/ui/Button.svelte";
   import Input from "$lib/components/ui/Input.svelte";
   import LinkCopyButton from "$lib/components/links/LinkCopyButton.svelte";
@@ -50,8 +51,6 @@
   const hasUrl = $derived(Boolean(addDraft.url.trim()));
   const canUseAddRow = $derived(!saving && rowEdit.editingId === null);
   const canSaveLink = $derived(hasUrl && canUseAddRow);
-  const canPasteAndSave = $derived(!hasUrl && canUseAddRow);
-  const canSubmitAddRow = $derived(canSaveLink || canPasteAndSave);
 
   function makePendingRow(url: string, pendingId: string): SavedLinkRow {
     const now = new Date().toISOString();
@@ -166,14 +165,8 @@
   }
 
   function handleAddKeydown(event: KeyboardEvent) {
-    if (event.key !== "Enter" || !canSubmitAddRow) return;
-    if (canSaveLink) void addLink();
-    else if (canPasteAndSave) void pasteAndSave();
-  }
-
-  function handleAddClick() {
-    if (hasUrl) void addLink();
-    else void pasteAndSave();
+    if (event.key !== "Enter" || !canSaveLink) return;
+    void addLink();
   }
 
   function handleCancelEdit() {
@@ -198,6 +191,16 @@
   <div class="-my-4">
     <div class="py-4">
       <div class="flex items-stretch gap-2">
+        <PageToolbarIconButton
+          variant="secondary"
+          class="h-11 w-11 shrink-0"
+          disabled={!canUseAddRow}
+          onclick={() => void pasteAndSave()}
+          aria-label="Colar link da área de transferência"
+          title="Colar link da área de transferência"
+        >
+          <ClipboardPaste />
+        </PageToolbarIconButton>
         <Input
           type="text"
           class="h-11 flex-1 bg-white text-base dark:bg-white"
@@ -209,10 +212,10 @@
         <Button
           type="button"
           class="h-11 shrink-0 px-5"
-          disabled={!canSubmitAddRow}
-          onclick={handleAddClick}
+          disabled={!canSaveLink}
+          onclick={() => void addLink()}
         >
-          {hasUrl ? "Salvar" : "Colar e salvar"}
+          Salvar
         </Button>
       </div>
     </div>

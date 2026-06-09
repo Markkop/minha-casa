@@ -59,6 +59,7 @@ defmodule MinhaCasaAi.ListingImages do
       "imageUrls" => [],
       "imageUrl" => nil,
       "imageCoverIndex" => nil,
+      "imageFingerprints" => [],
       "imageCategories" => nil,
       "imageEnvironments" => nil
     })

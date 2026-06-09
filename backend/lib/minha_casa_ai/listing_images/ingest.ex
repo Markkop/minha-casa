@@ -1,6 +1,7 @@
 defmodule MinhaCasaAi.ListingImages.Ingest do
   alias MinhaCasaAi.Integrations.ScrapingAnt
   alias MinhaCasaAi.ListingImages.Storage
+  alias MinhaCasaAi.ListingImages.Fingerprint
   alias MinhaCasaAi.Listings
   alias MinhaCasaAi.Listings.Listing
   alias MinhaCasaAi.Repo
@@ -45,7 +46,7 @@ defmodule MinhaCasaAi.ListingImages.Ingest do
                 {:error, :no_images_found}
 
               true ->
-                {keys, paths} = download_and_store(listing_id, urls)
+                {keys, paths, fingerprints} = download_and_store(listing_id, urls)
 
                 if keys == [] do
                   mark_failed(
@@ -56,7 +57,7 @@ defmodule MinhaCasaAi.ListingImages.Ingest do
 
                   {:error, :download_failed}
                 else
-                  persist_success(collection_id, listing_id, keys, paths)
+                  persist_success(collection_id, listing_id, keys, paths, fingerprints)
                   :ok
                 end
             end
@@ -97,31 +98,38 @@ defmodule MinhaCasaAi.ListingImages.Ingest do
   defp normalize_og_url(_), do: nil
 
   defp download_and_store(listing_id, urls) do
-    {keys, paths} =
+    {keys, paths, fingerprints} =
       urls
       |> Enum.with_index()
-      |> Enum.reduce({[], []}, fn {url, _source_index}, {keys, paths} ->
+      |> Enum.reduce({[], [], []}, fn {url, _source_index}, {keys, paths, fingerprints} ->
         case download_image(url) do
           {:ok, bytes, content_type} ->
             gallery_index = length(keys)
 
             case Storage.put_listing_image(listing_id, gallery_index, bytes, content_type) do
               {:ok, key} ->
+                fingerprint =
+                  case Fingerprint.from_bytes(bytes) do
+                    {:ok, value} -> value
+                    _ -> %{"unavailable" => true}
+                  end
+
                 {
                   keys ++ [key],
-                  paths ++ [build_image_path(listing_id, gallery_index)]
+                  paths ++ [build_image_path(listing_id, gallery_index)],
+                  fingerprints ++ [fingerprint]
                 }
 
               {:error, _} ->
-                {keys, paths}
+                {keys, paths, fingerprints}
             end
 
           :error ->
-            {keys, paths}
+            {keys, paths, fingerprints}
         end
       end)
 
-    {keys, paths}
+    {keys, paths, fingerprints}
   end
 
   defp download_image(url) when is_binary(url) do
@@ -186,12 +194,13 @@ defmodule MinhaCasaAi.ListingImages.Ingest do
   end
 
   @doc false
-  def success_updates(keys, paths) do
+  def success_updates(keys, paths, fingerprints \\ []) do
     %{
       "imageStorageKeys" => keys,
       "imageUrls" => paths,
       "imageUrl" => List.first(paths),
       "imageCoverIndex" => 0,
+      "imageFingerprints" => fingerprints,
       "imageCategories" => nil,
       "imageEnvironments" => nil,
       "imageIngestionStatus" => "ready",
@@ -199,11 +208,11 @@ defmodule MinhaCasaAi.ListingImages.Ingest do
     }
   end
 
-  defp persist_success(collection_id, listing_id, keys, paths) do
+  defp persist_success(collection_id, listing_id, keys, paths, fingerprints) do
     Listings.update_listing(
       collection_id,
       listing_id,
-      success_updates(keys, paths)
+      success_updates(keys, paths, fingerprints)
     )
   end
 

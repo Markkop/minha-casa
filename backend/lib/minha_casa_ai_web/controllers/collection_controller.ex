@@ -4,6 +4,7 @@ defmodule MinhaCasaAiWeb.CollectionController do
   import Ecto.Query
 
   alias MinhaCasaAi.Listings
+  alias MinhaCasaAi.Listings.MergeSessions
   alias MinhaCasaAi.Listings.DisplayTitle
   alias MinhaCasaAi.Listings.{Collection, Listing}
   alias MinhaCasaAi.Accounts.User
@@ -221,14 +222,14 @@ defmodule MinhaCasaAiWeb.CollectionController do
     end
   end
 
-  def create_listing(conn, %{"id" => id, "data" => data}) when is_map(data) do
+  def create_listing(conn, %{"id" => id, "data" => data} = params) when is_map(data) do
     profile = current_profile(conn)
+    duplicate_action = params["duplicateAction"] || "check"
 
     with true <- collection_allowed?(id, profile),
-         :ok <- validate_listing_data(data),
-         {:ok, listing} <-
-           Listings.save_listing(id, data, user_id: profile.user_id, org_id: profile.org_id) do
-      conn |> put_status(:created) |> json(%{listing: ListingJSON.listing(listing)})
+         :ok <- validate_listing_data(data) do
+      candidates = Listings.duplicate_candidates(id, data)
+      resolve_listing_create(conn, id, data, candidates, duplicate_action, profile, params)
     else
       false ->
         not_found(conn, "Collection")
@@ -237,6 +238,16 @@ defmodule MinhaCasaAiWeb.CollectionController do
         conn
         |> put_status(:bad_request)
         |> json(%{error: "Listing title and address are required"})
+    end
+  end
+
+  def create_listing(conn, _params),
+    do: conn |> put_status(:bad_request) |> json(%{error: "Listing data is required"})
+
+  defp resolve_listing_create(conn, id, data, [], _action, profile, _params) do
+    case Listings.save_listing(id, data, user_id: profile.user_id, org_id: profile.org_id) do
+      {:ok, listing} ->
+        conn |> put_status(:created) |> json(%{listing: ListingJSON.listing(listing)})
 
       {:error, :collection_not_found} ->
         not_found(conn, "Collection")
@@ -246,8 +257,42 @@ defmodule MinhaCasaAiWeb.CollectionController do
     end
   end
 
-  def create_listing(conn, _params),
-    do: conn |> put_status(:bad_request) |> json(%{error: "Listing data is required"})
+  defp resolve_listing_create(conn, id, data, _candidates, "save_anyway", profile, params),
+    do: resolve_listing_create(conn, id, data, [], "save_anyway", profile, params)
+
+  defp resolve_listing_create(conn, _id, _data, candidates, "ignore", _profile, _params) do
+    json(conn, %{ignored: true, duplicateCandidates: candidates})
+  end
+
+  defp resolve_listing_create(conn, id, data, candidates, "merge", profile, params) do
+    target_id =
+      params["targetListingId"] ||
+        get_in(candidates, [Access.at(0), :listingId]) ||
+        get_in(candidates, [Access.at(0), "listingId"])
+
+    case MergeSessions.create(id, data,
+           user_id: profile.user_id,
+           org_id: profile.org_id,
+           target_listing_id: target_id
+         ) do
+      {:ok, session} ->
+        conn
+        |> put_status(:accepted)
+        |> json(%{
+          duplicateCandidates: candidates,
+          mergeSession: MergeSessions.session_json(session)
+        })
+
+      {:error, reason} ->
+        conn |> put_status(:unprocessable_entity) |> json(%{error: inspect(reason)})
+    end
+  end
+
+  defp resolve_listing_create(conn, _id, _data, candidates, _action, _profile, _params) do
+    conn
+    |> put_status(:conflict)
+    |> json(%{error: "Duplicate candidates found", duplicateCandidates: candidates})
+  end
 
   def show_listing(conn, %{"id" => id, "listing_id" => listing_id}) do
     profile = current_profile(conn)

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Loader2, TriangleAlert, X } from "@lucide/svelte";
+  import { Check, Loader2, TriangleAlert, X } from "@lucide/svelte";
   import type { PendingAddRow } from "$lib/components/anuncios/pending-add-types";
   import ParserReviewList from "$lib/components/anuncios/ParserReviewList.svelte";
   import { formatDuplicateReason } from "$lib/anuncios/duplicate-reason";
@@ -7,6 +7,7 @@
   let {
     row,
     onConfirmDuplicate,
+    onMergeDuplicate,
     onReject,
     onRetry,
     onToggleReviewItem,
@@ -16,6 +17,7 @@
   } = $props<{
     row: PendingAddRow;
     onConfirmDuplicate: (rowId: string) => void;
+    onMergeDuplicate: (rowId: string) => void;
     onReject: (rowId: string) => void;
     onRetry: (rowId: string) => void;
     onToggleReviewItem: (rowId: string, index: number) => void;
@@ -42,6 +44,23 @@
       onImport={() => onImportReview(row.id)}
       onCancel={() => onReject(row.id)}
     />
+  {:else if row.status === "skipped"}
+    <div class="space-y-2">
+      <div class="flex items-center gap-2">
+        <Check class="h-4 w-4 shrink-0 text-app-accent" />
+        <span class="font-medium text-app-fg">{row.message || "Esse anúncio já está na coleção."}</span>
+      </div>
+      <p class="text-xs text-app-muted">
+        Nada para atualizar.
+        <button type="button" class="font-medium text-emerald-700 hover:underline" onclick={() => onConfirmDuplicate(row.id)}>
+          Salvar mesmo assim
+        </button>
+        {" ou "}
+        <button type="button" class="font-medium text-app-muted hover:underline" onclick={() => onReject(row.id)}>
+          dispensar
+        </button>
+      </p>
+    </div>
   {:else if row.status === "duplicate"}
     <div class="space-y-2">
       <div class="flex items-center gap-2">
@@ -53,11 +72,15 @@
       {/if}
       <p class="text-xs text-app-muted">
         <button type="button" class="font-medium text-emerald-700 hover:underline" onclick={() => onConfirmDuplicate(row.id)}>
-          Aceitar
+          Salvar mesmo assim
+        </button>
+        {", "}
+        <button type="button" class="font-medium text-app-accent hover:underline" onclick={() => onMergeDuplicate(row.id)}>
+          Mesclar
         </button>
         {" ou "}
         <button type="button" class="font-medium text-destructive hover:underline" onclick={() => onReject(row.id)}>
-          Rejeitar
+          Ignorar
         </button>
       </p>
     </div>

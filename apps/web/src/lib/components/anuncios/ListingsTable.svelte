@@ -24,19 +24,27 @@
   import { computeListingToolbarVisibility } from "$lib/anuncios/listing-toolbar-visibility";
   import ListingsTableToolbar from "$lib/components/anuncios/ListingsTableToolbar.svelte";
   import ListingsTableAddButtons from "$lib/components/anuncios/ListingsTableAddButtons.svelte";
-  import ListingsTableAddInput from "$lib/components/anuncios/ListingsTableAddInput.svelte";
+  import ListingsTableConfigButton from "$lib/components/anuncios/ListingsTableConfigButton.svelte";
   import ListingsTableDesktop from "$lib/components/anuncios/ListingsTableDesktop.svelte";
   import ListingsTableMobile from "$lib/components/anuncios/ListingsTableMobile.svelte";
   import EditModal from "$lib/components/anuncios/EditModal.svelte";
   import ImageModal from "$lib/components/anuncios/ImageModal.svelte";
+  import MergeReviewDialog from "$lib/components/anuncios/MergeReviewDialog.svelte";
 
-  let { listings } = $props<{ listings: Imovel[] }>();
+  let { listings, initialMergeSessionId = null } = $props<{
+    listings: Imovel[];
+    initialMergeSessionId?: string | null;
+  }>();
 
   const ctx = getCollectionsContext();
   const tableState = createListingsTableState(() => listings);
   const pendingAdd = createListingsTablePendingAdd(() => ctx);
+  function getListingById(listingId: string) {
+    return listings.find((listing: Imovel) => listing.id === listingId);
+  }
+
   const rowInteractionsRegistry = createListingRowInteractionsRegistry({
-    getListingById: (listingId) => listings.find((listing: Imovel) => listing.id === listingId),
+    getListingById,
     getPreferenceCatalog: () => preferenceCatalog,
     updateListing: (listingId, updates) => ctx.updateListing(listingId, updates),
     removeListing: (listingId) => ctx.removeListing(listingId)
@@ -52,10 +60,23 @@
   let imageModalListingId = $state<string | null>(null);
   let preferenceCatalog = $state<ListingPreferenceOption[]>(defaultPreferenceCatalog());
   let savingPreferenceCatalog = $state(false);
+  let openedInitialMergeSessionId = $state<string | null>(null);
 
   onMount(() => {
     tableState.initFromLocalStorage();
     void loadPreferenceCatalog();
+    const detachImportQueue = pendingAdd.attachImportQueueListener();
+    const detachClipboardAutoDetect = pendingAdd.attachClipboardAutoDetect();
+    return () => {
+      detachImportQueue();
+      detachClipboardAutoDetect();
+    };
+  });
+
+  $effect(() => {
+    if (!initialMergeSessionId || openedInitialMergeSessionId === initialMergeSessionId) return;
+    openedInitialMergeSessionId = initialMergeSessionId;
+    void pendingAdd.openExistingMergeSession(initialMergeSessionId);
   });
 
   async function loadPreferenceCatalog() {
@@ -139,10 +160,6 @@
   <ListingsTableAddButtons {pendingAdd} {large} />
 {/snippet}
 
-{#snippet addInputControl()}
-  <ListingsTableAddInput {pendingAdd} />
-{/snippet}
-
 {#if listings.length === 0 && pendingAdd.pendingAddRows.length === 0}
   <section class={LISTINGS_SECTION_CLASS}>
     <div class={cn(LISTINGS_TOOLBAR_CLASS, LISTINGS_TOOLBAR_INNER_CLASS, "flex-col justify-center space-y-6 py-8 text-center")}>
@@ -153,28 +170,16 @@
           Cole um link de anúncio, texto ou arquivo para importar automaticamente.
         </p>
       </div>
-      <div class="mx-auto flex w-full max-w-xl items-center gap-2">
+      <div class="mx-auto flex items-center justify-center gap-2">
         {@render addListingToolbarButtons(true)}
-        <div class="min-w-0 flex-1 text-left">
-          {#if pendingAdd.showAddInput}
-            {@render addInputControl()}
-          {:else}
-            <button
-              type="button"
-              onclick={pendingAdd.openAddInput}
-              class="h-9 w-full rounded-md border border-app-border bg-app-surface-muted px-3 text-left text-sm text-app-muted transition-colors hover:border-app-border-strong hover:text-app-fg"
-            >
-              Cole link, texto ou arquivo aqui...
-            </button>
-          {/if}
-        </div>
+        <ListingsTableConfigButton clipboardAutoDetect={pendingAdd.clipboardAutoDetect} />
       </div>
     </div>
   </section>
 {:else}
   <section class={cn(LISTINGS_SECTION_CLASS, LISTINGS_SECTION_MOBILE_BREAKOUT_CLASS, "max-md:flex max-md:flex-col max-md:gap-2")}>
     <ListingsTableToolbar
-      showAddInput={pendingAdd.showAddInput}
+      clipboardAutoDetect={pendingAdd.clipboardAutoDetect}
       bind:searchQuery={
         () => tableState.searchQuery,
         (value) => (tableState.searchQuery = value)
@@ -212,7 +217,6 @@
         tableState.setImageColumnView
       }
       {addListingToolbarButtons}
-      {addInputControl}
     />
 
     <div class="min-w-0 max-md:overflow-visible">
@@ -242,6 +246,7 @@
             activeMetricVariant={tableState.activeMetricVariant}
             filteredListings={tableState.filteredAndSortedListings}
             {sharedRowProps}
+            {getListingById}
             getDisplayTitle={ctx.getAnunciosListingDisplayTitle}
           />
           <ListingsTableMobile
@@ -275,3 +280,15 @@
   onClose={() => (imageModalListingId = null)}
   onListingUpdated={reloadActiveListings}
 />
+
+{#if pendingAdd.mergeSession}
+  <MergeReviewDialog
+    isOpen={true}
+    session={pendingAdd.mergeSession}
+    error={pendingAdd.mergeError}
+    onClose={pendingAdd.closeMerge}
+    onRetry={pendingAdd.retryMerge}
+    onApply={pendingAdd.applyMerge}
+    onSaveAsNew={pendingAdd.saveMergeAsNew}
+  />
+{/if}

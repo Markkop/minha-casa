@@ -98,30 +98,33 @@ defmodule MinhaCasaAi.Workers.ParseIngestionWorker do
 
   defp telegram_markup(_), do: nil
 
-  defp duplicate_keyboard(%{duplicates: [first | _], collection: %{id: collection_id}}) do
+  @doc false
+  def duplicate_keyboard(%{duplicates: [first | _], collection: %{id: collection_id}}) do
     candidate = hd(first.candidates)
     listing_id = candidate[:listingId] || candidate["listingId"]
 
-    view_row =
+    view_button =
       if listing_id && Complete.listing_url(collection_id, listing_id) do
-        [%{text: "Ver no site", url: Complete.listing_url(collection_id, listing_id)}]
+        %{text: "Ver anúncio existente", url: Complete.listing_url(collection_id, listing_id)}
       else
-        []
+        %{text: "Ver anúncio existente", callback_data: "dup:view:0"}
       end
 
     %{
       inline_keyboard: [
         [
           %{text: "Salvar mesmo assim", callback_data: "dup:save:0"},
-          %{text: "Ignorar", callback_data: "dup:skip:0"}
+          %{text: "Mesclar", callback_data: "dup:merge:0"}
         ],
-        view_row
+        [
+          %{text: "Ignorar", callback_data: "dup:skip:0"},
+          view_button
+        ]
       ]
-      |> Enum.reject(&(&1 == []))
     }
   end
 
-  defp duplicate_keyboard(_), do: nil
+  def duplicate_keyboard(_), do: nil
 
   defp multi_import_keyboard(%{multi_count: count}) when count > 0 do
     %{

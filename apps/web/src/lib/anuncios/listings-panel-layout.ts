@@ -6,7 +6,10 @@ export const LISTINGS_PAGE_CLASS = `flex w-full flex-col gap-2 ${LISTINGS_PAGE_G
 
 /** Minimal bordered section (table / map). */
 export const LISTINGS_SECTION_CLASS =
-  "flex flex-col overflow-hidden rounded-md border border-app-border bg-app-surface"
+  "flex flex-col rounded-md border border-app-border bg-app-surface"
+
+/** Table body inside LISTINGS_SECTION_CLASS — clips scroll while toolbar glow stays visible. */
+export const LISTINGS_TABLE_BODY_CLASS = "min-w-0 overflow-hidden"
 
 /**
  * Embeds Leaflet/Google maps without letting tile panes paint above workspace chrome
@@ -18,9 +21,9 @@ export const MAP_EMBED_PANEL_CLASS =
 /** Map panel — keeps overflow clipped so rounded border corners stay solid. */
 export const LISTINGS_MAP_SECTION_CLASS = `${LISTINGS_SECTION_CLASS} ${MAP_EMBED_PANEL_CLASS}`
 
-/** Toolbar shell — vertical padding only; horizontal on LISTINGS_TOOLBAR_INNER_CLASS. */
+/** Toolbar shell — extra vertical room for clipboard glow halo. */
 export const LISTINGS_TOOLBAR_CLASS =
-  "border-b border-app-border bg-app-surface py-2"
+  "overflow-visible border-b border-app-border bg-app-surface py-2"
 
 /** Listings table section on mobile: no outer panel; toolbar + cards sit on page background. */
 export const LISTINGS_SECTION_MOBILE_BREAKOUT_CLASS =
@@ -38,7 +41,11 @@ export const LISTINGS_MOBILE_LIST_CLASS = "space-y-2 max-md:px-0 md:hidden"
 
 /** Toolbar controls row — matches table cell horizontal inset. */
 export const LISTINGS_TOOLBAR_INNER_CLASS =
-  "flex min-w-0 items-center gap-1.5 overflow-x-auto px-2 sm:px-3"
+  "flex min-w-0 items-center gap-1.5 overflow-visible px-2 sm:px-3"
+
+/** Scrollable toolbar segment (filters, actions) — keeps glow on add button unclipped. */
+export const LISTINGS_TOOLBAR_SCROLL_CLASS =
+  "flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto"
 
 /** Legacy panel tokens (e.g. public share page). */
 export const LISTINGS_PANEL_INSET_PX = 8

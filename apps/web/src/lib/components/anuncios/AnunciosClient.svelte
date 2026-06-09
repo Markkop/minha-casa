@@ -31,6 +31,7 @@
   let activeOrgName = $state<string | null>(null);
 
   const shareToken = $derived(page.url.searchParams.get("share") ?? page.url.searchParams.get("dbshare"));
+  const mergeSessionId = $derived(page.url.searchParams.get("merge"));
   const isOrgContext = $derived(Boolean(activeOrgId));
   const contextName = $derived(isOrgContext ? (activeOrgName ?? "organização") : "pessoal");
   const defaultCollectionName = getDefaultFirstCollectionName();
@@ -264,7 +265,7 @@
           Carregando imóveis...
         </p>
       {:else}
-        <ListingsTable listings={ctx.listings} />
+        <ListingsTable listings={ctx.listings} initialMergeSessionId={mergeSessionId} />
       {/if}
       <ListingsMap listings={ctx.listings} />
     </main>

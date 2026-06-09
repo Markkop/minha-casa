@@ -41,6 +41,7 @@ defmodule MinhaCasaAi.MixProject do
       {:ex_aws, "~> 2.5"},
       {:ex_aws_s3, "~> 2.5"},
       {:hackney, "~> 1.20"},
+      {:image, "~> 0.68"},
       {:reactor, "~> 1.0"},
       {:hermes_mcp, "~> 0.14.1"}
     ]

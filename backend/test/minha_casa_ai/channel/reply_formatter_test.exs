@@ -79,6 +79,34 @@ defmodule MinhaCasaAi.Channel.ReplyFormatterTest do
     refute text =~ "• Casa teste"
   end
 
+  test "duplicate resolution lists save, merge, ignore, and view choices" do
+    text =
+      ReplyFormatter.ingestion_result(%{
+        pending_type: "duplicate_resolution",
+        duplicates: [
+          %{
+            listing_data: %{"titulo" => "Casa teste"},
+            candidates: [%{reason: "same_url"}]
+          }
+        ],
+        collection: %{name: "Minha coleção"}
+      })
+
+    assert text =~ "1 — Salvar mesmo assim"
+    assert text =~ "2 — Mesclar com o anúncio existente"
+    assert text =~ "3 — Ignorar"
+    assert text =~ "4 — Ver anúncio existente"
+  end
+
+  test "invalid pending reply error explains all duplicate choices" do
+    text = ReplyFormatter.error(:invalid_pending_reply)
+
+    assert text =~ "1 para salvar"
+    assert text =~ "2 para mesclar"
+    assert text =~ "3 para ignorar"
+    assert text =~ "4 para ver"
+  end
+
   test "workflow_summary uses card format" do
     text = ReplyFormatter.workflow_summary(%{"listings" => [@full_data]})
 

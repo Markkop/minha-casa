@@ -23,6 +23,7 @@
 
   const pendingHandlers = $derived({
     onConfirmDuplicate: pendingAdd.handleConfirmDuplicate,
+    onMergeDuplicate: pendingAdd.handleMergeDuplicate,
     onReject: (id: string) => pendingAdd.removePendingRow(id),
     onRetry: pendingAdd.handleRetryPending,
     onToggleReviewItem: pendingAdd.handleToggleReviewItem,

@@ -55,6 +55,31 @@ defmodule MinhaCasaAi.Integrations.OpenAISchemas do
     }
   end
 
+  def merge_advisor_schema do
+    %{
+      "type" => "object",
+      "properties" => %{
+        "verdict" => %{"type" => "string", "enum" => ["duplicate", "distinct"]},
+        "confidence" => %{"type" => "number"},
+        "suggestions" => %{
+          "type" => "array",
+          "items" => %{
+            "type" => "object",
+            "properties" => %{
+              "path" => %{"type" => "string"},
+              "suggestedValue" => %{"type" => ["string", "number", "boolean", "null"]},
+              "note" => %{"type" => ["string", "null"]}
+            },
+            "required" => ["path", "suggestedValue", "note"],
+            "additionalProperties" => false
+          }
+        }
+      },
+      "required" => ["verdict", "confidence", "suggestions"],
+      "additionalProperties" => false
+    }
+  end
+
   def inventariante_schema do
     %{
       "type" => "object",

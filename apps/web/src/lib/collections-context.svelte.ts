@@ -17,6 +17,7 @@ import type { ListingData } from "$lib/workspace/client";
 import { workspaceApi } from "$lib/workspace/client";
 import type { ParseRequest } from "$lib/anuncios/parse-input-types";
 import { toCollection, toImovel, toListingData, type Collection, type Imovel } from "$lib/anuncios/types";
+import { queueListingImports } from "$lib/anuncios/listing-import-queue";
 
 async function withOrganizationContext<T>(targetOrgId: string | null, fn: () => Promise<T>) {
   const previous = getActiveOrganizationId();
@@ -264,12 +265,8 @@ export function createCollectionsState() {
 
   async function importSharedListings(sharedListings: ListingData[]) {
     if (!activeCollection?.id) throw new Error("Selecione uma coleção antes de importar");
-    let imported = 0;
-    for (const row of sharedListings) {
-      await addListing(row);
-      imported += 1;
-    }
-    return imported;
+    queueListingImports({ collectionId: activeCollection.id, listings: sharedListings });
+    return sharedListings.length;
   }
 
   async function loadListings(collectionId = activeCollection?.id, options?: { silent?: boolean }) {

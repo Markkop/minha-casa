@@ -2,7 +2,13 @@ import type { ListingData } from "$lib/workspace/client";
 import type { ParseRequest } from "$lib/anuncios/parse-input-types";
 import type { PendingParsedListing } from "$lib/components/anuncios/ParserReviewList.svelte";
 
-export type PendingAddStatus = "processing" | "review" | "duplicate" | "saving" | "error";
+export type PendingAddStatus =
+  | "processing"
+  | "review"
+  | "duplicate"
+  | "skipped"
+  | "saving"
+  | "error";
 
 export interface PendingAddRow {
   id: string;
@@ -10,6 +16,7 @@ export interface PendingAddRow {
   message?: string;
   parseInput?: ParseRequest;
   parsedData?: ListingData;
+  collectionId?: string;
   duplicateCandidates?: { listingId: string; reason: string }[];
   reviewItems?: PendingParsedListing[];
   retryValue?: string;

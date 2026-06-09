@@ -10,7 +10,7 @@
   import { applyGeneratedTitlesToListingData } from "$lib/listing-display-title";
   import { listingDataWithPreferences } from "$lib/anuncios/listing-preferences";
   import type { ListingData } from "$lib/workspace/client";
-  import { workspaceApi } from "$lib/workspace/client";
+  import { queueListingImports } from "$lib/anuncios/listing-import-queue";
   import { cn } from "$lib/utils";
 
   let {
@@ -162,14 +162,8 @@
           >[0]
         ) as ListingData[];
 
-        for (const listingData of parsedBatch) {
-          if (collectionId === ctx.activeCollection?.id) {
-            await ctx.addListing(listingData);
-          } else {
-            await workspaceApi.createListing(collectionId, listingData);
-          }
-          totalImported += 1;
-        }
+        queueListingImports({ collectionId, listings: parsedBatch });
+        totalImported += parsedBatch.length;
 
         if (importMode === "existing" && !targetCollectionId) {
           targetCollectionId = collectionId;
@@ -183,7 +177,7 @@
       }
       if (targetCollectionId) onSwitchToCollection?.(targetCollectionId);
 
-      success = `${totalImported} imóvel(eis) importado(s) com sucesso!`;
+      success = `${totalImported} imóvel(eis) enviado(s) para revisão.`;
       importText = "";
       if (ctx.activeCollection?.id) {
         await ctx.loadListings(ctx.activeCollection.id, { silent: true });

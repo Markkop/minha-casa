@@ -24,6 +24,12 @@ config :req, default_finch: MinhaCasaAi.Finch
 config :minha_casa_ai, Oban,
   repo: MinhaCasaAi.Repo,
   engine: Oban.Engines.Basic,
+  plugins: [
+    {Oban.Plugins.Cron,
+     crontab: [
+       {"*/15 * * * *", MinhaCasaAi.Workers.ListingMergeSessionSweepWorker}
+     ]}
+  ],
   queues: [ai: 5, default: 5, webhooks: 5, images: 3, portal_search: 3]
 
 import_config "#{config_env()}.exs"
