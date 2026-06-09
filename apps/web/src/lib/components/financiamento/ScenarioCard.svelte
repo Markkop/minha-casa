@@ -5,6 +5,7 @@
   import EstrategiaBadge from "$lib/components/financiamento/EstrategiaBadge.svelte";
   import ScenarioDataRow from "$lib/components/financiamento/ScenarioDataRow.svelte";
   import Tooltip from "$lib/components/ui/Tooltip.svelte";
+  import { formatMonthDurationLong } from "$lib/components/financiamento/parameter-row-helpers";
   import {
     formatCurrency,
     formatCurrencyCompact,
@@ -141,13 +142,13 @@
       />
       <ScenarioDataRow
         label="Prazo Real"
-        value={`${cenario.cenarioOtimizado.prazoReal} meses (${(cenario.cenarioOtimizado.prazoReal / 12).toFixed(1)} anos)`}
+        value={formatMonthDurationLong(cenario.cenarioOtimizado.prazoReal)}
         tooltip={`Tempo real para quitar com aportes de ${formatCurrency(cenario.aporteExtra)}/mês.`}
       />
       <ScenarioDataRow
         label="Economia de Tempo"
-        value={`${cenario.cenarioOtimizado.mesesEconomizados} meses (${cenario.cenarioOtimizado.anosEconomizados} anos)`}
-        tooltip={`Você economiza ${cenario.cenarioOtimizado.mesesEconomizados} meses (${cenario.cenarioOtimizado.anosEconomizados} anos) com amortização acelerada.`}
+        value={formatMonthDurationLong(cenario.cenarioOtimizado.mesesEconomizados)}
+        tooltip={`Você economiza ${formatMonthDurationLong(cenario.cenarioOtimizado.mesesEconomizados)} com amortização acelerada.`}
       />
     </div>
 

@@ -1,5 +1,6 @@
 <script lang="ts">
   import { browser } from "$app/environment";
+  import { goto } from "$app/navigation";
   import { onMount } from "svelte";
   import { page } from "$app/state";
   import AnaliseQuerySync from "$lib/components/analise/AnaliseQuerySync.svelte";
@@ -12,12 +13,15 @@
   import PaymentTimelineChart from "$lib/components/financiamento/PaymentTimelineChart.svelte";
   import TotalBalanceTimelineChart from "$lib/components/financiamento/TotalBalanceTimelineChart.svelte";
   import TotalExpenseTimelineChart from "$lib/components/financiamento/TotalExpenseTimelineChart.svelte";
-  import ResultsTable from "$lib/components/financiamento/ResultsTable.svelte";
+  import ResultsTableDock from "$lib/components/financiamento/ResultsTableDock.svelte";
   import ScenarioFilterToolbar from "$lib/components/financiamento/ScenarioFilterToolbar.svelte";
   import ChartGroup from "$lib/components/financiamento/charts/ChartGroup.svelte";
   import type { RecursosMeta } from "$lib/components/financiamento/financiamento-parameter-types";
   import type { SimulatorParams } from "$lib/components/financiamento/financiamento-parameter-types";
-  import { pruneSelectedPriceFilters } from "$lib/components/financiamento/price-filter-approx";
+  import {
+    pruneSelectedPriceFilters,
+    selectedPriceFilterForValueChange
+  } from "$lib/components/financiamento/price-filter-approx";
   import { snapToPropertyStep } from "$lib/components/financiamento/parameter-row-helpers";
   import { LISTINGS_SECTION_CLASS } from "$lib/anuncios/listings-panel-layout";
   import { getCollectionsContext } from "$lib/collections-context.svelte";
@@ -36,21 +40,24 @@
     saveSimulatorParams
   } from "$lib/financiamento/simulator-params-storage";
   import {
-    createPreset,
-    deletePreset,
-    findPreset,
-    loadActivePresetId,
-    loadPresets,
-    MAX_SIMULATOR_PRESETS,
-    paramsMatchPreset,
-    saveActivePresetId,
-    suggestPresetName,
-    updatePreset,
-    type SimulatorPreset
-  } from "$lib/financiamento/simulator-presets-storage";
+    createScenarioSnapshot,
+    deleteScenarioSnapshot,
+    findScenarioSnapshot,
+    initializeScenarioSnapshotStorage,
+    loadScenarioSnapshots,
+    MAX_SIMULATOR_SCENARIOS,
+    renameScenarioSnapshot,
+    suggestScenarioName,
+    type SimulatorScenarioSnapshot
+  } from "$lib/financiamento/simulator-scenarios-storage";
+  import {
+    prepareScenarioRestore,
+    resolveScenarioCollectionId
+  } from "$lib/financiamento/scenario-snapshot-restore";
   import { scenarioColorIndexMap } from "$lib/components/financiamento/charts/chart-shared";
   import { createInitialSimulatorParams } from "$lib/financiamento/simulator-recursos";
   import { syncSubscriptionCookie } from "$lib/sync-subscription-cookie";
+  import { writeStoredWorkspaceListingId } from "$lib/workspace-listing-storage";
   import { WORKSPACE_CONTENT_CLASS, WORKSPACE_STACK_CLASS } from "$lib/workspace-chrome";
 
   const settingsContext = getSettingsContext();
@@ -60,25 +67,20 @@
     if (!browser) {
       return createInitialSimulatorParams();
     }
-
-    const storedPresets = loadPresets();
-    const activePreset = findPreset(storedPresets, loadActivePresetId());
-    if (activePreset) {
-      return activePreset.params;
-    }
-
     return loadSimulatorParams() ?? createInitialSimulatorParams();
   }
 
-  let params = $state<SimulatorParams>(resolveInitialParams());
-  let presets = $state<SimulatorPreset[]>(browser ? loadPresets() : []);
-  let activePresetId = $state<string | null>(browser ? loadActivePresetId() : null);
-  let priceInitialized = $state(false);
+  if (browser) {
+    initializeScenarioSnapshotStorage();
+  }
 
-  const activePreset = $derived(findPreset(presets, activePresetId));
-  const presetDirty = $derived(!paramsMatchPreset(params, activePreset));
-  const suggestedPresetName = $derived(suggestPresetName(presets));
-  const canCreatePreset = $derived(presets.length < MAX_SIMULATOR_PRESETS);
+  let params = $state<SimulatorParams>(resolveInitialParams());
+  let scenarios = $state<SimulatorScenarioSnapshot[]>(browser ? loadScenarioSnapshots() : []);
+  let priceInitialized = $state(false);
+  let restoringScenario = $state(false);
+
+  const suggestedScenarioName = $derived(suggestScenarioName(scenarios));
+  const canCreateScenario = $derived(scenarios.length < MAX_SIMULATOR_SCENARIOS);
 
   const selectedListingId = $derived(page.url.searchParams.get("listing"));
 
@@ -94,7 +96,7 @@
   });
 
   $effect(() => {
-    if (!browser || ctx.isLoadingListings) return;
+    if (!browser || restoringScenario || ctx.isLoadingListings) return;
 
     const listingId = selectedListingId;
 
@@ -252,48 +254,78 @@
     params = { ...params, cenariosOcultosGraficos: [...hidden] };
   }
 
-  function refreshPresets() {
-    presets = loadPresets();
+  function refreshScenarios() {
+    scenarios = loadScenarioSnapshots();
   }
 
-  function handleSelectPreset(id: string) {
-    const preset = findPreset(presets, id);
-    if (!preset) return;
-
-    params = { ...preset.params };
-    activePresetId = id;
-    saveActivePresetId(id);
-    chartSelection.clearSelection();
-  }
-
-  function handleSavePreset(input: { name: string; mode: "create" | "update" }) {
-    if (input.mode === "update" && activePresetId) {
-      const updated = updatePreset(activePresetId, { name: input.name, params });
-      if (!updated) return;
-      refreshPresets();
-      activePresetId = updated.id;
-      saveActivePresetId(updated.id);
-      return;
-    }
-
-    const created = createPreset(input.name, params);
+  function handleCreateScenario(name: string) {
+    const created = createScenarioSnapshot(name, params, ctx.activeCollection?.id);
     if (!created) return;
-    refreshPresets();
-    activePresetId = created.id;
-    saveActivePresetId(created.id);
+    refreshScenarios();
   }
 
-  function handleDeletePreset(id: string) {
-    deletePreset(id);
-    refreshPresets();
-    if (activePresetId === id) {
-      activePresetId = null;
+  function handleDeleteScenario(id: string) {
+    deleteScenarioSnapshot(id);
+    refreshScenarios();
+  }
+
+  function handleRenameScenario(id: string, name: string) {
+    renameScenarioSnapshot(id, name);
+    refreshScenarios();
+  }
+
+  async function handleRestoreScenario(id: string) {
+    const snapshot = findScenarioSnapshot(scenarios, id);
+    if (!snapshot) return;
+
+    restoringScenario = true;
+    try {
+      const targetCollectionId = resolveScenarioCollectionId(
+        snapshot.collectionId,
+        ctx.collections.map((collection) => collection.id),
+        ctx.activeCollection?.id ?? null
+      );
+      const targetCollection = targetCollectionId
+        ? ctx.collections.find((collection) => collection.id === targetCollectionId) ?? null
+        : null;
+
+      if (targetCollection) {
+        const collectionChanged = targetCollection.id !== ctx.activeCollection?.id;
+        const listingsNeedRefresh =
+          collectionChanged ||
+          ctx.listingsCollectionId !== targetCollection.id ||
+          ctx.isLoadingListings;
+        if (collectionChanged) {
+          ctx.setActiveCollection(targetCollection);
+        }
+        if (listingsNeedRefresh) {
+          await ctx.loadListings(targetCollection.id, { silent: true });
+        }
+      }
+
+      const { params: restored, searchParams: urlParams } = prepareScenarioRestore(
+        snapshot,
+        targetCollection?.id ?? null,
+        ctx.listings.map((listing) => listing.id),
+        page.url.searchParams
+      );
+
+      if (targetCollection) {
+        writeStoredWorkspaceListingId(targetCollection.id, restored.linkedListingId);
+      }
+
+      const queryString = urlParams.toString();
+      await goto(`${page.url.pathname}${queryString ? `?${queryString}` : ""}`, {
+        replaceState: true,
+        noScroll: true,
+        keepFocus: true
+      });
+
+      params = restored;
+      chartSelection.clearSelection();
+    } finally {
+      restoringScenario = false;
     }
-  }
-
-  function handleRenamePreset(id: string, name: string) {
-    updatePreset(id, { name });
-    refreshPresets();
   }
 
   function uniqueNumbers(values: number[]) {
@@ -345,7 +377,12 @@
       return;
     }
     if (field === "valorImovel") {
-      params = { ...params, valorImovel: snapToPropertyStep(newValue) };
+      const valorImovel = snapToPropertyStep(newValue);
+      params = {
+        ...params,
+        valorImovel,
+        valoresImovelFiltroMultipliers: selectedPriceFilterForValueChange(valorImovel)
+      };
       return;
     }
     if (field === "valorApartamento") {
@@ -377,7 +414,9 @@
 {#if !settingsContext.isLoaded}
   <WorkspaceLoadingState />
 {:else}
-  <div class="min-h-[calc(100vh-var(--nav-height,2.75rem))] bg-app-bg text-app-fg">
+  <div
+    class="flex h-[calc(100svh-var(--nav-height,2.75rem))] min-h-0 flex-col overflow-hidden bg-app-bg text-app-fg"
+  >
     <AnaliseQuerySync />
     <WorkspaceListingQuerySync />
     <WorkspaceRightSidebarContent title="Parâmetros">
@@ -391,47 +430,18 @@
       />
     </WorkspaceRightSidebarContent>
     <ScenarioFilterToolbar
-      {presets}
-      {activePresetId}
-      {presetDirty}
-      {suggestedPresetName}
-      {canCreatePreset}
-      onSelectPreset={handleSelectPreset}
-      onSavePreset={handleSavePreset}
-      onDeletePreset={handleDeletePreset}
-      onRenamePreset={handleRenamePreset}
+      {scenarios}
+      {suggestedScenarioName}
+      {canCreateScenario}
+      onRestoreScenario={handleRestoreScenario}
+      onCreateScenario={handleCreateScenario}
+      onDeleteScenario={handleDeleteScenario}
+      onRenameScenario={handleRenameScenario}
     />
-    <main class="{WORKSPACE_CONTENT_CLASS} {WORKSPACE_STACK_CLASS}">
+    <main
+      class="{WORKSPACE_CONTENT_CLASS} {WORKSPACE_STACK_CLASS} min-h-0 flex-1 overflow-y-auto overscroll-contain"
+    >
       <div class="flex flex-col gap-4">
-        <section class={LISTINGS_SECTION_CLASS}>
-          <ResultsTable
-            cenarios={filteredCenarios}
-            {permutaDisponivel}
-            {scenarioColorIndex}
-            {hiddenChartIds}
-            onToggleChartVisibility={toggleChartVisibility}
-          />
-        </section>
-        <ChartGroup title="Financiamento">
-          <div class="grid gap-4 lg:grid-cols-2">
-            <section class="{LISTINGS_SECTION_CLASS} overflow-visible">
-              <DebtTimelineChart
-                cenarios={chartCenarios}
-                {scenarioColorIndex}
-                custoMensal={params.custoMensal}
-                breakdownAnchorSide="left"
-              />
-            </section>
-            <section class="{LISTINGS_SECTION_CLASS} overflow-visible">
-              <PaymentTimelineChart
-                cenarios={chartCenarios}
-                {scenarioColorIndex}
-                breakdownAnchorSide="right"
-              />
-            </section>
-          </div>
-        </ChartGroup>
-
         <ChartGroup title="Saldos">
           <div class="grid gap-4 lg:grid-cols-2">
             <section class="{LISTINGS_SECTION_CLASS} overflow-visible">
@@ -477,7 +487,34 @@
             </section>
           </div>
         </ChartGroup>
+
+        <ChartGroup title="Financiamento">
+          <div class="grid gap-4 lg:grid-cols-2">
+            <section class="{LISTINGS_SECTION_CLASS} overflow-visible">
+              <DebtTimelineChart
+                cenarios={chartCenarios}
+                {scenarioColorIndex}
+                custoMensal={params.custoMensal}
+                breakdownAnchorSide="left"
+              />
+            </section>
+            <section class="{LISTINGS_SECTION_CLASS} overflow-visible">
+              <PaymentTimelineChart
+                cenarios={chartCenarios}
+                {scenarioColorIndex}
+                breakdownAnchorSide="right"
+              />
+            </section>
+          </div>
+        </ChartGroup>
       </div>
     </main>
+    <ResultsTableDock
+      cenarios={filteredCenarios}
+      {permutaDisponivel}
+      {scenarioColorIndex}
+      {hiddenChartIds}
+      onToggleChartVisibility={toggleChartVisibility}
+    />
   </div>
 {/if}

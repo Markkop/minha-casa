@@ -294,6 +294,8 @@ export function buildXAxisLabelTicks(
     push(month, labelForYear(month), "year");
   }
 
+  push(maxMonth, labelForYear(maxMonth), "year");
+
   for (let month = monthStep; month <= maxMonth; month += monthStep) {
     if (month % 12 === 0) continue;
     push(month, String(month), "month");

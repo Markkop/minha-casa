@@ -18,6 +18,7 @@
   import TimelineChartAxes from "$lib/components/financiamento/charts/TimelineChartAxes.svelte";
   import TimelineFocusLayer from "$lib/components/financiamento/charts/TimelineFocusLayer.svelte";
   import {
+    maxScenarioTermMonths,
     scenarioChartColor,
     scenarioColorIndexMap,
     scenarioLabel,
@@ -73,9 +74,7 @@
   const ledgers = $derived(
     buildBalanceLedgers(cenarios, capitalDisponivel, quantiaExtra, custoMensal)
   );
-  const maxMonth = $derived(
-    Math.max(1, ...ledgers.flatMap((series) => series.points.map((point) => point.mes)))
-  );
+  const maxMonth = $derived(maxScenarioTermMonths(cenarios));
   const yAxis = $derived(buildSignedYAxisScale(ledgerYAxisValues(ledgers)));
 
   let chartContainer = $state<HTMLDivElement | null>(null);
@@ -248,7 +247,7 @@
       />
 
       <g class="pointer-events-none">
-        {#each ledgers as series, i (series.cenario.id)}
+        {#each ledgers as series (series.cenario.id)}
           {@const color = scenarioChartColor(series.cenario.id, resolvedColorIndex)}
           {@const isActive = activeCenarioId === series.cenario.id}
           <polyline

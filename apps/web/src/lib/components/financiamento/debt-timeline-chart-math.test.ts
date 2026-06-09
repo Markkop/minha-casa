@@ -186,6 +186,8 @@ describe("buildXAxisLabelTicks", () => {
     expect(short.some((t) => t.month === -1)).toBe(false);
     expect(short.find((t) => t.month === 1)?.kind).toBe("year");
     expect(short.find((t) => t.month === 12)?.label).toBe("y12");
+    expect(short.find((t) => t.month === 18)?.label).toBe("y18");
+    expect(short.find((t) => t.month === 18)?.kind).toBe("year");
     expect(short.some((t) => t.kind === "month" && t.month === 6)).toBe(true);
 
     const long = buildXAxisLabelTicks(60, 800, (m) => `y${m}`);

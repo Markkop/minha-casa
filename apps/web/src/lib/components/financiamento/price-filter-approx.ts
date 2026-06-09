@@ -57,6 +57,10 @@ export function defaultSelectedPriceFilters(baseValue: number): number[] {
   return [...selected].sort((a, b) => b - a);
 }
 
+export function selectedPriceFilterForValueChange(baseValue: number): number[] {
+  return [snapToPropertyStep(Math.max(0, baseValue))];
+}
+
 export function isLegacyMultiplierPriceFilter(values: number[]): boolean {
   return values.length > 0 && values.every((value) => value > 0 && value <= 1.05);
 }

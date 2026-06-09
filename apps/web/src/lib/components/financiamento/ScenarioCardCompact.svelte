@@ -3,6 +3,7 @@
   import Card from "$lib/components/ui/Card.svelte";
   import ComprometimentoIndicator from "$lib/components/financiamento/ComprometimentoIndicator.svelte";
   import EstrategiaBadge from "$lib/components/financiamento/EstrategiaBadge.svelte";
+  import { formatMonthDurationLong } from "$lib/components/financiamento/parameter-row-helpers";
   import {
     formatCurrencyCompact,
     type CenarioCompleto
@@ -61,7 +62,7 @@
         <div>
           <span class="block text-app-subtle">Prazo Otim.</span>
           <span class="font-mono text-app-accent">
-            {(cenario.cenarioOtimizado.prazoReal / 12).toFixed(1)} anos
+            {formatMonthDurationLong(cenario.cenarioOtimizado.prazoReal)}
           </span>
         </div>
         <div>

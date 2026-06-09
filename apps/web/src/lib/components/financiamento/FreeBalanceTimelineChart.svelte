@@ -19,6 +19,7 @@
   import TimelineChartAxes from "$lib/components/financiamento/charts/TimelineChartAxes.svelte";
   import TimelineFocusLayer from "$lib/components/financiamento/charts/TimelineFocusLayer.svelte";
   import {
+    maxScenarioTermMonths,
     scenarioChartColor,
     scenarioColorIndexMap,
     scenarioLabel,
@@ -70,9 +71,7 @@
   const height = CHART_HEIGHT;
   const legendNote =
     "Renda mensal menos todos os gastos mensais · clique para selecionar ou desselecionar · linha horizontal tracejada: saldo zero · linhas verticais tracejadas: venda · círculo no topo: quantia extra · quadrado inferior: reforma concluída";
-  const maxMonth = $derived(
-    Math.max(1, ...cenarios.flatMap((cenario) => cenario.timeline.map((month) => month.mes)))
-  );
+  const maxMonth = $derived(maxScenarioTermMonths(cenarios));
   const yAxis = $derived(buildSignedYAxisScale(freeBalanceValues(cenarios, custoMensal)));
 
   let chartContainer = $state<HTMLDivElement | null>(null);
@@ -273,7 +272,7 @@
       />
 
       <g class="pointer-events-none">
-        {#each cenarios as cenario, i (cenario.id)}
+        {#each cenarios as cenario (cenario.id)}
           {@const color = scenarioChartColor(cenario.id, resolvedColorIndex)}
           {@const isActive = activeCenarioId === cenario.id}
           <polyline

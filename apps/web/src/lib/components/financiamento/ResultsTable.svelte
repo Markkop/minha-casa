@@ -4,7 +4,7 @@
   import CustoTotalHoverBreakdown from "$lib/components/financiamento/CustoTotalHoverBreakdown.svelte";
   import TotalMensalHoverBreakdown from "$lib/components/financiamento/TotalMensalHoverBreakdown.svelte";
   import {
-    formatPrazoAnosLabel,
+    formatMonthDurationLong,
     formatTimingMonthLabelLong
   } from "$lib/components/financiamento/parameter-row-helpers";
   import FloatingTooltip from "$lib/components/ui/FloatingTooltip.svelte";
@@ -79,45 +79,50 @@
   const thClass = $derived(
     cn(
       "sticky top-0 z-20 whitespace-nowrap border-b border-app-border bg-app-surface text-left font-medium text-app-muted",
-      compact ? "px-1.5 py-1 text-[10px]" : "px-3 py-2 text-xs"
+      compact ? "px-1.5 py-0.5 text-[9px] leading-4" : "px-3 py-2 text-xs"
     )
   );
   const tdClass = $derived(
     cn(
       "whitespace-nowrap border-b border-app-border align-middle",
-      compact ? "px-1.5 py-1" : "px-3 py-2"
+      compact ? "px-1.5 py-0.5" : "px-3 py-2"
     )
   );
-  const monoCellClass = $derived(compact ? "font-mono text-[11px]" : "font-mono text-sm");
+  const monoCellClass = $derived(
+    compact ? "font-mono text-[10px] leading-4" : "font-mono text-sm"
+  );
 </script>
 
 {#snippet sortableHeader(label: string, sortKey: ResultsSortKey, tooltip?: string)}
   {@const isActive = sort.key === sortKey}
   {@const isAsc = isActive && sort.direction === "asc"}
   <th class={cn(thClass, "transition-colors hover:bg-app-surface-muted/30")}>
-    <div class="flex shrink-0 items-center gap-1 whitespace-nowrap">
+    <div class={cn("flex shrink-0 items-center whitespace-nowrap", compact ? "gap-0.5" : "gap-1")}>
       <button
         type="button"
-        class="flex shrink-0 items-center gap-1 whitespace-nowrap text-left"
+        class={cn(
+          "flex shrink-0 items-center whitespace-nowrap text-left",
+          compact ? "gap-0.5" : "gap-1"
+        )}
         onclick={() => handleSort(sortKey)}
       >
         <span class="whitespace-nowrap">{label}</span>
         {#if isActive}
           {#if isAsc}
-            <ArrowUp class="size-3 text-app-accent" />
+            <ArrowUp class={cn("text-app-accent", compact ? "size-2.5" : "size-3")} />
           {:else}
-            <ArrowDown class="size-3 text-app-accent" />
+            <ArrowDown class={cn("text-app-accent", compact ? "size-2.5" : "size-3")} />
           {/if}
         {/if}
       </button>
-      {#if tooltip && !compact}
+      {#if tooltip}
         <FloatingTooltip label={tooltip} side="bottom" align="center">
           <button
             type="button"
             class="inline-flex text-app-subtle hover:text-app-accent"
             aria-label="Mais informações sobre {label}"
           >
-            <Info class="size-3" />
+            <Info class={compact ? "size-2.5" : "size-3"} />
           </button>
         </FloatingTooltip>
       {/if}
@@ -130,7 +135,8 @@
     {#snippet trigger()}
       <span
         class={cn(
-          "inline-block size-2 rounded-full",
+          "inline-block rounded-full",
+          compact ? "size-1.5" : "size-2",
           dentroDoLimite ? "bg-green" : "bg-salmon"
         )}
         role="img"
@@ -145,17 +151,25 @@
   </Tooltip>
 {/snippet}
 
-<div class={cn("overflow-auto", compact ? "max-h-none" : "max-h-[min(70vh,32rem)]")}>
+<div
+  class={cn(
+    "overflow-auto overscroll-contain",
+    compact ? "max-h-[min(14rem,30vh)]" : "max-h-[min(70vh,32rem)]"
+  )}
+>
   <table
     class={cn(
       "w-full border-collapse",
-      compact ? "table-fixed text-[11px]" : "min-w-[72rem] text-sm"
+      compact ? "min-w-[64rem] text-[10px] leading-4" : "min-w-[72rem] text-sm"
     )}
   >
     <thead>
       <tr class="hover:bg-transparent">
         {#if showVisibilityColumn}
-          <th class={cn(thClass, "sticky left-0 z-30 w-14")} aria-label="Visibilidade nos gráficos"></th>
+          <th
+            class={cn(thClass, "sticky left-0 z-30", compact ? "w-10" : "w-14")}
+            aria-label="Visibilidade nos gráficos"
+          ></th>
         {/if}
         {#if !hideValorImovelColumn}
           {@render sortableHeader("Imóvel alvo", "valorImovel", TOOLTIPS.valorImovel)}
@@ -215,19 +229,21 @@
           onclick={onSelectCenario ? () => onSelectCenario(cenario) : undefined}
         >
           {#if showVisibilityColumn && onToggleChartVisibility && scenarioColorIndex}
-            <td class={cn(tdClass, "sticky left-0 z-10 w-14 bg-inherit")}>
-              <div class="flex items-center gap-1.5">
+            <td
+              class={cn(tdClass, "sticky left-0 z-10 bg-inherit", compact ? "w-10" : "w-14")}
+            >
+              <div class={cn("flex items-center", compact ? "gap-1" : "gap-1.5")}>
                 <input
                   type="checkbox"
                   checked={isChartVisible}
                   aria-label="Exibir no gráfico"
-                  class="h-3.5 w-3.5 accent-app-action"
+                  class={cn("accent-app-action", compact ? "size-3" : "size-3.5")}
                   onclick={(event) => event.stopPropagation()}
                   onchange={() => onToggleChartVisibility(cenario.id)}
                 />
                 {#if chartColor}
                   <span
-                    class="size-2.5 shrink-0 rounded-full"
+                    class={cn("shrink-0 rounded-full", compact ? "size-2" : "size-2.5")}
                     style:background-color={chartColor}
                     aria-hidden="true"
                   ></span>
@@ -279,11 +295,17 @@
             </TotalMensalHoverBreakdown>
           </td>
           <td class={tdClass}>
-            <div class="flex shrink-0 items-center gap-2 whitespace-nowrap">
+            <div
+              class={cn(
+                "flex shrink-0 items-center whitespace-nowrap",
+                compact ? "gap-1" : "gap-2"
+              )}
+            >
               {@render aprovacaoIndicator(cenario.comprometimento.dentroDoLimite)}
               <span
                 class={cn(
-                  "font-mono text-xs",
+                  "font-mono",
+                  compact ? "text-[10px]" : "text-xs",
                   cenario.comprometimento.dentroDoLimite ? "text-green" : "text-salmon"
                 )}
               >
@@ -292,7 +314,7 @@
             </div>
           </td>
           <td class={cn(tdClass, monoCellClass, "text-app-accent")}>
-            {formatPrazoAnosLabel(cenario.cenarioOtimizado.prazoReal)}
+            {formatMonthDurationLong(cenario.cenarioOtimizado.prazoReal)}
           </td>
           <td class={cn(tdClass, monoCellClass, "font-bold text-salmon")}>
             {formatCurrencyCompact(cenario.cenarioOtimizado.totalJuros)}

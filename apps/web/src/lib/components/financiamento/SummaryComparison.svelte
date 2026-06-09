@@ -3,6 +3,7 @@
     formatCurrencyCompact,
     type CenarioCompleto
   } from "$lib/financiamento/calculations";
+  import { formatMonthDurationLong } from "$lib/components/financiamento/parameter-row-helpers";
   import { cn } from "$lib/utils";
 
   let { cenarios }: { cenarios: CenarioCompleto[] | null | undefined } = $props();
@@ -50,7 +51,10 @@
       },
       {
         label: "Range Prazo (Otim.)",
-        value: `${(stats.menorPrazo / 12).toFixed(1)} - ${(stats.maiorPrazo / 12).toFixed(1)} anos`,
+        value:
+          stats.menorPrazo === stats.maiorPrazo
+            ? formatMonthDurationLong(stats.menorPrazo)
+            : `${formatMonthDurationLong(stats.menorPrazo)} - ${formatMonthDurationLong(stats.maiorPrazo)}`,
         icon: "⏱️"
       },
       {

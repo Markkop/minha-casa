@@ -61,23 +61,30 @@ export function formatTimingMonthLabel(months: number): string {
   return `${months}m`;
 }
 
-/** Full unit labels for results table cells (Venda em, Extra em). */
-export function formatTimingMonthLabelLong(months: number): string {
-  if (months === 1) return "1 mês";
-  if (months === 12) return "1 ano";
-  if (months === 24) return "2 anos";
-  if (months % 12 === 0) return `${months / 12} anos`;
-  return `${months} meses`;
+export function formatMonthDurationLong(months: number): string {
+  const totalMonths = Math.max(0, Math.round(months));
+  const years = Math.floor(totalMonths / 12);
+  const remainingMonths = totalMonths % 12;
+  const parts: string[] = [];
+
+  if (years > 0) {
+    parts.push(`${years} ${years === 1 ? "ano" : "anos"}`);
+  }
+  if (remainingMonths > 0 || years === 0) {
+    parts.push(
+      `${remainingMonths} ${remainingMonths === 1 ? "mês" : "meses"}`
+    );
+  }
+
+  return parts.join(" e ");
 }
 
-/** Prazo column: years with "ano" / "anos". */
+/** Full unit labels for results table cells (Venda em, Extra em). */
+export function formatTimingMonthLabelLong(months: number): string {
+  return formatMonthDurationLong(months);
+}
+
+/** @deprecated Use formatMonthDurationLong. */
 export function formatPrazoAnosLabel(prazoMeses: number): string {
-  const anos = prazoMeses / 12;
-  if (Math.abs(anos - 1) < 1e-9) return "1 ano";
-  if (Number.isInteger(anos)) return `${anos} anos`;
-  const text = anos.toLocaleString("pt-BR", {
-    minimumFractionDigits: 1,
-    maximumFractionDigits: 1
-  });
-  return `${text} anos`;
+  return formatMonthDurationLong(prazoMeses);
 }

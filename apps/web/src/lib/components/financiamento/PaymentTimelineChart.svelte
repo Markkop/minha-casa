@@ -25,6 +25,7 @@
   import TimelineChartAxes from "$lib/components/financiamento/charts/TimelineChartAxes.svelte";
   import TimelineFocusLayer from "$lib/components/financiamento/charts/TimelineFocusLayer.svelte";
   import {
+    maxScenarioTermMonths,
     scenarioChartColor,
     scenarioColorIndexMap,
     scenarioLabel,
@@ -62,9 +63,7 @@
   const legendNote =
     "Prestação do financiamento ao longo do tempo · clique para selecionar ou desselecionar · linhas tracejadas verticais: venda · círculo no topo: quantia extra · quadrado inferior: reforma concluída";
 
-  const maxMonth = $derived(
-    Math.max(1, ...cenarios.flatMap((c) => c.timeline.map((m) => m.mes)), 1)
-  );
+  const maxMonth = $derived(maxScenarioTermMonths(cenarios));
 
   const yAxis = $derived(buildNiceYAxisScale(maxPaymentData(cenarios)));
   const maxValue = $derived(yAxis.max);
@@ -264,7 +263,7 @@
       />
 
       <g class="pointer-events-none">
-        {#each cenarios as cenario, i (cenario.id)}
+        {#each cenarios as cenario (cenario.id)}
           {@const color = scenarioChartColor(cenario.id, resolvedColorIndex)}
           {@const points = polylinePointsForPayment(
             cenario,

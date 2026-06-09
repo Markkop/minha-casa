@@ -7,33 +7,31 @@
 
   let {
     open = $bindable(false),
-    activePresetName = null,
     suggestedName,
     canCreate = true,
-    onSave
+    onCreate
   }: {
     open?: boolean;
-    activePresetName?: string | null;
     suggestedName: string;
     canCreate?: boolean;
-    onSave: (input: { name: string; mode: "create" | "update" }) => void;
+    onCreate: (name: string) => void;
   } = $props();
 
   let name = $state("");
 
   $effect(() => {
     if (!open) return;
-    name = activePresetName ?? suggestedName;
+    name = suggestedName;
   });
 
   function close() {
     open = false;
   }
 
-  function submit(mode: "create" | "update") {
+  function submit() {
     const trimmed = name.trim();
     if (!trimmed) return;
-    onSave({ name: trimmed, mode });
+    onCreate(trimmed);
     close();
   }
 </script>
@@ -42,8 +40,8 @@
   {#snippet trigger()}
     <PageToolbarIconButton
       variant="secondary"
-      aria-label="Salvar configuração"
-      title="Salvar configuração"
+      aria-label="Criar snapshot do cenário"
+      title="Criar snapshot"
       tooltipDisabled={open}
       onclick={() => (open = !open)}
     >
@@ -52,7 +50,7 @@
   {/snippet}
 
   <p class="px-1 pb-2 text-[11px] leading-snug text-app-subtle">
-    Salve os parâmetros, filtros e seleções de gráficos atuais.
+    Capture os parâmetros, filtros e seleções de gráficos atuais em um cenário.
   </p>
 
   <label class="flex flex-col gap-1 px-1">
@@ -60,11 +58,11 @@
     <Input
       bind:value={name}
       class="h-8 py-0 text-sm"
-      ariaLabel="Nome da configuração"
+      ariaLabel="Nome do cenário"
       onkeydown={(event) => {
         if (event.key === "Enter") {
           event.preventDefault();
-          submit(activePresetName ? "update" : "create");
+          submit();
         }
         if (event.key === "Escape") {
           event.preventDefault();
@@ -75,38 +73,19 @@
   </label>
 
   <div class="mt-2 flex flex-col gap-1">
-    {#if activePresetName}
-      <PageToolbarButton
-        variant="primary"
-        class="h-8 w-full"
-        disabled={!name.trim()}
-        onclick={() => submit("update")}
-      >
-        Atualizar "{activePresetName}"
-      </PageToolbarButton>
-      <PageToolbarButton
-        variant="secondary"
-        class="h-8 w-full"
-        disabled={!name.trim() || !canCreate}
-        onclick={() => submit("create")}
-      >
-        Salvar como nova
-      </PageToolbarButton>
-    {:else}
-      <PageToolbarButton
-        variant="primary"
-        class="h-8 w-full"
-        disabled={!name.trim() || !canCreate}
-        onclick={() => submit("create")}
-      >
-        Salvar
-      </PageToolbarButton>
-    {/if}
+    <PageToolbarButton
+      variant="primary"
+      class="h-8 w-full"
+      disabled={!name.trim() || !canCreate}
+      onclick={submit}
+    >
+      Criar snapshot
+    </PageToolbarButton>
   </div>
 
   {#if !canCreate}
     <p class="mt-2 px-1 text-[11px] text-destructive">
-      Limite de 20 configurações salvas atingido.
+      Limite de 20 cenários atingido.
     </p>
   {/if}
 </ToolbarAnchoredPopover>

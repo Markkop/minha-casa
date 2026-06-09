@@ -33,8 +33,31 @@ export function chartColor(index: number): string {
   return CHART_COLORS[index % CHART_COLORS.length] ?? CHART_COLORS[0];
 }
 
+function stableStringHash(value: string): number {
+  let hash = 0;
+  for (let index = 0; index < value.length; index++) {
+    hash = (hash * 31 + value.charCodeAt(index)) >>> 0;
+  }
+  return hash;
+}
+
 export function scenarioColorIndexMap(cenarios: CenarioCompleto[]): Map<string, number> {
-  return new Map(cenarios.map((cenario, index) => [cenario.id, index]));
+  return new Map(
+    cenarios.map((cenario) => [
+      cenario.id,
+      stableStringHash(cenario.id) % CHART_COLORS.length
+    ])
+  );
+}
+
+export function maxScenarioTermMonths(cenarios: CenarioCompleto[]): number {
+  return Math.max(
+    1,
+    ...cenarios.flatMap((cenario) => [
+      cenario.cenarioOtimizado.prazoReal,
+      ...cenario.timeline.map((month) => month.mes)
+    ])
+  );
 }
 
 export function scenarioChartColor(

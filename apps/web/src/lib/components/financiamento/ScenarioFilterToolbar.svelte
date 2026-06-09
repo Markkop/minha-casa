@@ -1,58 +1,44 @@
 <script lang="ts">
-  import SimulatorPresetDropdown from "$lib/components/financiamento/SimulatorPresetDropdown.svelte";
-  import SimulatorPresetSavePopover from "$lib/components/financiamento/SimulatorPresetSavePopover.svelte";
-  import type { SimulatorPreset } from "$lib/financiamento/simulator-presets-storage";
+  import SimulatorScenarioDropdown from "$lib/components/financiamento/SimulatorScenarioDropdown.svelte";
+  import SimulatorScenarioSavePopover from "$lib/components/financiamento/SimulatorScenarioSavePopover.svelte";
+  import type { SimulatorScenarioSnapshot } from "$lib/financiamento/simulator-scenarios-storage";
   import { workspacePageToolbarRowClass } from "$lib/workspace-chrome";
   import { cn } from "$lib/utils";
 
   let {
-    presets,
-    activePresetId,
-    presetDirty = false,
-    suggestedPresetName,
-    canCreatePreset = true,
-    onSelectPreset,
-    onSavePreset,
-    onDeletePreset,
-    onRenamePreset
+    scenarios,
+    suggestedScenarioName,
+    canCreateScenario = true,
+    onRestoreScenario,
+    onCreateScenario,
+    onDeleteScenario,
+    onRenameScenario
   }: {
-    presets: SimulatorPreset[];
-    activePresetId: string | null;
-    presetDirty?: boolean;
-    suggestedPresetName: string;
-    canCreatePreset?: boolean;
-    onSelectPreset: (id: string) => void;
-    onSavePreset: (input: { name: string; mode: "create" | "update" }) => void;
-    onDeletePreset: (id: string) => void;
-    onRenamePreset: (id: string, name: string) => void;
+    scenarios: SimulatorScenarioSnapshot[];
+    suggestedScenarioName: string;
+    canCreateScenario?: boolean;
+    onRestoreScenario: (id: string) => void;
+    onCreateScenario: (name: string) => void;
+    onDeleteScenario: (id: string) => void;
+    onRenameScenario: (id: string, name: string) => void;
   } = $props();
 
   let saveOpen = $state(false);
-
-  const activePreset = $derived(presets.find((preset) => preset.id === activePresetId) ?? null);
 </script>
 
-<header
-  class={cn(
-    workspacePageToolbarRowClass,
-    "sticky top-[var(--nav-height,2.75rem)] z-[55] w-full justify-between gap-2"
-  )}
->
-  <SimulatorPresetDropdown
-    {presets}
-    {activePresetId}
-    dirty={presetDirty}
-    {onSelectPreset}
-    {onDeletePreset}
-    {onRenamePreset}
+<header class={cn(workspacePageToolbarRowClass, "z-[55] w-full justify-between gap-2")}>
+  <SimulatorScenarioDropdown
+    {scenarios}
+    {onRestoreScenario}
+    {onDeleteScenario}
+    {onRenameScenario}
     onOpenSave={() => (saveOpen = true)}
   />
 
-  <SimulatorPresetSavePopover
+  <SimulatorScenarioSavePopover
     bind:open={saveOpen}
-    activePresetName={activePreset?.name ?? null}
-    suggestedName={suggestedPresetName}
-    canCreate={canCreatePreset}
-    onSave={onSavePreset}
+    suggestedName={suggestedScenarioName}
+    canCreate={canCreateScenario}
+    onCreate={onCreateScenario}
   />
 </header>

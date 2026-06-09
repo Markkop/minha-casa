@@ -2,7 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   buildApproximatePriceValues,
   defaultSelectedPriceFilters,
-  migrateMultiplierPriceFilter
+  migrateMultiplierPriceFilter,
+  selectedPriceFilterForValueChange
 } from "$lib/components/financiamento/price-filter-approx";
 
 describe("price-filter-approx", () => {
@@ -16,5 +17,9 @@ describe("price-filter-approx", () => {
 
   it("migrates legacy multiplier filters to approximate prices", () => {
     expect(migrateMultiplierPriceFilter([1, 0.95], 730_000)).toEqual([730_000, 700_000]);
+  });
+
+  it("selects only the current slider value after a direct value change", () => {
+    expect(selectedPriceFilterForValueChange(735_000)).toEqual([740_000]);
   });
 });
