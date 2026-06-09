@@ -1,4 +1,5 @@
 import { formatApiError } from "$lib/api/error-message";
+import { buildJsonRequestParts } from "$lib/api/request-init";
 import { config } from "$lib/config";
 import { getApiToken } from "$lib/stores/auth";
 
@@ -25,14 +26,11 @@ export { getActiveOrganizationId, setActiveOrganizationId } from "$lib/active-or
 async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const { method = "GET", body, headers = {}, auth = true } = options;
   const base = config.apiUrl;
-  const requestHeaders: Record<string, string> = {
-    "Content-Type": "application/json",
-    ...headers
-  };
+  const requestParts = buildJsonRequestParts(body, headers);
 
   if (auth && base) {
     const token = await getApiToken();
-    if (token) requestHeaders.Authorization = `Bearer ${token}`;
+    if (token) requestParts.headers.set("Authorization", `Bearer ${token}`);
   }
 
   let response: Response;
@@ -40,9 +38,9 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
   try {
     response = await fetch(url, {
       method,
-      headers: requestHeaders,
+      headers: requestParts.headers,
       credentials: "include",
-      body: body === undefined ? undefined : JSON.stringify(body),
+      body: requestParts.body,
       signal: options.signal
     });
   } catch (error) {

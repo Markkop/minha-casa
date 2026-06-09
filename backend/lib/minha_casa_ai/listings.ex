@@ -22,9 +22,9 @@ defmodule MinhaCasaAi.Listings do
       })
       |> Repo.insert()
       |> case do
-        {:ok, listing} = ok ->
+        {:ok, listing} ->
           maybe_enqueue_image_ingestion(listing, opts)
-          ok
+          {:ok, Repo.get!(Listing, listing.id)}
 
         error ->
           error

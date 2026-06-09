@@ -10,6 +10,7 @@ import {
   readStoredActiveCollectionId,
   storeActiveCollectionId
 } from "$lib/collection-context";
+import { removeListingFromCollectionState } from "$lib/anuncios/listing-removal";
 import { getActiveOrganizationId, setActiveOrganizationId } from "$lib/api/client";
 import { formatApiError } from "$lib/api/error-message";
 import type { ListingData } from "$lib/workspace/client";
@@ -321,9 +322,18 @@ export function createCollectionsState() {
 
   async function removeListing(listingId: string) {
     if (!activeCollection?.id) throw new Error("Nenhuma coleção ativa");
-    await workspaceApi.deleteListing(activeCollection.id, listingId);
-    listings = listings.filter((item) => item.id !== listingId);
-    syncCollectionListingCount(activeCollection.id, listings.length);
+    const collectionId = activeCollection.id;
+    await workspaceApi.deleteListing(collectionId, listingId);
+    const nextState = removeListingFromCollectionState({
+      listings,
+      collections,
+      activeCollection,
+      collectionId,
+      listingId
+    });
+    listings = nextState.listings;
+    collections = nextState.collections;
+    activeCollection = nextState.activeCollection;
   }
 
   async function refreshListing(listingId: string) {

@@ -2,6 +2,7 @@ import { env } from "$env/dynamic/private";
 import { getAuth } from "$lib/auth";
 import { ACTIVE_ORGANIZATION_COOKIE_NAME } from "$lib/organization-context";
 import { resolvePhoenixAuthorization } from "$lib/server/api-proxy-auth";
+import { preparePhoenixRequest } from "$lib/server/api-proxy-request";
 import type { RequestHandler } from "./$types";
 
 function phoenixBaseUrl(): string {
@@ -19,9 +20,8 @@ async function proxyToPhoenix({
   const target = new URL(`/api/${segments.map(String).join("/")}`, phoenixBaseUrl());
   target.search = new URL(request.url).search;
 
-  const headers = new Headers(request.headers);
-  headers.delete("host");
-  headers.delete("connection");
+  const preparedRequest = await preparePhoenixRequest(request, request.headers);
+  const { headers } = preparedRequest;
 
   const activeOrgId = cookies.get(ACTIVE_ORGANIZATION_COOKIE_NAME)?.trim();
   if (activeOrgId) {
@@ -52,14 +52,12 @@ async function proxyToPhoenix({
     }
   }
 
-  const hasBody = request.method !== "GET" && request.method !== "HEAD";
-
   let upstream: Response;
   try {
     upstream = await fetch(target, {
       method: request.method,
       headers,
-      body: hasBody ? await request.arrayBuffer() : undefined
+      body: preparedRequest.body
     });
   } catch (error) {
     console.error("[api proxy] Phoenix unreachable", target.toString(), error);

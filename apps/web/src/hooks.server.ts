@@ -12,6 +12,7 @@ import {
   SUBSCRIPTION_PAGE
 } from "$lib/subscription";
 import { refreshSubscriptionStatusCookie } from "$lib/server/subscription-status";
+import { unauthenticatedApiResponse } from "$lib/server/unauthenticated-api-response";
 
 const AUTH_BASE = "/api/auth";
 const AUTH_ROUTES = new Set(["/login", "/signup"]);
@@ -62,6 +63,9 @@ const routeGuardHandle: Handle = async ({ event, resolve }) => {
   }
 
   if (!publicRoute && !loggedIn) {
+    const apiResponse = unauthenticatedApiResponse(pathname);
+    if (apiResponse) return apiResponse;
+
     const login = new URL("/login", event.url);
     login.searchParams.set("redirect", pathname);
     throw redirect(303, login.toString());

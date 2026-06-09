@@ -1,6 +1,8 @@
 <script lang="ts">
+  import { goto } from "$app/navigation";
   import { Star } from "@lucide/svelte";
   import type { Imovel } from "$lib/anuncios/types";
+  import { formatApiError } from "$lib/api/error-message";
   import {
     buildListingAmenityItems,
     buildListingCoreAmenityItems
@@ -14,6 +16,7 @@
   } from "$lib/components/anuncios/listings-metric-stacks-shared";
   import ComparisonTooltip from "$lib/components/comparacao/ComparisonTooltip.svelte";
   import WorkspacePanel from "$lib/components/workspace/WorkspacePanel.svelte";
+  import { deleteAnalysisListing } from "$lib/components/analise/delete-analysis-listing";
   import ListingAnalysisSummaryActions from "$lib/components/analise/ListingAnalysisSummaryActions.svelte";
   import AnaliseListingEditDialog from "$lib/components/analise/AnaliseListingEditDialog.svelte";
   import { getCollectionsContext } from "$lib/collections-context.svelte";
@@ -28,6 +31,7 @@
     getDisplayMetricToggleLabels,
     isCasaTipo
   } from "$lib/anuncios/area-metric-labels";
+  import { writeStoredWorkspaceListingId } from "$lib/workspace-listing-storage";
   import { cn } from "$lib/utils";
 
   type AnaliseAreaMetricColumn = {
@@ -69,8 +73,10 @@
     removeListing: (listingId: string) => Promise<void>;
   } = $props();
 
-  const { getListingDisplayTitle } = getCollectionsContext();
+  const collectionsContext = getCollectionsContext();
+  const { getListingDisplayTitle } = collectionsContext;
   const displayTitle = $derived(getListingDisplayTitle(listing));
+  const currentCollectionId = $derived(collectionId ?? collectionsContext.activeCollection?.id ?? null);
   const coreAmenityItems = $derived(buildListingCoreAmenityItems(listing));
   const amenityItems = $derived(buildListingAmenityItems(listing));
   const mapsUrl = $derived(listing.endereco ? buildGoogleMapsUrl(listing.endereco) : null);
@@ -81,6 +87,8 @@
 
   let copiedMarkdown = $state(false);
   let editDialogOpen = $state(false);
+  let isDeleting = $state(false);
+  let deleteError = $state<string | null>(null);
 
   async function handleToggleStar() {
     try {
@@ -115,11 +123,22 @@
   }
 
   async function handleDelete() {
+    if (isDeleting) return;
     if (!window.confirm("Excluir este imóvel da coleção?")) return;
+    deleteError = null;
+    isDeleting = true;
     try {
-      await removeListing(listing.id);
+      await deleteAnalysisListing({
+        listingId: listing.id,
+        collectionId: currentCollectionId,
+        removeListing,
+        clearStoredListing: (id) => writeStoredWorkspaceListingId(id, null),
+        navigate: (path) => goto(path)
+      });
     } catch (error) {
-      console.error("Failed to delete listing:", error);
+      deleteError = formatApiError(error);
+    } finally {
+      isDeleting = false;
     }
   }
 </script>
@@ -133,8 +152,15 @@
     onCopyMarkdown={() => void handleCopyListingMarkdown()}
     onEdit={() => (editDialogOpen = true)}
     onDelete={() => void handleDelete()}
+    {isDeleting}
     onChangeEtapa={(etapa) => void handleChangeListingEtapa(etapa)}
   />
+
+  {#if deleteError}
+    <div class="mb-3 rounded-lg border border-destructive/30 bg-destructive/10 p-3" role="alert">
+      <p class="text-sm text-destructive">{deleteError}</p>
+    </div>
+  {/if}
 
   <AnaliseListingEditDialog
     isOpen={editDialogOpen}

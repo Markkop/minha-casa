@@ -4,6 +4,7 @@
     createCollectionsState,
     setCollectionsContext
   } from "$lib/collections-context.svelte";
+  import { startCollectionIngestionPoller } from "$lib/components/anuncios/collection-ingestion-poller";
   import { isListingImageIngesting } from "$lib/listing-images";
 
   let { children, enabled = true } = $props<{
@@ -14,11 +15,8 @@
   const state = createCollectionsState();
   setCollectionsContext(state);
 
-  const ingestingListingIdsKey = $derived(
-    state.listings
-      .filter((listing) => isListingImageIngesting(listing.imageIngestionStatus))
-      .map((listing) => listing.id)
-      .join(",")
+  const hasIngestingListings = $derived(
+    state.listings.some((listing) => isListingImageIngesting(listing.imageIngestionStatus))
   );
 
   $effect(() => {
@@ -31,22 +29,15 @@
   });
 
   $effect(() => {
-    if (!enabled || !ingestingListingIdsKey || !state.activeCollection?.id) {
-      return;
-    }
+    const collectionId = state.activeCollection?.id;
+    if (!enabled || !hasIngestingListings || !collectionId) return;
 
-    const ids = ingestingListingIdsKey.split(",");
-    let ticks = 0;
-    const intervalId = window.setInterval(() => {
-      ticks += 1;
-      if (ticks > 40) {
-        window.clearInterval(intervalId);
-        return;
-      }
-      void Promise.all(ids.map((id) => state.refreshListing(id)));
-    }, 3000);
-
-    return () => window.clearInterval(intervalId);
+    return startCollectionIngestionPoller({
+      collectionId,
+      getActiveCollectionId: () => state.activeCollection?.id ?? null,
+      refreshCollection: (id) => state.loadListings(id, { silent: true }),
+      timerApi: window
+    });
   });
 </script>
 

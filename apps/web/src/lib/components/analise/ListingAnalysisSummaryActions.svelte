@@ -28,6 +28,7 @@
   let {
     listing,
     copiedMarkdown = false,
+    isDeleting = false,
     onCopyMarkdown,
     onEdit,
     onDelete,
@@ -35,6 +36,7 @@
   }: {
     listing: Imovel;
     copiedMarkdown?: boolean;
+    isDeleting?: boolean;
     onCopyMarkdown: () => void;
     onEdit: () => void;
     onDelete: () => void;
@@ -133,13 +135,19 @@
         <button
           type="button"
           onclick={onDelete}
-          class={cn(ACTION_BTN_CLASS, "hover:border-destructive/40 hover:text-destructive")}
-          aria-label="Excluir imóvel"
+          disabled={isDeleting}
+          aria-busy={isDeleting}
+          class={cn(
+            ACTION_BTN_CLASS,
+            "hover:border-destructive/40 hover:text-destructive",
+            "disabled:cursor-not-allowed disabled:opacity-60"
+          )}
+          aria-label={isDeleting ? "Excluindo imóvel" : "Excluir imóvel"}
         >
           <Trash2 class="h-3 w-3" />
         </button>
       {/snippet}
-      Excluir imóvel
+      {isDeleting ? "Excluindo imóvel..." : "Excluir imóvel"}
     </ComparisonTooltip>
 
     {#if whatsappUrl}

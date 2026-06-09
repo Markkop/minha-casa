@@ -9,6 +9,7 @@
     type ListingPreferenceOption
   } from "$lib/anuncios/listing-preferences";
   import type { Imovel } from "$lib/anuncios/types";
+  import { formatApiError } from "$lib/api/error-message";
   import { buildBaseListingTitle } from "$lib/listing-display-title";
   import { getCollectionsContext } from "$lib/collections-context.svelte";
   import { workspaceApi, type Condominium, type Region } from "$lib/workspace/client";
@@ -39,6 +40,7 @@
   let regions = $state<Region[]>([]);
   let condominiums = $state<Condominium[]>([]);
   let activeTab = $state<EditModalTabId>("basic");
+  let isDeleting = $state(false);
 
   $effect(() => {
     if (isOpen && listing) {
@@ -81,6 +83,7 @@
       };
       error = null;
       activeTab = "basic";
+      isDeleting = false;
 
       if (focusImageUrl) {
         setTimeout(() => document.getElementById("imageUrl")?.focus(), 100);
@@ -139,14 +142,18 @@
   }
 
   async function handleDelete() {
-    if (!listing) return;
+    if (!listing || isDeleting) return;
     if (!confirm("Excluir este imóvel permanentemente?")) return;
+    error = null;
+    isDeleting = true;
     try {
       await ctx.removeListing(listing.id);
       onListingUpdated?.();
       onClose();
     } catch (err) {
-      error = err instanceof Error ? err.message : "Erro ao excluir imóvel";
+      error = formatApiError(err);
+    } finally {
+      isDeleting = false;
     }
   }
 
@@ -213,13 +220,16 @@
           <button
             type="button"
             onclick={() => void handleDelete()}
+            disabled={isDeleting}
+            aria-busy={isDeleting}
             class={cn(
               "flex items-center justify-center gap-2 rounded-lg border border-destructive/40 px-4 py-2.5 font-medium text-destructive transition-all",
-              "hover:bg-destructive/10"
+              "hover:bg-destructive/10",
+              "disabled:cursor-not-allowed disabled:opacity-60"
             )}
           >
             <Trash2 class="h-4 w-4" />
-            Excluir
+            {isDeleting ? "Excluindo..." : "Excluir"}
           </button>
           <button
             type="button"
