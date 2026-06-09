@@ -7,6 +7,7 @@
   import WorkspaceListingQuerySync from "$lib/components/workspace/WorkspaceListingQuerySync.svelte";
   import WorkspaceRightSidebarContent from "$lib/components/layout/WorkspaceRightSidebarContent.svelte";
   import AdjustmentPanel from "$lib/components/financiamento/adjustment-panel.svelte";
+  import MobileParametersDock from "$lib/components/financiamento/MobileParametersDock.svelte";
   import DebtTimelineChart from "$lib/components/financiamento/DebtTimelineChart.svelte";
   import FreeBalanceTimelineChart from "$lib/components/financiamento/FreeBalanceTimelineChart.svelte";
   import MonthlyTotalTimelineChart from "$lib/components/financiamento/MonthlyTotalTimelineChart.svelte";
@@ -14,6 +15,7 @@
   import TotalBalanceTimelineChart from "$lib/components/financiamento/TotalBalanceTimelineChart.svelte";
   import TotalExpenseTimelineChart from "$lib/components/financiamento/TotalExpenseTimelineChart.svelte";
   import ResultsTableDock from "$lib/components/financiamento/ResultsTableDock.svelte";
+  import ResultsTable from "$lib/components/financiamento/ResultsTable.svelte";
   import ScenarioFilterToolbar from "$lib/components/financiamento/ScenarioFilterToolbar.svelte";
   import ChartGroup from "$lib/components/financiamento/charts/ChartGroup.svelte";
   import type { RecursosMeta } from "$lib/components/financiamento/financiamento-parameter-types";
@@ -411,6 +413,17 @@
   }
 </script>
 
+{#snippet adjustmentPanel()}
+  <AdjustmentPanel
+    {params}
+    {recursosMeta}
+    onChange={(next) => (params = next)}
+    onValueChange={handleValueChange}
+    onCapitalChange={(v) => handleValueChange("capitalDisponivel", v)}
+    onEntradaChange={(v) => handleValueChange("entradaDisponivel", v)}
+  />
+{/snippet}
+
 {#if !settingsContext.isLoaded}
   <WorkspaceLoadingState />
 {:else}
@@ -419,15 +432,8 @@
   >
     <AnaliseQuerySync />
     <WorkspaceListingQuerySync />
-    <WorkspaceRightSidebarContent title="Parâmetros">
-      <AdjustmentPanel
-        {params}
-        {recursosMeta}
-        onChange={(next) => (params = next)}
-        onValueChange={handleValueChange}
-        onCapitalChange={(v) => handleValueChange("capitalDisponivel", v)}
-        onEntradaChange={(v) => handleValueChange("entradaDisponivel", v)}
-      />
+    <WorkspaceRightSidebarContent title="Parâmetros" desktopOnly>
+      {@render adjustmentPanel()}
     </WorkspaceRightSidebarContent>
     <ScenarioFilterToolbar
       {scenarios}
@@ -442,6 +448,20 @@
       class="{WORKSPACE_CONTENT_CLASS} {WORKSPACE_STACK_CLASS} min-h-0 flex-1 overflow-y-auto overscroll-contain"
     >
       <div class="flex flex-col gap-4">
+        <section
+          class="{LISTINGS_SECTION_CLASS} lg:hidden"
+          aria-label="Resultados dos cenários"
+        >
+          <ResultsTable
+            cenarios={filteredCenarios}
+            {permutaDisponivel}
+            compact
+            {scenarioColorIndex}
+            {hiddenChartIds}
+            onToggleChartVisibility={toggleChartVisibility}
+          />
+        </section>
+
         <ChartGroup title="Saldos">
           <div class="grid gap-4 lg:grid-cols-2">
             <section class="{LISTINGS_SECTION_CLASS} overflow-visible">
@@ -509,6 +529,9 @@
         </ChartGroup>
       </div>
     </main>
+    <MobileParametersDock title="Parâmetros">
+      {@render adjustmentPanel()}
+    </MobileParametersDock>
     <ResultsTableDock
       cenarios={filteredCenarios}
       {permutaDisponivel}

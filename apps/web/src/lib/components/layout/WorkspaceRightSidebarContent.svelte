@@ -1,13 +1,18 @@
 <script lang="ts">
   import type { Snippet } from "svelte";
   import type { Action } from "svelte/action";
-  import { getWorkspaceRightSidebarContext } from "$lib/workspace-right-sidebar.svelte";
+  import {
+    createWorkspaceRightSidebarRegistration,
+    getWorkspaceRightSidebarContext
+  } from "$lib/workspace-right-sidebar.svelte";
 
   let {
     title,
+    desktopOnly = false,
     children
   }: {
     title: string;
+    desktopOnly?: boolean;
     children: Snippet;
   } = $props();
 
@@ -29,7 +34,7 @@
     };
   };
 
-  $effect(() => sidebar.register({ title }));
+  $effect(() => sidebar.register(createWorkspaceRightSidebarRegistration(title, desktopOnly)));
 </script>
 
 <div

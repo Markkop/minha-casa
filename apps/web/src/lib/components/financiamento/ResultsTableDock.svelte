@@ -18,7 +18,7 @@
 </script>
 
 <section
-  class="relative z-40 max-h-[min(14rem,30vh)] shrink-0 overflow-hidden border-t border-app-border bg-app-surface shadow-[0_-4px_12px_rgb(0_0_0/0.08)]"
+  class="relative z-40 hidden max-h-[min(14rem,30vh)] shrink-0 overflow-hidden border-t border-app-border bg-app-surface shadow-[0_-4px_12px_rgb(0_0_0/0.08)] lg:block"
   aria-label="Resultados dos cenários"
 >
   <ResultsTable

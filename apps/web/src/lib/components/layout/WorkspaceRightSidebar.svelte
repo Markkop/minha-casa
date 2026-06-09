@@ -18,7 +18,11 @@
     data-slot="right-sidebar"
     class={cn(
       "fixed inset-y-0 right-0 z-[80] w-[min(92vw,var(--right-sidebar-width))] flex-col border-l border-app-border bg-app-surface text-app-fg shadow-xl lg:z-50 lg:w-[var(--right-sidebar-width)] lg:shadow-none",
-      sidebar.mobileOpen ? "flex lg:hidden" : "hidden",
+      sidebar.registration.desktopOnly
+        ? "hidden"
+        : sidebar.mobileOpen
+          ? "flex lg:hidden"
+          : "hidden",
       sidebar.desktopOpen && "lg:flex"
     )}
   >
@@ -36,7 +40,7 @@
     <div bind:this={contentTarget} class="min-h-0 flex-1 overflow-y-auto"></div>
   </aside>
 
-  {#if sidebar.mobileOpen}
+  {#if sidebar.mobileOpen && !sidebar.registration.desktopOnly}
     <button
       type="button"
       class="fixed inset-0 z-[70] bg-black/35 lg:hidden"

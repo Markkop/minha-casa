@@ -14,6 +14,7 @@
     collectionBreadcrumbClass,
     onToggleSidebar,
     showRightSidebarToggle = false,
+    rightSidebarDesktopOnly = false,
     onToggleRightSidebar
   }: {
     showSubscriptionPendingChrome: boolean;
@@ -23,6 +24,7 @@
     collectionBreadcrumbClass: string;
     onToggleSidebar: () => void;
     showRightSidebarToggle?: boolean;
+    rightSidebarDesktopOnly?: boolean;
     onToggleRightSidebar?: () => void;
   } = $props();
 </script>
@@ -94,7 +96,10 @@
       <button
         type="button"
         data-slot="right-sidebar-trigger"
-        class="inline-flex size-8 shrink-0 items-center justify-center rounded-md text-app-muted transition hover:bg-app-surface-muted hover:text-app-fg"
+        class={cn(
+          "size-8 shrink-0 items-center justify-center rounded-md text-app-muted transition hover:bg-app-surface-muted hover:text-app-fg",
+          rightSidebarDesktopOnly ? "hidden lg:inline-flex" : "inline-flex"
+        )}
         aria-label="Alternar parâmetros financeiros"
         onclick={onToggleRightSidebar}
       >
