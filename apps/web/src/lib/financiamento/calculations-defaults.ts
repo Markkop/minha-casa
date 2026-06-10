@@ -37,6 +37,9 @@ export const DEFAULT_RECEBIMENTO_EXTRA_TIMING_MONTHS = [12] as const;
 /** Default selected “Reforma em” filter when reformas are on. */
 export const DEFAULT_REFORMA_TIMING_MONTHS = [1] as const;
 
+/** Default selected delay before the first aporte extra (0 = immediate). */
+export const DEFAULT_APORTE_INICIO_DELAY_MONTHS = [0] as const;
+
 /** Fixed assumptions for scenario generation (not exposed in the adjustment UI). */
 export const SIMULATION_ASSUMPTIONS = {
   prazoMeses: 360,

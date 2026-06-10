@@ -153,6 +153,17 @@ describe("normalizeSimulatorParams", () => {
     expect(params.temposVendaPosteriorMeses).toEqual([12]);
     expect(params.temposRecebimentoExtraMeses).toEqual([12]);
     expect(params.temposReformaMeses).toEqual([1]);
+    expect(params.temposInicioAporteExtraMeses).toEqual([0]);
+  });
+
+  it("validates aporte inicio delay filters", () => {
+    const defaults = createInitialSimulatorParams();
+    const result = normalizeSimulatorParams({
+      temposInicioAporteExtraMeses: [0, 2, 3, 99]
+    });
+    expect(result.temposInicioAporteExtraMeses).toEqual([0, 3]);
+    expect(normalizeSimulatorParams({ temposInicioAporteExtraMeses: [] })
+      .temposInicioAporteExtraMeses).toEqual(defaults.temposInicioAporteExtraMeses);
   });
 
   it("defaults new reform fields for older saved params", () => {

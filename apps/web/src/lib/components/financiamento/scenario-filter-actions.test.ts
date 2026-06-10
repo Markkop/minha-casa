@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createInitialSimulatorParams } from "$lib/financiamento/simulator-recursos";
 import {
+  buildAporteInicioPills,
   buildApproximatePricePills,
   patchSaleTimingToggle,
   selectedSaleTimingValues,
@@ -18,6 +19,19 @@ describe("scenario-filter-actions", () => {
     expect(pills.map((pill) => pill.value)).toContain(730_000);
     expect(pills.map((pill) => pill.value)).toContain(700_000);
     expect(pills.every((pill) => pill.label.startsWith("R$"))).toBe(true);
+  });
+
+  it("builds aporte inicio pills with duration labels", () => {
+    const pills = buildAporteInicioPills();
+    expect(pills.map((pill) => pill.value)).toEqual([0, 1, 3, 6, 12, 24]);
+    expect(pills.map((pill) => pill.label)).toEqual([
+      "Imediato",
+      "1 mês",
+      "3 meses",
+      "6 meses",
+      "1 ano",
+      "2 anos"
+    ]);
   });
 
   it("toggles permuta and venda posterior timing", () => {

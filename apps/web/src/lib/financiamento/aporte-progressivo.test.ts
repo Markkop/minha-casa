@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   calcularAporteExtraProgramado,
+  resolveAporteStartMonth,
   clampAporteProgressivoFields,
   formatIntervaloMeses
 } from "$lib/financiamento/aporte-progressivo";
@@ -72,6 +73,17 @@ describe("clampAporteProgressivoFields", () => {
     expect(result.aporteInicial).toBe(2_000);
     expect(result.aporteProgressao).toBe(3_000);
     expect(result.aporteIntervaloMeses).toBe(2);
+  });
+});
+
+describe("resolveAporteStartMonth", () => {
+  it("maps delay months to the first aporte month", () => {
+    expect(resolveAporteStartMonth(0)).toBe(1);
+    expect(resolveAporteStartMonth(1)).toBe(2);
+    expect(resolveAporteStartMonth(3)).toBe(4);
+    expect(resolveAporteStartMonth(6)).toBe(7);
+    expect(resolveAporteStartMonth(12)).toBe(13);
+    expect(resolveAporteStartMonth(24)).toBe(25);
   });
 });
 

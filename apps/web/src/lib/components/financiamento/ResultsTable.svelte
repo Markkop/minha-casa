@@ -66,6 +66,7 @@
   const showReformasColumn = $derived(cenarios.some((c) => c.totalReformas > 0));
   const showExtraColumn = $derived(cenarios.some((c) => c.extraEm !== undefined));
   const showReformaTimingColumn = $derived(cenarios.some((c) => c.reformaEm !== undefined));
+  const showAporteTimingColumn = $derived(cenarios.some((c) => c.aporteEm !== undefined));
 
   function handleSort(key: ResultsSortKey) {
     sort = toggleSort(sort, key);
@@ -74,6 +75,12 @@
   function formatTimingCell(months: number | undefined): string {
     if (months === undefined) return "—";
     return formatTimingMonthLabelLong(months);
+  }
+
+  function formatAporteDelayCell(delayMonths: number | undefined): string {
+    if (delayMonths === undefined) return "—";
+    if (delayMonths === 0) return "Imediato";
+    return `Após ${formatMonthDurationLong(delayMonths)}`;
   }
 
   const thClass = $derived(
@@ -184,6 +191,13 @@
         {#if showReformaTimingColumn}
           {@render sortableHeader("Reforma em", "reformaEm", "Mês de início da reforma")}
         {/if}
+        {#if showAporteTimingColumn}
+          {@render sortableHeader(
+            "Aporte em",
+            "aporteEm",
+            "Meses de espera antes do primeiro aporte extra"
+          )}
+        {/if}
         {@render sortableHeader(
           "Financiado",
           "valorFinanciado",
@@ -284,6 +298,11 @@
           {#if showReformaTimingColumn}
             <td class={cn(tdClass, monoCellClass)}>
               {formatTimingCell(cenario.reformaEm)}
+            </td>
+          {/if}
+          {#if showAporteTimingColumn}
+            <td class={cn(tdClass, monoCellClass)}>
+              {formatAporteDelayCell(cenario.aporteEm)}
             </td>
           {/if}
           <td class={cn(tdClass, monoCellClass)}>

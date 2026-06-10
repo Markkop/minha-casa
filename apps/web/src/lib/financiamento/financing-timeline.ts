@@ -94,6 +94,8 @@ export interface SimularTimelineInput {
   custoInicialReformas?: number;
   custoMensalMaximoReformas?: number;
   mesReforma?: number;
+  /** First month when aporte extra applies (default 1). */
+  mesInicioAporte?: number;
 }
 
 export function calcularCustoTotalEventAware(
@@ -124,7 +126,8 @@ export function simularTimelineMensal(input: SimularTimelineInput): TimelineResu
     custoTotalReformas = 0,
     custoInicialReformas = 0,
     custoMensalMaximoReformas = 0,
-    mesReforma = 1
+    mesReforma = 1,
+    mesInicioAporte = 1
   } = input;
 
   if (valorFinanciado <= 0) {
@@ -164,7 +167,10 @@ export function simularTimelineMensal(input: SimularTimelineInput): TimelineResu
       progressao: 0,
       intervaloMeses: 1
     };
-    const aporteMes = calcularAporteExtraProgramado(mes, aporteConfig);
+    const aporteMes =
+      mes < mesInicioAporte
+        ? 0
+        : calcularAporteExtraProgramado(mes - mesInicioAporte + 1, aporteConfig);
     const aporteAplicado = Math.min(aporteMes, Math.max(0, saldoDevedor - amortizacaoContrato));
     const amortizacaoTotal = amortizacaoContrato + aporteAplicado;
     /** Parcela do financiamento (SAC + juros + seguros), sem aporte extra voluntário. */

@@ -12,6 +12,11 @@ export const TIMING_MONTH_OPTIONS = [1, 6, 12, 24] as const;
 
 export type TimingMonth = (typeof TIMING_MONTH_OPTIONS)[number];
 
+/** Delay months before the first aporte extra (0 = immediate). */
+export const APORTE_INICIO_DELAY_OPTIONS = [0, 1, 3, 6, 12, 24] as const;
+
+export type AporteInicioDelay = (typeof APORTE_INICIO_DELAY_OPTIONS)[number];
+
 export type EstrategiaFiltro = "permuta" | "venda_posterior";
 
 export type SliderField =
@@ -53,6 +58,8 @@ export interface SimulatorParams {
   temposVendaPosteriorMeses: number[];
   temposRecebimentoExtraMeses: number[];
   temposReformaMeses: number[];
+  /** Selected delay months before the first aporte extra (0 = immediate). */
+  temposInicioAporteExtraMeses: number[];
   /** Scenario ids hidden from timeline charts (table rows remain visible). */
   cenariosOcultosGraficos: string[];
   /** Listing id that last drove valorImovel via breadcrumb; null when unlinked. */

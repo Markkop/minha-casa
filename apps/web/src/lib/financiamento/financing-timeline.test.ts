@@ -203,6 +203,50 @@ describe("simularTimelineMensal", () => {
     expect(result.meses[6]?.aporteExtra).toBe(2_000);
   });
 
+  it("applies aporte from month 1 when delay is zero", () => {
+    const result = simularTimelineMensal({
+      ...baseTimeline,
+      estrategia: "financiamento",
+      aporteExtra: 5_000,
+      mesInicioAporte: 1
+    });
+
+    expect(result.meses[0]?.aporteExtra).toBe(5_000);
+  });
+
+  it("delays fixed aporte until the resolved start month", () => {
+    const result = simularTimelineMensal({
+      ...baseTimeline,
+      estrategia: "financiamento",
+      aporteExtra: 5_000,
+      mesInicioAporte: 4
+    });
+
+    expect(result.meses[0]?.aporteExtra).toBe(0);
+    expect(result.meses[2]?.aporteExtra).toBe(0);
+    expect(result.meses[3]?.aporteExtra).toBe(5_000);
+  });
+
+  it("starts progressive aporte ramp when the delay period ends", () => {
+    const result = simularTimelineMensal({
+      ...baseTimeline,
+      estrategia: "financiamento",
+      aporteExtra: 10_000,
+      mesInicioAporte: 7,
+      aporteProgressivo: {
+        enabled: true,
+        max: 10_000,
+        inicial: 0,
+        progressao: 1_000,
+        intervaloMeses: 1
+      }
+    });
+
+    expect(result.meses[5]?.aporteExtra).toBe(0);
+    expect(result.meses[6]?.aporteExtra).toBe(0);
+    expect(result.meses[7]?.aporteExtra).toBe(1_000);
+  });
+
   it("keeps prestacao separate from aporte extra mensal", () => {
     const semAporte = simularTimelineMensal({
       ...baseTimeline,
@@ -304,6 +348,34 @@ describe("gerarMatrizCenarios", () => {
 
     expect(rows).toHaveLength(2);
     expect(rows.map((r) => r.reformaEm).sort((a, b) => (a ?? 0) - (b ?? 0))).toEqual([1, 6]);
+  });
+
+  it("expands scenarios across selected aporte start delays", () => {
+    const rows = gerarMatrizCenarios({
+      ...matrixBase,
+      valoresApartamento: [0],
+      temImovelParaNegociar: false,
+      esperaQuantiaExtra: false,
+      aporteExtra: 5_000,
+      temposInicioAporteExtraMeses: [0, 3]
+    });
+
+    expect(rows).toHaveLength(2);
+    expect(rows.map((r) => r.aporteEm).sort((a, b) => (a ?? 0) - (b ?? 0))).toEqual([0, 3]);
+  });
+
+  it("does not expand aporte timing when aporte extra is zero", () => {
+    const rows = gerarMatrizCenarios({
+      ...matrixBase,
+      valoresApartamento: [0],
+      temImovelParaNegociar: false,
+      esperaQuantiaExtra: false,
+      aporteExtra: 0,
+      temposInicioAporteExtraMeses: [0, 6]
+    });
+
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.aporteEm).toBeUndefined();
   });
 
   it("does not expand reform timing when reforms are disabled", () => {

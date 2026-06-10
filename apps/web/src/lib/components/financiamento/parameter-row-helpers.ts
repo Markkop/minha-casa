@@ -53,6 +53,12 @@ export function snapToPropertyStep(value: number): number {
   return Math.round(value / PROPERTY_SLIDER_STEP) * PROPERTY_SLIDER_STEP;
 }
 
+/** Labels for aporte-extra start delay pills and legends. */
+export function formatAporteInicioLabel(delayMonths: number): string {
+  if (delayMonths === 0) return "Imediato";
+  return formatMonthDurationLong(delayMonths);
+}
+
 export function formatTimingMonthLabel(months: number): string {
   if (months === 1) return "1m";
   if (months === 6) return "6m";

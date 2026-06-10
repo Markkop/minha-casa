@@ -1,4 +1,5 @@
 import {
+  APORTE_INICIO_DELAY_OPTIONS,
   TIMING_MONTH_OPTIONS,
   type EstrategiaFiltro,
   type SimulatorParams
@@ -17,6 +18,7 @@ export const LEGACY_SIMULATOR_PARAMS_STORAGE_KEY = "minha-casa-financiamento-par
 
 const VALID_ESTRATEGIAS = new Set<EstrategiaFiltro>(["permuta", "venda_posterior"]);
 const VALID_TIMING_MONTHS = new Set<number>(TIMING_MONTH_OPTIONS);
+const VALID_APORTE_INICIO_DELAYS = new Set<number>(APORTE_INICIO_DELAY_OPTIONS);
 const MAX_PRICE_FILTER_VALUE = 50_000_000;
 
 /** Stored shape, including fields used before the capital/entrada split. */
@@ -63,6 +65,16 @@ function validTimingMonthList(value: unknown, fallback: number[]): number[] {
   }
   const filtered = value.filter(
     (v): v is number => typeof v === "number" && VALID_TIMING_MONTHS.has(v)
+  );
+  return filtered.length > 0 ? filtered : fallback;
+}
+
+function validAporteInicioDelayList(value: unknown, fallback: number[]): number[] {
+  if (!Array.isArray(value)) {
+    return fallback;
+  }
+  const filtered = value.filter(
+    (v): v is number => typeof v === "number" && VALID_APORTE_INICIO_DELAYS.has(v)
   );
   return filtered.length > 0 ? filtered : fallback;
 }
@@ -184,6 +196,10 @@ export function normalizeSimulatorParams(parsed: StoredSimulatorParams): Simulat
     temposReformaMeses: validTimingMonthList(
       parsed.temposReformaMeses,
       defaults.temposReformaMeses
+    ),
+    temposInicioAporteExtraMeses: validAporteInicioDelayList(
+      parsed.temposInicioAporteExtraMeses,
+      defaults.temposInicioAporteExtraMeses
     ),
     cenariosOcultosGraficos: validScenarioIdList(
       parsed.cenariosOcultosGraficos,

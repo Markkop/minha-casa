@@ -1,6 +1,13 @@
-import { TIMING_MONTH_OPTIONS, type SimulatorParams } from "$lib/components/financiamento/financiamento-parameter-types";
+import {
+  APORTE_INICIO_DELAY_OPTIONS,
+  TIMING_MONTH_OPTIONS,
+  type SimulatorParams
+} from "$lib/components/financiamento/financiamento-parameter-types";
 import { buildApproximatePriceValues } from "$lib/components/financiamento/price-filter-approx";
-import { formatTimingMonthLabelLong } from "$lib/components/financiamento/parameter-row-helpers";
+import {
+  formatAporteInicioLabel,
+  formatTimingMonthLabelLong
+} from "$lib/components/financiamento/parameter-row-helpers";
 import { formatCurrencyCompact } from "$lib/financiamento/calculations";
 
 export type ScenarioFilterPillOption<T extends string | number = string | number> = {
@@ -33,6 +40,13 @@ export function buildTimingMonthPills(): ScenarioFilterPillOption<number>[] {
   return TIMING_MONTH_OPTIONS.map((months) => ({
     value: months,
     label: formatTimingMonthLabelLong(months)
+  }));
+}
+
+export function buildAporteInicioPills(): ScenarioFilterPillOption<number>[] {
+  return APORTE_INICIO_DELAY_OPTIONS.map((delayMonths) => ({
+    value: delayMonths,
+    label: formatAporteInicioLabel(delayMonths)
   }));
 }
 

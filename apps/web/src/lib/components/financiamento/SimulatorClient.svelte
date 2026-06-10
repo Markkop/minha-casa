@@ -160,7 +160,8 @@
       esperaQuantiaExtra: effective.esperaQuantiaExtra,
       temposVendaPosteriorMeses: params.temposVendaPosteriorMeses,
       temposRecebimentoExtraMeses: params.temposRecebimentoExtraMeses,
-      temposReformaMeses: params.temposReformaMeses
+      temposReformaMeses: params.temposReformaMeses,
+      temposInicioAporteExtraMeses: params.temposInicioAporteExtraMeses
     })
   );
 
@@ -188,6 +189,11 @@
       }
       if (effective.custoTotalReformas > 0 && c.reformaEm !== undefined) {
         if (!params.temposReformaMeses.includes(c.reformaEm)) {
+          return false;
+        }
+      }
+      if (params.aporteExtra > 0 && c.aporteEm !== undefined) {
+        if (!params.temposInicioAporteExtraMeses.includes(c.aporteEm)) {
           return false;
         }
       }

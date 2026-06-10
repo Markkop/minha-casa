@@ -16,6 +16,7 @@
   import ScenarioFilterPills from "$lib/components/financiamento/ScenarioFilterPills.svelte";
   import {
     buildApproximatePricePills,
+    buildAporteInicioPills,
     buildSaleTimingPills,
     buildTimingMonthPills,
     patchSaleTimingToggle,
@@ -177,6 +178,7 @@
       aporteInicial: UI_DEFAULTS.aporteInicial,
       aporteProgressao: UI_DEFAULTS.aporteProgressao,
       aporteIntervaloMeses: UI_DEFAULTS.aporteIntervaloMeses,
+      temposInicioAporteExtraMeses: filterDefaults.temposInicioAporteExtraMeses,
       taxaAnual: UI_DEFAULTS.taxaAnual,
       trMensal: UI_DEFAULTS.trMensal,
       esperaQuantiaExtra: UI_DEFAULTS.esperaQuantiaExtra,
@@ -190,6 +192,7 @@
   const saleTimingPills = buildSaleTimingPills();
   const extraTimingPills = buildTimingMonthPills();
   const reformTimingPills = buildTimingMonthPills();
+  const aporteInicioPills = buildAporteInicioPills();
   const selectedSaleTiming = $derived(selectedSaleTimingValues(params));
 </script>
 
@@ -554,7 +557,22 @@
             value: params.aporteExtra,
             onChange: (value) => patchAporteProgressivo({ aporteExtra: value })
           }}
-        />
+        >
+          {#snippet extras()}
+            <ScenarioFilterPills
+              options={aporteInicioPills}
+              selected={params.temposInicioAporteExtraMeses}
+              ariaLabel="Meses até iniciar o aporte extra"
+              onToggle={(value) =>
+                patch({
+                  temposInicioAporteExtraMeses: toggleNumberList(
+                    params.temposInicioAporteExtraMeses,
+                    value
+                  )
+                })}
+            />
+          {/snippet}
+        </ParameterRow>
         <div class="pt-2">
           {@render sectionCheckbox(
             "aporte-progressivo",

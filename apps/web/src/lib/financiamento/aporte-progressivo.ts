@@ -88,3 +88,8 @@ export function formatIntervaloMeses(value: number): string {
   const months = clampIntervaloMeses(value);
   return months === 1 ? "1 mês" : `${months} meses`;
 }
+
+/** First financing month when aporte extra applies (delay 0 = month 1). */
+export function resolveAporteStartMonth(delayMonths: number): number {
+  return delayMonths === 0 ? 1 : delayMonths + 1;
+}

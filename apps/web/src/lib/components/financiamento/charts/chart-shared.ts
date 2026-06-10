@@ -2,7 +2,10 @@ import {
   formatCurrencyCompact,
   type CenarioCompleto
 } from "$lib/financiamento/calculations";
-import { formatTimingMonthLabel } from "$lib/components/financiamento/parameter-row-helpers";
+import {
+  formatAporteInicioLabel,
+  formatTimingMonthLabel
+} from "$lib/components/financiamento/parameter-row-helpers";
 
 export const CHART_COLORS = [
   "var(--color-app-accent)",
@@ -79,6 +82,9 @@ export function scenarioLabel(cenario: CenarioCompleto): string {
   }
   if (cenario.reformaEm !== undefined) {
     parts.push(`reforma ${formatTimingMonthLabel(cenario.reformaEm)}`);
+  }
+  if (cenario.aporteEm !== undefined) {
+    parts.push(`aporte ${formatAporteInicioLabel(cenario.aporteEm)}`);
   }
   return parts.join(" · ");
 }

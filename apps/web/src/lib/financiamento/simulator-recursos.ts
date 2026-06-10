@@ -1,6 +1,7 @@
 import type { SimulatorParams } from "$lib/components/financiamento/financiamento-parameter-types";
 import { defaultSelectedPriceFilters } from "$lib/components/financiamento/price-filter-approx";
 import {
+  DEFAULT_APORTE_INICIO_DELAY_MONTHS,
   DEFAULT_REFORMA_TIMING_MONTHS,
   DEFAULT_RECEBIMENTO_EXTRA_TIMING_MONTHS,
   DEFAULT_VENDA_POSTERIOR_TIMING_MONTHS,
@@ -16,6 +17,7 @@ export function createInitialSimulatorParams(): SimulatorParams {
     temposVendaPosteriorMeses: [...DEFAULT_VENDA_POSTERIOR_TIMING_MONTHS],
     temposRecebimentoExtraMeses: [...DEFAULT_RECEBIMENTO_EXTRA_TIMING_MONTHS],
     temposReformaMeses: [...DEFAULT_REFORMA_TIMING_MONTHS],
+    temposInicioAporteExtraMeses: [...DEFAULT_APORTE_INICIO_DELAY_MONTHS],
     cenariosOcultosGraficos: [],
     linkedListingId: null
   };

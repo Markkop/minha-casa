@@ -7,6 +7,7 @@ export type ResultsSortKey =
   | "vendaEm"
   | "extraEm"
   | "reformaEm"
+  | "aporteEm"
   | "totalMensal"
   | "totalReformas"
   | "comprometimento"
@@ -29,6 +30,7 @@ function sortValue(cenario: CenarioCompleto, key: ResultsSortKey): number {
     vendaEm: cenario.vendaEm ?? 0,
     extraEm: cenario.extraEm ?? 0,
     reformaEm: cenario.reformaEm ?? 0,
+    aporteEm: cenario.aporteEm ?? 0,
     totalMensal: cenario.totalMensal,
     totalReformas: cenario.totalReformas,
     comprometimento: cenario.comprometimento.percentual,
