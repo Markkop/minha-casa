@@ -6,7 +6,7 @@ import {
   preferredChartBreakdownPlacement,
   shouldUseInsideFallback
 } from "./chart-breakdown-floating";
-import { CHART_BREAKDOWN_OFFSET, CHART_BREAKDOWN_KEEP_OUT_RADIUS } from "./floating-position";
+import { CHART_BREAKDOWN_OFFSET } from "./floating-position";
 
 const PLOT_BOUNDS = { left: 56, top: 16, right: 400, bottom: 228 };
 const PANEL_WIDTH = 200;
