@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Printer, Star } from "@lucide/svelte";
+  import { Download, Printer, Star } from "@lucide/svelte";
   import { page } from "$app/state";
   import type { Imovel } from "$lib/anuncios/types";
   import { normalizeCoverIndex } from "$lib/listing-image-categories";
@@ -118,7 +118,8 @@
         class="inline-flex h-8 items-center gap-1.5 rounded-md border border-app-border bg-app-surface px-2.5 text-xs font-medium text-app-fg shadow-sm hover:bg-app-bg"
       >
         <Printer class="size-3.5" />
-        Imprimir
+        <Download class="size-3.5" />
+        Imprimir / baixar
       </a>
     </div>
 

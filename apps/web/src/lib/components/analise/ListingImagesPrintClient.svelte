@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { ArrowLeft, Loader2, Printer } from "@lucide/svelte";
+  import { ArrowLeft, Download, Loader2, Printer } from "@lucide/svelte";
   import { page } from "$app/state";
   import type { Imovel } from "$lib/anuncios/types";
   import { toImovel } from "$lib/anuncios/types";
@@ -10,7 +10,8 @@
     serializePrintItemsForStorage,
     writeStoredListingImagesPrintPrefs
   } from "$lib/components/analise/listing-images-print-storage";
-  import { resolveListingGalleryImages } from "$lib/listing-gallery";
+  import { getImageEnvironmentLabel, resolveListingGalleryImages } from "$lib/listing-gallery";
+  import { downloadSelectedImagesZip } from "$lib/listing-images-download";
   import { buildListingAnaliseHref } from "$lib/listing-analise-url";
   import { workspaceApi } from "$lib/workspace/client";
   import { cn } from "$lib/utils";
@@ -21,6 +22,8 @@
   let loadedUrls = $state<string[]>([]);
   let printItems = $state<PrintImageItem[]>([]);
   let initializedGallerySignature = $state("");
+  let isDownloading = $state(false);
+  let downloadError = $state<string | null>(null);
 
   const collectionId = $derived(page.url.searchParams.get("collection"));
   const listingId = $derived(page.url.searchParams.get("listing"));
@@ -42,6 +45,14 @@
   const allSelectedImagesLoaded = $derived(
     selectedPrintImages.length === 0 ||
       selectedPrintImages.every((item) => loadedUrls.includes(item.url))
+  );
+
+  const actionsDisabled = $derived(
+    isLoading ||
+      Boolean(loadError) ||
+      selectedPrintImages.length === 0 ||
+      !allSelectedImagesLoaded ||
+      isDownloading
   );
 
   $effect(() => {
@@ -126,6 +137,27 @@
   function handlePrint() {
     window.print();
   }
+
+  async function handleDownload() {
+    if (!listing || actionsDisabled) return;
+
+    isDownloading = true;
+    downloadError = null;
+
+    try {
+      await downloadSelectedImagesZip({
+        title: listing.titulo,
+        listingId: listing.id,
+        images: selectedPrintImages,
+        getLabel: (originalIndex) => getImageEnvironmentLabel(listing!, originalIndex)
+      });
+    } catch (error) {
+      downloadError =
+        error instanceof Error ? error.message : "Não foi possível gerar o arquivo para download.";
+    } finally {
+      isDownloading = false;
+    }
+  }
 </script>
 
 <div class="print-page">
@@ -138,32 +170,43 @@
       Voltar
     </a>
 
-    <button
-      type="button"
-      onclick={handlePrint}
-      disabled={
-        isLoading ||
-        Boolean(loadError) ||
-        selectedPrintImages.length === 0 ||
-        !allSelectedImagesLoaded
-      }
-      class={cn(
-        "print-toolbar-print inline-flex shrink-0 items-center gap-1.5 rounded-md border border-neutral-300 bg-white px-3 py-1.5 text-sm font-medium text-neutral-900 shadow-sm hover:bg-neutral-50",
-        (isLoading ||
-          Boolean(loadError) ||
-          selectedPrintImages.length === 0 ||
-          !allSelectedImagesLoaded) &&
-          "cursor-not-allowed opacity-60"
-      )}
-    >
-      {#if selectedPrintImages.length > 0 && !allSelectedImagesLoaded}
-        <Loader2 class="size-4 animate-spin" />
-        Carregando imagens...
-      {:else}
-        <Printer class="size-4" />
-        Imprimir
-      {/if}
-    </button>
+    <div class="print-toolbar-actions flex shrink-0 items-center gap-2">
+      <button
+        type="button"
+        onclick={handlePrint}
+        disabled={actionsDisabled}
+        class={cn(
+          "print-toolbar-print inline-flex shrink-0 items-center gap-1.5 rounded-md border border-neutral-300 bg-white px-3 py-1.5 text-sm font-medium text-neutral-900 shadow-sm hover:bg-neutral-50",
+          actionsDisabled && "cursor-not-allowed opacity-60"
+        )}
+      >
+        {#if selectedPrintImages.length > 0 && !allSelectedImagesLoaded}
+          <Loader2 class="size-4 animate-spin" />
+          Carregando imagens...
+        {:else}
+          <Printer class="size-4" />
+          Imprimir
+        {/if}
+      </button>
+
+      <button
+        type="button"
+        onclick={handleDownload}
+        disabled={actionsDisabled}
+        class={cn(
+          "print-toolbar-download inline-flex shrink-0 items-center gap-1.5 rounded-md border border-neutral-300 bg-white px-3 py-1.5 text-sm font-medium text-neutral-900 shadow-sm hover:bg-neutral-50",
+          actionsDisabled && "cursor-not-allowed opacity-60"
+        )}
+      >
+        {#if isDownloading}
+          <Loader2 class="size-4 animate-spin" />
+          Gerando arquivo...
+        {:else}
+          <Download class="size-4" />
+          Baixar
+        {/if}
+      </button>
+    </div>
   </header>
 
   {#if printItems.length > 0}
@@ -180,8 +223,11 @@
     {:else if galleryImages.length === 0}
       <p class="print-status">Sem imagens para este imóvel.</p>
     {:else if selectedPrintImages.length === 0}
-      <p class="print-status">Selecione ao menos uma imagem para imprimir.</p>
+      <p class="print-status">Selecione ao menos uma imagem para imprimir ou baixar.</p>
     {:else}
+      {#if downloadError}
+        <p class="print-status print-status-error">{downloadError}</p>
+      {/if}
       <div class="print-grid">
         {#each selectedPrintImages as image (image.url + image.originalIndex)}
           <figure class="print-item">
@@ -282,5 +328,10 @@
   .print-status {
     font-size: 0.875rem;
     color: rgb(82 82 82);
+  }
+
+  .print-status-error {
+    margin-bottom: 0.75rem;
+    color: rgb(185 28 28);
   }
 </style>
