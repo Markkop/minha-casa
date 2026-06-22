@@ -3,6 +3,8 @@ import { createInitialSimulatorParams } from "$lib/financiamento/simulator-recur
 import {
   buildAporteInicioPills,
   buildApproximatePricePills,
+  buildSaleTimingPills,
+  buildTimingMonthPills,
   patchSaleTimingToggle,
   selectedSaleTimingValues,
   toggleNumberList
@@ -31,6 +33,24 @@ describe("scenario-filter-actions", () => {
       "6 meses",
       "1 ano",
       "2 anos"
+    ]);
+  });
+
+  it("includes three months in timing pills", () => {
+    expect(buildTimingMonthPills().map((pill) => pill.label)).toEqual([
+      "1 mês",
+      "3 meses",
+      "6 meses",
+      "1 ano",
+      "2 anos"
+    ]);
+    expect(buildSaleTimingPills().map((pill) => pill.value)).toEqual([
+      "permuta",
+      1,
+      3,
+      6,
+      12,
+      24
     ]);
   });
 

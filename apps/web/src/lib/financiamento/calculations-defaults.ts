@@ -26,7 +26,7 @@ export const UI_DEFAULTS = {
 } as const;
 
 /** All selectable months in scenario filter chips. */
-export const DEFAULT_TIMING_MONTHS = [1, 6, 12, 24] as const;
+export const DEFAULT_TIMING_MONTHS = [1, 3, 6, 12, 24] as const;
 
 /** Default selected “Venda em” filter when imóvel para negociar is on. */
 export const DEFAULT_VENDA_POSTERIOR_TIMING_MONTHS = [12] as const;

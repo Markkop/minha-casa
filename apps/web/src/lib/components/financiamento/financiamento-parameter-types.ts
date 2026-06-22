@@ -8,7 +8,7 @@ export const PERCENTAGE_OPTIONS = [
 ] as const;
 
 /** Sale / extra-receipt timing options for scenario filters (months). */
-export const TIMING_MONTH_OPTIONS = [1, 6, 12, 24] as const;
+export const TIMING_MONTH_OPTIONS = [1, 3, 6, 12, 24] as const;
 
 export type TimingMonth = (typeof TIMING_MONTH_OPTIONS)[number];
 
