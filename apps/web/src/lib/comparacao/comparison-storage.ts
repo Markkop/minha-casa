@@ -49,7 +49,8 @@ export function readStoredComparisonSelection(
     const slots = fillBlankComparisonSlots(
       normalizeComparisonSlots(
         parsed.slots.map((slot) => (typeof slot === "string" ? slot : null)),
-        listings
+        listings,
+        listings.length
       ),
       listings
     );

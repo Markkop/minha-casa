@@ -23,36 +23,8 @@ export const COMPARISON_LABEL_COL_WIDTH_MOBILE_PX = 48
 export const COMPARISON_SLOT_COL_WIDTH_MOBILE_PX = 102
 /** Tailwind `max-md` — mobile comparison layout (icons, narrow columns). */
 export const COMPARISON_MOBILE_LAYOUT_QUERY = "(max-width: 767px)"
-export const COMPARISON_SLOT_COUNT_NARROW = 3
-export const COMPARISON_SLOT_COUNT_MEDIUM = 4
-/** @deprecated Use COMPARISON_SLOT_COUNT_MEDIUM */
-export const COMPARISON_SLOT_COUNT_COMPACT = COMPARISON_SLOT_COUNT_MEDIUM
-export const COMPARISON_SLOT_COUNT_MAX = 5
-/** Tailwind `lg` and below — three slots. */
-export const COMPARISON_SLOT_COUNT_NARROW_QUERY = "(max-width: 1024px)"
-/** Tailwind `xl` — five slots from this width up; four between `lg` and `xl`. */
-export const COMPARISON_SLOT_COUNT_WIDE_QUERY = "(min-width: 1280px)"
-/** @deprecated Use COMPARISON_SLOT_COUNT_MAX */
-export const COMPARISON_SLOT_COUNT = COMPARISON_SLOT_COUNT_MAX
 export type ComparisonSlot = string | null
 export type TrendDirection = "up" | "down" | "equal" | null
-
-export function getComparisonVisibleSlotCount(viewport: {
-  matchesNarrowViewport: boolean
-  matchesWideViewport: boolean
-}) {
-  if (viewport.matchesNarrowViewport) return COMPARISON_SLOT_COUNT_NARROW
-  if (viewport.matchesWideViewport) return COMPARISON_SLOT_COUNT_MAX
-  return COMPARISON_SLOT_COUNT_MEDIUM
-}
-
-export function readComparisonVisibleSlotCountFromWindow() {
-  if (typeof window === "undefined") return COMPARISON_SLOT_COUNT_MAX
-  return getComparisonVisibleSlotCount({
-    matchesNarrowViewport: window.matchMedia(COMPARISON_SLOT_COUNT_NARROW_QUERY).matches,
-    matchesWideViewport: window.matchMedia(COMPARISON_SLOT_COUNT_WIDE_QUERY).matches,
-  })
-}
 
 export function getComparisonLabelColWidthPx(mobile = false) {
   return mobile ? COMPARISON_LABEL_COL_WIDTH_MOBILE_PX : COMPARISON_LABEL_COL_WIDTH_PX
@@ -76,7 +48,7 @@ export function getComparisonSlotHeaderHeightPx(slotColWidthPx: number) {
 
 export function initializeComparisonSlots(
   listings: Pick<Imovel, "id">[],
-  slotCount: number = COMPARISON_SLOT_COUNT_MAX
+  slotCount: number = listings.length
 ): ComparisonSlot[] {
   const initial: ComparisonSlot[] = listings
     .slice(0, slotCount)
@@ -88,7 +60,7 @@ export function initializeComparisonSlots(
 export function normalizeComparisonSlots(
   slots: ComparisonSlot[],
   listings: Pick<Imovel, "id">[],
-  slotCount: number = COMPARISON_SLOT_COUNT_MAX
+  slotCount: number = listings.length
 ): ComparisonSlot[] {
   const validIds = new Set(listings.map((listing) => listing.id))
   const seen = new Set<string>()
@@ -105,7 +77,8 @@ export function getComparisonAutoFillCandidates(listings: Imovel[]): Imovel[] {
   const eligible = listings.filter((listing) => !listing.strikethrough)
   const favorites = eligible.filter((listing) => listing.starred)
   const nonFavorites = eligible.filter((listing) => !listing.starred)
-  return [...favorites, ...nonFavorites]
+  const strikethrough = listings.filter((listing) => listing.strikethrough)
+  return [...favorites, ...nonFavorites, ...strikethrough]
 }
 
 export function fillBlankComparisonSlots(slots: ComparisonSlot[], listings: Imovel[]): ComparisonSlot[] {

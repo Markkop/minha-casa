@@ -41,13 +41,11 @@
     writeStoredComparisonSelection
   } from "$lib/comparacao/comparison-storage";
   import { createComparisonMobileLayout } from "$lib/comparacao/use-comparison-mobile-layout.svelte";
-  import { createComparisonVisibleSlotCount } from "$lib/comparacao/use-comparison-visible-slot-count.svelte";
   import type { Imovel } from "$lib/anuncios/types";
   import { cn } from "$lib/utils";
 
   const ctx = getCollectionsContext();
   const mobileLayout = createComparisonMobileLayout();
-  const visibleSlots = createComparisonVisibleSlotCount();
 
   let slotIds = $state<ComparisonSlot[]>(initializeComparisonSlots([]));
   let fixedCell = $state<FixedCell | null>(null);
@@ -57,7 +55,7 @@
   const uniqueContacts = $derived(extractUniqueContacts(ctx.listings));
 
   const isMobileLayout = $derived(mobileLayout.current);
-  const visibleSlotCount = $derived(visibleSlots.current);
+  const visibleSlotCount = $derived(ctx.listings.length);
   const labelColWidthPx = $derived(getComparisonLabelColWidthPx(isMobileLayout));
   const slotColWidthPx = $derived(getComparisonSlotColWidthPx(isMobileLayout));
   const slotHeaderHeightPx = $derived(getComparisonSlotHeaderHeightPx(slotColWidthPx));
@@ -109,7 +107,7 @@
   });
 
   const selectedListings = $derived(
-    getSlotListings(slotIds, ctx.listings).slice(0, visibleSlotCount)
+    getSlotListings(slotIds, ctx.listings)
   );
 
   const selectedFilledListings = $derived(
