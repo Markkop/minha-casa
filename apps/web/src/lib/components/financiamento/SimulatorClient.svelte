@@ -1,6 +1,7 @@
 <script lang="ts">
   import { browser } from "$app/environment";
   import { goto } from "$app/navigation";
+  import { Check, Copy } from "@lucide/svelte";
   import { onMount } from "svelte";
   import { page } from "$app/state";
   import AnaliseQuerySync from "$lib/components/analise/AnaliseQuerySync.svelte";
@@ -29,6 +30,7 @@
   import { getCollectionsContext } from "$lib/collections-context.svelte";
   import WorkspaceLoadingState from "$lib/components/workspace/WorkspaceLoadingState.svelte";
   import { UI_DEFAULTS } from "$lib/financiamento/calculations-defaults";
+  import { buildActiveParametersText } from "$lib/financiamento/active-parameters-text";
   import { calcularReservaRecomendada, gerarMatrizCenarios } from "$lib/financiamento/calculations";
   import { resolveEffectiveParams } from "$lib/financiamento/financing-effective-params";
   import { valorImovelFromListing } from "$lib/financiamento/listing-valor-imovel";
@@ -80,6 +82,7 @@
   let scenarios = $state<SimulatorScenarioSnapshot[]>(browser ? loadScenarioSnapshots() : []);
   let priceInitialized = $state(false);
   let restoringScenario = $state(false);
+  let copiedParameters = $state(false);
 
   const suggestedScenarioName = $derived(suggestScenarioName(scenarios));
   const canCreateScenario = $derived(scenarios.length < MAX_SIMULATOR_SCENARIOS);
@@ -282,6 +285,16 @@
     refreshScenarios();
   }
 
+  async function copyActiveParameters() {
+    try {
+      await navigator.clipboard.writeText(buildActiveParametersText(params));
+      copiedParameters = true;
+      window.setTimeout(() => (copiedParameters = false), 2000);
+    } catch {
+      copiedParameters = false;
+    }
+  }
+
   async function handleRestoreScenario(id: string) {
     const snapshot = findScenarioSnapshot(scenarios, id);
     if (!snapshot) return;
@@ -419,6 +432,23 @@
   }
 </script>
 
+{#snippet sidebarActions()}
+  <button
+    type="button"
+    class="inline-flex size-8 shrink-0 items-center justify-center rounded-md text-app-muted transition hover:bg-app-surface-muted hover:text-app-fg"
+    class:text-app-accent={copiedParameters}
+    title={copiedParameters ? "Parâmetros copiados" : "Copiar parâmetros ativos"}
+    aria-label={copiedParameters ? "Parâmetros copiados" : "Copiar parâmetros ativos"}
+    onclick={() => void copyActiveParameters()}
+  >
+    {#if copiedParameters}
+      <Check class="size-4" />
+    {:else}
+      <Copy class="size-4" />
+    {/if}
+  </button>
+{/snippet}
+
 {#snippet adjustmentPanel()}
   <AdjustmentPanel
     {params}
@@ -438,7 +468,7 @@
   >
     <AnaliseQuerySync />
     <WorkspaceListingQuerySync />
-    <WorkspaceRightSidebarContent title="Parâmetros" desktopOnly>
+    <WorkspaceRightSidebarContent title="Parâmetros" actions={sidebarActions} desktopOnly>
       {@render adjustmentPanel()}
     </WorkspaceRightSidebarContent>
     <ScenarioFilterToolbar

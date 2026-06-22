@@ -1,15 +1,17 @@
-import { createContext } from "svelte";
+import { createContext, type Snippet } from "svelte";
 
 export interface WorkspaceRightSidebarRegistration {
   title: string;
   desktopOnly?: boolean;
+  actions?: Snippet;
 }
 
 export function createWorkspaceRightSidebarRegistration(
   title: string,
-  desktopOnly = false
+  desktopOnly = false,
+  actions?: Snippet
 ): WorkspaceRightSidebarRegistration {
-  return { title, desktopOnly };
+  return actions ? { title, desktopOnly, actions } : { title, desktopOnly };
 }
 
 export interface WorkspaceRightSidebarContextValue {

@@ -9,10 +9,12 @@
   let {
     title,
     desktopOnly = false,
+    actions,
     children
   }: {
     title: string;
     desktopOnly?: boolean;
+    actions?: Snippet;
     children: Snippet;
   } = $props();
 
@@ -34,7 +36,9 @@
     };
   };
 
-  $effect(() => sidebar.register(createWorkspaceRightSidebarRegistration(title, desktopOnly)));
+  $effect(() =>
+    sidebar.register(createWorkspaceRightSidebarRegistration(title, desktopOnly, actions))
+  );
 </script>
 
 <div

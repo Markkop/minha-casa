@@ -28,14 +28,19 @@
   >
     <div class={cn(workspaceChromeRowClass, "justify-between gap-2")}>
       <h2 class="truncate text-sm font-semibold">{sidebar.registration.title}</h2>
-      <button
-        type="button"
-        class="inline-flex size-8 shrink-0 items-center justify-center rounded-md text-app-muted transition hover:bg-app-surface-muted hover:text-app-fg"
-        aria-label="Fechar painel de parâmetros"
-        onclick={sidebar.close}
-      >
-        <X class="size-4" />
-      </button>
+      <div class="flex shrink-0 items-center gap-1">
+        {#if sidebar.registration.actions}
+          {@render sidebar.registration.actions()}
+        {/if}
+        <button
+          type="button"
+          class="inline-flex size-8 shrink-0 items-center justify-center rounded-md text-app-muted transition hover:bg-app-surface-muted hover:text-app-fg"
+          aria-label="Fechar painel de parâmetros"
+          onclick={sidebar.close}
+        >
+          <X class="size-4" />
+        </button>
+      </div>
     </div>
     <div bind:this={contentTarget} class="min-h-0 flex-1 overflow-y-auto"></div>
   </aside>
