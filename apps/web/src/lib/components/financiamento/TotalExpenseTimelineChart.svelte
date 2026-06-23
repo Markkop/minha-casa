@@ -18,6 +18,7 @@
   import TimelineChartAxes from "$lib/components/financiamento/charts/TimelineChartAxes.svelte";
   import TimelineFocusLayer from "$lib/components/financiamento/charts/TimelineFocusLayer.svelte";
   import {
+    CHART_EVENT_LEGEND_ENTRIES_WITHOUT_REFORM,
     maxScenarioTermMonths,
     scenarioChartColor,
     scenarioColorIndexMap,
@@ -68,8 +69,6 @@
 
   const padding = CHART_PADDING;
   const height = CHART_HEIGHT;
-  const legendNote =
-    "Despesas acumuladas desde a compra · clique para selecionar ou desselecionar · linhas tracejadas verticais: venda · círculo no topo: quantia extra";
   const ledgers = $derived(
     buildExpenseLedgers(cenarios, capitalDisponivel, quantiaExtra, custoMensal)
   );
@@ -363,5 +362,8 @@
     {/if}
   </div>
 
-  <ChartLegend entries={legendEntries} note={legendNote} />
+  <ChartLegend
+    entries={legendEntries}
+    eventEntries={CHART_EVENT_LEGEND_ENTRIES_WITHOUT_REFORM}
+  />
 </CollapsibleChartPanel>

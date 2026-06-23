@@ -25,6 +25,7 @@
   import TimelineChartAxes from "$lib/components/financiamento/charts/TimelineChartAxes.svelte";
   import TimelineFocusLayer from "$lib/components/financiamento/charts/TimelineFocusLayer.svelte";
   import {
+    CHART_EVENT_LEGEND_ENTRIES,
     maxScenarioTermMonths,
     scenarioChartColor,
     scenarioColorIndexMap,
@@ -68,8 +69,6 @@
 
   const padding = CHART_PADDING;
   const height = CHART_HEIGHT;
-  const legendNote =
-    "Passe o mouse sobre o gráfico para ver cada mês · clique para selecionar ou desselecionar · linhas tracejadas: venda · círculo no topo: quantia extra · quadrado inferior: reforma concluída";
 
   const maxMonth = $derived(maxScenarioTermMonths(cenarios));
 
@@ -384,5 +383,5 @@
     {/if}
   </div>
 
-  <ChartLegend entries={legendEntries} note={legendNote} />
+  <ChartLegend entries={legendEntries} eventEntries={CHART_EVENT_LEGEND_ENTRIES} />
 </CollapsibleChartPanel>

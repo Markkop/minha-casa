@@ -24,6 +24,23 @@ export type ChartLegendEntry = {
   color: string;
 };
 
+export type ChartEventLegendKind = "sale" | "extra" | "reform";
+
+export type ChartEventLegendEntry = {
+  id: string;
+  label: string;
+  kind: ChartEventLegendKind;
+};
+
+export const CHART_EVENT_LEGEND_ENTRIES: ChartEventLegendEntry[] = [
+  { id: "venda", label: "Venda", kind: "sale" },
+  { id: "quantia-extra", label: "Quantia extra", kind: "extra" },
+  { id: "reforma-concluida", label: "Reforma concluída", kind: "reform" }
+];
+
+export const CHART_EVENT_LEGEND_ENTRIES_WITHOUT_REFORM =
+  CHART_EVENT_LEGEND_ENTRIES.filter((entry) => entry.kind !== "reform");
+
 export type ChartFocusDot = {
   id: string;
   x: number;

@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import { APORTE_APOS_REFORMA_VALUE } from "$lib/financiamento/aporte-progressivo";
 import type { CenarioCompleto } from "$lib/financiamento/calculations";
 import {
+  CHART_EVENT_LEGEND_ENTRIES,
+  CHART_EVENT_LEGEND_ENTRIES_WITHOUT_REFORM,
   CHART_COLORS,
   maxScenarioTermMonths,
   scenarioColorIndexMap,
@@ -88,6 +90,20 @@ describe("scenario chart colors", () => {
     expect(scenarioLegendEntries([item])[0]?.label).toBe(
       "R$ 2.00M · aporte Depois da reforma"
     );
+  });
+});
+
+describe("chart event legend entries", () => {
+  it("keeps visual event entries concise and omits reform when hidden", () => {
+    expect(CHART_EVENT_LEGEND_ENTRIES).toEqual([
+      { id: "venda", label: "Venda", kind: "sale" },
+      { id: "quantia-extra", label: "Quantia extra", kind: "extra" },
+      { id: "reforma-concluida", label: "Reforma concluída", kind: "reform" }
+    ]);
+    expect(CHART_EVENT_LEGEND_ENTRIES_WITHOUT_REFORM).toEqual([
+      { id: "venda", label: "Venda", kind: "sale" },
+      { id: "quantia-extra", label: "Quantia extra", kind: "extra" }
+    ]);
   });
 });
 
