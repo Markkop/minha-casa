@@ -32,14 +32,28 @@ export type ChartEventLegendEntry = {
   kind: ChartEventLegendKind;
 };
 
-export const CHART_EVENT_LEGEND_ENTRIES: ChartEventLegendEntry[] = [
+const CHART_EVENT_LEGEND_ENTRIES: ChartEventLegendEntry[] = [
   { id: "venda", label: "Venda", kind: "sale" },
   { id: "quantia-extra", label: "Quantia extra", kind: "extra" },
   { id: "reforma-concluida", label: "Reforma concluída", kind: "reform" }
 ];
 
-export const CHART_EVENT_LEGEND_ENTRIES_WITHOUT_REFORM =
-  CHART_EVENT_LEGEND_ENTRIES.filter((entry) => entry.kind !== "reform");
+export function scenarioEventLegendEntries(
+  cenarios: CenarioCompleto[],
+  { showReformMarker = true }: { showReformMarker?: boolean } = {}
+): ChartEventLegendEntry[] {
+  const hasSaleMarker = cenarios.some((cenario) => Boolean(cenario.vendaEm));
+  const hasExtraMarker = cenarios.some((cenario) => Boolean(cenario.extraEm));
+  const hasReformMarker =
+    showReformMarker &&
+    cenarios.some((cenario) => cenario.timeline?.some((month) => month.reformaConcluida));
+
+  return CHART_EVENT_LEGEND_ENTRIES.filter((entry) => {
+    if (entry.kind === "sale") return hasSaleMarker;
+    if (entry.kind === "extra") return hasExtraMarker;
+    return hasReformMarker;
+  });
+}
 
 export type ChartFocusDot = {
   id: string;

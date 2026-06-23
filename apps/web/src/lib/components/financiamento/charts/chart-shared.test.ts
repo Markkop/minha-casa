@@ -2,11 +2,10 @@ import { describe, expect, it } from "vitest";
 import { APORTE_APOS_REFORMA_VALUE } from "$lib/financiamento/aporte-progressivo";
 import type { CenarioCompleto } from "$lib/financiamento/calculations";
 import {
-  CHART_EVENT_LEGEND_ENTRIES,
-  CHART_EVENT_LEGEND_ENTRIES_WITHOUT_REFORM,
   CHART_COLORS,
   maxScenarioTermMonths,
   scenarioColorIndexMap,
+  scenarioEventLegendEntries,
   scenarioLegendEntries
 } from "$lib/components/financiamento/charts/chart-shared";
 
@@ -94,13 +93,43 @@ describe("scenario chart colors", () => {
 });
 
 describe("chart event legend entries", () => {
-  it("keeps visual event entries concise and omits reform when hidden", () => {
-    expect(CHART_EVENT_LEGEND_ENTRIES).toEqual([
+  it("only includes event entries for markers present in the chart data", () => {
+    const withSale = scenario("sale", { vendaEm: 12 });
+    const withExtra = scenario("extra", { extraEm: 6 });
+    const withReform = scenario("reform", {
+      timeline: [{ mes: 3, reformaConcluida: true }]
+    } as Partial<CenarioCompleto>);
+
+    expect(scenarioEventLegendEntries([withSale, withExtra, withReform])).toEqual([
       { id: "venda", label: "Venda", kind: "sale" },
       { id: "quantia-extra", label: "Quantia extra", kind: "extra" },
       { id: "reforma-concluida", label: "Reforma concluída", kind: "reform" }
     ]);
-    expect(CHART_EVENT_LEGEND_ENTRIES_WITHOUT_REFORM).toEqual([
+  });
+
+  it("omits entries for absent markers and respects charts that hide reform markers", () => {
+    const withExtra = scenario("extra", { extraEm: 6 });
+    const withReform = scenario("reform", {
+      timeline: [{ mes: 3, reformaConcluida: true }]
+    } as Partial<CenarioCompleto>);
+
+    expect(scenarioEventLegendEntries([withExtra])).toEqual([
+      { id: "quantia-extra", label: "Quantia extra", kind: "extra" }
+    ]);
+    expect(
+      scenarioEventLegendEntries([scenario("none"), withReform], { showReformMarker: false })
+    ).toEqual([]);
+  });
+
+  it("matches marker rendering by ignoring zero-month sale and extra values", () => {
+    expect(scenarioEventLegendEntries([
+      scenario("sale-zero", { vendaEm: 0 }),
+      scenario("extra-zero", { extraEm: 0 })
+    ])).toEqual([]);
+    expect(scenarioEventLegendEntries([
+      scenario("sale", { vendaEm: 1 }),
+      scenario("extra", { extraEm: 1 })
+    ])).toEqual([
       { id: "venda", label: "Venda", kind: "sale" },
       { id: "quantia-extra", label: "Quantia extra", kind: "extra" }
     ]);

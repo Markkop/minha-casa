@@ -18,8 +18,8 @@
   import TimelineChartAxes from "$lib/components/financiamento/charts/TimelineChartAxes.svelte";
   import TimelineFocusLayer from "$lib/components/financiamento/charts/TimelineFocusLayer.svelte";
   import {
-    CHART_EVENT_LEGEND_ENTRIES_WITHOUT_REFORM,
     maxScenarioTermMonths,
+    scenarioEventLegendEntries,
     scenarioChartColor,
     scenarioColorIndexMap,
     scenarioLabel,
@@ -177,6 +177,7 @@
   });
 
   const legendEntries = $derived(scenarioLegendEntries(cenarios, resolvedColorIndex));
+  const eventLegendEntries = $derived(scenarioEventLegendEntries(cenarios));
 
   function handleChartPointerMove(event: PointerEvent) {
     if (!svgEl) return;
@@ -264,7 +265,6 @@
             {markerX}
             {padding}
             {height}
-            showReformMarker={false}
           />
         {/each}
       </g>
@@ -388,6 +388,6 @@
 
   <ChartLegend
     entries={legendEntries}
-    eventEntries={CHART_EVENT_LEGEND_ENTRIES_WITHOUT_REFORM}
+    eventEntries={eventLegendEntries}
   />
 </CollapsibleChartPanel>

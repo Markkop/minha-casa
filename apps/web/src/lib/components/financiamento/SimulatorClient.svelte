@@ -1,7 +1,7 @@
 <script lang="ts">
   import { browser } from "$app/environment";
   import { goto } from "$app/navigation";
-  import { Check, Copy } from "@lucide/svelte";
+  import { AlertCircle, Check, ClipboardPaste, Copy } from "@lucide/svelte";
   import { onMount } from "svelte";
   import { page } from "$app/state";
   import AnaliseQuerySync from "$lib/components/analise/AnaliseQuerySync.svelte";
@@ -36,7 +36,10 @@
     DEFAULT_APORTE_INICIO_DELAY_MONTHS,
     UI_DEFAULTS
   } from "$lib/financiamento/calculations-defaults";
-  import { buildActiveParametersText } from "$lib/financiamento/active-parameters-text";
+  import {
+    buildActiveParametersText,
+    parseActiveParametersText
+  } from "$lib/financiamento/active-parameters-text";
   import { calcularReservaRecomendada, gerarMatrizCenarios } from "$lib/financiamento/calculations";
   import { resolveEffectiveParams } from "$lib/financiamento/financing-effective-params";
   import { valorImovelFromListing } from "$lib/financiamento/listing-valor-imovel";
@@ -47,6 +50,7 @@
   import { getSettingsContext } from "$lib/financiamento/settings-context.svelte";
   import {
     loadSimulatorParams,
+    normalizeSimulatorParams,
     saveSimulatorParams
   } from "$lib/financiamento/simulator-params-storage";
   import {
@@ -89,9 +93,18 @@
   let priceInitialized = $state(false);
   let restoringScenario = $state(false);
   let copiedParameters = $state(false);
+  let pasteParametersStatus = $state<"idle" | "success" | "error">("idle");
+  let pasteParametersResetTimer: number | undefined;
 
   const suggestedScenarioName = $derived(suggestScenarioName(scenarios));
   const canCreateScenario = $derived(scenarios.length < MAX_SIMULATOR_SCENARIOS);
+  const pasteParametersTitle = $derived(
+    pasteParametersStatus === "success"
+      ? "Parâmetros colados"
+      : pasteParametersStatus === "error"
+        ? "Não foi possível colar parâmetros"
+        : "Colar parâmetros da área de transferência"
+  );
 
   const selectedListingId = $derived(page.url.searchParams.get("listing"));
 
@@ -316,6 +329,37 @@
     }
   }
 
+  function setPasteParametersStatus(status: "success" | "error") {
+    pasteParametersStatus = status;
+    if (pasteParametersResetTimer !== undefined) {
+      window.clearTimeout(pasteParametersResetTimer);
+    }
+    pasteParametersResetTimer = window.setTimeout(() => {
+      pasteParametersStatus = "idle";
+      pasteParametersResetTimer = undefined;
+    }, 2000);
+  }
+
+  async function pasteActiveParameters() {
+    try {
+      const text = await navigator.clipboard.readText();
+      const parsed = parseActiveParametersText(text);
+      if (!parsed) {
+        setPasteParametersStatus("error");
+        return;
+      }
+
+      params = normalizeSimulatorParams({
+        ...parsed,
+        linkedListingId: params.linkedListingId
+      });
+      chartSelection.clearSelection();
+      setPasteParametersStatus("success");
+    } catch {
+      setPasteParametersStatus("error");
+    }
+  }
+
   async function handleRestoreScenario(id: string) {
     const snapshot = findScenarioSnapshot(scenarios, id);
     if (!snapshot) return;
@@ -466,6 +510,23 @@
       <Check class="size-4" />
     {:else}
       <Copy class="size-4" />
+    {/if}
+  </button>
+  <button
+    type="button"
+    class="inline-flex size-8 shrink-0 items-center justify-center rounded-md text-app-muted transition hover:bg-app-surface-muted hover:text-app-fg"
+    class:text-app-accent={pasteParametersStatus === "success"}
+    class:text-red-600={pasteParametersStatus === "error"}
+    title={pasteParametersTitle}
+    aria-label={pasteParametersTitle}
+    onclick={() => void pasteActiveParameters()}
+  >
+    {#if pasteParametersStatus === "success"}
+      <Check class="size-4" />
+    {:else if pasteParametersStatus === "error"}
+      <AlertCircle class="size-4" />
+    {:else}
+      <ClipboardPaste class="size-4" />
     {/if}
   </button>
 {/snippet}

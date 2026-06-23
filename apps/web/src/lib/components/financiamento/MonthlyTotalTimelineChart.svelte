@@ -25,8 +25,8 @@
   import TimelineChartAxes from "$lib/components/financiamento/charts/TimelineChartAxes.svelte";
   import TimelineFocusLayer from "$lib/components/financiamento/charts/TimelineFocusLayer.svelte";
   import {
-    CHART_EVENT_LEGEND_ENTRIES,
     maxScenarioTermMonths,
+    scenarioEventLegendEntries,
     scenarioChartColor,
     scenarioColorIndexMap,
     scenarioLabel,
@@ -195,6 +195,7 @@
   });
 
   const legendEntries = $derived(scenarioLegendEntries(cenarios, resolvedColorIndex));
+  const eventLegendEntries = $derived(scenarioEventLegendEntries(cenarios));
   const referenceLegendEntries = $derived([
     { id: "renda", label: `Renda mensal (${formatCurrencyCompact(rendaMensal)})` }
   ]);
@@ -407,6 +408,6 @@
   <ChartLegend
     entries={legendEntries}
     referenceEntries={referenceLegendEntries}
-    eventEntries={CHART_EVENT_LEGEND_ENTRIES}
+    eventEntries={eventLegendEntries}
   />
 </CollapsibleChartPanel>
