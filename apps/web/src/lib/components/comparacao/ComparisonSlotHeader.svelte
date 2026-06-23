@@ -5,11 +5,10 @@
   import ComparisonTooltip from "$lib/components/comparacao/ComparisonTooltip.svelte";
   import Button from "$lib/components/ui/Button.svelte";
   import {
-    getAvailableListingsForSlot,
+    getSwapCandidatesForSlot,
     formatShortListingName,
     type ComparisonSlot
   } from "$lib/comparacao/comparison-helpers";
-  import { EMPTY_SLOT_VALUE } from "$lib/comparacao/comparison-matrix";
   import { buildListingAnaliseHref } from "$lib/listing-analise-url";
   import { comparisonMobileSlotListingLabel } from "$lib/listing-display-title";
   import { cn } from "$lib/utils";
@@ -22,7 +21,7 @@
     collectionId,
     headerHeightPx,
     isMobileLayout,
-    onReplace,
+    onSwap,
     onToggleStar,
     onEditListing
   }: {
@@ -33,7 +32,7 @@
     collectionId: string | null;
     headerHeightPx: number;
     isMobileLayout: boolean;
-    onReplace: (slotIndex: number, value: string) => void;
+    onSwap: (slotIndex: number, listingId: string) => void;
     onToggleStar: (listingId: string, currentStarred: boolean | undefined) => void;
     onEditListing: (listing: Imovel) => void;
   } = $props();
@@ -43,10 +42,7 @@
 
   let swapOpen = $state(false);
 
-  const availableListings = $derived(getAvailableListingsForSlot(listings, slots, slotIndex));
-  const swapCandidates = $derived(
-    availableListings.filter((item) => item.id !== listing?.id)
-  );
+  const swapCandidates = $derived(getSwapCandidatesForSlot(listings, slots, slotIndex));
 
   function formatSlotSummary(imovel: Imovel): string {
     return imovel.endereco || "—";
@@ -148,8 +144,9 @@
       bind:open={swapOpen}
       listings={swapCandidates}
       selectedId={null}
-      onClear={listing ? () => onReplace(slotIndex, EMPTY_SLOT_VALUE) : undefined}
-      onSelect={(selected) => onReplace(slotIndex, selected.id)}
+      selectorOptions={{ includeStrikethrough: true, limit: null }}
+      title="Trocar posição com"
+      onSelect={(selected) => onSwap(slotIndex, selected.id)}
     >
       {#snippet trigger()}
         <Button

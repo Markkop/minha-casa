@@ -34,8 +34,6 @@ function recalcTooltipListing(listing: Imovel): RecalcTooltipFixedListing {
   return listing as RecalcTooltipFixedListing
 }
 
-export const EMPTY_SLOT_VALUE = "__empty__"
-
 export type NumericRowKey =
   | "price"
   | "totalArea"

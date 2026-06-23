@@ -2,7 +2,10 @@
   import { Eraser, Search } from "@lucide/svelte";
   import type { Imovel } from "$lib/anuncios/types";
   import ListingSelectorList from "$lib/components/listings/ListingSelectorList.svelte";
-  import { filterSelectableListings } from "$lib/listings/listing-selector";
+  import {
+    filterSelectableListings,
+    type ListingSelectorFilterOptions
+  } from "$lib/listings/listing-selector";
   import { cn } from "$lib/utils";
 
   let {
@@ -11,7 +14,8 @@
     onSelect,
     onClear,
     clearLabel = "Remover este anúncio",
-    title
+    title,
+    selectorOptions = {}
   }: {
     listings: Imovel[];
     selectedId: string | null;
@@ -19,11 +23,12 @@
     onClear?: () => void;
     clearLabel?: string;
     title?: string;
+    selectorOptions?: ListingSelectorFilterOptions;
   } = $props();
 
   let query = $state("");
 
-  const filtered = $derived(filterSelectableListings(listings, query));
+  const filtered = $derived(filterSelectableListings(listings, query, selectorOptions));
 
   export function resetQuery() {
     query = "";

@@ -4,7 +4,10 @@
   import ToolbarAnchoredPopover from "$lib/components/anuncios/ToolbarAnchoredPopover.svelte";
   import ListingSelectorPanel from "$lib/components/listings/ListingSelectorPanel.svelte";
   import type { PanelAlign, PanelSide } from "$lib/floating-position";
-  import { LISTING_SELECTOR_POPOVER_CLASS } from "$lib/listings/listing-selector";
+  import {
+    LISTING_SELECTOR_POPOVER_CLASS,
+    type ListingSelectorFilterOptions
+  } from "$lib/listings/listing-selector";
   import { cn } from "$lib/utils";
 
   let {
@@ -15,6 +18,7 @@
     onClear,
     clearLabel,
     title,
+    selectorOptions,
     align = "auto",
     side = "auto",
     offsetClass = "mt-2",
@@ -28,6 +32,7 @@
     onClear?: () => void;
     clearLabel?: string;
     title?: string;
+    selectorOptions?: ListingSelectorFilterOptions;
     align?: PanelAlign;
     side?: PanelSide;
     offsetClass?: string;
@@ -68,5 +73,6 @@
     onClear={onClear ? handleClear : undefined}
     {clearLabel}
     {title}
+    {selectorOptions}
   />
 </ToolbarAnchoredPopover>

@@ -104,16 +104,26 @@ export function initializeComparisonSlotsFromAutoFill(listings: Imovel[]): Compa
   return initializeComparisonSlots(getComparisonAutoFillCandidates(listings))
 }
 
-export function replaceComparisonSlot(
+export function swapComparisonSlots(
   slots: ComparisonSlot[],
-  slotIndex: number,
-  listingId: string | null
+  fromSlotIndex: number,
+  toSlotIndex: number
 ): ComparisonSlot[] {
-  return slots.map((slot, index) => {
-    if (index === slotIndex) return listingId
-    if (listingId && slot === listingId) return null
-    return slot
-  })
+  if (
+    fromSlotIndex === toSlotIndex ||
+    fromSlotIndex < 0 ||
+    toSlotIndex < 0 ||
+    fromSlotIndex >= slots.length ||
+    toSlotIndex >= slots.length
+  ) {
+    return slots
+  }
+
+  const next = [...slots]
+  const fromSlot = next[fromSlotIndex]
+  next[fromSlotIndex] = next[toSlotIndex]
+  next[toSlotIndex] = fromSlot
+  return next
 }
 
 export function removeComparisonSlot(slots: ComparisonSlot[], slotIndex: number): ComparisonSlot[] {
@@ -140,16 +150,17 @@ export function getSlotListings(slots: ComparisonSlot[], listings: Imovel[]): (I
   return slots.map((slot) => listings.find((listing) => listing.id === slot) ?? null)
 }
 
-export function getAvailableListingsForSlot(
+export function getSwapCandidatesForSlot(
   listings: Imovel[],
   slots: ComparisonSlot[],
   slotIndex: number
 ): Imovel[] {
+  const listingById = new Map(listings.map((listing) => [listing.id, listing]))
   const currentId = slots[slotIndex]
-  const selectedElsewhere = new Set(
-    slots.filter((slot, index): slot is string => index !== slotIndex && Boolean(slot))
-  )
-  return listings.filter((listing) => listing.id === currentId || !selectedElsewhere.has(listing.id))
+  return slots
+    .filter((slot, index): slot is string => index !== slotIndex && Boolean(slot) && slot !== currentId)
+    .map((slot) => listingById.get(slot))
+    .filter((listing): listing is Imovel => Boolean(listing))
 }
 
 export function calculateTotalPricePerM2(listing: Pick<Imovel, "preco" | "m2Totais"> | null): number | null {

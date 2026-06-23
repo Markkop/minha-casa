@@ -20,7 +20,7 @@
     initializeComparisonSlots,
     initializeComparisonSlotsFromAutoFill,
     normalizeComparisonSlots,
-    replaceComparisonSlot,
+    swapComparisonSlots,
     type ComparisonSlot
   } from "$lib/comparacao/comparison-helpers";
   import {
@@ -29,7 +29,6 @@
   } from "$lib/anuncios/area-metric-labels";
   import {
     buildExtraMatrixRows,
-    EMPTY_SLOT_VALUE,
     getNumericMatrixRows,
     getMatrixRowAccessibleLabel,
     MATRIX_ROWS_TAIL,
@@ -132,11 +131,25 @@
     resolvedFixedCell === null ? null : (selectedListings[resolvedFixedCell.slotIndex] ?? null)
   );
 
-  function handleReplaceSlot(slotIndex: number, value: string) {
-    const listingId = value === EMPTY_SLOT_VALUE ? null : value;
-    const next = replaceComparisonSlot(slotIds, slotIndex, listingId);
+  function handleSwapSlot(slotIndex: number, listingId: string) {
+    const targetSlotIndex = slotIds.findIndex((slot) => slot === listingId);
+    if (targetSlotIndex < 0 || targetSlotIndex === slotIndex) return;
+
+    const next = swapComparisonSlots(slotIds, slotIndex, targetSlotIndex);
+    const nextFixedCell =
+      fixedCell === null
+        ? null
+        : {
+            ...fixedCell,
+            slotIndex:
+              fixedCell.slotIndex === slotIndex
+                ? targetSlotIndex
+                : fixedCell.slotIndex === targetSlotIndex
+                  ? slotIndex
+                  : fixedCell.slotIndex
+          };
     slotIds = next;
-    fixedCell = resolveFixedCell(next, fixedCell);
+    fixedCell = resolveFixedCell(next, nextFixedCell);
   }
 
   async function handleToggleStar(listingId: string, currentStarred: boolean | undefined) {
@@ -212,7 +225,7 @@
                       collectionId={ctx.activeCollection?.id ?? null}
                       headerHeightPx={slotHeaderHeightPx}
                       {isMobileLayout}
-                      onReplace={handleReplaceSlot}
+                      onSwap={handleSwapSlot}
                       onToggleStar={handleToggleStar}
                       onEditListing={openEditListing}
                     />
