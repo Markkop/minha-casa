@@ -40,8 +40,8 @@
   {#snippet trigger()}
     <PageToolbarIconButton
       variant="secondary"
-      aria-label="Criar snapshot do cenário"
-      title="Criar snapshot"
+      aria-label="Salvar cenário local"
+      title="Salvar cenário local"
       tooltipDisabled={open}
       onclick={() => (open = !open)}
     >
@@ -50,7 +50,7 @@
   {/snippet}
 
   <p class="px-1 pb-2 text-[11px] leading-snug text-app-subtle">
-    Capture os parâmetros, filtros e seleções de gráficos atuais em um cenário.
+    Salve localmente os parâmetros, filtros e seleções de gráficos atuais em um cenário.
   </p>
 
   <label class="flex flex-col gap-1 px-1">
@@ -79,7 +79,7 @@
       disabled={!name.trim() || !canCreate}
       onclick={submit}
     >
-      Criar snapshot
+      Salvar cenário
     </PageToolbarButton>
   </div>
 

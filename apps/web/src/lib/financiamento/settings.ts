@@ -34,6 +34,46 @@ export const DEFAULT_SETTINGS: SimulatorSettings = {
 };
 
 // ============================================================================
+// NORMALIZATION
+// ============================================================================
+
+function finiteNumber(value: unknown, fallback: number): number {
+  return typeof value === "number" && Number.isFinite(value) ? value : fallback;
+}
+
+function normalizeSliderRange(value: unknown, fallback: SliderRange): SliderRange {
+  if (!value || typeof value !== "object") {
+    return fallback;
+  }
+
+  const parsed = value as Partial<SliderRange>;
+  return {
+    min: finiteNumber(parsed.min, fallback.min),
+    max: finiteNumber(parsed.max, fallback.max),
+    step: finiteNumber(parsed.step, fallback.step)
+  };
+}
+
+export function normalizeSettings(value: unknown): SimulatorSettings {
+  if (!value || typeof value !== "object") {
+    return DEFAULT_SETTINGS;
+  }
+
+  const parsed = value as Partial<SimulatorSettings>;
+  const sliders = (parsed.sliders ?? {}) as Partial<SimulatorSettings["sliders"]>;
+
+  return {
+    cetAdditionalCost: finiteNumber(parsed.cetAdditionalCost, DEFAULT_SETTINGS.cetAdditionalCost),
+    sliders: {
+      taxaAnual: normalizeSliderRange(sliders.taxaAnual, DEFAULT_SETTINGS.sliders.taxaAnual),
+      trMensal: normalizeSliderRange(sliders.trMensal, DEFAULT_SETTINGS.sliders.trMensal),
+      aporteExtra: normalizeSliderRange(sliders.aporteExtra, DEFAULT_SETTINGS.sliders.aporteExtra),
+      rendaMensal: normalizeSliderRange(sliders.rendaMensal, DEFAULT_SETTINGS.sliders.rendaMensal)
+    }
+  };
+}
+
+// ============================================================================
 // LOCAL STORAGE
 // ============================================================================
 
@@ -55,15 +95,7 @@ export function loadSettings(): SimulatorSettings {
       sliders?: Partial<SimulatorSettings["sliders"]> & { haircut?: SliderRange };
     };
 
-    return {
-      cetAdditionalCost: parsed.cetAdditionalCost ?? DEFAULT_SETTINGS.cetAdditionalCost,
-      sliders: {
-        taxaAnual: { ...DEFAULT_SETTINGS.sliders.taxaAnual, ...parsed.sliders?.taxaAnual },
-        trMensal: { ...DEFAULT_SETTINGS.sliders.trMensal, ...parsed.sliders?.trMensal },
-        aporteExtra: { ...DEFAULT_SETTINGS.sliders.aporteExtra, ...parsed.sliders?.aporteExtra },
-        rendaMensal: { ...DEFAULT_SETTINGS.sliders.rendaMensal, ...parsed.sliders?.rendaMensal }
-      }
-    };
+    return normalizeSettings(parsed);
   } catch {
     return DEFAULT_SETTINGS;
   }

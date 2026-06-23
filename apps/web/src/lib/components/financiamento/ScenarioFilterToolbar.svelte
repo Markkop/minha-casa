@@ -1,6 +1,7 @@
 <script lang="ts">
   import SimulatorScenarioDropdown from "$lib/components/financiamento/SimulatorScenarioDropdown.svelte";
   import SimulatorScenarioSavePopover from "$lib/components/financiamento/SimulatorScenarioSavePopover.svelte";
+  import FinanceiroSharePopover from "$lib/components/financiamento/FinanceiroSharePopover.svelte";
   import type { SimulatorScenarioSnapshot } from "$lib/financiamento/simulator-scenarios-storage";
   import { workspacePageToolbarRowClass } from "$lib/workspace-chrome";
   import { cn } from "$lib/utils";
@@ -12,7 +13,9 @@
     onRestoreScenario,
     onCreateScenario,
     onDeleteScenario,
-    onRenameScenario
+    onRenameScenario,
+    suggestedShareTitle = "Simulação financeira",
+    onCreateShare
   }: {
     scenarios: SimulatorScenarioSnapshot[];
     suggestedScenarioName: string;
@@ -21,6 +24,8 @@
     onCreateScenario: (name: string) => void;
     onDeleteScenario: (id: string) => void;
     onRenameScenario: (id: string, name: string) => void;
+    suggestedShareTitle?: string;
+    onCreateShare?: (title: string) => Promise<string>;
   } = $props();
 
   let saveOpen = $state(false);
@@ -35,10 +40,16 @@
     onOpenSave={() => (saveOpen = true)}
   />
 
-  <SimulatorScenarioSavePopover
-    bind:open={saveOpen}
-    suggestedName={suggestedScenarioName}
-    canCreate={canCreateScenario}
-    onCreate={onCreateScenario}
-  />
+  <div class="flex items-center gap-2">
+    {#if onCreateShare}
+      <FinanceiroSharePopover suggestedTitle={suggestedShareTitle} onCreate={onCreateShare} />
+    {/if}
+
+    <SimulatorScenarioSavePopover
+      bind:open={saveOpen}
+      suggestedName={suggestedScenarioName}
+      canCreate={canCreateScenario}
+      onCreate={onCreateScenario}
+    />
+  </div>
 </header>

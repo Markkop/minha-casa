@@ -5,12 +5,14 @@ describe("isPublicPhoenixApiPath", () => {
   it("keeps public Phoenix routes auth-optional", () => {
     expect(isPublicPhoenixApiPath("/plans", "GET")).toBe(true);
     expect(isPublicPhoenixApiPath("/shared/token", "GET")).toBe(true);
+    expect(isPublicPhoenixApiPath("/financeiro/snapshots/token", "GET")).toBe(true);
     expect(isPublicPhoenixApiPath("/collections/public/id", "GET")).toBe(true);
     expect(isPublicPhoenixApiPath("/webhooks/stripe", "POST")).toBe(true);
   });
 
   it("requires auth for protected Phoenix routes", () => {
     expect(isPublicPhoenixApiPath("/organizations", "GET")).toBe(false);
+    expect(isPublicPhoenixApiPath("/financeiro/snapshots", "POST")).toBe(false);
     expect(isPublicPhoenixApiPath("/user/addons", "GET")).toBe(false);
     expect(isPublicPhoenixApiPath("/addons/access/flood", "GET")).toBe(false);
   });

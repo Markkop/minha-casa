@@ -253,6 +253,28 @@ export const collections = pgTable(
 )
 
 // ============================================================================
+// Financeiro Shared Snapshots
+// ============================================================================
+export const financeiroSharedSnapshots = pgTable(
+  "financeiro_shared_snapshots",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    token: text("token").notNull().unique(),
+    userId: uuid("user_id").references(() => users.id, { onDelete: "cascade" }),
+    orgId: uuid("org_id").references(() => organizations.id, { onDelete: "cascade" }),
+    title: text("title").notNull(),
+    payload: jsonb("payload").default({}).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex("financeiro_shared_snapshots_token_idx").on(table.token),
+    index("financeiro_shared_snapshots_user_id_idx").on(table.userId),
+    index("financeiro_shared_snapshots_org_id_idx").on(table.orgId),
+  ]
+)
+
+// ============================================================================
 // Processed Webhook Events (for idempotency)
 // ============================================================================
 export const processedWebhookEvents = pgTable(

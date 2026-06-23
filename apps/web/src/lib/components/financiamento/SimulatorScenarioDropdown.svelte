@@ -90,13 +90,13 @@
       onclick={() => (open = !open)}
     >
       <DollarSign />
-      <span class="truncate">Cenários</span>
+      <span class="truncate">Cenários salvos</span>
       <ChevronDown class="opacity-70" />
     </PageToolbarButton>
   {/snippet}
 
   {#if scenarios.length === 0}
-    <p class="px-2 py-2 text-xs text-app-subtle">Nenhum cenário salvo</p>
+    <p class="px-2 py-2 text-xs text-app-subtle">Nenhum cenário local salvo</p>
   {:else}
     <div class="flex max-h-64 flex-col gap-0.5 overflow-y-auto">
       {#each scenarios as scenario (scenario.id)}
@@ -173,7 +173,7 @@
       class="w-full rounded px-2 py-1.5 text-left text-sm text-app-muted transition-colors hover:bg-app-surface-muted hover:text-app-fg"
       onclick={handleOpenSave}
     >
-      Criar snapshot…
+      Salvar cenário local…
     </button>
   </div>
 </ToolbarAnchoredPopover>

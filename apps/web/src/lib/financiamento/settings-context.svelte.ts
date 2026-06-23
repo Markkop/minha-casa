@@ -19,18 +19,24 @@ export interface SettingsContextValue {
 
 export const [getSettingsContext, setSettingsContext] = createContext<SettingsContextValue>();
 
-export function createSettingsState() {
-  let settings = $state<SimulatorSettings>(browser ? loadSettings() : DEFAULT_SETTINGS);
+export function createSettingsState(options?: {
+  initialSettings?: SimulatorSettings;
+  persist?: boolean;
+}) {
+  const persist = options?.persist ?? true;
+  let settings = $state<SimulatorSettings>(
+    options?.initialSettings ?? (browser && persist ? loadSettings() : DEFAULT_SETTINGS)
+  );
   const isLoaded = $state(browser);
 
   const updateSettings = (newSettings: SimulatorSettings) => {
     settings = newSettings;
-    saveSettings(newSettings);
+    if (persist) saveSettings(newSettings);
   };
 
   const resetSettings = () => {
     settings = DEFAULT_SETTINGS;
-    saveSettings(DEFAULT_SETTINGS);
+    if (persist) saveSettings(DEFAULT_SETTINGS);
   };
 
   return {

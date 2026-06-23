@@ -27,6 +27,7 @@ defmodule MinhaCasaAiWeb.Router do
     post "/api/webhooks/stripe", StripeWebhookController, :receive
     post "/mcp", McpController, :handle
     get "/api/shared/:token", CollectionController, :shared
+    get "/api/financeiro/snapshots/:token", FinanceiroSnapshotController, :show
 
     get "/api/shared/:token/listings/:listing_id/images/:index",
         ListingImageController,
@@ -175,6 +176,8 @@ defmodule MinhaCasaAiWeb.Router do
     get "/collections/:id/listings/:listing_id", CollectionController, :show_listing
     put "/collections/:id/listings/:listing_id", CollectionController, :update_listing
     delete "/collections/:id/listings/:listing_id", CollectionController, :delete_listing
+
+    post "/financeiro/snapshots", FinanceiroSnapshotController, :create
   end
 
   scope "/api", MinhaCasaAiWeb do

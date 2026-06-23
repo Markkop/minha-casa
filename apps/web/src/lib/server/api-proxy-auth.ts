@@ -1,6 +1,7 @@
 const PUBLIC_GET_PATH_PATTERNS = [
   /^\/plans$/,
   /^\/shared\/[^/]+$/,
+  /^\/financeiro\/snapshots\/[^/]+$/,
   /^\/shared\/[^/]+\/listings\/[^/]+\/images\/[^/]+$/,
   /^\/collections\/public$/,
   /^\/collections\/public\/[^/]+$/,

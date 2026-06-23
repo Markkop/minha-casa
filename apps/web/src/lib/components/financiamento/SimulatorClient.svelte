@@ -53,6 +53,7 @@
     normalizeSimulatorParams,
     saveSimulatorParams
   } from "$lib/financiamento/simulator-params-storage";
+  import { createFinanceiroSharedSnapshot } from "$lib/financiamento/shared-snapshots-client";
   import {
     createScenarioSnapshot,
     deleteScenarioSnapshot,
@@ -68,28 +69,59 @@
     prepareScenarioRestore,
     resolveScenarioCollectionId
   } from "$lib/financiamento/scenario-snapshot-restore";
-  import { scenarioColorIndexMap } from "$lib/components/financiamento/charts/chart-shared";
+  import {
+    scenarioColorIndexMap,
+    scenarioLabel
+  } from "$lib/components/financiamento/charts/chart-shared";
   import { createInitialSimulatorParams } from "$lib/financiamento/simulator-recursos";
   import { syncSubscriptionCookie } from "$lib/sync-subscription-cookie";
   import { writeStoredWorkspaceListingId } from "$lib/workspace-listing-storage";
-  import { WORKSPACE_CONTENT_CLASS, WORKSPACE_STACK_CLASS } from "$lib/workspace-chrome";
+  import {
+    WORKSPACE_CONTENT_CLASS,
+    WORKSPACE_RIGHT_SIDEBAR_WIDTH,
+    WORKSPACE_STACK_CLASS
+  } from "$lib/workspace-chrome";
+
+  const {
+    initialParams,
+    workspaceMode = true,
+    persistParams = true,
+    title = "Financeiro"
+  }: {
+    initialParams?: SimulatorParams;
+    workspaceMode?: boolean;
+    persistParams?: boolean;
+    title?: string;
+  } = $props();
 
   const settingsContext = getSettingsContext();
   const ctx = getCollectionsContext();
 
+  function isWorkspaceMode() {
+    return workspaceMode;
+  }
+
   function resolveInitialParams(): SimulatorParams {
+    if (initialParams) {
+      return normalizeSimulatorParams(initialParams);
+    }
+    if (!persistParams) {
+      return createInitialSimulatorParams();
+    }
     if (!browser) {
       return createInitialSimulatorParams();
     }
     return loadSimulatorParams() ?? createInitialSimulatorParams();
   }
 
-  if (browser) {
+  if (browser && isWorkspaceMode()) {
     initializeScenarioSnapshotStorage();
   }
 
   let params = $state<SimulatorParams>(resolveInitialParams());
-  let scenarios = $state<SimulatorScenarioSnapshot[]>(browser ? loadScenarioSnapshots() : []);
+  let scenarios = $state<SimulatorScenarioSnapshot[]>(
+    browser && isWorkspaceMode() ? loadScenarioSnapshots() : []
+  );
   let priceInitialized = $state(false);
   let restoringScenario = $state(false);
   let copiedParameters = $state(false);
@@ -115,12 +147,12 @@
   );
 
   $effect(() => {
-    if (!browser) return;
+    if (!browser || !persistParams) return;
     saveSimulatorParams(params);
   });
 
   $effect(() => {
-    if (!browser || restoringScenario || ctx.isLoadingListings) return;
+    if (!workspaceMode || !browser || restoringScenario || ctx.isLoadingListings) return;
 
     const listingId = selectedListingId;
 
@@ -246,6 +278,9 @@
   const chartCenarios = $derived(
     filteredCenarios.filter((cenario) => !hiddenChartIds.has(cenario.id))
   );
+  const suggestedShareTitle = $derived(
+    chartCenarios[0] ? scenarioLabel(chartCenarios[0]) : "Simulação financeira"
+  );
 
   $effect(() => {
     const currentIds = new Set(filteredCenarios.map((cenario) => cenario.id));
@@ -300,6 +335,7 @@
   }
 
   function refreshScenarios() {
+    if (!workspaceMode) return;
     scenarios = loadScenarioSnapshots();
   }
 
@@ -361,6 +397,7 @@
   }
 
   async function handleRestoreScenario(id: string) {
+    if (!workspaceMode) return;
     const snapshot = findScenarioSnapshot(scenarios, id);
     if (!snapshot) return;
 
@@ -419,11 +456,12 @@
   }
 
   onMount(() => {
+    if (!workspaceMode) return;
     void syncSubscriptionCookie();
   });
 
   $effect(() => {
-    if (priceInitialized) return;
+    if (!workspaceMode || priceInitialized) return;
     const priceParam = page.url.searchParams.get("price");
     if (!priceParam) {
       priceInitialized = true;
@@ -495,6 +533,15 @@
       params = { ...params, quantiaExtra: newValue };
     }
   }
+
+  async function handleCreateShare(title: string) {
+    const result = await createFinanceiroSharedSnapshot({
+      title,
+      params,
+      settings: settingsContext.settings
+    });
+    return result.shareUrl;
+  }
 </script>
 
 {#snippet sidebarActions()}
@@ -548,105 +595,133 @@
   <div
     class="flex h-[calc(100svh-var(--nav-height,2.75rem))] min-h-0 flex-col overflow-hidden bg-app-bg text-app-fg"
   >
-    <AnaliseQuerySync />
-    <WorkspaceListingQuerySync />
-    <WorkspaceRightSidebarContent title="Parâmetros" actions={sidebarActions} desktopOnly>
-      {@render adjustmentPanel()}
-    </WorkspaceRightSidebarContent>
-    <ScenarioFilterToolbar
-      {scenarios}
-      {suggestedScenarioName}
-      {canCreateScenario}
-      onRestoreScenario={handleRestoreScenario}
-      onCreateScenario={handleCreateScenario}
-      onDeleteScenario={handleDeleteScenario}
-      onRenameScenario={handleRenameScenario}
-    />
-    <main
-      class="{WORKSPACE_CONTENT_CLASS} {WORKSPACE_STACK_CLASS} min-h-0 flex-1 overflow-y-auto overscroll-contain"
-    >
-      <div class="flex flex-col gap-4">
-        <section
-          class="{LISTINGS_SECTION_CLASS} lg:hidden"
-          aria-label="Resultados dos cenários"
+    {#if workspaceMode}
+      <AnaliseQuerySync />
+      <WorkspaceListingQuerySync />
+      <WorkspaceRightSidebarContent title="Parâmetros" actions={sidebarActions} desktopOnly>
+        {@render adjustmentPanel()}
+      </WorkspaceRightSidebarContent>
+      <ScenarioFilterToolbar
+        {scenarios}
+        {suggestedScenarioName}
+        {canCreateScenario}
+        onRestoreScenario={handleRestoreScenario}
+        onCreateScenario={handleCreateScenario}
+        onDeleteScenario={handleDeleteScenario}
+        onRenameScenario={handleRenameScenario}
+        {suggestedShareTitle}
+        onCreateShare={handleCreateShare}
+      />
+    {:else}
+      <header
+        class="{WORKSPACE_CONTENT_CLASS} flex shrink-0 items-center justify-between border-b border-app-border bg-app-bg/95 py-2"
+      >
+        <div class="min-w-0">
+          <p class="text-xs font-medium uppercase text-app-muted">Visualização compartilhada</p>
+          <h1 class="truncate text-base font-semibold text-app-fg">{title}</h1>
+        </div>
+      </header>
+    {/if}
+    <div class={workspaceMode ? "contents" : "flex min-h-0 flex-1"}>
+      <main
+        class="{WORKSPACE_CONTENT_CLASS} {WORKSPACE_STACK_CLASS} min-h-0 flex-1 overflow-y-auto overscroll-contain"
+      >
+        <div class="flex flex-col gap-4">
+          <section
+            class="{LISTINGS_SECTION_CLASS} lg:hidden"
+            aria-label="Resultados dos cenários"
+          >
+            <ResultsTable
+              cenarios={filteredCenarios}
+              {permutaDisponivel}
+              compact
+              {scenarioColorIndex}
+              {hiddenChartIds}
+              onToggleChartVisibility={toggleChartVisibility}
+            />
+          </section>
+
+          <ChartGroup title="Saldos">
+            <div class="grid gap-4 lg:grid-cols-2">
+              <section class="{LISTINGS_SECTION_CLASS} overflow-visible">
+                <FreeBalanceTimelineChart
+                  cenarios={chartCenarios}
+                  {scenarioColorIndex}
+                  custoMensal={params.custoMensal}
+                  breakdownAnchorSide="left"
+                />
+              </section>
+              <section class="{LISTINGS_SECTION_CLASS} overflow-visible">
+                <TotalBalanceTimelineChart
+                  cenarios={chartCenarios}
+                  {scenarioColorIndex}
+                  capitalDisponivel={params.capitalDisponivel}
+                  quantiaExtra={effective.quantiaExtra}
+                  custoMensal={params.custoMensal}
+                  breakdownAnchorSide="right"
+                />
+              </section>
+            </div>
+          </ChartGroup>
+
+          <ChartGroup title="Gastos">
+            <div class="grid gap-4 lg:grid-cols-2">
+              <section class="{LISTINGS_SECTION_CLASS} overflow-visible">
+                <MonthlyTotalTimelineChart
+                  cenarios={chartCenarios}
+                  {scenarioColorIndex}
+                  custoMensal={params.custoMensal}
+                  breakdownAnchorSide="left"
+                />
+              </section>
+              <section class="{LISTINGS_SECTION_CLASS} overflow-visible">
+                <TotalExpenseTimelineChart
+                  cenarios={chartCenarios}
+                  {scenarioColorIndex}
+                  capitalDisponivel={params.capitalDisponivel}
+                  quantiaExtra={effective.quantiaExtra}
+                  custoMensal={params.custoMensal}
+                  breakdownAnchorSide="right"
+                />
+              </section>
+            </div>
+          </ChartGroup>
+
+          <ChartGroup title="Financiamento">
+            <div class="grid gap-4 lg:grid-cols-2">
+              <section class="{LISTINGS_SECTION_CLASS} overflow-visible">
+                <DebtTimelineChart
+                  cenarios={chartCenarios}
+                  {scenarioColorIndex}
+                  custoMensal={params.custoMensal}
+                  breakdownAnchorSide="left"
+                />
+              </section>
+              <section class="{LISTINGS_SECTION_CLASS} overflow-visible">
+                <PaymentTimelineChart
+                  cenarios={chartCenarios}
+                  {scenarioColorIndex}
+                  breakdownAnchorSide="right"
+                />
+              </section>
+            </div>
+          </ChartGroup>
+        </div>
+      </main>
+
+      {#if !workspaceMode}
+        <aside
+          class="hidden min-h-0 shrink-0 overflow-y-auto border-l border-app-border bg-app-surface lg:block"
+          style={`width: ${WORKSPACE_RIGHT_SIDEBAR_WIDTH};`}
+          aria-label="Parâmetros"
         >
-          <ResultsTable
-            cenarios={filteredCenarios}
-            {permutaDisponivel}
-            compact
-            {scenarioColorIndex}
-            {hiddenChartIds}
-            onToggleChartVisibility={toggleChartVisibility}
-          />
-        </section>
-
-        <ChartGroup title="Saldos">
-          <div class="grid gap-4 lg:grid-cols-2">
-            <section class="{LISTINGS_SECTION_CLASS} overflow-visible">
-              <FreeBalanceTimelineChart
-                cenarios={chartCenarios}
-                {scenarioColorIndex}
-                custoMensal={params.custoMensal}
-                breakdownAnchorSide="left"
-              />
-            </section>
-            <section class="{LISTINGS_SECTION_CLASS} overflow-visible">
-              <TotalBalanceTimelineChart
-                cenarios={chartCenarios}
-                {scenarioColorIndex}
-                capitalDisponivel={params.capitalDisponivel}
-                quantiaExtra={effective.quantiaExtra}
-                custoMensal={params.custoMensal}
-                breakdownAnchorSide="right"
-              />
-            </section>
-          </div>
-        </ChartGroup>
-
-        <ChartGroup title="Gastos">
-          <div class="grid gap-4 lg:grid-cols-2">
-            <section class="{LISTINGS_SECTION_CLASS} overflow-visible">
-              <MonthlyTotalTimelineChart
-                cenarios={chartCenarios}
-                {scenarioColorIndex}
-                custoMensal={params.custoMensal}
-                breakdownAnchorSide="left"
-              />
-            </section>
-            <section class="{LISTINGS_SECTION_CLASS} overflow-visible">
-              <TotalExpenseTimelineChart
-                cenarios={chartCenarios}
-                {scenarioColorIndex}
-                capitalDisponivel={params.capitalDisponivel}
-                quantiaExtra={effective.quantiaExtra}
-                custoMensal={params.custoMensal}
-                breakdownAnchorSide="right"
-              />
-            </section>
-          </div>
-        </ChartGroup>
-
-        <ChartGroup title="Financiamento">
-          <div class="grid gap-4 lg:grid-cols-2">
-            <section class="{LISTINGS_SECTION_CLASS} overflow-visible">
-              <DebtTimelineChart
-                cenarios={chartCenarios}
-                {scenarioColorIndex}
-                custoMensal={params.custoMensal}
-                breakdownAnchorSide="left"
-              />
-            </section>
-            <section class="{LISTINGS_SECTION_CLASS} overflow-visible">
-              <PaymentTimelineChart
-                cenarios={chartCenarios}
-                {scenarioColorIndex}
-                breakdownAnchorSide="right"
-              />
-            </section>
-          </div>
-        </ChartGroup>
-      </div>
-    </main>
+          <header class="sticky top-0 z-10 border-b border-app-border bg-app-surface px-3 py-2">
+            <h2 class="text-sm font-semibold text-app-fg">Parâmetros</h2>
+          </header>
+          {@render adjustmentPanel()}
+        </aside>
+      {/if}
+    </div>
     <MobileParametersDock title="Parâmetros">
       {@render adjustmentPanel()}
     </MobileParametersDock>

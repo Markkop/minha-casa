@@ -22,6 +22,10 @@ export function isPublicShare(pathname: string) {
   return pathname.startsWith("/share/");
 }
 
+export function isPublicFinanceiroSnapshot(pathname: string) {
+  return /^\/financeiro\/s\/[^/]+$/.test(pathname);
+}
+
 export function isPublicGeocodingApi(pathname: string) {
   return pathname === "/api/geocoding/nominatim";
 }
@@ -31,6 +35,7 @@ export function isPublicRoute(pathname: string) {
     PUBLIC_ROUTES.has(pathname) ||
     isPublicShortLink(pathname) ||
     isPublicShare(pathname) ||
+    isPublicFinanceiroSnapshot(pathname) ||
     isPublicGeocodingApi(pathname)
   );
 }
