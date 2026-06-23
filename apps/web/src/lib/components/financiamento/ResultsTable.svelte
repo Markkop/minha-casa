@@ -7,6 +7,10 @@
     formatMonthDurationLong,
     formatTimingMonthLabelLong
   } from "$lib/components/financiamento/parameter-row-helpers";
+  import {
+    APORTE_APOS_REFORMA_VALUE,
+    type AporteInicioTiming
+  } from "$lib/financiamento/aporte-progressivo";
   import FloatingTooltip from "$lib/components/ui/FloatingTooltip.svelte";
   import Tooltip from "$lib/components/ui/Tooltip.svelte";
   import {
@@ -77,10 +81,11 @@
     return formatTimingMonthLabelLong(months);
   }
 
-  function formatAporteDelayCell(delayMonths: number | undefined): string {
-    if (delayMonths === undefined) return "—";
-    if (delayMonths === 0) return "Imediato";
-    return `Após ${formatMonthDurationLong(delayMonths)}`;
+  function formatAporteDelayCell(timing: AporteInicioTiming | undefined): string {
+    if (timing === undefined) return "—";
+    if (timing === APORTE_APOS_REFORMA_VALUE) return "Depois da reforma";
+    if (timing === 0) return "Imediato";
+    return `Após ${formatMonthDurationLong(timing)}`;
   }
 
   const thClass = $derived(

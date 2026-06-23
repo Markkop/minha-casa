@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createInitialSimulatorParams } from "$lib/financiamento/simulator-recursos";
+import { APORTE_APOS_REFORMA_VALUE } from "$lib/financiamento/aporte-progressivo";
 import {
   buildAporteInicioPills,
   buildApproximatePricePills,
@@ -34,6 +35,18 @@ describe("scenario-filter-actions", () => {
       "1 ano",
       "2 anos"
     ]);
+  });
+
+  it("adds the after-reform aporte inicio pill only when reforms are active", () => {
+    const withoutReform = buildAporteInicioPills(false);
+    const withReform = buildAporteInicioPills(true);
+
+    expect(withoutReform.map((pill) => pill.value)).not.toContain(APORTE_APOS_REFORMA_VALUE);
+    expect(withReform.map((pill) => pill.value)).toContain(APORTE_APOS_REFORMA_VALUE);
+    expect(withReform.at(-1)).toEqual({
+      value: APORTE_APOS_REFORMA_VALUE,
+      label: "Depois da reforma"
+    });
   });
 
   it("includes three months in timing pills", () => {

@@ -98,6 +98,14 @@ export interface SimularTimelineInput {
   mesInicioAporte?: number;
 }
 
+export interface ResolveMesReformaConcluidaInput {
+  prazoMeses: number;
+  custoTotalReformas?: number;
+  custoInicialReformas?: number;
+  custoMensalMaximoReformas?: number;
+  mesReforma?: number;
+}
+
 export function calcularCustoTotalEventAware(
   valorImovel: number,
   totalJuros: number,
@@ -106,6 +114,43 @@ export function calcularCustoTotalEventAware(
   custoCarregoApto: number
 ): number {
   return valorImovel + totalJuros + custosFechamentoTotal + totalReformas + custoCarregoApto;
+}
+
+export function resolveMesReformaConcluida({
+  prazoMeses,
+  custoTotalReformas = 0,
+  custoInicialReformas = 0,
+  custoMensalMaximoReformas = 0,
+  mesReforma = 1
+}: ResolveMesReformaConcluidaInput): number | null {
+  if (custoTotalReformas <= 0) {
+    return null;
+  }
+
+  let reformaRestante = custoTotalReformas;
+  let reformaInicialAplicada = false;
+
+  for (let mes = 1; mes <= prazoMeses; mes++) {
+    let reformaInicial = 0;
+    let reformaMensal = 0;
+
+    if (!reformaInicialAplicada && reformaRestante > 0 && mes >= mesReforma) {
+      reformaInicial = Math.min(Math.max(0, custoInicialReformas), reformaRestante);
+      reformaRestante -= reformaInicial;
+      reformaInicialAplicada = true;
+    }
+
+    if (reformaRestante > 0 && custoMensalMaximoReformas > 0 && mes >= mesReforma) {
+      reformaMensal = Math.min(custoMensalMaximoReformas, reformaRestante);
+      reformaRestante -= reformaMensal;
+    }
+
+    if (reformaRestante <= 0 && (reformaInicial > 0 || reformaMensal > 0)) {
+      return mes;
+    }
+  }
+
+  return null;
 }
 
 export function simularTimelineMensal(input: SimularTimelineInput): TimelineResult {

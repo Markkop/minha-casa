@@ -30,6 +30,7 @@
   } from "$lib/financiamento/aporte-progressivo";
   import { formatCurrency, generateTooltips } from "$lib/financiamento/calculations";
   import { UI_DEFAULTS } from "$lib/financiamento/calculations-defaults";
+  import { resolveEffectiveParams } from "$lib/financiamento/financing-effective-params";
   import {
     loadFinanceiroSectionState,
     saveFinanceiroSectionState,
@@ -121,6 +122,7 @@
   const aporteProgressaoMax = $derived(
     Math.max(APORTE_PROGRESSIVO_STEP, params.aporteExtra - params.aporteInicial)
   );
+  const effective = $derived(resolveEffectiveParams(params));
 
   function updateCapital(value: number) {
     if (onCapitalChange) {
@@ -192,7 +194,7 @@
   const saleTimingPills = buildSaleTimingPills();
   const extraTimingPills = buildTimingMonthPills();
   const reformTimingPills = buildTimingMonthPills();
-  const aporteInicioPills = buildAporteInicioPills();
+  const aporteInicioPills = $derived(buildAporteInicioPills(effective.custoTotalReformas > 0));
   const selectedSaleTiming = $derived(selectedSaleTimingValues(params));
 </script>
 

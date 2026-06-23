@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { APORTE_APOS_REFORMA_VALUE } from "$lib/financiamento/aporte-progressivo";
 import { createInitialSimulatorParams } from "$lib/financiamento/simulator-recursos";
 import {
   clearSimulatorParams,
@@ -159,9 +160,9 @@ describe("normalizeSimulatorParams", () => {
   it("validates aporte inicio delay filters", () => {
     const defaults = createInitialSimulatorParams();
     const result = normalizeSimulatorParams({
-      temposInicioAporteExtraMeses: [0, 2, 3, 99]
+      temposInicioAporteExtraMeses: [0, 2, 3, 99, APORTE_APOS_REFORMA_VALUE, "invalid"]
     });
-    expect(result.temposInicioAporteExtraMeses).toEqual([0, 3]);
+    expect(result.temposInicioAporteExtraMeses).toEqual([0, 3, APORTE_APOS_REFORMA_VALUE]);
     expect(normalizeSimulatorParams({ temposInicioAporteExtraMeses: [] })
       .temposInicioAporteExtraMeses).toEqual(defaults.temposInicioAporteExtraMeses);
   });

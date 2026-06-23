@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { APORTE_APOS_REFORMA_VALUE } from "$lib/financiamento/aporte-progressivo";
 import type { CenarioCompleto } from "$lib/financiamento/calculations";
 import {
   CHART_COLORS,
@@ -77,6 +78,16 @@ describe("scenario chart colors", () => {
         color: CHART_COLORS[3]
       }
     ]);
+  });
+
+  it("labels after-reform aporte timing in legend entries", () => {
+    const item = scenario("2000000-550000-venda_posterior-v12-en-r1-aapos_reforma", {
+      aporteEm: APORTE_APOS_REFORMA_VALUE
+    });
+
+    expect(scenarioLegendEntries([item])[0]?.label).toBe(
+      "R$ 2.00M · aporte Depois da reforma"
+    );
   });
 });
 

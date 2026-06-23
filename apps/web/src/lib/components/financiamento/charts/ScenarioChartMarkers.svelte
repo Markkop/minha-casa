@@ -1,6 +1,5 @@
 <script lang="ts">
   import type { CenarioCompleto } from "$lib/financiamento/calculations";
-  import { resolveAporteStartMonth } from "$lib/financiamento/aporte-progressivo";
 
   type ChartPadding = {
     top: number;
@@ -49,8 +48,8 @@
   {/if}
 {/if}
 
-{#if cenario.aporteEm !== undefined && cenario.aporteEm > 0}
-  {@const mx = markerX(resolveAporteStartMonth(cenario.aporteEm))}
+{#if cenario.aporteInicioMes !== undefined && cenario.aporteInicioMes > 1}
+  {@const mx = markerX(cenario.aporteInicioMes)}
   {#if mx !== null}
     <line
       x1={mx}

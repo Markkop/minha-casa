@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { APORTE_APOS_REFORMA_VALUE } from "$lib/financiamento/aporte-progressivo";
 import { gerarCenarioCompleto, gerarMatrizCenarios } from "$lib/financiamento/calculations";
 import { SIMULATION_ASSUMPTIONS } from "$lib/financiamento/calculations-defaults";
 import { simularTimelineMensal } from "$lib/financiamento/financing-timeline";
@@ -247,6 +248,59 @@ describe("simularTimelineMensal", () => {
     expect(result.meses[7]?.aporteExtra).toBe(1_000);
   });
 
+  it("starts aporte in the month after the selected reform finishes", () => {
+    const cenario = gerarCenarioCompleto({
+      valorImovel: 2_000_000,
+      capitalDisponivel: 400_000,
+      reservaEmergencia: 0,
+      valorApartamento: 0,
+      estrategia: "venda_posterior",
+      taxaAnual: 0.11,
+      trMensal: 0.0015,
+      prazoMeses: 360,
+      aporteExtra: 5_000,
+      rendaMensal: 45_000,
+      custoTotalReformas: 50_000,
+      custoInicialReformas: 20_000,
+      custoMensalMaximoReformas: 15_000,
+      mesReforma: 1,
+      aporteDelayMeses: APORTE_APOS_REFORMA_VALUE
+    });
+
+    expect(cenario.timeline[0]).toMatchObject({ reformaInicial: 20_000, reformaMensal: 15_000 });
+    expect(cenario.timeline[1]).toMatchObject({ reformaMensal: 15_000, aporteExtra: 0 });
+    expect(cenario.timeline[2]).toMatchObject({ reformaMensal: 0, aporteExtra: 5_000 });
+    expect(cenario.aporteEm).toBe(APORTE_APOS_REFORMA_VALUE);
+    expect(cenario.aporteInicioMes).toBe(3);
+    expect(cenario.timeline.some((month) => month.reformaMensal > 0 && month.aporteExtra > 0)).toBe(
+      false
+    );
+  });
+
+  it("does not apply after-reform aporte when the reform cannot finish", () => {
+    const cenario = gerarCenarioCompleto({
+      valorImovel: 2_000_000,
+      capitalDisponivel: 400_000,
+      reservaEmergencia: 0,
+      valorApartamento: 0,
+      estrategia: "venda_posterior",
+      taxaAnual: 0.11,
+      trMensal: 0.0015,
+      prazoMeses: 360,
+      aporteExtra: 5_000,
+      rendaMensal: 45_000,
+      custoTotalReformas: 50_000,
+      custoInicialReformas: 0,
+      custoMensalMaximoReformas: 0,
+      mesReforma: 1,
+      aporteDelayMeses: APORTE_APOS_REFORMA_VALUE
+    });
+
+    expect(cenario.aporteEm).toBe(APORTE_APOS_REFORMA_VALUE);
+    expect(cenario.aporteInicioMes).toBeUndefined();
+    expect(cenario.timeline.every((month) => month.aporteExtra === 0)).toBe(true);
+  });
+
   it("keeps prestacao separate from aporte extra mensal", () => {
     const semAporte = simularTimelineMensal({
       ...baseTimeline,
@@ -361,7 +415,32 @@ describe("gerarMatrizCenarios", () => {
     });
 
     expect(rows).toHaveLength(2);
-    expect(rows.map((r) => r.aporteEm).sort((a, b) => (a ?? 0) - (b ?? 0))).toEqual([0, 3]);
+    const aporteMonths = rows
+      .map((r) => r.aporteEm)
+      .filter((value): value is number => typeof value === "number")
+      .sort((a, b) => a - b);
+    expect(aporteMonths).toEqual([0, 3]);
+  });
+
+  it("expands scenarios across after-reform aporte start timing", () => {
+    const rows = gerarMatrizCenarios({
+      ...matrixBase,
+      valoresApartamento: [0],
+      temImovelParaNegociar: false,
+      esperaQuantiaExtra: false,
+      aporteExtra: 5_000,
+      custoTotalReformas: 50_000,
+      custoInicialReformas: 20_000,
+      custoMensalMaximoReformas: 15_000,
+      temposReformaMeses: [1],
+      temposInicioAporteExtraMeses: [0, APORTE_APOS_REFORMA_VALUE]
+    });
+
+    expect(rows).toHaveLength(2);
+    expect(rows.map((r) => r.aporteEm)).toEqual(
+      expect.arrayContaining([0, APORTE_APOS_REFORMA_VALUE])
+    );
+    expect(rows.find((r) => r.aporteEm === APORTE_APOS_REFORMA_VALUE)?.aporteInicioMes).toBe(3);
   });
 
   it("does not expand aporte timing when aporte extra is zero", () => {

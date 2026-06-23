@@ -1,3 +1,10 @@
+import type { AporteInicioTiming } from "$lib/financiamento/aporte-progressivo";
+
+export {
+  APORTE_APOS_REFORMA_VALUE,
+  type AporteInicioTiming
+} from "$lib/financiamento/aporte-progressivo";
+
 /** Legacy percentage multipliers (preview/demo only). */
 export const PERCENTAGE_OPTIONS = [
   { value: 1.0, label: "Original" },
@@ -59,7 +66,7 @@ export interface SimulatorParams {
   temposRecebimentoExtraMeses: number[];
   temposReformaMeses: number[];
   /** Selected delay months before the first aporte extra (0 = immediate). */
-  temposInicioAporteExtraMeses: number[];
+  temposInicioAporteExtraMeses: AporteInicioTiming[];
   /** Scenario ids hidden from timeline charts (table rows remain visible). */
   cenariosOcultosGraficos: string[];
   /** Listing id that last drove valorImovel via breadcrumb; null when unlinked. */

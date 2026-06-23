@@ -1,6 +1,8 @@
 import {
   APORTE_INICIO_DELAY_OPTIONS,
   TIMING_MONTH_OPTIONS,
+  APORTE_APOS_REFORMA_VALUE,
+  type AporteInicioTiming,
   type SimulatorParams
 } from "$lib/components/financiamento/financiamento-parameter-types";
 import { buildApproximatePriceValues } from "$lib/components/financiamento/price-filter-approx";
@@ -15,7 +17,7 @@ export type ScenarioFilterPillOption<T extends string | number = string | number
   label: string;
 };
 
-export function toggleNumberList(current: number[], value: number): number[] {
+export function toggleNumberList<T extends string | number>(current: T[], value: T): T[] {
   return current.includes(value) ? current.filter((v) => v !== value) : [...current, value];
 }
 
@@ -43,11 +45,21 @@ export function buildTimingMonthPills(): ScenarioFilterPillOption<number>[] {
   }));
 }
 
-export function buildAporteInicioPills(): ScenarioFilterPillOption<number>[] {
-  return APORTE_INICIO_DELAY_OPTIONS.map((delayMonths) => ({
+export function buildAporteInicioPills(hasReforma = false): ScenarioFilterPillOption<AporteInicioTiming>[] {
+  const numericOptions = APORTE_INICIO_DELAY_OPTIONS.map((delayMonths) => ({
     value: delayMonths,
     label: formatAporteInicioLabel(delayMonths)
   }));
+  if (!hasReforma) {
+    return numericOptions;
+  }
+  return [
+    ...numericOptions,
+    {
+      value: APORTE_APOS_REFORMA_VALUE,
+      label: formatAporteInicioLabel(APORTE_APOS_REFORMA_VALUE)
+    }
+  ];
 }
 
 export function selectedSaleTimingValues(

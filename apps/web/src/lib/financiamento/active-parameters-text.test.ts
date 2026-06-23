@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { APORTE_APOS_REFORMA_VALUE } from "$lib/financiamento/aporte-progressivo";
 import { buildActiveParametersText } from "$lib/financiamento/active-parameters-text";
 import { createInitialSimulatorParams } from "$lib/financiamento/simulator-recursos";
 
@@ -24,7 +25,7 @@ describe("buildActiveParametersText", () => {
       esperaQuantiaExtra: true,
       temposVendaPosteriorMeses: [1, 3],
       temposReformaMeses: [3],
-      temposInicioAporteExtraMeses: [0, 3],
+      temposInicioAporteExtraMeses: [0, 3, APORTE_APOS_REFORMA_VALUE],
       temposRecebimentoExtraMeses: [6]
     };
 
@@ -32,7 +33,7 @@ describe("buildActiveParametersText", () => {
 
     expect(text).toContain("Condições de negociação: Permuta, Venda em 1 mês, Venda em 3 meses");
     expect(text).toContain("Início das reformas: 3 meses");
-    expect(text).toContain("Início do aporte extra: Imediato, 3 meses");
+    expect(text).toContain("Início do aporte extra: Imediato, 3 meses, Depois da reforma");
     expect(text).toContain("Intervalo da progressão: 1 mês");
     expect(text).toContain("Recebimento da quantia extra: 6 meses");
   });

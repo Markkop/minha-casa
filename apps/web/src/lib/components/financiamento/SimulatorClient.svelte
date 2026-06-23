@@ -19,8 +19,11 @@
   import ResultsTable from "$lib/components/financiamento/ResultsTable.svelte";
   import ScenarioFilterToolbar from "$lib/components/financiamento/ScenarioFilterToolbar.svelte";
   import ChartGroup from "$lib/components/financiamento/charts/ChartGroup.svelte";
-  import type { RecursosMeta } from "$lib/components/financiamento/financiamento-parameter-types";
-  import type { SimulatorParams } from "$lib/components/financiamento/financiamento-parameter-types";
+  import {
+    APORTE_APOS_REFORMA_VALUE,
+    type RecursosMeta,
+    type SimulatorParams
+  } from "$lib/components/financiamento/financiamento-parameter-types";
   import {
     pruneSelectedPriceFilters,
     selectedPriceFilterForValueChange
@@ -29,7 +32,10 @@
   import { LISTINGS_SECTION_CLASS } from "$lib/anuncios/listings-panel-layout";
   import { getCollectionsContext } from "$lib/collections-context.svelte";
   import WorkspaceLoadingState from "$lib/components/workspace/WorkspaceLoadingState.svelte";
-  import { UI_DEFAULTS } from "$lib/financiamento/calculations-defaults";
+  import {
+    DEFAULT_APORTE_INICIO_DELAY_MONTHS,
+    UI_DEFAULTS
+  } from "$lib/financiamento/calculations-defaults";
   import { buildActiveParametersText } from "$lib/financiamento/active-parameters-text";
   import { calcularReservaRecomendada, gerarMatrizCenarios } from "$lib/financiamento/calculations";
   import { resolveEffectiveParams } from "$lib/financiamento/financing-effective-params";
@@ -126,6 +132,21 @@
   });
 
   const effective = $derived(resolveEffectiveParams(params));
+
+  $effect(() => {
+    if (effective.custoTotalReformas > 0) return;
+    if (!params.temposInicioAporteExtraMeses.includes(APORTE_APOS_REFORMA_VALUE)) return;
+
+    const numericTimings = params.temposInicioAporteExtraMeses.filter(
+      (timing): timing is number => typeof timing === "number"
+    );
+
+    params = {
+      ...params,
+      temposInicioAporteExtraMeses:
+        numericTimings.length > 0 ? numericTimings : [...DEFAULT_APORTE_INICIO_DELAY_MONTHS]
+    };
+  });
 
   const recursosMeta = $derived.by((): RecursosMeta => {
     const valorImovel = params.valorImovel;

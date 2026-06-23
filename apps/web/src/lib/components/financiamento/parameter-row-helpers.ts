@@ -1,3 +1,8 @@
+import {
+  APORTE_APOS_REFORMA_VALUE,
+  type AporteInicioTiming
+} from "$lib/financiamento/aporte-progressivo";
+
 export type SliderRange = { min: number; max: number; step: number };
 
 export const PROPERTY_SLIDER_STEP = 10_000;
@@ -54,9 +59,10 @@ export function snapToPropertyStep(value: number): number {
 }
 
 /** Labels for aporte-extra start delay pills and legends. */
-export function formatAporteInicioLabel(delayMonths: number): string {
-  if (delayMonths === 0) return "Imediato";
-  return formatMonthDurationLong(delayMonths);
+export function formatAporteInicioLabel(timing: AporteInicioTiming): string {
+  if (timing === APORTE_APOS_REFORMA_VALUE) return "Depois da reforma";
+  if (timing === 0) return "Imediato";
+  return formatMonthDurationLong(timing);
 }
 
 export function formatTimingMonthLabel(months: number): string {

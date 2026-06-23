@@ -1,6 +1,8 @@
 import {
   APORTE_INICIO_DELAY_OPTIONS,
+  APORTE_APOS_REFORMA_VALUE,
   TIMING_MONTH_OPTIONS,
+  type AporteInicioTiming,
   type EstrategiaFiltro,
   type SimulatorParams
 } from "$lib/components/financiamento/financiamento-parameter-types";
@@ -22,9 +24,11 @@ const VALID_APORTE_INICIO_DELAYS = new Set<number>(APORTE_INICIO_DELAY_OPTIONS);
 const MAX_PRICE_FILTER_VALUE = 50_000_000;
 
 /** Stored shape, including fields used before the capital/entrada split. */
-interface StoredSimulatorParams extends Partial<Omit<SimulatorParams, "linkedListingId">> {
+interface StoredSimulatorParams
+  extends Partial<Omit<SimulatorParams, "linkedListingId" | "temposInicioAporteExtraMeses">> {
   custoCondominioMensal?: number;
   linkedListingId?: unknown;
+  temposInicioAporteExtraMeses?: unknown;
 }
 
 function finiteNumber(value: unknown, fallback: number): number {
@@ -69,12 +73,17 @@ function validTimingMonthList(value: unknown, fallback: number[]): number[] {
   return filtered.length > 0 ? filtered : fallback;
 }
 
-function validAporteInicioDelayList(value: unknown, fallback: number[]): number[] {
+function validAporteInicioDelayList(
+  value: unknown,
+  fallback: AporteInicioTiming[]
+): AporteInicioTiming[] {
   if (!Array.isArray(value)) {
     return fallback;
   }
   const filtered = value.filter(
-    (v): v is number => typeof v === "number" && VALID_APORTE_INICIO_DELAYS.has(v)
+    (v): v is AporteInicioTiming =>
+      (typeof v === "number" && VALID_APORTE_INICIO_DELAYS.has(v)) ||
+      v === APORTE_APOS_REFORMA_VALUE
   );
   return filtered.length > 0 ? filtered : fallback;
 }

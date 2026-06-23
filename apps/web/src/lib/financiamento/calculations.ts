@@ -4,12 +4,15 @@
  */
 
 import {
+  APORTE_APOS_REFORMA_VALUE,
   resolveAporteStartMonth,
+  type AporteInicioTiming,
   type AporteProgressivoConfig
 } from "$lib/financiamento/aporte-progressivo";
 import { SIMULATION_ASSUMPTIONS } from "$lib/financiamento/calculations-defaults";
 import {
   calcularCustoTotalEventAware,
+  resolveMesReformaConcluida,
   simularTimelineMensal,
   type TimelineMonth
 } from "$lib/financiamento/financing-timeline";
@@ -242,7 +245,7 @@ export interface CenarioCompletoParams {
   custoInicialReformas?: number
   custoMensalMaximoReformas?: number
   mesReforma?: number
-  aporteDelayMeses?: number
+  aporteDelayMeses?: AporteInicioTiming
 }
 
 export interface CenarioCompleto {
@@ -271,7 +274,8 @@ export interface CenarioCompleto {
   vendaEm?: number
   extraEm?: number
   reformaEm?: number
-  aporteEm?: number
+  aporteEm?: AporteInicioTiming
+  aporteInicioMes?: number
   timeline: TimelineMonth[]
   saldoLivreMinimo: number
   totalReformas: number
@@ -301,7 +305,7 @@ export interface MatrizCenariosParams {
   temposVendaPosteriorMeses?: readonly number[]
   temposRecebimentoExtraMeses?: readonly number[]
   temposReformaMeses?: readonly number[]
-  temposInicioAporteExtraMeses?: readonly number[]
+  temposInicioAporteExtraMeses?: readonly AporteInicioTiming[]
   reservaEmergencia?: number
   haircut?: number
   prazoMeses?: number
@@ -901,6 +905,36 @@ function buildCenarioOtimizadoResumo(
   return base
 }
 
+function resolveAporteInicioMes({
+  aporteDelayMeses,
+  prazoMeses,
+  custoTotalReformas,
+  custoInicialReformas,
+  custoMensalMaximoReformas,
+  mesReforma
+}: {
+  aporteDelayMeses: AporteInicioTiming;
+  prazoMeses: number;
+  custoTotalReformas: number;
+  custoInicialReformas: number;
+  custoMensalMaximoReformas: number;
+  mesReforma?: number;
+}): number | undefined {
+  if (aporteDelayMeses !== APORTE_APOS_REFORMA_VALUE) {
+    return resolveAporteStartMonth(aporteDelayMeses);
+  }
+
+  const mesReformaConcluida = resolveMesReformaConcluida({
+    prazoMeses,
+    custoTotalReformas,
+    custoInicialReformas,
+    custoMensalMaximoReformas,
+    mesReforma: mesReforma ?? 1
+  });
+
+  return mesReformaConcluida === null ? undefined : mesReformaConcluida + 1;
+}
+
 /**
  * Gera um cenário completo de financiamento
  */
@@ -929,7 +963,15 @@ export const gerarCenarioCompleto = ({
   mesReforma,
   aporteDelayMeses = 0
 }: CenarioCompletoParams): CenarioCompleto => {
-  const mesInicioAporte = resolveAporteStartMonth(aporteDelayMeses);
+  const aporteInicioMes = resolveAporteInicioMes({
+    aporteDelayMeses,
+    prazoMeses,
+    custoTotalReformas,
+    custoInicialReformas,
+    custoMensalMaximoReformas,
+    mesReforma
+  });
+  const mesInicioAporte = aporteInicioMes ?? prazoMeses + 1;
   const manutencao = custoManutencaoImovelMensal ?? custoCondominioMensal ?? 0
   const entrada = calcularEntrada({ capitalDisponivel, reservaEmergencia })
 
@@ -1039,6 +1081,7 @@ export const gerarCenarioCompleto = ({
     extraEm,
     reformaEm,
     aporteEm,
+    aporteInicioMes: aporteExtra > 0 ? aporteInicioMes : undefined,
     timeline: timeline.meses,
     saldoLivreMinimo: timeline.saldoLivreMinimo,
     totalReformas: timeline.totalReformas,
@@ -1070,12 +1113,16 @@ function reformMonthVariants(
 
 function aporteDelayVariants(
   aporteExtra: number,
-  temposInicioAporteExtraMeses: readonly number[]
-): number[] {
+  temposInicioAporteExtraMeses: readonly AporteInicioTiming[],
+  hasReforma: boolean
+): AporteInicioTiming[] {
   if (aporteExtra <= 0) {
     return [0]
   }
-  return [...temposInicioAporteExtraMeses]
+  const variants = temposInicioAporteExtraMeses.filter(
+    (timing) => typeof timing === "number" || (hasReforma && timing === APORTE_APOS_REFORMA_VALUE)
+  )
+  return variants.length > 0 ? variants : [0]
 }
 
 /**
@@ -1111,7 +1158,12 @@ export const gerarMatrizCenarios = ({
   const temImovel =
     temImovelParaNegociar ?? valoresApartamento.some((v) => v > 0)
   const extraMonths = extraMonthVariants(esperaQuantiaExtra, temposRecebimentoExtraMeses)
-  const aporteDelays = aporteDelayVariants(aporteExtra, temposInicioAporteExtraMeses)
+  const hasReforma = custoTotalReformas > 0
+  const aporteDelays = aporteDelayVariants(
+    aporteExtra,
+    temposInicioAporteExtraMeses,
+    hasReforma
+  )
   const cenarios: CenarioCompleto[] = []
 
   const baseCenario = {

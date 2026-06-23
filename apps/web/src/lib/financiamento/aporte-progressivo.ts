@@ -1,6 +1,10 @@
 export const APORTE_PROGRESSIVO_STEP = 1_000;
 export const APORTE_INTERVALO_MIN = 1;
 export const APORTE_INTERVALO_MAX = 12;
+export const APORTE_APOS_REFORMA_VALUE = "apos_reforma" as const;
+
+export type AporteAposReforma = typeof APORTE_APOS_REFORMA_VALUE;
+export type AporteInicioTiming = number | AporteAposReforma;
 
 export interface AporteProgressivoConfig {
   enabled: boolean;
