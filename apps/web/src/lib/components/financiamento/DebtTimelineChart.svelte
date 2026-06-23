@@ -46,6 +46,7 @@
     monthlyExpenseBreakdown,
     monthlyFreeBalance
   } from "$lib/components/financiamento/monthly-cash-flow";
+  import { debtGraphBreakdownText } from "$lib/components/financiamento/graph-breakdown-copy";
   import {
     formatCurrency,
     formatCurrencyCompact,
@@ -194,6 +195,7 @@
 
   const legendEntries = $derived(scenarioLegendEntries(cenarios, resolvedColorIndex));
   const eventLegendEntries = $derived(scenarioEventLegendEntries(cenarios));
+  const copyText = $derived(debtGraphBreakdownText(cenarios, custoMensal));
 
   function handleChartPointerMove(event: PointerEvent) {
     if (!svgEl) return;
@@ -249,7 +251,12 @@
   }
 </script>
 
-<CollapsibleChartPanel title="Saldo devedor" empty={cenarios.length === 0}>
+<CollapsibleChartPanel
+  title="Saldo devedor"
+  empty={cenarios.length === 0}
+  {copyText}
+  copyLabel="Copiar detalhamento do saldo devedor"
+>
   <div bind:this={chartContainer} class="relative w-full">
     <svg
       bind:this={svgEl}

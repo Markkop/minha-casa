@@ -41,6 +41,7 @@
     polylinePointsForFreeBalance
   } from "$lib/components/financiamento/free-balance-chart-math";
   import { renderedFreeBalance } from "$lib/components/financiamento/chart-event-path";
+  import { freeBalanceGraphBreakdownText } from "$lib/components/financiamento/graph-breakdown-copy";
   import { monthlyExpenseBreakdown } from "$lib/components/financiamento/monthly-cash-flow";
   import { formatTimingMonthLabelLong } from "$lib/components/financiamento/parameter-row-helpers";
   import {
@@ -188,6 +189,7 @@
 
   const legendEntries = $derived(scenarioLegendEntries(cenarios, resolvedColorIndex));
   const eventLegendEntries = $derived(scenarioEventLegendEntries(cenarios));
+  const copyText = $derived(freeBalanceGraphBreakdownText(cenarios, custoMensal));
 
   function handleChartPointerMove(event: PointerEvent) {
     if (!svgEl) return;
@@ -251,7 +253,12 @@
   }
 </script>
 
-<CollapsibleChartPanel title="Saldo livre" empty={cenarios.length === 0}>
+<CollapsibleChartPanel
+  title="Saldo livre"
+  empty={cenarios.length === 0}
+  {copyText}
+  copyLabel="Copiar detalhamento do saldo livre"
+>
   <div bind:this={chartContainer} class="relative w-full">
     <svg
       bind:this={svgEl}

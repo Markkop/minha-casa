@@ -33,6 +33,7 @@
     resolveLedgerSelection
   } from "$lib/components/financiamento/chart-selection";
   import { getChartSelectionContext } from "$lib/components/financiamento/chart-selection-context.svelte";
+  import { totalExpenseGraphBreakdownText } from "$lib/components/financiamento/graph-breakdown-copy";
   import {
     buildExpenseLedgers,
     buildSignedYAxisScale,
@@ -179,6 +180,9 @@
   const eventLegendEntries = $derived(
     scenarioEventLegendEntries(cenarios, { showReformMarker: false })
   );
+  const copyText = $derived(
+    totalExpenseGraphBreakdownText(cenarios, capitalDisponivel, quantiaExtra, custoMensal)
+  );
 
   function handleChartPointerMove(event: PointerEvent) {
     if (!svgEl) return;
@@ -227,7 +231,12 @@
   }
 </script>
 
-<CollapsibleChartPanel title="Gasto total ao longo do tempo" empty={cenarios.length === 0}>
+<CollapsibleChartPanel
+  title="Gasto total ao longo do tempo"
+  empty={cenarios.length === 0}
+  {copyText}
+  copyLabel="Copiar detalhamento do gasto total"
+>
   <div bind:this={chartContainer} class="relative w-full">
     <svg
       bind:this={svgEl}

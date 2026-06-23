@@ -44,6 +44,7 @@
     renderedFreeBalance,
     renderedMonthlyTotal
   } from "$lib/components/financiamento/chart-event-path";
+  import { monthlyTotalGraphBreakdownText } from "$lib/components/financiamento/graph-breakdown-copy";
   import { formatTimingMonthLabelLong } from "$lib/components/financiamento/parameter-row-helpers";
   import { monthlyExpenseBreakdown } from "$lib/components/financiamento/monthly-cash-flow";
   import {
@@ -202,6 +203,7 @@
   const referenceLines = $derived([
     { id: "renda", y: rendaY, label: "Renda", opacity: 0.55 }
   ]);
+  const copyText = $derived(monthlyTotalGraphBreakdownText(cenarios, custoMensal));
 
   function handleChartPointerMove(event: PointerEvent) {
     if (!svgEl) return;
@@ -275,7 +277,12 @@
   }
 </script>
 
-<CollapsibleChartPanel title="Gasto mensal" empty={cenarios.length === 0}>
+<CollapsibleChartPanel
+  title="Gasto mensal"
+  empty={cenarios.length === 0}
+  {copyText}
+  copyLabel="Copiar detalhamento do gasto mensal"
+>
   <div bind:this={chartContainer} class="relative w-full">
     <svg
       bind:this={svgEl}

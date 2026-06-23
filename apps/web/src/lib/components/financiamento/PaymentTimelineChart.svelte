@@ -40,6 +40,7 @@
     selectionFromTimelinePointer
   } from "$lib/components/financiamento/chart-selection";
   import { getChartSelectionContext } from "$lib/components/financiamento/chart-selection-context.svelte";
+  import { paymentGraphBreakdownText } from "$lib/components/financiamento/graph-breakdown-copy";
   import { formatTimingMonthLabelLong } from "$lib/components/financiamento/parameter-row-helpers";
   import {
     formatCurrency,
@@ -172,6 +173,7 @@
 
   const legendEntries = $derived(scenarioLegendEntries(cenarios, resolvedColorIndex));
   const eventLegendEntries = $derived(scenarioEventLegendEntries(cenarios));
+  const copyText = $derived(paymentGraphBreakdownText(cenarios));
 
   function handleChartPointerMove(event: PointerEvent) {
     if (!svgEl) return;
@@ -243,7 +245,12 @@
   }
 </script>
 
-<CollapsibleChartPanel title="Prestações" empty={cenarios.length === 0}>
+<CollapsibleChartPanel
+  title="Prestações"
+  empty={cenarios.length === 0}
+  {copyText}
+  copyLabel="Copiar detalhamento das prestações"
+>
   <div bind:this={chartContainer} class="relative w-full">
     <svg
       bind:this={svgEl}
