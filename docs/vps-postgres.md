@@ -60,9 +60,75 @@ docker compose -f infra/vps/docker-compose.db.yml --env-file .env.prod exec phoe
   /app/bin/minha_casa_ai eval "MinhaCasaAi.Release.migrate()"
 ```
 
+## Updating the VPS
+
+The production checkout lives at `/docker/minha-casa`. The shared Caddy stack lives outside this repo at `/docker/caddy`; update `/docker/caddy/Caddyfile` for public host routing instead of adding another Caddy service to this Compose file.
+
+Before pulling, check whether production is behind by more than the commit you are deploying:
+
+```bash
+cd /docker/minha-casa
+git status --short --branch
+git fetch origin main
+git log --oneline HEAD..origin/main
+```
+
+Deploy Phoenix backend changes with a rebuild, migration, recreate, and health check:
+
+```bash
+cd /docker/minha-casa
+git pull --ff-only origin main
+
+docker compose -f infra/vps/docker-compose.db.yml --env-file .env.prod build phoenix-api
+
+docker compose -f infra/vps/docker-compose.db.yml --env-file .env.prod run --rm --no-deps phoenix-api \
+  /app/bin/minha_casa_ai eval "MinhaCasaAi.Release.migrate()"
+
+docker compose -f infra/vps/docker-compose.db.yml --env-file .env.prod up -d --no-deps --force-recreate phoenix-api
+
+docker compose -f infra/vps/docker-compose.db.yml --env-file .env.prod ps phoenix-api
+docker inspect -f "{{.State.Health.Status}}" minha-casa-phoenix-api-1
+docker logs --tail=80 minha-casa-phoenix-api-1
+```
+
+For public API smoke checks, use the production API host configured in Caddy, currently `https://api.casas.markkop.dev`.
+
 ## Data model note
 
 All app tables (listings, `saved_links`, auth, etc.) live in this Postgres instance. Drizzle (shared TypeScript tooling) and Ecto (Phoenix) are ORMs over the same database.
+
+When a deploy includes both an Ecto migration and a Drizzle migration for the same physical database change, avoid blindly running both SQL paths if one has already created the objects. The table may be idempotent while index or constraint names differ, which can create duplicate indexes.
+
+If Ecto is the path used in production for a shared migration, still keep Drizzle's migration history in sync so a later `pnpm db:migrate` does not try to replay the SQL. Use the `when` value from `drizzle/migrations/meta/_journal.json` and the SHA-256 hash of the SQL file:
+
+```bash
+cd /docker/minha-casa
+HASH=$(sha256sum drizzle/migrations/<migration>.sql | cut -d " " -f 1)
+WHEN=<journal when value>
+
+docker exec -i minha-casa-db-1 sh -lc 'cat > /tmp/mark-drizzle.sql && psql -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB" -f /tmp/mark-drizzle.sql' <<SQL
+CREATE SCHEMA IF NOT EXISTS drizzle;
+CREATE TABLE IF NOT EXISTS drizzle.__drizzle_migrations (
+  id SERIAL PRIMARY KEY,
+  hash text NOT NULL,
+  created_at numeric
+);
+INSERT INTO drizzle.__drizzle_migrations (hash, created_at)
+SELECT '$HASH', $WHEN
+WHERE NOT EXISTS (
+  SELECT 1 FROM drizzle.__drizzle_migrations WHERE created_at = $WHEN
+);
+SQL
+```
+
+Verify both migration histories when this happens:
+
+```bash
+docker exec -i minha-casa-db-1 sh -lc 'cat > /tmp/check-migrations.sql && psql -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB" -f /tmp/check-migrations.sql' <<SQL
+SELECT version FROM schema_migrations ORDER BY version DESC LIMIT 5;
+SELECT created_at FROM drizzle.__drizzle_migrations ORDER BY created_at DESC LIMIT 5;
+SQL
+```
 
 ## Frontend env vars
 
