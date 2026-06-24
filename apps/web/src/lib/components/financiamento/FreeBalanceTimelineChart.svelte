@@ -23,6 +23,7 @@
     scenarioEventLegendEntries,
     scenarioChartColor,
     scenarioColorIndexMap,
+    type ChartEventLegendEntry,
     scenarioLabel,
     scenarioLegendEntries
   } from "$lib/components/financiamento/charts/chart-shared";
@@ -40,9 +41,12 @@
     pickChartHoverForFreeBalance,
     polylinePointsForFreeBalance
   } from "$lib/components/financiamento/free-balance-chart-math";
-  import { renderedFreeBalance } from "$lib/components/financiamento/chart-event-path";
+  import { renderedRecurringFreeBalance } from "$lib/components/financiamento/chart-event-path";
   import { freeBalanceGraphBreakdownText } from "$lib/components/financiamento/graph-breakdown-copy";
-  import { monthlyExpenseBreakdown } from "$lib/components/financiamento/monthly-cash-flow";
+  import {
+    monthlyCashEventBreakdown,
+    monthlyRecurringExpenseBreakdown
+  } from "$lib/components/financiamento/monthly-cash-flow";
   import { formatTimingMonthLabelLong } from "$lib/components/financiamento/parameter-row-helpers";
   import {
     buildSignedYAxisScale,
@@ -53,6 +57,7 @@
     formatCurrencyCompact,
     type CenarioCompleto
   } from "$lib/financiamento/calculations";
+  import type { TimelineMonth } from "$lib/financiamento/financing-timeline";
   import { cn } from "$lib/utils";
 
   let {
@@ -188,7 +193,10 @@
   });
 
   const legendEntries = $derived(scenarioLegendEntries(cenarios, resolvedColorIndex));
-  const eventLegendEntries = $derived(scenarioEventLegendEntries(cenarios));
+  const eventLegendEntries = $derived([
+    ...scenarioEventLegendEntries(cenarios),
+    ...cashEventLegendEntries(cenarios)
+  ]);
   const copyText = $derived(freeBalanceGraphBreakdownText(cenarios, custoMensal));
 
   function handleChartPointerMove(event: PointerEvent) {
@@ -251,6 +259,22 @@
   function markerX(month: number | undefined): number | null {
     return month === undefined ? null : xForMonth(month, maxMonth, chartWidth, padding);
   }
+
+  function cashEventMarkerMonths(cenario: CenarioCompleto): TimelineMonth[] {
+    return cenario.timeline.filter((month) => monthlyCashEventBreakdown(month).total > 0);
+  }
+
+  function cashEventMarkerTitle(month: TimelineMonth): string {
+    return monthlyCashEventBreakdown(month).events
+      .map((event) => `Evento: ${event.label} ${formatCurrency(event.value)}`)
+      .join(" · ");
+  }
+
+  function cashEventLegendEntries(cenarios: CenarioCompleto[]): ChartEventLegendEntry[] {
+    return cenarios.some((cenario) => cenario.timeline.some((month) => monthlyCashEventBreakdown(month).total > 0))
+      ? [{ id: "evento-caixa", label: "Evento de caixa", kind: "cash" }]
+      : [];
+  }
 </script>
 
 <CollapsibleChartPanel
@@ -298,6 +322,19 @@
             opacity={activeCenarioId && !isActive ? 0.3 : 1}
           />
           <ScenarioChartMarkers {cenario} {color} {markerX} {padding} {height} />
+          {#each cashEventMarkerMonths(cenario) as eventMonth (`${cenario.id}-${eventMonth.mes}`)}
+            {@const eventX = markerX(eventMonth.mes)}
+            {@const eventSlot = (resolvedColorIndex.get(cenario.id) ?? 0) % 3}
+            {#if eventX !== null}
+              <g
+                transform={`translate(${eventX} ${padding.top + 16 + eventSlot * 10})`}
+                opacity={activeCenarioId && !isActive ? 0.3 : 0.9}
+              >
+                <path d="M 0 -5 L 5 0 L 0 5 L -5 0 Z" fill={color} />
+                <title>{cashEventMarkerTitle(eventMonth)}</title>
+              </g>
+            {/if}
+          {/each}
         {/each}
       </g>
 
@@ -330,8 +367,9 @@
     {#if showBreakdownPanel && breakdownPoint}
         {@const { cenario, month } = breakdownPoint}
         {@const mes = breakdownPoint.mes}
-        {@const gastos = monthlyExpenseBreakdown(month, custoMensal)}
-        {@const saldoLivre = renderedFreeBalance(month, cenario.rendaMensal, custoMensal)}
+        {@const gastos = monthlyRecurringExpenseBreakdown(month, custoMensal)}
+        {@const eventosCaixa = monthlyCashEventBreakdown(month)}
+        {@const saldoLivre = renderedRecurringFreeBalance(month, cenario.rendaMensal, custoMensal)}
         <ChartHoverBreakdownPanel
           open={showBreakdownPanel}
           dismissable={breakdownDismissable}
@@ -366,6 +404,10 @@
                 <dt>Reforma</dt>
                 <dd class="font-mono">{formatCurrency(gastos.reforma)}</dd>
               {/if}
+              {#if gastos.outros > 0}
+                <dt>Outros</dt>
+                <dd class="font-mono">{formatCurrency(gastos.outros)}</dd>
+              {/if}
               {#if gastos.manutencao > 0}
                 <dt>Manutenção</dt>
                 <dd class="font-mono">{formatCurrency(gastos.manutencao)}</dd>
@@ -374,9 +416,9 @@
                 <dt>Custo mensal</dt>
                 <dd class="font-mono">{formatCurrency(gastos.custoMensal)}</dd>
               {/if}
-              <dt>Gasto mensal</dt>
+              <dt>Gasto recorrente</dt>
               <dd class="font-mono text-salmon">{formatCurrency(gastos.total)}</dd>
-              <dt class="font-bold text-app-accent">Saldo livre</dt>
+              <dt class="font-bold text-app-accent">Saldo livre recorrente</dt>
               <dd
                 class={cn(
                   "font-mono font-bold",
@@ -385,6 +427,14 @@
               >
                 {formatCurrency(saldoLivre)}
               </dd>
+              {#if eventosCaixa.total > 0}
+                <dt class="pt-1 font-semibold text-app-fg">Eventos de caixa</dt>
+                <dd></dd>
+                {#each eventosCaixa.events as event}
+                  <dt>Evento: {event.label}</dt>
+                  <dd class="font-mono">{formatCurrency(event.value)}</dd>
+                {/each}
+              {/if}
           </dl>
         </ChartHoverBreakdownPanel>
     {/if}

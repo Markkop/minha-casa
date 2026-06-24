@@ -37,6 +37,7 @@ describe("buildActiveParametersText", () => {
 
     expect(text).toContain("Condições de negociação: Permuta, Venda em 1 mês, Venda em 3 meses");
     expect(text).toContain("Início das reformas: 3 meses");
+    expect(text).toContain("Tempo de obra: 1 ano");
     expect(text).toContain("Início do aporte extra: Imediato, 3 meses, Depois da reforma");
     expect(text).toContain("Intervalo da progressão: 1 mês");
     expect(text).toContain("Recebimento da quantia extra: 6 meses");
@@ -64,7 +65,16 @@ describe("parseActiveParametersText", () => {
       temposVendaPosteriorMeses: [1, 3, 24],
       temposReformaMeses: [1, 12, 24],
       temposInicioAporteExtraMeses: [0, 3, APORTE_APOS_REFORMA_VALUE],
-      temposRecebimentoExtraMeses: [6, 12]
+      temposRecebimentoExtraMeses: [6, 12],
+      custosAdicionais: [
+        {
+          id: "arquitetura",
+          nome: "Arquitetura",
+          valorTotal: 43_500,
+          mesInicio: 1,
+          duracaoMeses: 5
+        }
+      ]
     };
 
     const parsed = parseActiveParametersText(buildActiveParametersText(params));
@@ -80,9 +90,30 @@ describe("parseActiveParametersText", () => {
       temposVendaPosteriorMeses: [1, 3, 24],
       temposReformaMeses: [1, 12, 24],
       temposInicioAporteExtraMeses: [0, 3, APORTE_APOS_REFORMA_VALUE],
-      temposRecebimentoExtraMeses: [6, 12]
+      temposRecebimentoExtraMeses: [6, 12],
+      tempoObraMeses: 12,
+      custosAdicionais: [
+        {
+          id: "custo-colado-1",
+          nome: "Arquitetura",
+          valorTotal: 43_500,
+          mesInicio: 1,
+          duracaoMeses: 5
+        }
+      ]
     });
-    expect(normalizeSimulatorParams(parsed ?? {})).toEqual(params);
+    expect(normalizeSimulatorParams(parsed ?? {})).toMatchObject({
+      ...params,
+      custosAdicionais: [
+        {
+          id: "custo-colado-1",
+          nome: "Arquitetura",
+          valorTotal: 43_500,
+          mesInicio: 1,
+          duracaoMeses: 5
+        }
+      ]
+    });
   });
 
   it("parses singular and plural month and year durations", () => {
@@ -101,7 +132,9 @@ describe("parseActiveParametersText", () => {
       "Custo total das reformas: R$ 150.000,00",
       "Custo inicial das reformas: R$ 0,00",
       "Início das reformas: 1 ano, 2 anos",
-      "Custo mensal máximo das reformas: R$ 15.000,00",
+      "Tempo de obra: 1 ano",
+      "Outros: Sim",
+      "Custo adicional 1: Laudo estrutural; valor R$ 12.200,00; início 1 mês; duração 1 mês",
       "Entrada: R$ 600.000,00",
       "Aporte extra mensal: R$ 10.000,00",
       "Início do aporte extra: Imediato, 3 meses, Depois da reforma",
@@ -122,6 +155,15 @@ describe("parseActiveParametersText", () => {
     expect(parsed?.temposReformaMeses).toEqual([12, 24]);
     expect(parsed?.temposInicioAporteExtraMeses).toEqual([0, 3, APORTE_APOS_REFORMA_VALUE]);
     expect(parsed?.temposRecebimentoExtraMeses).toEqual([6, 12]);
+    expect(parsed?.custosAdicionais).toEqual([
+      {
+        id: "custo-colado-1",
+        nome: "Laudo estrutural",
+        valorTotal: 12_200,
+        mesInicio: 1,
+        duracaoMeses: 1
+      }
+    ]);
   });
 
   it("accepts empty generated filter lists and leaves fallback handling to normalization", () => {

@@ -1,7 +1,14 @@
-import { renderedDebtBalance, renderedFreeBalance, renderedMonthlyTotal } from "$lib/components/financiamento/chart-event-path";
 import {
+  renderedDebtBalance,
+  renderedFreeBalance,
+  renderedMonthlyTotal,
+  renderedRecurringFreeBalance
+} from "$lib/components/financiamento/chart-event-path";
+import {
+  monthlyCashEventBreakdown,
   monthlyExpenseBreakdown,
-  monthlyFreeBalance
+  monthlyFreeBalance,
+  monthlyRecurringExpenseBreakdown
 } from "$lib/components/financiamento/monthly-cash-flow";
 import {
   buildBalanceLedgers,
@@ -85,6 +92,7 @@ export function debtGraphBreakdownText(
           { label: "Prestação", value: formatCurrency(gastos.prestacao) },
           ...optionalCurrencyRow("Aporte", gastos.aporteExtra),
           ...optionalCurrencyRow("Reforma", gastos.reforma),
+          ...optionalCurrencyRow("Outros", gastos.outros),
           ...optionalCurrencyRow("Manutenção", gastos.manutencao),
           ...optionalCurrencyRow("Custo mensal", gastos.custoMensal),
           ...optionalCurrencyRow("Venda", month.amortizacaoVenda),
@@ -132,6 +140,7 @@ export function monthlyTotalGraphBreakdownText(
           { label: "Prestação", value: formatCurrency(gastos.prestacao) },
           ...optionalCurrencyRow("Aporte", gastos.aporteExtra),
           ...optionalCurrencyRow("Reforma", gastos.reforma),
+          ...optionalCurrencyRow("Outros", gastos.outros),
           ...optionalCurrencyRow("Manutenção", gastos.manutencao),
           ...optionalCurrencyRow("Custo mensal", gastos.custoMensal),
           { label: "Gasto mensal", value: formatCurrency(renderedMonthlyTotal(month, custoMensal)) },
@@ -150,17 +159,23 @@ export function freeBalanceGraphBreakdownText(
     "Saldo livre",
     cenarios.map((cenario) =>
       formatScenarioBlocks(cenario, scenarioTimelinePoints(cenario), ({ month }) => {
-        const gastos = monthlyExpenseBreakdown(month, custoMensal);
-        const saldoLivre = renderedFreeBalance(month, cenario.rendaMensal, custoMensal);
+        const gastos = monthlyRecurringExpenseBreakdown(month, custoMensal);
+        const eventosCaixa = monthlyCashEventBreakdown(month);
+        const saldoLivre = renderedRecurringFreeBalance(month, cenario.rendaMensal, custoMensal);
         return [
           { label: "Renda", value: formatCurrency(cenario.rendaMensal) },
           { label: "Prestação", value: formatCurrency(gastos.prestacao) },
           ...optionalCurrencyRow("Aporte", gastos.aporteExtra),
           ...optionalCurrencyRow("Reforma", gastos.reforma),
+          ...optionalCurrencyRow("Outros", gastos.outros),
           ...optionalCurrencyRow("Manutenção", gastos.manutencao),
           ...optionalCurrencyRow("Custo mensal", gastos.custoMensal),
-          { label: "Gasto mensal", value: formatCurrency(gastos.total) },
-          { label: "Saldo livre", value: formatCurrency(saldoLivre) }
+          { label: "Gasto recorrente", value: formatCurrency(gastos.total) },
+          { label: "Saldo livre recorrente", value: formatCurrency(saldoLivre) },
+          ...eventosCaixa.events.map((event) => ({
+            label: `Evento: ${event.label}`,
+            value: formatCurrency(event.value)
+          }))
         ];
       })
     )
@@ -185,6 +200,7 @@ function balanceLedgerRows(point: BalanceLedgerPoint): BreakdownRow[] {
     { label: "Prestação", value: formatCurrency(point.prestacao) },
     ...optionalCurrencyRow("Aporte", point.aporteExtra),
     ...optionalCurrencyRow("Reforma", point.reforma),
+    ...optionalCurrencyRow("Outros", point.outros),
     ...optionalCurrencyRow("Manutenção", point.manutencao),
     ...optionalCurrencyRow("Custo mensal", point.custoMensal),
     ...optionalCurrencyRow("Amortização da venda", point.amortizacaoVenda),
@@ -229,6 +245,7 @@ function expenseLedgerRows(point: ExpenseLedgerPoint): BreakdownRow[] {
     { label: "Prestação", value: formatCurrency(point.prestacao) },
     ...optionalCurrencyRow("Aporte", point.aporteExtra),
     ...optionalCurrencyRow("Reforma", point.reforma),
+    ...optionalCurrencyRow("Outros", point.outros),
     ...optionalCurrencyRow("Manutenção", point.manutencao),
     ...optionalCurrencyRow("Custo mensal", point.custoMensal),
     ...optionalCurrencyRow("Amortização da venda", point.amortizacaoVenda),

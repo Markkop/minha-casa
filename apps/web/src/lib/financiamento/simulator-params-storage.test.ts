@@ -175,7 +175,46 @@ describe("normalizeSimulatorParams", () => {
     });
 
     expect(result.custoInicialReformas).toBe(defaults.custoInicialReformas);
+    expect(result.tempoObraMeses).toBe(defaults.tempoObraMeses);
     expect(result.temposReformaMeses).toEqual(defaults.temposReformaMeses);
+  });
+
+  it("normalizes additional costs", () => {
+    const result = normalizeSimulatorParams({
+      custosAdicionais: [
+        {
+          id: "arquitetura",
+          nome: "Arquitetura",
+          valorTotal: 43_500,
+          mesInicio: 1.2,
+          duracaoMeses: 5.4
+        },
+        {
+          id: "",
+          nome: "",
+          valorTotal: -1,
+          mesInicio: 0,
+          duracaoMeses: 0
+        }
+      ]
+    });
+
+    expect(result.custosAdicionais).toEqual([
+      {
+        id: "arquitetura",
+        nome: "Arquitetura",
+        valorTotal: 43_500,
+        mesInicio: 1,
+        duracaoMeses: 5
+      },
+      {
+        id: "custo-2",
+        nome: "Novo custo",
+        valorTotal: 0,
+        mesInicio: 1,
+        duracaoMeses: 1
+      }
+    ]);
   });
 
   it("defaults linkedListingId to null", () => {

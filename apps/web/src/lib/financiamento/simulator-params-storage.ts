@@ -13,6 +13,7 @@ import {
   migrateMultiplierPriceFilter
 } from "$lib/components/financiamento/price-filter-approx";
 import { clampAporteProgressivoFields } from "$lib/financiamento/aporte-progressivo";
+import { normalizeCustosAdicionais } from "$lib/financiamento/custos-adicionais";
 import { createInitialSimulatorParams } from "$lib/financiamento/simulator-recursos";
 
 export const SIMULATOR_PARAMS_STORAGE_KEY = "minha-casa-financeiro-params";
@@ -25,10 +26,14 @@ const MAX_PRICE_FILTER_VALUE = 50_000_000;
 
 /** Stored shape, including fields used before the capital/entrada split. */
 interface StoredSimulatorParams
-  extends Partial<Omit<SimulatorParams, "linkedListingId" | "temposInicioAporteExtraMeses">> {
+  extends Partial<
+    Omit<SimulatorParams, "linkedListingId" | "temposInicioAporteExtraMeses" | "custosAdicionais">
+  > {
   custoCondominioMensal?: number;
+  custoMensalMaximoReformas?: number;
   linkedListingId?: unknown;
   temposInicioAporteExtraMeses?: unknown;
+  custosAdicionais?: unknown;
 }
 
 function finiteNumber(value: unknown, fallback: number): number {
@@ -177,10 +182,11 @@ export function normalizeSimulatorParams(parsed: StoredSimulatorParams): Simulat
       parsed.custoInicialReformas,
       defaults.custoInicialReformas
     ),
-    custoMensalMaximoReformas: finiteNumber(
-      parsed.custoMensalMaximoReformas,
-      defaults.custoMensalMaximoReformas
+    tempoObraMeses: Math.max(
+      1,
+      Math.round(finiteNumber(parsed.tempoObraMeses, defaults.tempoObraMeses))
     ),
+    custosAdicionais: normalizeCustosAdicionais(parsed.custosAdicionais),
     esperaQuantiaExtra: finiteBoolean(parsed.esperaQuantiaExtra, defaults.esperaQuantiaExtra),
     quantiaExtra: finiteNumber(parsed.quantiaExtra, defaults.quantiaExtra),
     valoresImovelFiltroMultipliers: validPriceFilterList(

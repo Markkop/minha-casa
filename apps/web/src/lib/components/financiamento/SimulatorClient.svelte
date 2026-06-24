@@ -224,7 +224,8 @@
       temImovelParaNegociar: effective.temImovelParaNegociar,
       custoTotalReformas: effective.custoTotalReformas,
       custoInicialReformas: effective.custoInicialReformas,
-      custoMensalMaximoReformas: effective.custoMensalMaximoReformas,
+      tempoObraMeses: effective.tempoObraMeses,
+      custosAdicionais: effective.custosAdicionais,
       quantiaExtra: effective.quantiaExtra,
       esperaQuantiaExtra: effective.esperaQuantiaExtra,
       temposVendaPosteriorMeses: params.temposVendaPosteriorMeses,
@@ -488,7 +489,7 @@
       | "custoManutencao"
       | "custoTotalReformas"
       | "custoInicialReformas"
-      | "custoMensalMaximoReformas"
+      | "tempoObraMeses"
       | "quantiaExtra",
     newValue: number
   ) {
@@ -525,8 +526,8 @@
       params = { ...params, custoInicialReformas: newValue };
       return;
     }
-    if (field === "custoMensalMaximoReformas") {
-      params = { ...params, custoMensalMaximoReformas: newValue };
+    if (field === "tempoObraMeses") {
+      params = { ...params, tempoObraMeses: Math.max(1, Math.round(newValue)) };
       return;
     }
     if (field === "quantiaExtra") {

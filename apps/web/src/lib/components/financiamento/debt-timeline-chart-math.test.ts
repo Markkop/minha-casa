@@ -255,7 +255,7 @@ describe("monthTotalOutflow", () => {
       reformaMensal: 2_000,
       manutencaoMensal: 500
     });
-    expect(monthTotalOutflow(month)).toBe(8_500);
+    expect(monthTotalOutflow(month)).toBe(11_500);
   });
 
   it("adds living costs only when explicitly provided", () => {

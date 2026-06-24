@@ -10,6 +10,7 @@ export type ResultsSortKey =
   | "aporteEm"
   | "totalMensal"
   | "totalReformas"
+  | "totalCustosAdicionais"
   | "comprometimento"
   | "prazoReal"
   | "jurosOtimizado"
@@ -33,6 +34,7 @@ function sortValue(cenario: CenarioCompleto, key: ResultsSortKey): number {
     aporteEm: cenario.aporteInicioMes ?? 0,
     totalMensal: cenario.totalMensal,
     totalReformas: cenario.totalReformas,
+    totalCustosAdicionais: cenario.totalCustosAdicionais ?? 0,
     comprometimento: cenario.comprometimento.percentual,
     prazoReal: cenario.cenarioOtimizado.prazoReal,
     jurosOtimizado: cenario.cenarioOtimizado.totalJuros,

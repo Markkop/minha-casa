@@ -12,6 +12,7 @@ import {
   formatIntervaloMeses,
   type AporteInicioTiming
 } from "$lib/financiamento/aporte-progressivo";
+import type { CustoAdicional } from "$lib/financiamento/custos-adicionais";
 
 const REQUIRED_PARSE_LABELS = [
   "Capital disponível",
@@ -112,6 +113,44 @@ function parseDurationList(value: string | undefined): number[] | null {
   const parsed = value.split(",").map((item) => parseMonthDuration(item.trim()));
   if (parsed.some((item) => item === null)) return null;
   return parsed as number[];
+}
+
+function parseAdditionalCostLine(value: string, index: number): CustoAdicional | null {
+  const match = value.match(
+    /^(.+);\s*valor\s+(.+);\s*in[ií]cio\s+(.+);\s*dura[cç][aã]o\s+(.+)$/i
+  );
+  if (!match) return null;
+
+  const valorTotal = parseCurrency(match[2]);
+  const mesInicio = parseMonthDuration(match[3].trim());
+  const duracaoMeses = parseMonthDuration(match[4].trim());
+  if (valorTotal === null || mesInicio === null || duracaoMeses === null) {
+    return null;
+  }
+
+  return {
+    id: `custo-colado-${index + 1}`,
+    nome: match[1].trim(),
+    valorTotal,
+    mesInicio,
+    duracaoMeses: Math.max(1, duracaoMeses)
+  };
+}
+
+function parseAdditionalCosts(lines: Map<string, string>): CustoAdicional[] | null {
+  const enabled = parseBoolean(lines.get("Outros"));
+  if (enabled === false || enabled === null) {
+    return [];
+  }
+
+  const costs: CustoAdicional[] = [];
+  for (const [label, value] of lines.entries()) {
+    if (!label.startsWith("Custo adicional ")) continue;
+    const parsed = parseAdditionalCostLine(value, costs.length);
+    if (!parsed) return null;
+    costs.push(parsed);
+  }
+  return costs;
 }
 
 function parseAporteInicioList(value: string | undefined): AporteInicioTiming[] | null {
@@ -248,6 +287,9 @@ export function parseActiveParametersText(text: string): Partial<SimulatorParams
 
   if (parsed.incluirReformas) {
     const temposReformaMeses = parseDurationList(lines.get("Início das reformas"));
+    const tempoObraMeses = lines.has("Tempo de obra")
+      ? parseMonthDuration(lines.get("Tempo de obra") ?? "")
+      : 12;
     if (
       !setNumber(
         parsed,
@@ -259,17 +301,19 @@ export function parseActiveParametersText(text: string): Partial<SimulatorParams
         "custoInicialReformas",
         parseCurrency(lines.get("Custo inicial das reformas"))
       ) ||
-      !setNumber(
-        parsed,
-        "custoMensalMaximoReformas",
-        parseCurrency(lines.get("Custo mensal máximo das reformas"))
-      ) ||
+      !setNumber(parsed, "tempoObraMeses", tempoObraMeses) ||
       !temposReformaMeses
     ) {
       return null;
     }
     parsed.temposReformaMeses = temposReformaMeses;
   }
+
+  const custosAdicionais = parseAdditionalCosts(lines);
+  if (!custosAdicionais) {
+    return null;
+  }
+  parsed.custosAdicionais = custosAdicionais;
 
   const temposInicioAporteExtraMeses = parseAporteInicioList(lines.get("Início do aporte extra"));
   if (
@@ -353,9 +397,16 @@ export function buildActiveParametersText(params: SimulatorParams): string {
       `Custo total das reformas: ${formatCurrency(params.custoTotalReformas)}`,
       `Custo inicial das reformas: ${formatCurrency(params.custoInicialReformas)}`,
       `Início das reformas: ${formatDurations(params.temposReformaMeses)}`,
-      `Custo mensal máximo das reformas: ${formatCurrency(params.custoMensalMaximoReformas)}`
+      `Tempo de obra: ${formatMonthDurationLong(params.tempoObraMeses)}`
     );
   }
+
+  lines.push(`Outros: ${params.custosAdicionais.length > 0 ? "Sim" : "Não"}`);
+  params.custosAdicionais.forEach((custo, index) => {
+    lines.push(
+      `Custo adicional ${index + 1}: ${custo.nome}; valor ${formatCurrency(custo.valorTotal)}; início ${formatMonthDurationLong(custo.mesInicio)}; duração ${formatMonthDurationLong(custo.duracaoMeses)}`
+    );
+  });
 
   lines.push(
     `Entrada: ${formatCurrency(params.entradaDisponivel)}`,

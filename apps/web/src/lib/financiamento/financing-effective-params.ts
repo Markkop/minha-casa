@@ -3,6 +3,7 @@ import {
   buildAporteProgressivoConfig,
   type AporteProgressivoConfig
 } from "$lib/financiamento/aporte-progressivo";
+import type { CustoAdicional } from "$lib/financiamento/custos-adicionais";
 
 /** Simulation inputs with checkbox-off sections zeroed out. */
 export interface EffectiveSimulationParams {
@@ -18,7 +19,8 @@ export interface EffectiveSimulationParams {
   temImovelParaNegociar: boolean;
   custoTotalReformas: number;
   custoInicialReformas: number;
-  custoMensalMaximoReformas: number;
+  tempoObraMeses: number;
+  custosAdicionais: CustoAdicional[];
   quantiaExtra: number;
   esperaQuantiaExtra: boolean;
 }
@@ -47,7 +49,8 @@ export function resolveEffectiveParams(params: SimulatorParams): EffectiveSimula
     temImovelParaNegociar: temImovel,
     custoTotalReformas: incluirReformas ? params.custoTotalReformas : 0,
     custoInicialReformas: incluirReformas ? params.custoInicialReformas : 0,
-    custoMensalMaximoReformas: incluirReformas ? params.custoMensalMaximoReformas : 0,
+    tempoObraMeses: incluirReformas ? params.tempoObraMeses : 1,
+    custosAdicionais: params.custosAdicionais,
     quantiaExtra: esperaExtra ? params.quantiaExtra : 0,
     esperaQuantiaExtra: esperaExtra
   };

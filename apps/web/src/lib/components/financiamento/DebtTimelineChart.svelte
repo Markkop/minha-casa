@@ -364,6 +364,10 @@
             <dt>Reforma</dt>
             <dd class="font-mono">{formatCurrency(gastos.reforma)}</dd>
           {/if}
+          {#if gastos.outros > 0}
+            <dt>Outros</dt>
+            <dd class="font-mono">{formatCurrency(gastos.outros)}</dd>
+          {/if}
           {#if gastos.manutencao > 0}
             <dt>Manutenção</dt>
             <dd class="font-mono">{formatCurrency(gastos.manutencao)}</dd>

@@ -1,9 +1,12 @@
 import { describe, expect, it } from "vitest";
 import type { TimelineMonth } from "$lib/financiamento/financing-timeline";
 import {
+  monthlyCashEventBreakdown,
   monthlyExpenseBreakdown,
   monthlyExpenseBreakdownPostSale,
-  monthlyFreeBalance
+  monthlyFreeBalance,
+  monthlyRecurringExpenseBreakdown,
+  monthlyRecurringFreeBalance
 } from "./monthly-cash-flow";
 
 function month(partial: Partial<TimelineMonth> = {}): TimelineMonth {
@@ -36,6 +39,7 @@ describe("monthlyExpenseBreakdown", () => {
         aporteExtra: 1_000,
         reformaInicial: 1_500,
         reformaMensal: 2_000,
+        custosAdicionais: 750,
         manutencaoMensal: 500
       }),
       3_000
@@ -44,14 +48,15 @@ describe("monthlyExpenseBreakdown", () => {
     expect(result).toEqual({
       prestacao: 5_000,
       aporteExtra: 1_000,
-      reforma: 2_000,
+      reforma: 3_500,
+      outros: 750,
       manutencao: 500,
       custoMensal: 3_000,
-      total: 11_500
+      total: 13_750
     });
   });
 
-  it("excludes initial reform cost from monthly expense totals", () => {
+  it("includes initial reform cost in monthly expense totals", () => {
     const result = monthlyExpenseBreakdown(
       month({
         prestacao: 5_000,
@@ -62,8 +67,8 @@ describe("monthlyExpenseBreakdown", () => {
     );
 
     expect(result).toMatchObject({
-      reforma: 2_000,
-      total: 10_000
+      reforma: 22_000,
+      total: 30_000
     });
   });
 
@@ -80,6 +85,7 @@ describe("monthlyExpenseBreakdown", () => {
       3_000
     );
 
+    expect(result.outros).toBe(0);
     expect(result.total).toBe(8_000);
   });
 
@@ -95,6 +101,69 @@ describe("monthlyExpenseBreakdown", () => {
 
     expect(result.manutencao).toBe(0);
     expect(result.total).toBe(8_000);
+  });
+});
+
+describe("monthly recurring cash flow helpers", () => {
+  it("keeps one-time cash events out of recurring monthly expenses", () => {
+    const result = monthlyRecurringExpenseBreakdown(
+      month({
+        prestacao: 5_000,
+        aporteExtra: 1_000,
+        reformaInicial: 20_000,
+        reformaMensal: 2_000,
+        custosAdicionais: 12_000,
+        custosAdicionaisRecorrentes: 4_000,
+        manutencaoMensal: 500
+      }),
+      3_000
+    );
+
+    expect(result).toEqual({
+      prestacao: 5_000,
+      aporteExtra: 1_000,
+      reforma: 2_000,
+      outros: 4_000,
+      manutencao: 500,
+      custoMensal: 3_000,
+      total: 15_500
+    });
+  });
+
+  it("returns cash events separately from recurring expenses", () => {
+    const result = monthlyCashEventBreakdown(
+      month({
+        reformaInicial: 20_000,
+        eventosCaixa: [
+          { label: "Reforma inicial", value: 20_000 },
+          { label: "Laudo estrutural", value: 12_200 }
+        ]
+      })
+    );
+
+    expect(result).toEqual({
+      events: [
+        { label: "Reforma inicial", value: 20_000 },
+        { label: "Laudo estrutural", value: 12_200 }
+      ],
+      total: 32_200
+    });
+  });
+
+  it("calculates recurring free balance without one-time cash events", () => {
+    const result = monthlyRecurringFreeBalance(
+      month({
+        prestacao: 5_000,
+        reformaInicial: 20_000,
+        reformaMensal: 2_000,
+        custosAdicionais: 12_000,
+        custosAdicionaisRecorrentes: 4_000
+      }),
+      30_000,
+      3_000
+    );
+
+    expect(result).toBe(16_000);
   });
 });
 

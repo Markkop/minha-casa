@@ -14,17 +14,17 @@ const baseTimeline = {
 };
 
 describe("simularTimelineMensal", () => {
-  it("allocates reform costs across months up to monthly cap", () => {
+  it("allocates reform costs across the configured construction duration", () => {
     const result = simularTimelineMensal({
       ...baseTimeline,
       estrategia: "financiamento",
       custoTotalReformas: 50_000,
-      custoMensalMaximoReformas: 15_000
+      tempoObraMeses: 4
     });
     expect(result.totalReformas).toBe(50_000);
     const reformMonths = result.meses.filter((m) => m.reformaMensal > 0);
-    expect(reformMonths.length).toBeGreaterThan(1);
-    expect(Math.max(...reformMonths.map((m) => m.reformaMensal))).toBeLessThanOrEqual(15_000);
+    expect(reformMonths).toHaveLength(4);
+    expect(reformMonths.every((m) => m.reformaMensal === 12_500)).toBe(true);
   });
 
   it("uses initial reform cost before monthly reform installments", () => {
@@ -33,7 +33,7 @@ describe("simularTimelineMensal", () => {
       estrategia: "financiamento",
       custoTotalReformas: 50_000,
       custoInicialReformas: 20_000,
-      custoMensalMaximoReformas: 15_000
+      tempoObraMeses: 2
     });
 
     expect(result.totalReformas).toBe(50_000);
@@ -48,7 +48,7 @@ describe("simularTimelineMensal", () => {
       estrategia: "financiamento",
       custoTotalReformas: 30_000,
       custoInicialReformas: 50_000,
-      custoMensalMaximoReformas: 15_000
+      tempoObraMeses: 12
     });
 
     expect(result.totalReformas).toBe(30_000);
@@ -62,7 +62,7 @@ describe("simularTimelineMensal", () => {
       estrategia: "financiamento",
       custoTotalReformas: 40_000,
       custoInicialReformas: 10_000,
-      custoMensalMaximoReformas: 15_000,
+      tempoObraMeses: 2,
       mesReforma: 6
     });
 
@@ -262,7 +262,7 @@ describe("simularTimelineMensal", () => {
       rendaMensal: 45_000,
       custoTotalReformas: 50_000,
       custoInicialReformas: 20_000,
-      custoMensalMaximoReformas: 15_000,
+      tempoObraMeses: 2,
       mesReforma: 1,
       aporteDelayMeses: APORTE_APOS_REFORMA_VALUE
     });
@@ -291,7 +291,7 @@ describe("simularTimelineMensal", () => {
       rendaMensal: 45_000,
       custoTotalReformas: 50_000,
       custoInicialReformas: 0,
-      custoMensalMaximoReformas: 0,
+      tempoObraMeses: 400,
       mesReforma: 1,
       aporteDelayMeses: APORTE_APOS_REFORMA_VALUE
     });
@@ -324,7 +324,7 @@ describe("simularTimelineMensal", () => {
       rendaMensal,
       aporteExtra: 8_000,
       custoTotalReformas: 10_000,
-      custoMensalMaximoReformas: 10_000
+      tempoObraMeses: 1
     });
     const manualMin = Math.min(
       ...result.meses.map(
@@ -332,11 +332,43 @@ describe("simularTimelineMensal", () => {
           rendaMensal -
           m.prestacao -
           m.aporteExtra -
+          m.reformaInicial -
           m.reformaMensal -
+          (m.custosAdicionais ?? 0) -
           m.manutencaoMensal
       )
     );
     expect(result.saldoLivreMinimo).toBeCloseTo(manualMin, 2);
+  });
+
+  it("distributes additional costs across their configured months", () => {
+    const result = simularTimelineMensal({
+      ...baseTimeline,
+      estrategia: "financiamento",
+      custosAdicionais: [
+        {
+          id: "arquitetura",
+          nome: "Arquitetura",
+          valorTotal: 12_000,
+          mesInicio: 2,
+          duracaoMeses: 3
+        },
+        {
+          id: "laudo",
+          nome: "Laudo",
+          valorTotal: 5_000,
+          mesInicio: 1,
+          duracaoMeses: 1
+        }
+      ]
+    });
+
+    expect(result.totalCustosAdicionais).toBe(17_000);
+    expect(result.meses[0]?.custosAdicionais).toBe(5_000);
+    expect(result.meses[1]?.custosAdicionais).toBe(4_000);
+    expect(result.meses[2]?.custosAdicionais).toBe(4_000);
+    expect(result.meses[3]?.custosAdicionais).toBe(4_000);
+    expect(result.meses[4]?.custosAdicionais).toBe(0);
   });
 });
 
@@ -396,7 +428,7 @@ describe("gerarMatrizCenarios", () => {
       esperaQuantiaExtra: false,
       custoTotalReformas: 80_000,
       custoInicialReformas: 20_000,
-      custoMensalMaximoReformas: 15_000,
+      tempoObraMeses: 4,
       temposReformaMeses: [1, 6]
     });
 
@@ -431,7 +463,7 @@ describe("gerarMatrizCenarios", () => {
       aporteExtra: 5_000,
       custoTotalReformas: 50_000,
       custoInicialReformas: 20_000,
-      custoMensalMaximoReformas: 15_000,
+      tempoObraMeses: 2,
       temposReformaMeses: [1],
       temposInicioAporteExtraMeses: [0, APORTE_APOS_REFORMA_VALUE]
     });

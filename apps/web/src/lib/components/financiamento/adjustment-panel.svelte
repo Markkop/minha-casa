@@ -1,19 +1,25 @@
 <script lang="ts">
+  import { Check, ChevronDown, ChevronRight, Pencil, Plus, Trash2 } from "@lucide/svelte";
   import { onMount } from "svelte";
   import ColumnHeader from "$lib/components/financiamento/column-header.svelte";
-  import type { ParameterCardProps } from "$lib/components/financiamento/financiamento-parameter-types";
+  import type {
+    CustoAdicional,
+    ParameterCardProps
+  } from "$lib/components/financiamento/financiamento-parameter-types";
   import {
+    CUSTO_ADICIONAL_TOTAL_RANGE,
     CUSTO_MANUTENCAO_RANGE,
     CUSTO_MENSAL_RANGE,
     QUANTIA_EXTRA_RANGE,
     REFORMA_INICIAL_RANGE,
-    REFORMA_MENSAL_MAX_RANGE,
+    REFORMA_TEMPO_OBRA_RANGE,
     REFORMA_TOTAL_RANGE,
     VALOR_APARTAMENTO_RANGE,
     VALOR_IMOVEL_RANGE
   } from "$lib/components/financiamento/parameter-row-helpers";
   import ParameterRow from "$lib/components/financiamento/parameter-row.svelte";
   import ScenarioFilterPills from "$lib/components/financiamento/ScenarioFilterPills.svelte";
+  import Input from "$lib/components/ui/Input.svelte";
   import {
     buildApproximatePricePills,
     buildAporteInicioPills,
@@ -53,6 +59,9 @@
   const rowCompact = true;
   let sectionState = $state({ ...DEFAULT_FINANCEIRO_SECTION_STATE });
   let sectionStateLoaded = $state(false);
+  let editingCustoNomeId = $state<string | null>(null);
+  let editingCustoNomeDraft = $state("");
+  let collapsedCustoIds = $state<string[]>([]);
 
   $effect(() => {
     if (!sectionStateLoaded) return;
@@ -166,7 +175,7 @@
       incluirReformas: UI_DEFAULTS.incluirReformas,
       custoTotalReformas: UI_DEFAULTS.custoTotalReformas,
       custoInicialReformas: UI_DEFAULTS.custoInicialReformas,
-      custoMensalMaximoReformas: UI_DEFAULTS.custoMensalMaximoReformas,
+      tempoObraMeses: UI_DEFAULTS.tempoObraMeses,
       valoresImovelFiltroMultipliers: filterDefaults.valoresImovelFiltroMultipliers,
       temposReformaMeses: filterDefaults.temposReformaMeses
     });
@@ -187,6 +196,78 @@
       quantiaExtra: UI_DEFAULTS.quantiaExtra,
       temposRecebimentoExtraMeses: filterDefaults.temposRecebimentoExtraMeses
     });
+  }
+
+  function resetOutrosSection() {
+    patch({ custosAdicionais: [] });
+  }
+
+  function createCustoAdicional(): CustoAdicional {
+    return {
+      id: crypto.randomUUID(),
+      nome: "Novo custo",
+      valorTotal: 0,
+      mesInicio: 1,
+      duracaoMeses: 1
+    };
+  }
+
+  function updateCustoAdicional(id: string, partial: Partial<CustoAdicional>) {
+    patch({
+      custosAdicionais: params.custosAdicionais.map((custo) =>
+        custo.id === id
+          ? {
+              ...custo,
+              ...partial,
+              mesInicio: Math.max(1, Math.round(partial.mesInicio ?? custo.mesInicio)),
+              duracaoMeses: Math.max(1, Math.round(partial.duracaoMeses ?? custo.duracaoMeses)),
+              valorTotal: Math.max(0, partial.valorTotal ?? custo.valorTotal)
+            }
+          : custo
+      )
+    });
+  }
+
+  function addCustoAdicional() {
+    const custo = createCustoAdicional();
+    patch({ custosAdicionais: [...params.custosAdicionais, custo] });
+    startEditingCustoNome(custo);
+  }
+
+  function removeCustoAdicional(id: string) {
+    if (editingCustoNomeId === id) {
+      editingCustoNomeId = null;
+      editingCustoNomeDraft = "";
+    }
+    collapsedCustoIds = collapsedCustoIds.filter((collapsedId) => collapsedId !== id);
+    patch({ custosAdicionais: params.custosAdicionais.filter((custo) => custo.id !== id) });
+  }
+
+  function custoAdicionalExpanded(id: string) {
+    return !collapsedCustoIds.includes(id);
+  }
+
+  function toggleCustoAdicional(id: string) {
+    collapsedCustoIds = custoAdicionalExpanded(id)
+      ? [...collapsedCustoIds, id]
+      : collapsedCustoIds.filter((collapsedId) => collapsedId !== id);
+  }
+
+  function startEditingCustoNome(custo: CustoAdicional) {
+    editingCustoNomeId = custo.id;
+    editingCustoNomeDraft = custo.nome;
+  }
+
+  function confirmEditingCustoNome(id: string) {
+    const nome = editingCustoNomeDraft.trim() || "Novo custo";
+    updateCustoAdicional(id, { nome });
+    editingCustoNomeId = null;
+    editingCustoNomeDraft = "";
+  }
+
+  function cancelEditingCustoNome() {
+    editingCustoNomeId = null;
+    editingCustoNomeDraft = "";
   }
 
   const imovelPricePills = $derived(buildApproximatePricePills(params.valorImovel));
@@ -486,26 +567,26 @@
           </ParameterRow>
           <ParameterRow
             compact={rowCompact}
-            label="Custo mensal máximo"
-            tooltip="Teto mensal de gastos com reformas até consumir o custo total."
-            valueDisplay={formatCurrency(params.custoMensalMaximoReformas)}
+            label="Tempo de obra"
+            tooltip="Duração usada para distribuir o custo restante da reforma após o custo inicial."
+            valueDisplay={`${params.tempoObraMeses} ${params.tempoObraMeses === 1 ? "mês" : "meses"}`}
             slider={{
-              value: params.custoMensalMaximoReformas,
-              min: REFORMA_MENSAL_MAX_RANGE.min,
-              max: REFORMA_MENSAL_MAX_RANGE.max,
-              step: REFORMA_MENSAL_MAX_RANGE.step,
+              value: params.tempoObraMeses,
+              min: REFORMA_TEMPO_OBRA_RANGE.min,
+              max: REFORMA_TEMPO_OBRA_RANGE.max,
+              step: REFORMA_TEMPO_OBRA_RANGE.step,
               onValueChange: (value) =>
                 onValueChange
-                  ? onValueChange("custoMensalMaximoReformas", value)
-                  : patch({ custoMensalMaximoReformas: value })
+                  ? onValueChange("tempoObraMeses", value)
+                  : patch({ tempoObraMeses: Math.max(1, Math.round(value)) })
             }}
             edit={{
-              type: "currency",
-              value: params.custoMensalMaximoReformas,
+              type: "number",
+              value: params.tempoObraMeses,
               onChange: (value) =>
                 onValueChange
-                  ? onValueChange("custoMensalMaximoReformas", value)
-                  : patch({ custoMensalMaximoReformas: value })
+                  ? onValueChange("tempoObraMeses", value)
+                  : patch({ tempoObraMeses: Math.max(1, Math.round(value)) })
             }}
           />
         {/if}
@@ -720,6 +801,153 @@
             {/snippet}
           </ParameterRow>
         {/if}
+      </div>
+    {/if}
+  </section>
+
+  <section class="pt-3">
+    <ColumnHeader
+      title="Outros"
+      expanded={sectionState.outros}
+      onToggle={() => toggleSection("outros")}
+      onReset={resetOutrosSection}
+    />
+    {#if sectionState.outros}
+      <div class="pt-1">
+        <div class="flex items-center justify-between gap-2 py-1">
+          <span class="text-sm text-app-muted">Custos adicionais</span>
+          <button
+            type="button"
+            class="inline-flex items-center gap-1 rounded-md border border-app-border px-2 py-1 text-xs font-medium text-app-fg transition hover:border-app-accent hover:text-app-accent"
+            onclick={addCustoAdicional}
+          >
+            <Plus class="size-3.5" />
+            Adicionar
+          </button>
+        </div>
+
+        {#each params.custosAdicionais as custo (custo.id)}
+          <div class="border-b border-app-border/40 py-2 last:border-b-0">
+            <div class="mb-1 flex items-center gap-1.5">
+              {#if editingCustoNomeId === custo.id}
+                <Input
+                  value={editingCustoNomeDraft}
+                  class="h-8 min-w-0 flex-1 text-sm"
+                  oninput={(event) => (editingCustoNomeDraft = event.currentTarget.value)}
+                  onkeydown={(event) => {
+                    if (event.key === "Enter") {
+                      event.preventDefault();
+                      confirmEditingCustoNome(custo.id);
+                    }
+                    if (event.key === "Escape") {
+                      event.preventDefault();
+                      cancelEditingCustoNome();
+                    }
+                  }}
+                />
+                <button
+                  type="button"
+                  class="rounded-md p-1.5 text-app-accent transition hover:bg-app-bg"
+                  aria-label="Confirmar nome do custo"
+                  onclick={() => confirmEditingCustoNome(custo.id)}
+                >
+                  <Check class="size-3.5" />
+                </button>
+              {:else}
+                <span class="min-w-0 flex-1 truncate text-sm font-medium text-app-fg">
+                  {custo.nome}
+                </span>
+                <button
+                  type="button"
+                  class="rounded-md p-1.5 text-app-subtle transition hover:bg-app-bg hover:text-app-accent"
+                  aria-label="Editar nome do custo"
+                  onclick={() => startEditingCustoNome(custo)}
+                >
+                  <Pencil class="size-3.5" />
+                </button>
+              {/if}
+              <button
+                type="button"
+                class="rounded-md p-1.5 text-app-subtle transition hover:bg-app-bg hover:text-salmon"
+                aria-label="Remover custo adicional"
+                onclick={() => removeCustoAdicional(custo.id)}
+              >
+                <Trash2 class="size-3.5" />
+              </button>
+              <button
+                type="button"
+                class="rounded-md p-1.5 text-app-subtle transition hover:bg-app-bg hover:text-app-accent"
+                aria-label={custoAdicionalExpanded(custo.id)
+                  ? "Recolher custo adicional"
+                  : "Expandir custo adicional"}
+                aria-expanded={custoAdicionalExpanded(custo.id)}
+                onclick={() => toggleCustoAdicional(custo.id)}
+              >
+                {#if custoAdicionalExpanded(custo.id)}
+                  <ChevronDown class="size-3.5" />
+                {:else}
+                  <ChevronRight class="size-3.5" />
+                {/if}
+              </button>
+            </div>
+            {#if custoAdicionalExpanded(custo.id)}
+              <div>
+                <ParameterRow
+                  compact={rowCompact}
+                  label="Valor"
+                  valueDisplay={formatCurrency(custo.valorTotal)}
+                  slider={{
+                    value: custo.valorTotal,
+                    min: CUSTO_ADICIONAL_TOTAL_RANGE.min,
+                    max: CUSTO_ADICIONAL_TOTAL_RANGE.max,
+                    step: CUSTO_ADICIONAL_TOTAL_RANGE.step,
+                    onValueChange: (value) => updateCustoAdicional(custo.id, { valorTotal: value })
+                  }}
+                  edit={{
+                    type: "currency",
+                    value: custo.valorTotal,
+                    onChange: (value) => updateCustoAdicional(custo.id, { valorTotal: value })
+                  }}
+                />
+                <ParameterRow
+                  compact={rowCompact}
+                  label="Início"
+                  valueDisplay={`${custo.mesInicio} ${custo.mesInicio === 1 ? "mês" : "meses"}`}
+                  slider={{
+                    value: custo.mesInicio,
+                    min: 1,
+                    max: Math.max(36, custo.mesInicio),
+                    step: 1,
+                    onValueChange: (value) => updateCustoAdicional(custo.id, { mesInicio: value })
+                  }}
+                  edit={{
+                    type: "number",
+                    value: custo.mesInicio,
+                    onChange: (value) => updateCustoAdicional(custo.id, { mesInicio: value })
+                  }}
+                />
+                <ParameterRow
+                  compact={rowCompact}
+                  label="Duração"
+                  valueDisplay={`${custo.duracaoMeses} ${custo.duracaoMeses === 1 ? "mês" : "meses"}`}
+                  slider={{
+                    value: custo.duracaoMeses,
+                    min: 1,
+                    max: Math.max(36, custo.duracaoMeses),
+                    step: 1,
+                    onValueChange: (value) =>
+                      updateCustoAdicional(custo.id, { duracaoMeses: value })
+                  }}
+                  edit={{
+                    type: "number",
+                    value: custo.duracaoMeses,
+                    onChange: (value) => updateCustoAdicional(custo.id, { duracaoMeses: value })
+                  }}
+                />
+              </div>
+            {/if}
+          </div>
+        {/each}
       </div>
     {/if}
   </section>

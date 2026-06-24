@@ -20,7 +20,8 @@ export const UI_DEFAULTS = {
   incluirReformas: false,
   custoTotalReformas: 150_000,
   custoInicialReformas: 0,
-  custoMensalMaximoReformas: 15_000,
+  tempoObraMeses: 12,
+  custosAdicionais: [],
   esperaQuantiaExtra: false,
   quantiaExtra: 100_000
 } as const;

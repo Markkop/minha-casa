@@ -26,6 +26,7 @@ export type BalanceLedgerPoint = {
   prestacao: number;
   aporteExtra: number;
   reforma: number;
+  outros: number;
   manutencao: number;
   custoMensal: number;
   amortizacaoVenda: number;
@@ -80,6 +81,7 @@ export function buildBalanceLedger(
       prestacao: 0,
       aporteExtra: 0,
       reforma: 0,
+      outros: 0,
       manutencao: 0,
       custoMensal: 0,
       amortizacaoVenda: 0,
@@ -103,6 +105,7 @@ export function buildBalanceLedger(
       month.aporteExtra +
       month.reformaInicial +
       month.reformaMensal +
+      (month.custosAdicionais ?? 0) +
       month.manutencaoMensal +
       custoMensal +
       month.amortizacaoVenda +
@@ -123,6 +126,7 @@ export function buildBalanceLedger(
       prestacao: month.prestacao,
       aporteExtra: month.aporteExtra,
       reforma: month.reformaInicial + month.reformaMensal,
+      outros: month.custosAdicionais ?? 0,
       manutencao: month.manutencaoMensal,
       custoMensal,
       amortizacaoVenda: month.amortizacaoVenda,

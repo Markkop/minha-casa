@@ -68,6 +68,7 @@
 
   const sortedCenarios = $derived(sortCenarios(cenarios, sort));
   const showReformasColumn = $derived(cenarios.some((c) => c.totalReformas > 0));
+  const showOutrosColumn = $derived(cenarios.some((c) => (c.totalCustosAdicionais ?? 0) > 0));
   const showExtraColumn = $derived(cenarios.some((c) => c.extraEm !== undefined));
   const showReformaTimingColumn = $derived(cenarios.some((c) => c.reformaEm !== undefined));
   const showAporteTimingColumn = $derived(cenarios.some((c) => c.aporteEm !== undefined));
@@ -223,11 +224,14 @@
         {#if showReformasColumn}
           {@render sortableHeader("Reformas", "totalReformas", "Total gasto com reformas")}
         {/if}
+        {#if showOutrosColumn}
+          {@render sortableHeader("Outros", "totalCustosAdicionais", "Total de custos adicionais")}
+        {/if}
         {#if !hideCustoTotalColumn}
           {@render sortableHeader(
             "Custo total",
             "custoTotal",
-            "Custo total event-aware (imóvel + juros + fechamento + reformas + manutenção + carrego)"
+            "Custo total event-aware (imóvel + juros + fechamento + reformas + outros + manutenção + carrego)"
           )}
         {/if}
       </tr>
@@ -346,6 +350,11 @@
           {#if showReformasColumn}
             <td class={cn(tdClass, monoCellClass)}>
               {formatCurrencyCompact(cenario.totalReformas)}
+            </td>
+          {/if}
+          {#if showOutrosColumn}
+            <td class={cn(tdClass, monoCellClass)}>
+              {formatCurrencyCompact(cenario.totalCustosAdicionais ?? 0)}
             </td>
           {/if}
           {#if !hideCustoTotalColumn}

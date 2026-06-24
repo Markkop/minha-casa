@@ -86,6 +86,31 @@ describe("graph breakdown copy text", () => {
     expect(text).not.toContain("Manutenção:");
   });
 
+  it("copies free balance as recurring cash flow with events listed separately", () => {
+    const text = freeBalanceGraphBreakdownText([
+      cenario([
+        month({
+          mes: 3,
+          prestacao: 4_000,
+          reformaInicial: 400_000,
+          reformaMensal: 1_000,
+          custosAdicionais: 12_200,
+          custosAdicionaisRecorrentes: 0,
+          eventosCaixa: [
+            { label: "Reforma inicial", value: 400_000 },
+            { label: "Laudo estrutural", value: 12_200 }
+          ]
+        })
+      ])
+    ]);
+
+    expect(text).toContain(`Gasto recorrente: ${formatCurrency(5_000)}`);
+    expect(text).toContain(`Saldo livre recorrente: ${formatCurrency(15_000)}`);
+    expect(text).toContain(`Evento: Reforma inicial: ${formatCurrency(400_000)}`);
+    expect(text).toContain(`Evento: Laudo estrutural: ${formatCurrency(12_200)}`);
+    expect(text).not.toContain(`Saldo livre recorrente: ${formatCurrency(-397_200)}`);
+  });
+
   it("includes sale and extra-event rows for cumulative balance charts", () => {
     const scenario = cenario([
       month({

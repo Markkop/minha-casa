@@ -10,6 +10,7 @@ import {
   type AporteProgressivoConfig
 } from "$lib/financiamento/aporte-progressivo";
 import { SIMULATION_ASSUMPTIONS } from "$lib/financiamento/calculations-defaults";
+import type { CustoAdicional } from "$lib/financiamento/custos-adicionais";
 import {
   calcularCustoTotalEventAware,
   resolveMesReformaConcluida,
@@ -243,7 +244,8 @@ export interface CenarioCompletoParams {
   quantiaExtra?: number
   custoTotalReformas?: number
   custoInicialReformas?: number
-  custoMensalMaximoReformas?: number
+  tempoObraMeses?: number
+  custosAdicionais?: CustoAdicional[]
   mesReforma?: number
   aporteDelayMeses?: AporteInicioTiming
 }
@@ -279,6 +281,7 @@ export interface CenarioCompleto {
   timeline: TimelineMonth[]
   saldoLivreMinimo: number
   totalReformas: number
+  totalCustosAdicionais: number
   totalManutencao: number
   totalMensal: number
   custoCarregoApto: number
@@ -299,7 +302,8 @@ export interface MatrizCenariosParams {
   temImovelParaNegociar?: boolean
   custoTotalReformas?: number
   custoInicialReformas?: number
-  custoMensalMaximoReformas?: number
+  tempoObraMeses?: number
+  custosAdicionais?: CustoAdicional[]
   quantiaExtra?: number
   esperaQuantiaExtra?: boolean
   temposVendaPosteriorMeses?: readonly number[]
@@ -334,11 +338,14 @@ export const formatCurrency = (value: number): string => {
  * Formata valor para moeda brasileira compacta (K, M)
  */
 export const formatCurrencyCompact = (value: number): string => {
-  if (value >= 1000000) {
-    return `R$ ${(value / 1000000).toFixed(2)}M`
+  const absValue = Math.abs(value)
+  const sign = value < 0 ? "-" : ""
+
+  if (absValue >= 1000000) {
+    return `${sign}R$ ${(absValue / 1000000).toFixed(2)}M`
   }
-  if (value >= 1000) {
-    return `R$ ${(value / 1000).toFixed(0)}k`
+  if (absValue >= 1000) {
+    return `${sign}R$ ${(absValue / 1000).toFixed(0)}k`
   }
   return formatCurrency(value)
 }
@@ -910,14 +917,14 @@ function resolveAporteInicioMes({
   prazoMeses,
   custoTotalReformas,
   custoInicialReformas,
-  custoMensalMaximoReformas,
+  tempoObraMeses,
   mesReforma
 }: {
   aporteDelayMeses: AporteInicioTiming;
   prazoMeses: number;
   custoTotalReformas: number;
   custoInicialReformas: number;
-  custoMensalMaximoReformas: number;
+  tempoObraMeses: number;
   mesReforma?: number;
 }): number | undefined {
   if (aporteDelayMeses !== APORTE_APOS_REFORMA_VALUE) {
@@ -928,7 +935,7 @@ function resolveAporteInicioMes({
     prazoMeses,
     custoTotalReformas,
     custoInicialReformas,
-    custoMensalMaximoReformas,
+    tempoObraMeses,
     mesReforma: mesReforma ?? 1
   });
 
@@ -959,7 +966,8 @@ export const gerarCenarioCompleto = ({
   quantiaExtra = 0,
   custoTotalReformas = 0,
   custoInicialReformas = 0,
-  custoMensalMaximoReformas = 0,
+  tempoObraMeses = 1,
+  custosAdicionais = [],
   mesReforma,
   aporteDelayMeses = 0
 }: CenarioCompletoParams): CenarioCompleto => {
@@ -968,7 +976,7 @@ export const gerarCenarioCompleto = ({
     prazoMeses,
     custoTotalReformas,
     custoInicialReformas,
-    custoMensalMaximoReformas,
+    tempoObraMeses,
     mesReforma
   });
   const mesInicioAporte = aporteInicioMes ?? prazoMeses + 1;
@@ -1015,7 +1023,8 @@ export const gerarCenarioCompleto = ({
     custoManutencaoImovelMensal: manutencao,
     custoTotalReformas,
     custoInicialReformas,
-    custoMensalMaximoReformas,
+    tempoObraMeses,
+    custosAdicionais,
     mesReforma,
     mesInicioAporte
   })
@@ -1044,6 +1053,7 @@ export const gerarCenarioCompleto = ({
     cenarioOtimizado.totalJuros,
     custosFechamento.total,
     timeline.totalReformas,
+    timeline.totalCustosAdicionais,
     timeline.custoCarregoApto
   )
 
@@ -1085,6 +1095,7 @@ export const gerarCenarioCompleto = ({
     timeline: timeline.meses,
     saldoLivreMinimo: timeline.saldoLivreMinimo,
     totalReformas: timeline.totalReformas,
+    totalCustosAdicionais: timeline.totalCustosAdicionais,
     totalManutencao: timeline.totalManutencao,
     totalMensal: timeline.totalMensalMes1,
     custoCarregoApto: timeline.custoCarregoApto
@@ -1142,7 +1153,8 @@ export const gerarMatrizCenarios = ({
   temImovelParaNegociar,
   custoTotalReformas = 0,
   custoInicialReformas = 0,
-  custoMensalMaximoReformas = 0,
+  tempoObraMeses = 1,
+  custosAdicionais = [],
   quantiaExtra = 0,
   esperaQuantiaExtra = false,
   temposVendaPosteriorMeses = [6],
@@ -1181,7 +1193,8 @@ export const gerarMatrizCenarios = ({
     quantiaExtra,
     custoTotalReformas,
     custoInicialReformas,
-    custoMensalMaximoReformas
+    tempoObraMeses,
+    custosAdicionais
   }
   const reformMonths = reformMonthVariants(custoTotalReformas, temposReformaMeses)
 

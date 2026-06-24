@@ -42,7 +42,8 @@ describe("sidebar section storage", () => {
     const state: Record<SectionId, boolean> = {
       voce: false,
       imovelAlvo: true,
-      financiamento: false
+      financiamento: false,
+      outros: true
     };
 
     saveFinanceiroSectionState(state);
@@ -62,7 +63,8 @@ describe("sidebar section storage", () => {
     ).toEqual({
       voce: false,
       imovelAlvo: true,
-      financiamento: true
+      financiamento: true,
+      outros: true
     });
   });
 
@@ -76,7 +78,8 @@ describe("sidebar section storage", () => {
     saveFinanceiroSectionState({
       voce: false,
       imovelAlvo: false,
-      financiamento: false
+      financiamento: false,
+      outros: false
     });
 
     clearFinanceiroSectionState();

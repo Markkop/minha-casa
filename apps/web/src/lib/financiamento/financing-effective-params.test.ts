@@ -31,13 +31,13 @@ describe("resolveEffectiveParams", () => {
       incluirReformas: false,
       custoTotalReformas: 150_000,
       custoInicialReformas: 50_000,
-      custoMensalMaximoReformas: 15_000
+      tempoObraMeses: 18
     };
 
     expect(resolveEffectiveParams(params)).toMatchObject({
       custoTotalReformas: 0,
       custoInicialReformas: 0,
-      custoMensalMaximoReformas: 0
+      tempoObraMeses: 1
     });
   });
 });

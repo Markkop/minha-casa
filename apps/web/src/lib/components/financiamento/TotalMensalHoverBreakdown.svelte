@@ -19,7 +19,12 @@
     if (!m) return [];
     const breakdown: BreakdownRow[] = [{ label: "Prestação", value: m.prestacao }];
     if (m.aporteExtra > 0) breakdown.push({ label: "Aporte extra", value: m.aporteExtra });
-    if (m.reformaMensal > 0) breakdown.push({ label: "Reformas", value: m.reformaMensal });
+    if (m.reformaInicial + m.reformaMensal > 0) {
+      breakdown.push({ label: "Reformas", value: m.reformaInicial + m.reformaMensal });
+    }
+    if ((m.custosAdicionais ?? 0) > 0) {
+      breakdown.push({ label: "Outros", value: m.custosAdicionais ?? 0 });
+    }
     if (m.manutencaoMensal > 0) breakdown.push({ label: "Manutenção", value: m.manutencaoMensal });
     return breakdown;
   }

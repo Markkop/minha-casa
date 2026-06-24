@@ -11,6 +11,7 @@ import {
 export function createInitialSimulatorParams(): SimulatorParams {
   return {
     ...UI_DEFAULTS,
+    custosAdicionais: [...UI_DEFAULTS.custosAdicionais],
     valoresImovelFiltroMultipliers: defaultSelectedPriceFilters(UI_DEFAULTS.valorImovel),
     valoresAptoFiltroMultipliers: defaultSelectedPriceFilters(UI_DEFAULTS.valorApartamento),
     estrategiasFiltro: ["permuta", "venda_posterior"],

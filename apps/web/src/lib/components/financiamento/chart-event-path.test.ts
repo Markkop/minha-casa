@@ -139,7 +139,7 @@ describe("event-aware polyline paths", () => {
     expect(saleVertex?.yAfterEvent).toBe(450_000);
   });
 
-  it("renders monthly total paths without initial reform costs", () => {
+  it("renders monthly total paths with initial reform costs", () => {
     const vertices = monthlyTotalVertices(
       cenario("reform", [
         timelineMonth({
@@ -151,7 +151,28 @@ describe("event-aware polyline paths", () => {
       ])
     );
 
-    expect(vertices.find((vertex) => vertex.month === 1)?.y).toBe(10_000);
+    expect(vertices.find((vertex) => vertex.month === 1)?.y).toBe(30_000);
+  });
+
+  it("renders free balance paths with only recurring cash flow", () => {
+    const vertices = freeBalanceVertices(
+      cenario("reform", [
+        timelineMonth({
+          mes: 1,
+          prestacao: 5_000,
+          reformaInicial: 20_000,
+          reformaMensal: 5_000,
+          custosAdicionais: 22_000,
+          custosAdicionaisRecorrentes: 2_000,
+          eventosCaixa: [
+            { label: "Reforma inicial", value: 20_000 },
+            { label: "Laudo estrutural", value: 20_000 }
+          ]
+        })
+      ])
+    );
+
+    expect(vertices.find((vertex) => vertex.month === 1)?.y).toBe(28_000);
   });
 
   it("keeps ordinary months without vertical transitions", () => {

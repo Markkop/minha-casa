@@ -1,9 +1,11 @@
 import type { AporteInicioTiming } from "$lib/financiamento/aporte-progressivo";
+import type { CustoAdicional } from "$lib/financiamento/custos-adicionais";
 
 export {
   APORTE_APOS_REFORMA_VALUE,
   type AporteInicioTiming
 } from "$lib/financiamento/aporte-progressivo";
+export type { CustoAdicional } from "$lib/financiamento/custos-adicionais";
 
 /** Legacy percentage multipliers (preview/demo only). */
 export const PERCENTAGE_OPTIONS = [
@@ -32,7 +34,7 @@ export type SliderField =
   | "custoManutencao"
   | "custoTotalReformas"
   | "custoInicialReformas"
-  | "custoMensalMaximoReformas"
+  | "tempoObraMeses"
   | "quantiaExtra";
 
 export interface SimulatorParams {
@@ -54,7 +56,8 @@ export interface SimulatorParams {
   incluirReformas: boolean;
   custoTotalReformas: number;
   custoInicialReformas: number;
-  custoMensalMaximoReformas: number;
+  tempoObraMeses: number;
+  custosAdicionais: CustoAdicional[];
   esperaQuantiaExtra: boolean;
   quantiaExtra: number;
   /** Selected approximate property prices (R$) for scenario matrix — not multipliers. */

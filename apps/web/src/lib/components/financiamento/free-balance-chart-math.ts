@@ -4,7 +4,7 @@ import {
 } from "$lib/components/financiamento/debt-timeline-chart-math";
 import {
   freeBalanceVertices,
-  renderedFreeBalance,
+  renderedRecurringFreeBalance,
   verticesToPolyline
 } from "$lib/components/financiamento/chart-event-path";
 import {
@@ -21,7 +21,7 @@ export function freeBalanceValues(
   return cenarios.flatMap((cenario) => [
     prePurchaseFreeBalance(cenario.rendaMensal, custoMensal),
     ...cenario.timeline.map((month) =>
-      renderedFreeBalance(month, cenario.rendaMensal, custoMensal)
+      renderedRecurringFreeBalance(month, cenario.rendaMensal, custoMensal)
     )
   ]);
 }
@@ -33,7 +33,7 @@ export function freeBalanceAtHover(
 ): number {
   const month = cenario.timeline[monthIndex];
   if (!month) return prePurchaseFreeBalance(cenario.rendaMensal, custoMensal);
-  return renderedFreeBalance(month, cenario.rendaMensal, custoMensal);
+  return renderedRecurringFreeBalance(month, cenario.rendaMensal, custoMensal);
 }
 
 export function polylinePointsForFreeBalance(

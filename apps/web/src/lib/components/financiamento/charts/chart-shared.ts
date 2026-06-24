@@ -24,7 +24,7 @@ export type ChartLegendEntry = {
   color: string;
 };
 
-export type ChartEventLegendKind = "sale" | "extra" | "reform";
+export type ChartEventLegendKind = "sale" | "extra" | "reform" | "cash";
 
 export type ChartEventLegendEntry = {
   id: string;

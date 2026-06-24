@@ -1,13 +1,14 @@
 export const FINANCEIRO_SECTION_STATE_STORAGE_KEY = "minha-casa-financeiro-sidebar-sections";
 
-export type SectionId = "voce" | "imovelAlvo" | "financiamento";
+export type SectionId = "voce" | "imovelAlvo" | "financiamento" | "outros";
 export type FinanceiroSectionId = SectionId;
 export type FinanceiroSectionState = Record<SectionId, boolean>;
 
 export const DEFAULT_FINANCEIRO_SECTION_STATE: FinanceiroSectionState = {
   voce: true,
   imovelAlvo: true,
-  financiamento: true
+  financiamento: true,
+  outros: true
 };
 
 export function normalizeFinanceiroSectionState(value: unknown): FinanceiroSectionState {
@@ -28,7 +29,11 @@ export function normalizeFinanceiroSectionState(value: unknown): FinanceiroSecti
     financiamento:
       typeof parsed.financiamento === "boolean"
         ? parsed.financiamento
-        : DEFAULT_FINANCEIRO_SECTION_STATE.financiamento
+        : DEFAULT_FINANCEIRO_SECTION_STATE.financiamento,
+    outros:
+      typeof parsed.outros === "boolean"
+        ? parsed.outros
+        : DEFAULT_FINANCEIRO_SECTION_STATE.outros
   };
 }
 

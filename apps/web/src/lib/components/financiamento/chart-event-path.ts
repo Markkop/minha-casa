@@ -6,6 +6,8 @@ import {
   monthlyExpenseBreakdownPostSale,
   monthlyFreeBalance,
   monthlyFreeBalancePostSale,
+  monthlyRecurringFreeBalance,
+  monthlyRecurringFreeBalancePostSale,
   prePurchaseFreeBalance,
   prePurchaseMonthlyOutflow
 } from "$lib/components/financiamento/monthly-cash-flow";
@@ -66,6 +68,16 @@ export function renderedFreeBalance(
   return month.eventoVenda
     ? monthlyFreeBalancePostSale(month, rendaMensal, custoMensal)
     : monthlyFreeBalance(month, rendaMensal, custoMensal);
+}
+
+export function renderedRecurringFreeBalance(
+  month: TimelineMonth,
+  rendaMensal: number,
+  custoMensal = 0
+): number {
+  return month.eventoVenda
+    ? monthlyRecurringFreeBalancePostSale(month, rendaMensal, custoMensal)
+    : monthlyRecurringFreeBalance(month, rendaMensal, custoMensal);
 }
 
 /** Decorative pre-purchase column; matches CHART_PRE_PURCHASE_REFERENCE_MONTH in chart math. */
@@ -154,18 +166,18 @@ export function freeBalanceVertices(
       ? {
           month: 0,
           y: prePurchase,
-          yAfterEvent: monthlyFreeBalance(firstMonth, cenario.rendaMensal, custoMensal)
+          yAfterEvent: monthlyRecurringFreeBalance(firstMonth, cenario.rendaMensal, custoMensal)
         }
       : { month: 0, y: prePurchase }
   ];
 
   for (const month of cenario.timeline) {
-    const balance = monthlyFreeBalance(month, cenario.rendaMensal, custoMensal);
+    const balance = monthlyRecurringFreeBalance(month, cenario.rendaMensal, custoMensal);
     if (month.eventoVenda) {
       vertices.push({
         month: month.mes,
         y: balance,
-        yAfterEvent: monthlyFreeBalancePostSale(month, cenario.rendaMensal, custoMensal)
+        yAfterEvent: monthlyRecurringFreeBalancePostSale(month, cenario.rendaMensal, custoMensal)
       });
     } else {
       vertices.push({ month: month.mes, y: balance });

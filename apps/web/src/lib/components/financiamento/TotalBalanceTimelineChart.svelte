@@ -356,6 +356,10 @@
                 <dt>Reforma</dt>
                 <dd class="font-mono">{formatCurrency(point.reforma)}</dd>
               {/if}
+              {#if point.outros > 0}
+                <dt>Outros</dt>
+                <dd class="font-mono">{formatCurrency(point.outros)}</dd>
+              {/if}
               {#if point.manutencao > 0}
                 <dt>Manutenção</dt>
                 <dd class="font-mono">{formatCurrency(point.manutencao)}</dd>

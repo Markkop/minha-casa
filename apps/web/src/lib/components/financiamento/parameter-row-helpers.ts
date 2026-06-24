@@ -42,9 +42,15 @@ export const REFORMA_TOTAL_RANGE: SliderRange = {
 
 export const REFORMA_INICIAL_RANGE: SliderRange = REFORMA_TOTAL_RANGE;
 
-export const REFORMA_MENSAL_MAX_RANGE: SliderRange = {
+export const REFORMA_TEMPO_OBRA_RANGE: SliderRange = {
+  min: 1,
+  max: 36,
+  step: 1
+};
+
+export const CUSTO_ADICIONAL_TOTAL_RANGE: SliderRange = {
   min: 0,
-  max: 100_000,
+  max: 500_000,
   step: 1_000
 };
 

@@ -2,6 +2,11 @@ import {
   calcularAporteExtraProgramado,
   type AporteProgressivoConfig
 } from "$lib/financiamento/aporte-progressivo";
+import {
+  custoAdicionalNoMes,
+  custosAdicionaisNoMes,
+  type CustoAdicional
+} from "$lib/financiamento/custos-adicionais";
 
 export interface VendaPosteriorResult {
   valorBruto: number;
@@ -50,6 +55,9 @@ export interface TimelineMonth {
   prestacao: number;
   aporteExtra: number;
   reformaMensal: number;
+  custosAdicionais?: number;
+  custosAdicionaisRecorrentes?: number;
+  eventosCaixa?: TimelineCashEvent[];
   manutencaoMensal: number;
   amortizacaoExtraordinaria: number;
   amortizacaoVenda: number;
@@ -61,12 +69,18 @@ export interface TimelineMonth {
   reformaConcluida: boolean;
 }
 
+export interface TimelineCashEvent {
+  label: string;
+  value: number;
+}
+
 export interface TimelineResult {
   meses: TimelineMonth[];
   prazoReal: number;
   totalJuros: number;
   totalPago: number;
   totalReformas: number;
+  totalCustosAdicionais: number;
   totalManutencao: number;
   saldoLivreMinimo: number;
   mesReformaConcluida: number | null;
@@ -92,7 +106,8 @@ export interface SimularTimelineInput {
   custoManutencaoImovelMensal?: number;
   custoTotalReformas?: number;
   custoInicialReformas?: number;
-  custoMensalMaximoReformas?: number;
+  tempoObraMeses?: number;
+  custosAdicionais?: CustoAdicional[];
   mesReforma?: number;
   /** First month when aporte extra applies (default 1). */
   mesInicioAporte?: number;
@@ -102,7 +117,7 @@ export interface ResolveMesReformaConcluidaInput {
   prazoMeses: number;
   custoTotalReformas?: number;
   custoInicialReformas?: number;
-  custoMensalMaximoReformas?: number;
+  tempoObraMeses?: number;
   mesReforma?: number;
 }
 
@@ -111,46 +126,94 @@ export function calcularCustoTotalEventAware(
   totalJuros: number,
   custosFechamentoTotal: number,
   totalReformas: number,
+  totalCustosAdicionais: number,
   custoCarregoApto: number
 ): number {
-  return valorImovel + totalJuros + custosFechamentoTotal + totalReformas + custoCarregoApto;
+  return (
+    valorImovel +
+    totalJuros +
+    custosFechamentoTotal +
+    totalReformas +
+    totalCustosAdicionais +
+    custoCarregoApto
+  );
+}
+
+function normalizeDurationMonths(value: number | undefined): number {
+  return Math.max(1, Math.round(value ?? 1));
+}
+
+function reformaOutflowForMonth({
+  mes,
+  custoTotalReformas,
+  custoInicialReformas,
+  tempoObraMeses,
+  mesReforma
+}: {
+  mes: number;
+  custoTotalReformas: number;
+  custoInicialReformas: number;
+  tempoObraMeses: number;
+  mesReforma: number;
+}): { reformaInicial: number; reformaMensal: number } {
+  if (custoTotalReformas <= 0 || mes < mesReforma) {
+    return { reformaInicial: 0, reformaMensal: 0 };
+  }
+
+  const total = Math.max(0, custoTotalReformas);
+  const inicial = Math.min(Math.max(0, custoInicialReformas), total);
+  const restante = Math.max(0, total - inicial);
+  const duracao = normalizeDurationMonths(tempoObraMeses);
+  const mesFinalObra = mesReforma + duracao - 1;
+
+  return {
+    reformaInicial: mes === mesReforma ? inicial : 0,
+    reformaMensal: restante > 0 && mes <= mesFinalObra ? restante / duracao : 0
+  };
+}
+
+function custosAdicionaisBreakdownForMonth(
+  custos: readonly CustoAdicional[],
+  mes: number
+): { recorrente: number; eventos: TimelineCashEvent[] } {
+  const result = { recorrente: 0, eventos: [] as TimelineCashEvent[] };
+
+  for (const custo of custos) {
+    const value = custoAdicionalNoMes(custo, mes);
+    if (value <= 0) continue;
+
+    if (custo.duracaoMeses === 1) {
+      result.eventos.push({ label: custo.nome, value });
+    } else {
+      result.recorrente += value;
+    }
+  }
+
+  return result;
 }
 
 export function resolveMesReformaConcluida({
   prazoMeses,
   custoTotalReformas = 0,
   custoInicialReformas = 0,
-  custoMensalMaximoReformas = 0,
+  tempoObraMeses = 1,
   mesReforma = 1
 }: ResolveMesReformaConcluidaInput): number | null {
   if (custoTotalReformas <= 0) {
     return null;
   }
 
-  let reformaRestante = custoTotalReformas;
-  let reformaInicialAplicada = false;
+  const inicial = Math.min(Math.max(0, custoInicialReformas), custoTotalReformas);
+  const finishMonth =
+    inicial >= custoTotalReformas
+      ? mesReforma
+      : mesReforma + normalizeDurationMonths(tempoObraMeses) - 1;
 
-  for (let mes = 1; mes <= prazoMeses; mes++) {
-    let reformaInicial = 0;
-    let reformaMensal = 0;
-
-    if (!reformaInicialAplicada && reformaRestante > 0 && mes >= mesReforma) {
-      reformaInicial = Math.min(Math.max(0, custoInicialReformas), reformaRestante);
-      reformaRestante -= reformaInicial;
-      reformaInicialAplicada = true;
-    }
-
-    if (reformaRestante > 0 && custoMensalMaximoReformas > 0 && mes >= mesReforma) {
-      reformaMensal = Math.min(custoMensalMaximoReformas, reformaRestante);
-      reformaRestante -= reformaMensal;
-    }
-
-    if (reformaRestante <= 0 && (reformaInicial > 0 || reformaMensal > 0)) {
-      return mes;
-    }
+  if (finishMonth > prazoMeses) {
+    return null;
   }
 
-  return null;
+  return finishMonth;
 }
 
 export function simularTimelineMensal(input: SimularTimelineInput): TimelineResult {
@@ -170,7 +233,8 @@ export function simularTimelineMensal(input: SimularTimelineInput): TimelineResu
     custoManutencaoImovelMensal = 0,
     custoTotalReformas = 0,
     custoInicialReformas = 0,
-    custoMensalMaximoReformas = 0,
+    tempoObraMeses = 1,
+    custosAdicionais = [],
     mesReforma = 1,
     mesInicioAporte = 1
   } = input;
@@ -185,10 +249,9 @@ export function simularTimelineMensal(input: SimularTimelineInput): TimelineResu
   let totalJuros = 0;
   let totalPago = 0;
   let totalReformas = 0;
+  let totalCustosAdicionais = 0;
   let totalManutencao = 0;
   let saldoLivreMinimo = Infinity;
-  let reformaRestante = custoTotalReformas;
-  let reformaInicialAplicada = false;
   let mesReformaConcluida: number | null = null;
   let vendaApartamento: VendaPosteriorResult | null = null;
   let mes = 0;
@@ -225,26 +288,31 @@ export function simularTimelineMensal(input: SimularTimelineInput): TimelineResu
     totalJuros += parcelaSAC.juros;
     totalPago += prestacao + aporteAplicado;
 
-    let reformaInicial = 0;
-    let reformaMensal = 0;
-    if (!reformaInicialAplicada && reformaRestante > 0 && mes >= mesReforma) {
-      reformaInicial = Math.min(Math.max(0, custoInicialReformas), reformaRestante);
-      reformaRestante -= reformaInicial;
-      totalReformas += reformaInicial;
-      reformaInicialAplicada = true;
-    }
-    if (reformaRestante > 0 && custoMensalMaximoReformas > 0 && mes >= mesReforma) {
-      reformaMensal = Math.min(custoMensalMaximoReformas, reformaRestante);
-      reformaRestante -= reformaMensal;
-      totalReformas += reformaMensal;
-    }
-    if (
-      reformaRestante <= 0 &&
-      mesReformaConcluida === null &&
-      (reformaInicial > 0 || reformaMensal > 0)
-    ) {
+    const { reformaInicial, reformaMensal } = reformaOutflowForMonth({
+      mes,
+      custoTotalReformas,
+      custoInicialReformas,
+      tempoObraMeses,
+      mesReforma
+    });
+    totalReformas += reformaInicial + reformaMensal;
+    if (mesReformaConcluida === null && resolveMesReformaConcluida({
+      prazoMeses,
+      custoTotalReformas,
+      custoInicialReformas,
+      tempoObraMeses,
+      mesReforma
+    }) === mes) {
       mesReformaConcluida = mes;
     }
+
+    const custosAdicionaisMensal = custosAdicionaisNoMes(custosAdicionais, mes);
+    const custosAdicionaisBreakdown = custosAdicionaisBreakdownForMonth(custosAdicionais, mes);
+    totalCustosAdicionais += custosAdicionaisMensal;
+    const eventosCaixa: TimelineCashEvent[] = [
+      ...(reformaInicial > 0 ? [{ label: "Reforma inicial", value: reformaInicial }] : []),
+      ...custosAdicionaisBreakdown.eventos
+    ];
 
     let manutencaoMensal = 0;
     if (
@@ -282,7 +350,13 @@ export function simularTimelineMensal(input: SimularTimelineInput): TimelineResu
 
     const amortizacaoExtraordinaria = amortizacaoVenda + amortizacaoQuantiaExtra;
     const saldoLivre =
-      rendaMensal - prestacao - aporteAplicado - reformaMensal - manutencaoMensal;
+      rendaMensal -
+      prestacao -
+      aporteAplicado -
+      reformaInicial -
+      reformaMensal -
+      custosAdicionaisMensal -
+      manutencaoMensal;
     saldoLivreMinimo = Math.min(saldoLivreMinimo, saldoLivre);
 
     meses.push({
@@ -292,6 +366,9 @@ export function simularTimelineMensal(input: SimularTimelineInput): TimelineResu
       prestacao,
       aporteExtra: aporteAplicado,
       reformaMensal,
+      custosAdicionais: custosAdicionaisMensal,
+      custosAdicionaisRecorrentes: custosAdicionaisBreakdown.recorrente,
+      eventosCaixa,
       manutencaoMensal,
       amortizacaoExtraordinaria,
       amortizacaoVenda,
@@ -313,13 +390,19 @@ export function simularTimelineMensal(input: SimularTimelineInput): TimelineResu
     totalJuros,
     totalPago,
     totalReformas,
+    totalCustosAdicionais,
     totalManutencao,
     saldoLivreMinimo: meses.length > 0 ? saldoLivreMinimo : 0,
     mesReformaConcluida,
     vendaApartamento,
     custoCarregoApto,
     totalMensalMes1: first
-      ? first.prestacao + first.aporteExtra + first.reformaMensal + first.manutencaoMensal
+      ? first.prestacao +
+        first.aporteExtra +
+        first.reformaInicial +
+        first.reformaMensal +
+        (first.custosAdicionais ?? 0) +
+        first.manutencaoMensal
       : 0
   };
 }
@@ -331,6 +414,7 @@ function emptyTimelineResult(): TimelineResult {
     totalJuros: 0,
     totalPago: 0,
     totalReformas: 0,
+    totalCustosAdicionais: 0,
     totalManutencao: 0,
     saldoLivreMinimo: 0,
     mesReformaConcluida: null,
