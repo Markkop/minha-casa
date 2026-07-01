@@ -74,6 +74,36 @@ describe("simularTimelineMensal", () => {
     expect(result.mesReformaConcluida).toBe(7);
   });
 
+  it("continues the timeline through reform cash flow after financing payoff", () => {
+    const result = simularTimelineMensal({
+      ...baseTimeline,
+      valorFinanciado: 100_000,
+      estrategia: "financiamento",
+      aporteExtra: 100_000,
+      custoTotalReformas: 60_000,
+      tempoObraMeses: 4
+    });
+
+    expect(result.prazoReal).toBe(1);
+    expect(result.meses.at(-1)?.mes).toBe(4);
+    expect(result.totalReformas).toBe(60_000);
+    expect(result.mesReformaConcluida).toBe(4);
+
+    const postPayoffMonths = result.meses.filter((month) => month.mes > result.prazoReal);
+    expect(postPayoffMonths).toHaveLength(3);
+    expect(
+      postPayoffMonths.every(
+        (month) =>
+          month.saldoDevedor === 0 &&
+          month.saldoDevedorFim === 0 &&
+          month.prestacao === 0 &&
+          month.aporteExtra === 0 &&
+          month.amortizacaoExtraordinaria === 0 &&
+          month.reformaMensal === 15_000
+      )
+    ).toBe(true);
+  });
+
   it("applies extra amount at selected month", () => {
     const result = simularTimelineMensal({
       ...baseTimeline,

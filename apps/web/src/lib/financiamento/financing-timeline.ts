@@ -216,6 +216,22 @@ export function resolveMesReformaConcluida({
   return finishMonth;
 }
 
+function scheduledMonthWithinTerm(month: number | null | undefined, prazoMeses: number): number {
+  if (month === null || month === undefined) return 0;
+  const normalized = Math.round(month);
+  return normalized >= 1 && normalized <= prazoMeses ? normalized : 0;
+}
+
+function lastCustoAdicionalMonth(custos: readonly CustoAdicional[], prazoMeses: number): number {
+  return custos.reduce((latest, custo) => {
+    if (custo.valorTotal <= 0) return latest;
+    const start = scheduledMonthWithinTerm(custo.mesInicio, prazoMeses);
+    if (start === 0) return latest;
+    const end = Math.min(prazoMeses, start + normalizeDurationMonths(custo.duracaoMeses) - 1);
+    return Math.max(latest, end);
+  }, 0);
+}
+
 export function simularTimelineMensal(input: SimularTimelineInput): TimelineResult {
   const {
     valorFinanciado,
@@ -246,6 +262,7 @@ export function simularTimelineMensal(input: SimularTimelineInput): TimelineResu
   const amortizacaoMensal = valorFinanciado / prazoMeses;
   const meses: TimelineMonth[] = [];
   let saldoDevedor = valorFinanciado;
+  let prazoReal: number | null = null;
   let totalJuros = 0;
   let totalPago = 0;
   let totalReformas = 0;
@@ -255,38 +272,60 @@ export function simularTimelineMensal(input: SimularTimelineInput): TimelineResu
   let mesReformaConcluida: number | null = null;
   let vendaApartamento: VendaPosteriorResult | null = null;
   let mes = 0;
+  const resolvedMesReformaConcluida = resolveMesReformaConcluida({
+    prazoMeses,
+    custoTotalReformas,
+    custoInicialReformas,
+    tempoObraMeses,
+    mesReforma
+  });
+  const scheduledTimelineEndMonth = Math.max(
+    resolvedMesReformaConcluida ?? 0,
+    lastCustoAdicionalMonth(custosAdicionais, prazoMeses),
+    estrategia === "venda_posterior" && valorApartamento > 0
+      ? scheduledMonthWithinTerm(mesVenda, prazoMeses)
+      : 0,
+    quantiaExtra > 0 ? scheduledMonthWithinTerm(mesExtra, prazoMeses) : 0
+  );
 
-  while (saldoDevedor > 0 && mes < prazoMeses) {
+  while ((saldoDevedor > 0 || mes < scheduledTimelineEndMonth) && mes < prazoMeses) {
     mes++;
     const saldoInicio = saldoDevedor;
+    const financiamentoAtivo = saldoDevedor > 0;
+    let juros = 0;
+    let prestacao = 0;
+    let aporteAplicado = 0;
 
-    const parcelaSAC = calcularParcelaSACLocal(
-      saldoDevedor,
-      amortizacaoMensal,
-      taxaMensalEfetiva,
-      seguros
-    );
+    if (financiamentoAtivo) {
+      const parcelaSAC = calcularParcelaSACLocal(
+        saldoDevedor,
+        amortizacaoMensal,
+        taxaMensalEfetiva,
+        seguros
+      );
 
-    const amortizacaoContrato = Math.min(amortizacaoMensal, saldoDevedor);
-    const aporteConfig: AporteProgressivoConfig = aporteProgressivo ?? {
-      enabled: false,
-      max: aporteExtra,
-      inicial: 0,
-      progressao: 0,
-      intervaloMeses: 1
-    };
-    const aporteMes =
-      mes < mesInicioAporte
-        ? 0
-        : calcularAporteExtraProgramado(mes - mesInicioAporte + 1, aporteConfig);
-    const aporteAplicado = Math.min(aporteMes, Math.max(0, saldoDevedor - amortizacaoContrato));
-    const amortizacaoTotal = amortizacaoContrato + aporteAplicado;
-    /** Parcela do financiamento (SAC + juros + seguros), sem aporte extra voluntário. */
-    const prestacao = amortizacaoContrato + parcelaSAC.juros + seguros;
+      const amortizacaoContrato = Math.min(amortizacaoMensal, saldoDevedor);
+      const aporteConfig: AporteProgressivoConfig = aporteProgressivo ?? {
+        enabled: false,
+        max: aporteExtra,
+        inicial: 0,
+        progressao: 0,
+        intervaloMeses: 1
+      };
+      const aporteMes =
+        mes < mesInicioAporte
+          ? 0
+          : calcularAporteExtraProgramado(mes - mesInicioAporte + 1, aporteConfig);
+      aporteAplicado = Math.min(aporteMes, Math.max(0, saldoDevedor - amortizacaoContrato));
+      const amortizacaoTotal = amortizacaoContrato + aporteAplicado;
+      /** Parcela do financiamento (SAC + juros + seguros), sem aporte extra voluntário. */
+      prestacao = amortizacaoContrato + parcelaSAC.juros + seguros;
+      juros = parcelaSAC.juros;
 
-    saldoDevedor = Math.max(0, saldoDevedor - amortizacaoTotal);
-    totalJuros += parcelaSAC.juros;
-    totalPago += prestacao + aporteAplicado;
+      saldoDevedor = Math.max(0, saldoDevedor - amortizacaoTotal);
+      totalJuros += juros;
+      totalPago += prestacao + aporteAplicado;
+    }
 
     const { reformaInicial, reformaMensal } = reformaOutflowForMonth({
       mes,
@@ -296,13 +335,7 @@ export function simularTimelineMensal(input: SimularTimelineInput): TimelineResu
       mesReforma
     });
     totalReformas += reformaInicial + reformaMensal;
-    if (mesReformaConcluida === null && resolveMesReformaConcluida({
-      prazoMeses,
-      custoTotalReformas,
-      custoInicialReformas,
-      tempoObraMeses,
-      mesReforma
-    }) === mes) {
+    if (mesReformaConcluida === null && resolvedMesReformaConcluida === mes) {
       mesReformaConcluida = mes;
     }
 
@@ -348,6 +381,10 @@ export function simularTimelineMensal(input: SimularTimelineInput): TimelineResu
       eventoExtra = true;
     }
 
+    if (saldoDevedor === 0 && prazoReal === null) {
+      prazoReal = mes;
+    }
+
     const amortizacaoExtraordinaria = amortizacaoVenda + amortizacaoQuantiaExtra;
     const saldoLivre =
       rendaMensal -
@@ -386,7 +423,7 @@ export function simularTimelineMensal(input: SimularTimelineInput): TimelineResu
 
   return {
     meses,
-    prazoReal: mes,
+    prazoReal: prazoReal ?? mes,
     totalJuros,
     totalPago,
     totalReformas,

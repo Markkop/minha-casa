@@ -145,4 +145,13 @@ describe("maxScenarioTermMonths", () => {
 
     expect(maxScenarioTermMonths([item])).toBe(13);
   });
+
+  it("uses the longer timeline month when cash flow continues after payoff", () => {
+    const item = scenario("post-payoff-reform", {
+      cenarioOtimizado: { prazoReal: 1 },
+      timeline: [{ mes: 1 }, { mes: 2 }, { mes: 3 }, { mes: 4 }]
+    } as Partial<CenarioCompleto>);
+
+    expect(maxScenarioTermMonths([item])).toBe(4);
+  });
 });
