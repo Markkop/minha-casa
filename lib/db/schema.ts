@@ -230,6 +230,38 @@ export const organizationMembers = pgTable(
 )
 
 // ============================================================================
+// Organization Invites
+// ============================================================================
+export const orgInviteStatusEnum = ["pending", "accepted", "revoked"] as const
+export type OrgInviteStatus = (typeof orgInviteStatusEnum)[number]
+
+export const organizationInvites = pgTable(
+  "organization_invites",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    token: text("token").notNull().unique(),
+    role: text("role").$type<OrgMemberRole>().notNull(),
+    status: text("status").$type<OrgInviteStatus>().notNull().default("pending"),
+    createdByUserId: uuid("created_by_user_id").references(() => users.id, { onDelete: "set null" }),
+    acceptedByUserId: uuid("accepted_by_user_id").references(() => users.id, { onDelete: "set null" }),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    acceptedAt: timestamp("accepted_at", { withTimezone: true }),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex("organization_invites_token_idx").on(table.token),
+    index("organization_invites_org_id_idx").on(table.orgId),
+    index("organization_invites_created_by_user_id_idx").on(table.createdByUserId),
+    index("organization_invites_accepted_by_user_id_idx").on(table.acceptedByUserId),
+  ]
+)
+
+// ============================================================================
 // Collections
 // ============================================================================
 export const collections = pgTable(

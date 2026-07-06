@@ -5,7 +5,10 @@ import {
   type AporteInicioTiming,
   type SimulatorParams
 } from "$lib/components/financiamento/financiamento-parameter-types";
-import { buildApproximatePriceValues } from "$lib/components/financiamento/price-filter-approx";
+import {
+  buildApproximatePriceValues,
+  buildTargetPriceValues
+} from "$lib/components/financiamento/price-filter-approx";
 import {
   formatAporteInicioLabel,
   formatTimingMonthLabelLong
@@ -23,6 +26,13 @@ export function toggleNumberList<T extends string | number>(current: T[], value:
 
 export function buildApproximatePricePills(baseValue: number): ScenarioFilterPillOption<number>[] {
   return buildApproximatePriceValues(baseValue).map((value) => ({
+    value,
+    label: formatCurrencyCompact(value)
+  }));
+}
+
+export function buildTargetPricePills(baseValue: number): ScenarioFilterPillOption<number>[] {
+  return buildTargetPriceValues(baseValue).map((value) => ({
     value,
     label: formatCurrencyCompact(value)
   }));

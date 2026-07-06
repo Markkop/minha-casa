@@ -350,6 +350,42 @@ export interface OrganizationMember {
   userImage: string | null;
 }
 
+export interface OrganizationInvite {
+  id: string;
+  token: string;
+  role: OrganizationRole;
+  status: "pending" | "accepted" | "revoked" | "expired";
+  expiresAt: string;
+  createdAt: string;
+  inviteUrl: string;
+}
+
+export interface OrganizationInvitePreview {
+  token: string;
+  role: OrganizationRole;
+  status: "pending" | "accepted" | "revoked" | "expired";
+  expiresAt: string;
+  available: boolean;
+  organization: {
+    id: string;
+    name: string;
+    slug: string;
+  };
+}
+
+export type OrganizationInviteAcceptResult =
+  | {
+      status: "accepted";
+      alreadyMember: false;
+      member: OrganizationMember;
+      organization: Organization;
+    }
+  | {
+      status: "already_member";
+      alreadyMember: true;
+      organization: Organization;
+    };
+
 const ENRICH_LINK_TIMEOUT_MS = 58_000;
 
 export async function fetchSavedLinks(_orgId?: string | null) {
@@ -403,6 +439,17 @@ export const workspaceApi = {
     api.put<{ member: OrganizationMember }>(`/organizations/${id}/members/${userId}`, input),
   removeOrganizationMember: (id: string, userId: string) =>
     api.delete<{ success: true }>(`/organizations/${id}/members/${userId}`),
+  fetchOrganizationInvites: (id: string) => api.get<{ invites: OrganizationInvite[] }>(`/organizations/${id}/invites`),
+  createOrganizationInvite: (id: string, input: { role: OrganizationRole }) =>
+    api.post<{ invite: OrganizationInvite }>(`/organizations/${id}/invites`, input),
+  revokeOrganizationInvite: (id: string, inviteId: string) =>
+    api.delete<{ invite: OrganizationInvite }>(`/organizations/${id}/invites/${inviteId}`),
+  fetchOrganizationInvite: (token: string) =>
+    api.get<{ invite: OrganizationInvitePreview }>(`/organization-invites/${encodeURIComponent(token)}`, {
+      auth: false
+    }),
+  acceptOrganizationInvite: (token: string) =>
+    api.post<OrganizationInviteAcceptResult>(`/organization-invites/${encodeURIComponent(token)}/accept`, {}),
 
   fetchCollections: () => api.get<{ collections: Collection[] }>("/collections"),
   createCollection: (input: { name: string; isDefault?: boolean }) =>

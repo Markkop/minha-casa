@@ -28,6 +28,7 @@ defmodule MinhaCasaAiWeb.Router do
     post "/mcp", McpController, :handle
     get "/api/shared/:token", CollectionController, :shared
     get "/api/financeiro/snapshots/:token", FinanceiroSnapshotController, :show
+    get "/api/organization-invites/:token", OrganizationInviteController, :show
 
     get "/api/shared/:token/listings/:listing_id/images/:index",
         ListingImageController,
@@ -83,6 +84,10 @@ defmodule MinhaCasaAiWeb.Router do
     post "/organizations/:id/members", OrganizationController, :add_member
     put "/organizations/:id/members/:user_id", OrganizationController, :update_member
     delete "/organizations/:id/members/:user_id", OrganizationController, :remove_member
+    get "/organizations/:id/invites", OrganizationController, :invites
+    post "/organizations/:id/invites", OrganizationController, :create_invite
+    delete "/organizations/:id/invites/:invite_id", OrganizationController, :revoke_invite
+    post "/organization-invites/:token/accept", OrganizationInviteController, :accept
     get "/organizations/:id/addons", AddonController, :organization_index
     patch "/organizations/:id/addons/:slug", AddonController, :update_organization
     delete "/organizations/:id/addons/:slug", AddonController, :delete_organization

@@ -5,6 +5,7 @@ import {
   buildAporteInicioPills,
   buildApproximatePricePills,
   buildSaleTimingPills,
+  buildTargetPricePills,
   buildTimingMonthPills,
   patchSaleTimingToggle,
   selectedSaleTimingValues,
@@ -21,6 +22,18 @@ describe("scenario-filter-actions", () => {
     const pills = buildApproximatePricePills(730_000);
     expect(pills.map((pill) => pill.value)).toContain(730_000);
     expect(pills.map((pill) => pill.value)).toContain(700_000);
+    expect(pills.every((pill) => pill.label.startsWith("R$"))).toBe(true);
+  });
+
+  it("builds target price pills from fixed 100k target values", () => {
+    const pills = buildTargetPricePills(730_000);
+    expect(pills.map((pill) => pill.value)).toEqual([
+      730_000,
+      700_000,
+      600_000,
+      500_000,
+      400_000
+    ]);
     expect(pills.every((pill) => pill.label.startsWith("R$"))).toBe(true);
   });
 

@@ -4,6 +4,7 @@ import { isPublicPhoenixApiPath, resolvePhoenixAuthorization } from "./api-proxy
 describe("isPublicPhoenixApiPath", () => {
   it("keeps public Phoenix routes auth-optional", () => {
     expect(isPublicPhoenixApiPath("/plans", "GET")).toBe(true);
+    expect(isPublicPhoenixApiPath("/organization-invites/token", "GET")).toBe(true);
     expect(isPublicPhoenixApiPath("/shared/token", "GET")).toBe(true);
     expect(isPublicPhoenixApiPath("/financeiro/snapshots/token", "GET")).toBe(true);
     expect(isPublicPhoenixApiPath("/collections/public/id", "GET")).toBe(true);
@@ -13,6 +14,7 @@ describe("isPublicPhoenixApiPath", () => {
   it("requires auth for protected Phoenix routes", () => {
     expect(isPublicPhoenixApiPath("/organizations", "GET")).toBe(false);
     expect(isPublicPhoenixApiPath("/financeiro/snapshots", "POST")).toBe(false);
+    expect(isPublicPhoenixApiPath("/organization-invites/token/accept", "POST")).toBe(false);
     expect(isPublicPhoenixApiPath("/user/addons", "GET")).toBe(false);
     expect(isPublicPhoenixApiPath("/addons/access/flood", "GET")).toBe(false);
   });

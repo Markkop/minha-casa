@@ -26,6 +26,7 @@
   } from "$lib/components/financiamento/financiamento-parameter-types";
   import {
     pruneSelectedPriceFilters,
+    pruneSelectedTargetPriceFilters,
     selectedPriceFilterForValueChange
   } from "$lib/components/financiamento/price-filter-approx";
   import { snapToPropertyStep } from "$lib/components/financiamento/parameter-row-helpers";
@@ -295,7 +296,7 @@
 
   $effect(() => {
     const valorImovel = params.valorImovel;
-    const next = pruneSelectedPriceFilters(params.valoresImovelFiltroMultipliers, valorImovel);
+    const next = pruneSelectedTargetPriceFilters(params.valoresImovelFiltroMultipliers, valorImovel);
     if (
       next.length !== params.valoresImovelFiltroMultipliers.length ||
       next.some((value, index) => value !== params.valoresImovelFiltroMultipliers[index])

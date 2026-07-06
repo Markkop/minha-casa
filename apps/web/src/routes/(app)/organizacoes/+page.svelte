@@ -1,13 +1,15 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { invalidate } from "$app/navigation";
-  import { Building2, Folder, Home, Users } from "@lucide/svelte";
+  import { Building2, Copy, Folder, Home, Link2, Users, X } from "@lucide/svelte";
   import GrantedAddonsSection from "$lib/addons/GrantedAddonsSection.svelte";
   import PageScaffold from "$lib/components/layout/PageScaffold.svelte";
   import Button from "$lib/components/ui/Button.svelte";
   import { getActiveOrganizationId, setActiveOrganizationId } from "$lib/api/client";
   import {
     bumpOrganizationMemberCount,
+    buildInviteUrl,
+    formatInviteExpiration,
     formatOrganizationDate,
     ORGANIZATIONS_LOAD_KEY,
     organizationRoleLabel,
@@ -16,6 +18,7 @@
   import {
     workspaceApi,
     type Organization,
+    type OrganizationInvite,
     type OrganizationMember,
     type OrganizationRole
   } from "$lib/workspace/client";
@@ -24,14 +27,18 @@
 
   let organizations = $state<Organization[]>([]);
   let members = $state<OrganizationMember[]>([]);
+  let invites = $state<OrganizationInvite[]>([]);
   let selectedOrgId = $state<string | null>(null);
   let activeOrgId = $state<string | null>(null);
   let loadingMembers = $state(false);
+  let loadingInvites = $state(false);
   let saving = $state(false);
   let error = $state("");
   let newOrgName = $state("");
   let newMemberEmail = $state("");
   let newMemberRole = $state<OrganizationRole>("member");
+  let newInviteRole = $state<OrganizationRole>("member");
+  let copiedInviteId = $state<string | null>(null);
   let selectionInitialized = $state(false);
 
   $effect(() => {
@@ -70,14 +77,24 @@
   async function selectOrganization(id: string) {
     selectedOrgId = id;
     loadingMembers = true;
+    loadingInvites = true;
     error = "";
+    copiedInviteId = null;
+    const organization = organizations.find((org) => org.id === id) ?? null;
     try {
       members = (await workspaceApi.fetchOrganizationMembers(id)).members;
+      if (organization?.role === "owner" || organization?.role === "admin") {
+        invites = (await workspaceApi.fetchOrganizationInvites(id)).invites;
+      } else {
+        invites = [];
+      }
     } catch (err) {
-      error = err instanceof Error ? err.message : "Erro ao carregar membros";
+      error = err instanceof Error ? err.message : "Erro ao carregar membros e convites";
       members = [];
+      invites = [];
     } finally {
       loadingMembers = false;
+      loadingInvites = false;
     }
   }
 
@@ -136,6 +153,47 @@
       error = err instanceof Error ? err.message : "Erro ao adicionar membro";
     } finally {
       saving = false;
+    }
+  }
+
+  async function createInvite() {
+    if (!selectedOrg) return;
+    saving = true;
+    error = "";
+    copiedInviteId = null;
+    try {
+      const { invite } = await workspaceApi.createOrganizationInvite(selectedOrg.id, { role: newInviteRole });
+      invites = [invite, ...invites];
+      newInviteRole = "member";
+    } catch (err) {
+      error = err instanceof Error ? err.message : "Erro ao criar convite";
+    } finally {
+      saving = false;
+    }
+  }
+
+  async function revokeInvite(invite: OrganizationInvite) {
+    if (!selectedOrg || !confirm("Revogar este link de convite?")) return;
+    saving = true;
+    error = "";
+    try {
+      await workspaceApi.revokeOrganizationInvite(selectedOrg.id, invite.id);
+      invites = invites.filter((item) => item.id !== invite.id);
+      if (copiedInviteId === invite.id) copiedInviteId = null;
+    } catch (err) {
+      error = err instanceof Error ? err.message : "Erro ao revogar convite";
+    } finally {
+      saving = false;
+    }
+  }
+
+  async function copyInvite(invite: OrganizationInvite) {
+    const url = invite.inviteUrl.startsWith("http") ? invite.inviteUrl : buildInviteUrl(invite.token, window.location.origin);
+    try {
+      await navigator.clipboard.writeText(url);
+      copiedInviteId = invite.id;
+    } catch (err) {
+      error = err instanceof Error ? err.message : "Erro ao copiar convite";
     }
   }
 
@@ -278,6 +336,52 @@
               </form>
             {/if}
           </div>
+
+          {#if canManageMembers}
+            <div class="mt-4 rounded-md border border-app-border bg-white p-3">
+              <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                <div>
+                  <h3 class="flex items-center gap-2 text-sm font-semibold">
+                    <Link2 class="h-4 w-4" /> Link de convite
+                  </h3>
+                  <p class="mt-1 text-xs text-app-muted">Crie um link unico para a pessoa entrar depois de criar conta ou fazer login.</p>
+                </div>
+                <form class="flex flex-col gap-2 sm:flex-row" onsubmit={(event) => { event.preventDefault(); void createInvite(); }}>
+                  <select class="h-10 rounded-md border border-app-border bg-white px-3 text-sm" bind:value={newInviteRole}>
+                    <option value="member">Membro</option>
+                    <option value="admin">Admin</option>
+                    {#if selectedOrg.role === "owner"}<option value="owner">Dono</option>{/if}
+                  </select>
+                  <Button type="submit" disabled={saving}>Criar link</Button>
+                </form>
+              </div>
+
+              {#if loadingInvites}
+                <p class="mt-3 text-sm text-app-muted">Carregando convites...</p>
+              {:else if invites.length > 0}
+                <div class="mt-3 flex flex-col gap-2">
+                  {#each invites as invite (invite.id)}
+                    <div class="flex flex-col gap-2 rounded-md border border-app-border bg-app-surface-muted p-3 md:flex-row md:items-center md:justify-between">
+                      <div class="min-w-0">
+                        <p class="text-sm font-medium">{organizationRoleLabel(invite.role)}</p>
+                        <p class="truncate text-xs text-app-muted">
+                          Expira em {formatInviteExpiration(invite.expiresAt)}
+                        </p>
+                      </div>
+                      <div class="flex shrink-0 gap-2">
+                        <Button class="h-9 px-3 text-xs" variant="secondary" type="button" onclick={() => void copyInvite(invite)}>
+                          <Copy class="h-4 w-4" /> {copiedInviteId === invite.id ? "Copiado" : "Copiar"}
+                        </Button>
+                        <Button class="h-9 px-3 text-xs" variant="ghost" type="button" onclick={() => void revokeInvite(invite)} disabled={saving}>
+                          <X class="h-4 w-4" /> Revogar
+                        </Button>
+                      </div>
+                    </div>
+                  {/each}
+                </div>
+              {/if}
+            </div>
+          {/if}
 
           {#if loadingMembers}
             <p class="mt-4 text-sm text-app-muted">Carregando membros...</p>

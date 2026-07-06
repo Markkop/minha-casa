@@ -29,6 +29,19 @@ export function formatOrganizationDate(value: string | null): string {
   return new Date(value).toLocaleDateString("pt-BR");
 }
 
+export function formatInviteExpiration(value: string | null): string {
+  if (!value) return "-";
+  return new Date(value).toLocaleString("pt-BR", {
+    dateStyle: "short",
+    timeStyle: "short"
+  });
+}
+
+export function buildInviteUrl(token: string, origin: string): string {
+  const normalizedOrigin = origin.replace(/\/+$/, "");
+  return `${normalizedOrigin}/convites/${encodeURIComponent(token)}`;
+}
+
 export function bumpOrganizationMemberCount(
   organizations: Organization[],
   organizationId: string,

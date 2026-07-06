@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildInviteUrl,
   bumpOrganizationMemberCount,
   organizationRoleLabel,
   pickInitialOrganizationId
@@ -56,5 +57,13 @@ describe("bumpOrganizationMemberCount", () => {
 
     const decreased = bumpOrganizationMemberCount(increased, "a", -5);
     expect(decreased.find((item) => item.id === "a")?.memberCount).toBe(0);
+  });
+});
+
+describe("buildInviteUrl", () => {
+  it("builds a same-origin invite URL and encodes the token", () => {
+    expect(buildInviteUrl("abc/123", "https://app.example.com/")).toBe(
+      "https://app.example.com/convites/abc%2F123"
+    );
   });
 });

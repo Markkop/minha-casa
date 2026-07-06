@@ -92,6 +92,13 @@
       "when": 1782212400000,
       "tag": "0015_financeiro_shared_snapshots",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1783296000000,
+      "tag": "0016_organization_invites",
+      "breakpoints": true
     }
   ]
 }

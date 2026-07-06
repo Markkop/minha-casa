@@ -34,6 +34,35 @@ defmodule MinhaCasaAiWeb.OrganizationJSON do
 
   def members(rows), do: Enum.map(rows, &member/1)
 
+  def invite(invite) do
+    %{
+      id: invite.id,
+      token: invite.token,
+      role: invite.role,
+      status: Map.get(invite, :status),
+      expiresAt: datetime_to_iso(invite.expires_at),
+      createdAt: datetime_to_iso(invite.created_at),
+      inviteUrl: MinhaCasaAi.Organizations.invite_url(invite)
+    }
+  end
+
+  def invites(rows), do: Enum.map(rows, &invite/1)
+
+  def invite_preview(preview) do
+    %{
+      token: preview.token,
+      role: preview.role,
+      status: preview.status,
+      expiresAt: datetime_to_iso(preview.expires_at),
+      available: preview.available,
+      organization: %{
+        id: preview.organization.id,
+        name: preview.organization.name,
+        slug: preview.organization.slug
+      }
+    }
+  end
+
   defp datetime_to_iso(nil), do: nil
   defp datetime_to_iso(%DateTime{} = dt), do: DateTime.to_iso8601(dt)
   defp datetime_to_iso(%NaiveDateTime{} = ndt), do: NaiveDateTime.to_iso8601(ndt) <> "Z"

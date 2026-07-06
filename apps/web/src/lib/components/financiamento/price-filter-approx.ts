@@ -1,5 +1,7 @@
 import { snapToPropertyStep } from "$lib/components/financiamento/parameter-row-helpers";
 
+const TARGET_PRICE_FILTER_STEP = 100_000;
+
 /** Rounding step for approximate price scenario pills, scaled to property value. */
 export function getApproximatePriceStep(baseValue: number): number {
   if (baseValue < 400_000) return 25_000;
@@ -34,6 +36,26 @@ export function buildApproximatePriceValues(baseValue: number): number[] {
   return [...values].filter((value) => value <= base).sort((a, b) => b - a);
 }
 
+/** Target-property prices stepped by R$100k down to half of the current value. */
+export function buildTargetPriceValues(baseValue: number): number[] {
+  const base = snapToPropertyStep(Math.max(0, baseValue));
+  if (base <= 0) {
+    return [0];
+  }
+
+  const minValue = base * 0.5;
+  const floor = Math.floor(base / TARGET_PRICE_FILTER_STEP) * TARGET_PRICE_FILTER_STEP;
+  const values = new Set<number>([base]);
+
+  for (let value = floor; value >= minValue; value -= TARGET_PRICE_FILTER_STEP) {
+    if (value > 0 && value <= base) {
+      values.add(value);
+    }
+  }
+
+  return [...values].sort((a, b) => b - a);
+}
+
 export function defaultSelectedPriceFilters(baseValue: number): number[] {
   const options = buildApproximatePriceValues(baseValue);
   if (options.length === 0) {
@@ -57,6 +79,11 @@ export function defaultSelectedPriceFilters(baseValue: number): number[] {
   return [...selected].sort((a, b) => b - a);
 }
 
+export function defaultSelectedTargetPriceFilters(baseValue: number): number[] {
+  const options = buildTargetPriceValues(baseValue);
+  return options.filter((value) => value > 0).slice(0, 2);
+}
+
 export function selectedPriceFilterForValueChange(baseValue: number): number[] {
   return [snapToPropertyStep(Math.max(0, baseValue))];
 }
@@ -67,6 +94,25 @@ export function isLegacyMultiplierPriceFilter(values: number[]): boolean {
 
 function nearestApproximatePrice(value: number, baseValue: number): number | null {
   const options = buildApproximatePriceValues(baseValue);
+  if (options.length === 0) {
+    return null;
+  }
+
+  let nearest = options[0];
+  let smallestDelta = Math.abs(value - nearest);
+  for (const option of options) {
+    const delta = Math.abs(value - option);
+    if (delta < smallestDelta) {
+      nearest = option;
+      smallestDelta = delta;
+    }
+  }
+
+  return nearest;
+}
+
+function nearestTargetPrice(value: number, baseValue: number): number | null {
+  const options = buildTargetPriceValues(baseValue).filter((option) => option > 0);
   if (options.length === 0) {
     return null;
   }
@@ -101,8 +147,31 @@ export function migrateMultiplierPriceFilter(multipliers: number[], baseValue: n
   return migrated.length > 0 ? migrated : defaultSelectedPriceFilters(baseValue);
 }
 
+export function migrateMultiplierTargetPriceFilter(
+  multipliers: number[],
+  baseValue: number
+): number[] {
+  const migrated = [
+    ...new Set(
+      multipliers
+        .map((multiplier) =>
+          nearestTargetPrice(snapToPropertyStep(Math.round(baseValue * multiplier)), baseValue)
+        )
+        .filter((value): value is number => value !== null)
+    )
+  ].sort((a, b) => b - a);
+
+  return migrated.length > 0 ? migrated : defaultSelectedTargetPriceFilters(baseValue);
+}
+
 export function pruneSelectedPriceFilters(selected: number[], baseValue: number): number[] {
   const options = new Set(buildApproximatePriceValues(baseValue));
   const pruned = selected.filter((value) => options.has(value));
   return pruned.length > 0 ? pruned : defaultSelectedPriceFilters(baseValue);
+}
+
+export function pruneSelectedTargetPriceFilters(selected: number[], baseValue: number): number[] {
+  const options = new Set(buildTargetPriceValues(baseValue));
+  const pruned = selected.filter((value) => options.has(value));
+  return pruned.length > 0 ? pruned : defaultSelectedTargetPriceFilters(baseValue);
 }

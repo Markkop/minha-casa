@@ -1,5 +1,6 @@
 const PUBLIC_GET_PATH_PATTERNS = [
   /^\/plans$/,
+  /^\/organization-invites\/[^/]+$/,
   /^\/shared\/[^/]+$/,
   /^\/financeiro\/snapshots\/[^/]+$/,
   /^\/shared\/[^/]+\/listings\/[^/]+\/images\/[^/]+$/,

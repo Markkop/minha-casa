@@ -111,7 +111,7 @@ describe("simulator scenario snapshot storage", () => {
     expect(snapshot?.params.valorImovel).toBe(4_000_000);
     expect(snapshot?.params.valoresImovelFiltroMultipliers).toEqual([
       4_000_000,
-      3_500_000
+      3_900_000
     ]);
   });
 

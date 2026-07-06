@@ -3,8 +3,11 @@ defmodule MinhaCasaAi.Organizations do
 
   alias MinhaCasaAi.Accounts.User
   alias MinhaCasaAi.Listings.{Collection, Listing}
-  alias MinhaCasaAi.Organizations.{Organization, OrganizationMember}
+  alias MinhaCasaAi.Organizations.{Organization, OrganizationInvite, OrganizationMember}
   alias MinhaCasaAi.Repo
+
+  @invite_ttl_days 7
+  @invite_token_bytes 24
 
   def list_for_user(user_id) do
     OrganizationMember
@@ -24,7 +27,11 @@ defmodule MinhaCasaAi.Organizations do
   def get_for_user(id, user_id) do
     with %Organization{} = org <- Repo.get(Organization, id),
          %OrganizationMember{} = membership <- get_membership(user_id, id) do
-      {:ok, org |> Map.put(:role, membership.role) |> Map.put(:joined_at, membership.joined_at) |> Map.merge(counts(id))}
+      {:ok,
+       org
+       |> Map.put(:role, membership.role)
+       |> Map.put(:joined_at, membership.joined_at)
+       |> Map.merge(counts(id))}
     else
       nil -> {:error, :not_found}
     end
@@ -61,7 +68,10 @@ defmodule MinhaCasaAi.Organizations do
         })
         |> Repo.insert!()
 
-        org |> Map.put(:role, "owner") |> Map.put(:joined_at, DateTime.utc_now()) |> Map.merge(counts(org.id))
+        org
+        |> Map.put(:role, "owner")
+        |> Map.put(:joined_at, DateTime.utc_now())
+        |> Map.merge(counts(org.id))
       end)
     end
   end
@@ -145,6 +155,115 @@ defmodule MinhaCasaAi.Organizations do
     end
   end
 
+  def list_invites(org_id) do
+    now = DateTime.utc_now() |> DateTime.truncate(:second)
+
+    OrganizationInvite
+    |> where([i], i.org_id == ^org_id and i.status == "pending" and i.expires_at > ^now)
+    |> order_by([i], desc: i.created_at)
+    |> Repo.all()
+  end
+
+  def create_invite(org_id, created_by_user_id, role) when role in ["owner", "admin", "member"] do
+    now = DateTime.utc_now() |> DateTime.truncate(:second)
+
+    %OrganizationInvite{}
+    |> OrganizationInvite.changeset(%{
+      org_id: org_id,
+      token: generate_invite_token(),
+      role: role,
+      status: "pending",
+      created_by_user_id: created_by_user_id,
+      expires_at: DateTime.add(now, @invite_ttl_days * 24 * 60 * 60, :second)
+    })
+    |> Repo.insert()
+  end
+
+  def create_invite(_, _, _), do: {:error, :invalid_role}
+
+  def revoke_invite(org_id, invite_id) do
+    case Repo.get_by(OrganizationInvite, id: invite_id, org_id: org_id, status: "pending") do
+      nil ->
+        {:error, :not_found}
+
+      invite ->
+        now = DateTime.utc_now() |> DateTime.truncate(:second)
+
+        invite
+        |> OrganizationInvite.changeset(%{status: "revoked", revoked_at: now})
+        |> Repo.update()
+    end
+  end
+
+  def get_invite_preview(token) do
+    with %OrganizationInvite{} = invite <- get_invite_by_token(token),
+         %Organization{} = org <- Repo.get(Organization, invite.org_id) do
+      {:ok, invite_preview(invite, org)}
+    else
+      nil -> {:error, :not_found}
+    end
+  end
+
+  def accept_invite(token, user_id) do
+    now = DateTime.utc_now() |> DateTime.truncate(:second)
+
+    Repo.transaction(fn ->
+      invite =
+        OrganizationInvite
+        |> where([i], i.token == ^string(token))
+        |> lock("FOR UPDATE")
+        |> Repo.one()
+
+      cond do
+        is_nil(invite) ->
+          Repo.rollback(:not_found)
+
+        invite.status != "pending" ->
+          Repo.rollback(:unavailable)
+
+        DateTime.compare(invite.expires_at, now) != :gt ->
+          Repo.rollback(:expired)
+
+        match?(%OrganizationMember{}, get_membership(user_id, invite.org_id)) ->
+          {:already_member, invite}
+
+        true ->
+          case insert_invite_member(invite, user_id, now) do
+            {:ok, member} ->
+              accepted_invite =
+                invite
+                |> OrganizationInvite.changeset(%{
+                  status: "accepted",
+                  accepted_by_user_id: user_id,
+                  accepted_at: now
+                })
+                |> Repo.update!()
+
+              {:accepted, member, accepted_invite}
+
+            {:error, changeset} ->
+              Repo.rollback(changeset)
+          end
+      end
+    end)
+    |> case do
+      {:ok, {:accepted, member, invite}} ->
+        user = Repo.get!(User, member.user_id)
+
+        {:ok, :accepted, member_with_user(member, user),
+         organization_for_user!(invite.org_id, user_id)}
+
+      {:ok, {:already_member, invite}} ->
+        {:ok, :already_member, organization_for_user!(invite.org_id, user_id)}
+
+      {:error, reason} when reason in [:not_found, :unavailable, :expired] ->
+        {:error, reason}
+
+      {:error, %Ecto.Changeset{} = changeset} ->
+        {:error, changeset}
+    end
+  end
+
   def owner_count(org_id) do
     Repo.aggregate(
       from(m in OrganizationMember, where: m.org_id == ^org_id and m.role == "owner"),
@@ -155,6 +274,21 @@ defmodule MinhaCasaAi.Organizations do
   def can_manage_members?(role), do: role in ["owner", "admin"]
   def can_delete_org?(%Organization{owner_id: owner_id}, user_id), do: owner_id == user_id
   def can_update_org?(role), do: role in ["owner", "admin"]
+  def can_assign_member_role?("owner", role) when role in ["owner", "admin", "member"], do: :ok
+  def can_assign_member_role?(_, "owner"), do: {:error, :forbidden_role}
+  def can_assign_member_role?(_, role) when role in ["admin", "member"], do: :ok
+  def can_assign_member_role?(_, _), do: {:error, :invalid_role}
+
+  def invite_url(%OrganizationInvite{token: token}), do: invite_url(token)
+
+  def invite_url(token) when is_binary(token) do
+    base = MinhaCasaAi.Config.app_public_url() || ""
+    String.trim_trailing(base, "/") <> "/convites/#{token}"
+  end
+
+  def invite_available?(%OrganizationInvite{} = invite) do
+    invite.status == "pending" and DateTime.compare(invite.expires_at, DateTime.utc_now()) == :gt
+  end
 
   defp member_with_user(member, user) do
     %{
@@ -169,7 +303,9 @@ defmodule MinhaCasaAi.Organizations do
   end
 
   defp counts(org_id) do
-    member_count = Repo.aggregate(from(m in OrganizationMember, where: m.org_id == ^org_id), :count)
+    member_count =
+      Repo.aggregate(from(m in OrganizationMember, where: m.org_id == ^org_id), :count)
+
     collection_count = Repo.aggregate(from(c in Collection, where: c.org_id == ^org_id), :count)
 
     listing_count =
@@ -182,7 +318,59 @@ defmodule MinhaCasaAi.Organizations do
         :count
       )
 
-    %{member_count: member_count, collections_count: collection_count, listings_count: listing_count}
+    %{
+      member_count: member_count,
+      collections_count: collection_count,
+      listings_count: listing_count
+    }
+  end
+
+  defp get_invite_by_token(token) do
+    token = string(token)
+
+    if token == "" do
+      nil
+    else
+      Repo.get_by(OrganizationInvite, token: token)
+    end
+  end
+
+  defp invite_preview(invite, org) do
+    %{
+      id: invite.id,
+      token: invite.token,
+      role: invite.role,
+      status: invite_status(invite),
+      expires_at: invite.expires_at,
+      organization: %{
+        id: org.id,
+        name: org.name,
+        slug: org.slug
+      },
+      available: invite_available?(invite)
+    }
+  end
+
+  defp invite_status(%OrganizationInvite{status: "pending"} = invite) do
+    if invite_available?(invite), do: "pending", else: "expired"
+  end
+
+  defp invite_status(%OrganizationInvite{status: status}), do: status
+
+  defp organization_for_user!(org_id, user_id) do
+    {:ok, organization} = get_for_user(org_id, user_id)
+    organization
+  end
+
+  defp insert_invite_member(invite, user_id, joined_at) do
+    %OrganizationMember{}
+    |> OrganizationMember.changeset(%{
+      org_id: invite.org_id,
+      user_id: user_id,
+      role: invite.role,
+      joined_at: joined_at
+    })
+    |> Repo.insert()
   end
 
   defp unique_slug(base, attempt \\ 0) do
@@ -194,7 +382,14 @@ defmodule MinhaCasaAi.Organizations do
     end
   end
 
-  defp random_suffix, do: :crypto.strong_rand_bytes(3) |> Base.url_encode64(padding: false) |> String.downcase()
+  defp random_suffix,
+    do: :crypto.strong_rand_bytes(3) |> Base.url_encode64(padding: false) |> String.downcase()
+
+  defp generate_invite_token do
+    @invite_token_bytes
+    |> :crypto.strong_rand_bytes()
+    |> Base.url_encode64(padding: false)
+  end
 
   defp slugify(value) do
     value

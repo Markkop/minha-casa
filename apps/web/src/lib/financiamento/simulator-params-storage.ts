@@ -8,9 +8,12 @@ import {
 } from "$lib/components/financiamento/financiamento-parameter-types";
 import {
   buildApproximatePriceValues,
+  buildTargetPriceValues,
   defaultSelectedPriceFilters,
+  defaultSelectedTargetPriceFilters,
   isLegacyMultiplierPriceFilter,
-  migrateMultiplierPriceFilter
+  migrateMultiplierPriceFilter,
+  migrateMultiplierTargetPriceFilter
 } from "$lib/components/financiamento/price-filter-approx";
 import { clampAporteProgressivoFields } from "$lib/financiamento/aporte-progressivo";
 import { normalizeCustosAdicionais } from "$lib/financiamento/custos-adicionais";
@@ -66,6 +69,30 @@ function validPriceFilterList(value: unknown, fallback: number[], baseValue: num
     .sort((a, b) => b - a);
 
   return filtered.length > 0 ? filtered : defaultSelectedPriceFilters(baseValue);
+}
+
+function validTargetPriceFilterList(value: unknown, fallback: number[], baseValue: number): number[] {
+  if (!Array.isArray(value)) {
+    return fallback;
+  }
+
+  const numeric = value.filter(
+    (item): item is number => typeof item === "number" && Number.isFinite(item)
+  );
+  if (numeric.length === 0) {
+    return fallback;
+  }
+
+  if (isLegacyMultiplierPriceFilter(numeric)) {
+    return migrateMultiplierTargetPriceFilter(numeric, baseValue);
+  }
+
+  const options = new Set(buildTargetPriceValues(baseValue));
+  const filtered = [...new Set(numeric)]
+    .filter((item) => item > 0 && item <= MAX_PRICE_FILTER_VALUE && options.has(item))
+    .sort((a, b) => b - a);
+
+  return filtered.length > 0 ? filtered : defaultSelectedTargetPriceFilters(baseValue);
 }
 
 function validTimingMonthList(value: unknown, fallback: number[]): number[] {
@@ -136,6 +163,7 @@ function resolveManutencaoMensal(parsed: StoredSimulatorParams, defaults: Simula
 export function normalizeSimulatorParams(parsed: StoredSimulatorParams): SimulatorParams {
   const defaults = createInitialSimulatorParams();
   const hasEntradaDisponivel = Object.prototype.hasOwnProperty.call(parsed, "entradaDisponivel");
+  const valorImovel = finiteNumber(parsed.valorImovel, defaults.valorImovel);
   const valorApartamento = finiteNumber(parsed.valorApartamento, defaults.valorApartamento);
   const temImovelParaNegociar =
     parsed.temImovelParaNegociar !== undefined
@@ -171,7 +199,7 @@ export function normalizeSimulatorParams(parsed: StoredSimulatorParams): Simulat
     aporteInicial: aporteProgressivoFields.aporteInicial,
     aporteProgressao: aporteProgressivoFields.aporteProgressao,
     aporteIntervaloMeses: aporteProgressivoFields.aporteIntervaloMeses,
-    valorImovel: finiteNumber(parsed.valorImovel, defaults.valorImovel),
+    valorImovel,
     taxaAnual: finiteNumber(parsed.taxaAnual, defaults.taxaAnual),
     trMensal: finiteNumber(parsed.trMensal, defaults.trMensal),
     custoManutencaoImovelMensal: resolveManutencaoMensal(parsed, defaults),
@@ -189,15 +217,15 @@ export function normalizeSimulatorParams(parsed: StoredSimulatorParams): Simulat
     custosAdicionais: normalizeCustosAdicionais(parsed.custosAdicionais),
     esperaQuantiaExtra: finiteBoolean(parsed.esperaQuantiaExtra, defaults.esperaQuantiaExtra),
     quantiaExtra: finiteNumber(parsed.quantiaExtra, defaults.quantiaExtra),
-    valoresImovelFiltroMultipliers: validPriceFilterList(
+    valoresImovelFiltroMultipliers: validTargetPriceFilterList(
       parsed.valoresImovelFiltroMultipliers,
-      defaults.valoresImovelFiltroMultipliers,
-      finiteNumber(parsed.valorImovel, defaults.valorImovel)
+      defaultSelectedTargetPriceFilters(valorImovel),
+      valorImovel
     ),
     valoresAptoFiltroMultipliers: validPriceFilterList(
       parsed.valoresAptoFiltroMultipliers,
-      defaults.valoresAptoFiltroMultipliers,
-      finiteNumber(parsed.valorApartamento, defaults.valorApartamento)
+      defaultSelectedPriceFilters(valorApartamento),
+      valorApartamento
     ),
     estrategiasFiltro: validEstrategiaList(parsed.estrategiasFiltro, defaults.estrategiasFiltro),
     temposVendaPosteriorMeses: validTimingMonthList(

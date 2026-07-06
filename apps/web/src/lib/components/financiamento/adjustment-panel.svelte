@@ -24,6 +24,7 @@
     buildApproximatePricePills,
     buildAporteInicioPills,
     buildSaleTimingPills,
+    buildTargetPricePills,
     buildTimingMonthPills,
     patchSaleTimingToggle,
     selectedSaleTimingValues,
@@ -270,7 +271,7 @@
     editingCustoNomeDraft = "";
   }
 
-  const imovelPricePills = $derived(buildApproximatePricePills(params.valorImovel));
+  const imovelPricePills = $derived(buildTargetPricePills(params.valorImovel));
   const apartamentoPricePills = $derived(buildApproximatePricePills(params.valorApartamento));
   const saleTimingPills = buildSaleTimingPills();
   const extraTimingPills = buildTimingMonthPills();
