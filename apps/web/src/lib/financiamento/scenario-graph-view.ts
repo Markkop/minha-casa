@@ -13,6 +13,7 @@ import type { SimulatorScenarioSnapshot } from "$lib/financiamento/simulator-sce
 export type ScenarioDisplayMeta = {
   sourceScenarioId?: string;
   sourceName?: string;
+  colorKey?: string;
 };
 
 export type DisplayCenario = CenarioCompleto & {
@@ -100,7 +101,8 @@ function withSourceDisplay(
     id: `${source.id}::${cenario.id}`,
     chartDisplay: {
       sourceScenarioId: source.id,
-      sourceName: source.name
+      sourceName: source.name,
+      colorKey: cenario.id
     }
   };
 }

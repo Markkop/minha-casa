@@ -54,6 +54,9 @@ describe("scenario graph views", () => {
     expect(lines.some((line) => line.id.startsWith("scenario-b::"))).toBe(true);
     expect(lines.find((line) => line.id.startsWith("scenario-a::"))?.chartDisplay?.sourceName)
       .toBe("Base");
+    const sourceLine = lines.find((line) => line.id.startsWith("scenario-a::"));
+    if (!sourceLine) throw new Error("Expected source line");
+    expect(sourceLine.chartDisplay?.colorKey).toBe(sourceLine.id.split("::")[1]);
   });
 
   it("ignores duplicate sources when creating and extending draft groups", () => {

@@ -51,6 +51,7 @@
 
   let renamingId = $state<string | null>(null);
   let renameValue = $state("");
+  let renamingFormElement = $state<HTMLFormElement | null>(null);
   let draggingScenarioId = $state<string | null>(null);
   let dropScenarioId = $state<string | null>(null);
   let draftDropActive = $state(false);
@@ -122,6 +123,13 @@
     }
   }
 
+  function handleWindowPointerDown(event: PointerEvent) {
+    if (!renamingId || !renamingFormElement) return;
+    const target = event.target;
+    if (target instanceof Node && renamingFormElement.contains(target)) return;
+    cancelRename();
+  }
+
   function scenarioIdFromDrag(event: DragEvent): string | null {
     const id = event.dataTransfer?.getData("text/plain")?.trim();
     return id || draggingScenarioId;
@@ -180,6 +188,8 @@
   }
 </script>
 
+<svelte:window onpointerdown={handleWindowPointerDown} />
+
 <div class="flex min-w-0 flex-1 flex-wrap items-center gap-1.5" role="list">
   {#if scenarios.length === 0 && !draftComparisonGroup}
     <span class="text-xs text-app-subtle">Nenhum cenário salvo</span>
@@ -190,6 +200,7 @@
     {@const scenarioIconColor = scenarioIconClass(scenario.id)}
     {#if renamingId === scenario.id}
       <form
+        bind:this={renamingFormElement}
         class="flex h-8 min-w-44 items-center gap-1 rounded-md border border-app-border bg-app-surface px-1"
         onsubmit={(event) => {
           event.preventDefault();
@@ -256,7 +267,7 @@
         </button>
         <PageToolbarButton
           variant="ghost"
-          class="h-6 w-6 shrink-0 px-0 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100"
+          class="pointer-events-none h-6 w-0 shrink-0 overflow-hidden px-0 opacity-0 transition-[width,opacity] group-hover:pointer-events-auto group-hover:w-6 group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:w-6 group-focus-within:opacity-100"
           aria-label={`Renomear ${scenario.name}`}
           onclick={(event) => startRename(scenario, event)}
         >

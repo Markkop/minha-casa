@@ -95,7 +95,8 @@ describe("scenario chart colors", () => {
     const item = scenario("source-1::2000000-0-venda_posterior-vn-en-rn", {
       chartDisplay: {
         sourceScenarioId: "source-1",
-        sourceName: "Compra base"
+        sourceName: "Compra base",
+        colorKey: "2000000-0-venda_posterior-vn-en-rn"
       }
     } as Partial<CenarioCompleto>);
 
@@ -103,6 +104,23 @@ describe("scenario chart colors", () => {
       id: item.id,
       label: "Compra base · R$ 2.00M"
     });
+  });
+
+  it("keeps comparison line colors aligned with their original scenario ids", () => {
+    const originalId = "2000000-0-venda_posterior-vn-en-rn";
+    const original = scenario(originalId);
+    const merged = scenario(`source-1::${originalId}`, {
+      chartDisplay: {
+        sourceScenarioId: "source-1",
+        sourceName: "Compra base",
+        colorKey: originalId
+      }
+    } as Partial<CenarioCompleto>);
+
+    const originalColor = scenarioLegendEntries([original])[0]?.color;
+    const mergedColor = scenarioLegendEntries([merged])[0]?.color;
+
+    expect(mergedColor).toBe(originalColor);
   });
 });
 

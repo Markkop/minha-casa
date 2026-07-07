@@ -80,7 +80,8 @@ export function scenarioColorIndexMap(cenarios: CenarioCompleto[]): Map<string, 
   return new Map(
     cenarios.map((cenario) => [
       cenario.id,
-      stableStringHash(cenario.id) % CHART_COLORS.length
+      stableStringHash((cenario as DisplayCenario).chartDisplay?.colorKey ?? cenario.id) %
+        CHART_COLORS.length
     ])
   );
 }
