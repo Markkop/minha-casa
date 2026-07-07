@@ -39,7 +39,7 @@ describe("parseActiveParametersYaml", () => {
       aporteProgressivo: true,
       esperaQuantiaExtra: true,
       temposVendaPosteriorMeses: [1, 3, 24],
-      temposReformaMeses: [1, 12, 24],
+      temposReformaMeses: [0],
       temposInicioAporteExtraMeses: [0, 3, APORTE_APOS_REFORMA_VALUE],
       temposRecebimentoExtraMeses: [6, 12],
       custosAdicionais: [
@@ -64,7 +64,7 @@ describe("parseActiveParametersYaml", () => {
       valoresAptoFiltroMultipliers: params.valoresAptoFiltroMultipliers,
       estrategiasFiltro: ["permuta", "venda_posterior"],
       temposVendaPosteriorMeses: [1, 3, 24],
-      temposReformaMeses: [1, 12, 24],
+      temposReformaMeses: [0],
       temposInicioAporteExtraMeses: [0, 3, APORTE_APOS_REFORMA_VALUE],
       temposRecebimentoExtraMeses: [6, 12],
       tempoObraMeses: 12,

@@ -15,6 +15,7 @@ import {
   migrateMultiplierPriceFilter,
   migrateMultiplierTargetPriceFilter
 } from "$lib/components/financiamento/price-filter-approx";
+import { REFORMA_INICIO_RANGE } from "$lib/components/financiamento/parameter-row-helpers";
 import { clampAporteProgressivoFields } from "$lib/financiamento/aporte-progressivo";
 import { normalizeCustosAdicionais } from "$lib/financiamento/custos-adicionais";
 import { createInitialSimulatorParams } from "$lib/financiamento/simulator-recursos";
@@ -103,6 +104,23 @@ function validTimingMonthList(value: unknown, fallback: number[]): number[] {
     (v): v is number => typeof v === "number" && VALID_TIMING_MONTHS.has(v)
   );
   return filtered.length > 0 ? filtered : fallback;
+}
+
+function validReformaTimingMonthList(value: unknown, fallback: number[]): number[] {
+  if (!Array.isArray(value)) {
+    return fallback;
+  }
+
+  const firstValid = value.find(
+    (v): v is number =>
+      typeof v === "number" &&
+      Number.isFinite(v) &&
+      Number.isInteger(v) &&
+      v >= REFORMA_INICIO_RANGE.min &&
+      v <= REFORMA_INICIO_RANGE.max
+  );
+
+  return firstValid === undefined ? fallback : [firstValid];
 }
 
 function validAporteInicioDelayList(
@@ -236,7 +254,7 @@ export function normalizeSimulatorParams(parsed: StoredSimulatorParams): Simulat
       parsed.temposRecebimentoExtraMeses,
       defaults.temposRecebimentoExtraMeses
     ),
-    temposReformaMeses: validTimingMonthList(
+    temposReformaMeses: validReformaTimingMonthList(
       parsed.temposReformaMeses,
       defaults.temposReformaMeses
     ),

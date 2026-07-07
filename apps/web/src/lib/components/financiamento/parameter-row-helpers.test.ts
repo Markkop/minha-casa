@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   CUSTO_CONDOMINIO_RANGE,
   formatMonthDurationLong,
+  formatTimingMonthLabel,
   PROPERTY_SLIDER_STEP,
   VALOR_APARTAMENTO_RANGE,
   VALOR_IMOVEL_RANGE,
@@ -29,6 +30,11 @@ describe("snapToPropertyStep", () => {
 });
 
 describe("formatMonthDurationLong", () => {
+  it("formats zero months", () => {
+    expect(formatMonthDurationLong(0)).toBe("0 meses");
+    expect(formatTimingMonthLabel(0)).toBe("0m");
+  });
+
   it("preserves month precision around one year", () => {
     expect(formatMonthDurationLong(11)).toBe("11 meses");
     expect(formatMonthDurationLong(12)).toBe("1 ano");

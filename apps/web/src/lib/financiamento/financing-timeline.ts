@@ -143,6 +143,10 @@ function normalizeDurationMonths(value: number | undefined): number {
   return Math.max(1, Math.round(value ?? 1));
 }
 
+function normalizeStartMonth(value: number | undefined): number {
+  return Math.max(1, Math.round(value ?? 1));
+}
+
 function reformaOutflowForMonth({
   mes,
   custoTotalReformas,
@@ -156,7 +160,9 @@ function reformaOutflowForMonth({
   tempoObraMeses: number;
   mesReforma: number;
 }): { reformaInicial: number; reformaMensal: number } {
-  if (custoTotalReformas <= 0 || mes < mesReforma) {
+  const startMonth = normalizeStartMonth(mesReforma);
+
+  if (custoTotalReformas <= 0 || mes < startMonth) {
     return { reformaInicial: 0, reformaMensal: 0 };
   }
 
@@ -164,10 +170,10 @@ function reformaOutflowForMonth({
   const inicial = Math.min(Math.max(0, custoInicialReformas), total);
   const restante = Math.max(0, total - inicial);
   const duracao = normalizeDurationMonths(tempoObraMeses);
-  const mesFinalObra = mesReforma + duracao - 1;
+  const mesFinalObra = startMonth + duracao - 1;
 
   return {
-    reformaInicial: mes === mesReforma ? inicial : 0,
+    reformaInicial: mes === startMonth ? inicial : 0,
     reformaMensal: restante > 0 && mes <= mesFinalObra ? restante / duracao : 0
   };
 }
@@ -204,10 +210,11 @@ export function resolveMesReformaConcluida({
   }
 
   const inicial = Math.min(Math.max(0, custoInicialReformas), custoTotalReformas);
+  const startMonth = normalizeStartMonth(mesReforma);
   const finishMonth =
     inicial >= custoTotalReformas
-      ? mesReforma
-      : mesReforma + normalizeDurationMonths(tempoObraMeses) - 1;
+      ? startMonth
+      : startMonth + normalizeDurationMonths(tempoObraMeses) - 1;
 
   if (finishMonth > prazoMeses) {
     return null;

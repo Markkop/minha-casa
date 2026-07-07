@@ -1119,7 +1119,7 @@ function reformMonthVariants(
   if (custoTotalReformas <= 0) {
     return [undefined]
   }
-  return [...temposReformaMeses]
+  return [temposReformaMeses[0] ?? 1]
 }
 
 function aporteDelayVariants(

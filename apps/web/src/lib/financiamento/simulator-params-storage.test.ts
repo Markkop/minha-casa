@@ -141,11 +141,16 @@ describe("normalizeSimulatorParams", () => {
     const result = normalizeSimulatorParams({
       temposVendaPosteriorMeses: [2, 99],
       temposRecebimentoExtraMeses: [],
-      temposReformaMeses: [6, 99]
+      temposReformaMeses: [0, 6, 60, 99]
     });
     expect(result.temposVendaPosteriorMeses).toEqual(defaults.temposVendaPosteriorMeses);
     expect(result.temposRecebimentoExtraMeses).toEqual(defaults.temposRecebimentoExtraMeses);
-    expect(result.temposReformaMeses).toEqual([6]);
+    expect(result.temposReformaMeses).toEqual([0]);
+    expect(normalizeSimulatorParams({ temposReformaMeses: [99, 60] }).temposReformaMeses).toEqual([
+      60
+    ]);
+    expect(normalizeSimulatorParams({ temposReformaMeses: [-1, 61, 1.5] })
+      .temposReformaMeses).toEqual(defaults.temposReformaMeses);
   });
 
   it("defaults venda em to permuta + 1 ano, extra em to 1 ano, and reforma em to 1m", () => {

@@ -42,6 +42,12 @@ export const REFORMA_TOTAL_RANGE: SliderRange = {
 
 export const REFORMA_INICIAL_RANGE: SliderRange = REFORMA_TOTAL_RANGE;
 
+export const REFORMA_INICIO_RANGE: SliderRange = {
+  min: 0,
+  max: 60,
+  step: 1
+};
+
 export const REFORMA_TEMPO_OBRA_RANGE: SliderRange = {
   min: 1,
   max: 36,

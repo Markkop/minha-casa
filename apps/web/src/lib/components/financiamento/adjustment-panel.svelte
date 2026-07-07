@@ -12,10 +12,12 @@
     CUSTO_MENSAL_RANGE,
     QUANTIA_EXTRA_RANGE,
     REFORMA_INICIAL_RANGE,
+    REFORMA_INICIO_RANGE,
     REFORMA_TEMPO_OBRA_RANGE,
     REFORMA_TOTAL_RANGE,
     VALOR_APARTAMENTO_RANGE,
-    VALOR_IMOVEL_RANGE
+    VALOR_IMOVEL_RANGE,
+    formatMonthDurationLong
   } from "$lib/components/financiamento/parameter-row-helpers";
   import ParameterRow from "$lib/components/financiamento/parameter-row.svelte";
   import ScenarioFilterPills from "$lib/components/financiamento/ScenarioFilterPills.svelte";
@@ -150,6 +152,17 @@
     patch({ entradaDisponivel: value });
   }
 
+  function clampReformaInicio(value: number): number {
+    return Math.min(
+      REFORMA_INICIO_RANGE.max,
+      Math.max(REFORMA_INICIO_RANGE.min, Math.round(value))
+    );
+  }
+
+  function updateReformaInicio(value: number) {
+    patch({ temposReformaMeses: [clampReformaInicio(value)] });
+  }
+
   function toggleSection(section: FinanceiroSectionId) {
     sectionState = { ...sectionState, [section]: !sectionState[section] };
   }
@@ -275,9 +288,9 @@
   const apartamentoPricePills = $derived(buildApproximatePricePills(params.valorApartamento));
   const saleTimingPills = buildSaleTimingPills();
   const extraTimingPills = buildTimingMonthPills();
-  const reformTimingPills = buildTimingMonthPills();
   const aporteInicioPills = $derived(buildAporteInicioPills(effective.custoTotalReformas > 0));
   const selectedSaleTiming = $derived(selectedSaleTimingValues(params));
+  const reformaInicioMeses = $derived(clampReformaInicio(params.temposReformaMeses[0] ?? 0));
 </script>
 
 {#snippet sectionCheckbox(
@@ -553,19 +566,25 @@
                   ? onValueChange("custoInicialReformas", value)
                   : patch({ custoInicialReformas: value })
             }}
-          >
-            {#snippet extras()}
-              <ScenarioFilterPills
-                options={reformTimingPills}
-                selected={params.temposReformaMeses}
-                ariaLabel="Meses até iniciar a reforma"
-                onToggle={(value) =>
-                  patch({
-                    temposReformaMeses: toggleNumberList(params.temposReformaMeses, value)
-                  })}
-              />
-            {/snippet}
-          </ParameterRow>
+          />
+          <ParameterRow
+            compact={rowCompact}
+            label="Tempo até iniciar a obra"
+            tooltip="Meses de espera antes do início da reforma. Zero meses significa início imediato."
+            valueDisplay={formatMonthDurationLong(reformaInicioMeses)}
+            slider={{
+              value: reformaInicioMeses,
+              min: REFORMA_INICIO_RANGE.min,
+              max: REFORMA_INICIO_RANGE.max,
+              step: REFORMA_INICIO_RANGE.step,
+              onValueChange: updateReformaInicio
+            }}
+            edit={{
+              type: "number",
+              value: reformaInicioMeses,
+              onChange: updateReformaInicio
+            }}
+          />
           <ParameterRow
             compact={rowCompact}
             label="Tempo de obra"

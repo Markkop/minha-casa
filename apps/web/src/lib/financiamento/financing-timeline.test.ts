@@ -74,6 +74,22 @@ describe("simularTimelineMensal", () => {
     expect(result.mesReformaConcluida).toBe(7);
   });
 
+  it("treats zero reform delay as an immediate first-month reform start", () => {
+    const result = simularTimelineMensal({
+      ...baseTimeline,
+      estrategia: "financiamento",
+      custoTotalReformas: 40_000,
+      custoInicialReformas: 10_000,
+      tempoObraMeses: 2,
+      mesReforma: 0
+    });
+
+    expect(result.meses[0]).toMatchObject({ mes: 1, reformaInicial: 10_000, reformaMensal: 15_000 });
+    expect(result.meses[1]).toMatchObject({ mes: 2, reformaInicial: 0, reformaMensal: 15_000 });
+    expect(result.mesReformaConcluida).toBe(2);
+    expect(result.totalReformas).toBe(40_000);
+  });
+
   it("continues the timeline through reform cash flow after financing payoff", () => {
     const result = simularTimelineMensal({
       ...baseTimeline,
@@ -450,7 +466,7 @@ describe("gerarMatrizCenarios", () => {
     expect(vendaMonths.sort((a, b) => (a ?? 0) - (b ?? 0))).toEqual([1, 6, 12, 24]);
   });
 
-  it("expands scenarios across selected reform months when reforms are enabled", () => {
+  it("uses only the first selected reform month when reforms are enabled", () => {
     const rows = gerarMatrizCenarios({
       ...matrixBase,
       valoresApartamento: [0],
@@ -459,11 +475,16 @@ describe("gerarMatrizCenarios", () => {
       custoTotalReformas: 80_000,
       custoInicialReformas: 20_000,
       tempoObraMeses: 4,
-      temposReformaMeses: [1, 6]
+      temposReformaMeses: [0, 6]
     });
 
-    expect(rows).toHaveLength(2);
-    expect(rows.map((r) => r.reformaEm).sort((a, b) => (a ?? 0) - (b ?? 0))).toEqual([1, 6]);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.reformaEm).toBe(0);
+    expect(rows[0]?.timeline[0]).toMatchObject({
+      mes: 1,
+      reformaInicial: 20_000,
+      reformaMensal: 15_000
+    });
   });
 
   it("expands scenarios across selected aporte start delays", () => {
