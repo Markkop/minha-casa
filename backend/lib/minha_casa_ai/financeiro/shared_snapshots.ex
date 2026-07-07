@@ -13,6 +13,7 @@ defmodule MinhaCasaAi.Financeiro.SharedSnapshots do
   @token_bytes 18
 
   def create_snapshot(profile, attrs) when is_map(attrs) do
+    profile = normalize_profile(profile)
     title = attrs |> Map.get("title", Map.get(attrs, :title, "Simulação financeira")) |> string()
     payload = Map.get(attrs, "payload", Map.get(attrs, :payload, %{}))
 
@@ -63,6 +64,14 @@ defmodule MinhaCasaAi.Financeiro.SharedSnapshots do
 
   defp default_title(""), do: "Simulação financeira"
   defp default_title(title), do: title
+
+  defp normalize_profile(%{org_id: org_id}) when is_binary(org_id),
+    do: %{user_id: nil, org_id: org_id}
+
+  defp normalize_profile(%{user_id: user_id}) when is_binary(user_id),
+    do: %{user_id: user_id, org_id: nil}
+
+  defp normalize_profile(_), do: %{user_id: nil, org_id: nil}
 
   defp string(value) when is_binary(value), do: String.trim(value)
   defp string(_), do: ""

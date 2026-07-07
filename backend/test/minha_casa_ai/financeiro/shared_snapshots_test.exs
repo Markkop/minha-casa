@@ -79,6 +79,35 @@ defmodule MinhaCasaAi.Financeiro.SharedSnapshotsTest do
     assert snapshot.org_id == org_id
   end
 
+  test "prefers organization ownership when authenticated profile has user and org", %{
+    user_id: user_id
+  } do
+    org_id = Ecto.UUID.generate()
+
+    Ecto.Adapters.SQL.query!(
+      Repo,
+      """
+      INSERT INTO organizations (id, name, slug, owner_id)
+      VALUES ($1, $2, $3, $4)
+      """,
+      [
+        Ecto.UUID.dump!(org_id),
+        "Financeiro Org Owner",
+        "financeiro-org-owner-#{System.unique_integer([:positive])}",
+        Ecto.UUID.dump!(user_id)
+      ]
+    )
+
+    assert {:ok, snapshot} =
+             SharedSnapshots.create_snapshot(%{user_id: user_id, org_id: org_id}, %{
+               title: "Org snapshot",
+               payload: %{version: 1, params: %{}, settings: %{}}
+             })
+
+    assert snapshot.user_id == nil
+    assert snapshot.org_id == org_id
+  end
+
   test "returns public snapshots by token without owner fields", %{user_id: user_id} do
     assert {:ok, snapshot} =
              SharedSnapshots.create_snapshot(%{user_id: user_id, org_id: nil}, %{
