@@ -131,11 +131,15 @@ describe("chart event legend entries", () => {
     const withReform = scenario("reform", {
       timeline: [{ mes: 3, reformaConcluida: true }]
     } as Partial<CenarioCompleto>);
+    const withPayoff = scenario("payoff", {
+      cenarioOtimizado: { prazoReal: 18 }
+    } as Partial<CenarioCompleto>);
 
-    expect(scenarioEventLegendEntries([withSale, withExtra, withReform])).toEqual([
+    expect(scenarioEventLegendEntries([withSale, withExtra, withReform, withPayoff])).toEqual([
       { id: "venda", label: "Venda", kind: "sale" },
       { id: "quantia-extra", label: "Quantia extra", kind: "extra" },
-      { id: "reforma-concluida", label: "Reforma concluída", kind: "reform" }
+      { id: "reforma-concluida", label: "Reforma concluída", kind: "reform" },
+      { id: "imovel-quitado", label: "Imóvel quitado", kind: "payoff" }
     ]);
   });
 

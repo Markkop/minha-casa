@@ -64,6 +64,17 @@
   {/if}
 {/if}
 
+{#if cenario.cenarioOtimizado.prazoReal > 0}
+  {@const mx = markerX(cenario.cenarioOtimizado.prazoReal)}
+  {#if mx !== null}
+    <path
+      d={`M ${mx} ${height - padding.bottom - 24} L ${mx + 4} ${height - padding.bottom - 16} L ${mx - 4} ${height - padding.bottom - 16} Z`}
+      fill={color}
+      class="opacity-75"
+    />
+  {/if}
+{/if}
+
 {#if showReformMarker && cenario.timeline.some((month) => month.reformaConcluida)}
   {@const reformMonth = cenario.timeline.find((month) => month.reformaConcluida)?.mes}
   {@const mx = reformMonth !== undefined ? markerX(reformMonth) : null}

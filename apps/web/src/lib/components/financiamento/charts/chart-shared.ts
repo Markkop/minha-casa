@@ -26,7 +26,7 @@ export type ChartLegendEntry = {
   color: string;
 };
 
-export type ChartEventLegendKind = "sale" | "extra" | "reform" | "cash";
+export type ChartEventLegendKind = "sale" | "extra" | "reform" | "cash" | "payoff";
 
 export type ChartEventLegendEntry = {
   id: string;
@@ -37,7 +37,8 @@ export type ChartEventLegendEntry = {
 const CHART_EVENT_LEGEND_ENTRIES: ChartEventLegendEntry[] = [
   { id: "venda", label: "Venda", kind: "sale" },
   { id: "quantia-extra", label: "Quantia extra", kind: "extra" },
-  { id: "reforma-concluida", label: "Reforma concluída", kind: "reform" }
+  { id: "reforma-concluida", label: "Reforma concluída", kind: "reform" },
+  { id: "imovel-quitado", label: "Imóvel quitado", kind: "payoff" }
 ];
 
 export function scenarioEventLegendEntries(
@@ -49,11 +50,16 @@ export function scenarioEventLegendEntries(
   const hasReformMarker =
     showReformMarker &&
     cenarios.some((cenario) => cenario.timeline?.some((month) => month.reformaConcluida));
+  const hasPayoffMarker = cenarios.some(
+    (cenario) => (cenario.cenarioOtimizado?.prazoReal ?? 0) > 0
+  );
 
   return CHART_EVENT_LEGEND_ENTRIES.filter((entry) => {
     if (entry.kind === "sale") return hasSaleMarker;
     if (entry.kind === "extra") return hasExtraMarker;
-    return hasReformMarker;
+    if (entry.kind === "reform") return hasReformMarker;
+    if (entry.kind === "payoff") return hasPayoffMarker;
+    return false;
   });
 }
 

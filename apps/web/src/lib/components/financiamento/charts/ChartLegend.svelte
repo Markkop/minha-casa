@@ -59,6 +59,8 @@
             <span class="h-2 w-2 rounded-full bg-app-fg opacity-65"></span>
           {:else if entry.kind === "cash"}
             <span class="h-2 w-2 rotate-45 bg-app-fg opacity-65"></span>
+          {:else if entry.kind === "payoff"}
+            <span class="h-0 w-0 border-x-[5px] border-b-[9px] border-x-transparent border-b-app-fg opacity-65"></span>
           {:else}
             <span class="h-2 w-2 rounded-[1px] bg-app-fg opacity-65"></span>
           {/if}
