@@ -20,6 +20,7 @@ type RequestOptions = {
   headers?: Record<string, string>;
   auth?: boolean;
   signal?: AbortSignal;
+  organizationId?: string | null;
 };
 
 export { getActiveOrganizationId, setActiveOrganizationId };
@@ -34,8 +35,14 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
     if (token) requestParts.headers.set("Authorization", `Bearer ${token}`);
   }
   if (auth) {
-    const activeOrgId = getActiveOrganizationId();
-    if (activeOrgId) requestParts.headers.set("X-Organization-Id", activeOrgId);
+    const organizationId =
+      "organizationId" in options ? options.organizationId : getActiveOrganizationId();
+    if (organizationId) {
+      requestParts.headers.set("X-Organization-Id", organizationId);
+      if (!base) requestParts.headers.set("X-Minha-Casa-Organization-Override", organizationId);
+    } else if ("organizationId" in options && !base) {
+      requestParts.headers.set("X-Minha-Casa-Organization-Override", "personal");
+    }
   }
 
   let response: Response;

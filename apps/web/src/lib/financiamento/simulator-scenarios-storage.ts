@@ -69,6 +69,40 @@ function buildScenarioPayload(
   });
 }
 
+function organizationRequestOptions(
+  organizationId: string | null | undefined
+): { organizationId: string | null } | undefined {
+  return organizationId === undefined ? undefined : { organizationId };
+}
+
+function getWithOrganization<T>(path: string, organizationId: string | null | undefined) {
+  const options = organizationRequestOptions(organizationId);
+  return options ? api.get<T>(path, options) : api.get<T>(path);
+}
+
+function postWithOrganization<T>(
+  path: string,
+  body: unknown,
+  organizationId: string | null | undefined
+) {
+  const options = organizationRequestOptions(organizationId);
+  return options ? api.post<T>(path, body, options) : api.post<T>(path, body);
+}
+
+function patchWithOrganization<T>(
+  path: string,
+  body: unknown,
+  organizationId: string | null | undefined
+) {
+  const options = organizationRequestOptions(organizationId);
+  return options ? api.patch<T>(path, body, options) : api.patch<T>(path, body);
+}
+
+function deleteWithOrganization<T>(path: string, organizationId: string | null | undefined) {
+  const options = organizationRequestOptions(organizationId);
+  return options ? api.delete<T>(path, options) : api.delete<T>(path);
+}
+
 export function initializeScenarioSnapshotStorage(): void {
   if (typeof window === "undefined") {
     return;
@@ -128,10 +162,12 @@ export function normalizeScenarioSnapshot(value: unknown): SimulatorScenarioSnap
 }
 
 export async function loadScenarioSnapshots(
-  collectionId: string
+  collectionId: string,
+  options?: { organizationId?: string | null }
 ): Promise<SimulatorScenarioSnapshot[]> {
-  const result = await api.get<ScenariosResponse>(
-    `/collections/${encodeURIComponent(collectionId)}/financeiro-scenarios`
+  const result = await getWithOrganization<ScenariosResponse>(
+    `/collections/${encodeURIComponent(collectionId)}/financeiro-scenarios`,
+    options?.organizationId
   );
 
   return result.scenarios
@@ -144,24 +180,27 @@ export async function createScenarioSnapshot({
   collectionId,
   name,
   params,
-  settings
+  settings,
+  organizationId
 }: {
   collectionId: string;
   name: string;
   params: SimulatorParams;
   settings: SimulatorSettings;
+  organizationId?: string | null;
 }): Promise<SimulatorScenarioSnapshot | null> {
   const normalizedName = name.trim();
   if (!normalizedName) {
     return null;
   }
 
-  const result = await api.post<ScenarioResponse>(
+  const result = await postWithOrganization<ScenarioResponse>(
     `/collections/${encodeURIComponent(collectionId)}/financeiro-scenarios`,
     {
       name: normalizedName,
       payload: buildScenarioPayload(params, settings)
-    }
+    },
+    organizationId
   );
 
   return normalizeScenarioSnapshot(result.scenario);
@@ -170,20 +209,23 @@ export async function createScenarioSnapshot({
 export async function renameScenarioSnapshot({
   collectionId,
   id,
-  name
+  name,
+  organizationId
 }: {
   collectionId: string;
   id: string;
   name: string;
+  organizationId?: string | null;
 }): Promise<SimulatorScenarioSnapshot | null> {
   const normalizedName = name.trim();
   if (!normalizedName) {
     return null;
   }
 
-  const result = await api.patch<ScenarioResponse>(
+  const result = await patchWithOrganization<ScenarioResponse>(
     `/collections/${encodeURIComponent(collectionId)}/financeiro-scenarios/${encodeURIComponent(id)}`,
-    { name: normalizedName }
+    { name: normalizedName },
+    organizationId
   );
 
   return normalizeScenarioSnapshot(result.scenario);
@@ -191,13 +233,16 @@ export async function renameScenarioSnapshot({
 
 export async function deleteScenarioSnapshot({
   collectionId,
-  id
+  id,
+  organizationId
 }: {
   collectionId: string;
   id: string;
+  organizationId?: string | null;
 }): Promise<boolean> {
-  await api.delete<{ success: true }>(
-    `/collections/${encodeURIComponent(collectionId)}/financeiro-scenarios/${encodeURIComponent(id)}`
+  await deleteWithOrganization<{ success: true }>(
+    `/collections/${encodeURIComponent(collectionId)}/financeiro-scenarios/${encodeURIComponent(id)}`,
+    organizationId
   );
   return true;
 }
@@ -205,18 +250,21 @@ export async function deleteScenarioSnapshot({
 export async function importSharedScenarioSnapshot({
   collectionId,
   token,
-  name
+  name,
+  organizationId
 }: {
   collectionId: string;
   token: string;
   name?: string;
+  organizationId?: string | null;
 }): Promise<SimulatorScenarioSnapshot | null> {
-  const result = await api.post<ScenarioResponse>(
+  const result = await postWithOrganization<ScenarioResponse>(
     `/collections/${encodeURIComponent(collectionId)}/financeiro-scenarios/import-shared`,
     {
       token,
       ...(name?.trim() ? { name: name.trim() } : {})
-    }
+    },
+    organizationId
   );
 
   return normalizeScenarioSnapshot(result.scenario);

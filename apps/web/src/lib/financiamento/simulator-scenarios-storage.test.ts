@@ -171,6 +171,29 @@ describe("simulator scenario snapshots API storage", () => {
     );
   });
 
+  it("sends an explicit organization context when provided", async () => {
+    apiMock.get.mockResolvedValueOnce({ scenarios: [envelope(1)] });
+    await loadScenarioSnapshots("collection-1", { organizationId: null });
+    expect(apiMock.get).toHaveBeenLastCalledWith(
+      "/collections/collection-1/financeiro-scenarios",
+      { organizationId: null }
+    );
+
+    apiMock.post.mockResolvedValueOnce({ scenario: envelope(1) });
+    await createScenarioSnapshot({
+      collectionId: "collection-1",
+      organizationId: "org-1",
+      name: "Cenário org",
+      params: createInitialSimulatorParams(),
+      settings: DEFAULT_SETTINGS
+    });
+    expect(apiMock.post).toHaveBeenLastCalledWith(
+      "/collections/collection-1/financeiro-scenarios",
+      expect.objectContaining({ name: "Cenário org" }),
+      { organizationId: "org-1" }
+    );
+  });
+
   it("suggests names, finds snapshots, and clones restored params/settings", () => {
     const scenarios = [snapshot(1), snapshot(3), snapshot(9, { name: "Outro nome" })];
     expect(suggestScenarioName(scenarios)).toBe("Cenário 2");

@@ -12,6 +12,8 @@ export type { ListingData };
 
 export interface Collection {
   id: string;
+  userId?: string | null;
+  orgId?: string | null;
   label: string;
   createdAt: string;
   updatedAt: string;
@@ -75,6 +77,8 @@ export interface Imovel {
 export function toCollection(apiCollection: ApiCollection & { ownerName?: string }): Collection {
   return {
     id: apiCollection.id,
+    userId: apiCollection.userId,
+    orgId: apiCollection.orgId,
     label: apiCollection.name,
     createdAt: apiCollection.createdAt,
     updatedAt: apiCollection.updatedAt,

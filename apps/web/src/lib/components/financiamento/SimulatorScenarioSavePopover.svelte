@@ -4,24 +4,43 @@
   import PageToolbarIconButton from "$lib/components/page-toolbar/PageToolbarIconButton.svelte";
   import ToolbarAnchoredPopover from "$lib/components/anuncios/ToolbarAnchoredPopover.svelte";
   import Input from "$lib/components/ui/Input.svelte";
+  import type { ScenarioCollectionDestination } from "$lib/financiamento/scenario-collection-destinations";
 
   let {
     open = $bindable(false),
     suggestedName,
     canCreate = true,
+    destinations = [],
+    activeCollectionId = null,
     onCreate
   }: {
     open?: boolean;
     suggestedName: string;
     canCreate?: boolean;
-    onCreate: (name: string) => void | Promise<void>;
+    destinations?: ScenarioCollectionDestination[];
+    activeCollectionId?: string | null;
+    onCreate: (name: string, destination: ScenarioCollectionDestination) => void | Promise<void>;
   } = $props();
 
   let name = $state("");
+  let selectedCollectionId = $state("");
+  const selectedDestination = $derived(
+    destinations.find((destination) => destination.collection.id === selectedCollectionId) ?? null
+  );
+  const selectedCollectionLimitReached = $derived(
+    Boolean(activeCollectionId && selectedCollectionId === activeCollectionId && !canCreate)
+  );
+  const canSubmit = $derived(
+    Boolean(name.trim() && selectedDestination && !selectedCollectionLimitReached)
+  );
 
   $effect(() => {
     if (!open) return;
     name = suggestedName;
+    selectedCollectionId =
+      destinations.find((destination) => destination.collection.id === activeCollectionId)?.collection.id ??
+      destinations[0]?.collection.id ??
+      "";
   });
 
   function close() {
@@ -30,13 +49,13 @@
 
   function submit() {
     const trimmed = name.trim();
-    if (!trimmed) return;
-    void onCreate(trimmed);
+    if (!trimmed || !selectedDestination) return;
+    void onCreate(trimmed, selectedDestination);
     close();
   }
 </script>
 
-<ToolbarAnchoredPopover bind:open align="end" panelClass="w-64 p-2">
+<ToolbarAnchoredPopover bind:open align="end" panelClass="w-80 p-2">
   {#snippet trigger()}
     <PageToolbarIconButton
       variant="secondary"
@@ -72,18 +91,36 @@
     />
   </label>
 
+  <label class="mt-2 flex flex-col gap-1 px-1">
+    <span class="text-xs font-medium text-app-muted">Coleção</span>
+    <select
+      bind:value={selectedCollectionId}
+      class="h-8 rounded-md border border-app-border bg-app-surface px-2 text-sm text-app-fg"
+      disabled={destinations.length === 0}
+    >
+      <option value="">Selecione uma coleção...</option>
+      {#each destinations as destination (destination.collection.id)}
+        <option value={destination.collection.id}>{destination.label}</option>
+      {/each}
+    </select>
+  </label>
+
   <div class="mt-2 flex flex-col gap-1">
     <PageToolbarButton
       variant="primary"
       class="h-8 w-full"
-      disabled={!name.trim() || !canCreate}
+      disabled={!canSubmit}
       onclick={submit}
     >
       Salvar cenário
     </PageToolbarButton>
   </div>
 
-  {#if !canCreate}
+  {#if destinations.length === 0}
+    <p class="mt-2 px-1 text-[11px] text-destructive">
+      Crie uma coleção antes de salvar cenários.
+    </p>
+  {:else if selectedCollectionLimitReached}
     <p class="mt-2 px-1 text-[11px] text-destructive">
       Limite de 20 cenários atingido.
     </p>

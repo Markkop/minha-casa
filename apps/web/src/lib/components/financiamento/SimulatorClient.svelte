@@ -73,6 +73,11 @@
     resolveScenarioCollectionId
   } from "$lib/financiamento/scenario-snapshot-restore";
   import {
+    findScenarioCollectionDestination,
+    loadScenarioCollectionDestinations,
+    type ScenarioCollectionDestination
+  } from "$lib/financiamento/scenario-collection-destinations";
+  import {
     scenarioColorIndexMap,
     scenarioLabel
   } from "$lib/components/financiamento/charts/chart-shared";
@@ -125,6 +130,7 @@
 
   let params = $state<SimulatorParams>(resolveInitialParams());
   let scenarios = $state<SimulatorScenarioSnapshot[]>([]);
+  let scenarioDestinations = $state.raw<ScenarioCollectionDestination[]>([]);
   let scenariosCollectionId = $state<string | null>(null);
   let scenarioRequestId = 0;
   let priceInitialized = $state(false);
@@ -146,6 +152,7 @@
 
   const selectedListingId = $derived(page.url.searchParams.get("listing"));
   const activeCollectionId = $derived(ctx.activeCollection?.id ?? null);
+  const activeCollectionOrganizationId = $derived(ctx.activeCollection?.orgId ?? null);
 
   const sortedListings = $derived(
     [...ctx.listings]
@@ -170,6 +177,23 @@
     if (scenariosCollectionId === collectionId) return;
     scenariosCollectionId = collectionId;
     void refreshScenarios(collectionId);
+  });
+
+  $effect(() => {
+    if (!browser || !workspaceMode) return;
+    void loadScenarioCollectionDestinations()
+      .then((loaded) => {
+        scenarioDestinations = loaded;
+      })
+      .catch((error) => {
+        console.error("Failed to load financeiro scenario destinations", error);
+        scenarioDestinations = ctx.collections.map((collection) => ({
+          collection,
+          organizationId: collection.orgId ?? null,
+          profileLabel: collection.orgId ? "Organização" : "Pessoal",
+          label: collection.label
+        }));
+      });
   });
 
   $effect(() => {
@@ -360,7 +384,10 @@
     if (!workspaceMode || !collectionId) return;
     const requestId = ++scenarioRequestId;
     try {
-      const loaded = await loadScenarioSnapshots(collectionId);
+      const destination = findScenarioCollectionDestination(scenarioDestinations, collectionId);
+      const loaded = await loadScenarioSnapshots(collectionId, {
+        organizationId: destination?.organizationId ?? activeCollectionOrganizationId
+      });
       if (requestId !== scenarioRequestId) return;
       scenarios = loaded;
       scenariosCollectionId = collectionId;
@@ -371,24 +398,33 @@
     }
   }
 
-  async function handleCreateScenario(name: string) {
-    const collectionId = activeCollectionId;
-    if (!collectionId || scenarios.length >= MAX_SIMULATOR_SCENARIOS) return;
+  async function handleCreateScenario(name: string, destination: ScenarioCollectionDestination) {
+    const collectionId = destination.collection.id;
+    if (!collectionId) return;
+    if (collectionId === activeCollectionId && scenarios.length >= MAX_SIMULATOR_SCENARIOS) return;
     const created = await createScenarioSnapshot({
       collectionId,
       name,
       params,
-      settings: settingsContext.settings
+      settings: settingsContext.settings,
+      organizationId: destination.organizationId
     });
     if (!created) return;
-    await refreshScenarios(collectionId);
+    if (collectionId === activeCollectionId) {
+      await refreshScenarios(collectionId);
+    }
   }
 
   async function handleDeleteScenario(id: string) {
     const snapshot = findScenarioSnapshot(scenarios, id);
     const collectionId = snapshot?.collectionId ?? activeCollectionId;
     if (!collectionId) return;
-    await deleteScenarioSnapshot({ collectionId, id });
+    const destination = findScenarioCollectionDestination(scenarioDestinations, collectionId);
+    await deleteScenarioSnapshot({
+      collectionId,
+      id,
+      organizationId: destination?.organizationId ?? activeCollectionOrganizationId
+    });
     await refreshScenarios(collectionId);
   }
 
@@ -396,7 +432,13 @@
     const snapshot = findScenarioSnapshot(scenarios, id);
     const collectionId = snapshot?.collectionId ?? activeCollectionId;
     if (!collectionId) return;
-    await renameScenarioSnapshot({ collectionId, id, name });
+    const destination = findScenarioCollectionDestination(scenarioDestinations, collectionId);
+    await renameScenarioSnapshot({
+      collectionId,
+      id,
+      name,
+      organizationId: destination?.organizationId ?? activeCollectionOrganizationId
+    });
     await refreshScenarios(collectionId);
   }
 
@@ -673,6 +715,8 @@
       </WorkspaceRightSidebarContent>
       <ScenarioFilterToolbar
         {scenarios}
+        {scenarioDestinations}
+        {activeCollectionId}
         {suggestedScenarioName}
         {canCreateScenario}
         onRestoreScenario={handleRestoreScenario}

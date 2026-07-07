@@ -23,7 +23,15 @@ async function proxyToPhoenix({
   const preparedRequest = await preparePhoenixRequest(request, request.headers);
   const { headers } = preparedRequest;
 
-  const activeOrgId = cookies.get(ACTIVE_ORGANIZATION_COOKIE_NAME)?.trim();
+  const organizationOverride = request.headers
+    .get("X-Minha-Casa-Organization-Override")
+    ?.trim();
+  headers.delete("X-Minha-Casa-Organization-Override");
+
+  const activeOrgId =
+    organizationOverride === "personal"
+      ? null
+      : organizationOverride || cookies.get(ACTIVE_ORGANIZATION_COOKIE_NAME)?.trim();
   if (activeOrgId) {
     headers.set("X-Organization-Id", activeOrgId);
   } else {

@@ -4,7 +4,13 @@
   import PageToolbarButton from "$lib/components/page-toolbar/PageToolbarButton.svelte";
   import ToolbarAnchoredPopover from "$lib/components/anuncios/ToolbarAnchoredPopover.svelte";
   import Input from "$lib/components/ui/Input.svelte";
+  import { setActiveOrganizationId } from "$lib/api/client";
   import { getCollectionsContext } from "$lib/collections-context.svelte";
+  import {
+    findScenarioCollectionDestination,
+    loadScenarioCollectionDestinations,
+    type ScenarioCollectionDestination
+  } from "$lib/financiamento/scenario-collection-destinations";
   import { importSharedScenarioSnapshot } from "$lib/financiamento/simulator-scenarios-storage";
 
   let {
@@ -18,22 +24,50 @@
   const ctx = getCollectionsContext();
 
   let open = $state(false);
+  let destinations = $state.raw<ScenarioCollectionDestination[]>([]);
+  let loadingDestinations = $state(false);
   let selectedCollectionId = $state("");
   let name = $state("");
   let status = $state<"idle" | "importing" | "success" | "error">("idle");
   let error = $state("");
   let importedCollectionId = $state<string | null>(null);
+  let importedOrganizationId = $state<string | null>(null);
 
   const busy = $derived(status === "importing");
-  const canImport = $derived(Boolean(selectedCollectionId) && name.trim().length > 0 && !busy);
+  const selectedDestination = $derived(
+    findScenarioCollectionDestination(destinations, selectedCollectionId)
+  );
+  const canImport = $derived(Boolean(selectedDestination) && name.trim().length > 0 && !busy);
 
   $effect(() => {
     if (!open) return;
-    selectedCollectionId = ctx.activeCollection?.id ?? ctx.collections[0]?.id ?? "";
     name = suggestedName;
     status = "idle";
     error = "";
     importedCollectionId = null;
+    importedOrganizationId = null;
+    loadingDestinations = true;
+    void loadScenarioCollectionDestinations()
+      .then((loaded) => {
+        destinations = loaded;
+        selectedCollectionId =
+          loaded.find((destination) => destination.collection.id === ctx.activeCollection?.id)
+            ?.collection.id ??
+          loaded[0]?.collection.id ??
+          "";
+      })
+      .catch(() => {
+        destinations = ctx.collections.map((collection) => ({
+          collection,
+          organizationId: collection.orgId ?? null,
+          profileLabel: collection.orgId ? "Organização" : "Pessoal",
+          label: collection.label
+        }));
+        selectedCollectionId = ctx.activeCollection?.id ?? destinations[0]?.collection.id ?? "";
+      })
+      .finally(() => {
+        loadingDestinations = false;
+      });
   });
 
   async function importScenario() {
@@ -44,10 +78,12 @@
     try {
       const imported = await importSharedScenarioSnapshot({
         collectionId: selectedCollectionId,
+        organizationId: selectedDestination?.organizationId ?? null,
         token,
         name
       });
       importedCollectionId = imported?.collectionId ?? selectedCollectionId;
+      importedOrganizationId = selectedDestination?.organizationId ?? null;
       status = "success";
     } catch (err) {
       error = err instanceof Error ? err.message : "Não foi possível importar o cenário.";
@@ -55,8 +91,9 @@
     }
   }
 
-  function openFinanceiro() {
+  async function openFinanceiro() {
     if (!importedCollectionId) return;
+    await setActiveOrganizationId(importedOrganizationId);
     void goto(`/financeiro?collection=${encodeURIComponent(importedCollectionId)}`);
   }
 </script>
@@ -77,7 +114,7 @@
   {/snippet}
 
   <p class="px-1 pb-2 text-[11px] leading-snug text-app-subtle">
-    Salve este cenário em uma coleção existente do perfil ativo.
+    Salve este cenário em uma coleção existente.
   </p>
 
   <label class="flex flex-col gap-1 px-1">
@@ -94,17 +131,17 @@
     <span class="text-xs font-medium text-app-muted">Coleção</span>
     <select
       bind:value={selectedCollectionId}
-      disabled={busy || ctx.collections.length === 0}
+      disabled={busy || loadingDestinations || destinations.length === 0}
       class="h-8 rounded-md border border-app-border bg-app-surface px-2 text-sm text-app-fg"
     >
       <option value="">Selecione uma coleção...</option>
-      {#each ctx.collections as collection (collection.id)}
-        <option value={collection.id}>{collection.label}</option>
+      {#each destinations as destination (destination.collection.id)}
+        <option value={destination.collection.id}>{destination.label}</option>
       {/each}
     </select>
   </label>
 
-  {#if ctx.collections.length === 0}
+  {#if !loadingDestinations && destinations.length === 0}
     <p class="mt-2 px-1 text-[11px] text-app-subtle">
       Crie uma coleção antes de importar este cenário.
     </p>
