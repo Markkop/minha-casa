@@ -87,7 +87,7 @@ describe("scenario chart colors", () => {
     });
 
     expect(scenarioLegendEntries([item])[0]?.label).toBe(
-      "R$ 2.00M · aporte Depois da reforma"
+      "R$ 2.00M · aporte depois"
     );
   });
 

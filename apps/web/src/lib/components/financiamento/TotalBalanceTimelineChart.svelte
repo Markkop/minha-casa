@@ -145,8 +145,7 @@
   const xLabelTicks = $derived(
     buildXAxisLabelTicks(maxMonth, chartWidth, formatTimingMonthLabelLong, padding).map((tick) => ({
       ...tick,
-      x: xForLedgerMonth(tick.month, maxMonth, chartWidth, padding),
-      textAnchor: tick.month === 0 ? "start" as const : "middle" as const
+      x: xForLedgerMonth(tick.month, maxMonth, chartWidth, padding)
     }))
   );
   const yTicks = $derived(

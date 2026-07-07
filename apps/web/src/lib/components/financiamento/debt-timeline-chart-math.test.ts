@@ -3,6 +3,8 @@ import {
   buildMonthGridTicks,
   buildNiceYAxisScale,
   buildXAxisLabelTicks,
+  CHART_HEIGHT,
+  CHART_PADDING,
   maxChartValue,
   monthAtX,
   monthAxisLabelStep,
@@ -71,6 +73,14 @@ const TEST_MAX_MONTH = 12;
 
 function monthCenterX(month: number, maxMonth = TEST_MAX_MONTH, width = TEST_WIDTH): number {
   return xForMonth(month, maxMonth, width);
+}
+
+function chartYForValue(value: number, maxValue: number): number {
+  return (
+    CHART_PADDING.top +
+    (1 - value / maxValue) *
+      (CHART_HEIGHT - CHART_PADDING.top - CHART_PADDING.bottom)
+  );
 }
 
 function pitchFor(maxMonth = TEST_MAX_MONTH, width = TEST_WIDTH): number {
@@ -180,21 +190,58 @@ describe("buildMonthGridTicks", () => {
 });
 
 describe("buildXAxisLabelTicks", () => {
-  it("labels purchase, every month for short spans and years at 12-month marks", () => {
+  it("labels the x axis in one compact row with dynamic month detail", () => {
     const short = buildXAxisLabelTicks(18, 800, (m) => `y${m}`);
     expect(short.find((t) => t.month === 0)?.label).toBe("Compra");
+    expect(short.find((t) => t.month === 0)?.textAnchor).toBe("middle");
     expect(short.some((t) => t.month === -1)).toBe(false);
-    expect(short.find((t) => t.month === 1)?.kind).toBe("year");
-    expect(short.find((t) => t.month === 12)?.label).toBe("y12");
-    expect(short.find((t) => t.month === 18)?.label).toBe("y18");
-    expect(short.find((t) => t.month === 18)?.kind).toBe("year");
-    expect(short.some((t) => t.kind === "month" && t.month === 6)).toBe(true);
+    expect(short.map((t) => t.label)).toEqual([
+      "Compra",
+      "3m",
+      "6m",
+      "9m",
+      "1a",
+      "1a3m",
+      "1a6m"
+    ]);
 
     const long = buildXAxisLabelTicks(60, 800, (m) => `y${m}`);
-    expect(long.filter((t) => t.kind === "year").map((t) => t.month)).toEqual([
-      0, 1, 12, 24, 36, 48, 60
+    expect(long.map((t) => t.label)).toEqual([
+      "Compra",
+      "6m",
+      "1a",
+      "2a",
+      "3a",
+      "4a",
+      "5a"
     ]);
-    expect(monthAxisLabelStep(60)).toBe(3);
+    expect(monthAxisLabelStep(60)).toBe(12);
+  });
+
+  it("drops final partial-year labels when they would collide with the last full year", () => {
+    const ticks = buildXAxisLabelTicks(62, 700, (m) => `y${m}`);
+    expect(ticks.map((t) => t.label)).toEqual([
+      "Compra",
+      "6m",
+      "1a",
+      "2a",
+      "3a",
+      "4a",
+      "5a"
+    ]);
+    expect(ticks.some((t) => t.label === "5a2m")).toBe(false);
+  });
+
+  it("keeps the first year visible in narrow chart cards", () => {
+    const ticks = buildXAxisLabelTicks(60, 280, (m) => `y${m}`);
+    expect(ticks.map((t) => t.label)).toEqual([
+      "Compra",
+      "1a",
+      "2a",
+      "3a",
+      "4a",
+      "5a"
+    ]);
   });
 });
 
@@ -340,7 +387,7 @@ describe("pickChartHoverForTotal", () => {
     );
 
     const month6X = monthCenterX(6);
-    const yNearA = 16 + (1 - timeline[5]!.prestacao! / maxValue) * (280 - 16 - 52);
+    const yNearA = chartYForValue(timeline[5]!.prestacao!, maxValue);
 
     const hover = pickChartHoverForTotal([a, b], month6X, yNearA, maxMonth, maxValue, width, null);
     expect(hover?.cenarioId).toBe("a");
@@ -354,7 +401,7 @@ describe("pickChartHoverForTotal", () => {
     const hover = pickChartHoverForTotal(
       [a],
       monthCenterX(0),
-      16 + (1 - 20_000 / maxValue) * (280 - 16 - 52),
+      chartYForValue(20_000, maxValue),
       maxMonth,
       maxValue,
       width,

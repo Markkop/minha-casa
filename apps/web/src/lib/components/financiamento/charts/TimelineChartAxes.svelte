@@ -133,7 +133,7 @@
   />
   <text
     x={tick.x}
-    y={height - (tick.kind === "year" ? 8 : 20)}
+    y={height - 12}
     text-anchor={tick.textAnchor ?? "middle"}
     class={cn(
       "pointer-events-none text-[10px]",

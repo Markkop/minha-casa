@@ -22,12 +22,12 @@
 
 <ul class="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-app-muted">
   {#each entries as entry (entry.id)}
-    <li class="flex items-center gap-1.5">
+    <li class="flex min-w-0 max-w-full items-center gap-1.5">
       <span
-        class="inline-block h-0.5 w-4 rounded-full"
+        class="inline-block h-0.5 w-4 shrink-0 rounded-full"
         style="background: {entry.color}"
       ></span>
-      <span class="max-w-[14rem] truncate" title={entry.label}>
+      <span class="min-w-0 max-w-full break-words leading-snug" title={entry.label}>
         {entry.label}
       </span>
     </li>

@@ -7,6 +7,7 @@ import {
   formatAporteInicioLabel,
   formatTimingMonthLabel
 } from "$lib/components/financiamento/parameter-row-helpers";
+import { APORTE_APOS_REFORMA_VALUE } from "$lib/financiamento/aporte-progressivo";
 
 export const CHART_COLORS = [
   "var(--color-app-accent)",
@@ -117,7 +118,13 @@ export function scenarioLabel(cenario: CenarioCompleto): string {
     parts.push(`reforma ${formatTimingMonthLabel(cenario.reformaEm)}`);
   }
   if (cenario.aporteEm !== undefined) {
-    parts.push(`aporte ${formatAporteInicioLabel(cenario.aporteEm)}`);
+    parts.push(
+      `aporte ${
+        cenario.aporteEm === APORTE_APOS_REFORMA_VALUE
+          ? "depois"
+          : formatAporteInicioLabel(cenario.aporteEm)
+      }`
+    );
   }
   const label = parts.join(" · ");
   const sourceName = (cenario as DisplayCenario).chartDisplay?.sourceName;

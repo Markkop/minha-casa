@@ -19,7 +19,7 @@ export const CHART_MIN_MONTH = 0;
 export const CHART_LAYOUT_MIN_MONTH = -1;
 export const CHART_PRE_PURCHASE_REFERENCE_MONTH = -1;
 
-export const CHART_PADDING = { top: 16, right: 16, bottom: 52, left: 56 } as const;
+export const CHART_PADDING = { top: 16, right: 16, bottom: 36, left: 56 } as const;
 export const CHART_HEIGHT = 280;
 /** Prefer staying on the active series unless another is clearly closer (px, SVG space). */
 export const HOVER_Y_HYSTERESIS = 14;
@@ -250,11 +250,11 @@ export function buildMonthGridTicks(
   return ticks;
 }
 
-/** How often to print a month number on the X axis (year marks are always labeled). */
+/** How often to consider month separators on the X axis (year marks are prioritized). */
 export function monthAxisLabelStep(maxMonth: number): number {
-  if (maxMonth <= 24) return 1;
-  if (maxMonth <= 60) return 3;
-  if (maxMonth <= 120) return 6;
+  if (maxMonth <= 12) return 1;
+  if (maxMonth <= 24) return 3;
+  if (maxMonth <= 48) return 6;
   return 12;
 }
 
@@ -263,45 +263,103 @@ export type XAxisLabelTick = {
   x: number;
   label: string;
   kind: "month" | "year";
+  textAnchor?: "start" | "middle" | "end";
 };
 
-/** X-axis labels: month numbers at `monthAxisLabelStep` plus year markers at 12, 24, … */
+type XAxisLabelCandidate = XAxisLabelTick & {
+  priority: number;
+  estimatedWidth: number;
+};
+
+function compactXAxisMonthLabel(month: number): string {
+  if (month === 0) return "Compra";
+  const years = Math.floor(month / 12);
+  const remainingMonths = month % 12;
+  if (years === 0) return `${month}m`;
+  if (remainingMonths === 0) return `${years}a`;
+  return `${years}a${remainingMonths}m`;
+}
+
+function estimatedXAxisLabelWidth(label: string): number {
+  return Math.max(16, label.length * 6);
+}
+
+function xAxisLabelBounds(tick: XAxisLabelTick, width: number): { left: number; right: number } {
+  const anchor = tick.textAnchor ?? "middle";
+  if (anchor === "start") return { left: tick.x, right: tick.x + width };
+  if (anchor === "end") return { left: tick.x - width, right: tick.x };
+  return { left: tick.x - width / 2, right: tick.x + width / 2 };
+}
+
+function labelsOverlap(a: XAxisLabelCandidate, b: XAxisLabelCandidate): boolean {
+  const gap = 4;
+  const aBounds = xAxisLabelBounds(a, a.estimatedWidth);
+  const bBounds = xAxisLabelBounds(b, b.estimatedWidth);
+  return aBounds.left < bBounds.right + gap && bBounds.left < aBounds.right + gap;
+}
+
+/** X-axis labels: compact, single-row labels selected by available horizontal space. */
 export function buildXAxisLabelTicks(
   maxMonth: number,
   width: number,
-  labelForYear: (month: number) => string,
+  _labelForMonth: (month: number) => string,
   pad = CHART_PADDING
 ): XAxisLabelTick[] {
-  const ticks: XAxisLabelTick[] = [];
+  const candidatesByMonth = new Map<number, XAxisLabelCandidate>();
   const monthStep = monthAxisLabelStep(maxMonth);
-  const seen = new Set<number>();
 
-  const push = (month: number, label: string, kind: "month" | "year") => {
-    if (seen.has(month)) return;
-    seen.add(month);
-    ticks.push({
+  const push = (month: number, kind: "month" | "year", priority: number) => {
+    if (month < 0 || month > maxMonth) return;
+    const label = compactXAxisMonthLabel(month);
+    const candidate: XAxisLabelCandidate = {
       month,
       label,
       x: xForMonth(month, maxMonth, width, pad),
-      kind
-    });
+      kind,
+      priority,
+      estimatedWidth: estimatedXAxisLabelWidth(label),
+      textAnchor: "middle"
+    };
+    const current = candidatesByMonth.get(month);
+    if (!current || candidate.priority > current.priority) {
+      candidatesByMonth.set(month, candidate);
+    }
   };
 
-  push(0, "Compra", "year");
-  push(1, labelForYear(1), "year");
+  push(0, "year", 100);
+
+  if (maxMonth >= 6) {
+    push(6, "month", 85);
+  }
 
   for (let month = 12; month <= maxMonth; month += 12) {
-    push(month, labelForYear(month), "year");
+    push(month, "year", 90);
   }
 
-  push(maxMonth, labelForYear(maxMonth), "year");
-
-  for (let month = monthStep; month <= maxMonth; month += monthStep) {
-    if (month % 12 === 0) continue;
-    push(month, String(month), "month");
+  if (maxMonth % 12 !== 0) {
+    push(maxMonth, maxMonth <= 36 ? "month" : "year", 80);
   }
 
-  return ticks.sort((a, b) => a.month - b.month);
+  if (maxMonth <= 48) {
+    for (let month = monthStep; month <= maxMonth; month += monthStep) {
+      if (month % 12 === 0) continue;
+      push(month, "month", 50);
+    }
+  }
+
+  const selected: XAxisLabelCandidate[] = [];
+  const candidates = Array.from(candidatesByMonth.values()).sort(
+    (a, b) => b.priority - a.priority || a.month - b.month
+  );
+
+  for (const candidate of candidates) {
+    if (selected.some((tick) => labelsOverlap(candidate, tick))) continue;
+    selected.push(candidate);
+  }
+
+  return selected
+    .sort((a, b) => a.month - b.month)
+    .map(({ priority, estimatedWidth, ...tick }) => tick);
 }
 
 /** @deprecated Use buildXAxisLabelTicks */
