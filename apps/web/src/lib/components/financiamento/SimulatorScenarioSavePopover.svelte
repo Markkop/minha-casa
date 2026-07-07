@@ -14,7 +14,7 @@
     open?: boolean;
     suggestedName: string;
     canCreate?: boolean;
-    onCreate: (name: string) => void;
+    onCreate: (name: string) => void | Promise<void>;
   } = $props();
 
   let name = $state("");
@@ -31,7 +31,7 @@
   function submit() {
     const trimmed = name.trim();
     if (!trimmed) return;
-    onCreate(trimmed);
+    void onCreate(trimmed);
     close();
   }
 </script>
@@ -40,8 +40,8 @@
   {#snippet trigger()}
     <PageToolbarIconButton
       variant="secondary"
-      aria-label="Salvar cenário local"
-      title="Salvar cenário local"
+      aria-label="Salvar cenário"
+      title="Salvar cenário"
       tooltipDisabled={open}
       onclick={() => (open = !open)}
     >
@@ -50,7 +50,7 @@
   {/snippet}
 
   <p class="px-1 pb-2 text-[11px] leading-snug text-app-subtle">
-    Salve localmente os parâmetros, filtros e seleções de gráficos atuais em um cenário.
+    Salve os parâmetros, filtros e seleções de gráficos atuais em um cenário.
   </p>
 
   <label class="flex flex-col gap-1 px-1">

@@ -307,6 +307,27 @@ export const financeiroSharedSnapshots = pgTable(
 )
 
 // ============================================================================
+// Financeiro Scenarios
+// ============================================================================
+export const financeiroScenarios = pgTable(
+  "financeiro_scenarios",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    collectionId: uuid("collection_id")
+      .notNull()
+      .references(() => collections.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    payload: jsonb("payload").default({}).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    index("financeiro_scenarios_collection_id_idx").on(table.collectionId),
+    index("financeiro_scenarios_collection_created_at_idx").on(table.collectionId, table.createdAt),
+  ]
+)
+
+// ============================================================================
 // Processed Webhook Events (for idempotency)
 // ============================================================================
 export const processedWebhookEvents = pgTable(

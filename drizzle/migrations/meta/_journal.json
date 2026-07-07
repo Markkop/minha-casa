@@ -99,6 +99,13 @@
       "when": 1783296000000,
       "tag": "0016_organization_invites",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1783420800000,
+      "tag": "0017_financeiro_scenarios",
+      "breakpoints": true
     }
   ]
 }

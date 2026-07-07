@@ -1,21 +1,40 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { createInitialSimulatorParams } from "$lib/financiamento/simulator-recursos";
+import { DEFAULT_SETTINGS } from "$lib/financiamento/settings";
 import {
   prepareScenarioRestore,
   resolveScenarioCollectionId
 } from "$lib/financiamento/scenario-snapshot-restore";
 import type { SimulatorScenarioSnapshot } from "$lib/financiamento/simulator-scenarios-storage";
 
+vi.mock("$lib/api/client", () => ({
+  api: {
+    get: vi.fn(),
+    post: vi.fn(),
+    patch: vi.fn(),
+    delete: vi.fn()
+  }
+}));
+
 function snapshot(collectionId?: string): SimulatorScenarioSnapshot {
+  const params = {
+    ...createInitialSimulatorParams(),
+    linkedListingId: "listing-1"
+  };
   return {
     id: "scenario-1",
+    collectionId: collectionId ?? "collection-1",
     name: "Cenário 1",
     capturedAt: "2026-06-08T12:00:00.000Z",
-    params: {
-      ...createInitialSimulatorParams(),
-      linkedListingId: "listing-1"
+    createdAt: "2026-06-08T12:00:00.000Z",
+    updatedAt: "2026-06-08T12:00:00.000Z",
+    payload: {
+      version: 1,
+      params,
+      settings: DEFAULT_SETTINGS
     },
-    ...(collectionId ? { collectionId } : {})
+    params,
+    settings: DEFAULT_SETTINGS
   };
 }
 
@@ -38,6 +57,7 @@ describe("scenario snapshot restore", () => {
     );
 
     expect(result.params.linkedListingId).toBe("listing-1");
+    expect(result.settings).toEqual(DEFAULT_SETTINGS);
     expect(result.searchParams.toString()).toBe(
       "price=100&listing=listing-1&collection=collection-1"
     );

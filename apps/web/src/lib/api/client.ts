@@ -2,6 +2,7 @@ import { formatApiError } from "$lib/api/error-message";
 import { buildJsonRequestParts } from "$lib/api/request-init";
 import { config } from "$lib/config";
 import { getApiToken } from "$lib/stores/auth";
+import { getActiveOrganizationId, setActiveOrganizationId } from "$lib/active-organization";
 
 export class ApiError extends Error {
   constructor(
@@ -21,7 +22,7 @@ type RequestOptions = {
   signal?: AbortSignal;
 };
 
-export { getActiveOrganizationId, setActiveOrganizationId } from "$lib/active-organization";
+export { getActiveOrganizationId, setActiveOrganizationId };
 
 async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const { method = "GET", body, headers = {}, auth = true } = options;
@@ -31,6 +32,10 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
   if (auth && base) {
     const token = await getApiToken();
     if (token) requestParts.headers.set("Authorization", `Bearer ${token}`);
+  }
+  if (auth) {
+    const activeOrgId = getActiveOrganizationId();
+    if (activeOrgId) requestParts.headers.set("X-Organization-Id", activeOrgId);
   }
 
   let response: Response;

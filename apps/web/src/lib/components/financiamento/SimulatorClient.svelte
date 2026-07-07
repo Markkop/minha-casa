@@ -3,6 +3,7 @@
   import { goto } from "$app/navigation";
   import { AlertCircle, Check, ClipboardPaste, Copy, Sparkles } from "@lucide/svelte";
   import { onMount } from "svelte";
+  import type { Snippet } from "svelte";
   import { page } from "$app/state";
   import AnaliseQuerySync from "$lib/components/analise/AnaliseQuerySync.svelte";
   import WorkspaceListingQuerySync from "$lib/components/workspace/WorkspaceListingQuerySync.svelte";
@@ -88,12 +89,14 @@
     initialParams,
     workspaceMode = true,
     persistParams = true,
-    title = "Financeiro"
+    title = "Financeiro",
+    sharedHeaderActions
   }: {
     initialParams?: SimulatorParams;
     workspaceMode?: boolean;
     persistParams?: boolean;
     title?: string;
+    sharedHeaderActions?: Snippet;
   } = $props();
 
   const settingsContext = getSettingsContext();
@@ -121,9 +124,9 @@
   }
 
   let params = $state<SimulatorParams>(resolveInitialParams());
-  let scenarios = $state<SimulatorScenarioSnapshot[]>(
-    browser && isWorkspaceMode() ? loadScenarioSnapshots() : []
-  );
+  let scenarios = $state<SimulatorScenarioSnapshot[]>([]);
+  let scenariosCollectionId = $state<string | null>(null);
+  let scenarioRequestId = 0;
   let priceInitialized = $state(false);
   let restoringScenario = $state(false);
   let copiedPrompt = $state(false);
@@ -142,6 +145,7 @@
   );
 
   const selectedListingId = $derived(page.url.searchParams.get("listing"));
+  const activeCollectionId = $derived(ctx.activeCollection?.id ?? null);
 
   const sortedListings = $derived(
     [...ctx.listings]
@@ -152,6 +156,20 @@
   $effect(() => {
     if (!browser || !persistParams) return;
     saveSimulatorParams(params);
+  });
+
+  $effect(() => {
+    if (!browser || !workspaceMode) return;
+    const collectionId = activeCollectionId;
+    if (!collectionId) {
+      scenarioRequestId += 1;
+      scenarios = [];
+      scenariosCollectionId = null;
+      return;
+    }
+    if (scenariosCollectionId === collectionId) return;
+    scenariosCollectionId = collectionId;
+    void refreshScenarios(collectionId);
   });
 
   $effect(() => {
@@ -338,25 +356,48 @@
     params = { ...params, cenariosOcultosGraficos: [...hidden] };
   }
 
-  function refreshScenarios() {
-    if (!workspaceMode) return;
-    scenarios = loadScenarioSnapshots();
+  async function refreshScenarios(collectionId = activeCollectionId) {
+    if (!workspaceMode || !collectionId) return;
+    const requestId = ++scenarioRequestId;
+    try {
+      const loaded = await loadScenarioSnapshots(collectionId);
+      if (requestId !== scenarioRequestId) return;
+      scenarios = loaded;
+      scenariosCollectionId = collectionId;
+    } catch (error) {
+      if (requestId !== scenarioRequestId) return;
+      console.error("Failed to load financeiro scenarios", error);
+      scenarios = [];
+    }
   }
 
-  function handleCreateScenario(name: string) {
-    const created = createScenarioSnapshot(name, params, ctx.activeCollection?.id);
+  async function handleCreateScenario(name: string) {
+    const collectionId = activeCollectionId;
+    if (!collectionId || scenarios.length >= MAX_SIMULATOR_SCENARIOS) return;
+    const created = await createScenarioSnapshot({
+      collectionId,
+      name,
+      params,
+      settings: settingsContext.settings
+    });
     if (!created) return;
-    refreshScenarios();
+    await refreshScenarios(collectionId);
   }
 
-  function handleDeleteScenario(id: string) {
-    deleteScenarioSnapshot(id);
-    refreshScenarios();
+  async function handleDeleteScenario(id: string) {
+    const snapshot = findScenarioSnapshot(scenarios, id);
+    const collectionId = snapshot?.collectionId ?? activeCollectionId;
+    if (!collectionId) return;
+    await deleteScenarioSnapshot({ collectionId, id });
+    await refreshScenarios(collectionId);
   }
 
-  function handleRenameScenario(id: string, name: string) {
-    renameScenarioSnapshot(id, name);
-    refreshScenarios();
+  async function handleRenameScenario(id: string, name: string) {
+    const snapshot = findScenarioSnapshot(scenarios, id);
+    const collectionId = snapshot?.collectionId ?? activeCollectionId;
+    if (!collectionId) return;
+    await renameScenarioSnapshot({ collectionId, id, name });
+    await refreshScenarios(collectionId);
   }
 
   async function copyActiveParametersPrompt() {
@@ -440,7 +481,7 @@
         }
       }
 
-      const { params: restored, searchParams: urlParams } = prepareScenarioRestore(
+      const { params: restored, settings: restoredSettings, searchParams: urlParams } = prepareScenarioRestore(
         snapshot,
         targetCollection?.id ?? null,
         ctx.listings.map((listing) => listing.id),
@@ -459,6 +500,7 @@
       });
 
       params = restored;
+      settingsContext.updateSettings(restoredSettings);
       chartSelection.clearSelection();
     } finally {
       restoringScenario = false;
@@ -648,6 +690,11 @@
           <p class="text-xs font-medium uppercase text-app-muted">Visualização compartilhada</p>
           <h1 class="truncate text-base font-semibold text-app-fg">{title}</h1>
         </div>
+        {#if sharedHeaderActions}
+          <div class="shrink-0">
+            {@render sharedHeaderActions()}
+          </div>
+        {/if}
       </header>
     {/if}
     <div class={workspaceMode ? "contents" : "flex min-h-0 flex-1"}>

@@ -1,5 +1,11 @@
+import { api } from "$lib/api/client";
 import type { SimulatorParams } from "$lib/components/financiamento/financiamento-parameter-types";
+import {
+  FINANCEIRO_SHARED_SNAPSHOT_VERSION,
+  type FinanceiroSharedSnapshotPayload
+} from "$lib/financiamento/shared-snapshot";
 import { normalizeSimulatorParams } from "$lib/financiamento/simulator-params-storage";
+import { normalizeSettings, type SimulatorSettings } from "$lib/financiamento/settings";
 
 export const SIMULATOR_SCENARIOS_STORAGE_KEY = "minha-casa-financeiro-scenarios";
 export const MAX_SIMULATOR_SCENARIOS = 20;
@@ -10,68 +16,57 @@ const LEGACY_SIMULATOR_ACTIVE_PRESET_ID_STORAGE_KEY =
 
 export type SimulatorScenarioSnapshot = {
   id: string;
+  collectionId: string;
   name: string;
   capturedAt: string;
+  createdAt: string;
+  updatedAt: string;
+  payload: FinanceiroSharedSnapshotPayload;
   params: SimulatorParams;
-  collectionId?: string;
+  settings: SimulatorSettings;
 };
 
-type StoredSimulatorScenarioSnapshot = {
+type ScenarioEnvelope = {
   id?: unknown;
+  collectionId?: unknown;
   name?: unknown;
   capturedAt?: unknown;
-  params?: unknown;
-  collectionId?: unknown;
+  createdAt?: unknown;
+  updatedAt?: unknown;
+  payload?: unknown;
 };
 
-function cloneAndNormalizeParams(params: SimulatorParams): SimulatorParams {
-  return normalizeSimulatorParams(JSON.parse(JSON.stringify(params)) as SimulatorParams);
+type ScenarioResponse = {
+  scenario: ScenarioEnvelope;
+};
+
+type ScenariosResponse = {
+  scenarios: ScenarioEnvelope[];
+};
+
+function clone<T>(value: T): T {
+  return JSON.parse(JSON.stringify(value)) as T;
 }
 
-function normalizeScenarioSnapshot(
-  stored: StoredSimulatorScenarioSnapshot
-): SimulatorScenarioSnapshot | null {
-  if (typeof stored.id !== "string" || stored.id.length === 0) {
-    return null;
-  }
-
-  if (typeof stored.name !== "string" || stored.name.trim().length === 0) {
-    return null;
-  }
-
-  if (
-    typeof stored.capturedAt !== "string" ||
-    stored.capturedAt.length === 0 ||
-    !Number.isFinite(Date.parse(stored.capturedAt))
-  ) {
-    return null;
-  }
-
-  if (!stored.params || typeof stored.params !== "object") {
-    return null;
-  }
-
-  const collectionId =
-    typeof stored.collectionId === "string" && stored.collectionId.trim().length > 0
-      ? stored.collectionId.trim()
-      : undefined;
+function normalizeScenarioPayload(value: unknown): FinanceiroSharedSnapshotPayload {
+  const parsed = value && typeof value === "object" ? (value as Record<string, unknown>) : {};
 
   return {
-    id: stored.id,
-    name: stored.name.trim(),
-    capturedAt: stored.capturedAt,
-    params: cloneAndNormalizeParams(stored.params as SimulatorParams),
-    ...(collectionId ? { collectionId } : {})
+    version: FINANCEIRO_SHARED_SNAPSHOT_VERSION,
+    params: normalizeSimulatorParams((parsed.params ?? {}) as Partial<SimulatorParams>),
+    settings: normalizeSettings(parsed.settings)
   };
 }
 
-function cloneScenarioSnapshot(
-  snapshot: SimulatorScenarioSnapshot
-): SimulatorScenarioSnapshot {
-  return {
-    ...snapshot,
-    params: cloneAndNormalizeParams(snapshot.params)
-  };
+function buildScenarioPayload(
+  params: SimulatorParams,
+  settings: SimulatorSettings
+): FinanceiroSharedSnapshotPayload {
+  return normalizeScenarioPayload({
+    version: FINANCEIRO_SHARED_SNAPSHOT_VERSION,
+    params: clone(params),
+    settings: clone(settings)
+  });
 }
 
 export function initializeScenarioSnapshotStorage(): void {
@@ -80,69 +75,154 @@ export function initializeScenarioSnapshotStorage(): void {
   }
 
   try {
+    window.localStorage.removeItem(SIMULATOR_SCENARIOS_STORAGE_KEY);
     window.localStorage.removeItem(LEGACY_SIMULATOR_PRESETS_STORAGE_KEY);
     window.localStorage.removeItem(LEGACY_SIMULATOR_ACTIVE_PRESET_ID_STORAGE_KEY);
   } catch {
-    console.error("Failed to initialize simulator scenario snapshot storage");
+    console.error("Failed to clear legacy simulator scenario snapshot storage");
   }
 }
 
-export function loadScenarioSnapshots(): SimulatorScenarioSnapshot[] {
-  if (typeof window === "undefined") {
-    return [];
+export function normalizeScenarioSnapshot(value: unknown): SimulatorScenarioSnapshot | null {
+  if (!value || typeof value !== "object") {
+    return null;
   }
 
-  try {
-    const raw = window.localStorage.getItem(SIMULATOR_SCENARIOS_STORAGE_KEY);
-    if (!raw) {
-      return [];
-    }
-
-    const parsed = JSON.parse(raw) as unknown;
-    if (!Array.isArray(parsed)) {
-      return [];
-    }
-
-    return parsed
-      .map((item) =>
-        normalizeScenarioSnapshot(item as StoredSimulatorScenarioSnapshot)
-      )
-      .filter(
-        (snapshot): snapshot is SimulatorScenarioSnapshot => snapshot !== null
-      )
-      .slice(0, MAX_SIMULATOR_SCENARIOS);
-  } catch {
-    return [];
+  const parsed = value as ScenarioEnvelope;
+  if (typeof parsed.id !== "string" || parsed.id.trim().length === 0) {
+    return null;
   }
+  if (typeof parsed.collectionId !== "string" || parsed.collectionId.trim().length === 0) {
+    return null;
+  }
+
+  const name =
+    typeof parsed.name === "string" && parsed.name.trim().length > 0
+      ? parsed.name.trim()
+      : "Cenário";
+  const capturedAt =
+    typeof parsed.capturedAt === "string" && Number.isFinite(Date.parse(parsed.capturedAt))
+      ? parsed.capturedAt
+      : new Date(0).toISOString();
+  const createdAt =
+    typeof parsed.createdAt === "string" && Number.isFinite(Date.parse(parsed.createdAt))
+      ? parsed.createdAt
+      : capturedAt;
+  const updatedAt =
+    typeof parsed.updatedAt === "string" && Number.isFinite(Date.parse(parsed.updatedAt))
+      ? parsed.updatedAt
+      : createdAt;
+  const payload = normalizeScenarioPayload(parsed.payload);
+
+  return {
+    id: parsed.id.trim(),
+    collectionId: parsed.collectionId.trim(),
+    name,
+    capturedAt,
+    createdAt,
+    updatedAt,
+    payload,
+    params: clone(payload.params),
+    settings: normalizeSettings(payload.settings)
+  };
 }
 
-export function saveScenarioSnapshots(
-  snapshots: SimulatorScenarioSnapshot[]
-): void {
-  if (typeof window === "undefined") {
-    return;
-  }
+export async function loadScenarioSnapshots(
+  collectionId: string
+): Promise<SimulatorScenarioSnapshot[]> {
+  const result = await api.get<ScenariosResponse>(
+    `/collections/${encodeURIComponent(collectionId)}/financeiro-scenarios`
+  );
 
-  const normalized = snapshots
-    .map((snapshot) => normalizeScenarioSnapshot(snapshot))
-    .filter(
-      (snapshot): snapshot is SimulatorScenarioSnapshot => snapshot !== null
-    )
+  return result.scenarios
+    .map(normalizeScenarioSnapshot)
+    .filter((snapshot): snapshot is SimulatorScenarioSnapshot => snapshot !== null)
     .slice(0, MAX_SIMULATOR_SCENARIOS);
-
-  try {
-    window.localStorage.setItem(
-      SIMULATOR_SCENARIOS_STORAGE_KEY,
-      JSON.stringify(normalized)
-    );
-  } catch {
-    console.error("Failed to save simulator scenario snapshots to localStorage");
-  }
 }
 
-export function suggestScenarioName(
-  snapshots: SimulatorScenarioSnapshot[]
-): string {
+export async function createScenarioSnapshot({
+  collectionId,
+  name,
+  params,
+  settings
+}: {
+  collectionId: string;
+  name: string;
+  params: SimulatorParams;
+  settings: SimulatorSettings;
+}): Promise<SimulatorScenarioSnapshot | null> {
+  const normalizedName = name.trim();
+  if (!normalizedName) {
+    return null;
+  }
+
+  const result = await api.post<ScenarioResponse>(
+    `/collections/${encodeURIComponent(collectionId)}/financeiro-scenarios`,
+    {
+      name: normalizedName,
+      payload: buildScenarioPayload(params, settings)
+    }
+  );
+
+  return normalizeScenarioSnapshot(result.scenario);
+}
+
+export async function renameScenarioSnapshot({
+  collectionId,
+  id,
+  name
+}: {
+  collectionId: string;
+  id: string;
+  name: string;
+}): Promise<SimulatorScenarioSnapshot | null> {
+  const normalizedName = name.trim();
+  if (!normalizedName) {
+    return null;
+  }
+
+  const result = await api.patch<ScenarioResponse>(
+    `/collections/${encodeURIComponent(collectionId)}/financeiro-scenarios/${encodeURIComponent(id)}`,
+    { name: normalizedName }
+  );
+
+  return normalizeScenarioSnapshot(result.scenario);
+}
+
+export async function deleteScenarioSnapshot({
+  collectionId,
+  id
+}: {
+  collectionId: string;
+  id: string;
+}): Promise<boolean> {
+  await api.delete<{ success: true }>(
+    `/collections/${encodeURIComponent(collectionId)}/financeiro-scenarios/${encodeURIComponent(id)}`
+  );
+  return true;
+}
+
+export async function importSharedScenarioSnapshot({
+  collectionId,
+  token,
+  name
+}: {
+  collectionId: string;
+  token: string;
+  name?: string;
+}): Promise<SimulatorScenarioSnapshot | null> {
+  const result = await api.post<ScenarioResponse>(
+    `/collections/${encodeURIComponent(collectionId)}/financeiro-scenarios/import-shared`,
+    {
+      token,
+      ...(name?.trim() ? { name: name.trim() } : {})
+    }
+  );
+
+  return normalizeScenarioSnapshot(result.scenario);
+}
+
+export function suggestScenarioName(snapshots: SimulatorScenarioSnapshot[]): string {
   const usedNames = new Set(snapshots.map((snapshot) => snapshot.name.trim()));
   let index = 1;
 
@@ -151,67 +231,6 @@ export function suggestScenarioName(
   }
 
   return `Cenário ${index}`;
-}
-
-export function createScenarioSnapshot(
-  name: string,
-  params: SimulatorParams,
-  collectionId?: string
-): SimulatorScenarioSnapshot | null {
-  const snapshots = loadScenarioSnapshots();
-  if (snapshots.length >= MAX_SIMULATOR_SCENARIOS) {
-    return null;
-  }
-
-  const normalizedName = name.trim() || suggestScenarioName(snapshots);
-  const normalizedCollectionId = collectionId?.trim();
-  const snapshot: SimulatorScenarioSnapshot = {
-    id: crypto.randomUUID(),
-    name: normalizedName,
-    capturedAt: new Date().toISOString(),
-    params: cloneAndNormalizeParams(params),
-    ...(normalizedCollectionId ? { collectionId: normalizedCollectionId } : {})
-  };
-
-  saveScenarioSnapshots([...snapshots, snapshot]);
-  return cloneScenarioSnapshot(snapshot);
-}
-
-export function renameScenarioSnapshot(
-  id: string,
-  name: string
-): SimulatorScenarioSnapshot | null {
-  const normalizedName = name.trim();
-  if (!normalizedName) {
-    return null;
-  }
-
-  const snapshots = loadScenarioSnapshots();
-  const index = snapshots.findIndex((snapshot) => snapshot.id === id);
-  if (index < 0) {
-    return null;
-  }
-
-  const renamed = {
-    ...snapshots[index],
-    name: normalizedName
-  };
-  const next = [...snapshots];
-  next[index] = renamed;
-  saveScenarioSnapshots(next);
-
-  return cloneScenarioSnapshot(renamed);
-}
-
-export function deleteScenarioSnapshot(id: string): boolean {
-  const snapshots = loadScenarioSnapshots();
-  const next = snapshots.filter((snapshot) => snapshot.id !== id);
-  if (next.length === snapshots.length) {
-    return false;
-  }
-
-  saveScenarioSnapshots(next);
-  return true;
 }
 
 export function findScenarioSnapshot(
@@ -225,8 +244,10 @@ export function findScenarioSnapshot(
   return snapshots.find((snapshot) => snapshot.id === id) ?? null;
 }
 
-export function cloneScenarioParams(
-  snapshot: SimulatorScenarioSnapshot
-): SimulatorParams {
-  return cloneAndNormalizeParams(snapshot.params);
+export function cloneScenarioParams(snapshot: SimulatorScenarioSnapshot): SimulatorParams {
+  return clone(snapshot.payload.params);
+}
+
+export function cloneScenarioSettings(snapshot: SimulatorScenarioSnapshot): SimulatorSettings {
+  return normalizeSettings(clone(snapshot.payload.settings));
 }

@@ -1,6 +1,8 @@
 import type { SimulatorParams } from "$lib/components/financiamento/financiamento-parameter-types";
+import type { SimulatorSettings } from "$lib/financiamento/settings";
 import {
   cloneScenarioParams,
+  cloneScenarioSettings,
   type SimulatorScenarioSnapshot
 } from "$lib/financiamento/simulator-scenarios-storage";
 
@@ -23,8 +25,9 @@ export function prepareScenarioRestore(
   collectionId: string | null,
   availableListingIds: string[],
   currentSearch: URLSearchParams
-): { params: SimulatorParams; searchParams: URLSearchParams } {
+): { params: SimulatorParams; settings: SimulatorSettings; searchParams: URLSearchParams } {
   const params = cloneScenarioParams(snapshot);
+  const settings = cloneScenarioSettings(snapshot);
   if (
     !collectionId ||
     !params.linkedListingId ||
@@ -45,5 +48,5 @@ export function prepareScenarioRestore(
     searchParams.delete("listing");
   }
 
-  return { params, searchParams };
+  return { params, settings, searchParams };
 }

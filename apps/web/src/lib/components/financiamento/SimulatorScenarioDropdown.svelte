@@ -14,9 +14,9 @@
     onOpenSave
   }: {
     scenarios: SimulatorScenarioSnapshot[];
-    onRestoreScenario: (id: string) => void;
-    onDeleteScenario: (id: string) => void;
-    onRenameScenario: (id: string, name: string) => void;
+    onRestoreScenario: (id: string) => void | Promise<void>;
+    onDeleteScenario: (id: string) => void | Promise<void>;
+    onRenameScenario: (id: string, name: string) => void | Promise<void>;
     onOpenSave: () => void;
   } = $props();
 
@@ -38,7 +38,7 @@
   }
 
   function handleRestore(id: string) {
-    onRestoreScenario(id);
+    void onRestoreScenario(id);
     open = false;
     cancelRename();
   }
@@ -60,13 +60,13 @@
       cancelRename();
       return;
     }
-    onRenameScenario(id, nextName);
+    void onRenameScenario(id, nextName);
     cancelRename();
   }
 
   function handleDelete(id: string, event: MouseEvent) {
     event.stopPropagation();
-    onDeleteScenario(id);
+    void onDeleteScenario(id);
     if (renamingId === id) {
       cancelRename();
     }
@@ -96,7 +96,7 @@
   {/snippet}
 
   {#if scenarios.length === 0}
-    <p class="px-2 py-2 text-xs text-app-subtle">Nenhum cenário local salvo</p>
+    <p class="px-2 py-2 text-xs text-app-subtle">Nenhum cenário salvo</p>
   {:else}
     <div class="flex max-h-64 flex-col gap-0.5 overflow-y-auto">
       {#each scenarios as scenario (scenario.id)}
@@ -173,7 +173,7 @@
       class="w-full rounded px-2 py-1.5 text-left text-sm text-app-muted transition-colors hover:bg-app-surface-muted hover:text-app-fg"
       onclick={handleOpenSave}
     >
-      Salvar cenário local…
+      Salvar cenário…
     </button>
   </div>
 </ToolbarAnchoredPopover>

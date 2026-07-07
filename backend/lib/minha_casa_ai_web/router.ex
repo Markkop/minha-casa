@@ -176,6 +176,21 @@ defmodule MinhaCasaAiWeb.Router do
     delete "/collections/:id/share", CollectionController, :revoke_share
     post "/collections/:id/copy", CollectionController, :copy
     post "/collections/:id/sync-listing-titles", CollectionController, :sync_listing_titles
+    get "/collections/:id/financeiro-scenarios", FinanceiroScenarioController, :index
+    post "/collections/:id/financeiro-scenarios", FinanceiroScenarioController, :create
+
+    patch "/collections/:id/financeiro-scenarios/:scenario_id",
+          FinanceiroScenarioController,
+          :update
+
+    delete "/collections/:id/financeiro-scenarios/:scenario_id",
+           FinanceiroScenarioController,
+           :delete
+
+    post "/collections/:id/financeiro-scenarios/import-shared",
+         FinanceiroScenarioController,
+         :import_shared
+
     get "/collections/:id/listings", CollectionController, :listings
     post "/collections/:id/listings", CollectionController, :create_listing
     get "/collections/:id/listings/:listing_id", CollectionController, :show_listing

@@ -20,10 +20,10 @@
     scenarios: SimulatorScenarioSnapshot[];
     suggestedScenarioName: string;
     canCreateScenario?: boolean;
-    onRestoreScenario: (id: string) => void;
-    onCreateScenario: (name: string) => void;
-    onDeleteScenario: (id: string) => void;
-    onRenameScenario: (id: string, name: string) => void;
+    onRestoreScenario: (id: string) => void | Promise<void>;
+    onCreateScenario: (name: string) => void | Promise<void>;
+    onDeleteScenario: (id: string) => void | Promise<void>;
+    onRenameScenario: (id: string, name: string) => void | Promise<void>;
     suggestedShareTitle?: string;
     onCreateShare?: (title: string) => Promise<string>;
   } = $props();
