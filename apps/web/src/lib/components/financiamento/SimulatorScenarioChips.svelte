@@ -17,7 +17,18 @@
   } from "@lucide/svelte";
   import PageToolbarButton from "$lib/components/page-toolbar/PageToolbarButton.svelte";
   import Input from "$lib/components/ui/Input.svelte";
-  import type { FinanceiroComparisonGroupPayload } from "$lib/financiamento/shared-snapshot";
+  import {
+    scenarioChartColor,
+    scenarioColorIndexMap
+  } from "$lib/components/financiamento/charts/chart-shared";
+  import {
+    buildComparisonGroupCenarios,
+    buildFilteredCenariosFromParams
+  } from "$lib/financiamento/scenario-graph-view";
+  import type {
+    FinanceiroComparisonGroupPayload,
+    FinanceiroComparisonSourceSnapshot
+  } from "$lib/financiamento/shared-snapshot";
   import type { SimulatorScenarioSnapshot } from "$lib/financiamento/simulator-scenarios-storage";
   import { cn } from "$lib/utils";
 
@@ -67,17 +78,6 @@
     Sparkles
   ];
 
-  const SCENARIO_ICON_COLOR_POOL = [
-    "text-violet-500",
-    "text-cyan-500",
-    "text-amber-500",
-    "text-pink-500",
-    "text-lime-600",
-    "text-orange-500",
-    "text-sky-500",
-    "text-rose-500"
-  ] as const;
-
   function hashScenarioId(id: string): number {
     let hash = 0;
     for (let index = 0; index < id.length; index += 1) {
@@ -90,8 +90,29 @@
     return SCENARIO_ICON_POOL[hashScenarioId(id) % SCENARIO_ICON_POOL.length] ?? Circle;
   }
 
-  function scenarioIconClass(id: string): string {
-    return SCENARIO_ICON_COLOR_POOL[hashScenarioId(id) % SCENARIO_ICON_COLOR_POOL.length];
+  function graphColorFromParams(params: SimulatorScenarioSnapshot["params"]): string {
+    const lines = buildFilteredCenariosFromParams(params);
+    const hidden = new Set(params.cenariosOcultosGraficos);
+    const colorSource = lines.find((line) => !hidden.has(line.id)) ?? lines[0];
+    if (!colorSource) return "currentColor";
+    return scenarioChartColor(colorSource.id, scenarioColorIndexMap(lines));
+  }
+
+  function graphColorFromComparisonGroup(group: FinanceiroComparisonGroupPayload): string {
+    const lines = buildComparisonGroupCenarios(group);
+    const colorSource = lines[0];
+    if (!colorSource) return "currentColor";
+    return scenarioChartColor(colorSource.id, scenarioColorIndexMap(lines));
+  }
+
+  function scenarioGraphColor(scenario: SimulatorScenarioSnapshot): string {
+    return scenario.payload.comparisonGroup
+      ? graphColorFromComparisonGroup(scenario.payload.comparisonGroup)
+      : graphColorFromParams(scenario.params);
+  }
+
+  function sourceGraphColor(source: FinanceiroComparisonSourceSnapshot): string {
+    return graphColorFromParams(source.payload.params);
   }
 
   function startRename(scenario: SimulatorScenarioSnapshot, event: MouseEvent) {
@@ -197,7 +218,7 @@
 
   {#each scenarios as scenario (scenario.id)}
     {@const ScenarioIcon = scenarioIcon(scenario.id)}
-    {@const scenarioIconColor = scenarioIconClass(scenario.id)}
+    {@const scenarioIconColor = scenarioGraphColor(scenario)}
     {#if renamingId === scenario.id}
       <form
         bind:this={renamingFormElement}
@@ -207,7 +228,9 @@
           commitRename(scenario.id);
         }}
       >
-        <ScenarioIcon class={cn("ml-1 size-3.5 shrink-0", scenarioIconColor)} />
+        <span class="ml-1 inline-flex shrink-0" style:color={scenarioIconColor}>
+          <ScenarioIcon class="size-3.5 shrink-0" />
+        </span>
         <Input
           bind:value={renameValue}
           class="h-6 min-w-0 flex-1 py-0 text-xs"
@@ -262,7 +285,9 @@
           ondragstart={(event) => handleDragStart(scenario.id, event)}
           ondragend={handleDragEnd}
         >
-          <ScenarioIcon class={cn("size-3.5 shrink-0", scenarioIconColor)} />
+          <span class="inline-flex shrink-0" style:color={scenarioIconColor}>
+            <ScenarioIcon class="size-3.5 shrink-0" />
+          </span>
           <span class="truncate">{scenario.name}</span>
         </button>
         <PageToolbarButton
@@ -298,11 +323,13 @@
       >
         {#each draftComparisonGroup.sources as source, index (source.id)}
           {@const SourceIcon = scenarioIcon(source.id)}
-          {@const sourceIconColor = scenarioIconClass(source.id)}
+          {@const sourceIconColor = sourceGraphColor(source)}
           {#if index > 0}
             <span class="shrink-0 text-[11px] text-app-subtle">+</span>
           {/if}
-          <SourceIcon class={cn("size-3.5 shrink-0", sourceIconColor)} />
+          <span class="inline-flex shrink-0" style:color={sourceIconColor}>
+            <SourceIcon class="size-3.5 shrink-0" />
+          </span>
         {/each}
       </button>
       <PageToolbarButton
