@@ -2,6 +2,7 @@ import { api } from "$lib/api/client";
 import {
   buildSharedSnapshotPayload,
   normalizeSharedSnapshot,
+  type FinanceiroComparisonGroupPayload,
   type FinanceiroSharedSnapshot,
   type FinanceiroSharedSnapshotResponse
 } from "$lib/financiamento/shared-snapshot";
@@ -24,15 +25,17 @@ function localizeShareUrl(shareUrl: string): string {
 export async function createFinanceiroSharedSnapshot({
   title,
   params,
-  settings
+  settings,
+  comparisonGroup
 }: {
   title: string;
   params: SimulatorParams;
   settings: SimulatorSettings;
+  comparisonGroup?: FinanceiroComparisonGroupPayload;
 }): Promise<{ snapshot: FinanceiroSharedSnapshot; shareUrl: string }> {
   const result = await api.post<FinanceiroSharedSnapshotResponse>("/financeiro/snapshots", {
     title,
-    payload: buildSharedSnapshotPayload(params, settings)
+    payload: buildSharedSnapshotPayload(params, settings, { comparisonGroup })
   });
 
   const snapshot = normalizeSharedSnapshot(result.snapshot);

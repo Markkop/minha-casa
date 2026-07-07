@@ -43,13 +43,19 @@
     buildActiveParametersYaml,
     parseActiveParametersYaml
   } from "$lib/financiamento/active-parameters-text";
-  import { calcularReservaRecomendada, gerarMatrizCenarios } from "$lib/financiamento/calculations";
+  import { calcularReservaRecomendada } from "$lib/financiamento/calculations";
   import { resolveEffectiveParams } from "$lib/financiamento/financing-effective-params";
   import { valorImovelFromListing } from "$lib/financiamento/listing-valor-imovel";
   import {
     createChartSelectionState,
     setChartSelectionContext
   } from "$lib/components/financiamento/chart-selection-context.svelte";
+  import {
+    addScenarioToComparisonGroup,
+    buildComparisonGroupCenarios,
+    buildDraftComparisonGroup,
+    buildFilteredCenariosFromParams
+  } from "$lib/financiamento/scenario-graph-view";
   import { getSettingsContext } from "$lib/financiamento/settings-context.svelte";
   import {
     loadSimulatorParams,
@@ -57,6 +63,7 @@
     saveSimulatorParams
   } from "$lib/financiamento/simulator-params-storage";
   import { createFinanceiroSharedSnapshot } from "$lib/financiamento/shared-snapshots-client";
+  import type { FinanceiroComparisonGroupPayload } from "$lib/financiamento/shared-snapshot";
   import {
     createScenarioSnapshot,
     deleteScenarioSnapshot,
@@ -92,12 +99,14 @@
 
   const {
     initialParams,
+    initialComparisonGroup,
     workspaceMode = true,
     persistParams = true,
     title = "Financeiro",
     sharedHeaderActions
   }: {
     initialParams?: SimulatorParams;
+    initialComparisonGroup?: FinanceiroComparisonGroupPayload;
     workspaceMode?: boolean;
     persistParams?: boolean;
     title?: string;
@@ -130,6 +139,10 @@
 
   let params = $state<SimulatorParams>(resolveInitialParams());
   let scenarios = $state<SimulatorScenarioSnapshot[]>([]);
+  let activeScenarioId = $state<string | null>(null);
+  let draftComparisonGroup = $state<FinanceiroComparisonGroupPayload | null>(null);
+  let draftActive = $state(false);
+  let initialComparisonGroupDismissed = $state(false);
   let scenarioDestinations = $state.raw<ScenarioCollectionDestination[]>([]);
   let scenariosCollectionId = $state<string | null>(null);
   let scenarioRequestId = 0;
@@ -140,7 +153,7 @@
   let pasteParametersStatus = $state<"idle" | "success" | "error">("idle");
   let pasteParametersResetTimer: number | undefined;
 
-  const suggestedScenarioName = $derived(suggestScenarioName(scenarios));
+  const suggestedScenarioName = $derived(draftComparisonGroup?.name ?? suggestScenarioName(scenarios));
   const canCreateScenario = $derived(scenarios.length < MAX_SIMULATOR_SCENARIOS);
   const pasteParametersTitle = $derived(
     pasteParametersStatus === "success"
@@ -251,81 +264,42 @@
     };
   });
 
-  const valoresImovelFiltrados = $derived(uniqueNumbers(params.valoresImovelFiltroMultipliers));
-
-  const valoresAptoFiltrados = $derived(uniqueNumbers(params.valoresAptoFiltroMultipliers));
-
-  const cenarios = $derived(
-    gerarMatrizCenarios({
-      valoresImovel: valoresImovelFiltrados,
-      valoresApartamento: effective.temImovelParaNegociar ? valoresAptoFiltrados : [0],
-      capitalDisponivel: params.entradaDisponivel,
-      taxaAnual: params.taxaAnual,
-      trMensal: params.trMensal,
-      aporteExtra: params.aporteExtra,
-      aporteProgressivo: effective.aporteProgressivo,
-      rendaMensal: params.rendaMensal,
-      custoManutencaoImovelMensal: effective.custoManutencaoImovelMensal,
-      temImovelParaNegociar: effective.temImovelParaNegociar,
-      custoTotalReformas: effective.custoTotalReformas,
-      custoInicialReformas: effective.custoInicialReformas,
-      tempoObraMeses: effective.tempoObraMeses,
-      custosAdicionais: effective.custosAdicionais,
-      quantiaExtra: effective.quantiaExtra,
-      esperaQuantiaExtra: effective.esperaQuantiaExtra,
-      temposVendaPosteriorMeses: params.temposVendaPosteriorMeses,
-      temposRecebimentoExtraMeses: params.temposRecebimentoExtraMeses,
-      temposReformaMeses: params.temposReformaMeses,
-      temposInicioAporteExtraMeses: params.temposInicioAporteExtraMeses
-    })
-  );
-
   const permutaDisponivel = $derived(params.temImovelParaNegociar);
 
   const chartSelection = createChartSelectionState();
   setChartSelectionContext(chartSelection);
 
-  const filteredCenarios = $derived(
-    cenarios.filter((c) => {
-      if (permutaDisponivel) {
-        if (!params.estrategiasFiltro.includes(c.estrategia)) {
-          return false;
-        }
-        if (c.estrategia === "venda_posterior" && c.vendaEm !== undefined) {
-          if (!params.temposVendaPosteriorMeses.includes(c.vendaEm)) {
-            return false;
-          }
-        }
-      }
-      if (effective.esperaQuantiaExtra && c.extraEm !== undefined) {
-        if (!params.temposRecebimentoExtraMeses.includes(c.extraEm)) {
-          return false;
-        }
-      }
-      if (effective.custoTotalReformas > 0 && c.reformaEm !== undefined) {
-        if (!params.temposReformaMeses.includes(c.reformaEm)) {
-          return false;
-        }
-      }
-      if (params.aporteExtra > 0 && c.aporteEm !== undefined) {
-        if (!params.temposInicioAporteExtraMeses.includes(c.aporteEm)) {
-          return false;
-        }
-      }
-      if (!effective.esperaQuantiaExtra && c.extraEm !== undefined) {
-        return false;
-      }
-      return true;
-    })
-  );
+  const filteredCenarios = $derived(buildFilteredCenariosFromParams(params));
 
   const hiddenChartIds = $derived(new Set(params.cenariosOcultosGraficos));
-  const scenarioColorIndex = $derived(scenarioColorIndexMap(filteredCenarios));
-  const chartCenarios = $derived(
+  const liveScenarioColorIndex = $derived(scenarioColorIndexMap(filteredCenarios));
+  const liveChartCenarios = $derived(
     filteredCenarios.filter((cenario) => !hiddenChartIds.has(cenario.id))
   );
+  const activeScenario = $derived(findScenarioSnapshot(scenarios, activeScenarioId));
+  const activeComparisonGroup = $derived(
+    draftActive && draftComparisonGroup
+      ? draftComparisonGroup
+      : (activeScenario?.payload.comparisonGroup ??
+        (!initialComparisonGroupDismissed ? initialComparisonGroup : null) ??
+        null)
+  );
+  const chartCenarios = $derived(
+    activeComparisonGroup
+      ? buildComparisonGroupCenarios(activeComparisonGroup)
+      : liveChartCenarios
+  );
+  const hasActiveComparisonView = $derived(Boolean(activeComparisonGroup));
+  const scenarioColorIndex = $derived(
+    hasActiveComparisonView ? scenarioColorIndexMap(chartCenarios) : liveScenarioColorIndex
+  );
+  const resultCenarios = $derived(hasActiveComparisonView ? chartCenarios : filteredCenarios);
+  const resultHiddenChartIds = $derived(
+    hasActiveComparisonView ? new Set<string>() : hiddenChartIds
+  );
   const suggestedShareTitle = $derived(
-    chartCenarios[0] ? scenarioLabel(chartCenarios[0]) : "Simulação financeira"
+    activeComparisonGroup?.name ??
+      (chartCenarios[0] ? scenarioLabel(chartCenarios[0]) : "Simulação financeira")
   );
 
   $effect(() => {
@@ -363,12 +337,31 @@
     const selected = chartSelection.selection;
     if (!selected) return;
     if (
-      !filteredCenarios.some((cenario) => cenario.id === selected.cenarioId) ||
-      hiddenChartIds.has(selected.cenarioId)
+      !chartCenarios.some((cenario) => cenario.id === selected.cenarioId)
     ) {
       chartSelection.clearSelection();
     }
   });
+
+  $effect(() => {
+    if (!activeScenarioId) return;
+    if (scenarios.some((scenario) => scenario.id === activeScenarioId)) return;
+    activeScenarioId = null;
+  });
+
+  function clearActiveGraphView() {
+    if (
+      !activeScenarioId &&
+      !draftActive &&
+      (initialComparisonGroupDismissed || !initialComparisonGroup)
+    ) {
+      return;
+    }
+    activeScenarioId = null;
+    draftActive = false;
+    initialComparisonGroupDismissed = true;
+    chartSelection.clearSelection();
+  }
 
   function toggleChartVisibility(cenarioId: string) {
     const hidden = new Set(params.cenariosOcultosGraficos);
@@ -402,16 +395,25 @@
     const collectionId = destination.collection.id;
     if (!collectionId) return;
     if (collectionId === activeCollectionId && scenarios.length >= MAX_SIMULATOR_SCENARIOS) return;
+    const comparisonGroup = draftActive && draftComparisonGroup ? draftComparisonGroup : undefined;
+    const firstSource = comparisonGroup?.sources[0]?.payload;
     const created = await createScenarioSnapshot({
       collectionId,
       name,
-      params,
-      settings: settingsContext.settings,
+      params: firstSource?.params ?? params,
+      settings: firstSource?.settings ?? settingsContext.settings,
+      comparisonGroup,
       organizationId: destination.organizationId
     });
     if (!created) return;
     if (collectionId === activeCollectionId) {
       await refreshScenarios(collectionId);
+      activeScenarioId = created.id;
+      draftComparisonGroup = null;
+      draftActive = false;
+      params = created.params;
+      settingsContext.updateSettings(created.settings);
+      chartSelection.clearSelection();
     }
   }
 
@@ -425,6 +427,9 @@
       id,
       organizationId: destination?.organizationId ?? activeCollectionOrganizationId
     });
+    if (activeScenarioId === id) {
+      activeScenarioId = null;
+    }
     await refreshScenarios(collectionId);
   }
 
@@ -482,6 +487,7 @@
         return;
       }
 
+      clearActiveGraphView();
       params = normalizeSimulatorParams({
         ...parsed,
         linkedListingId: params.linkedListingId
@@ -543,14 +549,43 @@
 
       params = restored;
       settingsContext.updateSettings(restoredSettings);
+      activeScenarioId = id;
+      draftActive = false;
       chartSelection.clearSelection();
     } finally {
       restoringScenario = false;
     }
   }
 
-  function uniqueNumbers(values: number[]) {
-    return Array.from(new Set(values));
+  function handleMergeScenarios(sourceId: string, targetId: string) {
+    const next = buildDraftComparisonGroup(scenarios, [targetId, sourceId]);
+    if (!next) return;
+    draftComparisonGroup = next;
+    draftActive = true;
+    activeScenarioId = null;
+    chartSelection.clearSelection();
+  }
+
+  function handleAddScenarioToDraft(sourceId: string) {
+    const source = findScenarioSnapshot(scenarios, sourceId);
+    if (!draftComparisonGroup || !source) return;
+    draftComparisonGroup = addScenarioToComparisonGroup(draftComparisonGroup, source);
+    draftActive = true;
+    activeScenarioId = null;
+    chartSelection.clearSelection();
+  }
+
+  function handleActivateDraft() {
+    if (!draftComparisonGroup) return;
+    draftActive = true;
+    activeScenarioId = null;
+    chartSelection.clearSelection();
+  }
+
+  function handleDiscardDraft() {
+    draftComparisonGroup = null;
+    draftActive = false;
+    chartSelection.clearSelection();
   }
 
   onMount(() => {
@@ -590,6 +625,7 @@
       | "quantiaExtra",
     newValue: number
   ) {
+    clearActiveGraphView();
     if (field === "capitalDisponivel") {
       params = { ...params, capitalDisponivel: Math.max(0, Math.round(newValue)) };
       return;
@@ -636,7 +672,8 @@
     const result = await createFinanceiroSharedSnapshot({
       title,
       params,
-      settings: settingsContext.settings
+      settings: settingsContext.settings,
+      comparisonGroup: activeComparisonGroup ?? undefined
     });
     return result.shareUrl;
   }
@@ -694,7 +731,10 @@
   <AdjustmentPanel
     {params}
     {recursosMeta}
-    onChange={(next) => (params = next)}
+    onChange={(next) => {
+      clearActiveGraphView();
+      params = next;
+    }}
     onValueChange={handleValueChange}
     onCapitalChange={(v) => handleValueChange("capitalDisponivel", v)}
     onEntradaChange={(v) => handleValueChange("entradaDisponivel", v)}
@@ -715,6 +755,9 @@
       </WorkspaceRightSidebarContent>
       <ScenarioFilterToolbar
         {scenarios}
+        {activeScenarioId}
+        {draftComparisonGroup}
+        {draftActive}
         {scenarioDestinations}
         {activeCollectionId}
         {suggestedScenarioName}
@@ -723,6 +766,10 @@
         onCreateScenario={handleCreateScenario}
         onDeleteScenario={handleDeleteScenario}
         onRenameScenario={handleRenameScenario}
+        onMergeScenarios={handleMergeScenarios}
+        onAddScenarioToDraft={handleAddScenarioToDraft}
+        onActivateDraft={handleActivateDraft}
+        onDiscardDraft={handleDiscardDraft}
         {suggestedShareTitle}
         onCreateShare={handleCreateShare}
       />
@@ -751,12 +798,12 @@
             aria-label="Resultados dos cenários"
           >
             <ResultsTable
-              cenarios={filteredCenarios}
+              cenarios={resultCenarios}
               {permutaDisponivel}
               compact
               {scenarioColorIndex}
-              {hiddenChartIds}
-              onToggleChartVisibility={toggleChartVisibility}
+              hiddenChartIds={resultHiddenChartIds}
+              onToggleChartVisibility={hasActiveComparisonView ? undefined : toggleChartVisibility}
             />
           </section>
 
@@ -845,11 +892,11 @@
       {@render adjustmentPanel()}
     </MobileParametersDock>
     <ResultsTableDock
-      cenarios={filteredCenarios}
+      cenarios={resultCenarios}
       {permutaDisponivel}
       {scenarioColorIndex}
-      {hiddenChartIds}
-      onToggleChartVisibility={toggleChartVisibility}
+      hiddenChartIds={resultHiddenChartIds}
+      onToggleChartVisibility={hasActiveComparisonView ? undefined : toggleChartVisibility}
     />
   </div>
 {/if}

@@ -24,6 +24,7 @@
   <SettingsProvider initialSettings={snapshot.payload.settings} persist={false}>
     <SimulatorClient
       initialParams={snapshot.payload.params}
+      initialComparisonGroup={snapshot.payload.comparisonGroup}
       workspaceMode={false}
       persistParams={false}
       title={snapshot.title}

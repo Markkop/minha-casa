@@ -145,6 +145,42 @@ describe("simulator scenario snapshots API storage", () => {
       expect.objectContaining({ name: "Cenário novo", payload: expect.objectContaining({ version: 1 }) })
     );
 
+    apiMock.post.mockResolvedValueOnce({ scenario: envelope(3) });
+    await createScenarioSnapshot({
+      collectionId: "collection-1",
+      name: "Comparação",
+      params: createInitialSimulatorParams(),
+      settings: DEFAULT_SETTINGS,
+      comparisonGroup: {
+        id: "draft-1-2",
+        name: "Comparação",
+        sources: [
+          {
+            id: "scenario-1",
+            collectionId: "collection-1",
+            name: "Cenário 1",
+            capturedAt: "2026-01-01T00:00:00.000Z",
+            createdAt: "2026-01-01T00:00:00.000Z",
+            updatedAt: "2026-01-01T00:00:00.000Z",
+            payload: {
+              version: 1,
+              params: createInitialSimulatorParams(),
+              settings: DEFAULT_SETTINGS
+            }
+          }
+        ]
+      }
+    });
+    expect(apiMock.post).toHaveBeenLastCalledWith(
+      "/collections/collection-1/financeiro-scenarios",
+      expect.objectContaining({
+        name: "Comparação",
+        payload: expect.objectContaining({
+          comparisonGroup: expect.objectContaining({ id: "draft-1-2" })
+        })
+      })
+    );
+
     apiMock.patch.mockResolvedValueOnce({ scenario: envelope(1, { name: "Renomeado" }) });
     expect(
       await renameScenarioSnapshot({

@@ -90,6 +90,20 @@ describe("scenario chart colors", () => {
       "R$ 2.00M · aporte Depois da reforma"
     );
   });
+
+  it("uses source-aware labels for comparison entries", () => {
+    const item = scenario("source-1::2000000-0-venda_posterior-vn-en-rn", {
+      chartDisplay: {
+        sourceScenarioId: "source-1",
+        sourceName: "Compra base"
+      }
+    } as Partial<CenarioCompleto>);
+
+    expect(scenarioLegendEntries([item])[0]).toMatchObject({
+      id: item.id,
+      label: "Compra base · R$ 2.00M"
+    });
+  });
 });
 
 describe("chart event legend entries", () => {

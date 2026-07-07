@@ -2,6 +2,7 @@ import {
   formatCurrencyCompact,
   type CenarioCompleto
 } from "$lib/financiamento/calculations";
+import type { DisplayCenario } from "$lib/financiamento/scenario-graph-view";
 import {
   formatAporteInicioLabel,
   formatTimingMonthLabel
@@ -117,7 +118,9 @@ export function scenarioLabel(cenario: CenarioCompleto): string {
   if (cenario.aporteEm !== undefined) {
     parts.push(`aporte ${formatAporteInicioLabel(cenario.aporteEm)}`);
   }
-  return parts.join(" · ");
+  const label = parts.join(" · ");
+  const sourceName = (cenario as DisplayCenario).chartDisplay?.sourceName;
+  return sourceName ? `${sourceName} · ${label}` : label;
 }
 
 export function scenarioLegendEntries(

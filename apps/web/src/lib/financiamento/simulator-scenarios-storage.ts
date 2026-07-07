@@ -2,9 +2,10 @@ import { api } from "$lib/api/client";
 import type { SimulatorParams } from "$lib/components/financiamento/financiamento-parameter-types";
 import {
   FINANCEIRO_SHARED_SNAPSHOT_VERSION,
+  normalizeSharedSnapshotPayload,
+  type FinanceiroComparisonGroupPayload,
   type FinanceiroSharedSnapshotPayload
 } from "$lib/financiamento/shared-snapshot";
-import { normalizeSimulatorParams } from "$lib/financiamento/simulator-params-storage";
 import { normalizeSettings, type SimulatorSettings } from "$lib/financiamento/settings";
 
 export const SIMULATOR_SCENARIOS_STORAGE_KEY = "minha-casa-financeiro-scenarios";
@@ -49,23 +50,19 @@ function clone<T>(value: T): T {
 }
 
 function normalizeScenarioPayload(value: unknown): FinanceiroSharedSnapshotPayload {
-  const parsed = value && typeof value === "object" ? (value as Record<string, unknown>) : {};
-
-  return {
-    version: FINANCEIRO_SHARED_SNAPSHOT_VERSION,
-    params: normalizeSimulatorParams((parsed.params ?? {}) as Partial<SimulatorParams>),
-    settings: normalizeSettings(parsed.settings)
-  };
+  return normalizeSharedSnapshotPayload(value, { preserveLinkedListing: true });
 }
 
 function buildScenarioPayload(
   params: SimulatorParams,
-  settings: SimulatorSettings
+  settings: SimulatorSettings,
+  comparisonGroup?: FinanceiroComparisonGroupPayload
 ): FinanceiroSharedSnapshotPayload {
   return normalizeScenarioPayload({
     version: FINANCEIRO_SHARED_SNAPSHOT_VERSION,
     params: clone(params),
-    settings: clone(settings)
+    settings: clone(settings),
+    ...(comparisonGroup ? { comparisonGroup: clone(comparisonGroup) } : {})
   });
 }
 
@@ -181,12 +178,14 @@ export async function createScenarioSnapshot({
   name,
   params,
   settings,
+  comparisonGroup,
   organizationId
 }: {
   collectionId: string;
   name: string;
   params: SimulatorParams;
   settings: SimulatorSettings;
+  comparisonGroup?: FinanceiroComparisonGroupPayload;
   organizationId?: string | null;
 }): Promise<SimulatorScenarioSnapshot | null> {
   const normalizedName = name.trim();
@@ -198,7 +197,7 @@ export async function createScenarioSnapshot({
     `/collections/${encodeURIComponent(collectionId)}/financeiro-scenarios`,
     {
       name: normalizedName,
-      payload: buildScenarioPayload(params, settings)
+      payload: buildScenarioPayload(params, settings, comparisonGroup)
     },
     organizationId
   );
