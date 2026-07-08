@@ -306,7 +306,9 @@
           {/if}
           {#if showReformaTimingColumn}
             <td class={cn(tdClass, monoCellClass)}>
-              {formatTimingCell(cenario.reformaEm)}
+              {cenario.reformaAposQuitacao
+                ? "Depois de quitar"
+                : formatTimingCell(cenario.reformaEm)}
             </td>
           {/if}
           {#if showAporteTimingColumn}

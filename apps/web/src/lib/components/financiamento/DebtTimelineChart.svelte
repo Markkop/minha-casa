@@ -324,8 +324,9 @@
     {#if showBreakdownPanel && breakdownPoint}
       {@const { cenario, month } = breakdownPoint}
       {@const mes = breakdownPoint.mes}
-      {@const gastos = monthlyExpenseBreakdown(month, custoMensal)}
-      {@const saldoLivre = monthlyFreeBalance(month, cenario.rendaMensal, custoMensal)}
+      {@const scenarioCustoMensal = cenario.custoMensal ?? custoMensal}
+      {@const gastos = monthlyExpenseBreakdown(month, scenarioCustoMensal)}
+      {@const saldoLivre = monthlyFreeBalance(month, cenario.rendaMensal, scenarioCustoMensal)}
       <ChartHoverBreakdownPanel
         open={showBreakdownPanel}
         dismissable={breakdownDismissable}

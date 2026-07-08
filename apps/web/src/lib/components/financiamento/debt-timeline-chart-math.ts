@@ -485,9 +485,15 @@ export function maxMonthlyTotalData(
   custoMensal = 0
 ): number {
   const maxTotal = cenarios.flatMap((c) =>
-    c.timeline.map((month) => renderedMonthlyTotal(month, custoMensal))
+    c.timeline.map((month) => renderedMonthlyTotal(month, c.custoMensal ?? custoMensal))
   );
-  return Math.max(1, rendaMensal, prePurchaseMonthlyOutflow(custoMensal), ...maxTotal);
+  return Math.max(
+    1,
+    rendaMensal,
+    ...cenarios.map((cenario) => cenario.rendaMensal),
+    ...cenarios.map((cenario) => prePurchaseMonthlyOutflow(cenario.custoMensal ?? custoMensal)),
+    ...maxTotal
+  );
 }
 
 /** @deprecated Use buildNiceYAxisScale(maxMonthlyTotalData(...)).max */
@@ -520,8 +526,9 @@ export function monthlyTotalAtHover(
   custoMensal = 0
 ): number {
   const month = cenario.timeline[monthIndex];
-  if (!month) return prePurchaseMonthlyOutflow(custoMensal);
-  return renderedMonthlyTotal(month, custoMensal);
+  const scenarioCustoMensal = cenario.custoMensal ?? custoMensal;
+  if (!month) return prePurchaseMonthlyOutflow(scenarioCustoMensal);
+  return renderedMonthlyTotal(month, scenarioCustoMensal);
 }
 
 export function pickChartHoverForTotal(
@@ -544,7 +551,7 @@ export function pickChartHoverForTotal(
     valueAtHover: (cenario, monthIndex) =>
       cenario.timeline.length > 0
         ? monthlyTotalAtHover(cenario, monthIndex, custoMensal)
-        : prePurchaseMonthlyOutflow(custoMensal),
+        : prePurchaseMonthlyOutflow(cenario.custoMensal ?? custoMensal),
     yForValue: (value) => yForBalance(value, maxValue)
   });
 }

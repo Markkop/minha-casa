@@ -1,9 +1,20 @@
-import type { SimulatorParams } from "$lib/components/financiamento/financiamento-parameter-types";
+import {
+  REFORMA_APOS_QUITACAO_VALUE,
+  type SimulatorParams
+} from "$lib/components/financiamento/financiamento-parameter-types";
 import {
   gerarMatrizCenarios,
   type CenarioCompleto
 } from "$lib/financiamento/calculations";
+import { SIMULATION_ASSUMPTIONS } from "$lib/financiamento/calculations-defaults";
+import { buildAporteProgressivoConfig } from "$lib/financiamento/aporte-progressivo";
 import { resolveEffectiveParams } from "$lib/financiamento/financing-effective-params";
+import {
+  buildScenarioCombinations,
+  resolveScenarioVariations,
+  type ScenarioCombination,
+  type ScenarioVariationResolved
+} from "$lib/financiamento/scenario-variations";
 import type {
   FinanceiroComparisonGroupPayload,
   FinanceiroComparisonSourceSnapshot
@@ -24,67 +35,125 @@ function uniqueNumbers(values: number[]) {
   return Array.from(new Set(values));
 }
 
-export function buildFilteredCenariosFromParams(params: SimulatorParams): CenarioCompleto[] {
-  const effective = resolveEffectiveParams(params);
-  const cenarios = gerarMatrizCenarios({
-    valoresImovel: uniqueNumbers(params.valoresImovelFiltroMultipliers),
-    valoresApartamento: effective.temImovelParaNegociar
-      ? uniqueNumbers(params.valoresAptoFiltroMultipliers)
-      : [0],
-    capitalDisponivel: params.entradaDisponivel,
-    taxaAnual: params.taxaAnual,
-    trMensal: params.trMensal,
-    aporteExtra: params.aporteExtra,
-    aporteProgressivo: effective.aporteProgressivo,
-    rendaMensal: params.rendaMensal,
-    custoManutencaoImovelMensal: effective.custoManutencaoImovelMensal,
-    temImovelParaNegociar: effective.temImovelParaNegociar,
-    custoTotalReformas: effective.custoTotalReformas,
-    custoInicialReformas: effective.custoInicialReformas,
-    tempoObraMeses: effective.tempoObraMeses,
-    custosAdicionais: effective.custosAdicionais,
-    quantiaExtra: effective.quantiaExtra,
-    esperaQuantiaExtra: effective.esperaQuantiaExtra,
-    temposVendaPosteriorMeses: params.temposVendaPosteriorMeses,
-    temposRecebimentoExtraMeses: params.temposRecebimentoExtraMeses,
-    temposReformaMeses: params.temposReformaMeses,
-    temposInicioAporteExtraMeses: params.temposInicioAporteExtraMeses
-  });
+export type ScenarioGraphView = ScenarioVariationResolved & {
+  cenarios: CenarioCompleto[];
+};
 
-  return cenarios.filter((cenario) => {
-    if (effective.temImovelParaNegociar) {
-      if (!params.estrategiasFiltro.includes(cenario.estrategia)) return false;
-      if (
-        cenario.estrategia === "venda_posterior" &&
-        cenario.vendaEm !== undefined &&
-        !params.temposVendaPosteriorMeses.includes(cenario.vendaEm)
-      ) {
-        return false;
-      }
-    }
-    if (
-      effective.esperaQuantiaExtra &&
-      cenario.extraEm !== undefined &&
-      !params.temposRecebimentoExtraMeses.includes(cenario.extraEm)
-    ) {
-      return false;
-    }
+function scenarioMatrixForCombination({
+  params,
+  combination,
+  effective,
+  reformaMes,
+  markReformaAposQuitacao = false
+}: {
+  params: SimulatorParams;
+  combination: ScenarioCombination;
+  effective: ReturnType<typeof resolveEffectiveParams>;
+  reformaMes: number;
+  markReformaAposQuitacao?: boolean;
+}): CenarioCompleto[] {
+  const saleTiming = combination.vendaTiming;
+  const isPermuta = saleTiming === "permuta";
+  const temposVendaPosteriorMeses = isPermuta ? [] : [saleTiming];
+
+  return gerarMatrizCenarios({
+    valoresImovel: uniqueNumbers([combination.valorImovel]),
+    valoresApartamento: effective.temImovelParaNegociar
+      ? uniqueNumbers([combination.valorApartamento])
+      : [0],
+    capitalDisponivel: combination.entradaDisponivel,
+    capitalTotalDisponivel: combination.capitalDisponivel,
+    custoMensal: combination.custoMensal,
+    taxaAnual: combination.taxaAnual,
+    trMensal: combination.trMensal,
+    aporteExtra: combination.aporteExtra,
+    aporteProgressivo: buildAporteProgressivoConfig({
+      aporteExtra: combination.aporteExtra,
+      aporteProgressivo: params.aporteProgressivo,
+      aporteInicial: combination.aporteInicial,
+      aporteProgressao: combination.aporteProgressao,
+      aporteIntervaloMeses: combination.aporteIntervaloMeses
+    }),
+    rendaMensal: combination.rendaMensal,
+    custoManutencaoImovelMensal: effective.temImovelParaNegociar
+      ? combination.custoManutencaoImovelMensal
+      : 0,
+    temImovelParaNegociar: effective.temImovelParaNegociar,
+    custoTotalReformas: effective.custoTotalReformas > 0 ? combination.custoTotalReformas : 0,
+    custoInicialReformas: effective.custoTotalReformas > 0 ? combination.custoInicialReformas : 0,
+    tempoObraMeses: effective.custoTotalReformas > 0 ? combination.tempoObraMeses : 1,
+    custosAdicionais: combination.custosAdicionais,
+    quantiaExtra: effective.esperaQuantiaExtra ? combination.quantiaExtra : 0,
+    esperaQuantiaExtra: effective.esperaQuantiaExtra,
+    temposVendaPosteriorMeses,
+    temposRecebimentoExtraMeses: [combination.tempoRecebimentoExtraMeses],
+    temposReformaMeses: [reformaMes],
+    temposInicioAporteExtraMeses: [combination.inicioAporteExtraMeses]
+  })
+    .filter((cenario) => {
+      if (!effective.temImovelParaNegociar) return true;
+      return isPermuta
+        ? cenario.estrategia === "permuta"
+        : cenario.estrategia === "venda_posterior";
+    })
+    .map((cenario) =>
+      markReformaAposQuitacao
+        ? { ...cenario, id: `${cenario.id}-reforma-apos-quitacao`, reformaAposQuitacao: true }
+        : cenario
+    );
+}
+
+export function buildScenarioGraphViewFromParams(params: SimulatorParams): ScenarioGraphView {
+  const variationState = resolveScenarioVariations(params);
+  if (variationState.limitExceeded) {
+    return {
+      ...variationState,
+      cenarios: []
+    };
+  }
+
+  const effective = resolveEffectiveParams(params);
+  const cenarios = buildScenarioCombinations(params).flatMap((combination) => {
     if (
       effective.custoTotalReformas > 0 &&
-      cenario.reformaEm !== undefined &&
-      !params.temposReformaMeses.includes(cenario.reformaEm)
+      combination.inicioReformaMeses === REFORMA_APOS_QUITACAO_VALUE
     ) {
-      return false;
+      const preview = scenarioMatrixForCombination({
+        params,
+        combination,
+        effective,
+        reformaMes: SIMULATION_ASSUMPTIONS.prazoMeses + 1
+      });
+      const payoffMonth =
+        preview[0]?.cenarioOtimizado.prazoReal ?? SIMULATION_ASSUMPTIONS.prazoMeses;
+      return scenarioMatrixForCombination({
+        params,
+        combination,
+        effective,
+        reformaMes: Math.max(1, payoffMonth + 1),
+        markReformaAposQuitacao: true
+      });
     }
-    if (
-      params.aporteExtra > 0 &&
-      cenario.aporteEm !== undefined &&
-      !params.temposInicioAporteExtraMeses.includes(cenario.aporteEm)
-    ) {
-      return false;
-    }
-    return effective.esperaQuantiaExtra || cenario.extraEm === undefined;
+
+    return scenarioMatrixForCombination({
+      params,
+      combination,
+      effective,
+      reformaMes:
+        typeof combination.inicioReformaMeses === "number"
+          ? combination.inicioReformaMeses
+          : params.inicioReformaMeses
+    });
   });
+
+  return {
+    ...variationState,
+    cenarios
+  };
+}
+
+export function buildFilteredCenariosFromParams(params: SimulatorParams): CenarioCompleto[] {
+  return buildScenarioGraphViewFromParams(params).cenarios;
 }
 
 function visibleCenariosFromParams(params: SimulatorParams): CenarioCompleto[] {

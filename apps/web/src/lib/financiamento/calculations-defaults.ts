@@ -13,6 +13,7 @@ export const UI_DEFAULTS = {
   aporteInicial: 0,
   aporteProgressao: 1_000,
   aporteIntervaloMeses: 1,
+  inicioAporteExtraMeses: 0,
   rendaMensal: 45_000,
   custoMensal: 5_000,
   custoManutencaoImovelMensal: 1_000,
@@ -20,10 +21,13 @@ export const UI_DEFAULTS = {
   incluirReformas: false,
   custoTotalReformas: 150_000,
   custoInicialReformas: 0,
+  inicioReformaMeses: 1,
   tempoObraMeses: 12,
   custosAdicionais: [],
   esperaQuantiaExtra: false,
-  quantiaExtra: 100_000
+  quantiaExtra: 100_000,
+  tempoRecebimentoExtraMeses: 12,
+  tempoVendaPosteriorMeses: 12
 } as const;
 
 /** All selectable months in scenario filter chips. */

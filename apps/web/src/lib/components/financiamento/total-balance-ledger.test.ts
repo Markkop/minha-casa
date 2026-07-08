@@ -62,6 +62,25 @@ describe("buildBalanceLedger", () => {
     expect(ledger.points[2]?.saldo).toBe(283_000);
   });
 
+  it("prefers scenario-level capital and monthly cost when present", () => {
+    const base = scenario("variant", [month({ mes: 1, prestacao: 10_000 })]);
+    const ledger = buildBalanceLedger(
+      {
+        ...base,
+        capitalDisponivel: 800_000,
+        custoMensal: 6_000
+      },
+      600_000,
+      0,
+      2_000
+    );
+
+    expect(ledger.points[0]?.capitalInicial).toBe(800_000);
+    expect(ledger.points[0]?.saldo).toBe(450_000);
+    expect(ledger.points[1]?.custoMensal).toBe(6_000);
+    expect(ledger.points[1]?.totalDespesas).toBe(16_000);
+  });
+
   it("records full sale proceeds and the matching capped debt payment", () => {
     const ledger = buildBalanceLedger(
       scenario("sale", [

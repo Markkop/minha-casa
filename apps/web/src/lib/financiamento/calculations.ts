@@ -225,6 +225,7 @@ export interface ComprometimentoRendaResult {
 export interface CenarioCompletoParams {
   valorImovel: number
   capitalDisponivel: number
+  capitalTotalDisponivel?: number
   reservaEmergencia: number
   valorApartamento: number
   estrategia: "permuta" | "venda_posterior"
@@ -235,6 +236,7 @@ export interface CenarioCompletoParams {
   aporteExtra: number
   aporteProgressivo?: AporteProgressivoConfig
   rendaMensal: number
+  custoMensal?: number
   custoManutencaoImovelMensal?: number
   /** @deprecated Use custoManutencaoImovelMensal */
   custoCondominioMensal?: number
@@ -256,6 +258,7 @@ export interface CenarioCompleto {
   valorApartamento: number
   estrategia: "permuta" | "venda_posterior"
   entrada: number
+  capitalDisponivel?: number
   financiamento: FinanciamentoResult
   taxaAnual: number
   trMensal: number
@@ -263,6 +266,7 @@ export interface CenarioCompleto {
   cetEstimado: number
   aporteExtra: number
   rendaMensal: number
+  custoMensal?: number
   tabelaPadrao: TabelaSACResumo
   parcelasAmostra: ParcelaDetalhe[]
   cenarioOtimizado: AmortizacaoExtraResumo | VendaPosteriorCenarioResumo
@@ -276,6 +280,7 @@ export interface CenarioCompleto {
   vendaEm?: number
   extraEm?: number
   reformaEm?: number
+  reformaAposQuitacao?: boolean
   aporteEm?: AporteInicioTiming
   aporteInicioMes?: number
   timeline: TimelineMonth[]
@@ -291,6 +296,8 @@ export interface MatrizCenariosParams {
   valoresImovel: readonly number[]
   valoresApartamento: readonly number[]
   capitalDisponivel: number
+  capitalTotalDisponivel?: number
+  custoMensal?: number
   taxaAnual: number
   trMensal: number
   aporteExtra: number
@@ -340,12 +347,17 @@ export const formatCurrency = (value: number): string => {
 export const formatCurrencyCompact = (value: number): string => {
   const absValue = Math.abs(value)
   const sign = value < 0 ? "-" : ""
+  const compactAmount = (amount: number): string =>
+    amount
+      .toFixed(2)
+      .replace(/\.00$/, "")
+      .replace(/(\.\d)0$/, "$1")
 
   if (absValue >= 1000000) {
-    return `${sign}R$ ${(absValue / 1000000).toFixed(2)}M`
+    return `${sign}R$ ${compactAmount(absValue / 1000000)}M`
   }
   if (absValue >= 1000) {
-    return `${sign}R$ ${(absValue / 1000).toFixed(0)}k`
+    return `${sign}R$ ${compactAmount(absValue / 1000)}k`
   }
   return formatCurrency(value)
 }
@@ -948,6 +960,7 @@ function resolveAporteInicioMes({
 export const gerarCenarioCompleto = ({
   valorImovel,
   capitalDisponivel,
+  capitalTotalDisponivel,
   reservaEmergencia,
   valorApartamento,
   estrategia,
@@ -958,6 +971,7 @@ export const gerarCenarioCompleto = ({
   aporteExtra,
   aporteProgressivo,
   rendaMensal,
+  custoMensal = 0,
   custoManutencaoImovelMensal,
   custoCondominioMensal,
   seguros = SIMULATION_ASSUMPTIONS.seguros,
@@ -1061,13 +1075,34 @@ export const gerarCenarioCompleto = ({
   const extraEm = mesExtra ?? undefined
   const reformaEm = custoTotalReformas > 0 ? (mesReforma ?? 1) : undefined
   const aporteEm = aporteExtra > 0 ? aporteDelayMeses : undefined
+  const custosId = custosAdicionais
+    .map((custo) => `${custo.id}:${custo.valorTotal}:${custo.mesInicio}:${custo.duracaoMeses}`)
+    .join("|")
 
   return {
-    id: `${valorImovel}-${valorApartamento}-${estrategia}-v${vendaEm ?? "n"}-e${extraEm ?? "n"}-r${reformaEm ?? "n"}-a${aporteEm ?? "n"}`,
+    id: [
+      valorImovel,
+      valorApartamento,
+      estrategia,
+      `v${vendaEm ?? "n"}`,
+      `e${extraEm ?? "n"}`,
+      `r${reformaEm ?? "n"}`,
+      `a${aporteEm ?? "n"}`,
+      `cap${capitalDisponivel}`,
+      `ren${rendaMensal}`,
+      `cus${custoMensal}`,
+      `ap${aporteExtra}`,
+      `tx${taxaAnual}`,
+      `tr${trMensal}`,
+      `ref${custoTotalReformas}:${custoInicialReformas}:${tempoObraMeses}`,
+      `q${quantiaExtra}`,
+      `ca${custosId}`
+    ].join("-"),
     valorImovel,
     valorApartamento,
     estrategia,
     entrada,
+    capitalDisponivel: capitalTotalDisponivel ?? capitalDisponivel,
     financiamento,
     taxaAnual,
     trMensal,
@@ -1075,6 +1110,7 @@ export const gerarCenarioCompleto = ({
     cetEstimado: taxaAnual + trMensal * 12 + 0.02,
     aporteExtra,
     rendaMensal,
+    custoMensal,
     tabelaPadrao: tabelaPadrao.resumo,
     parcelasAmostra: tabelaPadrao.parcelas.filter((p) =>
       [1, 12, 24, 60, 120, 180, 240, 300, 360].includes(p.mes)
@@ -1143,6 +1179,8 @@ export const gerarMatrizCenarios = ({
   valoresImovel,
   valoresApartamento,
   capitalDisponivel,
+  capitalTotalDisponivel,
+  custoMensal = 0,
   taxaAnual,
   trMensal,
   aporteExtra,
@@ -1180,6 +1218,8 @@ export const gerarMatrizCenarios = ({
 
   const baseCenario = {
     capitalDisponivel,
+    capitalTotalDisponivel,
+    custoMensal,
     reservaEmergencia,
     haircut,
     taxaAnual,

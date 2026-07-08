@@ -26,9 +26,10 @@
     type SimulatorParams
   } from "$lib/components/financiamento/financiamento-parameter-types";
   import {
+    buildApproximatePriceValues,
+    buildTargetPriceValues,
     pruneSelectedPriceFilters,
-    pruneSelectedTargetPriceFilters,
-    selectedPriceFilterForValueChange
+    pruneSelectedTargetPriceFilters
   } from "$lib/components/financiamento/price-filter-approx";
   import { snapToPropertyStep } from "$lib/components/financiamento/parameter-row-helpers";
   import { LISTINGS_SECTION_CLASS } from "$lib/anuncios/listings-panel-layout";
@@ -54,7 +55,7 @@
     addScenarioToComparisonGroup,
     buildComparisonGroupCenarios,
     buildDraftComparisonGroup,
-    buildFilteredCenariosFromParams
+    buildScenarioGraphViewFromParams
   } from "$lib/financiamento/scenario-graph-view";
   import { getSettingsContext } from "$lib/financiamento/settings-context.svelte";
   import {
@@ -251,6 +252,22 @@
     };
   });
 
+  $effect(() => {
+    if (effective.custoTotalReformas > 0) return;
+    if (!params.scenarioVariations.inicioAporteExtraMeses.includes(APORTE_APOS_REFORMA_VALUE)) {
+      return;
+    }
+    params = {
+      ...params,
+      scenarioVariations: {
+        ...params.scenarioVariations,
+        inicioAporteExtraMeses: params.scenarioVariations.inicioAporteExtraMeses.filter(
+          (timing) => timing !== APORTE_APOS_REFORMA_VALUE
+        )
+      }
+    };
+  });
+
   const recursosMeta = $derived.by((): RecursosMeta => {
     const valorImovel = params.valorImovel;
     const { valor: reservaRecomendada } = calcularReservaRecomendada(valorImovel);
@@ -269,7 +286,13 @@
   const chartSelection = createChartSelectionState();
   setChartSelectionContext(chartSelection);
 
-  const filteredCenarios = $derived(buildFilteredCenariosFromParams(params));
+  const liveScenarioView = $derived(buildScenarioGraphViewFromParams(params));
+  const scenarioLimitWarning = $derived(
+    liveScenarioView.limitExceeded
+      ? `Combinações demais selecionadas (${liveScenarioView.combinationCount}). Reduza os chips ativos para até ${liveScenarioView.limit} combinações.`
+      : null
+  );
+  const filteredCenarios = $derived(liveScenarioView.cenarios);
 
   const hiddenChartIds = $derived(new Set(params.cenariosOcultosGraficos));
   const liveScenarioColorIndex = $derived(scenarioColorIndexMap(filteredCenarios));
@@ -302,6 +325,11 @@
       (chartCenarios[0] ? scenarioLabel(chartCenarios[0]) : "Simulação financeira")
   );
 
+  function pruneSelectedVariationValues(selected: number[], options: number[]): number[] {
+    const optionSet = new Set(options);
+    return selected.filter((value) => optionSet.has(value));
+  }
+
   $effect(() => {
     const currentIds = new Set(filteredCenarios.map((cenario) => cenario.id));
     const pruned = params.cenariosOcultosGraficos.filter((id) => currentIds.has(id));
@@ -322,6 +350,22 @@
   });
 
   $effect(() => {
+    const next = pruneSelectedVariationValues(
+      params.scenarioVariations.valorImovel,
+      buildTargetPriceValues(params.valorImovel)
+    );
+    if (
+      next.length !== params.scenarioVariations.valorImovel.length ||
+      next.some((value, index) => value !== params.scenarioVariations.valorImovel[index])
+    ) {
+      params = {
+        ...params,
+        scenarioVariations: { ...params.scenarioVariations, valorImovel: next }
+      };
+    }
+  });
+
+  $effect(() => {
     if (!params.temImovelParaNegociar) return;
     const valorApartamento = params.valorApartamento;
     const next = pruneSelectedPriceFilters(params.valoresAptoFiltroMultipliers, valorApartamento);
@@ -330,6 +374,23 @@
       next.some((value, index) => value !== params.valoresAptoFiltroMultipliers[index])
     ) {
       params = { ...params, valoresAptoFiltroMultipliers: next };
+    }
+  });
+
+  $effect(() => {
+    if (!params.temImovelParaNegociar) return;
+    const next = pruneSelectedVariationValues(
+      params.scenarioVariations.valorApartamento,
+      buildApproximatePriceValues(params.valorApartamento)
+    );
+    if (
+      next.length !== params.scenarioVariations.valorApartamento.length ||
+      next.some((value, index) => value !== params.scenarioVariations.valorApartamento[index])
+    ) {
+      params = {
+        ...params,
+        scenarioVariations: { ...params.scenarioVariations, valorApartamento: next }
+      };
     }
   });
 
@@ -638,8 +699,7 @@
       const valorImovel = snapToPropertyStep(newValue);
       params = {
         ...params,
-        valorImovel,
-        valoresImovelFiltroMultipliers: selectedPriceFilterForValueChange(valorImovel)
+        valorImovel
       };
       return;
     }
@@ -738,6 +798,7 @@
     onValueChange={handleValueChange}
     onCapitalChange={(v) => handleValueChange("capitalDisponivel", v)}
     onEntradaChange={(v) => handleValueChange("entradaDisponivel", v)}
+    {scenarioLimitWarning}
   />
 {/snippet}
 
@@ -793,85 +854,92 @@
         class="{WORKSPACE_CONTENT_CLASS} {WORKSPACE_STACK_CLASS} min-h-0 flex-1 overflow-y-auto overscroll-contain"
       >
         <div class="flex flex-col gap-4">
-          <section
-            class="{LISTINGS_SECTION_CLASS} lg:hidden"
-            aria-label="Resultados dos cenários"
-          >
-            <ResultsTable
-              cenarios={resultCenarios}
-              {permutaDisponivel}
-              compact
-              {scenarioColorIndex}
-              hiddenChartIds={resultHiddenChartIds}
-              onToggleChartVisibility={hasActiveComparisonView ? undefined : toggleChartVisibility}
-            />
-          </section>
+          {#if scenarioLimitWarning && !hasActiveComparisonView}
+            <section class="{LISTINGS_SECTION_CLASS} border-salmon/35 bg-salmon/10">
+              <p class="text-sm font-medium text-app-fg">Combinações demais</p>
+              <p class="mt-1 text-sm text-app-muted">{scenarioLimitWarning}</p>
+            </section>
+          {:else}
+            <section
+              class="{LISTINGS_SECTION_CLASS} lg:hidden"
+              aria-label="Resultados dos cenários"
+            >
+              <ResultsTable
+                cenarios={resultCenarios}
+                {permutaDisponivel}
+                compact
+                {scenarioColorIndex}
+                hiddenChartIds={resultHiddenChartIds}
+                onToggleChartVisibility={hasActiveComparisonView ? undefined : toggleChartVisibility}
+              />
+            </section>
 
-          <ChartGroup title="Saldos">
-            <div class="grid gap-4 lg:grid-cols-2">
-              <section class="{LISTINGS_SECTION_CLASS} overflow-visible">
-                <FreeBalanceTimelineChart
-                  cenarios={chartCenarios}
-                  {scenarioColorIndex}
-                  custoMensal={params.custoMensal}
-                  breakdownAnchorSide="left"
-                />
-              </section>
-              <section class="{LISTINGS_SECTION_CLASS} overflow-visible">
-                <TotalBalanceTimelineChart
-                  cenarios={chartCenarios}
-                  {scenarioColorIndex}
-                  capitalDisponivel={params.capitalDisponivel}
-                  quantiaExtra={effective.quantiaExtra}
-                  custoMensal={params.custoMensal}
-                  breakdownAnchorSide="right"
-                />
-              </section>
-            </div>
-          </ChartGroup>
+            <ChartGroup title="Saldos">
+              <div class="grid gap-4 lg:grid-cols-2">
+                <section class="{LISTINGS_SECTION_CLASS} overflow-visible">
+                  <FreeBalanceTimelineChart
+                    cenarios={chartCenarios}
+                    {scenarioColorIndex}
+                    custoMensal={params.custoMensal}
+                    breakdownAnchorSide="left"
+                  />
+                </section>
+                <section class="{LISTINGS_SECTION_CLASS} overflow-visible">
+                  <TotalBalanceTimelineChart
+                    cenarios={chartCenarios}
+                    {scenarioColorIndex}
+                    capitalDisponivel={params.capitalDisponivel}
+                    quantiaExtra={effective.quantiaExtra}
+                    custoMensal={params.custoMensal}
+                    breakdownAnchorSide="right"
+                  />
+                </section>
+              </div>
+            </ChartGroup>
 
-          <ChartGroup title="Gastos">
-            <div class="grid gap-4 lg:grid-cols-2">
-              <section class="{LISTINGS_SECTION_CLASS} overflow-visible">
-                <MonthlyTotalTimelineChart
-                  cenarios={chartCenarios}
-                  {scenarioColorIndex}
-                  custoMensal={params.custoMensal}
-                  breakdownAnchorSide="left"
-                />
-              </section>
-              <section class="{LISTINGS_SECTION_CLASS} overflow-visible">
-                <TotalExpenseTimelineChart
-                  cenarios={chartCenarios}
-                  {scenarioColorIndex}
-                  capitalDisponivel={params.capitalDisponivel}
-                  quantiaExtra={effective.quantiaExtra}
-                  custoMensal={params.custoMensal}
-                  breakdownAnchorSide="right"
-                />
-              </section>
-            </div>
-          </ChartGroup>
+            <ChartGroup title="Gastos">
+              <div class="grid gap-4 lg:grid-cols-2">
+                <section class="{LISTINGS_SECTION_CLASS} overflow-visible">
+                  <MonthlyTotalTimelineChart
+                    cenarios={chartCenarios}
+                    {scenarioColorIndex}
+                    custoMensal={params.custoMensal}
+                    breakdownAnchorSide="left"
+                  />
+                </section>
+                <section class="{LISTINGS_SECTION_CLASS} overflow-visible">
+                  <TotalExpenseTimelineChart
+                    cenarios={chartCenarios}
+                    {scenarioColorIndex}
+                    capitalDisponivel={params.capitalDisponivel}
+                    quantiaExtra={effective.quantiaExtra}
+                    custoMensal={params.custoMensal}
+                    breakdownAnchorSide="right"
+                  />
+                </section>
+              </div>
+            </ChartGroup>
 
-          <ChartGroup title="Financiamento">
-            <div class="grid gap-4 lg:grid-cols-2">
-              <section class="{LISTINGS_SECTION_CLASS} overflow-visible">
-                <DebtTimelineChart
-                  cenarios={chartCenarios}
-                  {scenarioColorIndex}
-                  custoMensal={params.custoMensal}
-                  breakdownAnchorSide="left"
-                />
-              </section>
-              <section class="{LISTINGS_SECTION_CLASS} overflow-visible">
-                <PaymentTimelineChart
-                  cenarios={chartCenarios}
-                  {scenarioColorIndex}
-                  breakdownAnchorSide="right"
-                />
-              </section>
-            </div>
-          </ChartGroup>
+            <ChartGroup title="Financiamento">
+              <div class="grid gap-4 lg:grid-cols-2">
+                <section class="{LISTINGS_SECTION_CLASS} overflow-visible">
+                  <DebtTimelineChart
+                    cenarios={chartCenarios}
+                    {scenarioColorIndex}
+                    custoMensal={params.custoMensal}
+                    breakdownAnchorSide="left"
+                  />
+                </section>
+                <section class="{LISTINGS_SECTION_CLASS} overflow-visible">
+                  <PaymentTimelineChart
+                    cenarios={chartCenarios}
+                    {scenarioColorIndex}
+                    breakdownAnchorSide="right"
+                  />
+                </section>
+              </div>
+            </ChartGroup>
+          {/if}
         </div>
       </main>
 
@@ -891,12 +959,14 @@
     <MobileParametersDock title="Parâmetros">
       {@render adjustmentPanel()}
     </MobileParametersDock>
-    <ResultsTableDock
-      cenarios={resultCenarios}
-      {permutaDisponivel}
-      {scenarioColorIndex}
-      hiddenChartIds={resultHiddenChartIds}
-      onToggleChartVisibility={hasActiveComparisonView ? undefined : toggleChartVisibility}
-    />
+    {#if !scenarioLimitWarning || hasActiveComparisonView}
+      <ResultsTableDock
+        cenarios={resultCenarios}
+        {permutaDisponivel}
+        {scenarioColorIndex}
+        hiddenChartIds={resultHiddenChartIds}
+        onToggleChartVisibility={hasActiveComparisonView ? undefined : toggleChartVisibility}
+      />
+    {/if}
   </div>
 {/if}

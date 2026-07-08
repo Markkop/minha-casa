@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { REFORMA_APOS_QUITACAO_VALUE } from "$lib/components/financiamento/financiamento-parameter-types";
 import { APORTE_APOS_REFORMA_VALUE } from "$lib/financiamento/aporte-progressivo";
 import { createInitialSimulatorParams } from "$lib/financiamento/simulator-recursos";
 import {
@@ -170,6 +171,22 @@ describe("normalizeSimulatorParams", () => {
     expect(result.temposInicioAporteExtraMeses).toEqual([0, 3, APORTE_APOS_REFORMA_VALUE]);
     expect(normalizeSimulatorParams({ temposInicioAporteExtraMeses: [] })
       .temposInicioAporteExtraMeses).toEqual(defaults.temposInicioAporteExtraMeses);
+  });
+
+  it("normalizes baseline exclusions and symbolic reform timing variations", () => {
+    const result = normalizeSimulatorParams({
+      scenarioVariations: {
+        excludedBaselines: ["valorImovel", "", 42],
+        inicioReformaMeses: [REFORMA_APOS_QUITACAO_VALUE, 3, "invalid"],
+        custosAdicionais: {}
+      }
+    });
+
+    expect(result.scenarioVariations.excludedBaselines).toEqual(["valorImovel"]);
+    expect(result.scenarioVariations.inicioReformaMeses).toEqual([
+      REFORMA_APOS_QUITACAO_VALUE,
+      3
+    ]);
   });
 
   it("defaults new reform fields for older saved params", () => {

@@ -27,6 +27,42 @@ export const APORTE_INICIO_DELAY_OPTIONS = [0, 1, 3, 6, 12, 24] as const;
 export type AporteInicioDelay = (typeof APORTE_INICIO_DELAY_OPTIONS)[number];
 
 export type EstrategiaFiltro = "permuta" | "venda_posterior";
+export type SaleTimingVariation = "permuta" | number;
+export const REFORMA_APOS_QUITACAO_VALUE = "apos_quitacao" as const;
+export type ReformaAposQuitacao = typeof REFORMA_APOS_QUITACAO_VALUE;
+export type ReformaInicioTiming = number | ReformaAposQuitacao;
+
+export interface CustoAdicionalScenarioVariations {
+  valorTotal: number[];
+  mesInicio: number[];
+  duracaoMeses: number[];
+}
+
+export interface ScenarioVariations {
+  excludedBaselines: string[];
+  capitalDisponivel: number[];
+  entradaDisponivel: number[];
+  rendaMensal: number[];
+  custoMensal: number[];
+  valorImovel: number[];
+  valorApartamento: number[];
+  custoManutencaoImovelMensal: number[];
+  custoTotalReformas: number[];
+  custoInicialReformas: number[];
+  inicioReformaMeses: ReformaInicioTiming[];
+  tempoObraMeses: number[];
+  aporteExtra: number[];
+  aporteInicial: number[];
+  aporteProgressao: number[];
+  aporteIntervaloMeses: number[];
+  inicioAporteExtraMeses: AporteInicioTiming[];
+  taxaAnual: number[];
+  trMensal: number[];
+  quantiaExtra: number[];
+  tempoRecebimentoExtraMeses: number[];
+  vendaTiming: SaleTimingVariation[];
+  custosAdicionais: Record<string, CustoAdicionalScenarioVariations>;
+}
 
 export type SliderField =
   | "valorImovel"
@@ -48,6 +84,7 @@ export interface SimulatorParams {
   aporteInicial: number;
   aporteProgressao: number;
   aporteIntervaloMeses: number;
+  inicioAporteExtraMeses: number;
   valorImovel: number;
   taxaAnual: number;
   trMensal: number;
@@ -56,18 +93,29 @@ export interface SimulatorParams {
   incluirReformas: boolean;
   custoTotalReformas: number;
   custoInicialReformas: number;
+  inicioReformaMeses: number;
   tempoObraMeses: number;
   custosAdicionais: CustoAdicional[];
   esperaQuantiaExtra: boolean;
   quantiaExtra: number;
+  tempoRecebimentoExtraMeses: number;
+  tempoVendaPosteriorMeses: number;
+  scenarioVariations: ScenarioVariations;
+  /** @deprecated Use scenarioVariations.valorImovel. */
   /** Selected approximate property prices (R$) for scenario matrix — not multipliers. */
   valoresImovelFiltroMultipliers: number[];
+  /** @deprecated Use scenarioVariations.valorApartamento. */
   /** Selected approximate sale-property prices (R$) for scenario matrix — not multipliers. */
   valoresAptoFiltroMultipliers: number[];
+  /** @deprecated Use scenarioVariations.vendaTiming. */
   estrategiasFiltro: EstrategiaFiltro[];
+  /** @deprecated Use tempoVendaPosteriorMeses + scenarioVariations.vendaTiming. */
   temposVendaPosteriorMeses: number[];
+  /** @deprecated Use tempoRecebimentoExtraMeses + scenarioVariations.tempoRecebimentoExtraMeses. */
   temposRecebimentoExtraMeses: number[];
+  /** @deprecated Use inicioReformaMeses + scenarioVariations.inicioReformaMeses. */
   temposReformaMeses: number[];
+  /** @deprecated Use inicioAporteExtraMeses + scenarioVariations.inicioAporteExtraMeses. */
   /** Selected delay months before the first aporte extra (0 = immediate). */
   temposInicioAporteExtraMeses: AporteInicioTiming[];
   /** Scenario ids hidden from timeline charts (table rows remain visible). */
@@ -115,6 +163,7 @@ export interface ParameterRowProps {
   slider?: ParameterRowSlider;
   edit?: ParameterRowEdit;
   extras?: import("svelte").Snippet;
+  extrasAriaLabel?: string;
   valueClassName?: string;
   hint?: string;
   disabled?: boolean;

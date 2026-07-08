@@ -67,12 +67,14 @@ export function buildBalanceLedger(
   quantiaExtra: number,
   custoMensal = 0
 ): BalanceLedgerSeries {
+  const scenarioCapital = cenario.capitalDisponivel ?? capitalDisponivel;
+  const scenarioCustoMensal = cenario.custoMensal ?? custoMensal;
   const openingExpenses = cenario.entrada + cenario.custosFechamento.total;
-  let saldo = capitalDisponivel - openingExpenses;
+  let saldo = scenarioCapital - openingExpenses;
   const points: BalanceLedgerPoint[] = [
     {
       mes: 0,
-      capitalInicial: capitalDisponivel,
+      capitalInicial: scenarioCapital,
       entrada: cenario.entrada,
       custosFechamento: cenario.custosFechamento.total,
       renda: 0,
@@ -86,11 +88,11 @@ export function buildBalanceLedger(
       custoMensal: 0,
       amortizacaoVenda: 0,
       amortizacaoExtra: 0,
-      totalReceitas: capitalDisponivel,
+      totalReceitas: scenarioCapital,
       totalDespesas: openingExpenses,
       fluxoLiquido: saldo,
       saldo,
-      saldoPreEvento: capitalDisponivel
+      saldoPreEvento: scenarioCapital
     }
   ];
 
@@ -107,7 +109,7 @@ export function buildBalanceLedger(
       month.reformaMensal +
       (month.custosAdicionais ?? 0) +
       month.manutencaoMensal +
-      custoMensal +
+      scenarioCustoMensal +
       month.amortizacaoVenda +
       month.amortizacaoQuantiaExtra;
     const fluxoLiquido = totalReceitas - totalDespesas;
@@ -128,7 +130,7 @@ export function buildBalanceLedger(
       reforma: month.reformaInicial + month.reformaMensal,
       outros: month.custosAdicionais ?? 0,
       manutencao: month.manutencaoMensal,
-      custoMensal,
+      custoMensal: scenarioCustoMensal,
       amortizacaoVenda: month.amortizacaoVenda,
       amortizacaoExtra: month.amortizacaoQuantiaExtra,
       totalReceitas,

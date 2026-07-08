@@ -109,7 +109,8 @@ export function monthlyTotalVertices(
   cenario: CenarioCompleto,
   custoMensal = 0
 ): ChartPathVertex[] {
-  const prePurchase = prePurchaseMonthlyOutflow(custoMensal);
+  const scenarioCustoMensal = cenario.custoMensal ?? custoMensal;
+  const prePurchase = prePurchaseMonthlyOutflow(scenarioCustoMensal);
   const firstMonth = cenario.timeline[0];
   const vertices: ChartPathVertex[] = [
     { month: PRE_PURCHASE_MONTH, y: prePurchase },
@@ -117,18 +118,18 @@ export function monthlyTotalVertices(
       ? {
           month: 0,
           y: prePurchase,
-          yAfterEvent: monthlyExpenseBreakdown(firstMonth, custoMensal).total
+          yAfterEvent: monthlyExpenseBreakdown(firstMonth, scenarioCustoMensal).total
         }
       : { month: 0, y: prePurchase }
   ];
 
   for (const month of cenario.timeline) {
-    const outflow = monthlyExpenseBreakdown(month, custoMensal).total;
+    const outflow = monthlyExpenseBreakdown(month, scenarioCustoMensal).total;
     if (month.eventoVenda) {
       vertices.push({
         month: month.mes,
         y: outflow,
-        yAfterEvent: monthlyExpenseBreakdownPostSale(month, custoMensal).total
+        yAfterEvent: monthlyExpenseBreakdownPostSale(month, scenarioCustoMensal).total
       });
     } else {
       vertices.push({ month: month.mes, y: outflow });
@@ -158,7 +159,8 @@ export function freeBalanceVertices(
   cenario: CenarioCompleto,
   custoMensal = 0
 ): ChartPathVertex[] {
-  const prePurchase = prePurchaseFreeBalance(cenario.rendaMensal, custoMensal);
+  const scenarioCustoMensal = cenario.custoMensal ?? custoMensal;
+  const prePurchase = prePurchaseFreeBalance(cenario.rendaMensal, scenarioCustoMensal);
   const firstMonth = cenario.timeline[0];
   const vertices: ChartPathVertex[] = [
     { month: PRE_PURCHASE_MONTH, y: prePurchase },
@@ -166,18 +168,26 @@ export function freeBalanceVertices(
       ? {
           month: 0,
           y: prePurchase,
-          yAfterEvent: monthlyRecurringFreeBalance(firstMonth, cenario.rendaMensal, custoMensal)
+          yAfterEvent: monthlyRecurringFreeBalance(
+            firstMonth,
+            cenario.rendaMensal,
+            scenarioCustoMensal
+          )
         }
       : { month: 0, y: prePurchase }
   ];
 
   for (const month of cenario.timeline) {
-    const balance = monthlyRecurringFreeBalance(month, cenario.rendaMensal, custoMensal);
+    const balance = monthlyRecurringFreeBalance(month, cenario.rendaMensal, scenarioCustoMensal);
     if (month.eventoVenda) {
       vertices.push({
         month: month.mes,
         y: balance,
-        yAfterEvent: monthlyRecurringFreeBalancePostSale(month, cenario.rendaMensal, custoMensal)
+        yAfterEvent: monthlyRecurringFreeBalancePostSale(
+          month,
+          cenario.rendaMensal,
+          scenarioCustoMensal
+        )
       });
     } else {
       vertices.push({ month: month.mes, y: balance });

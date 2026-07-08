@@ -38,8 +38,17 @@ const REQUIRED_PARAM_KEYS = [
   "cenariosOcultosGraficos"
 ] as const satisfies readonly (keyof SimulatorParams)[];
 
-type RequiredYamlParamKey = (typeof REQUIRED_PARAM_KEYS)[number];
-type FinanceiroYamlParams = Pick<SimulatorParams, RequiredYamlParamKey>;
+const YAML_PARAM_KEYS = [
+  ...REQUIRED_PARAM_KEYS,
+  "scenarioVariations",
+  "inicioReformaMeses",
+  "inicioAporteExtraMeses",
+  "tempoRecebimentoExtraMeses",
+  "tempoVendaPosteriorMeses"
+] as const satisfies readonly (keyof SimulatorParams)[];
+
+type YamlParamKey = (typeof YAML_PARAM_KEYS)[number];
+type FinanceiroYamlParams = Pick<SimulatorParams, YamlParamKey>;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value);
@@ -51,6 +60,7 @@ function pickYamlParams(params: SimulatorParams): FinanceiroYamlParams {
     entradaDisponivel: params.entradaDisponivel,
     rendaMensal: params.rendaMensal,
     custoMensal: params.custoMensal,
+    scenarioVariations: params.scenarioVariations,
     valorImovel: params.valorImovel,
     valoresImovelFiltroMultipliers: params.valoresImovelFiltroMultipliers,
     temImovelParaNegociar: params.temImovelParaNegociar,
@@ -62,6 +72,7 @@ function pickYamlParams(params: SimulatorParams): FinanceiroYamlParams {
     incluirReformas: params.incluirReformas,
     custoTotalReformas: params.custoTotalReformas,
     custoInicialReformas: params.custoInicialReformas,
+    inicioReformaMeses: params.inicioReformaMeses,
     tempoObraMeses: params.tempoObraMeses,
     temposReformaMeses: params.temposReformaMeses,
     custosAdicionais: params.custosAdicionais,
@@ -71,10 +82,13 @@ function pickYamlParams(params: SimulatorParams): FinanceiroYamlParams {
     aporteInicial: params.aporteInicial,
     aporteProgressao: params.aporteProgressao,
     aporteIntervaloMeses: params.aporteIntervaloMeses,
+    inicioAporteExtraMeses: params.inicioAporteExtraMeses,
     taxaAnual: params.taxaAnual,
     trMensal: params.trMensal,
     esperaQuantiaExtra: params.esperaQuantiaExtra,
     quantiaExtra: params.quantiaExtra,
+    tempoRecebimentoExtraMeses: params.tempoRecebimentoExtraMeses,
+    tempoVendaPosteriorMeses: params.tempoVendaPosteriorMeses,
     temposRecebimentoExtraMeses: params.temposRecebimentoExtraMeses,
     cenariosOcultosGraficos: params.cenariosOcultosGraficos
   };
@@ -142,6 +156,31 @@ export function buildActiveParametersPrompt(): string {
     entradaDisponivel: 600_000,
     rendaMensal: 45_000,
     custoMensal: 5_000,
+    scenarioVariations: {
+      excludedBaselines: [],
+      capitalDisponivel: [],
+      entradaDisponivel: [],
+      rendaMensal: [],
+      custoMensal: [],
+      valorImovel: [2_000_000, 1_900_000, 1_800_000],
+      valorApartamento: [550_000],
+      custoManutencaoImovelMensal: [],
+      custoTotalReformas: [],
+      custoInicialReformas: [],
+      inicioReformaMeses: [1],
+      tempoObraMeses: [],
+      aporteExtra: [],
+      aporteInicial: [],
+      aporteProgressao: [],
+      aporteIntervaloMeses: [],
+      inicioAporteExtraMeses: [0],
+      taxaAnual: [],
+      trMensal: [],
+      quantiaExtra: [],
+      tempoRecebimentoExtraMeses: [12],
+      vendaTiming: ["permuta", 12],
+      custosAdicionais: {}
+    },
     valorImovel: 2_000_000,
     valoresImovelFiltroMultipliers: [2_000_000, 1_900_000, 1_800_000],
     temImovelParaNegociar: false,
@@ -153,6 +192,7 @@ export function buildActiveParametersPrompt(): string {
     incluirReformas: false,
     custoTotalReformas: 150_000,
     custoInicialReformas: 0,
+    inicioReformaMeses: 1,
     tempoObraMeses: 12,
     temposReformaMeses: [1],
     custosAdicionais: [],
@@ -162,10 +202,13 @@ export function buildActiveParametersPrompt(): string {
     aporteInicial: 0,
     aporteProgressao: 1_000,
     aporteIntervaloMeses: 1,
+    inicioAporteExtraMeses: 0,
     taxaAnual: 0.115,
     trMensal: 0.0015,
     esperaQuantiaExtra: false,
     quantiaExtra: 100_000,
+    tempoRecebimentoExtraMeses: 12,
+    tempoVendaPosteriorMeses: 12,
     temposRecebimentoExtraMeses: [12],
     cenariosOcultosGraficos: [],
     linkedListingId: null

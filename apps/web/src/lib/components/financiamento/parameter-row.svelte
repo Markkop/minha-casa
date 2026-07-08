@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Info, Pencil } from "@lucide/svelte";
+  import { ChevronDown, ChevronRight, Info, Pencil } from "@lucide/svelte";
   import CurrencyInput from "$lib/components/financiamento/currency-input.svelte";
   import PercentInput from "$lib/components/financiamento/percent-input.svelte";
   import type { ParameterRowProps } from "$lib/components/financiamento/financiamento-parameter-types";
@@ -15,6 +15,7 @@
     slider,
     edit,
     extras,
+    extrasAriaLabel,
     valueClassName,
     hint,
     disabled = false,
@@ -22,6 +23,7 @@
   }: ParameterRowProps = $props();
 
   let isEditing = $state(false);
+  let extrasExpanded = $state(false);
 </script>
 
 <div
@@ -100,22 +102,46 @@
   </div>
 
   {#if slider}
-    <Slider
-      value={slider.value}
-      min={slider.min}
-      max={slider.max}
-      step={slider.step}
-      disabled={disabled}
-      onValueChange={disabled ? () => {} : slider.onValueChange}
-      class={cn(
-        "w-full touch-none [&_[data-slot=slider-thumb]]:size-[18px] [&_[data-slot=slider-track]]:h-2",
-        compact ? "py-0" : "py-0.5"
-      )}
-    />
+    <div class="flex items-center gap-1.5">
+      <Slider
+        value={slider.value}
+        min={slider.min}
+        max={slider.max}
+        step={slider.step}
+        disabled={disabled}
+        onValueChange={disabled ? () => {} : slider.onValueChange}
+        class={cn(
+          "min-w-0 flex-1 touch-none [&_[data-slot=slider-thumb]]:size-[18px] [&_[data-slot=slider-track]]:h-2",
+          compact ? "py-0" : "py-0.5"
+        )}
+      />
+      {#if extras}
+        <button
+          type="button"
+          class={cn(
+            "inline-flex size-7 shrink-0 items-center justify-center rounded-md text-app-subtle transition-colors hover:bg-app-bg hover:text-app-accent",
+            extrasExpanded && "bg-app-action/10 text-app-accent"
+          )}
+          aria-label={extrasExpanded ? "Recolher variações" : "Expandir variações"}
+          aria-expanded={extrasExpanded}
+          aria-controls={extrasAriaLabel}
+          disabled={disabled}
+          onclick={() => {
+            extrasExpanded = !extrasExpanded;
+          }}
+        >
+          {#if extrasExpanded}
+            <ChevronDown class="h-3.5 w-3.5" />
+          {:else}
+            <ChevronRight class="h-3.5 w-3.5" />
+          {/if}
+        </button>
+      {/if}
+    </div>
   {/if}
 
-  {#if extras}
-    <div class="mt-1 flex flex-wrap items-center gap-1">
+  {#if extras && extrasExpanded}
+    <div id={extrasAriaLabel} class="mt-1 flex flex-wrap items-center gap-1">
       {@render extras()}
     </div>
   {/if}

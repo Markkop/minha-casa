@@ -121,7 +121,11 @@ export function scenarioLabel(cenario: CenarioCompleto): string {
     parts.push(`extra ${formatTimingMonthLabel(cenario.extraEm)}`);
   }
   if (cenario.reformaEm !== undefined) {
-    parts.push(`reforma ${formatTimingMonthLabel(cenario.reformaEm)}`);
+    parts.push(
+      cenario.reformaAposQuitacao
+        ? "reforma depois quitar"
+        : `reforma ${formatTimingMonthLabel(cenario.reformaEm)}`
+    );
   }
   if (cenario.aporteEm !== undefined) {
     parts.push(

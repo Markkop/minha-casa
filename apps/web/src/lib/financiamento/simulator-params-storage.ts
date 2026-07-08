@@ -18,6 +18,10 @@ import {
 import { REFORMA_INICIO_RANGE } from "$lib/components/financiamento/parameter-row-helpers";
 import { clampAporteProgressivoFields } from "$lib/financiamento/aporte-progressivo";
 import { normalizeCustosAdicionais } from "$lib/financiamento/custos-adicionais";
+import {
+  legacyScenarioVariations,
+  normalizeScenarioVariations
+} from "$lib/financiamento/scenario-variations";
 import { createInitialSimulatorParams } from "$lib/financiamento/simulator-recursos";
 
 export const SIMULATOR_PARAMS_STORAGE_KEY = "minha-casa-financeiro-params";
@@ -31,13 +35,17 @@ const MAX_PRICE_FILTER_VALUE = 50_000_000;
 /** Stored shape, including fields used before the capital/entrada split. */
 interface StoredSimulatorParams
   extends Partial<
-    Omit<SimulatorParams, "linkedListingId" | "temposInicioAporteExtraMeses" | "custosAdicionais">
+    Omit<
+      SimulatorParams,
+      "linkedListingId" | "temposInicioAporteExtraMeses" | "custosAdicionais" | "scenarioVariations"
+    >
   > {
   custoCondominioMensal?: number;
   custoMensalMaximoReformas?: number;
   linkedListingId?: unknown;
   temposInicioAporteExtraMeses?: unknown;
   custosAdicionais?: unknown;
+  scenarioVariations?: unknown;
 }
 
 function finiteNumber(value: unknown, fallback: number): number {
@@ -201,6 +209,49 @@ export function normalizeSimulatorParams(parsed: StoredSimulatorParams): Simulat
       defaults.aporteIntervaloMeses
     )
   });
+  const valoresImovelFiltroMultipliers = validTargetPriceFilterList(
+    parsed.valoresImovelFiltroMultipliers,
+    defaultSelectedTargetPriceFilters(valorImovel),
+    valorImovel
+  );
+  const valoresAptoFiltroMultipliers = validPriceFilterList(
+    parsed.valoresAptoFiltroMultipliers,
+    defaultSelectedPriceFilters(valorApartamento),
+    valorApartamento
+  );
+  const estrategiasFiltro = validEstrategiaList(parsed.estrategiasFiltro, defaults.estrategiasFiltro);
+  const temposVendaPosteriorMeses = validTimingMonthList(
+    parsed.temposVendaPosteriorMeses,
+    defaults.temposVendaPosteriorMeses
+  );
+  const temposRecebimentoExtraMeses = validTimingMonthList(
+    parsed.temposRecebimentoExtraMeses,
+    defaults.temposRecebimentoExtraMeses
+  );
+  const temposReformaMeses = validReformaTimingMonthList(
+    parsed.temposReformaMeses,
+    defaults.temposReformaMeses
+  );
+  const temposInicioAporteExtraMeses = validAporteInicioDelayList(
+    parsed.temposInicioAporteExtraMeses,
+    defaults.temposInicioAporteExtraMeses
+  );
+  const inicioAporteExtraFallback =
+    typeof temposInicioAporteExtraMeses[0] === "number"
+      ? temposInicioAporteExtraMeses[0]
+      : defaults.inicioAporteExtraMeses;
+  const scenarioVariations = normalizeScenarioVariations(
+    parsed.scenarioVariations,
+    legacyScenarioVariations({
+      valoresImovelFiltroMultipliers,
+      valoresAptoFiltroMultipliers,
+      estrategiasFiltro,
+      temposVendaPosteriorMeses,
+      temposRecebimentoExtraMeses,
+      temposReformaMeses,
+      temposInicioAporteExtraMeses
+    })
+  );
 
   return {
     capitalDisponivel: hasEntradaDisponivel
@@ -217,6 +268,10 @@ export function normalizeSimulatorParams(parsed: StoredSimulatorParams): Simulat
     aporteInicial: aporteProgressivoFields.aporteInicial,
     aporteProgressao: aporteProgressivoFields.aporteProgressao,
     aporteIntervaloMeses: aporteProgressivoFields.aporteIntervaloMeses,
+    inicioAporteExtraMeses: Math.max(
+      0,
+      Math.round(finiteNumber(parsed.inicioAporteExtraMeses, inicioAporteExtraFallback))
+    ),
     valorImovel,
     taxaAnual: finiteNumber(parsed.taxaAnual, defaults.taxaAnual),
     trMensal: finiteNumber(parsed.trMensal, defaults.trMensal),
@@ -228,6 +283,10 @@ export function normalizeSimulatorParams(parsed: StoredSimulatorParams): Simulat
       parsed.custoInicialReformas,
       defaults.custoInicialReformas
     ),
+    inicioReformaMeses: Math.max(
+      0,
+      Math.round(finiteNumber(parsed.inicioReformaMeses, temposReformaMeses[0] ?? defaults.inicioReformaMeses))
+    ),
     tempoObraMeses: Math.max(
       1,
       Math.round(finiteNumber(parsed.tempoObraMeses, defaults.tempoObraMeses))
@@ -235,33 +294,32 @@ export function normalizeSimulatorParams(parsed: StoredSimulatorParams): Simulat
     custosAdicionais: normalizeCustosAdicionais(parsed.custosAdicionais),
     esperaQuantiaExtra: finiteBoolean(parsed.esperaQuantiaExtra, defaults.esperaQuantiaExtra),
     quantiaExtra: finiteNumber(parsed.quantiaExtra, defaults.quantiaExtra),
-    valoresImovelFiltroMultipliers: validTargetPriceFilterList(
-      parsed.valoresImovelFiltroMultipliers,
-      defaultSelectedTargetPriceFilters(valorImovel),
-      valorImovel
+    tempoRecebimentoExtraMeses: Math.max(
+      1,
+      Math.round(
+        finiteNumber(
+          parsed.tempoRecebimentoExtraMeses,
+          temposRecebimentoExtraMeses[0] ?? defaults.tempoRecebimentoExtraMeses
+        )
+      )
     ),
-    valoresAptoFiltroMultipliers: validPriceFilterList(
-      parsed.valoresAptoFiltroMultipliers,
-      defaultSelectedPriceFilters(valorApartamento),
-      valorApartamento
+    tempoVendaPosteriorMeses: Math.max(
+      1,
+      Math.round(
+        finiteNumber(
+          parsed.tempoVendaPosteriorMeses,
+          temposVendaPosteriorMeses[0] ?? defaults.tempoVendaPosteriorMeses
+        )
+      )
     ),
-    estrategiasFiltro: validEstrategiaList(parsed.estrategiasFiltro, defaults.estrategiasFiltro),
-    temposVendaPosteriorMeses: validTimingMonthList(
-      parsed.temposVendaPosteriorMeses,
-      defaults.temposVendaPosteriorMeses
-    ),
-    temposRecebimentoExtraMeses: validTimingMonthList(
-      parsed.temposRecebimentoExtraMeses,
-      defaults.temposRecebimentoExtraMeses
-    ),
-    temposReformaMeses: validReformaTimingMonthList(
-      parsed.temposReformaMeses,
-      defaults.temposReformaMeses
-    ),
-    temposInicioAporteExtraMeses: validAporteInicioDelayList(
-      parsed.temposInicioAporteExtraMeses,
-      defaults.temposInicioAporteExtraMeses
-    ),
+    scenarioVariations,
+    valoresImovelFiltroMultipliers,
+    valoresAptoFiltroMultipliers,
+    estrategiasFiltro,
+    temposVendaPosteriorMeses,
+    temposRecebimentoExtraMeses,
+    temposReformaMeses,
+    temposInicioAporteExtraMeses,
     cenariosOcultosGraficos: validScenarioIdList(
       parsed.cenariosOcultosGraficos,
       defaults.cenariosOcultosGraficos
