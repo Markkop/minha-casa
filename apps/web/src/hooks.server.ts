@@ -13,6 +13,7 @@ import {
 } from "$lib/subscription";
 import { refreshSubscriptionStatusCookie } from "$lib/server/subscription-status";
 import { unauthenticatedApiResponse } from "$lib/server/unauthenticated-api-response";
+import { isPublicPhoenixProxyRequest } from "$lib/server/api-proxy-auth";
 
 const AUTH_BASE = "/api/auth";
 const AUTH_ROUTES = new Set(["/login", "/signup"]);
@@ -55,7 +56,9 @@ const authHandle: Handle = async ({ event, resolve }) => {
 
 const routeGuardHandle: Handle = async ({ event, resolve }) => {
   const pathname = event.url.pathname;
-  const publicRoute = isPublicRoute(pathname);
+  const publicRoute =
+    isPublicRoute(pathname) ||
+    isPublicPhoenixProxyRequest(pathname, event.request.method);
   const loggedIn = Boolean(event.locals.user);
 
   if (AUTH_ROUTES.has(pathname) && loggedIn) {

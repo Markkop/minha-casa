@@ -1,5 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
-import { isPublicPhoenixApiPath, resolvePhoenixAuthorization } from "./api-proxy-auth";
+import {
+  isPublicPhoenixApiPath,
+  isPublicPhoenixProxyRequest,
+  resolvePhoenixAuthorization
+} from "./api-proxy-auth";
 
 describe("isPublicPhoenixApiPath", () => {
   it("keeps public Phoenix routes auth-optional", () => {
@@ -17,6 +21,25 @@ describe("isPublicPhoenixApiPath", () => {
     expect(isPublicPhoenixApiPath("/organization-invites/token/accept", "POST")).toBe(false);
     expect(isPublicPhoenixApiPath("/user/addons", "GET")).toBe(false);
     expect(isPublicPhoenixApiPath("/addons/access/flood", "GET")).toBe(false);
+  });
+});
+
+describe("isPublicPhoenixProxyRequest", () => {
+  it("allows public invite previews through the global route guard", () => {
+    expect(
+      isPublicPhoenixProxyRequest("/api/organization-invites/invite-token", "GET")
+    ).toBe(true);
+  });
+
+  it("keeps invite acceptance and unrelated APIs protected", () => {
+    expect(
+      isPublicPhoenixProxyRequest(
+        "/api/organization-invites/invite-token/accept",
+        "POST"
+      )
+    ).toBe(false);
+    expect(isPublicPhoenixProxyRequest("/api/organizations", "GET")).toBe(false);
+    expect(isPublicPhoenixProxyRequest("/convites/invite-token", "GET")).toBe(false);
   });
 });
 

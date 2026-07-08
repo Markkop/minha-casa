@@ -4,7 +4,7 @@
   import { AUTH_INVALIDATION_KEY } from "$lib/auth/logout";
   import { signIn } from "$lib/auth-client";
   import Button from "$lib/components/ui/Button.svelte";
-  import { safeRedirectPath } from "$lib/navigation/safe-redirect";
+  import { authRouteWithRedirect, safeRedirectPath } from "$lib/navigation/safe-redirect";
   import { syncSubscriptionCookie } from "$lib/sync-subscription-cookie";
 
   let email = $state("");
@@ -14,6 +14,7 @@
   let googleLoading = $state(false);
 
   const redirectPath = $derived(safeRedirectPath(page.url.searchParams.get("redirect")));
+  const signupHref = $derived(authRouteWithRedirect("/signup", redirectPath));
 
   async function handleSubmit(event: SubmitEvent) {
     event.preventDefault();
@@ -96,7 +97,7 @@
     </Button>
     <p class="mt-5 text-center text-sm text-app-muted">
       Ainda nao tem conta?
-      <a class="font-medium text-app-fg" href="/signup">Criar conta</a>
+      <a class="font-medium text-app-fg" href={signupHref}>Criar conta</a>
     </p>
   </form>
 </main>

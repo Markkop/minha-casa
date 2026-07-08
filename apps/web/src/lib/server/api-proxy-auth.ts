@@ -28,6 +28,13 @@ export function isPublicPhoenixApiPath(path: string, method: string) {
   return false;
 }
 
+export function isPublicPhoenixProxyRequest(pathname: string, method: string) {
+  if (pathname !== "/api" && !pathname.startsWith("/api/")) return false;
+
+  const apiPath = pathname.slice("/api".length) || "/";
+  return isPublicPhoenixApiPath(apiPath, method);
+}
+
 export async function resolvePhoenixAuthorization({
   headers,
   path,

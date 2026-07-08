@@ -9,3 +9,11 @@ export function isSafeRedirectPath(path: string | null): path is string {
 export function safeRedirectPath(path: string | null, fallback = "/anuncios") {
   return isSafeRedirectPath(path) ? path : fallback;
 }
+
+export function authRouteWithRedirect(
+  route: "/login" | "/signup",
+  redirectPath: string | null
+) {
+  const safePath = safeRedirectPath(redirectPath);
+  return `${route}?redirect=${encodeURIComponent(safePath)}`;
+}

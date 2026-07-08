@@ -4,7 +4,7 @@
   import { AUTH_INVALIDATION_KEY } from "$lib/auth/logout";
   import { signIn, signUp } from "$lib/auth-client";
   import Button from "$lib/components/ui/Button.svelte";
-  import { safeRedirectPath } from "$lib/navigation/safe-redirect";
+  import { authRouteWithRedirect, safeRedirectPath } from "$lib/navigation/safe-redirect";
   import { syncSubscriptionCookie } from "$lib/sync-subscription-cookie";
 
   let name = $state("");
@@ -15,6 +15,7 @@
   let googleLoading = $state(false);
 
   const redirectPath = $derived(safeRedirectPath(page.url.searchParams.get("redirect")));
+  const loginHref = $derived(authRouteWithRedirect("/login", redirectPath));
 
   async function handleSubmit(event: SubmitEvent) {
     event.preventDefault();
@@ -108,7 +109,7 @@
     </Button>
     <p class="mt-5 text-center text-sm text-app-muted">
       Ja tem conta?
-      <a class="font-medium text-app-fg" href="/login">Entrar</a>
+      <a class="font-medium text-app-fg" href={loginHref}>Entrar</a>
     </p>
   </form>
 </main>

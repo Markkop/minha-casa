@@ -2,6 +2,7 @@
   import { goto } from "$app/navigation";
   import Button from "$lib/components/ui/Button.svelte";
   import { setActiveOrganizationId } from "$lib/api/client";
+  import { authRouteWithRedirect } from "$lib/navigation/safe-redirect";
   import { formatInviteExpiration, organizationRoleLabel } from "$lib/organizacoes/helpers";
   import { workspaceApi } from "$lib/workspace/client";
 
@@ -11,8 +12,8 @@
   let error = $state("");
 
   const redirectPath = $derived(`/convites/${encodeURIComponent(data.token)}`);
-  const loginHref = $derived(`/login?redirect=${encodeURIComponent(redirectPath)}`);
-  const signupHref = $derived(`/signup?redirect=${encodeURIComponent(redirectPath)}`);
+  const loginHref = $derived(authRouteWithRedirect("/login", redirectPath));
+  const signupHref = $derived(authRouteWithRedirect("/signup", redirectPath));
   const canAccept = $derived(Boolean(data.user && data.invite?.available));
 
   async function acceptInvite() {
