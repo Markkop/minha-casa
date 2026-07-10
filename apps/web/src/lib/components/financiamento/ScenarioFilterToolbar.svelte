@@ -1,7 +1,9 @@
 <script lang="ts">
   import SimulatorScenarioChips from "$lib/components/financiamento/SimulatorScenarioChips.svelte";
   import SimulatorScenarioSavePopover from "$lib/components/financiamento/SimulatorScenarioSavePopover.svelte";
+  import FinanceiroSuggestionsPopover from "$lib/components/financiamento/FinanceiroSuggestionsPopover.svelte";
   import FinanceiroSharePopover from "$lib/components/financiamento/FinanceiroSharePopover.svelte";
+  import type { FinanceiroSuggestionResult } from "$lib/financiamento/financeiro-suggestions";
   import type { FinanceiroComparisonGroupPayload } from "$lib/financiamento/shared-snapshot";
   import type { SimulatorScenarioSnapshot } from "$lib/financiamento/simulator-scenarios-storage";
   import type { ScenarioCollectionDestination } from "$lib/financiamento/scenario-collection-destinations";
@@ -25,6 +27,9 @@
     onAddScenarioToDraft,
     onActivateDraft,
     onDiscardDraft,
+    suggestions = [],
+    onCompareSuggestion,
+    onCompareBestSuggestions,
     suggestedShareTitle = "Simulação financeira",
     onCreateShare
   }: {
@@ -47,6 +52,9 @@
     onAddScenarioToDraft: (sourceId: string) => void;
     onActivateDraft: () => void;
     onDiscardDraft: () => void;
+    suggestions?: FinanceiroSuggestionResult[];
+    onCompareSuggestion?: (suggestion: FinanceiroSuggestionResult) => void;
+    onCompareBestSuggestions?: (suggestions: FinanceiroSuggestionResult[]) => void;
     suggestedShareTitle?: string;
     onCreateShare?: (title: string) => Promise<string>;
   } = $props();
@@ -71,6 +79,14 @@
   />
 
   <div class="flex items-center gap-2">
+    {#if onCompareSuggestion && onCompareBestSuggestions}
+      <FinanceiroSuggestionsPopover
+        {suggestions}
+        onCompareSuggestion={onCompareSuggestion}
+        onCompareBest={onCompareBestSuggestions}
+      />
+    {/if}
+
     {#if onCreateShare}
       <FinanceiroSharePopover suggestedTitle={suggestedShareTitle} onCreate={onCreateShare} />
     {/if}

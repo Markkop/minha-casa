@@ -167,6 +167,8 @@ export interface ParameterRowProps {
   valueClassName?: string;
   hint?: string;
   disabled?: boolean;
+  forceExtrasExpanded?: boolean;
+  lockExtrasExpanded?: boolean;
   /** Tighter vertical rhythm for dense panels (e.g. adjustment-panel). */
   compact?: boolean;
 }

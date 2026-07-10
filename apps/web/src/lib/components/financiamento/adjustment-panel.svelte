@@ -6,7 +6,8 @@
     CustoAdicional,
     ParameterCardProps,
     ReformaInicioTiming,
-    ScenarioVariations
+    ScenarioVariations,
+    SimulatorParams
   } from "$lib/components/financiamento/financiamento-parameter-types";
   import { REFORMA_APOS_QUITACAO_VALUE } from "$lib/components/financiamento/financiamento-parameter-types";
   import {
@@ -67,8 +68,12 @@
     onValueChange,
     onCapitalChange,
     onEntradaChange,
-    scenarioLimitWarning
-  }: ParameterCardProps & { scenarioLimitWarning?: string | null } = $props();
+    scenarioLimitWarning,
+    suggestionReferenceParams = null
+  }: ParameterCardProps & {
+    scenarioLimitWarning?: string | null;
+    suggestionReferenceParams?: SimulatorParams | null;
+  } = $props();
 
   const settingsContext = getSettingsContext();
   const rowCompact = true;
@@ -272,6 +277,69 @@
     sectionState = { ...sectionState, [section]: !sectionState[section] };
   }
 
+  function hasActiveVariant<T extends string | number>(
+    selected: readonly T[],
+    baselineValue: T
+  ): boolean {
+    return selected.some((value) => !Object.is(value, baselineValue));
+  }
+
+  function changed<K extends keyof typeof params>(key: K): boolean {
+    if (!suggestionReferenceParams) return false;
+    return !Object.is(params[key], suggestionReferenceParams[key]);
+  }
+
+  function saleTimingValue(value: typeof params): string | number {
+    const selected = value.scenarioVariations.vendaTiming[0];
+    if (
+      value.scenarioVariations.excludedBaselines.includes("vendaTiming") &&
+      selected !== undefined
+    ) {
+      return selected;
+    }
+    return value.tempoVendaPosteriorMeses;
+  }
+
+  function reformaTimingValue(value: typeof params): string | number {
+    const selected = value.scenarioVariations.inicioReformaMeses[0];
+    if (
+      value.scenarioVariations.excludedBaselines.includes("inicioReformaMeses") &&
+      selected !== undefined
+    ) {
+      return selected;
+    }
+    return clampReformaInicio(value.inicioReformaMeses);
+  }
+
+  function aporteTimingValue(value: typeof params): string | number {
+    const selected = value.scenarioVariations.inicioAporteExtraMeses[0];
+    if (
+      value.scenarioVariations.excludedBaselines.includes("inicioAporteExtraMeses") &&
+      selected !== undefined
+    ) {
+      return selected;
+    }
+    return value.inicioAporteExtraMeses;
+  }
+
+  function custoAdicionalFieldChanged(
+    custo: CustoAdicional,
+    key: "valorTotal" | "mesInicio" | "duracaoMeses"
+  ): boolean {
+    if (!suggestionReferenceParams) return false;
+    const reference = suggestionReferenceParams.custosAdicionais.find((item) => item.id === custo.id);
+    if (!reference) return true;
+    return !Object.is(custo[key], reference[key]);
+  }
+
+  function rowExtrasLocked<T extends string | number>(
+    selected: readonly T[],
+    baselineValue: T,
+    suggestionChanged = false
+  ): boolean {
+    return hasActiveVariant(selected, baselineValue) || suggestionChanged;
+  }
+
   const filterDefaults = createInitialSimulatorParams();
 
   function resetVoceSection() {
@@ -440,14 +508,14 @@
     });
   }
 
-  function custoAdicionalExpanded(id: string) {
-    return !collapsedCustoIds.includes(id);
+  function custoAdicionalExpanded(custo: CustoAdicional) {
+    return !collapsedCustoIds.includes(custo.id);
   }
 
-  function toggleCustoAdicional(id: string) {
-    collapsedCustoIds = custoAdicionalExpanded(id)
-      ? [...collapsedCustoIds, id]
-      : collapsedCustoIds.filter((collapsedId) => collapsedId !== id);
+  function toggleCustoAdicional(custo: CustoAdicional) {
+    collapsedCustoIds = custoAdicionalExpanded(custo)
+      ? [...collapsedCustoIds, custo.id]
+      : collapsedCustoIds.filter((collapsedId) => collapsedId !== custo.id);
   }
 
   function startEditingCustoNome(custo: CustoAdicional) {
@@ -530,6 +598,16 @@
             value: params.capitalDisponivel,
             onChange: updateCapital
           }}
+          forceExtrasExpanded={rowExtrasLocked(
+            params.scenarioVariations.capitalDisponivel,
+            params.capitalDisponivel,
+            changed("capitalDisponivel")
+          )}
+          lockExtrasExpanded={rowExtrasLocked(
+            params.scenarioVariations.capitalDisponivel,
+            params.capitalDisponivel,
+            changed("capitalDisponivel")
+          )}
           extrasAriaLabel="capital-disponivel-variacoes"
         >
           {#snippet extras()}
@@ -563,6 +641,16 @@
             value: params.rendaMensal,
             onChange: (value) => patch({ rendaMensal: value })
           }}
+          forceExtrasExpanded={rowExtrasLocked(
+            params.scenarioVariations.rendaMensal,
+            params.rendaMensal,
+            changed("rendaMensal")
+          )}
+          lockExtrasExpanded={rowExtrasLocked(
+            params.scenarioVariations.rendaMensal,
+            params.rendaMensal,
+            changed("rendaMensal")
+          )}
           extrasAriaLabel="renda-mensal-variacoes"
         >
           {#snippet extras()}
@@ -592,6 +680,16 @@
             value: params.custoMensal,
             onChange: (value) => patch({ custoMensal: value })
           }}
+          forceExtrasExpanded={rowExtrasLocked(
+            params.scenarioVariations.custoMensal,
+            params.custoMensal,
+            changed("custoMensal")
+          )}
+          lockExtrasExpanded={rowExtrasLocked(
+            params.scenarioVariations.custoMensal,
+            params.custoMensal,
+            changed("custoMensal")
+          )}
           extrasAriaLabel="custo-mensal-variacoes"
         >
           {#snippet extras()}
@@ -641,6 +739,16 @@
                   ? onValueChange("valorApartamento", value)
                   : patch({ valorApartamento: value })
             }}
+            forceExtrasExpanded={rowExtrasLocked(
+              params.scenarioVariations.valorApartamento,
+              params.valorApartamento,
+              changed("valorApartamento")
+            )}
+            lockExtrasExpanded={rowExtrasLocked(
+              params.scenarioVariations.valorApartamento,
+              params.valorApartamento,
+              changed("valorApartamento")
+            )}
             extrasAriaLabel="valor-imovel-negociar-variacoes"
           >
             {#snippet extras()}
@@ -680,6 +788,16 @@
                   ? onValueChange("custoManutencao", value)
                   : patch({ custoManutencaoImovelMensal: value })
             }}
+            forceExtrasExpanded={rowExtrasLocked(
+              params.scenarioVariations.custoManutencaoImovelMensal,
+              params.custoManutencaoImovelMensal,
+              changed("custoManutencaoImovelMensal")
+            )}
+            lockExtrasExpanded={rowExtrasLocked(
+              params.scenarioVariations.custoManutencaoImovelMensal,
+              params.custoManutencaoImovelMensal,
+              changed("custoManutencaoImovelMensal")
+            )}
             extrasAriaLabel="custo-manutencao-imovel-variacoes"
           >
             {#snippet extras()}
@@ -719,6 +837,18 @@
               onChange: (value) =>
                 patch({ tempoVendaPosteriorMeses: Math.max(1, Math.round(value)) })
             }}
+            forceExtrasExpanded={rowExtrasLocked(
+              params.scenarioVariations.vendaTiming,
+              params.tempoVendaPosteriorMeses,
+              suggestionReferenceParams !== null &&
+                !Object.is(saleTimingValue(params), saleTimingValue(suggestionReferenceParams))
+            )}
+            lockExtrasExpanded={rowExtrasLocked(
+              params.scenarioVariations.vendaTiming,
+              params.tempoVendaPosteriorMeses,
+              suggestionReferenceParams !== null &&
+                !Object.is(saleTimingValue(params), saleTimingValue(suggestionReferenceParams))
+            )}
             extrasAriaLabel="tempo-venda-imovel-variacoes"
           >
             {#snippet extras()}
@@ -771,6 +901,16 @@
             onChange: (value) =>
               onValueChange ? onValueChange("valorImovel", value) : patch({ valorImovel: value })
           }}
+          forceExtrasExpanded={rowExtrasLocked(
+            params.scenarioVariations.valorImovel,
+            params.valorImovel,
+            changed("valorImovel")
+          )}
+          lockExtrasExpanded={rowExtrasLocked(
+            params.scenarioVariations.valorImovel,
+            params.valorImovel,
+            changed("valorImovel")
+          )}
           extrasAriaLabel="valor-imovel-alvo-variacoes"
         >
           {#snippet extras()}
@@ -820,6 +960,16 @@
                   ? onValueChange("custoTotalReformas", value)
                   : patch({ custoTotalReformas: value })
             }}
+            forceExtrasExpanded={rowExtrasLocked(
+              params.scenarioVariations.custoTotalReformas,
+              params.custoTotalReformas,
+              changed("custoTotalReformas")
+            )}
+            lockExtrasExpanded={rowExtrasLocked(
+              params.scenarioVariations.custoTotalReformas,
+              params.custoTotalReformas,
+              changed("custoTotalReformas")
+            )}
             extrasAriaLabel="custo-total-reformas-variacoes"
           >
             {#snippet extras()}
@@ -859,6 +1009,16 @@
                   ? onValueChange("custoInicialReformas", value)
                   : patch({ custoInicialReformas: value })
             }}
+            forceExtrasExpanded={rowExtrasLocked(
+              params.scenarioVariations.custoInicialReformas,
+              params.custoInicialReformas,
+              changed("custoInicialReformas")
+            )}
+            lockExtrasExpanded={rowExtrasLocked(
+              params.scenarioVariations.custoInicialReformas,
+              params.custoInicialReformas,
+              changed("custoInicialReformas")
+            )}
             extrasAriaLabel="custo-inicial-reformas-variacoes"
           >
             {#snippet extras()}
@@ -895,6 +1055,18 @@
               value: reformaInicioMeses,
               onChange: updateReformaInicio
             }}
+            forceExtrasExpanded={rowExtrasLocked(
+              params.scenarioVariations.inicioReformaMeses,
+              reformaInicioMeses as ReformaInicioTiming,
+              suggestionReferenceParams !== null &&
+                !Object.is(reformaTimingValue(params), reformaTimingValue(suggestionReferenceParams))
+            )}
+            lockExtrasExpanded={rowExtrasLocked(
+              params.scenarioVariations.inicioReformaMeses,
+              reformaInicioMeses as ReformaInicioTiming,
+              suggestionReferenceParams !== null &&
+                !Object.is(reformaTimingValue(params), reformaTimingValue(suggestionReferenceParams))
+            )}
             extrasAriaLabel="inicio-reforma-variacoes"
           >
             {#snippet extras()}
@@ -937,6 +1109,16 @@
                   ? onValueChange("tempoObraMeses", value)
                   : patch({ tempoObraMeses: Math.max(1, Math.round(value)) })
             }}
+            forceExtrasExpanded={rowExtrasLocked(
+              params.scenarioVariations.tempoObraMeses,
+              params.tempoObraMeses,
+              changed("tempoObraMeses")
+            )}
+            lockExtrasExpanded={rowExtrasLocked(
+              params.scenarioVariations.tempoObraMeses,
+              params.tempoObraMeses,
+              changed("tempoObraMeses")
+            )}
             extrasAriaLabel="tempo-obra-variacoes"
           >
             {#snippet extras()}
@@ -985,6 +1167,16 @@
             value: params.entradaDisponivel,
             onChange: updateEntrada
           }}
+          forceExtrasExpanded={rowExtrasLocked(
+            params.scenarioVariations.entradaDisponivel,
+            params.entradaDisponivel,
+            changed("entradaDisponivel")
+          )}
+          lockExtrasExpanded={rowExtrasLocked(
+            params.scenarioVariations.entradaDisponivel,
+            params.entradaDisponivel,
+            changed("entradaDisponivel")
+          )}
           extrasAriaLabel="entrada-variacoes"
         >
           {#snippet extras()}
@@ -1019,6 +1211,16 @@
             value: params.aporteExtra,
             onChange: (value) => patchAporteProgressivo({ aporteExtra: value })
           }}
+          forceExtrasExpanded={rowExtrasLocked(
+            params.scenarioVariations.aporteExtra,
+            params.aporteExtra,
+            changed("aporteExtra")
+          )}
+          lockExtrasExpanded={rowExtrasLocked(
+            params.scenarioVariations.aporteExtra,
+            params.aporteExtra,
+            changed("aporteExtra")
+          )}
           extrasAriaLabel="aporte-extra-variacoes"
         >
           {#snippet extras()}
@@ -1053,6 +1255,18 @@
             value: params.inicioAporteExtraMeses,
             onChange: (value) => patch({ inicioAporteExtraMeses: Math.max(0, Math.round(value)) })
           }}
+          forceExtrasExpanded={rowExtrasLocked(
+            params.scenarioVariations.inicioAporteExtraMeses,
+            params.inicioAporteExtraMeses,
+            suggestionReferenceParams !== null &&
+              !Object.is(aporteTimingValue(params), aporteTimingValue(suggestionReferenceParams))
+          )}
+          lockExtrasExpanded={rowExtrasLocked(
+            params.scenarioVariations.inicioAporteExtraMeses,
+            params.inicioAporteExtraMeses,
+            suggestionReferenceParams !== null &&
+              !Object.is(aporteTimingValue(params), aporteTimingValue(suggestionReferenceParams))
+          )}
           extrasAriaLabel="inicio-aporte-extra-variacoes"
         >
           {#snippet extras()}
@@ -1095,6 +1309,16 @@
               value: params.aporteInicial,
               onChange: (value) => patchAporteProgressivo({ aporteInicial: value })
             }}
+            forceExtrasExpanded={rowExtrasLocked(
+              params.scenarioVariations.aporteInicial,
+              params.aporteInicial,
+              changed("aporteInicial")
+            )}
+            lockExtrasExpanded={rowExtrasLocked(
+              params.scenarioVariations.aporteInicial,
+              params.aporteInicial,
+              changed("aporteInicial")
+            )}
             extrasAriaLabel="aporte-inicial-variacoes"
           >
             {#snippet extras()}
@@ -1132,6 +1356,16 @@
               value: params.aporteProgressao,
               onChange: (value) => patchAporteProgressivo({ aporteProgressao: value })
             }}
+            forceExtrasExpanded={rowExtrasLocked(
+              params.scenarioVariations.aporteProgressao,
+              params.aporteProgressao,
+              changed("aporteProgressao")
+            )}
+            lockExtrasExpanded={rowExtrasLocked(
+              params.scenarioVariations.aporteProgressao,
+              params.aporteProgressao,
+              changed("aporteProgressao")
+            )}
             extrasAriaLabel="aporte-progressao-variacoes"
           >
             {#snippet extras()}
@@ -1169,6 +1403,16 @@
               value: params.aporteIntervaloMeses,
               onChange: (value) => patchAporteProgressivo({ aporteIntervaloMeses: value })
             }}
+            forceExtrasExpanded={rowExtrasLocked(
+              params.scenarioVariations.aporteIntervaloMeses,
+              params.aporteIntervaloMeses,
+              changed("aporteIntervaloMeses")
+            )}
+            lockExtrasExpanded={rowExtrasLocked(
+              params.scenarioVariations.aporteIntervaloMeses,
+              params.aporteIntervaloMeses,
+              changed("aporteIntervaloMeses")
+            )}
             extrasAriaLabel="aporte-intervalo-variacoes"
           >
             {#snippet extras()}
@@ -1207,6 +1451,16 @@
             value: params.taxaAnual,
             onChange: (value) => patch({ taxaAnual: value })
           }}
+          forceExtrasExpanded={rowExtrasLocked(
+            params.scenarioVariations.taxaAnual,
+            params.taxaAnual,
+            changed("taxaAnual")
+          )}
+          lockExtrasExpanded={rowExtrasLocked(
+            params.scenarioVariations.taxaAnual,
+            params.taxaAnual,
+            changed("taxaAnual")
+          )}
           extrasAriaLabel="taxa-anual-variacoes"
         >
           {#snippet extras()}
@@ -1242,6 +1496,16 @@
             value: params.trMensal,
             onChange: (value) => patch({ trMensal: value })
           }}
+          forceExtrasExpanded={rowExtrasLocked(
+            params.scenarioVariations.trMensal,
+            params.trMensal,
+            changed("trMensal")
+          )}
+          lockExtrasExpanded={rowExtrasLocked(
+            params.scenarioVariations.trMensal,
+            params.trMensal,
+            changed("trMensal")
+          )}
           extrasAriaLabel="tr-mensal-variacoes"
         >
           {#snippet extras()}
@@ -1293,6 +1557,16 @@
                   ? onValueChange("quantiaExtra", value)
                   : patch({ quantiaExtra: value })
             }}
+            forceExtrasExpanded={rowExtrasLocked(
+              params.scenarioVariations.quantiaExtra,
+              params.quantiaExtra,
+              changed("quantiaExtra")
+            )}
+            lockExtrasExpanded={rowExtrasLocked(
+              params.scenarioVariations.quantiaExtra,
+              params.quantiaExtra,
+              changed("quantiaExtra")
+            )}
             extrasAriaLabel="quantia-extra-variacoes"
           >
             {#snippet extras()}
@@ -1328,6 +1602,16 @@
               onChange: (value) =>
                 patch({ tempoRecebimentoExtraMeses: Math.max(1, Math.round(value)) })
             }}
+            forceExtrasExpanded={rowExtrasLocked(
+              params.scenarioVariations.tempoRecebimentoExtraMeses,
+              params.tempoRecebimentoExtraMeses,
+              changed("tempoRecebimentoExtraMeses")
+            )}
+            lockExtrasExpanded={rowExtrasLocked(
+              params.scenarioVariations.tempoRecebimentoExtraMeses,
+              params.tempoRecebimentoExtraMeses,
+              changed("tempoRecebimentoExtraMeses")
+            )}
             extrasAriaLabel="tempo-recebimento-extra-variacoes"
           >
             {#snippet extras()}
@@ -1421,21 +1705,21 @@
               </button>
               <button
                 type="button"
-                class="rounded-md p-1.5 text-app-subtle transition hover:bg-app-bg hover:text-app-accent"
-                aria-label={custoAdicionalExpanded(custo.id)
+                class="rounded-md p-1.5 text-app-subtle transition hover:bg-app-bg hover:text-app-accent disabled:cursor-default disabled:hover:bg-transparent disabled:hover:text-app-subtle"
+                aria-label={custoAdicionalExpanded(custo)
                   ? "Recolher custo adicional"
                   : "Expandir custo adicional"}
-                aria-expanded={custoAdicionalExpanded(custo.id)}
-                onclick={() => toggleCustoAdicional(custo.id)}
+                aria-expanded={custoAdicionalExpanded(custo)}
+                onclick={() => toggleCustoAdicional(custo)}
               >
-                {#if custoAdicionalExpanded(custo.id)}
+                {#if custoAdicionalExpanded(custo)}
                   <ChevronDown class="size-3.5" />
                 {:else}
                   <ChevronRight class="size-3.5" />
                 {/if}
               </button>
             </div>
-            {#if custoAdicionalExpanded(custo.id)}
+            {#if custoAdicionalExpanded(custo)}
               <div>
                 <ParameterRow
                   compact={rowCompact}
@@ -1453,6 +1737,16 @@
                     value: custo.valorTotal,
                     onChange: (value) => updateCustoAdicional(custo.id, { valorTotal: value })
                   }}
+                  forceExtrasExpanded={rowExtrasLocked(
+                    params.scenarioVariations.custosAdicionais[custo.id]?.valorTotal ?? [],
+                    custo.valorTotal,
+                    custoAdicionalFieldChanged(custo, "valorTotal")
+                  )}
+                  lockExtrasExpanded={rowExtrasLocked(
+                    params.scenarioVariations.custosAdicionais[custo.id]?.valorTotal ?? [],
+                    custo.valorTotal,
+                    custoAdicionalFieldChanged(custo, "valorTotal")
+                  )}
                   extrasAriaLabel={`custo-${custo.id}-valor-variacoes`}
                 >
                   {#snippet extras()}
@@ -1489,6 +1783,16 @@
                     value: custo.mesInicio,
                     onChange: (value) => updateCustoAdicional(custo.id, { mesInicio: value })
                   }}
+                  forceExtrasExpanded={rowExtrasLocked(
+                    params.scenarioVariations.custosAdicionais[custo.id]?.mesInicio ?? [],
+                    custo.mesInicio,
+                    custoAdicionalFieldChanged(custo, "mesInicio")
+                  )}
+                  lockExtrasExpanded={rowExtrasLocked(
+                    params.scenarioVariations.custosAdicionais[custo.id]?.mesInicio ?? [],
+                    custo.mesInicio,
+                    custoAdicionalFieldChanged(custo, "mesInicio")
+                  )}
                   extrasAriaLabel={`custo-${custo.id}-inicio-variacoes`}
                 >
                   {#snippet extras()}
@@ -1527,6 +1831,16 @@
                     value: custo.duracaoMeses,
                     onChange: (value) => updateCustoAdicional(custo.id, { duracaoMeses: value })
                   }}
+                  forceExtrasExpanded={rowExtrasLocked(
+                    params.scenarioVariations.custosAdicionais[custo.id]?.duracaoMeses ?? [],
+                    custo.duracaoMeses,
+                    custoAdicionalFieldChanged(custo, "duracaoMeses")
+                  )}
+                  lockExtrasExpanded={rowExtrasLocked(
+                    params.scenarioVariations.custosAdicionais[custo.id]?.duracaoMeses ?? [],
+                    custo.duracaoMeses,
+                    custoAdicionalFieldChanged(custo, "duracaoMeses")
+                  )}
                   extrasAriaLabel={`custo-${custo.id}-duracao-variacoes`}
                 >
                   {#snippet extras()}

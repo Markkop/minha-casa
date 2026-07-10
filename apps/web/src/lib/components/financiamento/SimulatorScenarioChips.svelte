@@ -331,6 +331,7 @@
             <SourceIcon class="size-3.5 shrink-0" />
           </span>
         {/each}
+        <span class="truncate">{draftComparisonGroup.name}</span>
       </button>
       <PageToolbarButton
         variant="ghost"

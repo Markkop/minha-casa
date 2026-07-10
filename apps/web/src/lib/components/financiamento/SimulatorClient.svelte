@@ -46,6 +46,11 @@
   } from "$lib/financiamento/active-parameters-text";
   import { calcularReservaRecomendada } from "$lib/financiamento/calculations";
   import { resolveEffectiveParams } from "$lib/financiamento/financing-effective-params";
+  import {
+    buildFinanceiroSuggestions,
+    buildSuggestionComparisonGroup,
+    type FinanceiroSuggestionResult
+  } from "$lib/financiamento/financeiro-suggestions";
   import { valorImovelFromListing } from "$lib/financiamento/listing-valor-imovel";
   import {
     createChartSelectionState,
@@ -143,6 +148,8 @@
   let activeScenarioId = $state<string | null>(null);
   let draftComparisonGroup = $state<FinanceiroComparisonGroupPayload | null>(null);
   let draftActive = $state(false);
+  let suggestionOriginalParams = $state<SimulatorParams | null>(null);
+  let suggestionOriginalScenarioId = $state<string | null>(null);
   let initialComparisonGroupDismissed = $state(false);
   let scenarioDestinations = $state.raw<ScenarioCollectionDestination[]>([]);
   let scenariosCollectionId = $state<string | null>(null);
@@ -176,7 +183,7 @@
 
   $effect(() => {
     if (!browser || !persistParams) return;
-    saveSimulatorParams(params);
+    saveSimulatorParams(suggestionOriginalParams ?? params);
   });
 
   $effect(() => {
@@ -293,6 +300,10 @@
       : null
   );
   const filteredCenarios = $derived(liveScenarioView.cenarios);
+  const suggestionBaseParams = $derived(suggestionOriginalParams ?? params);
+  const suggestionResults = $derived(
+    buildFinanceiroSuggestions(suggestionBaseParams, settingsContext.settings)
+  );
 
   const hiddenChartIds = $derived(new Set(params.cenariosOcultosGraficos));
   const liveScenarioColorIndex = $derived(scenarioColorIndexMap(filteredCenarios));
@@ -420,6 +431,8 @@
     }
     activeScenarioId = null;
     draftActive = false;
+    suggestionOriginalParams = null;
+    suggestionOriginalScenarioId = null;
     initialComparisonGroupDismissed = true;
     chartSelection.clearSelection();
   }
@@ -456,7 +469,10 @@
     const collectionId = destination.collection.id;
     if (!collectionId) return;
     if (collectionId === activeCollectionId && scenarios.length >= MAX_SIMULATOR_SCENARIOS) return;
-    const comparisonGroup = draftActive && draftComparisonGroup ? draftComparisonGroup : undefined;
+    const comparisonGroup =
+      draftActive && draftComparisonGroup && draftComparisonGroup.sources.length > 1
+        ? draftComparisonGroup
+        : undefined;
     const firstSource = comparisonGroup?.sources[0]?.payload;
     const created = await createScenarioSnapshot({
       collectionId,
@@ -472,6 +488,8 @@
       activeScenarioId = created.id;
       draftComparisonGroup = null;
       draftActive = false;
+      suggestionOriginalParams = null;
+      suggestionOriginalScenarioId = null;
       params = created.params;
       settingsContext.updateSettings(created.settings);
       chartSelection.clearSelection();
@@ -612,6 +630,8 @@
       settingsContext.updateSettings(restoredSettings);
       activeScenarioId = id;
       draftActive = false;
+      suggestionOriginalParams = null;
+      suggestionOriginalScenarioId = null;
       chartSelection.clearSelection();
     } finally {
       restoringScenario = false;
@@ -623,6 +643,8 @@
     if (!next) return;
     draftComparisonGroup = next;
     draftActive = true;
+    suggestionOriginalParams = null;
+    suggestionOriginalScenarioId = null;
     activeScenarioId = null;
     chartSelection.clearSelection();
   }
@@ -632,6 +654,8 @@
     if (!draftComparisonGroup || !source) return;
     draftComparisonGroup = addScenarioToComparisonGroup(draftComparisonGroup, source);
     draftActive = true;
+    suggestionOriginalParams = null;
+    suggestionOriginalScenarioId = null;
     activeScenarioId = null;
     chartSelection.clearSelection();
   }
@@ -640,13 +664,59 @@
     if (!draftComparisonGroup) return;
     draftActive = true;
     activeScenarioId = null;
+    if (draftComparisonGroup.id.startsWith("suggestion:")) {
+      const firstSourceParams = draftComparisonGroup.sources[0]?.payload.params;
+      if (firstSourceParams) {
+        params = normalizeSimulatorParams(firstSourceParams);
+      }
+    } else {
+      suggestionOriginalParams = null;
+      suggestionOriginalScenarioId = null;
+    }
     chartSelection.clearSelection();
   }
 
   function handleDiscardDraft() {
+    if (suggestionOriginalParams) {
+      params = suggestionOriginalParams;
+      activeScenarioId = suggestionOriginalScenarioId;
+    }
     draftComparisonGroup = null;
     draftActive = false;
+    suggestionOriginalParams = null;
+    suggestionOriginalScenarioId = null;
     chartSelection.clearSelection();
+  }
+
+  function activateSuggestionComparison(suggestions: FinanceiroSuggestionResult[]) {
+    const baseParams = suggestionOriginalParams ?? params;
+    const baseScenarioId = suggestionOriginalParams ? suggestionOriginalScenarioId : activeScenarioId;
+    const comparisonGroup = buildSuggestionComparisonGroup(
+      baseParams,
+      suggestions,
+      settingsContext.settings,
+      activeCollectionId
+    );
+    if (!comparisonGroup) return;
+    const firstSourceParams = comparisonGroup.sources[0]?.payload.params;
+    if (!firstSourceParams) return;
+
+    draftComparisonGroup = comparisonGroup;
+    draftActive = true;
+    suggestionOriginalParams = baseParams;
+    suggestionOriginalScenarioId = baseScenarioId;
+    params = normalizeSimulatorParams(firstSourceParams);
+    activeScenarioId = null;
+    initialComparisonGroupDismissed = true;
+    chartSelection.clearSelection();
+  }
+
+  function handleCompareSuggestion(suggestion: FinanceiroSuggestionResult) {
+    activateSuggestionComparison([suggestion]);
+  }
+
+  function handleCompareBestSuggestions(suggestions: FinanceiroSuggestionResult[]) {
+    activateSuggestionComparison(suggestions);
   }
 
   onMount(() => {
@@ -791,6 +861,7 @@
   <AdjustmentPanel
     {params}
     {recursosMeta}
+    suggestionReferenceParams={suggestionOriginalParams}
     onChange={(next) => {
       clearActiveGraphView();
       params = next;
@@ -831,6 +902,9 @@
         onAddScenarioToDraft={handleAddScenarioToDraft}
         onActivateDraft={handleActivateDraft}
         onDiscardDraft={handleDiscardDraft}
+        suggestions={suggestionResults}
+        onCompareSuggestion={handleCompareSuggestion}
+        onCompareBestSuggestions={handleCompareBestSuggestions}
         {suggestedShareTitle}
         onCreateShare={handleCreateShare}
       />

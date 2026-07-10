@@ -19,11 +19,19 @@
     valueClassName,
     hint,
     disabled = false,
+    forceExtrasExpanded = false,
+    lockExtrasExpanded = false,
     compact = false
   }: ParameterRowProps = $props();
 
   let isEditing = $state(false);
   let extrasExpanded = $state(false);
+  const resolvedExtrasExpanded = $derived(forceExtrasExpanded || extrasExpanded);
+
+  function toggleExtras() {
+    if (lockExtrasExpanded || disabled) return;
+    extrasExpanded = !extrasExpanded;
+  }
 </script>
 
 <div
@@ -120,17 +128,21 @@
           type="button"
           class={cn(
             "inline-flex size-7 shrink-0 items-center justify-center rounded-md text-app-subtle transition-colors hover:bg-app-bg hover:text-app-accent",
-            extrasExpanded && "bg-app-action/10 text-app-accent"
+            resolvedExtrasExpanded && "bg-app-action/10 text-app-accent",
+            lockExtrasExpanded && "cursor-default hover:bg-app-action/10 hover:text-app-accent"
           )}
-          aria-label={extrasExpanded ? "Recolher variações" : "Expandir variações"}
-          aria-expanded={extrasExpanded}
+          aria-label={lockExtrasExpanded
+            ? "Variações mantidas abertas"
+            : resolvedExtrasExpanded
+              ? "Recolher variações"
+              : "Expandir variações"}
+          aria-expanded={resolvedExtrasExpanded}
           aria-controls={extrasAriaLabel}
           disabled={disabled}
-          onclick={() => {
-            extrasExpanded = !extrasExpanded;
-          }}
+          title={lockExtrasExpanded ? "Variações mantidas abertas" : undefined}
+          onclick={toggleExtras}
         >
-          {#if extrasExpanded}
+          {#if resolvedExtrasExpanded}
             <ChevronDown class="h-3.5 w-3.5" />
           {:else}
             <ChevronRight class="h-3.5 w-3.5" />
@@ -140,7 +152,7 @@
     </div>
   {/if}
 
-  {#if extras && extrasExpanded}
+  {#if extras && resolvedExtrasExpanded}
     <div id={extrasAriaLabel} class="mt-1 flex flex-wrap items-center gap-1">
       {@render extras()}
     </div>
