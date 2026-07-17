@@ -7,10 +7,17 @@ defmodule MinhaCasaAiWeb.SubscriptionController do
   def show_current(conn, _params) do
     case Billing.current_subscription(conn.assigns.current_user_id) do
       nil ->
-        json(conn, %{subscription: nil, plan: nil})
+        json(conn, %{
+          accessStatus: "inactive",
+          hasActiveSubscription: false,
+          subscription: nil,
+          plan: nil
+        })
 
       %{subscription: subscription, plan: plan} ->
         json(conn, %{
+          accessStatus: "active",
+          hasActiveSubscription: true,
           subscription: BillingJSON.subscription(subscription),
           plan: BillingJSON.plan(plan)
         })

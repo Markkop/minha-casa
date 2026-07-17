@@ -31,7 +31,9 @@ defmodule MinhaCasaAi.Integrations.Langfuse.PromptDefinitions do
 
     Extraia: endereco, bairro, cidade, m2Totais, m2Privado, quartos, suites, banheiros,
     garagem, preco, tipoImovel, condominiumName, contactName, contactNumber, sitePublishedAt,
-    siteUpdatedAt e o objeto preferences com as chaves abaixo.
+    siteUpdatedAt, anoConstrucao e o objeto preferences com as chaves abaixo.
+
+    Ano civil atual: {{current_year}}.
 
     Preferências do catálogo (chave: rótulo):
     {{preference_list}}
@@ -49,6 +51,13 @@ defmodule MinhaCasaAi.Integrations.Langfuse.PromptDefinitions do
     - Em casas, "área total", "lote" ou "terreno" → m2Totais; "área construída", "área privativa" ou "construção" → m2Privado.
     - Normalize contactNumber com apenas dígitos e remova prefixo 55 quando existir.
     - Datas devem ser YYYY-MM-DD quando explícitas.
+    - anoConstrucao deve ser um inteiro de quatro dígitos entre 1000 e 9999.
+    - Use o ano de construção explicitamente informado. Se o anúncio informar apenas uma idade explícita,
+      como "imóvel com 12 anos", calcule anoConstrucao = {{current_year}} - 12.
+    - Aceite como anoConstrucao uma previsão explícita de entrega, conclusão ou finalização da obra,
+      mesmo quando o ano for futuro.
+    - Não use anos de publicação, atualização, reforma ou revitalização como anoConstrucao.
+    - Se houver anos de construção contraditórios e não for possível resolvê-los, use null.
     - Se houver vários imóveis distintos, retorne {"listings": [...]}.
     - Se houver apenas um imóvel, retorne o objeto plano.
     - Não duplique o mesmo imóvel. Limite máximo de {{max_listings}} imóveis.
@@ -77,8 +86,8 @@ defmodule MinhaCasaAi.Integrations.Langfuse.PromptDefinitions do
     Sugestões (suggestions) — apenas quando verdict = "duplicate":
     - Sugira SOMENTE atualizações que melhoram o anúncio existente: preencher campo vazio,
       completar a outra medida de área (m2Totais/m2Privado), preço mais recente, endereço mais
-      completo, quartos/suítes/banheiros/vagas corrigidos, comodidades/preferências detectadas,
-      contato e datas de publicação/atualização.
+      completo, quartos/suítes/banheiros/vagas corrigidos, ano de construção,
+      comodidades/preferências detectadas, contato e datas de publicação/atualização.
     - Cada sugestão usa exatamente um path presente em fieldDiff. Não invente paths.
     - suggestedValue deve respeitar o valueType do campo (number → número, boolean → true/false,
       text → string). Normalmente é o incomingValue, mas você pode ajustar (ex.: combinar endereço
@@ -218,6 +227,14 @@ defmodule MinhaCasaAi.Integrations.Langfuse.PromptDefinitions do
   defp step_idade do
     """
     Estime a idade do imóvel com base nas fotos dos ambientes e nos metadados do anúncio.
+
+    Ano civil atual: {{current_year}}.
+    Se os Dados do anúncio contiverem anoConstrucao válido, esse ano é autoritativo:
+    - Para anoConstrucao menor ou igual a {{current_year}}, use exatamente {{current_year}} - anoConstrucao
+      em estimativaAnos e use o mesmo valor em faixaAnos.min e faixaAnos.max. Não apresente outra idade.
+    - Para anoConstrucao futuro, trate-o como previsão de conclusão, use 0 em estimativaAnos e nos dois
+      limites de faixaAnos, e mencione a conclusão futura no resumo. Não invente uma idade já transcorrida.
+    As fotos ainda podem fundamentar resumo e sinaisVistos, mas nunca podem contradizer anoConstrucao.
 
     Contexto: {{ctx}}
     Dados do anúncio: {{facts}}

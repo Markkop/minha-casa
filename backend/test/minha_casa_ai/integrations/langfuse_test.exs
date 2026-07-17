@@ -32,6 +32,20 @@ defmodule MinhaCasaAi.Integrations.LangfuseTest do
     end
   end
 
+  test "age prompt treats construction year and current year as authoritative" do
+    prompt = PromptDefinitions.get("hermes/step/idade")["prompt"]
+
+    assert prompt =~ "Ano civil atual: {{current_year}}"
+    assert prompt =~ "anoConstrucao válido, esse ano é autoritativo"
+    assert prompt =~ "{{current_year}} - anoConstrucao"
+    assert prompt =~ "anoConstrucao futuro"
+  end
+
+  test "merge advisor includes construction year among useful improvements" do
+    prompt = PromptDefinitions.get("listing-merge/advisor")["prompt"]
+    assert prompt =~ "ano de construção"
+  end
+
   test "trace unique ids are hex strings" do
     id = Trace.unique_id()
     assert is_binary(id)

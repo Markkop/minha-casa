@@ -231,6 +231,7 @@
           <ResearchCardsGrid
             result={analysisResult}
             isRunning={analysisState.isRunning}
+            {listing}
             onRetryStep={(step) => void analysisState.retryStep(step)}
           />
         {/if}

@@ -4,7 +4,6 @@
   import { Download, FolderOpen, Link2, Loader2, Plus } from "@lucide/svelte";
   import Card from "$lib/components/ui/Card.svelte";
   import { getActiveOrganizationId } from "$lib/api/client";
-  import { syncSubscriptionCookie } from "$lib/sync-subscription-cookie";
   import { cn } from "$lib/utils";
   import { workspaceApi } from "$lib/workspace/client";
   import { getDefaultFirstCollectionName } from "$lib/anuncios/default-first-collection-name";
@@ -55,7 +54,6 @@
   }
 
   onMount(() => {
-    void syncSubscriptionCookie();
     void refreshOrganizationContext();
     const onOrgChange = () => void refreshOrganizationContext();
     window.addEventListener("minha-casa:organization-context-change", onOrgChange);

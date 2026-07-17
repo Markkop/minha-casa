@@ -1,5 +1,6 @@
 defmodule MinhaCasaAi.Integrations.ScrapingAnt do
   alias MinhaCasaAi.Config
+  alias MinhaCasaAi.Listings.ConstructionYear
 
   @general_url "https://api.scrapingant.com/v2/general"
   @min_text_length 50
@@ -135,6 +136,7 @@ defmodule MinhaCasaAi.Integrations.ScrapingAnt do
       text: text,
       image_urls: extract_image_urls_from_html(html),
       og_image_url: og_image_url,
+      construction_year: extract_construction_year_from_html(html),
       source_url: URI.to_string(uri)
     }
   end
@@ -245,6 +247,63 @@ defmodule MinhaCasaAi.Integrations.ScrapingAnt do
     |> String.trim()
     |> truncate_text()
   end
+
+  @json_ld_construction_year_keys MapSet.new([
+                                    "yearbuilt",
+                                    "constructionyear",
+                                    "yearofconstruction"
+                                  ])
+
+  @doc """
+  Extracts a construction year only from explicit JSON-LD construction-year keys.
+
+  Generic dates are intentionally ignored. If the page exposes more than one distinct
+  valid construction year, the metadata is considered conflicting and no year is returned.
+  """
+  def extract_construction_year_from_html(html) when is_binary(html) do
+    years =
+      ~r/<script\b[^>]*\btype\s*=\s*["']application\/ld\+json(?:\s*;[^"']*)?["'][^>]*>([\s\S]*?)<\/script>/i
+      |> Regex.scan(html, capture: :all_but_first)
+      |> List.flatten()
+      |> Enum.flat_map(&construction_years_from_json_ld/1)
+      |> Enum.uniq()
+
+    case years do
+      [year] -> year
+      _ -> nil
+    end
+  end
+
+  def extract_construction_year_from_html(_html), do: nil
+
+  defp construction_years_from_json_ld(raw) do
+    case Jason.decode(String.trim(raw)) do
+      {:ok, decoded} -> collect_construction_years(decoded)
+      _ -> []
+    end
+  end
+
+  defp collect_construction_years(value) when is_list(value) do
+    Enum.flat_map(value, &collect_construction_years/1)
+  end
+
+  defp collect_construction_years(value) when is_map(value) do
+    Enum.flat_map(value, fn {key, nested} ->
+      own_year =
+        if MapSet.member?(@json_ld_construction_year_keys, String.downcase(to_string(key))) do
+          case ConstructionYear.normalize(nested) do
+            nil -> []
+            year -> [year]
+          end
+        else
+          []
+        end
+
+      own_year ++ collect_construction_years(nested)
+    end)
+  end
+
+  defp collect_construction_years(_value), do: []
 
   defp decode_html_entities(text) do
     text

@@ -28,4 +28,11 @@ defmodule MinhaCasaAi.PropertyAnalyses.ListingFactsTest do
     assert text =~ "m2Totais (área total): 120"
     assert text =~ "m2Privado (área privativa): 95"
   end
+
+  test "preserves construction year as an analysis fact" do
+    facts = ListingFacts.from_listing_data(%{"anoConstrucao" => 1998, "preco" => 900_000})
+
+    assert facts == %{"anoConstrucao" => 1998}
+    assert ListingFacts.hints_text(facts) =~ "anoConstrucao: 1998"
+  end
 end

@@ -6,8 +6,8 @@
   import { getCollectionsContext } from "$lib/collections-context.svelte";
   import { getActiveOrganizationId } from "$lib/api/client";
   import { workspaceApi } from "$lib/workspace/client";
-  import type { Imovel } from "$lib/anuncios/types";
   import { toImovel } from "$lib/anuncios/types";
+  import { formatListingForJsonExport } from "$lib/anuncios/listing-json";
   import { cn } from "$lib/utils";
 
   const EXPORT_FORMAT_VERSION = "1.0";
@@ -30,43 +30,6 @@
     exportMode = "current";
   });
 
-  function formatListingForExport(listing: Imovel) {
-    return {
-      id: listing.id,
-      titulo: listing.titulo,
-      endereco: listing.endereco,
-      m2Totais: listing.m2Totais,
-      m2Privado: listing.m2Privado,
-      quartos: listing.quartos,
-      suites: listing.suites,
-      banheiros: listing.banheiros,
-      garagem: listing.garagem,
-      preco: listing.preco,
-      precoM2: listing.precoM2,
-      piscina: listing.piscina,
-      porteiro24h: listing.porteiro24h,
-      academia: listing.academia,
-      vistaLivre: listing.vistaLivre,
-      piscinaTermica: listing.piscinaTermica,
-      preferences: listing.preferences,
-      andar: listing.andar,
-      tipoImovel: listing.tipoImovel,
-      link: listing.link,
-      imageUrl: listing.imageUrl,
-      imageUrls: listing.imageUrls,
-      contactName: listing.contactName,
-      contactNumber: listing.contactNumber,
-      starred: listing.starred,
-      visited: listing.visited,
-      strikethrough: listing.strikethrough,
-      discardedReason: listing.discardedReason,
-      customLat: listing.customLat,
-      customLng: listing.customLng,
-      createdAt: listing.createdAt,
-      addedAt: listing.addedAt
-    };
-  }
-
   async function getExportData() {
     if (exportMode === "current") {
       if (!ctx.activeCollection) throw new Error("Nenhuma coleção ativa");
@@ -83,7 +46,7 @@
             updatedAt: ctx.activeCollection.updatedAt,
             isDefault: ctx.activeCollection.isDefault
           },
-          listings: ctx.listings.map(formatListingForExport)
+          listings: ctx.listings.map(formatListingForJsonExport)
         },
         null,
         2
@@ -105,7 +68,7 @@
             updatedAt: collection.updatedAt,
             isDefault: collection.isDefault
           },
-          listings: rows.map(formatListingForExport)
+          listings: rows.map(formatListingForJsonExport)
         };
       })
     );

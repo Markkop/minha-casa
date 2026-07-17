@@ -7,6 +7,7 @@ import {
   type ListingPreferencesMap
 } from "$lib/anuncios/listing-preferences";
 import type { Collection as ApiCollection, Listing as ApiListing, ListingData } from "$lib/workspace/client";
+import { normalizeConstructionYear } from "$lib/anuncios/listing-construction-year";
 
 export type { ListingData };
 
@@ -37,6 +38,7 @@ export interface Imovel {
   suites: number | null;
   banheiros: number | null;
   garagem: number | null;
+  anoConstrucao: number | null;
   preco: number | null;
   precoM2: number | null;
   piscina: boolean | null;
@@ -114,6 +116,7 @@ export function toImovel(apiListing: ApiListing, preferenceCatalog = defaultPref
     suites: (data.suites as number | null) ?? null,
     banheiros: (data.banheiros as number | null) ?? null,
     garagem: (data.garagem as number | null) ?? null,
+    anoConstrucao: normalizeConstructionYear(data.anoConstrucao),
     preco: (data.preco as number | null) ?? null,
     precoM2: (data.precoM2 as number | null) ?? null,
     piscina: synced.piscina ?? null,
@@ -173,6 +176,10 @@ export function toListingData(
   assign("suites", imovel.suites);
   assign("banheiros", imovel.banheiros);
   assign("garagem", imovel.garagem);
+  assign(
+    "anoConstrucao",
+    imovel.anoConstrucao === undefined ? undefined : normalizeConstructionYear(imovel.anoConstrucao)
+  );
   assign("preco", imovel.preco);
   assign("precoM2", imovel.precoM2);
   assign("piscina", synced.piscina);

@@ -8,7 +8,7 @@ defmodule MinhaCasaAi.Listings.MergeSessions do
   alias MinhaCasaAi.ListingImages.Fingerprint
   alias MinhaCasaAi.ListingImages.Storage
   alias MinhaCasaAi.Listings
-  alias MinhaCasaAi.Listings.{Duplicates, Listing, ListingMergeSession, MergeAdvisor}
+  alias MinhaCasaAi.Listings.{ConstructionYear, Duplicates, Listing, ListingMergeSession, MergeAdvisor}
   alias MinhaCasaAi.Repo
   alias MinhaCasaAi.Workers.ListingMergePreparationWorker
 
@@ -28,6 +28,7 @@ defmodule MinhaCasaAi.Listings.MergeSessions do
     {"suites", "Suítes", "Características", "number"},
     {"banheiros", "Banheiros", "Características", "number"},
     {"garagem", "Vagas", "Características", "number"},
+    {"anoConstrucao", "Ano de construção", "Características", "number"},
     {"andar", "Andar", "Características", "number"},
     {"endereco", "Endereço", "Localização", "text"},
     {"bairro", "Bairro", "Localização", "text"},
@@ -433,8 +434,8 @@ defmodule MinhaCasaAi.Listings.MergeSessions do
   end
 
   defp difference(path, label, group, value_type, current, imported) do
-    incoming = get_path(imported, path)
-    existing = get_path(current, path)
+    incoming = normalize_field_value(path, get_path(imported, path))
+    existing = normalize_field_value(path, get_path(current, path))
 
     if meaningful?(incoming) and incoming != existing do
       [
@@ -451,6 +452,9 @@ defmodule MinhaCasaAi.Listings.MergeSessions do
       []
     end
   end
+
+  defp normalize_field_value("anoConstrucao", value), do: ConstructionYear.normalize(value)
+  defp normalize_field_value(_path, value), do: value
 
   defp meaningful?(nil), do: false
   defp meaningful?(value) when is_binary(value), do: String.trim(value) != ""
@@ -954,10 +958,13 @@ defmodule MinhaCasaAi.Listings.MergeSessions do
   end
 
   defp resolve_field_value(field, field_values) do
-    case Map.fetch(field_values, field["path"]) do
-      {:ok, value} -> coerce_field_value(value, field["valueType"], field["incomingValue"])
-      :error -> field["incomingValue"]
-    end
+    value =
+      case Map.fetch(field_values, field["path"]) do
+        {:ok, value} -> coerce_field_value(value, field["valueType"], field["incomingValue"])
+        :error -> field["incomingValue"]
+      end
+
+    normalize_field_value(field["path"], value) || field["incomingValue"]
   end
 
   defp coerce_field_value(value, "text", _fallback) when is_binary(value), do: String.trim(value)

@@ -23,6 +23,11 @@ defmodule MinhaCasaAi.Integrations.OpenAISchemas do
       "contactNumber" => %{"type" => ["string", "null"]},
       "sitePublishedAt" => %{"type" => ["string", "null"]},
       "siteUpdatedAt" => %{"type" => ["string", "null"]},
+      "anoConstrucao" => %{
+        "type" => ["integer", "null"],
+        "minimum" => 1000,
+        "maximum" => 9999
+      },
       "link" => %{"type" => ["string", "null"]}
     }
   end

@@ -8,6 +8,7 @@
     listingDataWithPreferences,
     type ListingPreferenceOption
   } from "$lib/anuncios/listing-preferences";
+  import { isValidConstructionYear } from "$lib/anuncios/listing-construction-year";
   import type { Imovel } from "$lib/anuncios/types";
   import { formatApiError } from "$lib/api/error-message";
   import { buildBaseListingTitle } from "$lib/listing-display-title";
@@ -56,6 +57,7 @@
         suites: listing.suites,
         banheiros: listing.banheiros,
         garagem: listing.garagem,
+        anoConstrucao: listing.anoConstrucao,
         preco: listing.preco,
         piscina: listing.piscina,
         porteiro24h: listing.porteiro24h,
@@ -119,6 +121,10 @@
     if (!listing) return;
     if (!formData.endereco?.trim()) {
       error = "Endereço é obrigatório";
+      return;
+    }
+    if (formData.anoConstrucao != null && !isValidConstructionYear(formData.anoConstrucao)) {
+      error = "Ano de construção deve ter quatro dígitos, entre 1000 e 9999";
       return;
     }
     try {

@@ -2,6 +2,7 @@ defmodule MinhaCasaAi.Integrations.OpenAIListingParser do
   alias MinhaCasaAi.Config
   alias MinhaCasaAi.Integrations.Langfuse.PromptHelpers
   alias MinhaCasaAi.Integrations.{OpenAIResponses, OpenAISchemas}
+  alias MinhaCasaAi.Listings.ConstructionYear
   alias MinhaCasaAi.Workspace.ListingPreferences
 
   @max_listings 25
@@ -62,6 +63,7 @@ defmodule MinhaCasaAi.Integrations.OpenAIListingParser do
   defp prompt_compile_vars(catalog) do
     %{
       "max_listings" => Integer.to_string(@max_listings),
+      "current_year" => Integer.to_string(Date.utc_today().year),
       "preference_list" => ListingPreferences.preference_list_for_prompt(catalog)
     }
   end
@@ -106,7 +108,8 @@ defmodule MinhaCasaAi.Integrations.OpenAIListingParser do
 
   defp valid_listing?(_), do: false
 
-  defp build_listing(parsed, catalog) do
+  @doc false
+  def build_listing(parsed, catalog) do
     preferences = normalize_parsed_preferences(parsed, catalog)
     legacy = ListingPreferences.mirror_legacy_fields(preferences, catalog)
 
@@ -136,7 +139,8 @@ defmodule MinhaCasaAi.Integrations.OpenAIListingParser do
       "contactNumber" => parsed["contactNumber"],
       "addedAt" => Date.utc_today() |> Date.to_iso8601(),
       "sitePublishedAt" => parsed["sitePublishedAt"],
-      "siteUpdatedAt" => parsed["siteUpdatedAt"]
+      "siteUpdatedAt" => parsed["siteUpdatedAt"],
+      "anoConstrucao" => ConstructionYear.normalize(parsed["anoConstrucao"])
     }
   end
 

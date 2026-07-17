@@ -85,4 +85,20 @@ defmodule MinhaCasaAi.Listings.SaveListingTest do
 
     refute Map.has_key?(listing.data, "imageIngestionStatus")
   end
+
+  test "normalizes construction year on save and update", %{collection: collection} do
+    assert {:ok, listing} =
+             Listings.save_listing(collection.id, %{
+               "titulo" => "Apartamento com ano",
+               "endereco" => "Rua Teste, 789",
+               "anoConstrucao" => "1998"
+             })
+
+    assert listing.data["anoConstrucao"] == 1998
+
+    assert {:ok, updated} =
+             Listings.update_listing(collection.id, listing.id, %{"anoConstrucao" => 10_000})
+
+    assert updated.data["anoConstrucao"] == nil
+  end
 end

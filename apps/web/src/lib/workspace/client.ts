@@ -88,6 +88,7 @@ export interface ListingData {
   suites?: number | null;
   banheiros?: number | null;
   garagem?: number | null;
+  anoConstrucao?: number | null;
   preco?: number | null;
   m2Totais?: number | null;
   m2Privado?: number | null;

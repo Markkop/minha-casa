@@ -3,10 +3,10 @@
   import { page } from "$app/state";
   import { AlertCircle, Calendar, Check, CheckCircle, Crown, FlaskConical } from "@lucide/svelte";
   import { billingApi } from "$lib/billing/client";
-  import { syncSubscriptionCookie } from "$lib/sync-subscription-cookie";
   import GrantedAddonsSection from "$lib/addons/GrantedAddonsSection.svelte";
   import Button from "$lib/components/ui/Button.svelte";
   import type { AdminPlan, AdminSubscription } from "$lib/admin/client";
+  import { isSafeRedirectPath } from "$lib/navigation/safe-redirect";
 
   type Tier = {
     slug: "plus" | "pro";
@@ -51,6 +51,7 @@
   let plans = $state<AdminPlan[]>([]);
   let subscription = $state<AdminSubscription | null>(null);
   let currentPlan = $state<AdminPlan | null>(null);
+  let hasActiveSubscription = $state(false);
   let loading = $state(true);
   let checkoutPlanId = $state<string | null>(null);
   let portalLoading = $state(false);
@@ -63,9 +64,6 @@
 
   onMount(() => {
     void loadBilling();
-    if (page.url.searchParams.get("success") === "true") {
-      void syncSubscriptionCookie();
-    }
   });
 
   async function loadBilling() {
@@ -80,7 +78,11 @@
       stripeTestMode = plansData.stripeTestMode ?? false;
       subscription = subscriptionData.subscription;
       currentPlan = subscriptionData.plan;
-      await syncSubscriptionCookie();
+      hasActiveSubscription = subscriptionData.hasActiveSubscription;
+      if (hasActiveSubscription && isSafeRedirectPath(redirectPath)) {
+        window.location.replace(redirectPath);
+        return;
+      }
     } catch (err) {
       error = errorMessage(err, "Erro ao carregar assinatura");
     } finally {
@@ -107,17 +109,13 @@
     return new Date(value).getTime() - Date.now() < 7 * 24 * 60 * 60 * 1000;
   }
 
-  function isSafeRedirect(value: string | null) {
-    return Boolean(value && value.startsWith("/") && !value.startsWith("//"));
-  }
-
   async function startCheckout(plan: AdminPlan | null) {
     if (!plan) return;
     checkoutPlanId = plan.id;
     error = "";
     try {
       const origin = window.location.origin;
-      const redirect = isSafeRedirect(redirectPath) ? `&redirect=${encodeURIComponent(redirectPath ?? "")}` : "";
+      const redirect = isSafeRedirectPath(redirectPath) ? `&redirect=${encodeURIComponent(redirectPath)}` : "";
       const session = await billingApi.createCheckoutSession({
         planId: plan.id,
         successUrl: `${origin}/subscribe?success=true&session_id={CHECKOUT_SESSION_ID}${redirect}`,
@@ -198,7 +196,7 @@
         </div>
       {/if}
 
-      {#if subscription && currentPlan}
+      {#if hasActiveSubscription && subscription && currentPlan}
         <section class="mb-8 rounded-md border border-app-border bg-app-surface p-5">
           <div class="mb-4 flex items-center gap-2">
             <Crown class="h-5 w-5 text-app-muted" />
@@ -212,8 +210,8 @@
               <span class="text-app-muted">Expira</span><span><Calendar class="mr-1 inline h-4 w-4" />{formatDate(subscription.expiresAt)}</span>
             </div>
           </div>
-          {#if isSafeRedirect(redirectPath) && subscription.status === "active"}
-            <div class="mt-4"><a href={redirectPath ?? "/anuncios"}><Button>Continuar</Button></a></div>
+          {#if isSafeRedirectPath(redirectPath)}
+            <div class="mt-4"><a href={redirectPath}><Button>Continuar</Button></a></div>
           {/if}
           {#if subscription.stripeSubscriptionId}
             <div class="mt-4">

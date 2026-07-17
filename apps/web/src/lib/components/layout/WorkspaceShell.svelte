@@ -32,7 +32,6 @@
     WORKSPACE_SIDEBAR_WIDTH,
     workspaceTopBarControlClass
   } from "$lib/workspace-chrome";
-  import { syncSubscriptionCookie } from "$lib/sync-subscription-cookie";
   import { workspaceApi } from "$lib/workspace/client";
   import ImportExportMenuItems from "$lib/components/anuncios/ImportExportMenuItems.svelte";
   import {
@@ -54,10 +53,9 @@
     adminFlag?: AdminFeatureFlagName;
   };
 
-  let { children, user, subscriptionActive = false } = $props<{
+  let { children, user } = $props<{
     children?: import("svelte").Snippet;
     user?: ShellUser | null;
-    subscriptionActive?: boolean;
   }>();
 
   let sidebarOpen = $state(true);
@@ -71,17 +69,11 @@
     void featureFlagsSyncTick;
     return readAdminFeatureFlags(isAdmin);
   });
-  let subscriptionReady = $state(false);
-  let hasActiveSubscription = $state(false);
   const rightSidebar = createWorkspaceRightSidebarState();
   setWorkspaceRightSidebarContext(rightSidebar);
 
-  const shouldLoadCollections = $derived(
-    Boolean(user) &&
-      subscriptionReady &&
-      (subscriptionActive || hasActiveSubscription)
-  );
-  const showSubscriptionPendingChrome = $derived(Boolean(user) && !subscriptionReady);
+  const shouldLoadCollections = $derived(Boolean(user));
+  const showSubscriptionPendingChrome = false;
 
   const coreLinks: NavLink[] = [
     { href: "/anuncios", label: "Anúncios", icon: Home },
@@ -143,22 +135,6 @@
     )
   );
 
-  async function refreshSubscription() {
-    if (!user) {
-      hasActiveSubscription = false;
-      subscriptionReady = true;
-      return false;
-    }
-    try {
-      const result = await syncSubscriptionCookie();
-      hasActiveSubscription = result.hasActiveSubscription;
-    } catch {
-      hasActiveSubscription = subscriptionActive;
-    }
-    subscriptionReady = true;
-    return hasActiveSubscription;
-  }
-
   function refreshOrganizations() {
     void workspaceApi
       .fetchOrganizations()
@@ -169,18 +145,6 @@
         hasTeamOrganizations = false;
       });
   }
-
-  $effect(() => {
-    if (!user) {
-      hasActiveSubscription = false;
-      subscriptionReady = true;
-      return;
-    }
-
-    hasActiveSubscription = subscriptionActive;
-    subscriptionReady = true;
-    void refreshSubscription();
-  });
 
   $effect(() => {
     if (!user) {
@@ -240,12 +204,6 @@
     accountOpen = false;
   }
 
-  function handleVisibilityChange() {
-    if (document.visibilityState === "visible" && user) {
-      void refreshSubscription();
-    }
-  }
-
   function handleStorageSync() {
     featureFlagsSyncTick += 1;
   }
@@ -257,7 +215,7 @@
   });
 </script>
 
-<svelte:window onvisibilitychange={handleVisibilityChange} onstorage={handleStorageSync} />
+<svelte:window onstorage={handleStorageSync} />
 
 {#snippet accountMenuItems()}
   <ImportExportMenuItems />

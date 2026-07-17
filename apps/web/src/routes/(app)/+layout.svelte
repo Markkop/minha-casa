@@ -8,6 +8,6 @@
   }>();
 </script>
 
-<WorkspaceShell user={data.user} subscriptionActive={data.subscriptionActive}>
+<WorkspaceShell user={data.user}>
   {@render children?.()}
 </WorkspaceShell>

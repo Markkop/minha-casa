@@ -43,6 +43,30 @@ defmodule MinhaCasaAi.Listings.MergeSessionsTest do
     assert field_value_type(fields, "piscina") == "boolean"
   end
 
+  test "exposes normalized construction year as a mergeable field" do
+    fields =
+      MergeSessions.field_differences(
+        %{"anoConstrucao" => 1990},
+        %{"anoConstrucao" => "1998"}
+      )
+
+    assert [field] = Enum.filter(fields, &(&1["path"] == "anoConstrucao"))
+    assert field["label"] == "Ano de construção"
+    assert field["valueType"] == "number"
+    assert field["currentValue"] == 1990
+    assert field["incomingValue"] == 1998
+  end
+
+  test "does not expose an invalid construction year for merge" do
+    fields =
+      MergeSessions.field_differences(
+        %{"anoConstrucao" => 1990},
+        %{"anoConstrucao" => 10_000}
+      )
+
+    refute Enum.any?(fields, &(&1["path"] == "anoConstrucao"))
+  end
+
   defp field_value_type(fields, path) do
     fields
     |> Enum.find(&(&1["path"] == path))

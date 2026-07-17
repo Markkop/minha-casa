@@ -33,6 +33,7 @@ function makeListing(id: string, overrides: Partial<Imovel> = {}): Imovel {
     suites: null,
     banheiros: 1,
     garagem: 1,
+    anoConstrucao: null,
     preco: 500_000,
     precoM2: 5_000,
     piscina: null,

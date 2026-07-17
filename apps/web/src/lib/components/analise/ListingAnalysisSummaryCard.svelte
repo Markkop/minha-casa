@@ -1,6 +1,6 @@
 <script lang="ts">
   import { goto } from "$app/navigation";
-  import { Star } from "@lucide/svelte";
+  import { CalendarClock, Star } from "@lucide/svelte";
   import type { Imovel } from "$lib/anuncios/types";
   import { formatApiError } from "$lib/api/error-message";
   import {
@@ -8,6 +8,7 @@
     buildListingCoreAmenityItems
   } from "$lib/anuncios/listing-amenity-labels";
   import { buildListingMarkdown } from "$lib/anuncios/listing-markdown";
+  import { getConstructionYearPresentation } from "$lib/anuncios/listing-construction-year";
   import { formatListingDate, formatListingFullDateTime } from "$lib/anuncios/listing-dates";
   import ClickablePrice from "$lib/components/anuncios/ClickablePrice.svelte";
   import {
@@ -78,6 +79,9 @@
   const displayTitle = $derived(getListingDisplayTitle(listing));
   const currentCollectionId = $derived(collectionId ?? collectionsContext.activeCollection?.id ?? null);
   const coreAmenityItems = $derived(buildListingCoreAmenityItems(listing));
+  const constructionYearPresentation = $derived(
+    getConstructionYearPresentation(listing.anoConstrucao)
+  );
   const amenityItems = $derived(buildListingAmenityItems(listing));
   const mapsUrl = $derived(listing.endereco ? buildGoogleMapsUrl(listing.endereco) : null);
   const areaMetricColumns = $derived(buildAnaliseAreaMetricColumns(listing));
@@ -214,7 +218,7 @@
       {/if}
     </div>
 
-    {#if coreAmenityItems.length > 0}
+    {#if coreAmenityItems.length > 0 || constructionYearPresentation}
       <ul
         class={cn(
           "flex flex-nowrap items-center gap-x-3 overflow-x-auto",
@@ -227,6 +231,23 @@
             <span>{item.label}</span>
           </li>
         {/each}
+        {#if constructionYearPresentation}
+          <li class="inline-flex shrink-0 items-center text-xs text-app-muted">
+            <ComparisonTooltip side="bottom">
+              {#snippet trigger()}
+                <button
+                  type="button"
+                  aria-label={constructionYearPresentation.tooltip}
+                  class="inline-flex cursor-default items-center gap-1 rounded-sm bg-transparent p-0 text-inherit outline-none focus-visible:ring-2 focus-visible:ring-app-action/50"
+                >
+                  <CalendarClock class="h-3 w-3 shrink-0" />
+                  <span class="tabular-nums">{constructionYearPresentation.year}</span>
+                </button>
+              {/snippet}
+              {constructionYearPresentation.tooltip}
+            </ComparisonTooltip>
+          </li>
+        {/if}
       </ul>
     {/if}
 

@@ -70,5 +70,20 @@
         class={EDIT_MODAL_INPUT_CLASS}
       />
     </div>
+
+    <div class="space-y-2">
+      <label for="anoConstrucao" class="text-sm text-app-muted">Ano de construção</label>
+      <Input
+        id="anoConstrucao"
+        type="number"
+        min={1000}
+        max={9999}
+        step={1}
+        value={formData.anoConstrucao ?? ""}
+        oninput={(e) => handlers.onNumberInputChange("anoConstrucao", e.currentTarget.value)}
+        placeholder="1998"
+        class={EDIT_MODAL_INPUT_CLASS}
+      />
+    </div>
   </div>
 </div>

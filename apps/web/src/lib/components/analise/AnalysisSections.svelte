@@ -58,7 +58,7 @@
   <!-- non-v6 result while idle -->
 {:else}
   <div class={cn("space-y-6", className)}>
-    <ResearchCardsGrid {result} {isRunning} {onRetryStep} />
+    <ResearchCardsGrid {result} {isRunning} {listing} {onRetryStep} />
     <AmbientesPanel
       {result}
       {isRunning}

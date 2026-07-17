@@ -83,7 +83,7 @@ STRIPE_WEBHOOK_SECRET=...
 DATABASE_URL=postgresql://minhacasa:minhacasa_local_password@localhost:5435/minha_casa_local pnpm db:migrate
 ```
 
-**Subscription gating:** after login, the app calls `GET /api/subscriptions` on the Svelte origin to set the httpOnly `subscription-status` cookie used by SvelteKit route gating. [`apps/web/src/lib/sync-subscription-cookie.ts`](apps/web/src/lib/sync-subscription-cookie.ts) is used from login, signup, subscribe, and anuncios.
+**Subscription gating:** protected navigations resolve the authenticated user's entitlement server-side from an active, unexpired subscription. Database failures use a distinct unavailable state instead of being treated as an inactive plan. `GET /api/subscriptions` exposes the same explicit access result for subscription management; the legacy `subscription-status` cookie is deleted and is not trusted for authorization.
 
 The backend now has JWT-authenticated browser endpoints, starting with:
 
@@ -92,14 +92,14 @@ GET /api/me
 Authorization: Bearer <better-auth-jwt>
 ```
 
-The Svelte API client calls **same-origin** `/api/*` in the browser (SvelteKit proxies to Phoenix on `PHOENIX_API_URL`, default `http://localhost:4000`). `/api/subscriptions` stays on SvelteKit for the subscription cookie. Requests use Better Auth JWTs. It also sends `X-Organization-Id` when the user selects an active organization in `/organizacoes`; Phoenix validates membership in `JwtAuth` before assigning `current_org_id`. Existing internal Phoenix routes are still mounted for parts not yet migrated; do not expose internal headers to browser code.
+The Svelte API client calls **same-origin** `/api/*` in the browser (SvelteKit proxies to Phoenix on `PHOENIX_API_URL`, default `http://localhost:4000`). `/api/subscriptions` stays on SvelteKit to reuse the server-side entitlement resolver. Requests use Better Auth JWTs. It also sends `X-Organization-Id` when the user selects an active organization in `/organizacoes`; Phoenix validates membership in `JwtAuth` before assigning `current_org_id`. Existing internal Phoenix routes are still mounted for parts not yet migrated; do not expose internal headers to browser code.
 
 ## Key files
 
 - `apps/web/src/hooks.server.ts`: Better Auth handler, session population, auth redirects, subscription route gating.
 - `apps/web/src/lib/auth.ts`: Better Auth server config with JWT plugin and Drizzle adapter (shared `lib/db` schema).
-- `apps/web/src/routes/api/subscriptions/+server.ts`: sets httpOnly `subscription-status` cookie for route gating.
-- `apps/web/src/lib/sync-subscription-cookie.ts`: client helper to refresh subscription cookie via SvelteKit BFF.
+- `apps/web/src/routes/api/subscriptions/+server.ts`: returns the explicit current subscription access state used by subscription management.
+- `apps/web/src/lib/server/subscription-access.ts`: active/inactive/unavailable entitlement resolver shared by guards and server endpoints.
 - `apps/web/src/lib/auth-client.ts`: Svelte Better Auth client.
 - `apps/web/src/lib/stores/auth.ts`: cached JWT helper for Phoenix API calls.
 - `apps/web/src/lib/organization-context.ts`: active-organization httpOnly cookie name and options.

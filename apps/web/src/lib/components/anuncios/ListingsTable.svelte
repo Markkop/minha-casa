@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount } from "svelte";
+  import { onMount, untrack } from "svelte";
   import { Home } from "@lucide/svelte";
   import {
     coercePreferenceCatalog,
@@ -52,6 +52,12 @@
 
   $effect(() => {
     rowInteractionsRegistry.prune(new Set(listings.map((listing: Imovel) => listing.id)));
+  });
+
+  $effect(() => {
+    void pendingAdd.clipboardProfileKey;
+    void pendingAdd.hasAnyListings;
+    untrack(() => pendingAdd.clipboardAutoDetect.refreshEligibility());
   });
 
   let copiedVisibleMarkdown = $state(false);

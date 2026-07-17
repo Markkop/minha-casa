@@ -1,6 +1,8 @@
 <script lang="ts">
   import { ClipboardPaste, Link } from "@lucide/svelte";
+  import { shouldPulseClipboardButton } from "$lib/anuncios/clipboard-auto-detect-policy";
   import PageToolbarIconButton from "$lib/components/page-toolbar/PageToolbarIconButton.svelte";
+  import ClipboardEmptyDialog from "$lib/components/anuncios/ClipboardEmptyDialog.svelte";
   import type { createListingsTablePendingAdd } from "$lib/components/anuncios/listings-table-pending-add.svelte";
   import { cn } from "$lib/utils";
 
@@ -15,12 +17,42 @@
   } = $props();
 
   const clipboardMatch = $derived(pendingAdd.clipboardAutoDetect.match);
+  const shouldPulse = $derived(
+    shouldPulseClipboardButton({
+      hasAnyListings: pendingAdd.hasAnyListings,
+      hasMatch: Boolean(clipboardMatch)
+    })
+  );
   let previewOpen = $state(false);
+  let clipboardDialogOpen = $state(false);
+  let clipboardDialogVariant = $state<"empty" | "denied">("empty");
+  let isReadingClipboard = $state(false);
+
+  async function handlePasteFromClipboard() {
+    if (isReadingClipboard || pendingAdd.isSubmittingAdd) return;
+    isReadingClipboard = true;
+    try {
+      const result = await pendingAdd.addFromClipboard();
+      if (result === "empty") {
+        clipboardDialogVariant = "empty";
+        clipboardDialogOpen = true;
+      } else if (result === "denied") {
+        clipboardDialogVariant = "denied";
+        clipboardDialogOpen = true;
+      } else if (result === "submitted") {
+        clipboardDialogOpen = false;
+      }
+    } finally {
+      isReadingClipboard = false;
+    }
+  }
 </script>
 
 <div class="flex shrink-0 flex-col items-start gap-0.5">
   <div
     class="relative"
+    role="group"
+    aria-label="Adicionar usando a área de transferência"
     onmouseenter={() => {
       if (clipboardMatch) previewOpen = true;
     }}
@@ -30,14 +62,14 @@
   >
     <PageToolbarIconButton
       variant="secondary"
-      onclick={() => void pendingAdd.addFromClipboard()}
-      disabled={pendingAdd.isSubmittingAdd}
+      onclick={() => void handlePasteFromClipboard()}
+      disabled={pendingAdd.isSubmittingAdd || isReadingClipboard}
       aria-label="Adicionar da área de transferência"
       title="Adicionar da área de transferência"
       tooltipDisabled={Boolean(clipboardMatch && previewOpen)}
       class={cn(
         large ? "h-9 w-9" : undefined,
-        clipboardMatch && "animate-clipboard-glow"
+        shouldPulse && "animate-clipboard-glow"
       )}
     >
       <ClipboardPaste />
@@ -69,3 +101,13 @@
     <p class="max-w-48 text-[10px] leading-tight text-destructive">{pendingAdd.clipboardAddError}</p>
   {/if}
 </div>
+
+<ClipboardEmptyDialog
+  isOpen={clipboardDialogOpen}
+  variant={clipboardDialogVariant}
+  busy={isReadingClipboard || pendingAdd.isSubmittingAdd}
+  error={pendingAdd.clipboardAddError}
+  failureKind={pendingAdd.clipboardFailureKind}
+  onClose={() => (clipboardDialogOpen = false)}
+  onRetry={handlePasteFromClipboard}
+/>

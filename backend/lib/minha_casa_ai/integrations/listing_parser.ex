@@ -32,13 +32,14 @@ defmodule MinhaCasaAi.Integrations.ListingParser do
     with {:ok, scraped} <- ScrapingAnt.scrape_url(url),
          {:ok, listings} <-
            OpenAIListingParser.parse_text(
-             "URL do anúncio: #{scraped.source_url}\n\n#{scraped.text}",
+             url_listing_text(scraped),
              parser_opts(input, opts)
            ) do
       listings =
         listings
         |> Enum.map(&ensure_link(&1, scraped.source_url))
         |> Enum.map(&ensure_cover(&1, Map.get(scraped, :og_image_url)))
+        |> Enum.map(&ensure_construction_year(&1, Map.get(scraped, :construction_year)))
 
       {:ok, listings}
     end
@@ -67,6 +68,22 @@ defmodule MinhaCasaAi.Integrations.ListingParser do
       _ -> Map.put(listing, "link", source_url)
     end
   end
+
+  defp url_listing_text(scraped) do
+    metadata =
+      case Map.get(scraped, :construction_year) do
+        year when is_integer(year) -> "\nAno de construção em JSON-LD explícito: #{year}"
+        _ -> ""
+      end
+
+    "URL do anúncio: #{scraped.source_url}#{metadata}\n\n#{scraped.text}"
+  end
+
+  defp ensure_construction_year(listing, year) when is_integer(year) do
+    Map.put(listing, "anoConstrucao", year)
+  end
+
+  defp ensure_construction_year(listing, _year), do: listing
 
   defp assert_size(base64, max_bytes) do
     cleaned = Regex.replace(~r/^data:[^;]+;base64,/, base64 || "", "")

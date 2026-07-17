@@ -8,8 +8,7 @@
   let { data }: { data: PageData } = $props();
 
   const snapshot = $derived(data.snapshot);
-  const user = $derived(data.user);
-  const canImport = $derived(Boolean(user && data.subscriptionActive));
+  const canImport = $derived(data.canImport);
 </script>
 
 <svelte:head>

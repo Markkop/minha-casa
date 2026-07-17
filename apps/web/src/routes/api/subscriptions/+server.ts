@@ -1,36 +1,35 @@
 import "$lib/server/load-env";
 import { json } from "@sveltejs/kit";
 import { and, eq, getDb, plans, subscriptions, users } from "@minha-casa/db";
-import { getAuth } from "$lib/auth";
-import { SUBSCRIPTION_ACTIVE } from "$lib/subscription";
-import {
-  refreshSubscriptionStatusCookie,
-  setSubscriptionStatusCookie
-} from "$lib/server/subscription-status";
+import { getSubscriptionAccess } from "$lib/server/subscription-access";
 import type { RequestHandler } from "./$types";
 
-export const GET: RequestHandler = async ({ request, cookies }) => {
-  const session = await getAuth().api.getSession({ headers: request.headers });
-  if (!session?.user) {
+export const GET: RequestHandler = async ({ locals }) => {
+  if (!locals.user) {
     return json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  try {
-    const result = await refreshSubscriptionStatusCookie(cookies, session.user.id);
-    return json({ subscription: result.subscription, plan: result.plan });
-  } catch (error) {
-    console.error("[api/subscriptions] GET failed", error);
-    return json({ error: "Failed to fetch subscription" }, { status: 500 });
+  const access = await getSubscriptionAccess(locals);
+  if (access.state === "unavailable") {
+    return json({ error: "Subscription validation is temporarily unavailable" }, { status: 503 });
   }
+
+  const hasActiveSubscription =
+    access.state === "active" && access.source === "subscription";
+  return json({
+    accessStatus: hasActiveSubscription ? "active" : "inactive",
+    hasActiveSubscription,
+    subscription: access.subscription,
+    plan: access.plan
+  });
 };
 
-export const POST: RequestHandler = async ({ request, cookies }) => {
-  const session = await getAuth().api.getSession({ headers: request.headers });
-  if (!session?.user) {
+export const POST: RequestHandler = async ({ request, locals }) => {
+  if (!locals.user) {
     return json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  if (!(session.user as { isAdmin?: boolean }).isAdmin) {
+  if (!locals.user.isAdmin) {
     return json({ error: "Only admins can create subscriptions" }, { status: 403 });
   }
 
@@ -75,14 +74,10 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
         planId,
         status: "active",
         expiresAt: subscriptionExpiresAt,
-        grantedBy: session.user.id,
+        grantedBy: locals.user.id,
         notes: notes ?? null
       })
       .returning();
-
-    if (userId === session.user.id) {
-      setSubscriptionStatusCookie(cookies, SUBSCRIPTION_ACTIVE, subscriptionExpiresAt);
-    }
 
     return json({ subscription: newSubscription }, { status: 201 });
   } catch (error) {

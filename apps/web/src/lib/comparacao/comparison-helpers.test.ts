@@ -35,6 +35,7 @@ function listing(id: string, options: Partial<Imovel> = {}): Imovel {
     suites: null,
     banheiros: null,
     garagem: null,
+    anoConstrucao: null,
     preco: null,
     precoM2: null,
     piscina: null,

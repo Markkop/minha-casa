@@ -3,6 +3,7 @@
   import NaturalRisksCard from "$lib/components/analise/NaturalRisksCard.svelte";
   import MarketCard from "$lib/components/analise/MarketCard.svelte";
   import PropertyAgeCard from "$lib/components/analise/PropertyAgeCard.svelte";
+  import type { Imovel } from "$lib/anuncios/types";
   import { analysisStepStatus } from "$lib/property-analysis/step-status";
   import type {
     ListingAnalysisPipelineStep,
@@ -12,10 +13,12 @@
   let {
     result,
     isRunning,
+    listing = null,
     onRetryStep
   }: {
     result: ListingAnalysisResult | null;
     isRunning: boolean;
+    listing?: Imovel | null;
     onRetryStep?: (step: ListingAnalysisPipelineStep) => void;
   } = $props();
 
@@ -49,6 +52,7 @@
   />
   <PropertyAgeCard
     data={result?.idade}
+    constructionYear={listing?.anoConstrucao ?? null}
     status={analysisStepStatus("idade", result, isRunning)}
     onRefresh={refresh("idade")}
     errorMessage={stepError("idade")}

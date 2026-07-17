@@ -2,9 +2,20 @@ import {
   detectClipboardListingContent,
   type ClipboardListingMatch
 } from "$lib/anuncios/clipboard-listing-detection";
+import { shouldAutoProbe } from "$lib/anuncios/clipboard-auto-detect-policy";
+import {
+  classifyClipboardReadError,
+  queryClipboardReadPermission
+} from "$lib/anuncios/clipboard-errors";
 
 const STORAGE_ENABLED_KEY = "minha-casa:clipboard-auto-detect-enabled";
 const STORAGE_COACH_MARK_SEEN_KEY = "minha-casa:clipboard-auto-detect-coach-mark-seen";
+const STORAGE_ACTIVATED_KEY_PREFIX = "minha-casa:clipboard-auto-detect-activated";
+
+type ClipboardAutoDetectOptions = {
+  getProfileKey: () => string | null;
+  getHasAnyListings: () => boolean;
+};
 
 function readStoredEnabled(): boolean {
   if (typeof localStorage === "undefined") return true;
@@ -22,13 +33,20 @@ function hashContent(value: string): string {
   return value.trim();
 }
 
-export function createClipboardAutoDetect() {
+function activationStorageKey(profileKey: string): string {
+  return `${STORAGE_ACTIVATED_KEY_PREFIX}:${profileKey}`;
+}
+
+export function createClipboardAutoDetect(options: ClipboardAutoDetectOptions) {
   let enabled = $state(readStoredEnabled());
   let match = $state<ClipboardListingMatch | null>(null);
   let coachMarkVisible = $state(false);
+  let permissionDenied = $state(false);
   let lastContentHash = $state("");
   let debounceTimer: ReturnType<typeof setTimeout> | null = null;
   let listenersAttached = false;
+  let observedProfileKey: string | null | undefined;
+  const activatedProfiles = new Set<string>();
 
   function persistEnabled(value: boolean) {
     enabled = value;
@@ -41,6 +59,55 @@ export function createClipboardAutoDetect() {
     if (typeof localStorage !== "undefined") {
       localStorage.setItem(STORAGE_COACH_MARK_SEEN_KEY, "true");
     }
+  }
+
+  function isProfileActivated(): boolean {
+    const profileKey = options.getProfileKey();
+    if (!profileKey) return false;
+    if (options.getHasAnyListings() || activatedProfiles.has(profileKey)) return true;
+    if (typeof localStorage === "undefined") return false;
+    return localStorage.getItem(activationStorageKey(profileKey)) === "true";
+  }
+
+  function persistProfileActivation(profileKey: string) {
+    activatedProfiles.add(profileKey);
+    if (typeof localStorage !== "undefined") {
+      localStorage.setItem(activationStorageKey(profileKey), "true");
+    }
+  }
+
+  function syncProfile() {
+    const profileKey = options.getProfileKey();
+    if (observedProfileKey === undefined) {
+      observedProfileKey = profileKey;
+      return;
+    }
+    if (profileKey === observedProfileKey) return;
+
+    observedProfileKey = profileKey;
+    match = null;
+    lastContentHash = "";
+    if (debounceTimer) {
+      clearTimeout(debounceTimer);
+      debounceTimer = null;
+    }
+  }
+
+  function rememberListingHistory() {
+    const profileKey = options.getProfileKey();
+    if (profileKey && options.getHasAnyListings()) {
+      persistProfileActivation(profileKey);
+    }
+  }
+
+  function activateCurrentProfile() {
+    syncProfile();
+    const profileKey = options.getProfileKey();
+    if (profileKey) persistProfileActivation(profileKey);
+  }
+
+  function canAutoProbe() {
+    return shouldAutoProbe({ enabled, activated: isProfileActivated() });
   }
 
   function showCoachMarkIfNeeded() {
@@ -56,7 +123,7 @@ export function createClipboardAutoDetect() {
       lastContentHash = "";
     } else {
       coachMarkVisible = false;
-      scheduleProbe();
+      if (isProfileActivated()) scheduleProbe();
     }
   }
 
@@ -70,18 +137,6 @@ export function createClipboardAutoDetect() {
     lastContentHash = "";
   }
 
-  async function queryClipboardPermission(): Promise<PermissionState | "unsupported"> {
-    try {
-      if (!navigator.permissions?.query) return "unsupported";
-      const status = await navigator.permissions.query({
-        name: "clipboard-read" as PermissionName
-      });
-      return status.state;
-    } catch {
-      return "unsupported";
-    }
-  }
-
   async function readClipboardText(): Promise<string | null> {
     const clipboard = navigator.clipboard;
     if (!clipboard?.readText) return null;
@@ -89,12 +144,17 @@ export function createClipboardAutoDetect() {
   }
 
   async function probeClipboard() {
-    if (!enabled || typeof document === "undefined" || document.visibilityState !== "visible") {
+    if (!canAutoProbe() || typeof document === "undefined" || document.visibilityState !== "visible") {
       return;
     }
 
-    const permission = await queryClipboardPermission();
-    if (permission === "denied") return;
+    const permission = await queryClipboardReadPermission();
+    if (permission === "denied") {
+      permissionDenied = true;
+      return;
+    }
+
+    permissionDenied = false;
 
     try {
       const text = await readClipboardText();
@@ -111,20 +171,31 @@ export function createClipboardAutoDetect() {
       lastContentHash = contentHash;
       match = detected;
     } catch (error) {
-      const isDenied =
-        error instanceof DOMException &&
-        (error.name === "NotAllowedError" || error.name === "SecurityError");
+      const kind = classifyClipboardReadError(error);
 
-      if (isDenied) {
+      if (kind === "denied") {
+        const currentPermission = await queryClipboardReadPermission();
+        if (currentPermission === "denied") {
+          permissionDenied = true;
+          return;
+        }
+
         persistEnabled(false);
         match = null;
         lastContentHash = "";
         showCoachMarkIfNeeded();
+        return;
+      }
+
+      if (kind === "insecure") {
+        match = null;
+        lastContentHash = "";
       }
     }
   }
 
   function scheduleProbe() {
+    if (!canAutoProbe()) return;
     if (debounceTimer) clearTimeout(debounceTimer);
     debounceTimer = setTimeout(() => {
       debounceTimer = null;
@@ -133,6 +204,7 @@ export function createClipboardAutoDetect() {
   }
 
   function handleFocus() {
+    syncProfile();
     scheduleProbe();
   }
 
@@ -145,7 +217,15 @@ export function createClipboardAutoDetect() {
     listenersAttached = true;
     window.addEventListener("focus", handleFocus);
     document.addEventListener("visibilitychange", handleVisibilityChange);
-    scheduleProbe();
+    syncProfile();
+    rememberListingHistory();
+    if (isProfileActivated()) scheduleProbe();
+  }
+
+  function refreshEligibility() {
+    syncProfile();
+    rememberListingHistory();
+    if (listenersAttached && isProfileActivated()) scheduleProbe();
   }
 
   function detachListeners() {
@@ -169,9 +249,17 @@ export function createClipboardAutoDetect() {
     get coachMarkVisible() {
       return coachMarkVisible;
     },
+    get permissionDenied() {
+      return permissionDenied;
+    },
+    get activated() {
+      return isProfileActivated();
+    },
     setEnabled,
     dismissCoachMark,
     clearMatch,
+    activateCurrentProfile,
+    refreshEligibility,
     attachListeners,
     detachListeners
   };

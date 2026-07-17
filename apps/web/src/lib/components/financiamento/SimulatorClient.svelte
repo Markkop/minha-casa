@@ -2,7 +2,6 @@
   import { browser } from "$app/environment";
   import { goto } from "$app/navigation";
   import { AlertCircle, Check, ClipboardPaste, Copy, Sparkles } from "@lucide/svelte";
-  import { onMount } from "svelte";
   import type { Snippet } from "svelte";
   import { page } from "$app/state";
   import AnaliseQuerySync from "$lib/components/analise/AnaliseQuerySync.svelte";
@@ -95,7 +94,6 @@
     scenarioLabel
   } from "$lib/components/financiamento/charts/chart-shared";
   import { createInitialSimulatorParams } from "$lib/financiamento/simulator-recursos";
-  import { syncSubscriptionCookie } from "$lib/sync-subscription-cookie";
   import { writeStoredWorkspaceListingId } from "$lib/workspace-listing-storage";
   import {
     WORKSPACE_CONTENT_CLASS,
@@ -718,11 +716,6 @@
   function handleCompareBestSuggestions(suggestions: FinanceiroSuggestionResult[]) {
     activateSuggestionComparison(suggestions);
   }
-
-  onMount(() => {
-    if (!workspaceMode) return;
-    void syncSubscriptionCookie();
-  });
 
   $effect(() => {
     if (!workspaceMode || priceInitialized) return;

@@ -32,11 +32,11 @@
       <p class="text-xs font-medium text-app-fg">Configurações</p>
       <label class="flex cursor-pointer items-start justify-between gap-3">
         <span class="text-xs leading-snug text-app-muted">
-          Detectar área de transferência automaticamente
+          Detectar automaticamente após o primeiro uso
         </span>
         <Switch
           checked={clipboardAutoDetect.enabled}
-          aria-label="Detectar área de transferência automaticamente"
+          aria-label="Detectar área de transferência automaticamente após o primeiro uso"
           onCheckedChange={(checked) => clipboardAutoDetect.setEnabled(checked)}
         />
       </label>

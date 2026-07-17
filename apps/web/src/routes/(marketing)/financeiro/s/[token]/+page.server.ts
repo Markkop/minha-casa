@@ -4,8 +4,9 @@ import {
   normalizeSharedSnapshot,
   type FinanceiroSharedSnapshotResponse
 } from "$lib/financiamento/shared-snapshot";
+import { getSubscriptionAccess } from "$lib/server/subscription-access";
 
-export const load = async ({ params, fetch }) => {
+export const load = async ({ params, fetch, locals }) => {
   const token = params.token?.trim();
   if (!token) {
     throw error(404, "Link não encontrado");
@@ -24,5 +25,6 @@ export const load = async ({ params, fetch }) => {
     throw error(500, "Snapshot inválido");
   }
 
-  return { snapshot };
+  const access = locals.user ? await getSubscriptionAccess(locals) : null;
+  return { snapshot, canImport: access?.state === "active" };
 };

@@ -102,6 +102,7 @@ defmodule MinhaCasaAi.PropertyAnalyses.HermesSteps.PromptTemplates do
       "ctx" => ctx,
       "facts" => facts,
       "ambientes_json" => ambientes_json,
+      "current_year" => Integer.to_string(Date.utc_today().year),
       "pt_rules" => pt_rules
     })
   end

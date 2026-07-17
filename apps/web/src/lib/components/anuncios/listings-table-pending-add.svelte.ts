@@ -21,6 +21,20 @@ import {
 import type { CollectionsContextValue } from "$lib/collections-context.svelte";
 import { looksLikeUrl } from "$lib/anuncios/clipboard-listing-detection";
 import { createClipboardAutoDetect } from "$lib/anuncios/clipboard-auto-detect.svelte";
+import {
+  hasAnyProfileListings,
+  resolveClipboardProfileKey
+} from "$lib/anuncios/clipboard-auto-detect-policy";
+import { readClipboardListingPayload } from "$lib/anuncios/clipboard-read";
+import {
+  classifyClipboardReadError,
+  clipboardFailureMessage,
+  isClipboardPermissionDenied,
+  queryClipboardReadPermission,
+  type ClipboardReadFailureKind
+} from "$lib/anuncios/clipboard-errors";
+
+export type ClipboardAddResult = "submitted" | "empty" | "denied" | "error" | "ignored";
 
 async function buildInlineParseInput(value: string, file: File | null): Promise<ParseRequest> {
   if (file) return buildParseRequestFromFile(file);
@@ -35,9 +49,22 @@ async function buildInlineParseInput(value: string, file: File | null): Promise<
 }
 
 export function createListingsTablePendingAdd(getCtx: () => CollectionsContextValue) {
-  const clipboardAutoDetect = createClipboardAutoDetect();
+  function getClipboardProfileKey() {
+    return resolveClipboardProfileKey(getCtx().collections);
+  }
+
+  function getHasAnyListings() {
+    const ctx = getCtx();
+    return hasAnyProfileListings(ctx.collections, ctx.listings.length);
+  }
+
+  const clipboardAutoDetect = createClipboardAutoDetect({
+    getProfileKey: getClipboardProfileKey,
+    getHasAnyListings
+  });
   let isSubmittingAdd = $state(false);
   let clipboardAddError = $state<string | null>(null);
+  let clipboardFailureKind = $state<ClipboardReadFailureKind | null>(null);
   let pendingAddRows = $state<PendingAddRow[]>([]);
   let mergeSession = $state<ListingMergeSession | null>(null);
   let mergeRowId = $state<string | null>(null);
@@ -306,6 +333,7 @@ export function createListingsTablePendingAdd(getCtx: () => CollectionsContextVa
         })
       );
       clipboardAddError = null;
+      clipboardFailureKind = null;
     } finally {
       isSubmittingAdd = false;
     }
@@ -626,37 +654,36 @@ export function createListingsTablePendingAdd(getCtx: () => CollectionsContextVa
     }
   }
 
-  async function addFromClipboard() {
-    if (isSubmittingAdd) return;
+  function setClipboardFailure(kind: ClipboardReadFailureKind): ClipboardAddResult {
+    clipboardFailureKind = kind;
+    clipboardAddError = clipboardFailureMessage(kind);
+    return isClipboardPermissionDenied(kind) ? "denied" : "error";
+  }
+
+  async function addFromClipboard(): Promise<ClipboardAddResult> {
+    if (isSubmittingAdd) return "ignored";
     try {
+      const permission = await queryClipboardReadPermission();
+      if (permission === "denied") {
+        return setClipboardFailure("denied");
+      }
+
       const clipboard = navigator.clipboard;
       if (!clipboard) throw new Error("Clipboard unavailable");
-      let text = "";
-      let files: File[] = [];
-      try {
-        if ("read" in clipboard) {
-          const items = await clipboard.read();
-          for (const item of items) {
-            const fileType = item.types.find((type) => type.startsWith("image/") || type === "application/pdf");
-            if (!fileType) continue;
-            const blob = await item.getType(fileType);
-            files = [new File([blob], "clipboard", { type: fileType })];
-            break;
-          }
-        }
-      } catch {
-        // fall through
-      }
-      if (files.length === 0) text = (await clipboard.readText()).trim();
+      const { text, files } = await readClipboardListingPayload(clipboard);
+      clipboardAutoDetect.activateCurrentProfile();
       if (!text && files.length === 0) {
-        clipboardAddError = "Nada na área de transferência para adicionar.";
-        return;
+        clipboardAddError = null;
+        clipboardFailureKind = null;
+        return "empty";
       }
       clipboardAddError = null;
+      clipboardFailureKind = null;
       clipboardAutoDetect.clearMatch();
       await submitAdd(text, files);
-    } catch {
-      clipboardAddError = "Não foi possível ler a área de transferência.";
+      return "submitted";
+    } catch (error) {
+      return setClipboardFailure(classifyClipboardReadError(error));
     }
   }
 
@@ -667,8 +694,17 @@ export function createListingsTablePendingAdd(getCtx: () => CollectionsContextVa
     get clipboardAddError() {
       return clipboardAddError;
     },
+    get clipboardFailureKind() {
+      return clipboardFailureKind;
+    },
     get clipboardAutoDetect() {
       return clipboardAutoDetect;
+    },
+    get hasAnyListings() {
+      return getHasAnyListings();
+    },
+    get clipboardProfileKey() {
+      return getClipboardProfileKey();
     },
     get pendingAddRows() {
       return pendingAddRows;

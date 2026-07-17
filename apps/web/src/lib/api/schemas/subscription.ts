@@ -20,6 +20,8 @@ const subscriptionSchema = z
   .passthrough();
 
 export const subscriptionPayloadSchema = z.object({
+  accessStatus: z.enum(["active", "inactive"]),
+  hasActiveSubscription: z.boolean(),
   subscription: subscriptionSchema.nullable(),
   plan: planSchema.nullable()
 });

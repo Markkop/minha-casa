@@ -1,7 +1,7 @@
 defmodule MinhaCasaAi.Listings do
   import Ecto.Query
 
-  alias MinhaCasaAi.Listings.{Collection, Collections, Duplicates, Listing}
+  alias MinhaCasaAi.Listings.{Collection, Collections, ConstructionYear, Duplicates, Listing}
   alias MinhaCasaAi.Repo
 
   defdelegate get_default_collection_id(user_id, org_id \\ nil),
@@ -18,7 +18,10 @@ defmodule MinhaCasaAi.Listings do
       %Listing{}
       |> Listing.changeset(%{
         collection_id: collection_id,
-        data: Map.put_new(data, "addedAt", Date.utc_today() |> Date.to_iso8601())
+        data:
+          data
+          |> ConstructionYear.normalize_data()
+          |> Map.put_new("addedAt", Date.utc_today() |> Date.to_iso8601())
       })
       |> Repo.insert()
       |> case do
@@ -136,7 +139,9 @@ defmodule MinhaCasaAi.Listings do
 
     with {:ok, _} <- authorize_collection(collection_id, user_id, org_id),
          %Listing{} = listing <- Repo.get_by(Listing, id: listing_id, collection_id: collection_id) do
-      merged = Map.merge(listing.data || %{}, data_updates)
+      merged =
+        (listing.data || %{})
+        |> Map.merge(ConstructionYear.normalize_data(data_updates))
 
       listing
       |> Listing.changeset(%{data: merged})

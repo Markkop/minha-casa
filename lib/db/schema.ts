@@ -448,6 +448,7 @@ export interface ListingData {
   suites: number | null
   banheiros: number | null
   garagem: number | null
+  anoConstrucao?: number | null
   preco: number | null
   precoM2: number | null
   piscina: boolean | null

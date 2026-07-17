@@ -43,8 +43,13 @@ defmodule MinhaCasaAi.Billing do
   end
 
   def current_subscription(user_id) do
+    now = DateTime.utc_now()
+
     Subscription
-    |> where([s], s.user_id == ^user_id and s.status == "active")
+    |> where(
+      [s],
+      s.user_id == ^user_id and s.status == "active" and s.expires_at >= ^now
+    )
     |> order_by([s], desc: s.expires_at)
     |> limit(1)
     |> Repo.one()
@@ -52,16 +57,7 @@ defmodule MinhaCasaAi.Billing do
   end
 
   def active_subscription?(user_id) when is_binary(user_id) do
-    case current_subscription(user_id) do
-      nil ->
-        false
-
-      %{subscription: %Subscription{expires_at: expires_at}} ->
-        not is_nil(expires_at) and DateTime.compare(expires_at, DateTime.utc_now()) != :lt
-
-      _ ->
-        false
-    end
+    not is_nil(current_subscription(user_id))
   end
 
   def active_subscription?(_), do: false
