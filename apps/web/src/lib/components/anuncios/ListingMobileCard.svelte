@@ -18,6 +18,8 @@
   import type { ListingTableRowProps } from "$lib/components/anuncios/listing-table-row-types";
   import { cn } from "$lib/utils";
 
+  export type ListingMobileCardDensity = "default" | "compact";
+
   let {
     imovel,
     visibleColumns,
@@ -30,8 +32,11 @@
     openImageModal,
     openEditListing,
     getRowInteractions,
-    displayTitle
-  }: ListingTableRowProps = $props();
+    displayTitle,
+    density = "default"
+  }: ListingTableRowProps & { density?: ListingMobileCardDensity } = $props();
+
+  const isCompact = $derived(density === "compact");
 
   const interactions = $derived(getRowInteractions(imovel));
 
@@ -102,7 +107,8 @@
   id="listing-{imovel.id}"
   data-testid="listing-mobile-card-{imovel.id}"
   class={cn(
-    "relative overflow-hidden rounded-2xl border",
+    "relative overflow-hidden border",
+    isCompact ? "rounded-xl" : "rounded-2xl",
     imovel.starred
       ? "border-app-action/50 bg-app-action/20"
       : "border-app-border bg-app-surface"
@@ -115,12 +121,15 @@
       layout="hero"
       showAddress={propertyDisplay.showAddress}
       onOpenImageModal={() => openImageModal(imovel)}
-      class="rounded-t-2xl"
+      class={isCompact ? "aspect-[2/1] rounded-t-xl" : "rounded-t-2xl"}
     >
       {#snippet overlays()}
         {#if titleOnHero}
           <div
-            class="pointer-events-none absolute inset-x-0 top-0 z-10 bg-gradient-to-b from-black/80 via-black/50 to-transparent px-3.5 pb-5 pt-3"
+            class={cn(
+              "pointer-events-none absolute inset-x-0 top-0 z-10 bg-gradient-to-b from-black/80 via-black/50 to-transparent",
+              isCompact ? "px-3 pb-4 pt-2.5" : "px-3.5 pb-5 pt-3"
+            )}
           >
             <div class="pointer-events-auto min-w-0">
               <ListingTitleEtapaRow
@@ -138,7 +147,11 @@
 
   <div
     data-testid="listing-mobile-body"
-    class={cn(LISTING_MOBILE_CARD_BODY_CLASS, showImage ? "pt-2.5" : "pt-3.5")}
+    class={cn(
+      LISTING_MOBILE_CARD_BODY_CLASS,
+      isCompact && "gap-1 px-3 pb-3",
+      showImage ? (isCompact ? "pt-2" : "pt-2.5") : (isCompact ? "pt-3" : "pt-3.5")
+    )}
   >
     {#if showTitle && !titleOnHero}
       <ListingTitleEtapaRow {...titleEtapaProps} {displayTitle} class="min-w-0" />
@@ -147,7 +160,7 @@
     {#if showSummaryGrid}
       <div
         data-testid="listing-mobile-summary-grid"
-        class={LISTING_MOBILE_SUMMARY_GRID_CLASS}
+        class={cn(LISTING_MOBILE_SUMMARY_GRID_CLASS, isCompact && "gap-x-2 gap-y-1")}
       >
         {#if showSummaryRow}
           <div class="flex min-w-0 items-center gap-1.5 overflow-hidden">

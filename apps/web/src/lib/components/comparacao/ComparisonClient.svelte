@@ -3,6 +3,7 @@
   import { extractUniqueContacts } from "$lib/anuncios/listings-contact";
   import ComparisonMatrixCell from "$lib/components/comparacao/ComparisonMatrixCell.svelte";
   import ComparisonMatrixRowLabel from "$lib/components/comparacao/ComparisonMatrixRowLabel.svelte";
+  import ComparisonPriceDistribution from "$lib/components/comparacao/ComparisonPriceDistribution.svelte";
   import ComparisonSlotHeader from "$lib/components/comparacao/ComparisonSlotHeader.svelte";
   import WorkspacePage from "$lib/components/workspace/WorkspacePage.svelte";
   import WorkspacePanel from "$lib/components/workspace/WorkspacePanel.svelte";
@@ -182,20 +183,27 @@
 </svelte:head>
 
 <WorkspacePage>
-  <WorkspacePanel class="overflow-hidden">
-      {#if !ctx.activeCollection}
-        <p class="p-6 text-sm text-app-muted">
-          Crie uma coleção em
-          <a href="/anuncios" class="font-medium text-app-fg underline">Anúncios</a> para começar.
-        </p>
-      {:else if ctx.isLoadingListings}
-        <p class="p-6 text-sm text-app-muted">Carregando imóveis...</p>
-      {:else if ctx.listings.length === 0}
-        <p class="p-6 text-sm text-app-muted">
-          Adicione imóveis em
-          <a href="/anuncios" class="font-medium text-app-fg underline">Anúncios</a> para montar a comparação.
-        </p>
-      {:else}
+  {#if !ctx.activeCollection}
+    <WorkspacePanel class="overflow-hidden">
+      <p class="p-6 text-sm text-app-muted">
+        Crie uma coleção em
+        <a href="/anuncios" class="font-medium text-app-fg underline">Anúncios</a> para começar.
+      </p>
+    </WorkspacePanel>
+  {:else if ctx.isLoadingListings}
+    <WorkspacePanel class="overflow-hidden">
+      <p class="p-6 text-sm text-app-muted">Carregando imóveis...</p>
+    </WorkspacePanel>
+  {:else if ctx.listings.length === 0}
+    <WorkspacePanel class="overflow-hidden">
+      <p class="p-6 text-sm text-app-muted">
+        Adicione imóveis em
+        <a href="/anuncios" class="font-medium text-app-fg underline">Anúncios</a> para montar a comparação.
+      </p>
+    </WorkspacePanel>
+  {:else}
+    <div class="space-y-3">
+      <WorkspacePanel class="overflow-hidden">
         <div class="overflow-x-auto">
           <table
             class="w-full table-fixed border-collapse text-xs"
@@ -296,8 +304,10 @@
             </tbody>
           </table>
         </div>
-      {/if}
-  </WorkspacePanel>
+      </WorkspacePanel>
+      <ComparisonPriceDistribution />
+    </div>
+  {/if}
 </WorkspacePage>
 
 <EditModal
