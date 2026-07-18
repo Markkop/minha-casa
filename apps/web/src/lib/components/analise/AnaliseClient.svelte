@@ -1,35 +1,15 @@
 <script lang="ts">
-  import { onMount } from "svelte";
   import { page } from "$app/state";
   import AnaliseQuerySync from "$lib/components/analise/AnaliseQuerySync.svelte";
   import WorkspaceListingQuerySync from "$lib/components/workspace/WorkspaceListingQuerySync.svelte";
   import AnaliseTabbedDossier from "$lib/components/analise/AnaliseTabbedDossier.svelte";
   import { getCollectionsContext } from "$lib/collections-context.svelte";
-  import { getAdminFeatureFlag, readAdminFeatureFlags } from "$lib/admin/client";
   import { getActiveOrganizationId } from "$lib/api/client";
   import { cn } from "$lib/utils";
   import { WORKSPACE_CONTENT_CLASS, WORKSPACE_STACK_CLASS } from "$lib/workspace-chrome";
 
   const ctx = getCollectionsContext();
 
-  let { isAdmin = false } = $props<{ isAdmin?: boolean }>();
-
-  let storedFlagsSyncTick = $state(0);
-  const storedFlags = $derived.by(() => {
-    void storedFlagsSyncTick;
-    return readAdminFeatureFlags(isAdmin);
-  });
-  const showDeepAnalysis = $derived(
-    getAdminFeatureFlag(storedFlags, "deepAnalysis", isAdmin)
-  );
-
-  onMount(() => {
-    const syncFlags = () => {
-      storedFlagsSyncTick += 1;
-    };
-    window.addEventListener("storage", syncFlags);
-    return () => window.removeEventListener("storage", syncFlags);
-  });
   const selectedListingId = $derived(page.url.searchParams.get("listing"));
   const orgId = $derived(getActiveOrganizationId());
 
@@ -74,7 +54,6 @@
         listing={selectedListing}
         collectionId={ctx.activeCollection.id}
         {orgId}
-        {showDeepAnalysis}
       />
     {/if}
   </div>
