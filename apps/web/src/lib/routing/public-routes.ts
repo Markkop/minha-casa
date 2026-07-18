@@ -1,6 +1,7 @@
 /** Paths reachable without authentication (marketing and connect flows). */
 export const PUBLIC_ROUTE_PATHS = [
   "/",
+  "/intelligence-demo",
   "/login",
   "/signup",
   "/privacy",
@@ -34,6 +35,10 @@ export function isPublicGeocodingApi(pathname: string) {
   return pathname === "/api/geocoding/nominatim";
 }
 
+export function isPublicNeighborhoodApi(pathname: string) {
+  return pathname === "/api/map/neighborhood";
+}
+
 export function isPublicRoute(pathname: string) {
   return (
     PUBLIC_ROUTES.has(pathname) ||
@@ -41,6 +46,7 @@ export function isPublicRoute(pathname: string) {
     isPublicShare(pathname) ||
     isPublicFinanceiroSnapshot(pathname) ||
     isPublicOrganizationInvite(pathname) ||
-    isPublicGeocodingApi(pathname)
+    isPublicGeocodingApi(pathname) ||
+    isPublicNeighborhoodApi(pathname)
   );
 }

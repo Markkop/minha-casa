@@ -32,14 +32,11 @@
     return collection.listingsCount ?? 0;
   }
 
-  function shouldNavigateToAnuncios(collectionId: string) {
-    return page.url.pathname !== "/anuncios" && ctx.activeCollection?.id !== collectionId;
-  }
-
   function selectCollection(collection: Collection) {
+    const previousId = ctx.activeCollection?.id;
     ctx.setActiveCollection(collection);
     open = false;
-    if (shouldNavigateToAnuncios(collection.id)) {
+    if (page.url.pathname !== "/anuncios" && previousId !== collection.id) {
       void goto("/anuncios");
     }
   }

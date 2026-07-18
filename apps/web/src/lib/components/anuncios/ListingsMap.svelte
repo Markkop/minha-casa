@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { Palette, RotateCw } from "@lucide/svelte";
+  import { Building2, Map as MapIcon, Palette, RotateCw } from "@lucide/svelte";
   import type { Imovel } from "$lib/anuncios/types";
   import { geocodeAddresses, clearCacheForAddresses } from "$lib/anuncios/geocoding";
   import { buildListingGeocodeQuery } from "$lib/anuncios/listing-location";
@@ -43,8 +43,17 @@
   import ToolbarAnchoredPopover from "$lib/components/anuncios/ToolbarAnchoredPopover.svelte";
   import LeafletMapView from "$lib/components/anuncios/LeafletMapView.svelte";
   import GoogleMapsView from "$lib/components/anuncios/GoogleMapsView.svelte";
+  import ListingsThreeMapView from "$lib/components/anuncios/ListingsThreeMapView.svelte";
 
-  let { listings } = $props<{ listings: Imovel[] }>();
+  let {
+    listings,
+    collectionLabel = "Coleção atual",
+    getListingTitle = (listing: Imovel) => listing.titulo || listing.endereco || "Imóvel"
+  } = $props<{
+    listings: Imovel[];
+    collectionLabel?: string;
+    getListingTitle?: (listing: Imovel) => string;
+  }>();
 
   let mounted = $state(false);
   let geocodedListings = $state<GeocodedListing[]>([]);
@@ -56,6 +65,7 @@
   let mapViewport = $state(DEFAULT_MAP_VIEWPORT);
   let boundsApplied = $state(false);
   let missingPopoverOpen = $state(false);
+  let mapPresentation = $state<"map" | "3d">("map");
 
   const googleMapsAvailable = $derived(isGoogleMapsApiKeyConfigured());
 
@@ -220,51 +230,52 @@
     <div class={cn(LISTINGS_TOOLBAR_CLASS, "relative z-20 shrink-0")}>
       <div class={cn(LISTINGS_TOOLBAR_INNER_CLASS, "justify-between")}>
         <div class="flex min-w-0 flex-1 items-center gap-1.5">
-          <MapLocationPicker
-            viewport={mapViewport}
-            onViewportChange={handleViewportChange}
-            onAutomaticView={handleAutomaticView}
-            automaticDisabled={isLoading || geocodedListings.length === 0}
-            isAutomaticActive={mapViewport.source === "listings-bounds"}
-            disabled={isLoading}
-          />
-          <PageToolbarIconButton
-            variant={colorByPrice ? "active" : "secondary"}
-            onclick={handleColorByPriceToggle}
-            disabled={isLoading}
-            aria-pressed={colorByPrice}
-            aria-label="Colorir marcadores por preço/m²"
-            title={colorByPrice ? "Ocultar cores por preço/m²" : "Colorir por preço/m²"}
-          >
-            <Palette />
-          </PageToolbarIconButton>
+          {#if mapPresentation === "map"}
+            <MapLocationPicker
+              viewport={mapViewport}
+              onViewportChange={handleViewportChange}
+              onAutomaticView={handleAutomaticView}
+              automaticDisabled={isLoading || geocodedListings.length === 0}
+              isAutomaticActive={mapViewport.source === "listings-bounds"}
+              disabled={isLoading}
+            />
+            <PageToolbarIconButton
+              variant={colorByPrice ? "active" : "secondary"}
+              onclick={handleColorByPriceToggle}
+              disabled={isLoading}
+              aria-pressed={colorByPrice}
+              aria-label="Colorir marcadores por preço/m²"
+              title={colorByPrice ? "Ocultar cores por preço/m²" : "Colorir por preço/m²"}
+            >
+              <Palette />
+            </PageToolbarIconButton>
+          {/if}
         </div>
 
         <div class="flex shrink-0 items-center gap-1.5">
-          <div class="flex shrink-0 items-center gap-1 text-xs">
-            <span
-              class={cn(
-                "whitespace-nowrap transition-colors",
-                mapProvider === "leaflet" ? "text-app-fg" : "text-app-muted"
-              )}
-            >
-              OSM
-            </span>
-            <Switch
-              checked={mapProvider === "google"}
-              disabled={!googleMapsAvailable}
-              class="scale-75"
-              onCheckedChange={handleProviderChange}
-            />
-            <span
-              class={cn(
-                "whitespace-nowrap transition-colors",
-                mapProvider === "google" ? "text-app-fg" : "text-app-muted"
-              )}
-            >
-              Google
-            </span>
+          <div class="flex shrink-0 items-center rounded-md border border-app-border bg-app-bg p-0.5" aria-label="Tipo de mapa">
+            <button
+              type="button"
+              class={cn("inline-flex h-6 items-center gap-1 rounded px-2 text-xs font-medium transition-colors", mapPresentation === "map" ? "bg-app-surface text-app-fg shadow-sm" : "text-app-muted hover:text-app-fg")}
+              aria-pressed={mapPresentation === "map"}
+              onclick={() => (mapPresentation = "map")}
+            ><MapIcon class="size-3" /> Mapa</button>
+            <button
+              type="button"
+              class={cn("inline-flex h-6 items-center gap-1 rounded px-2 text-xs font-medium transition-colors", mapPresentation === "3d" ? "bg-app-surface text-app-fg shadow-sm" : "text-app-muted hover:text-app-fg")}
+              aria-pressed={mapPresentation === "3d"}
+              onclick={() => (mapPresentation = "3d")}
+            ><Building2 class="size-3" /> 3D</button>
           </div>
+
+          {#if mapPresentation === "map"}
+            <div role="separator" aria-orientation="vertical" class="mx-0.5 h-4 w-px shrink-0 bg-app-border"></div>
+            <div class="flex shrink-0 items-center gap-1 text-xs">
+              <span class={cn("whitespace-nowrap transition-colors", mapProvider === "leaflet" ? "text-app-fg" : "text-app-muted")}>OSM</span>
+              <Switch checked={mapProvider === "google"} disabled={!googleMapsAvailable} class="scale-75" onCheckedChange={handleProviderChange} />
+              <span class={cn("whitespace-nowrap transition-colors", mapProvider === "google" ? "text-app-fg" : "text-app-muted")}>Google</span>
+            </div>
+          {/if}
 
           <div role="separator" aria-orientation="vertical" class="mx-0.5 h-4 w-px shrink-0 bg-app-border"></div>
 
@@ -335,13 +346,19 @@
         <div class="flex h-[400px] items-center justify-center bg-app-bg">
           <p class="text-app-muted">Nenhum endereço pôde ser localizado no mapa.</p>
         </div>
+      {:else if mapPresentation === "3d"}
+        <ListingsThreeMapView
+          {geocodedListings}
+          {collectionLabel}
+          getTitle={getListingTitle}
+        />
       {:else if mapProvider === "google"}
         <GoogleMapsView {...mapViewProps} />
       {:else}
         <LeafletMapView {...mapViewProps} />
       {/if}
 
-      {#if geocodedListings.length > 0 && colorByPrice}
+      {#if mapPresentation === "map" && geocodedListings.length > 0 && colorByPrice}
         <div
           class={cn(
             LISTINGS_MAP_LEGEND_OVERLAY_CLASS,

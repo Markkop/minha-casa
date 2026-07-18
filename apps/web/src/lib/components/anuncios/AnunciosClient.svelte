@@ -265,7 +265,11 @@
       {:else}
         <ListingsTable listings={ctx.listings} initialMergeSessionId={mergeSessionId} />
       {/if}
-      <ListingsMap listings={ctx.listings} />
+      <ListingsMap
+        listings={ctx.listings}
+        collectionLabel={ctx.activeCollection?.label ?? "Coleção atual"}
+        getListingTitle={ctx.getListingDisplayTitle}
+      />
     </main>
   </div>
 {/if}

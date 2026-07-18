@@ -23,6 +23,7 @@
     safeRedirectPath(page.url.searchParams.get("redirect"))
   );
   const logoHref = $derived(user ? "/anuncios" : "/");
+  const showMarketingHeader = $derived(page.url.pathname !== "/intelligence-demo");
 
   const initials = $derived.by(() => {
     const source: string = user?.name || user?.email || "U";
@@ -61,48 +62,50 @@
   }
 </script>
 
-<MarketingHeader href={logoHref}>
-  {#snippet actions()}
-    {#if user}
-      <div class="w-auto max-w-[min(100%,14rem)]">
-        <AccountMenu
-          {user}
-          {initials}
-          hasFloodRisk={false}
-          bind:accountOpen
-          compact
-          onCloseChrome={closeChrome}
-          onLogout={logout}
-        />
-      </div>
-    {:else}
-      <div class="relative flex items-center gap-3">
-        <a
-          href="/login"
-          class="inline-flex h-8 items-center rounded-md bg-app-action px-3 text-sm font-medium text-app-action-foreground transition-colors hover:bg-app-action-hover"
-        >
-          Entrar
-        </a>
-        <Button
-          class="text-sm"
-          variant="secondary"
-          size="sm"
-          onclick={google}
-          disabled={googleLoading}
-        >
-          <GoogleIcon class="size-4" />
-          <span aria-live="polite">{googleLoading ? "Conectando..." : "Entrar com Google"}</span>
-        </Button>
+{#if showMarketingHeader}
+  <MarketingHeader href={logoHref}>
+    {#snippet actions()}
+      {#if user}
+        <div class="w-auto max-w-[min(100%,14rem)]">
+          <AccountMenu
+            {user}
+            {initials}
+            hasFloodRisk={false}
+            bind:accountOpen
+            compact
+            onCloseChrome={closeChrome}
+            onLogout={logout}
+          />
+        </div>
+      {:else}
+        <div class="relative flex items-center gap-3">
+          <a
+            href="/login"
+            class="inline-flex h-8 items-center rounded-md bg-app-action px-3 text-sm font-medium text-app-action-foreground transition-colors hover:bg-app-action-hover"
+          >
+            Entrar
+          </a>
+          <Button
+            class="text-sm"
+            variant="secondary"
+            size="sm"
+            onclick={google}
+            disabled={googleLoading}
+          >
+            <GoogleIcon class="size-4" />
+            <span aria-live="polite">{googleLoading ? "Conectando..." : "Entrar com Google"}</span>
+          </Button>
 
-        {#if googleError}
-          <p
-            class="absolute top-full right-0 z-10 mt-2 w-max max-w-[min(20rem,calc(100vw-1.5rem))] rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 shadow-sm"
-            role="alert"
-          >{googleError}</p>
-        {/if}
-      </div>
-    {/if}
-  {/snippet}
-</MarketingHeader>
+          {#if googleError}
+            <p
+              class="absolute top-full right-0 z-10 mt-2 w-max max-w-[min(20rem,calc(100vw-1.5rem))] rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 shadow-sm"
+              role="alert"
+            >{googleError}</p>
+          {/if}
+        </div>
+      {/if}
+    {/snippet}
+  </MarketingHeader>
+{/if}
 
 {@render children?.()}
