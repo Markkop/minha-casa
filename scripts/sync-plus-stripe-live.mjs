@@ -14,7 +14,7 @@ import pg from "pg"
 /** Live Price ID created for prod `Minha Casa Plus` (Stripe livemode). Override if you rotate prices. */
 const DEFAULT_LIVE_PRICE_ID = "price_1TZEMxBysq497srN7Bj6rFu6"
 
-/** Match lib/db/pool.ts — pg treats sslmode=require like verify-full unless stripped. */
+/** Match the Svelte Better Auth pool — pg treats sslmode=require like verify-full unless stripped. */
 function connectionStringWithoutSslMode(url) {
   const without = url.replace(/([?&])sslmode=[^&]*/gi, (_, sep) => sep)
   return without.replace(/\?&/, "?").replace(/\?$/, "").replace(/&$/, "")

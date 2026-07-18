@@ -3,11 +3,11 @@ import { subscriptionManagementRedirectFor } from "$lib/navigation/subscription-
 import { getSubscriptionAccess } from "$lib/server/subscription-access";
 import type { PageServerLoad } from "./$types";
 
-export const load: PageServerLoad = async ({ locals, url }) => {
+export const load: PageServerLoad = async ({ locals, request, url }) => {
   const redirectPath = url.searchParams.get("redirect");
   if (!locals.user || !redirectPath) return {};
 
-  const access = await getSubscriptionAccess(locals);
+  const access = await getSubscriptionAccess(locals, request.headers);
   const destination = subscriptionManagementRedirectFor(
     access.state,
     redirectPath,

@@ -13,7 +13,11 @@ export const GET: RequestHandler = async ({ request, cookies }) => {
     return json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const organizationId = await resolveActiveOrganizationId(cookies, session.user.id);
+  const organizationId = await resolveActiveOrganizationId(
+    cookies,
+    session.user.id,
+    request.headers
+  );
   return json({ organizationId });
 };
 
@@ -39,7 +43,11 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
         : null;
 
   if (organizationId) {
-    const isMember = await userIsOrganizationMember(session.user.id, organizationId);
+    const isMember = await userIsOrganizationMember(
+      session.user.id,
+      organizationId,
+      request.headers
+    );
     if (!isMember) {
       return json({ error: "You are not a member of this organization" }, { status: 403 });
     }

@@ -1,6 +1,6 @@
 import { env } from "$env/dynamic/private";
 
-/** Bridge SvelteKit-loaded .env into process.env for shared `lib/db` (Better Auth, Drizzle). */
+/** Bridge SvelteKit-loaded private environment values into process.env for server integrations. */
 const KEYS = [
   "DATABASE_URL",
   "DATABASE_SSL",

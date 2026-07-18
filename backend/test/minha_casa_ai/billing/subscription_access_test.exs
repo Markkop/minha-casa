@@ -167,6 +167,25 @@ defmodule MinhaCasaAi.Billing.SubscriptionAccessTest do
            }
   end
 
+  test "current subscription endpoint does not fabricate a subscription for a platform admin", %{
+    user: user
+  } do
+    response =
+      conn(:get, "/api/subscriptions")
+      |> assign(:current_user_id, user.id)
+      |> assign(:current_user_is_admin, true)
+      |> SubscriptionController.show_current(%{})
+      |> Map.fetch!(:resp_body)
+      |> Jason.decode!()
+
+    assert response == %{
+             "accessStatus" => "inactive",
+             "hasActiveSubscription" => false,
+             "plan" => nil,
+             "subscription" => nil
+           }
+  end
+
   defp insert_subscription(user, plan, status, expires_at) do
     Repo.insert!(%Subscription{
       user_id: user.id,

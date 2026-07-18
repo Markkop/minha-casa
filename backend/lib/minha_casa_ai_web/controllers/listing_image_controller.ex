@@ -102,7 +102,7 @@ defmodule MinhaCasaAiWeb.ListingImageController do
         end
 
       %Listing{} when is_nil(user_id) ->
-        # Internal serve from the Svelte share proxy (secret already validated).
+        # Internal callers are authenticated by the dedicated internal API pipeline.
         case Listings.get_listing_by_id(listing_id) do
           {:ok, _} -> :ok
           error -> error

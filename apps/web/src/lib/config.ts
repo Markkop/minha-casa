@@ -10,7 +10,7 @@ function normalizePublicApiUrl(raw: string): string {
 
 export const config = {
   /**
-   * Browser: same-origin `/api/*` (SvelteKit proxies to Phoenix; `/api/subscriptions` stays local).
+   * Browser: same-origin `/api/*` (SvelteKit proxies to Phoenix).
    * SSR: direct Phoenix URL from env.
    */
   get apiUrl() {

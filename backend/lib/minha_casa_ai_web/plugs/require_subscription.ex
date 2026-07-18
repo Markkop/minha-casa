@@ -46,7 +46,7 @@ defmodule MinhaCasaAiWeb.Plugs.RequireSubscription do
        do: true
 
   defp external_route_allowed?(%Plug.Conn{method: "GET", request_path: path}) do
-    Regex.match?(~r{^/api/workspace/listings/[^/]+/images/\d+$}, path)
+    Regex.match?(~r{^/api/(?:workspace/)?listings/[^/]+/images/\d+$}, path)
   end
 
   defp external_route_allowed?(_conn), do: false

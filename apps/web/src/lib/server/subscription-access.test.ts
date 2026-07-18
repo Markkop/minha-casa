@@ -1,132 +1,104 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const dbMocks = vi.hoisted(() => ({
-  and: vi.fn((...conditions: unknown[]) => ({ type: "and", conditions })),
-  desc: vi.fn((column: unknown) => ({ type: "desc", column })),
-  eq: vi.fn((column: unknown, value: unknown) => ({ type: "eq", column, value })),
-  getDb: vi.fn(),
-  gte: vi.fn((column: unknown, value: unknown) => ({ type: "gte", column, value }))
+const phoenixMocks = vi.hoisted(() => ({
+  fetchPhoenixApi: vi.fn()
 }));
 
-vi.mock("@minha-casa/db", () => ({
-  ...dbMocks,
-  plans: {
-    id: "plans.id"
-  },
-  subscriptions: {
-    expiresAt: "subscriptions.expiresAt",
-    planId: "subscriptions.planId",
-    status: "subscriptions.status",
-    userId: "subscriptions.userId"
-  }
-}));
+vi.mock("$lib/server/phoenix-api", () => phoenixMocks);
 
-import {
-  getSubscriptionAccess,
-  resolveSubscriptionAccess
-} from "./subscription-access";
+import { getSubscriptionAccess, resolveSubscriptionAccess } from "./subscription-access";
 
-function mockSubscriptionQuery(result: unknown[] | Error) {
-  const query = {
-    select: vi.fn(),
-    from: vi.fn(),
-    innerJoin: vi.fn(),
-    where: vi.fn(),
-    orderBy: vi.fn(),
-    limit: vi.fn()
-  };
+const requestHeaders = new Headers({ cookie: "better-auth.session_token=session" });
 
-  query.select.mockReturnValue(query);
-  query.from.mockReturnValue(query);
-  query.innerJoin.mockReturnValue(query);
-  query.where.mockReturnValue(query);
-  query.orderBy.mockReturnValue(query);
-  query.limit.mockImplementation(() =>
-    result instanceof Error ? Promise.reject(result) : Promise.resolve(result)
+function phoenixResponse(body: unknown, status = 200) {
+  phoenixMocks.fetchPhoenixApi.mockResolvedValue(
+    Response.json(body, { status })
   );
-  dbMocks.getDb.mockReturnValue(query);
-
-  return query;
 }
 
 describe("resolveSubscriptionAccess", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date("2026-07-17T15:00:00.000Z"));
   });
 
-  afterEach(() => {
-    vi.useRealTimers();
-    vi.restoreAllMocks();
-  });
-
-  it("treats an administrator without a plan like any other Free user", async () => {
-    mockSubscriptionQuery([]);
+  it("maps Phoenix's active subscription contract", async () => {
+    const subscription = {
+      id: "subscription-1",
+      userId: "user-1",
+      planId: "plan-pro",
+      status: "active",
+      expiresAt: "2026-08-01T00:00:00.000Z"
+    };
+    const plan = { id: "plan-pro", name: "Pro", slug: "pro", isActive: true };
+    phoenixResponse({
+      accessStatus: "active",
+      hasActiveSubscription: true,
+      subscription,
+      plan
+    });
 
     await expect(
-      resolveSubscriptionAccess({ id: "admin-1", isAdmin: true })
+      resolveSubscriptionAccess({ id: "user-1" }, requestHeaders)
+    ).resolves.toEqual({
+      state: "active",
+      source: "subscription",
+      subscription,
+      plan
+    });
+    expect(phoenixMocks.fetchPhoenixApi).toHaveBeenCalledWith("/subscriptions", {
+      headers: requestHeaders
+    });
+  });
+
+  it("keeps Free access for a user without an active subscription", async () => {
+    phoenixResponse({
+      accessStatus: "inactive",
+      hasActiveSubscription: false,
+      subscription: null,
+      plan: null
+    });
+
+    await expect(
+      resolveSubscriptionAccess({ id: "admin-1", isAdmin: true }, requestHeaders)
     ).resolves.toEqual({
       state: "active",
       source: "free",
       subscription: null,
       plan: null
     });
-
-    expect(dbMocks.getDb).toHaveBeenCalledTimes(1);
   });
 
-  it("returns the most recent active, unexpired subscription", async () => {
-    const subscription = {
-      id: "subscription-1",
-      status: "active",
-      expiresAt: new Date("2026-08-01T00:00:00.000Z")
-    };
-    const plan = { id: "plan-pro", slug: "pro", isActive: true };
-    const query = mockSubscriptionQuery([{ subscription, plan }]);
-
-    await expect(resolveSubscriptionAccess({ id: "user-1" })).resolves.toEqual({
-      state: "active",
-      source: "subscription",
-      subscription,
-      plan
-    });
-
-    expect(dbMocks.eq).toHaveBeenCalledWith("subscriptions.userId", "user-1");
-    expect(dbMocks.eq).toHaveBeenCalledWith("subscriptions.status", "active");
-    expect(dbMocks.gte).toHaveBeenCalledWith(
-      "subscriptions.expiresAt",
-      new Date("2026-07-17T15:00:00.000Z")
-    );
-    expect(query.limit).toHaveBeenCalledWith(1);
-  });
-
-  it("returns Free access when there is no active, unexpired subscription", async () => {
-    mockSubscriptionQuery([]);
-
-    await expect(resolveSubscriptionAccess({ id: "user-1" })).resolves.toEqual({
-      state: "active",
-      source: "free",
-      subscription: null,
-      plan: null
-    });
-  });
-
-  it("returns unavailable instead of treating a database failure as inactive", async () => {
-    const databaseError = new Error("database unavailable");
-    mockSubscriptionQuery(databaseError);
+  it("returns unavailable when Phoenix cannot validate access", async () => {
+    phoenixResponse({ error: "unavailable" }, 503);
     const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
 
-    await expect(resolveSubscriptionAccess({ id: "user-1" })).resolves.toEqual({
+    const access = await resolveSubscriptionAccess({ id: "user-1" }, requestHeaders);
+
+    expect(access).toMatchObject({
       state: "unavailable",
       subscription: null,
       plan: null,
-      error: databaseError
+      error: expect.any(Error)
     });
-    expect(consoleError).toHaveBeenCalledWith(
-      "[subscription-access] resolution failed",
-      { userId: "user-1", error: databaseError }
-    );
+    expect(consoleError).toHaveBeenCalledWith("[subscription-access] resolution failed", {
+      userId: "user-1",
+      error: expect.any(Error)
+    });
+    consoleError.mockRestore();
+  });
+
+  it("fails closed on a malformed active response", async () => {
+    phoenixResponse({
+      accessStatus: "active",
+      hasActiveSubscription: true,
+      subscription: null,
+      plan: null
+    });
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+    await expect(
+      resolveSubscriptionAccess({ id: "user-1" }, requestHeaders)
+    ).resolves.toMatchObject({ state: "unavailable" });
   });
 });
 
@@ -135,26 +107,31 @@ describe("getSubscriptionAccess", () => {
     vi.clearAllMocks();
   });
 
-  it("returns inactive without querying the database for an unauthenticated request", async () => {
+  it("returns inactive without calling Phoenix for an unauthenticated request", async () => {
     const locals = {} as App.Locals;
 
-    await expect(getSubscriptionAccess(locals)).resolves.toEqual({
+    await expect(getSubscriptionAccess(locals, requestHeaders)).resolves.toEqual({
       state: "inactive",
       subscription: null,
       plan: null
     });
-    expect(dbMocks.getDb).not.toHaveBeenCalled();
+    expect(phoenixMocks.fetchPhoenixApi).not.toHaveBeenCalled();
   });
 
-  it("shares one subscription lookup within the same request", async () => {
-    mockSubscriptionQuery([]);
+  it("shares one Phoenix lookup within the same request", async () => {
+    phoenixResponse({
+      accessStatus: "inactive",
+      hasActiveSubscription: false,
+      subscription: null,
+      plan: null
+    });
     const locals = { user: { id: "user-1" } } as App.Locals;
 
-    const first = getSubscriptionAccess(locals);
-    const second = getSubscriptionAccess(locals);
+    const first = getSubscriptionAccess(locals, requestHeaders);
+    const second = getSubscriptionAccess(locals, requestHeaders);
 
     expect(second).toBe(first);
     await expect(first).resolves.toMatchObject({ state: "active", source: "free" });
-    expect(dbMocks.getDb).toHaveBeenCalledTimes(1);
+    expect(phoenixMocks.fetchPhoenixApi).toHaveBeenCalledTimes(1);
   });
 });

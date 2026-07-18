@@ -1,9 +1,69 @@
 import "$lib/server/load-env";
 import { betterAuth } from "better-auth";
-import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { jwt } from "better-auth/plugins";
-import { getDb } from "@minha-casa/db";
-import * as schema from "@minha-casa/db/schema";
+import { getAuthPgPool } from "$lib/server/pg-pool";
+
+export const AUTH_MODEL_CONFIG = {
+  user: {
+    modelName: "users",
+    fields: {
+      emailVerified: "email_verified",
+      createdAt: "created_at",
+      updatedAt: "updated_at"
+    },
+    additionalFields: {
+      isAdmin: {
+        type: "boolean",
+        defaultValue: false,
+        input: false,
+        fieldName: "is_admin"
+      }
+    }
+  },
+  account: {
+    modelName: "accounts",
+    fields: {
+      userId: "user_id",
+      accountId: "account_id",
+      providerId: "provider_id",
+      accessToken: "access_token",
+      refreshToken: "refresh_token",
+      accessTokenExpiresAt: "access_token_expires_at",
+      refreshTokenExpiresAt: "refresh_token_expires_at",
+      idToken: "id_token",
+      createdAt: "created_at",
+      updatedAt: "updated_at"
+    }
+  },
+  session: {
+    modelName: "sessions",
+    fields: {
+      userId: "user_id",
+      expiresAt: "expires_at",
+      ipAddress: "ip_address",
+      userAgent: "user_agent",
+      createdAt: "created_at",
+      updatedAt: "updated_at"
+    }
+  },
+  verification: {
+    modelName: "verifications",
+    fields: {
+      expiresAt: "expires_at",
+      createdAt: "created_at",
+      updatedAt: "updated_at"
+    }
+  },
+  jwks: {
+    modelName: "jwks",
+    fields: {
+      publicKey: "public_key",
+      privateKey: "private_key",
+      createdAt: "created_at",
+      expiresAt: "expires_at"
+    }
+  }
+} as const;
 
 let authInstance: ReturnType<typeof betterAuth> | undefined;
 
@@ -17,21 +77,11 @@ function trustedOrigins() {
 export function getAuth(): ReturnType<typeof betterAuth> {
   if (authInstance) return authInstance;
 
-  const db = getDb();
   authInstance = betterAuth({
     basePath: "/api/auth",
     baseURL: process.env.BETTER_AUTH_URL,
     secret: process.env.BETTER_AUTH_SECRET,
-    database: drizzleAdapter(db, {
-      provider: "pg",
-      schema: {
-        user: schema.users,
-        account: schema.accounts,
-        session: schema.sessions,
-        verification: schema.verifications,
-        jwks: schema.jwks
-      }
-    }),
+    database: getAuthPgPool(),
     emailAndPassword: {
       enabled: true,
       requireEmailVerification: false
@@ -44,6 +94,7 @@ export function getAuth(): ReturnType<typeof betterAuth> {
       }
     },
     session: {
+      ...AUTH_MODEL_CONFIG.session,
       expiresIn: 60 * 60 * 24 * 7,
       updateAge: 60 * 60 * 24,
       cookieCache: {
@@ -51,15 +102,9 @@ export function getAuth(): ReturnType<typeof betterAuth> {
         maxAge: 60 * 5
       }
     },
-    user: {
-      additionalFields: {
-        isAdmin: {
-          type: "boolean",
-          defaultValue: false,
-          input: false
-        }
-      }
-    },
+    user: AUTH_MODEL_CONFIG.user,
+    account: AUTH_MODEL_CONFIG.account,
+    verification: AUTH_MODEL_CONFIG.verification,
     advanced: {
       database: {
         generateId: () => crypto.randomUUID()
@@ -68,6 +113,7 @@ export function getAuth(): ReturnType<typeof betterAuth> {
     trustedOrigins: trustedOrigins(),
     plugins: [
       jwt({
+        schema: { jwks: AUTH_MODEL_CONFIG.jwks },
         jwt: {
           expirationTime: "1h",
           definePayload: ({ user }) => ({

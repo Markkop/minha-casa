@@ -27,11 +27,6 @@ export default defineConfig({
     // Better Auth pulls optional DB adapters; keep them external so Vite does not bundle kysely dialect shims.
     external: ["better-auth", "@better-auth/core", "kysely"]
   },
-  resolve: {
-    alias: {
-      "@minha-casa/db": path.join(repoRoot, "lib/db")
-    }
-  },
   server: {
     allowedHosts: ["host.docker.internal"],
     fs: {

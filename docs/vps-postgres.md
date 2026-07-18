@@ -95,38 +95,15 @@ For public API smoke checks, use the production API host configured in Caddy, cu
 
 ## Data model note
 
-All app tables (listings, `saved_links`, auth, etc.) live in this Postgres instance. Drizzle (shared TypeScript tooling) and Ecto (Phoenix) are ORMs over the same database.
+All app tables—including Better Auth tables—live in this Postgres instance and
+are owned by the Ecto migration history in `backend/priv/repo/migrations`.
+Phoenix's release migrator is the only supported schema-change path.
 
-When a deploy includes both an Ecto migration and a Drizzle migration for the same physical database change, avoid blindly running both SQL paths if one has already created the objects. The table may be idempotent while index or constraint names differ, which can create duplicate indexes.
-
-If Ecto is the path used in production for a shared migration, still keep Drizzle's migration history in sync so a later `pnpm db:migrate` does not try to replay the SQL. Use the `when` value from `drizzle/migrations/meta/_journal.json` and the SHA-256 hash of the SQL file:
-
-```bash
-cd /docker/minha-casa
-HASH=$(sha256sum drizzle/migrations/<migration>.sql | cut -d " " -f 1)
-WHEN=<journal when value>
-
-docker exec -i minha-casa-db-1 sh -lc 'cat > /tmp/mark-drizzle.sql && psql -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB" -f /tmp/mark-drizzle.sql' <<SQL
-CREATE SCHEMA IF NOT EXISTS drizzle;
-CREATE TABLE IF NOT EXISTS drizzle.__drizzle_migrations (
-  id SERIAL PRIMARY KEY,
-  hash text NOT NULL,
-  created_at numeric
-);
-INSERT INTO drizzle.__drizzle_migrations (hash, created_at)
-SELECT '$HASH', $WHEN
-WHERE NOT EXISTS (
-  SELECT 1 FROM drizzle.__drizzle_migrations WHERE created_at = $WHEN
-);
-SQL
-```
-
-Verify both migration histories when this happens:
+Verify the migration history after a deploy:
 
 ```bash
 docker exec -i minha-casa-db-1 sh -lc 'cat > /tmp/check-migrations.sql && psql -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB" -f /tmp/check-migrations.sql' <<SQL
 SELECT version FROM schema_migrations ORDER BY version DESC LIMIT 5;
-SELECT created_at FROM drizzle.__drizzle_migrations ORDER BY created_at DESC LIMIT 5;
 SQL
 ```
 
@@ -174,16 +151,9 @@ SCRAPINGANT_API_KEY=<from ScrapingAnt dashboard>
 
 **Production domain (example):** `https://casas.markkop.dev` — use your real hostname in Google OAuth and in `BETTER_AUTH_*` / `PUBLIC_APP_URL`.
 
-### Running `pnpm db:migrate` from your laptop (self-signed TLS)
-
-The app uses a self-signed certificate on the VPS. For **local migration**, use `DATABASE_SSL=true` and put **no** `sslmode` in the URL so Drizzle’s TLS config (`rejectUnauthorized: false`) applies:
-
-```env
-DATABASE_URL="postgresql://minhacasa:<password>@<VPS_HOST>:5433/minha_casa_prod"
-DATABASE_SSL="true"
-```
-
-For a remotely hosted frontend such as Vercel, use the same pattern: **no** `sslmode` in `DATABASE_URL`, only `DATABASE_SSL=true`. Node `pg` treats `sslmode=require` as strict certificate verification, which breaks the VPS self-signed cert even when `rejectUnauthorized: false` is set in code.
+Do not run migrations from the frontend host or a developer laptop against
+production. Build the Phoenix release on the VPS, take a database backup, and
+run `MinhaCasaAi.Release.migrate()` there as shown above.
 
 ## Google OAuth Console
 

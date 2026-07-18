@@ -1,6 +1,6 @@
 defmodule MinhaCasaAi.Workspace.SavedLinks do
   @moduledoc """
-  CRUD for workspace saved links (same `saved_links` table as Drizzle).
+  CRUD for workspace saved links in the canonical Ecto-owned schema.
   """
 
   import Ecto.Query

@@ -80,7 +80,7 @@ STRIPE_WEBHOOK_SECRET=...
 **Database:** if tables are missing, from repo root:
 
 ```bash
-DATABASE_URL=postgresql://minhacasa:minhacasa_local_password@localhost:5435/minha_casa_local pnpm db:migrate
+pnpm db:migrate
 ```
 
 **Subscription gating:** protected navigations resolve the authenticated user's entitlement server-side from an active, unexpired subscription. Database failures use a distinct unavailable state instead of being treated as an inactive plan. `GET /api/subscriptions` exposes the same explicit access result for subscription management; the legacy `subscription-status` cookie is deleted and is not trusted for authorization.
@@ -92,14 +92,15 @@ GET /api/me
 Authorization: Bearer <better-auth-jwt>
 ```
 
-The Svelte API client calls **same-origin** `/api/*` in the browser (SvelteKit proxies to Phoenix on `PHOENIX_API_URL`, default `http://localhost:4000`). `/api/subscriptions` stays on SvelteKit to reuse the server-side entitlement resolver. Requests use Better Auth JWTs. It also sends `X-Organization-Id` when the user selects an active organization in `/organizacoes`; Phoenix validates membership in `JwtAuth` before assigning `current_org_id`. Existing internal Phoenix routes are still mounted for parts not yet migrated; do not expose internal headers to browser code.
+The Svelte API client calls **same-origin** `/api/*` in the browser, and SvelteKit proxies application APIs to Phoenix on `PHOENIX_API_URL` (default `http://localhost:4000`). Requests use Better Auth JWTs. It also sends `X-Organization-Id` when the user selects an active organization in `/organizacoes`; Phoenix validates membership in `JwtAuth` before assigning `current_org_id`. Internal Phoenix routes use a separate `/api/internal/*` namespace; do not expose internal headers to browser code.
 
 ## Key files
 
 - `apps/web/src/hooks.server.ts`: Better Auth handler, session population, auth redirects, subscription route gating.
-- `apps/web/src/lib/auth.ts`: Better Auth server config with JWT plugin and Drizzle adapter (shared `lib/db` schema).
-- `apps/web/src/routes/api/subscriptions/+server.ts`: returns the explicit current subscription access state used by subscription management.
-- `apps/web/src/lib/server/subscription-access.ts`: active/inactive/unavailable entitlement resolver shared by guards and server endpoints.
+- `apps/web/src/lib/auth.ts`: Better Auth server config with JWT plugin and the direct PostgreSQL adapter.
+- `apps/web/src/lib/server/pg-pool.ts`: shared PostgreSQL pool used only by Better Auth.
+- `apps/web/src/lib/server/phoenix-api.ts`: authenticated server-to-server Phoenix client.
+- `apps/web/src/lib/server/subscription-access.ts`: Phoenix-backed entitlement resolver shared by guards and server endpoints.
 - `apps/web/src/lib/auth-client.ts`: Svelte Better Auth client.
 - `apps/web/src/lib/stores/auth.ts`: cached JWT helper for Phoenix API calls.
 - `apps/web/src/lib/organization-context.ts`: active-organization httpOnly cookie name and options.
@@ -154,7 +155,9 @@ docker run --rm -v "$(pwd)/backend:/app" -w /app elixir:1.18-otp-27-alpine \
 
 Latest checks in this pass: `pnpm check:web` completed with 0 errors and 0 warnings; Phoenix `mix compile --warnings-as-errors` completed successfully through the Docker Elixir workflow.
 
-`pnpm install` still reports deprecated transitive packages from `drizzle-kit` (`@esbuild-kit/*`). I updated Drizzle Kit and removed the direct deprecated `@types/lz-string`; the remaining warning is inside the current Drizzle toolchain and should disappear when the legacy API code is removed.
+Database migrations are owned by Phoenix/Ecto. The Svelte app connects to
+PostgreSQL only for Better Auth and does not maintain a schema or migration
+history.
 
 For the earlier floodrisk pass, `/floodrisk` was opened through the in-app browser at `http://localhost:5173/floodrisk`; the app correctly redirected to `/login?redirect=%2Ffloodrisk`, so the authenticated canvas still needs a logged-in visual QA pass. The route itself is covered by `svelte-check`.
 

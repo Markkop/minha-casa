@@ -134,6 +134,7 @@ defmodule MinhaCasaAiWeb.Router do
 
     post "/workspace/listings/:id/ingest-images", ListingImageController, :ingest
     get "/workspace/listings/:id/images/:index", ListingImageController, :show
+    get "/listings/:id/images/:index", ListingImageController, :show
     get "/workspace/listings/:listing_id/nearby", ListingNearbyController, :show
 
     get "/portal-searches", PortalSearchController, :index
@@ -220,7 +221,6 @@ defmodule MinhaCasaAiWeb.Router do
     delete "/listing-merge-sessions/:id", ListingMergeSessionController, :delete
     get "/listing-merge-sessions/:id/images/:image_id", ListingMergeSessionController, :image
     post "/listings/:id/ingest-images", ListingImageController, :ingest
-    get "/listings/:id/images/:index", ListingImageController, :show
     post "/attachments", AttachmentController, :create
     post "/workflows/ingestions", WorkflowController, :create
     get "/workflows/:id", WorkflowController, :show
@@ -233,5 +233,11 @@ defmodule MinhaCasaAiWeb.Router do
     delete "/saved-links/:id", SavedLinkController, :delete
     post "/saved-links/:id/enrich", SavedLinkController, :enrich
     get "/listings/:listing_id/nearby", ListingNearbyController, :show
+  end
+
+  scope "/api/internal", MinhaCasaAiWeb do
+    pipe_through [:api, :internal_api]
+
+    get "/listings/:id/images/:index", ListingImageController, :show
   end
 end

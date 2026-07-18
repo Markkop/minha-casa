@@ -14,16 +14,13 @@
     "start": "pnpm start:web",
     "start:web": "pnpm --dir apps/web preview",
     "lint": "pnpm lint:web",
-    "db:generate": "drizzle-kit generate",
-    "db:migrate": "drizzle-kit migrate",
-    "db:push": "drizzle-kit push",
-    "db:studio": "drizzle-kit studio",
+    "db:setup": "bash scripts/db-setup.sh",
+    "db:migrate": "bash scripts/db-migrate.sh",
     "db:set-plus-stripe-live": "node scripts/sync-plus-stripe-live.mjs",
-    "setup:analise": "bash scripts/setup-analise-local.sh"
+    "db:reset-credential-password": "node scripts/reset-credential-password.mjs"
   },
   "dependencies": {
     "better-auth": "^1.4.17",
-    "drizzle-orm": "^0.45.2",
     "pg": "^8.21.0"
   },
   "pnpm": {
@@ -32,11 +29,5 @@
         "@neondatabase/serverless"
       ]
     }
-  },
-  "devDependencies": {
-    "@types/node": "^20",
-    "@types/pg": "^8.20.0",
-    "drizzle-kit": "^0.31.10",
-    "typescript": "^5"
   }
 }

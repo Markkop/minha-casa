@@ -37,6 +37,7 @@
     "@sveltejs/vite-plugin-svelte": "^7.0.0",
     "@tailwindcss/vite": "^4.2.2",
     "@types/leaflet": "^1.9.21",
+    "@types/node": "^20.19.26",
     "@types/pg": "^8.20.0",
     "@types/three": "^0.182.0",
     "eslint": "^10.1.0",

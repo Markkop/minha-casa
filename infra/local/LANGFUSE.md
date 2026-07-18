@@ -42,21 +42,16 @@ Or start the standalone DB on 5434:
 docker compose -f infra/local/docker-compose.db.yml up -d
 ```
 
-### `relation "sessions" does not exist` (Better Auth / Drizzle)
+### `relation "sessions" does not exist` (Better Auth database)
 
-After a **fresh** Postgres volume (or switching ports), the DB is empty. Apply the shared Drizzle schema, then Phoenix backend tables:
+After a **fresh** Postgres volume (or switching ports), the DB is empty. Apply the canonical Ecto schema:
 
 ```bash
-# From repo root — use the same host/port as DATABASE_URL in .env.local (5435 with app stack)
-DATABASE_URL="postgresql://minhacasa:minhacasa_local_password@localhost:5435/minha_casa_local" \
-  DATABASE_SSL=false pnpm db:migrate
-
-# Phoenix (Oban, AI tables, listing_analyses) — same DB on 5435
-docker compose -f infra/local/docker-compose.app.yml --env-file infra/local/.env.local \
-  run --rm --no-deps phoenix-api /app/bin/minha_casa_ai eval 'MinhaCasaAi.Release.migrate()'
+pnpm db:migrate
 ```
 
-If Phoenix migrate stops on `whatsapp_link_codes already exists`, Drizzle already created those tables; mark the overlapping versions and re-run migrate (see repo history or ask in chat).
+The command rebuilds the Phoenix release and runs `MinhaCasaAi.Release.migrate()`.
+It is the same migration path used in production.
 
 Set `BACKEND_DATABASE_URL` in `infra/local/.env.local` to `@host.docker.internal:5435` when using app Postgres, then recreate Phoenix: `docker rm -f minha-casa-phoenix-api-1` and `docker compose … up -d --no-deps phoenix-api`.
 

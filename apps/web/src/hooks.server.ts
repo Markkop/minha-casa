@@ -50,7 +50,8 @@ const authHandle: Handle = async ({ event, resolve }) => {
       event.locals.user = session.user;
       event.locals.activeOrganizationId = await resolveActiveOrganizationId(
         event.cookies,
-        session.user.id
+        session.user.id,
+        event.request.headers
       );
     } else {
       event.locals.session = undefined;
@@ -92,7 +93,7 @@ const routeGuardHandle: Handle = async ({ event, resolve }) => {
   }
 
   if (loggedIn && requiresSubscription(pathname) && !isSubscriptionExempt(pathname)) {
-    const access = await getSubscriptionAccess(event.locals);
+    const access = await getSubscriptionAccess(event.locals, event.request.headers);
     const destination = subscriptionRedirectFor(access.state, requestedPath);
     if (destination) {
       const target = new URL(destination.pathname, event.url);

@@ -1,7 +1,20 @@
-import { and, desc, eq, getDb, gte, plans, subscriptions } from "@minha-casa/db";
+import { fetchPhoenixApi } from "$lib/server/phoenix-api";
 
-export type SubscriptionRecord = typeof subscriptions.$inferSelect;
-export type SubscriptionPlanRecord = typeof plans.$inferSelect;
+export type SubscriptionRecord = {
+  id: string;
+  userId: string;
+  planId: string;
+  status: string;
+  expiresAt: string;
+  [key: string]: unknown;
+};
+
+export type SubscriptionPlanRecord = {
+  id: string;
+  name: string;
+  slug: string;
+  [key: string]: unknown;
+};
 
 export type SubscriptionAccess =
   | {
@@ -30,33 +43,51 @@ export type SubscriptionAccess =
 
 type AccessUser = { id: string; isAdmin?: boolean | null };
 
-/** Resolve route entitlement from the database; persisted status alone is never sufficient. */
-export async function resolveSubscriptionAccess(user: AccessUser): Promise<SubscriptionAccess> {
-  try {
-    const now = new Date();
-    const rows = await getDb()
-      .select({ subscription: subscriptions, plan: plans })
-      .from(subscriptions)
-      .innerJoin(plans, eq(subscriptions.planId, plans.id))
-      .where(
-        and(
-          eq(subscriptions.userId, user.id),
-          eq(subscriptions.status, "active"),
-          gte(subscriptions.expiresAt, now)
-        )
-      )
-      .orderBy(desc(subscriptions.expiresAt))
-      .limit(1);
+type SubscriptionResponse = {
+  accessStatus?: unknown;
+  hasActiveSubscription?: unknown;
+  subscription?: unknown;
+  plan?: unknown;
+};
 
-    if (rows.length === 0) {
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+/** Resolve route entitlement through Phoenix, the canonical owner of subscription data. */
+export async function resolveSubscriptionAccess(
+  user: AccessUser,
+  headers: Headers
+): Promise<SubscriptionAccess> {
+  try {
+    const response = await fetchPhoenixApi("/subscriptions", { headers });
+    if (!response.ok) {
+      throw new Error(`Phoenix returned ${response.status}`);
+    }
+
+    const payload = (await response.json()) as SubscriptionResponse;
+    if (
+      payload.hasActiveSubscription === false &&
+      payload.subscription == null &&
+      payload.plan == null
+    ) {
       return { state: "active", source: "free", subscription: null, plan: null };
+    }
+
+    if (
+      payload.accessStatus !== "active" ||
+      payload.hasActiveSubscription !== true ||
+      !isRecord(payload.subscription) ||
+      !isRecord(payload.plan)
+    ) {
+      throw new Error("Phoenix returned an invalid subscription response");
     }
 
     return {
       state: "active",
       source: "subscription",
-      subscription: rows[0].subscription,
-      plan: rows[0].plan
+      subscription: payload.subscription as SubscriptionRecord,
+      plan: payload.plan as SubscriptionPlanRecord
     };
   } catch (error) {
     console.error("[subscription-access] resolution failed", { userId: user.id, error });
@@ -65,11 +96,14 @@ export async function resolveSubscriptionAccess(user: AccessUser): Promise<Subsc
 }
 
 /** Share one entitlement lookup across hooks and server loads for the same request. */
-export function getSubscriptionAccess(locals: App.Locals): Promise<SubscriptionAccess> {
+export function getSubscriptionAccess(
+  locals: App.Locals,
+  headers: Headers
+): Promise<SubscriptionAccess> {
   if (!locals.user) {
     return Promise.resolve({ state: "inactive", subscription: null, plan: null });
   }
 
-  locals.subscriptionAccess ??= resolveSubscriptionAccess(locals.user);
+  locals.subscriptionAccess ??= resolveSubscriptionAccess(locals.user, headers);
   return locals.subscriptionAccess;
 }

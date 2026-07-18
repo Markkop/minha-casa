@@ -11,7 +11,7 @@ Minha Casa helps users manage and organize real estate listings with AI-powered 
 - **Frontend**: SvelteKit in `apps/web` with `@sveltejs/adapter-vercel`, TypeScript 5, and Tailwind CSS v4
 - **API Backend**: Phoenix/Elixir service in `backend/` for browser APIs, parsing, workflows, chat, MCP, WhatsApp/Telegram webhooks, and MinIO attachments
 - **Database**: PostgreSQL (`pg` pool) — production on VPS, local via Docker or VPS tunnel
-- **Data tooling**: Drizzle ORM for shared auth/app schema and Ecto for Phoenix tables
+- **Data layer**: Ecto owns the complete PostgreSQL schema and Phoenix domain model; Better Auth uses PostgreSQL directly
 - **Authentication**: Better Auth in SvelteKit, with JWT verification in Phoenix
 - **AI**: OpenAI Responses API (`gpt-5.4-mini` via `OPENAI_MODEL`)
 - **Maps**: Leaflet + Google Maps (dual provider)
@@ -56,12 +56,14 @@ Do not put `sslmode=require` in the URL when `DATABASE_SSL=true` — the app str
 
 ### 4. Set up the database
 
-Generate and run migrations:
+Create the local database and run the canonical Ecto migrations through Docker:
 
 ```bash
-pnpm db:generate
-pnpm db:migrate
+pnpm db:setup
 ```
+
+After schema changes, use `pnpm db:migrate`. All schema changes belong in
+`backend/priv/repo/migrations`; there is no second frontend migration ledger.
 
 ### 5. Start the development server
 
@@ -79,10 +81,8 @@ Open [http://localhost:5173](http://localhost:5173) in your browser.
 | `pnpm build` | Build for production |
 | `pnpm start` | Start production server |
 | `pnpm lint` | Run ESLint |
-| `pnpm db:generate` | Generate Drizzle migrations |
-| `pnpm db:migrate` | Run database migrations |
-| `pnpm db:push` | Push schema changes directly |
-| `pnpm db:studio` | Open Drizzle Studio |
+| `pnpm db:setup` | Start local PostgreSQL, rebuild Phoenix, and run Ecto migrations |
+| `pnpm db:migrate` | Rebuild Phoenix and run the canonical Ecto migrations |
 
 ## Dockerized AI Backend
 
@@ -102,7 +102,9 @@ curl http://localhost:4000/health
 
 The backend boots without optional credentials. Features that need OpenAI, ScrapingAnt, MinIO, or WhatsApp validate those env vars when called and return a feature-specific error if missing.
 
-The SvelteKit app serves browser traffic from `apps/web` and proxies most `/api/*` requests to Phoenix through `PHOENIX_API_URL` or `PUBLIC_API_URL`. `/api/subscriptions` stays in SvelteKit because it manages the subscription cookie used by route gating.
+The SvelteKit app serves browser traffic from `apps/web` and proxies application
+`/api/*` requests to Phoenix through `PHOENIX_API_URL` or `PUBLIC_API_URL`.
+Only Better Auth endpoints are handled directly by SvelteKit.
 
 ## Project Structure
 
@@ -113,23 +115,10 @@ minha-casa/
 │       ├── src/routes/      # Pages and same-origin API proxy routes
 │       ├── src/lib/         # Svelte UI, clients, auth, billing, maps, and stores
 │       └── svelte.config.js # SvelteKit config with Vercel adapter
-├── drizzle/                 # Database migrations
-│   └── migrations/
 ├── backend/                 # Phoenix/Elixir API and AI backend
-├── lib/                     # Shared utilities
-│   ├── db/                 # Database schema and connection
-│   │   ├── index.ts       # DB connection
-│   │   └── schema.ts      # Drizzle schema definitions
-│   ├── addons.ts          # Server-side addon utilities
-│   ├── auth.ts            # BetterAuth configuration
-│   ├── auth-client.ts     # Client-side auth utilities
-│   ├── auth-server.ts     # Server-side auth utilities
-│   ├── feature-flags.ts   # Feature flags system
-│   ├── subscription.ts    # Subscription utilities
-│   └── utils.ts           # General utilities
-├── public/                  # Static assets
+│   └── priv/repo/migrations # The only application migration history
 ├── infra/                   # Local and VPS Docker Compose stacks
-├── drizzle.config.ts       # Drizzle configuration
+├── scripts/                 # Docker-backed database and operational commands
 └── package.json
 ```
 
