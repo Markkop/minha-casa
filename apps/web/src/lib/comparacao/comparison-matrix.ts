@@ -10,8 +10,8 @@ import {
   MapPinned,
   Maximize2,
 } from "@lucide/svelte"
-import type { Imovel } from "$lib/anuncios/types"
-import { buildGoogleMapsUrl } from "$lib/anuncios/listing-maps-url"
+import type { Property } from "$lib/listings/types"
+import { buildGoogleMapsUrl } from "$lib/listings/listing-maps-url"
 import {
   buildRecalculationTooltip,
   calculateFeatureAdjustedPrice,
@@ -24,13 +24,13 @@ import {
   formatGarage,
   formatInteger,
   formatPricePerM2,
-  getComparisonPreferenceValue,
+  getComparisonFeatureValue,
   getVisibleComparisonExtraRows,
 } from "$lib/comparacao/comparison-helpers"
 
 type RecalcTooltipFixedListing = Parameters<typeof buildRecalculationTooltip>[0]["fixedListing"]
 
-function recalcTooltipListing(listing: Imovel): RecalcTooltipFixedListing {
+function recalcTooltipListing(listing: Property): RecalcTooltipFixedListing {
   return listing as RecalcTooltipFixedListing
 }
 
@@ -50,7 +50,7 @@ export type FixedCell = {
 export type MatrixContext = {
   currentSlotIndex: number
   fixedCell: FixedCell | null
-  fixedListing: Imovel | null
+  fixedListing: Property | null
   isFixedCell: boolean
   isFixedRow: boolean
   isMobileLayout: boolean
@@ -73,33 +73,33 @@ export type MatrixRow = {
   labelDetail?: string
   icon: Component<{ class?: string }>
   numericKey?: NumericRowKey
-  render: (listing: Imovel, context: MatrixContext) => CellValue
+  render: (listing: Property, context: MatrixContext) => CellValue
 }
 
-function calculatePrivatePricePerM2(listing: Pick<Imovel, "preco" | "m2Privado">): number | null {
-  if (!listing.preco || !listing.m2Privado || listing.m2Privado <= 0) return null
-  return Math.round(listing.preco / listing.m2Privado)
+function calculatePrivatePricePerM2(listing: Pick<Property, "price" | "privateAreaM2">): number | null {
+  if (!listing.price || !listing.privateAreaM2 || listing.privateAreaM2 <= 0) return null
+  return Math.round(listing.price / listing.privateAreaM2)
 }
 
 export function calculatePricePerM2ForAreaKey(
-  listing: Imovel | null,
+  listing: Property | null,
   rowKey: "totalArea" | "privateArea"
 ): number | null {
   if (!listing) return null
   return rowKey === "totalArea" ? calculateTotalPricePerM2(listing) : calculatePrivatePricePerM2(listing)
 }
 
-export function getAreaForKey(listing: Imovel, rowKey: "totalArea" | "privateArea"): number | null {
-  return rowKey === "totalArea" ? listing.m2Totais : listing.m2Privado
+export function getAreaForKey(listing: Property, rowKey: "totalArea" | "privateArea"): number | null {
+  return rowKey === "totalArea" ? listing.totalAreaM2 : listing.privateAreaM2
 }
 
 export function getFeatureValue(
-  listing: Imovel,
+  listing: Property,
   rowKey: "rooms" | "bathrooms" | "garage"
 ): number | null {
-  if (rowKey === "rooms") return listing.quartos
-  if (rowKey === "bathrooms") return listing.banheiros
-  return listing.garagem
+  if (rowKey === "rooms") return listing.bedrooms
+  if (rowKey === "bathrooms") return listing.bathrooms
+  return listing.parkingSpots
 }
 
 export function isFeatureRowKey(rowKey: NumericRowKey): rowKey is "rooms" | "bathrooms" | "garage" {
@@ -117,7 +117,7 @@ function formatAreaWithPricePerM2(
 }
 
 export function renderAreaCell(
-  listing: Imovel,
+  listing: Property,
   rowKey: "totalArea" | "privateArea",
   context: MatrixContext
 ): CellValue {
@@ -160,7 +160,7 @@ export function renderAreaCell(
   }
 }
 
-export function renderAreaOnlyCell(listing: Imovel, rowKey: "totalArea" | "privateArea"): CellValue {
+export function renderAreaOnlyCell(listing: Property, rowKey: "totalArea" | "privateArea"): CellValue {
   const area = getAreaForKey(listing, rowKey)
   if (area === null || area === undefined) {
     return { value: "—" }
@@ -169,7 +169,7 @@ export function renderAreaOnlyCell(listing: Imovel, rowKey: "totalArea" | "priva
 }
 
 export function renderAreaValueCell(
-  listing: Imovel,
+  listing: Property,
   rowKey: "totalArea" | "privateArea",
   context: MatrixContext
 ): CellValue {
@@ -208,43 +208,43 @@ export function renderAreaValueCell(
   }
 }
 
-export function formatRoomsSuites(listing: Pick<Imovel, "quartos" | "suites">): string {
-  const rooms = formatInteger(listing.quartos)
+export function formatRoomsSuites(listing: Pick<Property, "bedrooms" | "suites">): string {
+  const rooms = formatInteger(listing.bedrooms)
   if (!listing.suites || listing.suites <= 0) return rooms
   return `${rooms} (${formatInteger(listing.suites)} suíte${listing.suites === 1 ? "" : "s"})`
 }
 
-export function calculateFixedCellPrice(listing: Imovel, context: MatrixContext): number | null {
+export function calculateFixedCellPrice(listing: Property, context: MatrixContext): number | null {
   const { fixedCell, fixedListing, isFixedCell, isFixedRow } = context
   if (!fixedCell || !fixedListing || isFixedCell || isFixedRow || context.currentSlotIndex === fixedCell.slotIndex) {
-    return listing.preco
+    return listing.price
   }
 
   if (fixedCell.rowKey === "totalArea" || fixedCell.rowKey === "privateArea") {
     const fixedPricePerM2 = calculatePricePerM2ForAreaKey(fixedListing, fixedCell.rowKey)
     const currentArea = getAreaForKey(listing, fixedCell.rowKey)
-    if (!fixedPricePerM2 || !currentArea || currentArea <= 0) return listing.preco
+    if (!fixedPricePerM2 || !currentArea || currentArea <= 0) return listing.price
     return Math.round(fixedPricePerM2 * currentArea)
   }
 
   if (isFeatureRowKey(fixedCell.rowKey)) {
     const fixedValue = getFeatureValue(fixedListing, fixedCell.rowKey)
     const currentValue = getFeatureValue(listing, fixedCell.rowKey)
-    if (fixedValue === null || currentValue === null) return listing.preco
+    if (fixedValue === null || currentValue === null) return listing.price
     const adjusted = calculateFeatureAdjustedPrice(
-      listing.preco,
+      listing.price,
       fixedValue,
       currentValue,
       COMPARISON_FEATURE_ADJUSTMENT_BRL
     )
-    return adjusted ?? listing.preco
+    return adjusted ?? listing.price
   }
 
-  return listing.preco
+  return listing.price
 }
 
 export function getAreaPricePerM2(
-  listing: Imovel,
+  listing: Property,
   rowKey: "totalArea" | "privateArea",
   context: MatrixContext
 ): number | null {
@@ -256,8 +256,8 @@ export function getAreaPricePerM2(
 
   if (fixedCell.rowKey === "price") {
     const area = getAreaForKey(listing, rowKey)
-    if (!fixedListing.preco || !area || area <= 0) return null
-    return Math.round(fixedListing.preco / area)
+    if (!fixedListing.price || !area || area <= 0) return null
+    return Math.round(fixedListing.price / area)
   }
 
   return calculatePricePerM2ForAreaKey(listing, rowKey)
@@ -270,8 +270,8 @@ export function buildExtraMatrixRows(
     key: extra.key,
     label: extra.label,
     icon: extra.icon as Component<{ class?: string }>,
-    render: (listing: Imovel) => ({
-      value: formatExtraValue(getComparisonPreferenceValue(listing, extra.key)),
+    render: (listing: Property) => ({
+      value: formatExtraValue(getComparisonFeatureValue(listing, extra.key)),
     }),
   }))
 }
@@ -289,12 +289,12 @@ export const DESKTOP_NUMERIC_MATRIX_ROWS: MatrixRow[] = [
           context.fixedCell.rowKey !== "price" &&
           !context.isFixedCell &&
           !context.isFixedRow &&
-          value !== listing.preco
+          value !== listing.price
       )
       return {
         value: formatCurrency(value),
         rawValue: value,
-        compareTo: recalculated ? listing.preco : null,
+        compareTo: recalculated ? listing.price : null,
         recalculated: recalculated && value !== null,
         recalculationTooltip:
           recalculated && context.fixedListing
@@ -337,7 +337,7 @@ export const DESKTOP_NUMERIC_MATRIX_ROWS: MatrixRow[] = [
     numericKey: "rooms",
     render: (listing) => ({
       value: formatRoomsSuites(listing),
-      rawValue: listing.quartos,
+      rawValue: listing.bedrooms,
     }),
   },
   {
@@ -346,8 +346,8 @@ export const DESKTOP_NUMERIC_MATRIX_ROWS: MatrixRow[] = [
     icon: Bath,
     numericKey: "bathrooms",
     render: (listing) => ({
-      value: formatInteger(listing.banheiros),
-      rawValue: listing.banheiros,
+      value: formatInteger(listing.bathrooms),
+      rawValue: listing.bathrooms,
     }),
   },
   {
@@ -356,8 +356,8 @@ export const DESKTOP_NUMERIC_MATRIX_ROWS: MatrixRow[] = [
     icon: Car,
     numericKey: "garage",
     render: (listing) => ({
-      value: formatGarage(listing.garagem),
-      rawValue: listing.garagem,
+      value: formatGarage(listing.parkingSpots),
+      rawValue: listing.parkingSpots,
     }),
   },
 ]
@@ -406,15 +406,15 @@ export const MATRIX_ROWS_TAIL: MatrixRow[] = [
     key: "neighborhood",
     label: "Bairro",
     icon: MapPinned,
-    render: (listing) => ({ value: listing.bairro || "—" }),
+    render: (listing) => ({ value: listing.neighborhood || "—" }),
   },
   {
     key: "address",
     label: "Endereço",
     icon: MapPin,
     render: (listing) => {
-      const value = listing.endereco || "—"
-      const trimmed = listing.endereco?.trim()
+      const value = listing.address || "—"
+      const trimmed = listing.address?.trim()
       return {
         value,
         href: trimmed ? buildGoogleMapsUrl(trimmed) : null,
@@ -426,7 +426,7 @@ export const MATRIX_ROWS_TAIL: MatrixRow[] = [
     label: "Anúncio",
     icon: ExternalLink,
     render: (listing) => {
-      const trimmed = listing.link?.trim()
+      const trimmed = listing.sourceUrl?.trim()
       if (!trimmed) {
         return { value: "—" }
       }

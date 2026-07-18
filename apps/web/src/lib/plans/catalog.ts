@@ -21,7 +21,7 @@ export const PLAN_CATALOG = [
     monthlyPriceInCents: 0,
     features: [
       "2 coleções pessoais",
-      "Até 20 anúncios salvos",
+      "Até 20 imóveis salvos",
       "Comparação de imóveis",
       "Acesso a coleções recebidas"
     ],
@@ -35,7 +35,7 @@ export const PLAN_CATALOG = [
     monthlyPriceInCents: 2_900,
     features: [
       "100 coleções por perfil",
-      "Até 1.000 anúncios por perfil",
+      "Até 1.000 imóveis por perfil",
       "Uma Família com até 4 pessoas",
       "Coleções familiares colaborativas",
       "Apresentações externas somente leitura"
@@ -50,7 +50,7 @@ export const PLAN_CATALOG = [
     monthlyPriceInCents: 7_900,
     features: [
       "Workspace profissional separado",
-      "250 coleções e até 2.500 anúncios",
+      "250 coleções e até 2.500 imóveis",
       "Coleções-modelo reutilizáveis",
       "Branding profissional",
       "Apresentações e colaboração com clientes"
@@ -66,7 +66,7 @@ export const PLAN_CATALOG = [
     features: [
       "10 seats incluídos",
       "Seat adicional por R$ 39/mês",
-      "500 coleções e até 5.000 anúncios",
+      "500 coleções e até 5.000 imóveis",
       "Papéis de owner, admin e corretor",
       "Branding, governança e modelos da equipe"
     ],

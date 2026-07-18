@@ -7,7 +7,7 @@
   import { config } from "$lib/config";
   import { workspaceApi, type Listing, type ListingData, type SharedCollection } from "$lib/workspace/client";
 
-  type SortKey = "titulo" | "preco" | "m2Totais" | "m2Privado" | "quartos" | "precoM2";
+  type SortKey = "title" | "price" | "totalAreaM2" | "privateAreaM2" | "bedrooms" | "pricePerM2";
 
   const currency = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
   const numberFormat = new Intl.NumberFormat("pt-BR");
@@ -16,7 +16,7 @@
   let loading = $state(true);
   let error = $state("");
   let query = $state("");
-  let sortKey = $state<SortKey>("preco");
+  let sortKey = $state<SortKey>("price");
   let sortDirection = $state<"asc" | "desc">("asc");
   let isAuthenticated = $state(false);
   let copying = $state(false);
@@ -59,7 +59,7 @@
       sortDirection = sortDirection === "asc" ? "desc" : "asc";
     } else {
       sortKey = key;
-      sortDirection = key === "titulo" ? "asc" : "desc";
+      sortDirection = key === "title" ? "asc" : "desc";
     }
   }
 
@@ -68,7 +68,7 @@
     copying = true;
     try {
       const result = await workspaceApi.copyCollection(data.collection.id, {});
-      await goto(`/anuncios?collection=${encodeURIComponent(result.collection.id)}`);
+      await goto(`/lista?collection=${encodeURIComponent(result.collection.id)}`);
     } catch (err) {
       error = err instanceof Error ? err.message : "Não foi possível copiar a coleção";
     } finally {
@@ -77,18 +77,18 @@
   }
 
   function listingTitle(data: ListingData): string {
-    return stringValue(data.titulo) || "Anuncio sem titulo";
+    return stringValue(data.title) || "Imóvel sem título";
   }
 
   function listingText(data: ListingData): string {
     return [
-      data.titulo,
-      data.endereco,
-      data.bairro,
-      data.cidade,
-      data.tipoImovel,
-      data.condominioNome,
-      data.corretor
+      data.title,
+      data.address,
+      data.neighborhood,
+      data.city,
+      data.propertyType,
+      data.condominiumName,
+      data.contactName
     ]
       .map(stringValue)
       .join(" ");
@@ -100,16 +100,16 @@
   }
 
   function sortValue(data: ListingData, key: SortKey): string | number | null {
-    if (key === "titulo") return listingTitle(data);
-    if (key === "precoM2") return pricePerM2(data);
+    if (key === "title") return listingTitle(data);
+    if (key === "pricePerM2") return pricePerM2(data);
     const value = data[key];
     return typeof value === "number" ? value : null;
   }
 
   function pricePerM2(data: ListingData) {
-    const area = typeof data.m2Privado === "number" && data.m2Privado > 0 ? data.m2Privado : data.m2Totais;
-    if (typeof data.preco !== "number" || typeof area !== "number" || area <= 0) return null;
-    return Math.round(data.preco / area);
+    const area = typeof data.privateAreaM2 === "number" && data.privateAreaM2 > 0 ? data.privateAreaM2 : data.totalAreaM2;
+    if (typeof data.price !== "number" || typeof area !== "number" || area <= 0) return null;
+    return Math.round(data.price / area);
   }
 
   function money(value: unknown) {
@@ -151,7 +151,7 @@
         <div class="mt-2 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
           <div>
             <h1 class="text-2xl font-semibold">{data.collection.name}</h1>
-            <p class="mt-1 text-sm text-app-muted">{data.metadata.totalListings} anuncio(s)</p>
+            <p class="mt-1 text-sm text-app-muted">{data.metadata.totalListings} imóvel(is)</p>
           </div>
           <div class="flex flex-col gap-2 sm:flex-row">
             {#if isAuthenticated}
@@ -181,11 +181,11 @@
             <thead class="bg-app-surface-muted text-left text-xs uppercase text-app-muted">
               <tr>
                 {#each [
-                  ["titulo", "Anuncio"],
-                  ["preco", "Preco"],
-                  ["precoM2", "R$/m2"],
-                  ["m2Privado", "Area"],
-                  ["quartos", "Quartos"]
+                  ["title", "Imóvel"],
+                  ["price", "Preco"],
+                  ["pricePerM2", "R$/m2"],
+                  ["privateAreaM2", "Area"],
+                  ["bedrooms", "Quartos"]
                 ] as [key, label]}
                   <th class="px-3 py-2 font-medium">
                     <button type="button" class="hover:text-app-fg" onclick={() => setSort(key as SortKey)}>
@@ -199,7 +199,7 @@
             <tbody>
               {#if listings.length === 0}
                 <tr>
-                  <td class="px-3 py-8 text-center text-app-muted" colspan="6">Nenhum anuncio encontrado.</td>
+                  <td class="px-3 py-8 text-center text-app-muted" colspan="6">Nenhum imóvel encontrado.</td>
                 </tr>
               {:else}
                 {#each listings as listing (listing.id)}
@@ -214,17 +214,17 @@
                             {#if listing.data.starred}<Star class="h-4 w-4 text-amber-500" fill="currentColor" />{/if}
                             {listingTitle(listing.data)}
                           </div>
-                          <div class="mt-1 text-xs text-app-muted">{listing.data.tipoImovel ?? "-"}</div>
+                          <div class="mt-1 text-xs text-app-muted">{listing.data.propertyType ?? "-"}</div>
                         </div>
                       </div>
                     </td>
-                    <td class="px-3 py-3 font-medium">{money(listing.data.preco)}</td>
+                    <td class="px-3 py-3 font-medium">{money(listing.data.price)}</td>
                     <td class="px-3 py-3">{money(pricePerM2(listing.data))}</td>
-                    <td class="px-3 py-3">{number(listing.data.m2Privado ?? listing.data.m2Totais, " m2")}</td>
-                    <td class="px-3 py-3">{number(listing.data.quartos)}</td>
+                    <td class="px-3 py-3">{number(listing.data.privateAreaM2 ?? listing.data.totalAreaM2, " m2")}</td>
+                    <td class="px-3 py-3">{number(listing.data.bedrooms)}</td>
                     <td class="px-3 py-3 text-app-muted">
-                      <div>{listing.data.endereco ?? "-"}</div>
-                      <div class="text-xs">{[listing.data.bairro, listing.data.cidade].filter(Boolean).join(", ")}</div>
+                      <div>{listing.data.address ?? "-"}</div>
+                      <div class="text-xs">{[listing.data.neighborhood, listing.data.city].filter(Boolean).join(", ")}</div>
                     </td>
                   </tr>
                 {/each}

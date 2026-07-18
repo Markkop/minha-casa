@@ -104,7 +104,7 @@ const listingTemplates: Omit<DemoListing, "neighborhood">[] = [
   }
 ];
 
-/** Cria anúncios demonstrativos estáveis e permite informar o nome do bairro atual. */
+/** Cria imóveis demonstrativos estáveis e permite informar o nome do bairro atual. */
 export function createDemoListings(neighborhood = "Centro"): DemoListing[] {
   return listingTemplates.map((listing) => ({ ...listing, neighborhood }));
 }

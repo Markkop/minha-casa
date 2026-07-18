@@ -5,7 +5,14 @@ defmodule MinhaCasaAi.Workspace.DecisionData do
 
   import Ecto.Query
 
-  alias MinhaCasaAi.Listings.{Collection, CollectionAccessGrant, CollectionPolicy, Listing}
+  alias MinhaCasaAi.Listings.{
+    Collection,
+    CollectionAccessGrant,
+    CollectionPolicy,
+    Listing,
+    ListingData
+  }
+
   alias MinhaCasaAi.Repo
   alias MinhaCasaAi.Workspace.{Condominium, Contact, ListingComparisonNote, Profile, Region}
 
@@ -43,7 +50,7 @@ defmodule MinhaCasaAi.Workspace.DecisionData do
     listing_matches =
       profile_listings(profile)
       |> Enum.reduce(%{}, fn listing, acc ->
-        data = listing.data || %{}
+        data = ListingData.normalize(listing.data || %{})
         phone = normalize_phone(data["contactNumber"])
 
         if phone do
@@ -98,11 +105,11 @@ defmodule MinhaCasaAi.Workspace.DecisionData do
 
       favorite_prices =
         region_listings
-        |> Enum.map(&(&1.data || %{}))
+        |> Enum.map(&ListingData.normalize(&1.data || %{}))
         |> Enum.filter(&(&1["starred"] == true and &1["strikethrough"] != true))
         |> Enum.map(fn data ->
-          area = data["m2Privado"] || data["m2Totais"]
-          price = data["preco"]
+          area = data["privateAreaM2"] || data["totalAreaM2"]
+          price = data["price"]
           if is_number(price) and is_number(area) and area > 0, do: price / area
         end)
         |> Enum.reject(&is_nil/1)
@@ -262,7 +269,7 @@ defmodule MinhaCasaAi.Workspace.DecisionData do
 
     {inserts, _seen} =
       Enum.reduce(profile_listings(profile), {[], existing}, fn listing, {inserts, seen} ->
-        data = listing.data || %{}
+        data = ListingData.normalize(listing.data || %{})
         phone = normalize_phone(data["contactNumber"])
 
         if phone && !MapSet.member?(seen, phone) do
@@ -307,10 +314,10 @@ defmodule MinhaCasaAi.Workspace.DecisionData do
             Profile.profile_values(profile)
             |> Map.merge(%{
               name: name,
-              city: optional_string(data["cidade"]),
-              neighborhood: optional_string(data["bairro"]),
-              address: optional_string(data["endereco"]),
-              property_type: property_type(data["tipoImovel"]),
+              city: optional_string(data["city"]),
+              neighborhood: optional_string(data["neighborhood"]),
+              address: optional_string(data["address"]),
+              property_type: property_type(data["propertyType"]),
               amenities: [],
               source: "listing"
             })
@@ -410,7 +417,7 @@ defmodule MinhaCasaAi.Workspace.DecisionData do
   end
 
   defp listing_summary(%Listing{id: id, data: data}) do
-    %{"id" => id, "title" => (data || %{})["titulo"]}
+    %{"id" => id, "title" => ListingData.normalize(data || %{})["title"]}
   end
 
   defp string(value) when is_binary(value), do: String.trim(value)
@@ -424,9 +431,13 @@ defmodule MinhaCasaAi.Workspace.DecisionData do
   defp optional_string(_), do: nil
 
   defp property_type(value) when value in ["casa", "apartamento"], do: value
+  defp property_type("house"), do: "casa"
+  defp property_type("apartment"), do: "apartamento"
   defp property_type(_), do: nil
 
   defp optional_property_type(value) when value in ["casa", "apartamento"], do: value
+  defp optional_property_type("house"), do: "casa"
+  defp optional_property_type("apartment"), do: "apartamento"
   defp optional_property_type(_), do: nil
 
   defp integer(value) when is_integer(value), do: value

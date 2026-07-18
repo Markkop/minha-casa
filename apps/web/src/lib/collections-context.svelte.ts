@@ -1,6 +1,6 @@
 import { createContext } from "svelte";
 import {
-  buildAnunciosListingDisplayTitles,
+  buildPropertyListDisplayTitles,
   buildListingDisplayTitles,
   resolveListingDisplayTitle,
   type ListingTitleInput
@@ -10,14 +10,22 @@ import {
   readStoredActiveCollectionId,
   storeActiveCollectionId
 } from "$lib/collection-context";
-import { removeListingFromCollectionState } from "$lib/anuncios/listing-removal";
-import { getActiveOrganizationId, setActiveOrganizationId } from "$lib/api/client";
+import { removeListingFromCollectionState } from "$lib/listings/listing-removal";
+import {
+  getActiveOrganizationId,
+  getActiveWorkspaceId,
+  setActiveOrganizationId
+} from "$lib/api/client";
 import { formatApiError } from "$lib/api/error-message";
-import type { ListingData } from "$lib/workspace/client";
+import type {
+  Collection as ApiCollection,
+  Listing as ApiListing,
+  ListingData
+} from "$lib/workspace/client";
 import { workspaceApi } from "$lib/workspace/client";
-import type { ParseRequest } from "$lib/anuncios/parse-input-types";
-import { toCollection, toImovel, toListingData, type Collection, type Imovel } from "$lib/anuncios/types";
-import { queueListingImports } from "$lib/anuncios/listing-import-queue";
+import type { ParseRequest } from "$lib/listings/parse-input-types";
+import { toCollection, toProperty, toListingData, type Collection, type Property } from "$lib/listings/types";
+import { queueListingImports } from "$lib/listings/listing-import-queue";
 
 async function withOrganizationContext<T>(targetOrgId: string | null, fn: () => Promise<T>) {
   const previous = getActiveOrganizationId();
@@ -32,13 +40,14 @@ async function withOrganizationContext<T>(targetOrgId: string | null, fn: () => 
 export interface CollectionsContextValue {
   collections: Collection[];
   activeCollection: Collection | null;
-  listings: Imovel[];
+  listings: Property[];
   isLoading: boolean;
   isLoadingListings: boolean;
   error: string | null;
   listingsCollectionId: string | null;
   loadCollections: () => Promise<void>;
   setActiveCollection: (collection: Collection | null) => void;
+  hydrateListingContext: (collection: ApiCollection, listing: ApiListing) => Property;
   createCollection: (name: string, isDefault?: boolean) => Promise<Collection>;
   createCollectionInProfile: (name: string, targetOrgId: string | null, isDefault?: boolean) => Promise<Collection>;
   updateCollection: (
@@ -54,16 +63,16 @@ export interface CollectionsContextValue {
   ) => Promise<{ collection: Collection; copiedListingsCount: number }>;
   shareCollection: (collectionId: string) => Promise<string>;
   unshareCollection: (collectionId: string) => Promise<void>;
-  loadSharedCollection: (token: string) => Promise<{ collection: { id: string; name: string }; listings: Imovel[] }>;
+  loadSharedCollection: (token: string) => Promise<{ collection: { id: string; name: string }; listings: Property[] }>;
   importSharedListings: (listings: ListingData[]) => Promise<number>;
   loadListings: (collectionId?: string, options?: { silent?: boolean }) => Promise<void>;
-  addListing: (listingData: ListingData) => Promise<Imovel>;
-  updateListing: (listingId: string, updates: Partial<Imovel>) => Promise<Imovel>;
+  addListing: (listingData: ListingData) => Promise<Property>;
+  updateListing: (listingId: string, updates: Partial<Property>) => Promise<Property>;
   removeListing: (listingId: string) => Promise<void>;
-  refreshListing: (listingId: string) => Promise<Imovel | null>;
+  refreshListing: (listingId: string) => Promise<Property | null>;
   parseListingInput: (input: ParseRequest) => Promise<ListingData[]>;
-  getListingDisplayTitle: (listing: Imovel) => string;
-  getAnunciosListingDisplayTitle: (listing: Imovel) => string;
+  getListingDisplayTitle: (listing: Property) => string;
+  getPropertyListDisplayTitle: (listing: Property) => string;
 }
 
 export const [getCollectionsContext, setCollectionsContext] =
@@ -72,25 +81,27 @@ export const [getCollectionsContext, setCollectionsContext] =
 export function createCollectionsState() {
   let collections = $state.raw<Collection[]>([]);
   let activeCollection = $state<Collection | null>(null);
-  let listings = $state.raw<Imovel[]>([]);
+  let listings = $state.raw<Property[]>([]);
   let isLoading = $state(false);
   let isLoadingListings = $state(false);
   let error = $state<string | null>(null);
   let listingsCollectionId = $state<string | null>(null);
+  let collectionsRequestVersion = 0;
+  let listingsRequestVersion = 0;
 
-  function toListingTitleInput(listing: Imovel): ListingTitleInput & { id: string } {
+  function toListingTitleInput(listing: Property): ListingTitleInput & { id: string } {
     return {
       id: listing.id,
-      titulo: listing.titulo,
-      tituloManual: listing.tituloManual,
-      tipoImovel: listing.tipoImovel,
-      quartos: listing.quartos,
-      bairro: listing.bairro,
-      cidade: listing.cidade,
-      endereco: listing.endereco,
-      preco: listing.preco,
-      m2Totais: listing.m2Totais,
-      andar: listing.andar,
+      title: listing.title,
+      manualTitle: listing.manualTitle,
+      propertyType: listing.propertyType,
+      bedrooms: listing.bedrooms,
+      neighborhood: listing.neighborhood,
+      city: listing.city,
+      address: listing.address,
+      price: listing.price,
+      totalAreaM2: listing.totalAreaM2,
+      floor: listing.floor,
       condominiumName: listing.condominiumName
     };
   }
@@ -99,16 +110,16 @@ export function createCollectionsState() {
     buildListingDisplayTitles(listings.map(toListingTitleInput))
   );
 
-  const anunciosDisplayTitles = $derived.by(() =>
-    buildAnunciosListingDisplayTitles(listings.map(toListingTitleInput))
+  const propertyListDisplayTitles = $derived.by(() =>
+    buildPropertyListDisplayTitles(listings.map(toListingTitleInput))
   );
 
-  function getListingDisplayTitle(listing: Imovel): string {
+  function getListingDisplayTitle(listing: Property): string {
     return resolveListingDisplayTitle(toListingTitleInput(listing), displayTitles);
   }
 
-  function getAnunciosListingDisplayTitle(listing: Imovel): string {
-    return resolveListingDisplayTitle(toListingTitleInput(listing), anunciosDisplayTitles);
+  function getPropertyListDisplayTitle(listing: Property): string {
+    return resolveListingDisplayTitle(toListingTitleInput(listing), propertyListDisplayTitles);
   }
 
   function syncCollectionListingCount(collectionId: string, count: number) {
@@ -128,13 +139,15 @@ export function createCollectionsState() {
   }
 
   async function loadCollections() {
+    const requestVersion = ++collectionsRequestVersion;
     isLoading = true;
     error = null;
     try {
       const fetched = (await workspaceApi.fetchCollections()).collections.map(toCollection);
+      if (requestVersion !== collectionsRequestVersion) return;
       collections = fetched;
 
-      const storedId = readStoredActiveCollectionId(getActiveOrganizationId());
+      const storedId = readStoredActiveCollectionId(getActiveWorkspaceId());
       const fallback =
         fetched.find((c) => c.id === storedId) ??
         fetched.find((c) => c.isDefault) ??
@@ -154,9 +167,10 @@ export function createCollectionsState() {
         }
       }
     } catch (err) {
+      if (requestVersion !== collectionsRequestVersion) return;
       error = formatApiError(err);
     } finally {
-      isLoading = false;
+      if (requestVersion === collectionsRequestVersion) isLoading = false;
     }
   }
 
@@ -173,6 +187,31 @@ export function createCollectionsState() {
     if (nextId !== listingsCollectionId || nextId !== previousId) {
       void loadListings(nextId);
     }
+  }
+
+  function hydrateListingContext(apiCollection: ApiCollection, apiListing: ApiListing): Property {
+    collectionsRequestVersion += 1;
+    listingsRequestVersion += 1;
+    const collection = toCollection(apiCollection);
+    const listing = toProperty(apiListing);
+
+    collections = collections.some((item) => item.id === collection.id)
+      ? collections.map((item) => (item.id === collection.id ? collection : item))
+      : [...collections, collection];
+    activeCollection = collection;
+    storeActiveCollectionId(collection.id);
+
+    if (listingsCollectionId === collection.id) {
+      listings = listings.some((item) => item.id === listing.id)
+        ? listings.map((item) => (item.id === listing.id ? listing : item))
+        : [...listings, listing];
+    } else {
+      listings = [listing];
+      listingsCollectionId = collection.id;
+    }
+
+    void loadListings(collection.id);
+    return listing;
   }
 
   async function createCollection(name: string, isDefault = false) {
@@ -259,7 +298,7 @@ export function createCollectionsState() {
     const result = await workspaceApi.fetchSharedCollection(token);
     return {
       collection: { id: result.collection.id, name: result.collection.name },
-      listings: result.listings.map((listing) => toImovel(listing))
+      listings: result.listings.map((listing) => toProperty(listing))
     };
   }
 
@@ -270,9 +309,11 @@ export function createCollectionsState() {
   }
 
   async function loadListings(collectionId = activeCollection?.id, options?: { silent?: boolean }) {
+    const requestVersion = ++listingsRequestVersion;
     if (!collectionId) {
       listings = [];
       listingsCollectionId = null;
+      isLoadingListings = false;
       return;
     }
     if (!options?.silent) {
@@ -283,38 +324,40 @@ export function createCollectionsState() {
     }
     try {
       const rows = (await workspaceApi.fetchListings(collectionId)).listings.map((listing) =>
-        toImovel(listing)
+        toProperty(listing)
       );
+      if (requestVersion !== listingsRequestVersion) return;
       listings = rows;
       listingsCollectionId = collectionId;
       syncCollectionListingCount(collectionId, rows.length);
       error = null;
     } catch (err) {
+      if (requestVersion !== listingsRequestVersion) return;
       error = formatApiError(err);
     } finally {
-      if (!options?.silent) isLoadingListings = false;
+      if (requestVersion === listingsRequestVersion) isLoadingListings = false;
     }
   }
 
   async function addListing(listingData: ListingData) {
     if (!activeCollection?.id) throw new Error("Selecione uma coleção antes de adicionar");
     const { listing } = await workspaceApi.createListing(activeCollection.id, listingData);
-    const imovel = toImovel(listing);
-    listings = [...listings, imovel];
+    const property = toProperty(listing);
+    listings = [...listings, property];
     syncCollectionListingCount(activeCollection.id, listings.length);
-    return imovel;
+    return property;
   }
 
-  async function updateListing(listingId: string, updates: Partial<Imovel>) {
+  async function updateListing(listingId: string, updates: Partial<Property>) {
     if (!activeCollection?.id) throw new Error("Nenhuma coleção ativa");
     const { listing } = await workspaceApi.updateListing(
       activeCollection.id,
       listingId,
       toListingData(updates)
     );
-    const imovel = toImovel(listing);
-    listings = listings.map((item) => (item.id === imovel.id ? imovel : item));
-    return imovel;
+    const property = toProperty(listing);
+    listings = listings.map((item) => (item.id === property.id ? property : item));
+    return property;
   }
 
   async function removeListing(listingId: string) {
@@ -338,9 +381,9 @@ export function createCollectionsState() {
     const rows = (await workspaceApi.fetchListings(activeCollection.id)).listings;
     const found = rows.find((row) => row.id === listingId);
     if (!found) return null;
-    const imovel = toImovel(found);
-    listings = listings.map((item) => (item.id === imovel.id ? imovel : item));
-    return imovel;
+    const property = toProperty(found);
+    listings = listings.map((item) => (item.id === property.id ? property : item));
+    return property;
   }
 
   async function parseListingInput(input: ParseRequest) {
@@ -381,6 +424,7 @@ export function createCollectionsState() {
     },
     loadCollections,
     setActiveCollection,
+    hydrateListingContext,
     createCollection,
     createCollectionInProfile,
     updateCollection,
@@ -398,7 +442,7 @@ export function createCollectionsState() {
     refreshListing,
     parseListingInput,
     getListingDisplayTitle,
-    getAnunciosListingDisplayTitle
+    getPropertyListDisplayTitle
   } satisfies CollectionsContextValue;
 }
 
@@ -414,16 +458,18 @@ export function attachCollectionsListeners(
     const eventCollectionId =
       event instanceof CustomEvent ? (event.detail?.collectionId as string | null | undefined) : undefined;
     if (eventCollectionId && eventCollectionId === state.activeCollection?.id) return;
-    const storedId = readStoredActiveCollectionId(getActiveOrganizationId());
+    const storedId = readStoredActiveCollectionId(getActiveWorkspaceId());
     const match = state.collections.find((c) => c.id === storedId);
     if (match && match.id !== state.activeCollection?.id) state.setActiveCollection(match);
   };
 
   window.addEventListener("minha-casa:organization-context-change", onOrgChange);
+  window.addEventListener("minha-casa:workspace-context-change", onOrgChange);
   window.addEventListener(ACTIVE_COLLECTION_CHANGE_EVENT, onCollectionChange);
 
   return () => {
     window.removeEventListener("minha-casa:organization-context-change", onOrgChange);
+    window.removeEventListener("minha-casa:workspace-context-change", onOrgChange);
     window.removeEventListener(ACTIVE_COLLECTION_CHANGE_EVENT, onCollectionChange);
   };
 }

@@ -62,12 +62,12 @@ defmodule MinhaCasaAi.Assistant.Intent do
     end
   end
 
-  defp normalize_field("preco"), do: "preco"
-  defp normalize_field("preço"), do: "preco"
-  defp normalize_field("titulo"), do: "titulo"
-  defp normalize_field("título"), do: "titulo"
-  defp normalize_field("endereco"), do: "endereco"
-  defp normalize_field("endereço"), do: "endereco"
+  defp normalize_field("preco"), do: "price"
+  defp normalize_field("preço"), do: "price"
+  defp normalize_field("titulo"), do: "title"
+  defp normalize_field("título"), do: "title"
+  defp normalize_field("endereco"), do: "address"
+  defp normalize_field("endereço"), do: "address"
   defp normalize_field(field), do: field
 
   defp ingest_content?(text) do

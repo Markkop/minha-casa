@@ -5,7 +5,7 @@
   import { safeRedirectPath } from "$lib/navigation/safe-redirect";
 
   const retryPath = $derived(
-    safeRedirectPath(page.url.searchParams.get("redirect"), "/anuncios")
+    safeRedirectPath(page.url.searchParams.get("redirect"), "/lista")
   );
 
   function retry() {

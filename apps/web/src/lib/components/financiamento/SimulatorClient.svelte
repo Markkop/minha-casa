@@ -4,7 +4,7 @@
   import { AlertCircle, Check, ClipboardPaste, Copy, Sparkles } from "@lucide/svelte";
   import type { Snippet } from "svelte";
   import { page } from "$app/state";
-  import AnaliseQuerySync from "$lib/components/analise/AnaliseQuerySync.svelte";
+  import PropertyQuerySync from "$lib/components/property-details/PropertyQuerySync.svelte";
   import WorkspaceListingQuerySync from "$lib/components/workspace/WorkspaceListingQuerySync.svelte";
   import WorkspaceRightSidebarContent from "$lib/components/layout/WorkspaceRightSidebarContent.svelte";
   import AdjustmentPanel from "$lib/components/financiamento/adjustment-panel.svelte";
@@ -31,7 +31,7 @@
     pruneSelectedTargetPriceFilters
   } from "$lib/components/financiamento/price-filter-approx";
   import { snapToPropertyStep } from "$lib/components/financiamento/parameter-row-helpers";
-  import { LISTINGS_SECTION_CLASS } from "$lib/anuncios/listings-panel-layout";
+  import { LISTINGS_SECTION_CLASS } from "$lib/listings/listings-panel-layout";
   import { getCollectionsContext } from "$lib/collections-context.svelte";
   import WorkspaceLoadingState from "$lib/components/workspace/WorkspaceLoadingState.svelte";
   import {
@@ -50,7 +50,7 @@
     buildSuggestionComparisonGroup,
     type FinanceiroSuggestionResult
   } from "$lib/financiamento/financeiro-suggestions";
-  import { valorImovelFromListing } from "$lib/financiamento/listing-valor-imovel";
+  import { propertyValueFromListing } from "$lib/financiamento/listing-property-value";
   import {
     createChartSelectionState,
     setChartSelectionContext
@@ -176,7 +176,7 @@
   const sortedListings = $derived(
     [...ctx.listings]
       .filter((listing) => !listing.strikethrough)
-      .sort((a, b) => (a.titulo ?? "").localeCompare(b.titulo ?? "", "pt-BR"))
+      .sort((a, b) => (a.title ?? "").localeCompare(b.title ?? "", "pt-BR"))
   );
 
   $effect(() => {
@@ -210,7 +210,7 @@
           collection,
           organizationId: collection.orgId ?? null,
           profileLabel: collection.orgId ? "Família ou imobiliária" : "Pessoal",
-          label: collection.label
+          label: collection.name
         }));
       });
   });
@@ -232,7 +232,7 @@
     const listing = sortedListings.find((item) => item.id === listingId);
     if (!listing) return;
 
-    const valorFromListing = valorImovelFromListing(listing.preco);
+    const valorFromListing = propertyValueFromListing(listing.price);
     params = {
       ...params,
       linkedListingId: listingId,
@@ -873,7 +873,7 @@
     class="flex h-[calc(100svh-var(--nav-height,2.75rem))] min-h-0 flex-col overflow-hidden bg-app-bg text-app-fg"
   >
     {#if workspaceMode}
-      <AnaliseQuerySync />
+      <PropertyQuerySync />
       <WorkspaceListingQuerySync />
       <WorkspaceRightSidebarContent title="Parâmetros" actions={sidebarActions} desktopOnly>
         {@render adjustmentPanel()}

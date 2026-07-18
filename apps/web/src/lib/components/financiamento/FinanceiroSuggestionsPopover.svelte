@@ -1,7 +1,7 @@
 <script lang="ts">
   import { ChevronDown, Sparkles } from "@lucide/svelte";
   import PageToolbarButton from "$lib/components/page-toolbar/PageToolbarButton.svelte";
-  import ToolbarAnchoredPopover from "$lib/components/anuncios/ToolbarAnchoredPopover.svelte";
+  import ToolbarAnchoredPopover from "$lib/components/listings/ToolbarAnchoredPopover.svelte";
   import {
     formatSuggestionMoney,
     type FinanceiroSuggestionResult

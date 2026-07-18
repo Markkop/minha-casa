@@ -2,7 +2,7 @@
   import { Bookmark } from "@lucide/svelte";
   import PageToolbarButton from "$lib/components/page-toolbar/PageToolbarButton.svelte";
   import PageToolbarIconButton from "$lib/components/page-toolbar/PageToolbarIconButton.svelte";
-  import ToolbarAnchoredPopover from "$lib/components/anuncios/ToolbarAnchoredPopover.svelte";
+  import ToolbarAnchoredPopover from "$lib/components/listings/ToolbarAnchoredPopover.svelte";
   import Input from "$lib/components/ui/Input.svelte";
   import type { ScenarioCollectionDestination } from "$lib/financiamento/scenario-collection-destinations";
 

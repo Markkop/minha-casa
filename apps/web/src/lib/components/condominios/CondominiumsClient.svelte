@@ -148,7 +148,7 @@
     disabled={syncing}
     onclick={() => void load({ sync: true })}
   >
-    {syncing ? "Atualizando..." : "Atualizar dos anúncios"}
+    {syncing ? "Atualizando..." : "Atualizar dos imóveis"}
   </Button>
 {/snippet}
 

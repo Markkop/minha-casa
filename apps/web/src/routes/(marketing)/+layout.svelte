@@ -22,7 +22,7 @@
   const googleCallbackURL = $derived(
     safeRedirectPath(page.url.searchParams.get("redirect"))
   );
-  const logoHref = $derived(user ? "/anuncios" : "/");
+  const logoHref = $derived(user ? "/lista" : "/");
   const showMarketingHeader = $derived(page.url.pathname !== "/intelligence-demo");
 
   const initials = $derived.by(() => {
@@ -70,7 +70,6 @@
           <AccountMenu
             {user}
             {initials}
-            hasFloodRisk={false}
             bind:accountOpen
             compact
             onCloseChrome={closeChrome}

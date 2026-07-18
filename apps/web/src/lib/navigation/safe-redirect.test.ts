@@ -7,10 +7,10 @@ import {
 
 describe("safe redirects", () => {
   it("accepts internal absolute paths", () => {
-    expect(isSafeRedirectPath("/anuncios")).toBe(true);
-    expect(safeRedirectPath("/anuncios?share=1")).toBe("/anuncios?share=1");
-    expect(safeRedirectPath("/anuncios?colecao=Casa%20nova&ordem=preco#mapa")).toBe(
-      "/anuncios?colecao=Casa%20nova&ordem=preco#mapa"
+    expect(isSafeRedirectPath("/lista")).toBe(true);
+    expect(safeRedirectPath("/lista?share=1")).toBe("/lista?share=1");
+    expect(safeRedirectPath("/lista?colecao=Casa%20nova&ordem=price#mapa")).toBe(
+      "/lista?colecao=Casa%20nova&ordem=price#mapa"
     );
   });
 
@@ -18,12 +18,12 @@ describe("safe redirects", () => {
     expect(isSafeRedirectPath("https://example.com")).toBe(false);
     expect(isSafeRedirectPath("//example.com")).toBe(false);
     expect(isSafeRedirectPath("anuncios")).toBe(false);
-    expect(safeRedirectPath("https://example.com")).toBe("/anuncios");
+    expect(safeRedirectPath("https://example.com")).toBe("/lista");
   });
 
   it("rejects backslash-based network paths", () => {
     expect(isSafeRedirectPath("/\\\\example.com")).toBe(false);
-    expect(safeRedirectPath("/\\\\example.com")).toBe("/anuncios");
+    expect(safeRedirectPath("/\\\\example.com")).toBe("/lista");
   });
 });
 
@@ -38,14 +38,14 @@ describe("authRouteWithRedirect", () => {
   });
 
   it("preserves the full internal path and query string", () => {
-    expect(authRouteWithRedirect("/login", "/anuncios?colecao=abc&modo=mapa")).toBe(
-      "/login?redirect=%2Fanuncios%3Fcolecao%3Dabc%26modo%3Dmapa"
+    expect(authRouteWithRedirect("/login", "/lista?colecao=abc&modo=mapa")).toBe(
+      "/login?redirect=%2Flista%3Fcolecao%3Dabc%26modo%3Dmapa"
     );
   });
 
   it("does not propagate unsafe external redirects", () => {
     expect(authRouteWithRedirect("/login", "https://example.com")).toBe(
-      "/login?redirect=%2Fanuncios"
+      "/login?redirect=%2Flista"
     );
   });
 });

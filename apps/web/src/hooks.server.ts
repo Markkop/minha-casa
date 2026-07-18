@@ -79,7 +79,7 @@ const routeGuardHandle: Handle = async ({ event, resolve }) => {
   if (AUTH_ROUTES.has(pathname) && loggedIn) {
     throw redirect(
       303,
-      safeRedirectPath(event.url.searchParams.get("redirect"), "/anuncios")
+      safeRedirectPath(event.url.searchParams.get("redirect"), "/lista")
     );
   }
 

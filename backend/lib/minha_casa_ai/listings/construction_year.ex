@@ -24,10 +24,17 @@ defmodule MinhaCasaAi.Listings.ConstructionYear do
   def normalize(_value), do: nil
 
   def normalize_data(data) when is_map(data) do
-    if Map.has_key?(data, "anoConstrucao") do
-      Map.put(data, "anoConstrucao", normalize(data["anoConstrucao"]))
-    else
-      data
+    cond do
+      Map.has_key?(data, "constructionYear") ->
+        Map.put(data, "constructionYear", normalize(data["constructionYear"]))
+
+      Map.has_key?(data, "anoConstrucao") ->
+        data
+        |> Map.delete("anoConstrucao")
+        |> Map.put("constructionYear", normalize(data["anoConstrucao"]))
+
+      true ->
+        data
     end
   end
 end

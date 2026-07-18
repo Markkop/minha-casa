@@ -2,7 +2,7 @@
   import { Check, Download, Loader2 } from "@lucide/svelte";
   import { goto } from "$app/navigation";
   import PageToolbarButton from "$lib/components/page-toolbar/PageToolbarButton.svelte";
-  import ToolbarAnchoredPopover from "$lib/components/anuncios/ToolbarAnchoredPopover.svelte";
+  import ToolbarAnchoredPopover from "$lib/components/listings/ToolbarAnchoredPopover.svelte";
   import Input from "$lib/components/ui/Input.svelte";
   import { setActiveOrganizationId } from "$lib/api/client";
   import { getCollectionsContext } from "$lib/collections-context.svelte";
@@ -61,7 +61,7 @@
           collection,
           organizationId: collection.orgId ?? null,
           profileLabel: collection.orgId ? "Família ou imobiliária" : "Pessoal",
-          label: collection.label
+          label: collection.name
         }));
         selectedCollectionId = ctx.activeCollection?.id ?? destinations[0]?.collection.id ?? "";
       })

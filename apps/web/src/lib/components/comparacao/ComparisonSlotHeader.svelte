@@ -1,6 +1,6 @@
 <script lang="ts">
   import { ArrowLeftRight, Home, Pencil, Star } from "@lucide/svelte";
-  import type { Imovel } from "$lib/anuncios/types";
+  import type { Property } from "$lib/listings/types";
   import ListingSelectorPopover from "$lib/components/listings/ListingSelectorPopover.svelte";
   import ComparisonTooltip from "$lib/components/comparacao/ComparisonTooltip.svelte";
   import Button from "$lib/components/ui/Button.svelte";
@@ -9,7 +9,7 @@
     formatShortListingName,
     type ComparisonSlot
   } from "$lib/comparacao/comparison-helpers";
-  import { buildListingAnaliseHref } from "$lib/listing-analise-url";
+  import { buildPropertyHref } from "$lib/property-details-url";
   import { comparisonMobileSlotListingLabel } from "$lib/listing-display-title";
   import { cn } from "$lib/utils";
 
@@ -18,7 +18,7 @@
     listing,
     listings,
     slots,
-    collectionId,
+    collectionId: _collectionId,
     headerHeightPx,
     isMobileLayout,
     onSwap,
@@ -26,15 +26,15 @@
     onEditListing
   }: {
     slotIndex: number;
-    listing: Imovel | null;
-    listings: Imovel[];
+    listing: Property | null;
+    listings: Property[];
     slots: ComparisonSlot[];
     collectionId: string | null;
     headerHeightPx: number;
     isMobileLayout: boolean;
     onSwap: (slotIndex: number, listingId: string) => void;
     onToggleStar: (listingId: string, currentStarred: boolean | undefined) => void;
-    onEditListing: (listing: Imovel) => void;
+    onEditListing: (listing: Property) => void;
   } = $props();
 
   const slotActionBtnClass =
@@ -44,8 +44,8 @@
 
   const swapCandidates = $derived(getSwapCandidatesForSlot(listings, slots, slotIndex));
 
-  function formatSlotSummary(imovel: Imovel): string {
-    return imovel.endereco || "—";
+  function formatSlotSummary(property: Property): string {
+    return property.address || "—";
   }
 </script>
 
@@ -56,7 +56,7 @@
   {#if listing?.imageUrl}
     <img
       src={listing.imageUrl}
-      alt={listing.titulo}
+      alt={listing.title}
       class="absolute inset-0 h-full w-full object-cover"
     />
   {:else}
@@ -95,7 +95,7 @@
 
         {#if listing}
           <a
-            href={buildListingAnaliseHref(listing.id, collectionId)}
+            href={buildPropertyHref(listing.id)}
             class={cn(
               "min-w-0 flex-1 font-semibold leading-snug text-white line-clamp-2 hover:underline",
               isMobileLayout ? "text-[10px]" : "text-xs"
@@ -122,7 +122,7 @@
           isMobileLayout ? "text-[9px]" : "text-[10px]"
         )}
       >
-        {listing ? formatSlotSummary(listing) : "Escolha um anúncio"}
+        {listing ? formatSlotSummary(listing) : "Escolha um imóvel"}
       </p>
     </div>
   </div>

@@ -47,7 +47,7 @@
     </label>
     <label class="flex flex-col gap-2 text-sm font-medium">
       Cidade
-      <input class="h-10 rounded-md border border-app-border bg-white px-3" bind:value={state.filterSet.cidade} />
+      <input class="h-10 rounded-md border border-app-border bg-white px-3" bind:value={state.filterSet.city} />
     </label>
     <label class="flex flex-col gap-2 text-sm font-medium">
       Bairros
@@ -122,9 +122,9 @@
             type="button"
             class={cn(
               "rounded-full border px-3 py-1 text-xs transition",
-              state.filterSet.quartos.includes(option) ? "border-app-fg bg-app-fg text-white" : "border-app-border bg-white text-app-muted hover:text-app-fg"
+              state.filterSet.bedrooms.includes(option) ? "border-app-fg bg-app-fg text-white" : "border-app-border bg-white text-app-muted hover:text-app-fg"
             )}
-            onclick={() => state.toggleNumberList("quartos", option)}
+            onclick={() => state.toggleNumberList("bedrooms", option)}
           >
             {option}+
           </button>

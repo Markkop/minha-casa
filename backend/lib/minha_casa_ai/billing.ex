@@ -5,12 +5,9 @@ defmodule MinhaCasaAi.Billing do
   alias MinhaCasaAi.{Audit, Organizations, PlatformRoles, Workspaces}
 
   alias MinhaCasaAi.Billing.{
-    Addon,
-    OrganizationAddon,
     Plan,
     ProcessedWebhookEvent,
-    Subscription,
-    UserAddon
+    Subscription
   }
 
   alias MinhaCasaAi.Listings.{Collection, Listing}
@@ -94,7 +91,7 @@ defmodule MinhaCasaAi.Billing do
          {:ok, response} <-
            stripe_post("/v1/billing_portal/sessions", %{
              "customer" => customer_id,
-             "return_url" => "#{String.trim_trailing(app_url, "/")}/anuncios"
+             "return_url" => "#{String.trim_trailing(app_url, "/")}/lista"
            }) do
       {:ok, %{url: response["url"]}}
     else
@@ -596,51 +593,9 @@ defmodule MinhaCasaAi.Billing do
     end
   end
 
-  def list_addons, do: Repo.all(from(a in Addon, order_by: [asc: a.name]))
-
-  def has_addon_access?(user_id, addon_slug, org_id \\ nil) do
-    user_has_addon? =
-      UserAddon
-      |> active_grant_query(addon_slug)
-      |> where([g], g.user_id == ^user_id)
-      |> Repo.exists?()
-
-    org_has_addon? =
-      is_binary(org_id) and
-        OrganizationAddon
-        |> active_grant_query(addon_slug)
-        |> where([g], g.organization_id == ^org_id)
-        |> Repo.exists?()
-
-    user_has_addon? or org_has_addon?
-  end
-
-  def list_current_user_addons(user_id) do
-    grants =
-      UserAddon
-      |> active_grants_query()
-      |> where([g], g.user_id == ^user_id)
-      |> order_by([g], asc: g.granted_at)
-      |> Repo.all()
-
-    addons = addon_map()
-    Enum.map(grants, fn grant -> %{grant: grant, addon: Map.get(addons, grant.addon_slug)} end)
-  end
-
-  def update_user_addon_enabled(user_id, slug, enabled) when is_boolean(enabled) do
-    from(g in UserAddon, where: g.user_id == ^user_id and g.addon_slug == ^slug)
-    |> Repo.one()
-    |> update_grant_enabled(enabled)
-  end
-
-  def update_user_addon_enabled(_, _, _), do: {:error, :invalid}
-
-  def list_organizations_with_addons do
+  def list_organizations do
     orgs = Repo.all(from(o in Organization, order_by: [asc: o.name]))
-    grants = Repo.all(from(g in OrganizationAddon, order_by: [asc: g.granted_at]))
-    addons = addon_map()
     owners = users_map(Enum.map(orgs, & &1.owner_id))
-    grants_by_org = Enum.group_by(grants, & &1.organization_id)
     now = DateTime.utc_now(:second)
 
     member_counts =
@@ -667,127 +622,13 @@ defmodule MinhaCasaAi.Billing do
         organization: org,
         owner: Map.get(owners, org.owner_id),
         members_count: Map.get(member_counts, org.id, 0),
-        pending_invites_count: Map.get(pending_invite_counts, org.id, 0),
-        addons:
-          Enum.map(
-            Map.get(grants_by_org, org.id, []),
-            &%{grant: &1, addon: Map.get(addons, &1.addon_slug)}
-          )
+        pending_invites_count: Map.get(pending_invite_counts, org.id, 0)
       }
     end)
   end
 
-  def list_user_addons(user_id) do
-    with %User{} = user <- Repo.get(User, user_id) do
-      grants =
-        Repo.all(
-          from(g in UserAddon, where: g.user_id == ^user_id, order_by: [asc: g.granted_at])
-        )
-
-      addons = addon_map()
-      admins = users_map(Enum.map(grants, & &1.granted_by))
-
-      {:ok,
-       %{
-         user: user,
-         addons:
-           Enum.map(grants, fn grant ->
-             %{
-               grant: grant,
-               addon: Map.get(addons, grant.addon_slug),
-               granted_by_user: Map.get(admins, grant.granted_by)
-             }
-           end)
-       }}
-    else
-      nil -> {:error, :not_found}
-    end
-  end
-
-  def grant_user_addon(admin_id, user_id, attrs) do
-    grant_addon(UserAddon, %{user_id: user_id}, admin_id, attrs)
-  end
-
-  def revoke_user_addon(user_id, slug) do
-    from(g in UserAddon, where: g.user_id == ^user_id and g.addon_slug == ^slug)
-    |> Repo.one()
-    |> delete_grant()
-  end
-
-  def list_current_organization_addons(org_id) do
-    grants =
-      Repo.all(
-        from(g in OrganizationAddon,
-          where: g.organization_id == ^org_id,
-          order_by: [asc: g.granted_at]
-        )
-      )
-
-    addons = addon_map()
-    Enum.map(grants, fn grant -> %{grant: grant, addon: Map.get(addons, grant.addon_slug)} end)
-  end
-
-  def list_organization_addons(org_id) do
-    with %Organization{} = org <- Repo.get(Organization, org_id) do
-      grants =
-        Repo.all(
-          from(g in OrganizationAddon,
-            where: g.organization_id == ^org_id,
-            order_by: [asc: g.granted_at]
-          )
-        )
-
-      addons = addon_map()
-      admins = users_map(Enum.map(grants, & &1.granted_by))
-
-      {:ok,
-       %{
-         organization: org,
-         addons:
-           Enum.map(grants, fn grant ->
-             %{
-               grant: grant,
-               addon: Map.get(addons, grant.addon_slug),
-               granted_by_user: Map.get(admins, grant.granted_by)
-             }
-           end)
-       }}
-    else
-      nil -> {:error, :not_found}
-    end
-  end
-
-  def grant_organization_addon(admin_id, org_id, attrs) do
-    grant_addon(OrganizationAddon, %{organization_id: org_id}, admin_id, attrs)
-  end
-
-  def revoke_organization_addon(org_id, slug) do
-    from(g in OrganizationAddon, where: g.organization_id == ^org_id and g.addon_slug == ^slug)
-    |> Repo.one()
-    |> delete_grant()
-  end
-
-  def update_organization_addon_enabled(org_id, slug, enabled) when is_boolean(enabled) do
-    from(g in OrganizationAddon, where: g.organization_id == ^org_id and g.addon_slug == ^slug)
-    |> Repo.one()
-    |> update_grant_enabled(enabled)
-  end
-
-  def update_organization_addon_enabled(_, _, _), do: {:error, :invalid}
-
   defp maybe_active(query, true), do: query
   defp maybe_active(query, false), do: where(query, [p], p.is_active == true)
-
-  defp active_grants_query(schema) do
-    now = DateTime.utc_now(:second)
-    from(g in schema, where: g.enabled == true and (is_nil(g.expires_at) or g.expires_at > ^now))
-  end
-
-  defp active_grant_query(schema, addon_slug) do
-    schema
-    |> active_grants_query()
-    |> where([g], g.addon_slug == ^addon_slug)
-  end
 
   defp with_plan(nil), do: nil
 
@@ -1183,10 +1024,6 @@ defmodule MinhaCasaAi.Billing do
     end
   end
 
-  defp addon_map do
-    Addon |> Repo.all() |> Map.new(&{&1.slug, &1})
-  end
-
   defp users_map(ids) do
     ids = ids |> Enum.reject(&is_nil/1) |> Enum.uniq()
 
@@ -1234,65 +1071,6 @@ defmodule MinhaCasaAi.Billing do
       {:ok, parsed}
     end
   end
-
-  defp grant_addon(schema, identity, admin_id, attrs) do
-    slug = Map.get(attrs, "addonSlug") || Map.get(attrs, "addon_slug")
-
-    with true <- is_binary(slug) and String.trim(slug) != "",
-         %Addon{} = addon <- Repo.get_by(Addon, slug: String.trim(slug)),
-         {:ok, expires_at} <-
-           parse_optional_datetime(Map.get(attrs, "expiresAt") || Map.get(attrs, "expires_at")) do
-      enabled = Map.get(attrs, "enabled", true)
-      now = DateTime.utc_now(:second)
-      identity_field = identity |> Map.keys() |> List.first()
-      identity_value = Map.fetch!(identity, identity_field)
-
-      existing =
-        Repo.one(
-          from(g in schema,
-            where: field(g, ^identity_field) == ^identity_value and g.addon_slug == ^addon.slug
-          )
-        )
-
-      params =
-        identity
-        |> Map.merge(%{
-          addon_slug: addon.slug,
-          granted_at: now,
-          granted_by: admin_id,
-          enabled: enabled,
-          expires_at: expires_at
-        })
-
-      result =
-        case existing do
-          nil -> schema |> struct() |> changeset_for(schema, params) |> Repo.insert()
-          grant -> grant |> changeset_for(schema, params) |> Repo.update()
-        end
-
-      case result do
-        {:ok, grant} -> {:ok, %{grant: grant, addon: addon, updated: not is_nil(existing)}}
-        error -> error
-      end
-    else
-      false -> {:error, :invalid}
-      nil -> {:error, :not_found}
-      error -> error
-    end
-  end
-
-  defp delete_grant(nil), do: {:error, :not_found}
-  defp delete_grant(grant), do: Repo.delete(grant)
-
-  defp update_grant_enabled(nil, _enabled), do: {:error, :not_found}
-
-  defp update_grant_enabled(grant, enabled) do
-    grant
-    |> changeset_for(grant.__struct__, %{enabled: enabled})
-    |> Repo.update()
-  end
-
-  defp changeset_for(grant, schema, params), do: apply(schema, :changeset, [grant, params])
 
   defp parse_optional_datetime(nil), do: {:ok, nil}
   defp parse_optional_datetime(""), do: {:ok, nil}

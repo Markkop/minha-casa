@@ -1,6 +1,6 @@
 <script lang="ts">
   import { ChevronDown } from "@lucide/svelte";
-  import type { Imovel } from "$lib/anuncios/types";
+  import type { Property } from "$lib/listings/types";
   import FloodRiskPasteCard from "$lib/floodrisk/FloodRiskPasteCard.svelte";
   import FloodRiskPromptCard from "$lib/floodrisk/FloodRiskPromptCard.svelte";
   import type { ParseResult } from "$lib/floodrisk/flood-risk-parser";
@@ -16,7 +16,7 @@
     scenarioCount = 0,
     open = $bindable(true)
   }: {
-    selectedListing: Imovel | null;
+    selectedListing: Property | null;
     isLoadingListings?: boolean;
     pastedText?: string;
     parseResult: ParseResult | null;
@@ -33,8 +33,8 @@
     if (pastedText.trim()) {
       return parseResult?.ok === false ? "Resposta com erro" : "Aguardando parse";
     }
-    if (selectedListing) return "Imovel selecionado · cole a resposta";
-    return "Selecione um imovel no breadcrumb";
+    if (selectedListing) return "Property selecionado · cole a resposta";
+    return "Selecione um imóvel no breadcrumb";
   });
 </script>
 

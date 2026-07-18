@@ -1,20 +1,15 @@
 import type { Component } from "svelte"
 import {
   CircleDot,
-  Dumbbell,
-  Mountain,
-  Shield,
-  Waves,
-  WavesLadder,
 } from "@lucide/svelte"
-import { areaRowLabel } from "$lib/anuncios/area-metric-labels"
+import { areaRowLabel } from "$lib/listings/area-metric-labels"
 import {
-  defaultPreferenceCatalog,
-  getPreferenceValue,
-  type ListingPreferenceOption
-} from "$lib/anuncios/listing-preferences"
-import { getPreferenceIcon } from "$lib/anuncios/listing-preference-icons"
-import type { Imovel } from "$lib/anuncios/types"
+  defaultFeatureCatalog,
+  getFeatureValue,
+  type ListingFeatureOption
+} from "$lib/listings/listing-features"
+import { getFeatureIcon } from "$lib/listings/listing-feature-icons"
+import type { Property } from "$lib/listings/types"
 import { resolveListingDisplayTitle } from "$lib/listing-display-title"
 
 export const COMPARISON_LABEL_COL_WIDTH_PX = 104
@@ -47,7 +42,7 @@ export function getComparisonSlotHeaderHeightPx(slotColWidthPx: number) {
 }
 
 export function initializeComparisonSlots(
-  listings: Pick<Imovel, "id">[],
+  listings: Pick<Property, "id">[],
   slotCount: number = listings.length
 ): ComparisonSlot[] {
   const initial: ComparisonSlot[] = listings
@@ -59,7 +54,7 @@ export function initializeComparisonSlots(
 
 export function normalizeComparisonSlots(
   slots: ComparisonSlot[],
-  listings: Pick<Imovel, "id">[],
+  listings: Pick<Property, "id">[],
   slotCount: number = listings.length
 ): ComparisonSlot[] {
   const validIds = new Set(listings.map((listing) => listing.id))
@@ -73,7 +68,7 @@ export function normalizeComparisonSlots(
   return next
 }
 
-export function getComparisonAutoFillCandidates(listings: Imovel[]): Imovel[] {
+export function getComparisonAutoFillCandidates(listings: Property[]): Property[] {
   const eligible = listings.filter((listing) => !listing.strikethrough)
   const favorites = eligible.filter((listing) => listing.starred)
   const nonFavorites = eligible.filter((listing) => !listing.starred)
@@ -81,7 +76,7 @@ export function getComparisonAutoFillCandidates(listings: Imovel[]): Imovel[] {
   return [...favorites, ...nonFavorites, ...strikethrough]
 }
 
-export function fillBlankComparisonSlots(slots: ComparisonSlot[], listings: Imovel[]): ComparisonSlot[] {
+export function fillBlankComparisonSlots(slots: ComparisonSlot[], listings: Property[]): ComparisonSlot[] {
   const usedIds = new Set(slots.filter((slot): slot is string => Boolean(slot)))
   const availableCandidates = getComparisonAutoFillCandidates(listings).filter(
     (listing) => !usedIds.has(listing.id)
@@ -100,7 +95,7 @@ export function fillBlankComparisonSlots(slots: ComparisonSlot[], listings: Imov
   })
 }
 
-export function initializeComparisonSlotsFromAutoFill(listings: Imovel[]): ComparisonSlot[] {
+export function initializeComparisonSlotsFromAutoFill(listings: Property[]): ComparisonSlot[] {
   return initializeComparisonSlots(getComparisonAutoFillCandidates(listings))
 }
 
@@ -146,35 +141,35 @@ export function resolveReferenceSlot(
   return null
 }
 
-export function getSlotListings(slots: ComparisonSlot[], listings: Imovel[]): (Imovel | null)[] {
+export function getSlotListings(slots: ComparisonSlot[], listings: Property[]): (Property | null)[] {
   return slots.map((slot) => listings.find((listing) => listing.id === slot) ?? null)
 }
 
 export function getSwapCandidatesForSlot(
-  listings: Imovel[],
+  listings: Property[],
   slots: ComparisonSlot[],
   slotIndex: number
-): Imovel[] {
+): Property[] {
   const listingById = new Map(listings.map((listing) => [listing.id, listing]))
   const currentId = slots[slotIndex]
   return slots
     .filter((slot, index): slot is string => index !== slotIndex && Boolean(slot) && slot !== currentId)
     .map((slot) => listingById.get(slot))
-    .filter((listing): listing is Imovel => Boolean(listing))
+    .filter((listing): listing is Property => Boolean(listing))
 }
 
-export function calculateTotalPricePerM2(listing: Pick<Imovel, "preco" | "m2Totais"> | null): number | null {
-  if (!listing?.preco || !listing.m2Totais || listing.m2Totais <= 0) return null
-  return Math.round(listing.preco / listing.m2Totais)
+export function calculateTotalPricePerM2(listing: Pick<Property, "price" | "totalAreaM2"> | null): number | null {
+  if (!listing?.price || !listing.totalAreaM2 || listing.totalAreaM2 <= 0) return null
+  return Math.round(listing.price / listing.totalAreaM2)
 }
 
 export function calculateRecalculatedPrice(
-  referenceListing: Pick<Imovel, "preco" | "m2Totais"> | null,
-  listing: Pick<Imovel, "m2Totais"> | null
+  referenceListing: Pick<Property, "price" | "totalAreaM2"> | null,
+  listing: Pick<Property, "totalAreaM2"> | null
 ): number | null {
   const referencePricePerM2 = calculateTotalPricePerM2(referenceListing)
-  if (!referencePricePerM2 || !listing?.m2Totais || listing.m2Totais <= 0) return null
-  return Math.round(referencePricePerM2 * listing.m2Totais)
+  if (!referencePricePerM2 || !listing?.totalAreaM2 || listing.totalAreaM2 <= 0) return null
+  return Math.round(referencePricePerM2 * listing.totalAreaM2)
 }
 
 export const COMPARISON_FEATURE_ADJUSTMENT_BRL = 50_000
@@ -246,24 +241,13 @@ export type ComparisonExtraRow = {
   icon: Component<{ class?: string }>
 };
 
-const LEGACY_COMPARISON_ICON_MAP = {
-  piscina: WavesLadder,
-  piscinaTermica: Waves,
-  porteiro24h: Shield,
-  academia: Dumbbell,
-  vistaLivre: Mountain
-} as const;
-
 export function buildComparisonExtraRows(
-  catalog: readonly ListingPreferenceOption[] = defaultPreferenceCatalog()
+  catalog: readonly ListingFeatureOption[] = defaultFeatureCatalog()
 ): ComparisonExtraRow[] {
   return catalog.map((option) => ({
     key: option.key,
     label: option.label,
-    icon:
-      getPreferenceIcon(option.key) ??
-      LEGACY_COMPARISON_ICON_MAP[option.legacyKey as keyof typeof LEGACY_COMPARISON_ICON_MAP] ??
-      CircleDot
+    icon: getFeatureIcon(option.key) ?? CircleDot
   }));
 }
 
@@ -274,36 +258,36 @@ export function formatExtraValue(value: boolean | null | undefined): string {
   return value === true ? "Sim" : "—"
 }
 
-export function getComparisonPreferenceValue(
-  listing: Imovel,
+export function getComparisonFeatureValue(
+  listing: Property,
   key: string,
-  catalog: readonly ListingPreferenceOption[] = defaultPreferenceCatalog()
+  catalog: readonly ListingFeatureOption[] = defaultFeatureCatalog()
 ): boolean | null {
-  return getPreferenceValue(listing, key, catalog);
+  return getFeatureValue(listing, key, catalog);
 }
 
 export function getVisibleComparisonExtraRows(
-  listings: ReadonlyArray<Imovel>,
-  catalog: readonly ListingPreferenceOption[] = defaultPreferenceCatalog()
+  listings: ReadonlyArray<Property>,
+  catalog: readonly ListingFeatureOption[] = defaultFeatureCatalog()
 ) {
   return buildComparisonExtraRows(catalog).filter((extra) =>
-    listings.some((listing) => getComparisonPreferenceValue(listing, extra.key, catalog) === true)
+    listings.some((listing) => getComparisonFeatureValue(listing, extra.key, catalog) === true)
   )
 }
 
 export function formatShortListingName(
   listing: Pick<
-    Imovel,
-    | "tipoImovel"
-    | "bairro"
-    | "titulo"
-    | "tituloManual"
-    | "quartos"
-    | "endereco"
-    | "cidade"
-    | "preco"
-    | "m2Totais"
-    | "andar"
+    Property,
+    | "propertyType"
+    | "neighborhood"
+    | "title"
+    | "manualTitle"
+    | "bedrooms"
+    | "address"
+    | "city"
+    | "price"
+    | "totalAreaM2"
+    | "floor"
     | "condominiumName"
   >
 ): string {
@@ -320,13 +304,13 @@ export type ComparisonFixedRowKey =
 
 export type RecalculationTooltipTarget = "price" | "areaPricePerM2"
 
-function calculatePrivatePricePerM2(listing: Pick<Imovel, "preco" | "m2Privado">): number | null {
-  if (!listing.preco || !listing.m2Privado || listing.m2Privado <= 0) return null
-  return Math.round(listing.preco / listing.m2Privado)
+function calculatePrivatePricePerM2(listing: Pick<Property, "price" | "privateAreaM2">): number | null {
+  if (!listing.price || !listing.privateAreaM2 || listing.privateAreaM2 <= 0) return null
+  return Math.round(listing.price / listing.privateAreaM2)
 }
 
 function pricePerM2ForAreaKey(
-  listing: Pick<Imovel, "preco" | "m2Totais" | "m2Privado">,
+  listing: Pick<Property, "price" | "totalAreaM2" | "privateAreaM2">,
   rowKey: "totalArea" | "privateArea"
 ): number | null {
   return rowKey === "totalArea" ? calculateTotalPricePerM2(listing) : calculatePrivatePricePerM2(listing)
@@ -339,8 +323,8 @@ function featureUnitLabel(rowKey: "rooms" | "bathrooms" | "garage"): string {
 }
 
 function featureUnitPlural(rowKey: "rooms" | "bathrooms" | "garage"): string {
-  if (rowKey === "rooms") return "quartos"
-  if (rowKey === "bathrooms") return "banheiros"
+  if (rowKey === "rooms") return "bedrooms"
+  if (rowKey === "bathrooms") return "bathrooms"
   return "vagas"
 }
 
@@ -358,7 +342,7 @@ function formatFeatureDeltaLabel(
 export function buildRecalculationTooltip(options: {
   target: RecalculationTooltipTarget
   fixedRowKey: ComparisonFixedRowKey
-  fixedListing: Pick<Imovel, "preco" | "tipoImovel" | "bairro" | "titulo" | "m2Totais" | "m2Privado">
+  fixedListing: Pick<Property, "price" | "propertyType" | "neighborhood" | "title" | "totalAreaM2" | "privateAreaM2">
   areaRowKey?: "totalArea" | "privateArea"
   fixedFeatureValue?: number | null
   currentFeatureValue?: number | null
@@ -373,9 +357,9 @@ export function buildRecalculationTooltip(options: {
     currentFeatureValue,
     featureAdjustmentBrl = COMPARISON_FEATURE_ADJUSTMENT_BRL,
   } = options
-  if (fixedListing.preco === null || fixedListing.preco === undefined) return undefined
+  if (fixedListing.price === null || fixedListing.price === undefined) return undefined
 
-  const fixedPrice = formatCurrency(fixedListing.preco)
+  const fixedPrice = formatCurrency(fixedListing.price)
 
   if (target === "areaPricePerM2" && fixedRowKey === "price" && areaRowKey) {
     return `Este seria o R$/m² se este imóvel custasse ${fixedPrice}`
@@ -385,7 +369,7 @@ export function buildRecalculationTooltip(options: {
     if (fixedRowKey === "totalArea" || fixedRowKey === "privateArea") {
       const pricePerM2 = pricePerM2ForAreaKey(fixedListing, fixedRowKey)
       if (!pricePerM2) return undefined
-      return `Este seria o preço se este imóvel tivesse ${formatPricePerM2(pricePerM2)} de ${areaRowLabel(fixedRowKey, fixedListing.tipoImovel)}`
+      return `Este seria o preço se este imóvel tivesse ${formatPricePerM2(pricePerM2)} de ${areaRowLabel(fixedRowKey, fixedListing.propertyType)}`
     }
 
     if (fixedRowKey === "rooms" || fixedRowKey === "bathrooms" || fixedRowKey === "garage") {

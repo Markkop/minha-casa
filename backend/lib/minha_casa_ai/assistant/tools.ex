@@ -89,7 +89,7 @@ defmodule MinhaCasaAi.Assistant.Tools do
     end
   end
 
-  defp parse_field_value("preco", value) do
+  defp parse_field_value("price", value) do
     cleaned = Regex.replace(~r/[^\d]/, value, "")
 
     case Integer.parse(cleaned) do
@@ -100,8 +100,8 @@ defmodule MinhaCasaAi.Assistant.Tools do
 
   defp parse_field_value(_field, value), do: value
 
-  defp field_label("preco"), do: "preço"
-  defp field_label("titulo"), do: "título"
-  defp field_label("endereco"), do: "endereço"
+  defp field_label("price"), do: "preço"
+  defp field_label("title"), do: "título"
+  defp field_label("address"), do: "endereço"
   defp field_label(field), do: field
 end

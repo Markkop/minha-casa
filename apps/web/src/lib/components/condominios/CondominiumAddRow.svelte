@@ -47,13 +47,13 @@
         const value = event.currentTarget.value;
         addDraft = {
           ...addDraft,
-          propertyType: value === "none" ? "" : (value as "casa" | "apartamento")
+          propertyType: value === "none" ? "" : (value as "house" | "apartment")
         };
       }}
     >
       <option value="none">—</option>
-      <option value="casa">Casa</option>
-      <option value="apartamento">Apartamento</option>
+      <option value="house">Casa</option>
+      <option value="apartment">Apartamento</option>
     </select>
   </WorkspaceTableCell>
   <WorkspaceTableCell inputCell>

@@ -19,8 +19,7 @@ describe("isPublicPhoenixApiPath", () => {
     expect(isPublicPhoenixApiPath("/organizations", "GET")).toBe(false);
     expect(isPublicPhoenixApiPath("/financeiro/snapshots", "POST")).toBe(false);
     expect(isPublicPhoenixApiPath("/organization-invites/token/accept", "POST")).toBe(false);
-    expect(isPublicPhoenixApiPath("/user/addons", "GET")).toBe(false);
-    expect(isPublicPhoenixApiPath("/addons/access/flood", "GET")).toBe(false);
+    expect(isPublicPhoenixApiPath("/admin/organizations", "GET")).toBe(false);
   });
 });
 

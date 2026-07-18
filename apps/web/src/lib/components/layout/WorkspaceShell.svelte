@@ -9,12 +9,9 @@
     Link2,
     MapPinned,
     Puzzle,
-    ScanSearch,
     Users
   } from "@lucide/svelte";
   import { page } from "$app/state";
-  import { ADDONS_OPEN_ACCESS, hasAddonAccess } from "$lib/addons/access";
-  import { addonsApi } from "$lib/addons/client";
   import { logoutToHome } from "$lib/auth/logout";
   import {
     getAdminFeatureFlag,
@@ -22,7 +19,7 @@
     type AdminFeatureFlagName,
     type AdminFeatureFlags
   } from "$lib/admin/client";
-  import CollectionsProvider from "$lib/components/anuncios/CollectionsProvider.svelte";
+  import CollectionsProvider from "$lib/components/listings/CollectionsProvider.svelte";
   import WorkspaceNav from "$lib/components/layout/WorkspaceNav.svelte";
   import WorkspaceRightSidebar from "$lib/components/layout/WorkspaceRightSidebar.svelte";
   import WorkspaceTopBar from "$lib/components/layout/WorkspaceTopBar.svelte";
@@ -33,7 +30,7 @@
     WORKSPACE_SIDEBAR_WIDTH,
     workspaceTopBarControlClass
   } from "$lib/workspace-chrome";
-  import ImportExportMenuItems from "$lib/components/anuncios/ImportExportMenuItems.svelte";
+  import ImportExportMenuItems from "$lib/components/listings/ImportExportMenuItems.svelte";
   import { workspaceApi } from "$lib/workspace/client";
   import {
     createWorkspaceRightSidebarState,
@@ -62,7 +59,6 @@
   let sidebarOpen = $state(true);
   let mobileOpen = $state(false);
   let accountOpen = $state(false);
-  let hasFloodRisk = $state(false);
   let hasFamily = $state(false);
   let hasAgency = $state(false);
   const isAdmin = $derived(Boolean(user?.isAdmin));
@@ -78,11 +74,10 @@
   const showSubscriptionPendingChrome = false;
 
   const coreLinks: NavLink[] = [
-    { href: "/anuncios", label: "Anúncios", icon: Home },
+    { href: "/lista", label: "Lista", icon: Home },
     { href: "/comparacao", label: "Comparação", icon: BarChart3 },
-    { href: "/analise", label: "Análise", icon: ScanSearch },
     { href: "/financeiro", label: "Financeiro", icon: CircleDollarSign },
-    { href: "/addons", label: "Addons", icon: Puzzle },
+    { href: "/ferramentas", label: "Ferramentas", icon: Puzzle },
     { href: "/links", label: "Links", icon: Link2 }
   ];
 
@@ -115,8 +110,8 @@
   });
 
   const pathname = $derived(page.url.pathname);
-  const showAnaliseListingBreadcrumb = $derived(
-    pathname.startsWith("/analise") ||
+  const showPropertyBreadcrumb = $derived(
+    pathname.startsWith("/imoveis/") ||
       pathname.startsWith("/floodrisk") ||
       pathname.startsWith("/financeiro")
   );
@@ -126,7 +121,7 @@
   const orgBreadcrumbClass = $derived(
     cn(
       workspaceTopBarControlClass,
-      showAnaliseListingBreadcrumb
+      showPropertyBreadcrumb
         ? "max-w-[min(22vw,6.5rem)] sm:max-w-[180px] md:max-w-[220px]"
         : "max-w-[38vw] md:max-w-[260px]"
     )
@@ -134,7 +129,7 @@
 
   const collectionBreadcrumbClass = $derived(
     cn(
-      showAnaliseListingBreadcrumb
+      showPropertyBreadcrumb
         ? showOrgBreadcrumb
           ? "max-w-[min(26vw,7.5rem)] sm:max-w-[220px] md:max-w-[300px]"
           : "max-w-[min(38vw,10rem)] sm:max-w-[220px] md:max-w-[300px]"
@@ -143,26 +138,6 @@
           : "max-w-[44vw] md:max-w-[380px]"
     )
   );
-
-  $effect(() => {
-    if (!user) {
-      hasFloodRisk = false;
-      return;
-    }
-
-    if (ADDONS_OPEN_ACCESS) {
-      hasFloodRisk = hasAddonAccess("flood");
-    } else {
-      void addonsApi
-        .fetchAccess("flood")
-        .then((result) => {
-          hasFloodRisk = result.hasAccess;
-        })
-        .catch(() => {
-          hasFloodRisk = false;
-        });
-    }
-  });
 
   $effect(() => {
     if (!user) {
@@ -193,6 +168,8 @@
   const isActive = (href: string, currentPath: string) =>
     currentPath === href ||
     currentPath.startsWith(`${href}/`) ||
+    (href === "/lista" && currentPath === "/anuncios") ||
+    (href === "/ferramentas" && currentPath === "/addons") ||
     (href === "/financeiro" &&
       (currentPath === "/financiamento" || currentPath === "/casa"));
 
@@ -260,7 +237,6 @@
       bind:mobileOpen
       {user}
       {initials}
-      {hasFloodRisk}
       {accountMenuItems}
       bind:accountOpen
       onCloseChrome={closeChrome}
@@ -280,7 +256,7 @@
     >
       <WorkspaceTopBar
         {showSubscriptionPendingChrome}
-        {showAnaliseListingBreadcrumb}
+        {showPropertyBreadcrumb}
         {showOrgBreadcrumb}
         {orgBreadcrumbClass}
         {collectionBreadcrumbClass}

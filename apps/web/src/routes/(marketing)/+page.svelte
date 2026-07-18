@@ -20,7 +20,7 @@
   <title>Minha Casa</title>
   <meta
     name="description"
-    content="Ferramentas inteligentes para ajudar na jornada de compra de imoveis."
+    content="Ferramentas inteligentes para ajudar na jornada de compra de imóveis."
   />
 </svelte:head>
 
@@ -31,7 +31,7 @@
         <span>Minha Casa</span>
       </h1>
       <p class="mx-auto max-w-2xl text-lg text-app-muted sm:text-xl">
-        Ferramentas inteligentes para ajudar na sua jornada de compra do imovel dos sonhos.
+        Ferramentas inteligentes para ajudar na sua jornada de compra do imóvel dos sonhos.
       </p>
     </div>
 

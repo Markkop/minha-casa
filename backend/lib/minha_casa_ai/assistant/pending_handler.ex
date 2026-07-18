@@ -340,7 +340,10 @@ defmodule MinhaCasaAi.Assistant.PendingHandler do
 
         titles =
           Enum.map(saved, fn l ->
-            title = get_in(l.data, ["titulo"]) || "Imóvel"
+            title =
+              l.data |> MinhaCasaAi.Listings.ListingData.normalize() |> Map.get("title") ||
+                "Imóvel"
+
             "• #{title}"
           end)
 
@@ -409,7 +412,7 @@ defmodule MinhaCasaAi.Assistant.PendingHandler do
   defp merge_review_url(session_id) do
     case Config.app_public_url() do
       base when is_binary(base) and base != "" ->
-        String.trim_trailing(base, "/") <> "/anuncios?merge=#{session_id}"
+        String.trim_trailing(base, "/") <> "/lista?merge=#{session_id}"
 
       _ ->
         nil

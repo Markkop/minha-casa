@@ -78,13 +78,13 @@ export function computeLevelRelativeToHouse(
   blocks: ElementHeight[],
   waterLevel: number
 ): number | null {
-  const house = getBlockById(blocks, "casa");
+  const house = getBlockById(blocks, "house");
   if (!house) return null;
   return waterLevel - house.height_rel_creek;
 }
 
 export function isWaterAboveHouseFloor(blocks: ElementHeight[], waterLevel: number): boolean {
-  const house = getBlockById(blocks, "casa");
+  const house = getBlockById(blocks, "house");
   if (!house) return false;
   return waterLevel > house.height_rel_creek;
 }

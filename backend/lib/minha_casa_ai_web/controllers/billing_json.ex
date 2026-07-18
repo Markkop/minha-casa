@@ -48,30 +48,6 @@ defmodule MinhaCasaAiWeb.BillingJSON do
     }
   end
 
-  def addon(nil), do: nil
-
-  def addon(addon) do
-    %{
-      id: addon.id,
-      name: addon.name,
-      slug: addon.slug,
-      description: addon.description,
-      createdAt: datetime_to_iso(Map.get(addon, :created_at))
-    }
-  end
-
-  def addon_grant(%{grant: grant, addon: addon, granted_by_user: granted_by_user}) do
-    grant
-    |> base_grant()
-    |> Map.merge(%{addon: addon(addon), grantedByUser: user_summary(granted_by_user)})
-  end
-
-  def addon_grant(%{grant: grant, addon: addon}) do
-    grant
-    |> base_grant()
-    |> Map.merge(%{addon: addon(addon)})
-  end
-
   def user_summary(nil), do: nil
 
   def user_summary(user) do
@@ -79,19 +55,6 @@ defmodule MinhaCasaAiWeb.BillingJSON do
       id: user.id,
       name: user.name,
       email: user.email
-    }
-  end
-
-  defp base_grant(grant) do
-    %{
-      id: grant.id,
-      userId: Map.get(grant, :user_id),
-      organizationId: Map.get(grant, :organization_id),
-      addonSlug: grant.addon_slug,
-      grantedAt: datetime_to_iso(grant.granted_at),
-      grantedBy: grant.granted_by,
-      enabled: grant.enabled,
-      expiresAt: datetime_to_iso(grant.expires_at)
     }
   end
 

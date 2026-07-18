@@ -5,9 +5,9 @@
   import CardHeader from "$lib/components/ui/CardHeader.svelte";
   import Input from "$lib/components/ui/Input.svelte";
   import Label from "$lib/components/ui/Label.svelte";
-  import ModalCloseButton from "$lib/components/anuncios/ModalCloseButton.svelte";
-  import ModalHeaderTitle from "$lib/components/anuncios/ModalHeaderTitle.svelte";
-  import type { Imovel } from "$lib/anuncios/types";
+  import ModalCloseButton from "$lib/components/listings/ModalCloseButton.svelte";
+  import ModalHeaderTitle from "$lib/components/listings/ModalHeaderTitle.svelte";
+  import type { Property } from "$lib/listings/types";
   import type { ListingData } from "$lib/workspace/client";
 
   let {
@@ -17,33 +17,35 @@
   } = $props<{
     isOpen: boolean;
     onClose: () => void;
-    onListingAdded: (listing: Imovel) => void;
+    onListingAdded: (listing: Property) => void;
   }>();
 
   const SAMPLE_INPUT = `CASA DUPLEX - CAMPECHE
-4 quartos (2 suites), 3 banheiros
+4 bedrooms (2 suites), 3 bathrooms
 Area total: 280m² | Area privativa: 180m²
 Piscina, churrasqueira, 2 vagas
 R$ 1.450.000
 Rua dos Surfistas, 456 - Campeche`;
 
   const SAMPLE_OUTPUT: ListingData = {
-    titulo: "Casa Duplex - Campeche",
-    endereco: "Rua dos Surfistas, 456 - Campeche",
-    quartos: 4,
+    title: "Casa Duplex - Campeche",
+    address: "Rua dos Surfistas, 456 - Campeche",
+    bedrooms: 4,
     suites: 2,
-    banheiros: 3,
-    m2Totais: 280,
-    m2Privado: 180,
-    preco: 1450000,
-    precoM2: 1450000 / 180,
-    piscina: true,
-    garagem: 2,
-    porteiro24h: false,
-    academia: false,
-    vistaLivre: true,
-    piscinaTermica: false,
-    link: undefined,
+    bathrooms: 3,
+    totalAreaM2: 280,
+    privateAreaM2: 180,
+    price: 1450000,
+    pricePerM2: 1450000 / 180,
+    features: {
+      pool: true,
+      doorman24h: false,
+      gym: false,
+      unobstructedView: true,
+      heatedPool: false
+    },
+    parkingSpots: 2,
+    sourceUrl: undefined,
     addedAt: new Date().toISOString().split("T")[0]
   };
 
@@ -69,7 +71,7 @@ Rua dos Surfistas, 456 - Campeche`;
     isLoading = true;
     await new Promise((resolve) => setTimeout(resolve, 1200));
     lastParsed = { id: `demo-${Date.now()}`, data: SAMPLE_OUTPUT };
-    addressValue = SAMPLE_OUTPUT.endereco || "";
+    addressValue = SAMPLE_OUTPUT.address || "";
     rawText = "";
     attachedName = null;
     isLoading = false;
@@ -80,10 +82,10 @@ Rua dos Surfistas, 456 - Campeche`;
     onListingAdded({
       id: lastParsed.id,
       ...lastParsed.data,
-      endereco: addressValue || lastParsed.data.endereco || "",
-      link: linkValue || null,
+      address: addressValue || lastParsed.data.address || "",
+      sourceUrl: linkValue || null,
       createdAt: new Date().toISOString()
-    } as Imovel);
+    } as Property);
     onClose();
   }
 </script>

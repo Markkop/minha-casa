@@ -8,6 +8,7 @@ defmodule MinhaCasaAi.Listings.Duplicates do
   """
 
   alias MinhaCasaAi.ListingImages.Fingerprint
+  alias MinhaCasaAi.Listings.ListingData
 
   @threshold 0.75
 
@@ -23,13 +24,17 @@ defmodule MinhaCasaAi.Listings.Duplicates do
   def score_duplicate(existing, candidate, opts \\ [])
 
   def score_duplicate(%{id: id, data: existing_data}, candidate, opts) do
-    existing_data = existing_data || %{}
+    existing_data = ListingData.normalize(existing_data || %{})
+    candidate = ListingData.normalize(candidate)
     cover_fingerprint = Keyword.get(opts, :cover_fingerprint)
 
-    url_match = present_equal?(existing_data["link"], candidate["link"])
-    address_match = normalized(existing_data["endereco"]) == normalized(candidate["endereco"])
-    price_match = existing_data["preco"] && existing_data["preco"] == candidate["preco"]
-    area_match = existing_data["m2Totais"] && existing_data["m2Totais"] == candidate["m2Totais"]
+    url_match = present_equal?(existing_data["sourceUrl"], candidate["sourceUrl"])
+    address_match = normalized(existing_data["address"]) == normalized(candidate["address"])
+    price_match = existing_data["price"] && existing_data["price"] == candidate["price"]
+
+    area_match =
+      existing_data["totalAreaM2"] && existing_data["totalAreaM2"] == candidate["totalAreaM2"]
+
     image_match = cover_image_match?(existing_data, cover_fingerprint)
 
     score =

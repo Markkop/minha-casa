@@ -1,9 +1,9 @@
-import type { Imovel } from "$lib/anuncios/types"
+import type { Property } from "$lib/listings/types"
 
-export type ComparisonPriceMetric = "preco" | "privado" | "total"
+export type ComparisonPriceMetric = "price" | "privado" | "total"
 
 export type ComparisonPriceBandItem = {
-  listing: Imovel
+  listing: Property
   pricePerM2: number
   originalIndex: number
 }
@@ -16,7 +16,7 @@ export type ComparisonPriceBand = {
 
 export type ComparisonPriceBandResult = {
   bands: ComparisonPriceBand[]
-  missing: Imovel[]
+  missing: Property[]
 }
 
 const DEFAULT_PRICE_BAND_SIZE = 1_000
@@ -34,18 +34,18 @@ const NICE_PRICE_BAND_SIZES = [
 ]
 
 function calculateComparisonPriceValue(
-  listing: Pick<Imovel, "preco" | "m2Privado" | "m2Totais">,
+  listing: Pick<Property, "price" | "privateAreaM2" | "totalAreaM2">,
   metric: ComparisonPriceMetric
 ): number | null {
-  const price = listing.preco
+  const price = listing.price
 
   if (price === null || !Number.isFinite(price) || price <= 0) {
     return null
   }
 
-  if (metric === "preco") return Math.round(price)
+  if (metric === "price") return Math.round(price)
 
-  const area = metric === "privado" ? listing.m2Privado : listing.m2Totais
+  const area = metric === "privado" ? listing.privateAreaM2 : listing.totalAreaM2
   if (area === null || !Number.isFinite(area) || area <= 0) return null
 
   return Math.round(price / area)
@@ -87,9 +87,9 @@ function listingPriceBandCountPenalty(bandCount: number): number {
  * It prefers two to five zero-anchored visible ranges, targets four, and uses the
  * smaller width to break ties. Invalid prices do not influence the choice.
  */
-export function chooseDefaultListingPriceBandSize(listings: Imovel[]): number {
+export function chooseDefaultListingPriceBandSize(listings: Property[]): number {
   const prices = listings
-    .map((listing) => calculateComparisonPriceValue(listing, "preco"))
+    .map((listing) => calculateComparisonPriceValue(listing, "price"))
     .filter((price): price is number => price !== null)
 
   if (prices.length === 0) return MIN_LISTING_PRICE_BAND_SIZE
@@ -127,7 +127,7 @@ export function chooseDefaultListingPriceBandSize(listings: Imovel[]): number {
 }
 
 export function buildComparisonPriceBands(
-  listings: Imovel[],
+  listings: Property[],
   metric: ComparisonPriceMetric,
   bandSize = DEFAULT_PRICE_BAND_SIZE,
   bandOffset = 0
@@ -141,7 +141,7 @@ export function buildComparisonPriceBands(
 
   const normalizedBandOffset = normalizeBandOffset(bandOffset, bandSize)
 
-  const missing: Imovel[] = []
+  const missing: Property[] = []
   const calculated: ComparisonPriceBandItem[] = []
 
   listings.forEach((listing, originalIndex) => {
@@ -354,12 +354,12 @@ export type AutomaticPriceBandConfig = {
 /**
  * Chooses one consistent, human-friendly range width for all calculable listings.
  * By default, prefers two or three listings per populated range, with three as the ideal.
- * Custom grouping targets can adapt that preference to the available layout capacity;
+ * Custom grouping targets can adapt that feature to the available layout capacity;
  * out-of-range group sizes remain possible when the collection's distribution requires them.
  * Invalid listings do not influence the choice; an all-missing collection uses the default width.
  */
 export function chooseAutomaticPriceBandConfig(
-  listings: Imovel[],
+  listings: Property[],
   metric: ComparisonPriceMetric,
   options?: AutomaticPriceBandOptions
 ): AutomaticPriceBandConfig {
@@ -369,7 +369,7 @@ export function chooseAutomaticPriceBandConfig(
     .filter((value): value is number => value !== null)
     .sort((left, right) => left - right)
   const defaultBandSize =
-    metric === "preco"
+    metric === "price"
       ? chooseDefaultListingPriceBandSize(listings)
       : DEFAULT_PRICE_BAND_SIZE
 
@@ -380,11 +380,11 @@ export function chooseAutomaticPriceBandConfig(
   const candidates = niceBandSizeCandidates(
     values[0],
     values[values.length - 1],
-    metric === "preco" ? MIN_LISTING_PRICE_BAND_SIZE : DEFAULT_PRICE_BAND_SIZE,
-    metric === "preco" ? MIN_LISTING_PRICE_BAND_SIZE : 1
+    metric === "price" ? MIN_LISTING_PRICE_BAND_SIZE : DEFAULT_PRICE_BAND_SIZE,
+    metric === "price" ? MIN_LISTING_PRICE_BAND_SIZE : 1
   )
   const offsetStep =
-    metric === "preco"
+    metric === "price"
       ? AUTOMATIC_LISTING_PRICE_BAND_OFFSET_STEP
       : AUTOMATIC_PRICE_PER_M2_BAND_OFFSET_STEP
   let bestScore = automaticBandScore(values, candidates[0], 0, normalizedOptions)
@@ -402,7 +402,7 @@ export function chooseAutomaticPriceBandConfig(
 
 /** Backward-compatible width-only API. Prefer chooseAutomaticPriceBandConfig for rendering. */
 export function chooseAutomaticPriceBandSize(
-  listings: Imovel[],
+  listings: Property[],
   metric: ComparisonPriceMetric,
   options?: AutomaticPriceBandOptions
 ): number {

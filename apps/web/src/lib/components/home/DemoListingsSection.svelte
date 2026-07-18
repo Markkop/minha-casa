@@ -2,13 +2,13 @@
   import DemoListingsTable from "$lib/components/home/DemoListingsTable.svelte";
   import DemoParserModal from "$lib/components/home/DemoParserModal.svelte";
   import { INITIAL_DEMO_LISTINGS } from "$lib/components/home/demo-listings-data";
-  import type { Imovel } from "$lib/anuncios/types";
+  import type { Property } from "$lib/listings/types";
   import { cn } from "$lib/utils";
 
-  let listings = $state<Imovel[]>(INITIAL_DEMO_LISTINGS.map((listing) => ({ ...listing })));
+  let listings = $state<Property[]>(INITIAL_DEMO_LISTINGS.map((listing) => ({ ...listing })));
   let isParserOpen = $state(false);
 
-  function handleUpdateListing(id: string, updates: Partial<Imovel>) {
+  function handleUpdateListing(id: string, updates: Partial<Property>) {
     listings = listings.map((listing) =>
       listing.id === id ? { ...listing, ...updates } : listing
     );
@@ -18,7 +18,7 @@
     listings = listings.filter((listing) => listing.id !== id);
   }
 
-  function handleListingAdded(newListing: Imovel) {
+  function handleListingAdded(newListing: Property) {
     listings = [newListing, ...listings];
   }
 </script>
@@ -30,10 +30,10 @@
     <div>
       <h2 class="flex items-center gap-2 text-2xl font-bold text-app-fg">
         <span>🏘️</span>
-        <span>Gerenciador de Anuncios</span>
+        <span>Gerenciador de imóveis</span>
       </h2>
       <p class="text-sm text-app-muted">
-        Cole anuncios de imoveis e deixe a IA extrair automaticamente todos os dados relevantes.
+        Cole anúncios de imóveis e deixe a IA extrair automaticamente todos os dados relevantes.
       </p>
     </div>
 

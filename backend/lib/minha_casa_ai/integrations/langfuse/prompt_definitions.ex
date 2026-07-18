@@ -53,34 +53,34 @@ defmodule MinhaCasaAi.Integrations.Langfuse.PromptDefinitions do
     """
     Você é um especialista em extrair dados estruturados de anúncios de imóveis brasileiros.
 
-    Extraia: endereco, bairro, cidade, m2Totais, m2Privado, quartos, suites, banheiros,
-    garagem, preco, tipoImovel, condominiumName, contactName, contactNumber, sitePublishedAt,
-    siteUpdatedAt, anoConstrucao e o objeto preferences com as chaves abaixo.
+    Extraia: address, neighborhood, city, totalAreaM2, privateAreaM2, bedrooms, suites, bathrooms,
+    parkingSpots, price, propertyType, condominiumName, contactName, contactNumber,
+    sitePublishedAt, siteUpdatedAt, constructionYear e o objeto features com as chaves abaixo.
 
     Ano civil atual: {{current_year}}.
 
     Preferências do catálogo (chave: rótulo):
-    {{preference_list}}
+    {{feature_list}}
 
     Regras:
     - Retorne SEMPRE um JSON válido e nada além do JSON.
     - Use null para campos não encontrados.
-    - Para cada chave em preferences, use true se o anúncio mencionar claramente a preferência,
+    - Para cada chave em features, use true se o anúncio mencionar claramente a preferência,
       false se mencionar explicitamente que não possui, ou null se não houver informação.
     - Para números, retorne apenas o valor numérico.
-    - tipoImovel deve ser "casa", "apartamento" ou null.
-    - Campos de área (nomes JSON fixos): m2Totais e m2Privado — não renomeie as chaves.
-    - Apartamento: m2Totais = área total do imóvel; m2Privado = área privativa.
-    - Casa (tipoImovel "casa"): m2Totais = área do terreno/lote; m2Privado = área construída.
-    - Em casas, "área total", "lote" ou "terreno" → m2Totais; "área construída", "área privativa" ou "construção" → m2Privado.
+    - propertyType deve ser "house", "apartment" ou null.
+    - Campos de área (nomes JSON fixos): totalAreaM2 e privateAreaM2 — não renomeie as chaves.
+    - Apartamento: totalAreaM2 = área total do imóvel; privateAreaM2 = área privativa.
+    - Casa (propertyType "house"): totalAreaM2 = área do terreno/lote; privateAreaM2 = área construída.
+    - Em casas, "área total", "lote" ou "terreno" → totalAreaM2; "área construída", "área privativa" ou "construção" → privateAreaM2.
     - Normalize contactNumber com apenas dígitos e remova prefixo 55 quando existir.
     - Datas devem ser YYYY-MM-DD quando explícitas.
-    - anoConstrucao deve ser um inteiro de quatro dígitos entre 1000 e 9999.
+    - constructionYear deve ser um inteiro de quatro dígitos entre 1000 e 9999.
     - Use o ano de construção explicitamente informado. Se o anúncio informar apenas uma idade explícita,
-      como "imóvel com 12 anos", calcule anoConstrucao = {{current_year}} - 12.
-    - Aceite como anoConstrucao uma previsão explícita de entrega, conclusão ou finalização da obra,
+      como "imóvel com 12 anos", calcule constructionYear = {{current_year}} - 12.
+    - Aceite como constructionYear uma previsão explícita de entrega, conclusão ou finalização da obra,
       mesmo quando o ano for futuro.
-    - Não use anos de publicação, atualização, reforma ou revitalização como anoConstrucao.
+    - Não use anos de publicação, atualização, reforma ou revitalização como constructionYear.
     - Se houver anos de construção contraditórios e não for possível resolvê-los, use null.
     - Se houver vários imóveis distintos, retorne {"listings": [...]}.
     - Se houver apenas um imóvel, retorne o objeto plano.
@@ -109,7 +109,7 @@ defmodule MinhaCasaAi.Integrations.Langfuse.PromptDefinitions do
 
     Sugestões (suggestions) — apenas quando verdict = "duplicate":
     - Sugira SOMENTE atualizações que melhoram o anúncio existente: preencher campo vazio,
-      completar a outra medida de área (m2Totais/m2Privado), preço mais recente, endereço mais
+      completar a outra medida de área (totalAreaM2/privateAreaM2), preço mais recente, endereço mais
       completo, quartos/suítes/banheiros/vagas corrigidos, ano de construção,
       comodidades/preferências detectadas, contato e datas de publicação/atualização.
     - Cada sugestão usa exatamente um path presente em fieldDiff. Não invente paths.
@@ -253,12 +253,12 @@ defmodule MinhaCasaAi.Integrations.Langfuse.PromptDefinitions do
     Estime a idade do imóvel com base nas fotos dos ambientes e nos metadados do anúncio.
 
     Ano civil atual: {{current_year}}.
-    Se os Dados do anúncio contiverem anoConstrucao válido, esse ano é autoritativo:
-    - Para anoConstrucao menor ou igual a {{current_year}}, use exatamente {{current_year}} - anoConstrucao
+    Se os Dados do anúncio contiverem constructionYear válido, esse ano é autoritativo:
+    - Para constructionYear menor ou igual a {{current_year}}, use exatamente {{current_year}} - constructionYear
       em estimativaAnos e use o mesmo valor em faixaAnos.min e faixaAnos.max. Não apresente outra idade.
-    - Para anoConstrucao futuro, trate-o como previsão de conclusão, use 0 em estimativaAnos e nos dois
+    - Para constructionYear futuro, trate-o como previsão de conclusão, use 0 em estimativaAnos e nos dois
       limites de faixaAnos, e mencione a conclusão futura no resumo. Não invente uma idade já transcorrida.
-    As fotos ainda podem fundamentar resumo e sinaisVistos, mas nunca podem contradizer anoConstrucao.
+    As fotos ainda podem fundamentar resumo e sinaisVistos, mas nunca podem contradizer constructionYear.
 
     Contexto: {{ctx}}
     Dados do anúncio: {{facts}}

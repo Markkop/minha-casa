@@ -155,58 +155,19 @@ minha-casa/
 
 - User management
 - Subscription management
-- Addon management (grant/revoke addons to users and organizations)
+- Organization overview and agency plan management
 - Usage statistics
 
-## Addon System
+## Ferramentas
 
-The platform features a flexible addon system that allows granular feature access control for users and organizations.
+`/ferramentas` is the authenticated catalog for focused property-evaluation tools. These tools are available to every signed-in user and do not require feature grants, organization toggles, or an active subscription.
 
-### Overview
+| Ferramenta | Rota | Descrição |
+|------------|------|-----------|
+| Risco de alagamento | `/floodrisk` | Simulação de níveis de água e risco de inundação no terreno |
+| Planta | `/planta` | Anotação de medidas e ambientes sobre uma planta baixa |
 
-- **Admins** can grant/revoke addon access to users or organizations
-- **Users** can have personal addon access (independent of any organization)
-- **Organizations** can have addon access shared by all members
-- **Organization owners/admins** can toggle organization-level addons on/off
-- Access is granted if user has addon OR their current org has addon
-
-### Available Addons
-
-| Addon | Slug | Description |
-|-------|------|-------------|
-| Financeiro | `financiamento` | Purchase planning and financing analysis at `/financeiro`; `/financiamento` and `/casa` are compatibility redirects |
-| Risco de Enchente | `flood` | Access to `/floodrisk` flood risk analysis and 3D visualization |
-
-### Access Control Logic
-
-```
-hasAddonAccess(userId, addonSlug, orgId?) = 
-  user_addons.has(userId, addonSlug, enabled=true) OR
-  (orgId AND organization_addons.has(orgId, addonSlug, enabled=true))
-```
-
-### Addon API Routes
-
-**Admin endpoints:**
-- `GET /api/admin/addons` - List all available addons
-- `GET /api/admin/users/[userId]/addons` - Get user's addons
-- `POST /api/admin/users/[userId]/addons` - Grant addon to user
-- `DELETE /api/admin/users/[userId]/addons/[slug]` - Revoke addon from user
-- `GET /api/admin/organizations/[orgId]/addons` - Get org's addons
-- `POST /api/admin/organizations/[orgId]/addons` - Grant addon to org
-- `DELETE /api/admin/organizations/[orgId]/addons/[slug]` - Revoke addon from org
-
-**User endpoints:**
-- `GET /api/user/addons` - Get current user's personal addons
-- `PATCH /api/user/addons/[slug]` - Toggle personal addon enabled state
-
-**Organization endpoints:**
-- `GET /api/organizations/[orgId]/addons` - Get org's enabled addons
-- `PATCH /api/organizations/[orgId]/addons/[slug]` - Toggle org addon enabled state
-
-### Svelte Addon Clients & Components
-
-Addon state is loaded through the Svelte workspace shell and Phoenix-backed addon APIs. Current-user and active-organization addon controls live under `apps/web/src/lib/addons`, with route gating handled by SvelteKit server hooks and backend access checks.
+Financeiro remains a separate left-navigation destination at `/financeiro`; `/financiamento` and `/casa` are compatibility redirects. Its authenticated persistence APIs are also subscription-independent. The legacy `/addons` URL redirects to `/ferramentas`.
 
 ## Feature Flags
 
@@ -218,7 +179,7 @@ Feature flags control visibility of incomplete or optional features. Configure v
 | `publicCollections` | `PUBLIC_FF_PUBLIC_COLLECTIONS` | `true` | Enable public sharing |
 | `mapProvider` | `PUBLIC_FF_MAP_PROVIDER` | `auto` | Map provider (`google`, `leaflet`, `auto`) |
 
-**Note**: Access to `/floodrisk` (Flood Forecast) is controlled by the addon system instead of feature flags. Financeiro is available to Plus workspace users through `/financeiro`, with `/financiamento` and `/casa` kept as compatibility redirects.
+**Note**: Ferramentas and Financeiro require authentication but are independent of feature flags and subscription access.
 
 ## Database Schema
 
@@ -238,9 +199,6 @@ The application uses the following main tables:
 - **regions**: Manual neighborhood/city m2 benchmarks
 - **condominiums**: Reusable condominium context and amenities
 - **listing_comparison_notes**: Pros, cons, and notes for shortlist comparison
-- **addons**: Available addon definitions (slug, name, description)
-- **user_addons**: Addon grants for individual users
-- **organization_addons**: Addon grants for organizations
 
 ## API Routes
 

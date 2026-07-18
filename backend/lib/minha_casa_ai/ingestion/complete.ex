@@ -170,7 +170,7 @@ defmodule MinhaCasaAi.Ingestion.Complete do
     %{
       listing_id: id,
       collection_id: collection.id,
-      title: Map.get(listing_data, "titulo") || "Sem título",
+      title: Map.get(listing_data, "title") || "Sem título",
       listing_data: listing_data,
       url: ListingShortLinks.short_url(collection.id, id)
     }
@@ -181,7 +181,7 @@ defmodule MinhaCasaAi.Ingestion.Complete do
       app_listing_url(collection_id, listing_id)
   end
 
-  def app_listing_url(collection_id, listing_id) do
+  def app_listing_url(_collection_id, listing_id) do
     base = Config.app_public_url() || ""
 
     if base == "" do
@@ -189,7 +189,7 @@ defmodule MinhaCasaAi.Ingestion.Complete do
     else
       base
       |> String.trim_trailing("/")
-      |> Kernel.<>("/anuncios?collection=#{collection_id}&listing=#{listing_id}")
+      |> Kernel.<>("/imoveis/#{listing_id}")
     end
   end
 

@@ -32,7 +32,7 @@ export interface Region {
   orgId: string | null;
   city: string;
   neighborhood: string;
-  propertyType: "casa" | "apartamento";
+  propertyType: "house" | "apartment";
   pricePerM2: number;
   notes: string | null;
   listingCount?: number;
@@ -49,7 +49,7 @@ export interface Condominium {
   city: string | null;
   neighborhood: string | null;
   address: string | null;
-  propertyType: "casa" | "apartamento" | null;
+  propertyType: "house" | "apartment" | null;
   amenities: string[];
   notes: string | null;
   source: "manual" | "listing";
@@ -69,53 +69,85 @@ export interface ComparisonNote {
   updatedAt: string;
 }
 
-export interface ListingPreferenceOption {
+export interface ListingFeatureOption {
   key: string;
   label: string;
   source: "system" | "custom";
   visible: boolean;
   sortOrder: number;
-  legacyKey?: string;
 }
 
 export interface ListingData {
-  titulo?: string;
-  endereco?: string;
-  bairro?: string;
-  cidade?: string;
-  tipoImovel?: "casa" | "apartamento" | string;
-  quartos?: number | null;
+  title: string;
+  manualTitle?: string | null;
+  address: string;
+  neighborhood?: string | null;
+  city?: string | null;
+  propertyType?: "house" | "apartment" | null;
+  bedrooms?: number | null;
   suites?: number | null;
-  banheiros?: number | null;
-  garagem?: number | null;
-  anoConstrucao?: number | null;
-  preco?: number | null;
-  m2Totais?: number | null;
-  m2Privado?: number | null;
-  piscina?: boolean | null;
-  porteiro24h?: boolean | null;
-  academia?: boolean | null;
-  vistaLivre?: boolean | null;
-  piscinaTermica?: boolean | null;
-  preferences?: Record<string, boolean | null>;
-  link?: string;
-  corretor?: string;
-  telefone?: string;
-  condominioNome?: string;
+  bathrooms?: number | null;
+  parkingSpots?: number | null;
+  constructionYear?: number | null;
+  price?: number | null;
+  pricePerM2?: number | null;
+  totalAreaM2?: number | null;
+  privateAreaM2?: number | null;
+  features?: Record<string, boolean | null>;
+  floor?: number | null;
+  sourceUrl?: string | null;
+  notes?: string | null;
   contactName?: string | null;
   contactNumber?: string | null;
   condominiumName?: string | null;
+  condominiumId?: string | null;
+  regionId?: string | null;
   imageUrl?: string | null;
   imageUrls?: string[] | null;
   imageStorageKeys?: string[] | null;
   imageFingerprints?: Record<string, unknown>[] | null;
+  coverImageIndex?: number | null;
+  imageEnvironments?: Array<{
+    id: string;
+    kind:
+      | "exterior"
+      | "livingRoom"
+      | "kitchen"
+      | "bedroom"
+      | "bathroom"
+      | "garage"
+      | "balcony"
+      | "utilityRoom"
+      | "custom";
+    label: string;
+    ordinal?: number;
+    imageIndices: number[];
+  }> | null;
   imageIngestionStatus?: "idle" | "pending" | "processing" | "ready" | "failed" | null;
   imageIngestionError?: string | null;
-  observacoes?: string;
   starred?: boolean;
+  visited?: boolean;
   strikethrough?: boolean;
+  discardedReason?: string | null;
+  stage?:
+    | "analyzing"
+    | "considering"
+    | "scheduling_visit"
+    | "visit_scheduled"
+    | "visiting"
+    | "visited"
+    | "negotiating"
+    | "offer_submitted"
+    | "on_hold"
+    | "discarding"
+    | "discarded"
+    | "sold"
+    | null;
+  customLat?: number | null;
+  customLng?: number | null;
   addedAt?: string;
-  [key: string]: unknown;
+  sitePublishedAt?: string | null;
+  siteUpdatedAt?: string | null;
 }
 
 export interface Collection {
@@ -162,6 +194,12 @@ export interface Listing {
   data: ListingData;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface ListingDetail {
+  listing: Listing;
+  collection: Collection;
+  access: "owner" | "admin" | "family_member" | "broker" | "editor" | "viewer";
 }
 
 export interface DuplicateCandidate {
@@ -264,11 +302,11 @@ export type Portal = (typeof PORTALS)[number];
 export interface PortalFilterSet {
   transacao: "venda" | "aluguel";
   uf: string;
-  cidade: string;
+  city: string;
   bairros: string[];
   tiposImovel: string[];
-  quartos: number[];
-  banheiros: number[];
+  bedrooms: number[];
+  bathrooms: number[];
   vagas: number[];
   suites: number[];
   precoMin: number | null;
@@ -320,19 +358,19 @@ export interface ShortListing {
   portal: Portal;
   sourceUrl: string;
   title: string | null;
-  bairro: string | null;
-  cidade: string | null;
+  neighborhood: string | null;
+  city: string | null;
   uf: string | null;
-  tipoImovel: string | null;
-  quartos: number | null;
-  banheiros: number | null;
+  propertyType: string | null;
+  bedrooms: number | null;
+  bathrooms: number | null;
   vagas: number | null;
   suites: number | null;
   areaTotal: number | null;
   areaPrivada: number | null;
-  preco: number | null;
+  price: number | null;
   precoCondominio: number | null;
-  precoM2: number | null;
+  pricePerM2: number | null;
   amenidades: string[];
   thumbnailUrl: string | null;
   postedAt: string | null;
@@ -497,6 +535,8 @@ export const workspaceApi = {
   syncListingTitles: (id: string) =>
     api.post<{ listings: Listing[] }>(`/collections/${id}/sync-listing-titles`, {}),
   fetchListings: (collectionId: string) => api.get<{ listings: Listing[] }>(`/collections/${collectionId}/listings`),
+  fetchListing: (listingId: string) =>
+    api.get<ListingDetail>(`/workspace/listings/${encodeURIComponent(listingId)}`),
   createListing: (collectionId: string, data: ListingData) =>
     api.post<{ listing: Listing }>(`/collections/${collectionId}/listings`, { data }),
   createListingWithDuplicateAction: (
@@ -659,10 +699,10 @@ export const workspaceApi = {
   saveComparisonNote: (input: Pick<ComparisonNote, "listingId" | "pros" | "cons"> & { notes?: string | null }) =>
     api.post<{ note: ComparisonNote }>("/workspace/comparison-notes", input),
 
-  fetchListingPreferences: () =>
-    api.get<{ preferences: ListingPreferenceOption[] }>("/workspace/listing-preferences"),
-  saveListingPreferences: (preferences: ListingPreferenceOption[]) =>
-    api.put<{ preferences: ListingPreferenceOption[] }>("/workspace/listing-preferences", {
-      preferences
+  fetchListingFeatures: () =>
+    api.get<{ features: ListingFeatureOption[] }>("/workspace/listing-features"),
+  saveListingFeatures: (features: ListingFeatureOption[]) =>
+    api.put<{ features: ListingFeatureOption[] }>("/workspace/listing-features", {
+      features
     })
 };

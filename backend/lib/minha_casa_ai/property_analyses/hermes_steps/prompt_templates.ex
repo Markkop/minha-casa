@@ -63,11 +63,9 @@ defmodule MinhaCasaAi.PropertyAnalyses.HermesSteps.PromptTemplates do
 
     price_hint =
       [
-        Map.get(listing_data, "preco"),
-        Map.get(listing_data, "valor"),
-        Map.get(listing_data, "precoVenda"),
-        Map.get(listing_data, "m2Privado"),
-        Map.get(listing_data, "m2Totais")
+        Map.get(listing_data, "price"),
+        Map.get(listing_data, "privateAreaM2"),
+        Map.get(listing_data, "totalAreaM2")
       ]
       |> Enum.reject(&is_nil/1)
       |> Jason.encode!()

@@ -1,6 +1,6 @@
 defmodule MinhaCasaAi.Integrations.ListingParser do
   alias MinhaCasaAi.Integrations.{OpenAIListingParser, PdfText, ScrapingAnt}
-  alias MinhaCasaAi.Workspace.ListingPreferences
+  alias MinhaCasaAi.Workspace.ListingFeatures
 
   @max_image_bytes 5 * 1024 * 1024
   @max_pdf_bytes 10 * 1024 * 1024
@@ -53,22 +53,22 @@ defmodule MinhaCasaAi.Integrations.ListingParser do
   defp parser_opts(input, opts) do
     catalog =
       Keyword.get(opts, :catalog) ||
-        Map.get(input, "preferenceCatalog") ||
-        ListingPreferences.default_system_options()
+        Map.get(input, "featureCatalog") || Map.get(input, "preferenceCatalog") ||
+        ListingFeatures.default_system_options()
 
     [catalog: catalog]
   end
 
   defp ensure_cover(listing, og_image_url) when is_binary(og_image_url) and og_image_url != "" do
-    Map.put_new(listing, "coverImageUrl", og_image_url)
+    Map.put_new(listing, "imageUrl", og_image_url)
   end
 
   defp ensure_cover(listing, _og_image_url), do: listing
 
   defp ensure_link(listing, source_url) do
-    case Map.get(listing, "link") do
+    case Map.get(listing, "sourceUrl") do
       value when is_binary(value) and value != "" -> listing
-      _ -> Map.put(listing, "link", source_url)
+      _ -> Map.put(listing, "sourceUrl", source_url)
     end
   end
 
@@ -83,7 +83,7 @@ defmodule MinhaCasaAi.Integrations.ListingParser do
   end
 
   defp ensure_construction_year(listing, year) when is_integer(year) do
-    Map.put(listing, "anoConstrucao", year)
+    Map.put(listing, "constructionYear", year)
   end
 
   defp ensure_construction_year(listing, _year), do: listing

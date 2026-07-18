@@ -1,5 +1,4 @@
 <script lang="ts">
-  import AdminAddonManager from "$lib/admin/AdminAddonManager.svelte";
   import Button from "$lib/components/ui/Button.svelte";
   import type { AdminState, GrantReason } from "./use-admin-state.svelte";
 
@@ -26,16 +25,14 @@
         ? "Editar usuário"
         : admin.mode === "grant-subscription"
           ? "Conceder plano"
-          : admin.mode === "subscriptions"
-            ? "Histórico de concessões"
-            : "Capacidades do usuário"}
+          : "Histórico de concessões"}
       tabindex="-1"
       onkeydown={admin.handleModalKeydown}
     >
       <div class="mb-4 flex items-start justify-between gap-3">
         <div>
           <h2 class="text-lg font-semibold">
-            {#if admin.mode === "edit-user"}Editar usuário{:else if admin.mode === "grant-subscription"}Conceder plano{:else if admin.mode === "subscriptions"}Histórico de concessões{:else}Capacidades do usuário{/if}
+            {#if admin.mode === "edit-user"}Editar usuário{:else if admin.mode === "grant-subscription"}Conceder plano{:else}Histórico de concessões{/if}
           </h2>
           <p class="text-sm text-app-muted">{admin.selectedUser?.email}</p>
         </div>
@@ -153,16 +150,6 @@
             </div>
           {/each}
         </div>
-      {:else if admin.mode === "user-addons" && admin.selectedUser}
-        <AdminAddonManager
-          addons={admin.addons}
-          grants={admin.userAddons}
-          bind:selectedAddonSlug={admin.selectedAddonSlug}
-          bind:addonExpiresAt={admin.addonExpiresAt}
-          grant={admin.grantUserAddon}
-          revoke={admin.revokeUserAddon}
-          saving={admin.saving}
-        />
       {/if}
     </div>
   </div>

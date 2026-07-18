@@ -8,5 +8,5 @@ export type MatrixCell = { row: string; col: string; value: number | null; count
 export type MatrixData = { rows: string[]; cols: string[]; cells: MatrixCell[] };
 export type StreamStatus = "idle" | "connecting" | "connected" | "closed" | "fallback";
 export type PreviewUrl = { portal: Portal; url: string };
-export type BairroStat = { bairro: string; count: number; medianM2: number | null; minPrice: number | null };
+export type BairroStat = { neighborhood: string; count: number; medianM2: number | null; minPrice: number | null };
 export type PortalStat = { portal: Portal; count: number; medianM2: number | null };

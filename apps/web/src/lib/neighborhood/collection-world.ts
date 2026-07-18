@@ -1,4 +1,4 @@
-import type { Imovel } from "$lib/anuncios/types";
+import type { Property } from "$lib/listings/types";
 import { NEIGHBORHOOD_RADIUS_METERS, projectToLocalMeters } from "$lib/neighborhood/geo";
 import type { GeoCoordinate, NeighborhoodPayload, NeighborhoodPlace } from "$lib/neighborhood/types";
 
@@ -6,7 +6,7 @@ const MAX_SINGLE_CONTEXT_EXTENT_METERS = 620;
 export const COLLECTION_CONTEXT_VISIBLE_RADIUS_METERS = 620;
 
 export interface LocatedCollectionListing {
-  listing: Imovel;
+  listing: Property;
   location: GeoCoordinate;
 }
 
@@ -46,23 +46,23 @@ function median(values: number[]) {
   return (ordered[middle - 1] + ordered[middle]) / 2;
 }
 
-function listingPricePerSquareMeter(listing: Imovel) {
-  if (isPositiveFinite(listing.precoM2)) return listing.precoM2;
-  if (!isPositiveFinite(listing.preco)) return null;
+function listingPricePerSquareMeter(listing: Property) {
+  if (isPositiveFinite(listing.pricePerM2)) return listing.pricePerM2;
+  if (!isPositiveFinite(listing.price)) return null;
 
-  const area = isPositiveFinite(listing.m2Privado)
-    ? listing.m2Privado
-    : isPositiveFinite(listing.m2Totais)
-      ? listing.m2Totais
+  const area = isPositiveFinite(listing.privateAreaM2)
+    ? listing.privateAreaM2
+    : isPositiveFinite(listing.totalAreaM2)
+      ? listing.totalAreaM2
       : null;
-  return area ? listing.preco / area : null;
+  return area ? listing.price / area : null;
 }
 
 /**
  * Returns only facts that can be calculated from the collection itself. Missing
  * prices, areas and neighborhood names never become zero-valued metrics.
  */
-export function deriveCollectionMetrics(listings: Imovel[]): CollectionWorldMetric[] {
+export function deriveCollectionMetrics(listings: Property[]): CollectionWorldMetric[] {
   const metrics: CollectionWorldMetric[] = [
     {
       key: "total",
@@ -72,7 +72,7 @@ export function deriveCollectionMetrics(listings: Imovel[]): CollectionWorldMetr
     }
   ];
 
-  const prices = listings.map((listing) => listing.preco).filter(isPositiveFinite);
+  const prices = listings.map((listing) => listing.price).filter(isPositiveFinite);
   if (prices.length > 0) {
     metrics.push({
       key: "median-price",
@@ -98,7 +98,7 @@ export function deriveCollectionMetrics(listings: Imovel[]): CollectionWorldMetr
 
   const neighborhoods = new Set(
     listings
-      .map((listing) => listing.bairro?.trim())
+      .map((listing) => listing.neighborhood?.trim())
       .filter((neighborhood): neighborhood is string => Boolean(neighborhood))
       .map((neighborhood) => neighborhood.toLocaleLowerCase("pt-BR"))
   );
@@ -178,8 +178,8 @@ function mostFrequentKnownValue(values: Array<string | null | undefined>) {
 }
 
 function derivePlace(located: LocatedCollectionListing[], label: string): NeighborhoodPlace {
-  const neighborhood = mostFrequentKnownValue(located.map(({ listing }) => listing.bairro));
-  const city = mostFrequentKnownValue(located.map(({ listing }) => listing.cidade));
+  const neighborhood = mostFrequentKnownValue(located.map(({ listing }) => listing.neighborhood));
+  const city = mostFrequentKnownValue(located.map(({ listing }) => listing.city));
   const knownLocation = [neighborhood, city].filter(Boolean).join(", ");
 
   return {

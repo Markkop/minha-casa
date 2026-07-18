@@ -45,7 +45,7 @@ export function resolveShareListingImages(
     imageUrl?: string | null
     imageUrls?: string[] | null
     imageStorageKeys?: string[] | null
-    imageCoverIndex?: number | null
+    coverImageIndex?: number | null
   }
 ): { imageUrls: string[]; imageUrl: string | null } {
   const keys = (data.imageStorageKeys ?? []).filter(
@@ -56,7 +56,7 @@ export function resolveShareListingImages(
     const urls = keys.map((_, index) =>
       buildSharedListingImagePath(token, listingId, index)
     )
-    return { imageUrls: urls, imageUrl: imageUrlForCover(urls, data.imageCoverIndex) }
+    return { imageUrls: urls, imageUrl: imageUrlForCover(urls, data.coverImageIndex) }
   }
 
   const fromList = (data.imageUrls ?? []).filter(
@@ -75,7 +75,7 @@ export function resolveShareListingImages(
     })
     return {
       imageUrls: rewritten,
-      imageUrl: imageUrlForCover(rewritten, data.imageCoverIndex),
+      imageUrl: imageUrlForCover(rewritten, data.coverImageIndex),
     }
   }
 
@@ -116,7 +116,7 @@ export function resolveListingImages(data: {
   imageUrl?: string | null
   imageUrls?: string[] | null
   imageStorageKeys?: string[] | null
-  imageCoverIndex?: number | null
+  coverImageIndex?: number | null
 }): { imageUrls: string[]; imageUrl: string | null } {
   const keys = (data.imageStorageKeys ?? []).filter(
     (key): key is string => typeof key === "string" && key.trim() !== ""
@@ -126,14 +126,14 @@ export function resolveListingImages(data: {
     const urls = keys.map((_, index) =>
       buildListingImagePath(data.listingId!, index)
     )
-    return { imageUrls: urls, imageUrl: imageUrlForCover(urls, data.imageCoverIndex) }
+    return { imageUrls: urls, imageUrl: imageUrlForCover(urls, data.coverImageIndex) }
   }
 
   const fromList = (data.imageUrls ?? []).filter(
     (url): url is string => typeof url === "string" && url.trim() !== ""
   )
   if (fromList.length > 0) {
-    return { imageUrls: fromList, imageUrl: imageUrlForCover(fromList, data.imageCoverIndex) }
+    return { imageUrls: fromList, imageUrl: imageUrlForCover(fromList, data.coverImageIndex) }
   }
   if (data.imageUrl?.trim()) {
     return {

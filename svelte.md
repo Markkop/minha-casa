@@ -7,19 +7,19 @@ The new frontend scaffold lives in `apps/web`. It follows the `todo-idle-quest` 
 This is not a complete UI parity port yet. The shell, auth pages, route guard structure, API client, route surface, and Phoenix JWT foundation are in place. Several high-traffic routes now use Svelte UI against Phoenix APIs directly:
 
 - Workspace shell: Svelte navigation now includes mobile drawer behavior, account/admin/subscription actions, organization switching, feature-flagged nav entries, and active organization propagation to Phoenix through `X-Organization-Id`.
-- `/anuncios`: collection/listing CRUD, active collection persistence, favorites, sharing toggle, table/card/map display modes, browser geocoding with cached OpenStreetMap embeds, image thumbnails/lightbox, manual listing entry/edit/delete, collection copy, title sync, JSON import/export, AI import from text/URL/image/PDF, duplicate review modal with add-anyway flow, reparse/quick-reparse review flows, and image-ingestion trigger.
-- `/analise`: collection/listing selector, listing dossier with image gallery, nearby data, latest analysis load, start analysis, polling, step retry, per-card x-ray retry, and richer v6 result/ambiente sections.
+- `/lista`: collection/listing CRUD, active collection persistence, favorites, sharing toggle, table/card/map display modes, browser geocoding with cached OpenStreetMap embeds, image thumbnails/lightbox, manual listing entry/edit/delete, collection copy, title sync, JSON import/export, AI import from text/URL/image/PDF, duplicate review modal with add-anyway flow, reparse/quick-reparse review flows, and image-ingestion trigger.
+- `/imoveis/[listingId]`: property details dossier with image gallery, nearby data, latest analysis load, start analysis, polling, step retry, per-card x-ray retry, and richer v6 result/ambiente sections.
 - `/comparacao`: collection/listing selectors, persisted comparison slots, visible-slot controls, fixed-cell recalculation, matrix view, listing image/link/map/analysis actions, and comparison notes.
 - `/explorar`: portal-search CRUD/run polling, authenticated Phoenix SSE stream with polling fallback, chip-based filter builder, saved-link `fromLink` seeding, portal URL previews, interactive matrix with cell drill-down, portal/bairro summaries, target status, cost summary, and result table through Phoenix JWT APIs.
 - `/links`, `/contatos`, `/regioes`, `/condominios`, `/visao-geral`: workspace CRUD backed by Phoenix JWT APIs.
 - `/conectar-whatsapp` and `/conectar-telegram`: pending-code handling, login redirect, status, and linking through Phoenix JWT APIs.
-- `/organizacoes`: organization creation/selection, member listing, member role updates/removal, active organization context for subsequent Phoenix JWT API calls, and active-organization addon management.
-- `/admin`: system stats, user search, admin toggle, user rename/delete, manual subscription grants, subscription history/status edits/cancel-reactivate requests, plan Stripe Price ID mapping, Stripe reconciliation, user addon grants, and organization addon grants through Phoenix JWT APIs.
+- `/organizacoes`: organization creation/selection, member listing, member role updates/removal, and active organization context for subsequent Phoenix JWT API calls.
+- `/admin`: system stats, user search, admin toggle, user rename/delete, manual subscription grants, subscription history/status edits/cancel-reactivate requests, plan Stripe Price ID mapping, Stripe reconciliation, and organization/agency plan management through Phoenix JWT APIs.
 - `/admin/feature-flags`: local admin feature flags ported to Svelte/localStorage, matching the previous browser-local behavior.
-- `/subscribe`: current subscription, available plans, personal/org addon list, Phoenix-backed Stripe Checkout session creation, and Phoenix-backed Stripe billing portal opening.
-- `/floodrisk`: addon-gated direct Three.js Svelte scene with scenario switching, animated water level, block height configuration, custom JSON import, and connection type toggles.
-- `/financiamento`: SAC simulator with extra amortization, resources/reserve inputs, current-property haircut, scenario matrix for permuta vs venda posterior, and formula breakdown cards.
-- `/casa`: redirects to `/financiamento`, preserving the compatibility route.
+- `/subscribe`: current subscription, available plans, Phoenix-backed Stripe Checkout session creation, and Phoenix-backed Stripe billing portal opening.
+- `/ferramentas`: authenticated catalog for Risco de alagamento and Planta, without subscription or per-user/per-organization grants.
+- `/floodrisk`: authenticated direct Three.js Svelte scene with scenario switching, animated water level, block height configuration, custom JSON import, and connection type toggles.
+- `/financeiro`: authenticated SAC simulator with extra amortization, resources/reserve inputs, current-property haircut, scenario matrix for permuta vs venda posterior, and formula breakdown cards; `/financiamento` and `/casa` remain compatibility redirects.
 - `/share/[token]`: public shared collection table backed by Phoenix, including public shared image thumbnails for hosted listing images.
 - `/s/[shortId]`: short-link redirect resolution backed by Phoenix.
 - `/planos`, `/privacy`, `/terms`, `/data-deletion`: static content ported.
@@ -108,7 +108,7 @@ The Svelte API client calls **same-origin** `/api/*` in the browser, and SvelteK
 - `apps/web/src/lib/active-organization.ts`: client cache synced from layout data; `setActiveOrganizationId` posts to `/api/organization-context`.
 - `apps/web/src/routes/api/organization-context/+server.ts`: GET/POST active organization cookie (auth required).
 - `apps/web/src/lib/api/client.ts`: browser API client; same-origin `/api/*` with `credentials: include` (org header injected by proxy from cookie).
-- `apps/web/src/lib/components/layout/WorkspaceShell.svelte`: Svelte app navigation shell with mobile drawer, account menu, organization switcher, addon/admin actions, and feature-flagged navigation.
+- `apps/web/src/lib/components/layout/WorkspaceShell.svelte`: Svelte app navigation shell with mobile drawer, account menu, organization switcher, Ferramentas/Financeiro/admin actions, and feature-flagged navigation.
 - `apps/web/src/lib/components/workspace/OrganizationSwitcher.svelte`: Svelte organization context switcher used by shell chrome.
 - `apps/web/src/lib/components/ui/Button.svelte`, `Card.svelte`, `Input.svelte`, `Badge.svelte`: first shared Svelte UI primitives.
 - `backend/lib/minha_casa_ai/auth/jwks.ex`: JWKS cache/verifier for Better Auth tokens.
@@ -123,9 +123,8 @@ The Svelte API client calls **same-origin** `/api/*` in the browser, and SvelteK
 - `backend/lib/minha_casa_ai_web/controllers/short_link_controller.ex`: public short-link resolver for Svelte `/s/[shortId]`.
 - `backend/lib/minha_casa_ai_web/controllers/workspace_controller.ex`: JWT workspace CRUD endpoints for links, contacts, regions, condominiums, and comparison notes.
 - `backend/lib/minha_casa_ai_web/controllers/organization_controller.ex`: JWT organization/member management endpoints.
-- `backend/lib/minha_casa_ai/billing.ex`: Phoenix billing/admin context for plans, subscriptions, addons, and admin stats.
-- `backend/lib/minha_casa_ai_web/controllers/addon_controller.ex`: current-user/current-organization addon APIs and addon access checks.
-- `backend/lib/minha_casa_ai_web/controllers/admin_controller.ex`: JWT admin endpoints for users, stats, subscriptions, plans, and addon grants.
+- `backend/lib/minha_casa_ai/billing.ex`: Phoenix billing/admin context for plans, subscriptions, organizations, and admin stats.
+- `backend/lib/minha_casa_ai_web/controllers/admin_controller.ex`: JWT admin endpoints for users, stats, subscriptions, plans, and organizations.
 - `backend/lib/minha_casa_ai_web/controllers/plan_controller.ex`: JWT plan listing endpoint.
 - `backend/lib/minha_casa_ai_web/controllers/subscription_controller.ex`: JWT current-subscription, manual admin grant, Stripe checkout, and Stripe billing portal endpoints.
 - `backend/lib/minha_casa_ai_web/controllers/stripe_webhook_controller.ex`: public Stripe webhook endpoint with signature verification and idempotency.
@@ -133,10 +132,10 @@ The Svelte API client calls **same-origin** `/api/*` in the browser, and SvelteK
 - `backend/lib/minha_casa_ai/organizations.ex`: Ecto organization context and membership validation helpers.
 - `apps/web/src/lib/admin/client.ts`: Svelte admin API client and local feature flag helpers.
 - `apps/web/src/lib/billing/client.ts`: Svelte billing API client for public plans and current subscription.
-- `apps/web/src/lib/addons/client.ts`: Svelte addon API client and grant helpers.
-- `apps/web/src/lib/addons/GrantedAddonsSection.svelte`: personal and active-organization addon management UI.
-- `apps/web/src/routes/anuncios/+page.svelte`: Svelte collection/listing workspace with table/cards/OSM map modes, import/export, image thumbnails, AI import, and collection actions.
-- `apps/web/src/routes/analise/+page.svelte`: Svelte property-analysis workflow with dossier, image gallery, nearby panel, v6 sections, and retry controls.
+- `apps/web/src/lib/tools/tools-catalog.ts`: neutral Ferramentas catalog metadata.
+- `apps/web/src/routes/(app)/ferramentas/+page.svelte`: Ferramentas catalog for signed-in users.
+- `apps/web/src/routes/(app)/lista/+page.svelte`: Svelte collection/listing workspace with table/cards/OSM map modes, import/export, image thumbnails, AI import, and collection actions.
+- `apps/web/src/routes/(app)/imoveis/[listingId]/+page.svelte`: Svelte property-details workflow with dossier, image gallery, nearby panel, v6 analysis sections, and retry controls.
 - `apps/web/src/routes/comparacao/+page.svelte`: Svelte comparison workflow with persisted slots, fixed-cell recalculation, quick map/analysis links, and notes.
 - `apps/web/src/routes/explorar/+page.svelte`: Svelte portal-search workflow with filters, URL preview, matrix, polling, cost, and result tables.
 - `apps/web/src/routes/organizacoes/+page.svelte`: first real Svelte organization/member workflow.
@@ -159,14 +158,14 @@ Database migrations are owned by Phoenix/Ecto. The Svelte app connects to
 PostgreSQL only for Better Auth and does not maintain a schema or migration
 history.
 
-For the earlier floodrisk pass, `/floodrisk` was opened through the in-app browser at `http://localhost:5173/floodrisk`; the app correctly redirected to `/login?redirect=%2Ffloodrisk`, so the authenticated canvas still needs a logged-in visual QA pass. The route itself is covered by `svelte-check`.
+The authenticated Flood Risk canvas still needs a logged-in visual QA pass. The route itself is covered by `svelte-check`.
 
 ## Things to revisit
 
 - Port the remaining legacy API behavior to Phoenix before deleting obsolete root API routes.
 - Active organization is stored in an httpOnly cookie (`minha-casa-active-organization-id`), exposed on `PageData.activeOrganizationId`, and injected as `X-Organization-Id` by the SvelteKit API proxy. Legacy localStorage keys are migrated once on layout mount.
 - Stripe Checkout, billing portal session creation, webhook lifecycle handling, admin cancel/reactivate calls, and admin reconciliation are now Phoenix-backed. Reconciliation is currently read-only and reports missing/stale rows; it does not auto-repair local subscriptions.
-- `/floodrisk` is ported as a first direct Three.js pass with addon gating, but it still needs logged-in screenshot QA and visual polish against the previous 3D implementation.
+- `/floodrisk` is ported as a first direct Three.js pass, but it still needs logged-in screenshot QA and visual polish against the previous 3D implementation.
 - `/anuncios` still needs Leaflet/Google-specific parity and final dense-table polish. The current Svelte page now has image thumbnails/lightbox, JSON import/export, card mode, cached browser geocoding, OSM map embeds, duplicate review modal, reparse/quick-reparse review flows, and richer sort/filter controls.
 - `/analise` still needs exact dossier formatting, decision notes persistence UX, stale-result messaging, and full card taxonomy parity. The current Svelte page now has dossier images, nearby data, x-ray retry, and richer ambiente rendering.
 - `/comparacao` now has fixed-cell recalculation, slot count, and map/analysis links. It still needs final mobile layout parity, exact tooltip text, and full formatting/polish parity.

@@ -1,5 +1,6 @@
 defmodule MinhaCasaAi.Channel.ReplyFormatter do
   alias MinhaCasaAi.ListingShortLinks
+  alias MinhaCasaAi.Listings.ListingData
 
   def ingestion_result(
         %{pending_type: "multi_import", multi_count: count, collection: collection} = result
@@ -10,7 +11,7 @@ defmodule MinhaCasaAi.Channel.ReplyFormatter do
       result
       |> Map.get(:multi_previews, [])
       |> Enum.map(fn {listing, n} ->
-        title = Map.get(listing, "titulo") || "Sem título"
+        title = listing |> ListingData.normalize() |> Map.get("title") || "Sem título"
         "#{n}. #{title}"
       end)
       |> Enum.join("\n")
@@ -31,7 +32,7 @@ defmodule MinhaCasaAi.Channel.ReplyFormatter do
         duplicates: [first | _],
         collection: collection
       }) do
-    title = Map.get(first.listing_data, "titulo") || "Imóvel"
+    title = first.listing_data |> ListingData.normalize() |> Map.get("title") || "Imóvel"
     name = collection_name(collection)
     candidate = hd(first.candidates)
     reason = duplicate_reason_label(candidate[:reason] || candidate["reason"])
@@ -190,7 +191,7 @@ defmodule MinhaCasaAi.Channel.ReplyFormatter do
 
     parts =
       [
-        tipo_label(data["tipoImovel"]),
+        tipo_label(data["propertyType"]),
         header_area(data),
         header_price(data)
       ]
@@ -206,14 +207,14 @@ defmodule MinhaCasaAi.Channel.ReplyFormatter do
     parts =
       [
         metric_area(data),
-        metric_count("🛏️", data["quartos"]),
-        metric_count("🚿", data["banheiros"]),
-        metric_count("🚗", data["garagem"]),
-        metric_flag("🏊", data["piscina"]),
-        metric_flag("🏋️", data["academia"]),
-        metric_flag("🛎️", data["porteiro24h"]),
-        metric_flag("🌅", data["vistaLivre"]),
-        metric_flag("♨️", data["piscinaTermica"])
+        metric_count("🛏️", data["bedrooms"]),
+        metric_count("🚿", data["bathrooms"]),
+        metric_count("🚗", data["parkingSpots"]),
+        metric_flag("🏊", get_in(data, ["features", "pool"])),
+        metric_flag("🏋️", get_in(data, ["features", "gym"])),
+        metric_flag("🛎️", get_in(data, ["features", "doorman24h"])),
+        metric_flag("🌅", get_in(data, ["features", "unobstructedView"])),
+        metric_flag("♨️", get_in(data, ["features", "heatedPool"]))
       ]
       |> Enum.reject(&is_nil/1)
 
@@ -224,10 +225,10 @@ defmodule MinhaCasaAi.Channel.ReplyFormatter do
   end
 
   defp address_line(data) do
-    street = present_string(data["endereco"])
+    street = present_string(data["address"])
 
     location =
-      [data["bairro"], data["cidade"]]
+      [data["neighborhood"], data["city"]]
       |> Enum.map(&present_string/1)
       |> Enum.reject(&is_nil/1)
       |> case do
@@ -253,8 +254,8 @@ defmodule MinhaCasaAi.Channel.ReplyFormatter do
 
   defp url_line(_, _), do: nil
 
-  defp tipo_label("casa"), do: "Casa"
-  defp tipo_label("apartamento"), do: "Apto"
+  defp tipo_label("house"), do: "Casa"
+  defp tipo_label("apartment"), do: "Apto"
   defp tipo_label(_), do: nil
 
   defp header_area(data) do
@@ -265,12 +266,12 @@ defmodule MinhaCasaAi.Channel.ReplyFormatter do
   end
 
   defp header_price(data) do
-    preco = numeric_value(data["preco"])
+    preco = numeric_value(data["price"])
 
     if is_nil(preco) or preco <= 0 do
       nil
     else
-      preco_m2 = numeric_value(data["precoM2"]) || price_per_m2(preco, data)
+      preco_m2 = numeric_value(data["pricePerM2"]) || price_per_m2(preco, data)
 
       if preco_m2 && preco_m2 > 0 do
         "R$ #{format_price(preco)} (R$ #{format_price(preco_m2)}/m²)"
@@ -281,8 +282,8 @@ defmodule MinhaCasaAi.Channel.ReplyFormatter do
   end
 
   defp metric_area(data) do
-    privado = numeric_value(data["m2Privado"])
-    total = numeric_value(data["m2Totais"])
+    privado = numeric_value(data["privateAreaM2"])
+    total = numeric_value(data["totalAreaM2"])
 
     cond do
       privado && total && privado != total ->
@@ -314,7 +315,7 @@ defmodule MinhaCasaAi.Channel.ReplyFormatter do
   end
 
   defp primary_m2(data) do
-    numeric_value(data["m2Privado"]) || numeric_value(data["m2Totais"])
+    numeric_value(data["privateAreaM2"]) || numeric_value(data["totalAreaM2"])
   end
 
   defp price_per_m2(preco, data) do
@@ -325,10 +326,12 @@ defmodule MinhaCasaAi.Channel.ReplyFormatter do
   end
 
   defp normalize_data(data) when is_map(data) do
-    Map.new(data, fn
+    data
+    |> Map.new(fn
       {k, v} when is_atom(k) -> {Atom.to_string(k), v}
       {k, v} -> {k, v}
     end)
+    |> ListingData.normalize()
   end
 
   defp truthy?(value) when value in [true, "true", 1, "1"], do: true

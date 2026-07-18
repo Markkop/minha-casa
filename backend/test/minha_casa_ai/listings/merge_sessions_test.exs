@@ -22,8 +22,8 @@ defmodule MinhaCasaAi.Listings.MergeSessionsTest do
 
     fields = MergeSessions.field_differences(current, imported)
 
-    assert Enum.map(fields, & &1["path"]) == ["preco", "preferences.sol_manha"]
-    refute Enum.any?(fields, &(&1["path"] in ["starred", "addedAt", "quartos"]))
+    assert Enum.map(fields, & &1["path"]) == ["price", "features.sol_manha"]
+    refute Enum.any?(fields, &(&1["path"] in ["starred", "addedAt", "bedrooms"]))
   end
 
   test "retains meaningful false and zero values" do
@@ -34,13 +34,13 @@ defmodule MinhaCasaAi.Listings.MergeSessionsTest do
       )
 
     assert Enum.map(fields, &{&1["path"], &1["incomingValue"]}) == [
-             {"garagem", 0},
-             {"piscina", false}
+             {"parkingSpots", 0},
+             {"features.pool", false}
            ]
 
     assert Enum.all?(fields, &Map.has_key?(&1, "valueType"))
-    assert field_value_type(fields, "garagem") == "number"
-    assert field_value_type(fields, "piscina") == "boolean"
+    assert field_value_type(fields, "parkingSpots") == "number"
+    assert field_value_type(fields, "features.pool") == "boolean"
   end
 
   test "exposes normalized construction year as a mergeable field" do
@@ -50,7 +50,7 @@ defmodule MinhaCasaAi.Listings.MergeSessionsTest do
         %{"anoConstrucao" => "1998"}
       )
 
-    assert [field] = Enum.filter(fields, &(&1["path"] == "anoConstrucao"))
+    assert [field] = Enum.filter(fields, &(&1["path"] == "constructionYear"))
     assert field["label"] == "Ano de construção"
     assert field["valueType"] == "number"
     assert field["currentValue"] == 1990
@@ -64,7 +64,7 @@ defmodule MinhaCasaAi.Listings.MergeSessionsTest do
         %{"anoConstrucao" => 10_000}
       )
 
-    refute Enum.any?(fields, &(&1["path"] == "anoConstrucao"))
+    refute Enum.any?(fields, &(&1["path"] == "constructionYear"))
   end
 
   defp field_value_type(fields, path) do
@@ -127,7 +127,7 @@ defmodule MinhaCasaAi.Listings.MergeSessionsTest do
 
     assert json.verdict == "duplicate"
     assert json.confidence == 0.9
-    assert [%{"path" => "preco"}] = json.suggestions
+    assert [%{"path" => "price"}] = json.suggestions
     assert json.signals["reason"] == "same_address"
   end
 

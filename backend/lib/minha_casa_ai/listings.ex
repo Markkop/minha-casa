@@ -5,9 +5,9 @@ defmodule MinhaCasaAi.Listings do
     Collection,
     CollectionPolicy,
     Collections,
-    ConstructionYear,
     Duplicates,
-    Listing
+    Listing,
+    ListingData
   }
 
   alias MinhaCasaAi.Repo
@@ -22,13 +22,13 @@ defmodule MinhaCasaAi.Listings do
     user_id = Keyword.get(opts, :user_id)
     org_id = Keyword.get(opts, :org_id)
 
-    with {:ok, _collection} <- authorize_collection(collection_id, user_id, org_id, :add_listing) do
+    with {:ok, _collection} <- authorize_collection(collection_id, user_id, org_id, :add_listing),
+         {:ok, data} <- ListingData.validate(data) do
       %Listing{}
       |> Listing.changeset(%{
         collection_id: collection_id,
         data:
           data
-          |> ConstructionYear.normalize_data()
           |> Map.put_new("addedAt", Date.utc_today() |> Date.to_iso8601())
       })
       |> Repo.insert()
@@ -48,7 +48,7 @@ defmodule MinhaCasaAi.Listings do
          opts
        ) do
     data = data || %{}
-    link = data["link"]
+    link = data["sourceUrl"]
 
     if is_binary(link) and String.trim(link) != "" do
       MinhaCasaAi.ListingImages.enqueue_ingestion(id, collection_id,
@@ -62,6 +62,8 @@ defmodule MinhaCasaAi.Listings do
   end
 
   def duplicate_candidates(collection_id, listing_data, opts \\ []) do
+    listing_data = ListingData.normalize(listing_data)
+
     listings =
       Listing
       |> where([l], l.collection_id == ^collection_id)
@@ -131,6 +133,23 @@ defmodule MinhaCasaAi.Listings do
     end
   end
 
+  def get_listing_for_workspace(listing_id, user_id, workspace_id)
+      when is_binary(user_id) and is_binary(workspace_id) do
+    with {:ok, listing_id} <- Ecto.UUID.cast(listing_id),
+         %Listing{} = listing <- Repo.get(Listing, listing_id),
+         %Collection{workspace_id: ^workspace_id} = collection <-
+           Repo.get(Collection, listing.collection_id),
+         {:ok, _collection, access} <-
+           CollectionPolicy.authorize(user_id, collection.id, :view) do
+      {:ok, listing, collection, access}
+    else
+      _ -> {:error, :listing_not_found}
+    end
+  end
+
+  def get_listing_for_workspace(_listing_id, _user_id, _workspace_id),
+    do: {:error, :listing_not_found}
+
   def get_listing(collection_id, listing_id, opts \\ []) do
     user_id = Keyword.get(opts, :user_id)
     org_id = Keyword.get(opts, :org_id)
@@ -151,14 +170,15 @@ defmodule MinhaCasaAi.Listings do
 
     with {:ok, _} <- authorize_collection(collection_id, user_id, org_id, :edit_existing),
          %Listing{} = listing <-
-           Repo.get_by(Listing, id: listing_id, collection_id: collection_id) do
-      merged =
-        (listing.data || %{})
-        |> Map.merge(ConstructionYear.normalize_data(data_updates))
+           Repo.get_by(Listing, id: listing_id, collection_id: collection_id),
+         {:ok, data_updates} <- ListingData.validate(data_updates) do
+      merged = ListingData.merge(listing.data || %{}, data_updates)
 
-      listing
-      |> Listing.changeset(%{data: merged})
-      |> Repo.update()
+      with {:ok, merged} <- ListingData.validate(merged) do
+        listing
+        |> Listing.changeset(%{data: merged})
+        |> Repo.update()
+      end
     else
       nil -> {:error, :listing_not_found}
       {:error, _} = err -> err

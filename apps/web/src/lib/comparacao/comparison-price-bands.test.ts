@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import type { Imovel } from "$lib/anuncios/types"
+import type { Property } from "$lib/listings/types"
 import {
   buildComparisonPriceBands,
   chooseAutomaticPriceBandConfig,
@@ -7,26 +7,21 @@ import {
   chooseDefaultListingPriceBandSize,
 } from "./comparison-price-bands"
 
-function listing(id: string, options: Partial<Imovel> = {}): Imovel {
+function listing(id: string, options: Partial<Property> = {}): Property {
   return {
     id,
-    titulo: id,
-    endereco: "",
-    m2Totais: null,
-    m2Privado: null,
-    quartos: null,
+    title: id,
+    address: "",
+    totalAreaM2: null,
+    privateAreaM2: null,
+    bedrooms: null,
     suites: null,
-    banheiros: null,
-    garagem: null,
-    anoConstrucao: null,
-    preco: null,
-    precoM2: null,
-    piscina: null,
-    porteiro24h: null,
-    academia: null,
-    vistaLivre: null,
-    piscinaTermica: null,
-    link: null,
+    bathrooms: null,
+    parkingSpots: null,
+    constructionYear: null,
+    price: null,
+    pricePerM2: null,
+    sourceUrl: null,
     createdAt: "",
     ...options,
   }
@@ -35,7 +30,7 @@ function listing(id: string, options: Partial<Imovel> = {}): Imovel {
 describe("buildComparisonPriceBands", () => {
   it("places an exact R$ 4.000/m² value in the band starting at R$ 4.000", () => {
     const result = buildComparisonPriceBands(
-      [listing("boundary", { preco: 400_000, m2Privado: 100 })],
+      [listing("boundary", { price: 400_000, privateAreaM2: 100 })],
       "privado"
     )
 
@@ -51,10 +46,10 @@ describe("buildComparisonPriceBands", () => {
   it("creates empty intermediate bands and sorts items by value with stable collection-order ties", () => {
     const result = buildComparisonPriceBands(
       [
-        listing("high", { preco: 700_000, m2Privado: 100 }),
-        listing("tie-first", { preco: 350_000, m2Privado: 100 }),
-        listing("low", { preco: 310_000, m2Privado: 100 }),
-        listing("tie-second", { preco: 175_000, m2Privado: 50 }),
+        listing("high", { price: 700_000, privateAreaM2: 100 }),
+        listing("tie-first", { price: 350_000, privateAreaM2: 100 }),
+        listing("low", { price: 310_000, privateAreaM2: 100 }),
+        listing("tie-second", { price: 175_000, privateAreaM2: 50 }),
       ],
       "privado"
     )
@@ -78,8 +73,8 @@ describe("buildComparisonPriceBands", () => {
   it("keeps R$ 1.000 as the default band size", () => {
     const result = buildComparisonPriceBands(
       [
-        listing("low", { preco: 350_000, m2Privado: 100 }),
-        listing("high", { preco: 550_000, m2Privado: 100 }),
+        listing("low", { price: 350_000, privateAreaM2: 100 }),
+        listing("high", { price: 550_000, privateAreaM2: 100 }),
       ],
       "privado"
     )
@@ -94,10 +89,10 @@ describe("buildComparisonPriceBands", () => {
   it("supports a custom R$ 2.500 band size", () => {
     const result = buildComparisonPriceBands(
       [
-        listing("below", { preco: 240_000, m2Privado: 100 }),
-        listing("boundary", { preco: 250_000, m2Privado: 100 }),
-        listing("middle", { preco: 499_900, m2Privado: 100 }),
-        listing("next", { preco: 500_000, m2Privado: 100 }),
+        listing("below", { price: 240_000, privateAreaM2: 100 }),
+        listing("boundary", { price: 250_000, privateAreaM2: 100 }),
+        listing("middle", { price: 499_900, privateAreaM2: 100 }),
+        listing("next", { price: 500_000, privateAreaM2: 100 }),
       ],
       "privado",
       2_500
@@ -117,9 +112,9 @@ describe("buildComparisonPriceBands", () => {
 
   it("supports and normalizes a custom band offset", () => {
     const listings = [
-      listing("first", { preco: 716_000, m2Privado: 100 }),
-      listing("second", { preco: 938_900, m2Privado: 100 }),
-      listing("third", { preco: 1_177_500, m2Privado: 100 }),
+      listing("first", { price: 716_000, privateAreaM2: 100 }),
+      listing("second", { price: 938_900, privateAreaM2: 100 }),
+      listing("third", { price: 1_177_500, privateAreaM2: 100 }),
     ]
 
     const result = buildComparisonPriceBands(listings, "privado", 2_000, 3_000)
@@ -143,9 +138,9 @@ describe("buildComparisonPriceBands", () => {
 
   it("uses the selected private or total area and rounds the resulting value", () => {
     const subject = listing("different-areas", {
-      preco: 499_950,
-      m2Privado: 100,
-      m2Totais: 125,
+      price: 499_950,
+      privateAreaM2: 100,
+      totalAreaM2: 125,
     })
 
     const privateResult = buildComparisonPriceBands([subject], "privado")
@@ -159,12 +154,12 @@ describe("buildComparisonPriceBands", () => {
 
   it("puts listings with absent or invalid price or selected area in missing", () => {
     const missingListings = [
-      listing("no-price", { m2Privado: 100 }),
-      listing("zero-price", { preco: 0, m2Privado: 100 }),
-      listing("negative-price", { preco: -1, m2Privado: 100 }),
-      listing("no-area", { preco: 400_000 }),
-      listing("zero-area", { preco: 400_000, m2Privado: 0 }),
-      listing("negative-area", { preco: 400_000, m2Privado: -100 }),
+      listing("no-price", { privateAreaM2: 100 }),
+      listing("zero-price", { price: 0, privateAreaM2: 100 }),
+      listing("negative-price", { price: -1, privateAreaM2: 100 }),
+      listing("no-area", { price: 400_000 }),
+      listing("zero-area", { price: 400_000, privateAreaM2: 0 }),
+      listing("negative-area", { price: 400_000, privateAreaM2: -100 }),
     ]
 
     const result = buildComparisonPriceBands(missingListings, "privado")
@@ -182,8 +177,8 @@ describe("buildComparisonPriceBands", () => {
 
   it("returns every listing as missing when none can be calculated", () => {
     const allMissing = [
-      listing("first", { preco: 500_000 }),
-      listing("second", { m2Totais: 100 }),
+      listing("first", { price: 500_000 }),
+      listing("second", { totalAreaM2: 100 }),
     ]
 
     const result = buildComparisonPriceBands(allMissing, "total")
@@ -194,11 +189,11 @@ describe("buildComparisonPriceBands", () => {
   it("groups prices directly on exact R$ 100.000 boundaries without requiring area", () => {
     const result = buildComparisonPriceBands(
       [
-        listing("below", { preco: 1_999_999 }),
-        listing("boundary", { preco: 2_000_000 }),
-        listing("rounded", { preco: 2_049_999.6 }),
+        listing("below", { price: 1_999_999 }),
+        listing("boundary", { price: 2_000_000 }),
+        listing("rounded", { price: 2_049_999.6 }),
       ],
-      "preco",
+      "price",
       100_000
     )
 
@@ -216,16 +211,16 @@ describe("buildComparisonPriceBands", () => {
   })
 
   it("puts only listings with an invalid price in missing for the price metric", () => {
-    const validWithoutArea = listing("valid", { preco: 750_000 })
+    const validWithoutArea = listing("valid", { price: 750_000 })
     const invalid = [
       listing("no-price"),
-      listing("zero-price", { preco: 0 }),
-      listing("negative-price", { preco: -1 }),
+      listing("zero-price", { price: 0 }),
+      listing("negative-price", { price: -1 }),
     ]
 
     const result = buildComparisonPriceBands(
       [validWithoutArea, ...invalid],
-      "preco",
+      "price",
       100_000
     )
 
@@ -242,8 +237,8 @@ describe("chooseDefaultListingPriceBandSize", () => {
   ])("chooses $expected for a collection around $price", ({ price, expected }) => {
     expect(
       chooseDefaultListingPriceBandSize([
-        listing("lower", { preco: price * 0.9 }),
-        listing("upper", { preco: price }),
+        listing("lower", { price: price * 0.9 }),
+        listing("upper", { price: price }),
       ])
     ).toBe(expected)
   })
@@ -253,8 +248,8 @@ describe("chooseDefaultListingPriceBandSize", () => {
     expect(
       chooseDefaultListingPriceBandSize([
         listing("missing"),
-        listing("zero", { preco: 0 }),
-        listing("negative", { preco: -10 }),
+        listing("zero", { price: 0 }),
+        listing("negative", { price: -10 }),
       ])
     ).toBe(100_000)
   })
@@ -267,7 +262,7 @@ describe("chooseDefaultListingPriceBandSize", () => {
 
     expect(
       chooseDefaultListingPriceBandSize(
-        prices.map((price, index) => listing(String(index), { preco: price }))
+        prices.map((price, index) => listing(String(index), { price: price }))
       )
     ).toBe(500_000)
   })
@@ -275,8 +270,8 @@ describe("chooseDefaultListingPriceBandSize", () => {
   it("chooses R$ 1 mi or more for collections with a wider price span", () => {
     expect(
       chooseDefaultListingPriceBandSize([
-        listing("low", { preco: 1_000_000 }),
-        listing("high", { preco: 8_000_000 }),
+        listing("low", { price: 1_000_000 }),
+        listing("high", { price: 8_000_000 }),
       ])
     ).toBe(5_000_000)
   })
@@ -286,7 +281,7 @@ describe("chooseAutomaticPriceBandSize", () => {
   it("chooses aligned R$ 2.000 ranges for the comparison collection", () => {
     const values = [9_389, 11_775, 8_402, 10_101, 8_608, 7_160, 9_941]
     const listings = values.map((value, index) =>
-      listing(String(index), { preco: value * 100, m2Privado: 100 })
+      listing(String(index), { price: value * 100, privateAreaM2: 100 })
     )
 
     const config = chooseAutomaticPriceBandConfig(listings, "privado")
@@ -312,7 +307,7 @@ describe("chooseAutomaticPriceBandSize", () => {
       4_700,
     ]
     const listings = values.map((value, index) =>
-      listing(String(index), { preco: value * 100, m2Privado: 100 })
+      listing(String(index), { price: value * 100, privateAreaM2: 100 })
     )
 
     expect(chooseAutomaticPriceBandSize(listings, "privado")).toBe(500)
@@ -321,7 +316,7 @@ describe("chooseAutomaticPriceBandSize", () => {
   it("chooses wider nice bands for a sparse collection", () => {
     const values = [3_000, 3_200, 9_000, 9_200, 15_000, 15_200]
     const listings = values.map((value, index) =>
-      listing(String(index), { preco: value * 100, m2Privado: 100 })
+      listing(String(index), { price: value * 100, privateAreaM2: 100 })
     )
 
     expect(chooseAutomaticPriceBandSize(listings, "privado")).toBe(7_500)
@@ -332,7 +327,7 @@ describe("chooseAutomaticPriceBandSize", () => {
       1_500, 2_500, 3_000, 3_700, 4_500, 4_600, 6_000, 6_600, 7_700, 8_700,
     ]
     const listings = values.map((value, index) =>
-      listing(String(index), { preco: value * 100, m2Privado: 100 })
+      listing(String(index), { price: value * 100, privateAreaM2: 100 })
     )
 
     const config = chooseAutomaticPriceBandConfig(listings, "privado")
@@ -352,7 +347,7 @@ describe("chooseAutomaticPriceBandSize", () => {
   it("keeps populated ranges within a responsive capacity of two when possible", () => {
     const values = [9_389, 11_775, 8_402, 10_101, 8_608, 7_160, 9_941]
     const listings = values.map((value, index) =>
-      listing(String(index), { preco: value * 100, m2Privado: 100 })
+      listing(String(index), { price: value * 100, privateAreaM2: 100 })
     )
     const options = {
       minItemsPerBand: 1,
@@ -379,7 +374,7 @@ describe("chooseAutomaticPriceBandSize", () => {
   it("targets four items per populated range for a wider responsive capacity", () => {
     const values = [9_389, 11_775, 8_402, 10_101, 8_608, 7_160, 9_941]
     const listings = values.map((value, index) =>
-      listing(String(index), { preco: value * 100, m2Privado: 100 })
+      listing(String(index), { price: value * 100, privateAreaM2: 100 })
     )
 
     const config = chooseAutomaticPriceBandConfig(listings, "privado", {
@@ -413,15 +408,15 @@ describe("chooseAutomaticPriceBandSize", () => {
 
   it("ignores invalid values and falls back to R$ 1.000 when all values are missing", () => {
     const invalid = [
-      listing("no-price", { m2Privado: 100 }),
-      listing("zero-area", { preco: 300_000, m2Privado: 0 }),
-      listing("wrong-metric", { preco: 300_000, m2Totais: 100 }),
+      listing("no-price", { privateAreaM2: 100 }),
+      listing("zero-area", { price: 300_000, privateAreaM2: 0 }),
+      listing("wrong-metric", { price: 300_000, totalAreaM2: 100 }),
     ]
 
     expect(chooseAutomaticPriceBandSize(invalid, "privado")).toBe(1_000)
     expect(
       chooseAutomaticPriceBandSize(
-        [...invalid, listing("valid", { preco: 420_000, m2Privado: 100 })],
+        [...invalid, listing("valid", { price: 420_000, privateAreaM2: 100 })],
         "privado"
       )
     ).toBe(1_000)
@@ -430,17 +425,17 @@ describe("chooseAutomaticPriceBandSize", () => {
   it("keeps automatic price ranges within a responsive capacity of two when possible", () => {
     const listings = [
       1_690_000, 1_790_000, 1_799_000, 2_000_000, 2_050_000, 2_100_000, 2_150_000,
-    ].map((price, index) => listing(String(index), { preco: price }))
+    ].map((price, index) => listing(String(index), { price: price }))
     const options = {
       minItemsPerBand: 1,
       targetItemsPerBand: 2,
       maxItemsPerBand: 2,
     }
 
-    const config = chooseAutomaticPriceBandConfig(listings, "preco", options)
+    const config = chooseAutomaticPriceBandConfig(listings, "price", options)
     const populatedBandSizes = buildComparisonPriceBands(
       listings,
-      "preco",
+      "price",
       config.bandSize,
       config.bandOffset
     ).bands
@@ -455,8 +450,8 @@ describe("chooseAutomaticPriceBandSize", () => {
   it("uses the price-specific fallback for an all-missing automatic collection", () => {
     expect(
       chooseAutomaticPriceBandConfig(
-        [listing("missing"), listing("zero", { preco: 0 })],
-        "preco"
+        [listing("missing"), listing("zero", { price: 0 })],
+        "price"
       )
     ).toEqual({ bandSize: 100_000, bandOffset: 0 })
   })

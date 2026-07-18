@@ -149,13 +149,13 @@
     disabled={syncing}
     onclick={() => void load({ sync: true })}
   >
-    {syncing ? "Atualizando..." : "Atualizar dos anúncios"}
+    {syncing ? "Atualizando..." : "Atualizar dos imóveis"}
   </Button>
 {/snippet}
 
 <WorkspacePage toolbar={toolbar}>
   <WorkspaceIntroCard>
-    Contatos capturados dos anúncios e adicionados manualmente. {profileLabel}.
+    Contatos associados aos imóveis e adicionados manualmente. {profileLabel}.
   </WorkspaceIntroCard>
 
   {#if error}
@@ -229,7 +229,7 @@
             </WorkspaceTableCell>
             <WorkspaceTableCell>
               <span class="rounded-full bg-app-surface-muted px-2 py-0.5 text-xs text-app-muted">
-                {contact.source === "listing" ? "anúncio" : "manual"}
+                {contact.source === "listing" ? "imóvel" : "manual"}
               </span>
             </WorkspaceTableCell>
             <WorkspaceTableActions>

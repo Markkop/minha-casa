@@ -9,7 +9,7 @@ export const load: LayoutServerLoad = ({ locals }) => {
   }
 
   if (!isPlatformSuperAdmin(user)) {
-    throw redirect(303, "/anuncios");
+    throw redirect(303, "/lista");
   }
 
   return { isSuperAdmin: true };

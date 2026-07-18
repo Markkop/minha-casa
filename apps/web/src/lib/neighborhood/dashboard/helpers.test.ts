@@ -8,7 +8,7 @@ import {
   listingPricePerM2
 } from "./helpers";
 
-describe("recursos do painel do bairro", () => {
+describe("recursos do painel do neighborhood", () => {
   it("usa rótulos imobiliários em português", () => {
     expect(formatListingStatus("available")).toBe("Disponível");
     expect(formatListingStatus("reserved")).toBe("Reservado");
@@ -21,7 +21,7 @@ describe("recursos do painel do bairro", () => {
     expect(listingPricePerM2({ price: 780_000, areaM2: 0 })).toBe(0);
   });
 
-  it("cria imóveis determinísticos do bairro e pesquisa seus campos", () => {
+  it("cria imóveis determinísticos do neighborhood e pesquisa seus campos", () => {
     const listings = createDemoListings("Trindade");
     expect(listings).toHaveLength(4);
     expect(listings.every((listing) => listing.neighborhood === "Trindade")).toBe(true);

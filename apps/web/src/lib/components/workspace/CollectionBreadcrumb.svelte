@@ -2,10 +2,10 @@
   import { page } from "$app/state";
   import { goto } from "$app/navigation";
   import { Check, ChevronDown, FolderOpen, Pencil, Plus, Star, Trash2 } from "@lucide/svelte";
-  import CollectionModal from "$lib/components/anuncios/CollectionModal.svelte";
-  import ShareCollectionModal from "$lib/components/anuncios/ShareCollectionModal.svelte";
+  import CollectionModal from "$lib/components/listings/CollectionModal.svelte";
+  import ShareCollectionModal from "$lib/components/listings/ShareCollectionModal.svelte";
   import { getCollectionsContext } from "$lib/collections-context.svelte";
-  import type { Collection } from "$lib/anuncios/types";
+  import type { Collection } from "$lib/listings/types";
   import { cn } from "$lib/utils";
   import { workspaceTopBarControlClass } from "$lib/workspace-chrome";
 
@@ -19,7 +19,7 @@
   let editingCollection = $state<Collection | null>(null);
 
   const label = $derived(
-    ctx.isLoading ? "Carregando..." : ctx.activeCollection?.label ?? "Nenhuma coleção"
+    ctx.isLoading ? "Carregando..." : ctx.activeCollection?.name ?? "Nenhuma coleção"
   );
 
   function collectionListingCount(collection: Collection): number {
@@ -36,8 +36,8 @@
     const previousId = ctx.activeCollection?.id;
     ctx.setActiveCollection(collection);
     open = false;
-    if (page.url.pathname !== "/anuncios" && previousId !== collection.id) {
-      void goto("/anuncios");
+    if (page.url.pathname !== "/lista" && previousId !== collection.id) {
+      void goto("/lista");
     }
   }
 
@@ -108,7 +108,7 @@
             {:else}
               <FolderOpen class="h-4 w-4" />
             {/if}
-            <span class="min-w-0 flex-1 truncate">{collection.label}</span>
+            <span class="min-w-0 flex-1 truncate">{collection.name}</span>
             <span class="shrink-0 text-xs text-app-muted">({collectionListingCount(collection)})</span>
             {#if ctx.activeCollection?.id === collection.id}<Check class="h-4 w-4 shrink-0" />{/if}
           </button>

@@ -104,8 +104,8 @@ export function createFloodRiskScene(deps: FloodRiskSceneDeps) {
     top.receiveShadow = true;
     group.add(top);
 
-    if (block.id === "casa") group.add(createHouse(block));
-    if (block.id === "garagem") group.add(createCar(block));
+    if (block.id === "house") group.add(createHouse(block));
+    if (block.id === "parkingSpots") group.add(createCar(block));
     group.add(createLabel(`${block.name}\n${block.height_rel_creek.toFixed(2)}m`, block.height_rel_creek + 0.9));
 
     return group;

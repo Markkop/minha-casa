@@ -20,8 +20,9 @@ defmodule MinhaCasaAi.PropertyAnalyses.HermesSteps.Step do
     data = Map.get(bundle, :listing_data) || %{}
 
     %{
-      "cidade" => pick(address, facts, data, "cidade"),
-      "bairro" => pick(address, facts, data, "bairro"),
+      "cidade" => Map.get(address || %{}, "cidade") || facts["city"] || data["city"],
+      "bairro" =>
+        Map.get(address || %{}, "bairro") || facts["neighborhood"] || data["neighborhood"],
       "formattedAddress" => Map.get(address || %{}, "formattedAddress"),
       "lat" => Map.get(address || %{}, "lat"),
       "lng" => Map.get(address || %{}, "lng")
@@ -93,10 +94,4 @@ defmodule MinhaCasaAi.PropertyAnalyses.HermesSteps.Step do
   end
 
   def float_or_nil(_), do: nil
-
-  defp pick(address, facts, data, key) do
-    Map.get(address || %{}, key) ||
-      Map.get(facts, key) ||
-      Map.get(data, key)
-  end
 end

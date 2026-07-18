@@ -1,7 +1,7 @@
 <script lang="ts" generics="T extends string | number">
   import type { Component } from "svelte";
   import PageToolbarButton from "$lib/components/page-toolbar/PageToolbarButton.svelte";
-  import ToolbarAnchoredPopover from "$lib/components/anuncios/ToolbarAnchoredPopover.svelte";
+  import ToolbarAnchoredPopover from "$lib/components/listings/ToolbarAnchoredPopover.svelte";
   import type { ScenarioFilterOption } from "$lib/components/financiamento/scenario-filter-shared";
   import { cn } from "$lib/utils";
 

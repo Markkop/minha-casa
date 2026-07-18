@@ -1,6 +1,6 @@
 <script lang="ts">
   import { Eraser, Search } from "@lucide/svelte";
-  import type { Imovel } from "$lib/anuncios/types";
+  import type { Property } from "$lib/listings/types";
   import ListingSelectorList from "$lib/components/listings/ListingSelectorList.svelte";
   import {
     filterSelectableListings,
@@ -13,13 +13,13 @@
     selectedId,
     onSelect,
     onClear,
-    clearLabel = "Remover este anúncio",
+    clearLabel = "Remover este imóvel",
     title,
     selectorOptions = {}
   }: {
-    listings: Imovel[];
+    listings: Property[];
     selectedId: string | null;
-    onSelect: (listing: Imovel) => void;
+    onSelect: (listing: Property) => void;
     onClear?: () => void;
     clearLabel?: string;
     title?: string;

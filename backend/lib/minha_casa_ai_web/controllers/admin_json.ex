@@ -72,10 +72,9 @@ defmodule MinhaCasaAiWeb.AdminJSON do
     })
   end
 
-  def organization_addons_row(%{
+  def organization_row(%{
         organization: org,
         owner: owner,
-        addons: addons,
         members_count: members_count,
         pending_invites_count: pending_invites_count
       }) do
@@ -93,18 +92,7 @@ defmodule MinhaCasaAiWeb.AdminJSON do
       membersCount: members_count,
       seatsUsed: seats_used,
       seatsIncluded: if(Map.get(org, :kind) == "agency", do: 10, else: 4),
-      owner: BillingJSON.user_summary(owner),
-      addons:
-        Enum.map(addons, fn %{grant: grant, addon: addon} ->
-          %{
-            addonSlug: grant.addon_slug,
-            addonName: if(addon, do: addon.name, else: grant.addon_slug),
-            enabled: grant.enabled,
-            expiresAt: BillingJSON.datetime_to_iso(grant.expires_at),
-            grantedAt: BillingJSON.datetime_to_iso(grant.granted_at),
-            grantedBy: grant.granted_by
-          }
-        end)
+      owner: BillingJSON.user_summary(owner)
     }
   end
 end

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import FeatureTestBanner from "$lib/addons/FeatureTestBanner.svelte";
+  import FeatureTestBanner from "$lib/tools/FeatureTestBanner.svelte";
   import PlantaClient from "$lib/components/planta/PlantaClient.svelte";
 </script>
 

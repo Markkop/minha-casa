@@ -1,6 +1,6 @@
 <script lang="ts">
-  import EditModal from "$lib/components/anuncios/EditModal.svelte";
-  import { extractUniqueContacts } from "$lib/anuncios/listings-contact";
+  import EditModal from "$lib/components/listings/EditModal.svelte";
+  import { extractUniqueContacts } from "$lib/listings/listings-contact";
   import ComparisonMatrixCell from "$lib/components/comparacao/ComparisonMatrixCell.svelte";
   import ComparisonMatrixRowLabel from "$lib/components/comparacao/ComparisonMatrixRowLabel.svelte";
   import ComparisonPriceDistribution from "$lib/components/comparacao/ComparisonPriceDistribution.svelte";
@@ -27,7 +27,7 @@
   import {
     applyComparisonAreaLabelDetails,
     shouldUseCasaAreaLabelsForListings
-  } from "$lib/anuncios/area-metric-labels";
+  } from "$lib/listings/area-metric-labels";
   import {
     buildExtraMatrixRows,
     getNumericMatrixRows,
@@ -41,7 +41,7 @@
     writeStoredComparisonSelection
   } from "$lib/comparacao/comparison-storage";
   import { createComparisonMobileLayout } from "$lib/comparacao/use-comparison-mobile-layout.svelte";
-  import type { Imovel } from "$lib/anuncios/types";
+  import type { Property } from "$lib/listings/types";
   import { cn } from "$lib/utils";
 
   const ctx = getCollectionsContext();
@@ -50,7 +50,7 @@
   let slotIds = $state<ComparisonSlot[]>(initializeComparisonSlots([]));
   let fixedCell = $state<FixedCell | null>(null);
   let initializedCollectionId = $state<string | null>(null);
-  let editingListing = $state<Imovel | null>(null);
+  let editingListing = $state<Property | null>(null);
 
   const uniqueContacts = $derived(extractUniqueContacts(ctx.listings));
 
@@ -111,7 +111,7 @@
   );
 
   const selectedFilledListings = $derived(
-    selectedListings.filter((listing): listing is Imovel => Boolean(listing))
+    selectedListings.filter((listing): listing is Property => Boolean(listing))
   );
 
   const matrixRows = $derived.by(() => {
@@ -161,7 +161,7 @@
     }
   }
 
-  function openEditListing(listing: Imovel) {
+  function openEditListing(listing: Property) {
     editingListing = listing;
   }
 
@@ -187,7 +187,7 @@
     <WorkspacePanel class="overflow-hidden">
       <p class="p-6 text-sm text-app-muted">
         Crie uma coleção em
-        <a href="/anuncios" class="font-medium text-app-fg underline">Anúncios</a> para começar.
+        <a href="/lista" class="font-medium text-app-fg underline">Lista</a> para começar.
       </p>
     </WorkspacePanel>
   {:else if ctx.isLoadingListings}
@@ -198,7 +198,7 @@
     <WorkspacePanel class="overflow-hidden">
       <p class="p-6 text-sm text-app-muted">
         Adicione imóveis em
-        <a href="/anuncios" class="font-medium text-app-fg underline">Anúncios</a> para montar a comparação.
+        <a href="/lista" class="font-medium text-app-fg underline">Lista</a> para montar a comparação.
       </p>
     </WorkspacePanel>
   {:else}

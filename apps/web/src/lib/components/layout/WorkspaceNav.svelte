@@ -26,13 +26,12 @@
     mobileOpen = $bindable(false),
     user,
     initials,
-    hasFloodRisk,
     accountMenuItems,
     accountOpen = $bindable(false),
     onCloseChrome,
     onLogout,
     isActive,
-    logoHref = "/anuncios"
+    logoHref = "/lista"
   }: {
     visibleLinks: NavLink[];
     logoHref?: string;
@@ -41,7 +40,6 @@
     mobileOpen?: boolean;
     user?: ShellUser | null;
     initials: string;
-    hasFloodRisk: boolean;
     accountMenuItems?: Snippet;
     accountOpen?: boolean;
     onCloseChrome: () => void;
@@ -82,7 +80,6 @@
     <AccountMenu
       {user}
       {initials}
-      {hasFloodRisk}
       {accountMenuItems}
       bind:accountOpen
       {onCloseChrome}

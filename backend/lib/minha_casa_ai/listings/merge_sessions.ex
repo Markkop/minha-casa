@@ -13,6 +13,7 @@ defmodule MinhaCasaAi.Listings.MergeSessions do
     ConstructionYear,
     Duplicates,
     Listing,
+    ListingData,
     ListingMergeSession,
     MergeAdvisor
   }
@@ -27,31 +28,31 @@ defmodule MinhaCasaAi.Listings.MergeSessions do
   @image_concurrency 4
 
   @field_definitions [
-    {"titulo", "Título", "Imóvel", "text"},
-    {"tipoImovel", "Tipo", "Imóvel", "text"},
-    {"preco", "Preço", "Valores", "number"},
-    {"m2Totais", "Área total", "Valores", "number"},
-    {"m2Privado", "Área privativa", "Valores", "number"},
-    {"quartos", "Quartos", "Características", "number"},
+    {"title", "Título", "Imóvel", "text"},
+    {"propertyType", "Tipo", "Imóvel", "text"},
+    {"price", "Preço", "Valores", "number"},
+    {"totalAreaM2", "Área total", "Valores", "number"},
+    {"privateAreaM2", "Área privativa", "Valores", "number"},
+    {"bedrooms", "Quartos", "Características", "number"},
     {"suites", "Suítes", "Características", "number"},
-    {"banheiros", "Banheiros", "Características", "number"},
-    {"garagem", "Vagas", "Características", "number"},
-    {"anoConstrucao", "Ano de construção", "Características", "number"},
-    {"andar", "Andar", "Características", "number"},
-    {"endereco", "Endereço", "Localização", "text"},
-    {"bairro", "Bairro", "Localização", "text"},
-    {"cidade", "Cidade", "Localização", "text"},
+    {"bathrooms", "Banheiros", "Características", "number"},
+    {"parkingSpots", "Vagas", "Características", "number"},
+    {"constructionYear", "Ano de construção", "Características", "number"},
+    {"floor", "Andar", "Características", "number"},
+    {"address", "Endereço", "Localização", "text"},
+    {"neighborhood", "Bairro", "Localização", "text"},
+    {"city", "Cidade", "Localização", "text"},
     {"condominiumName", "Condomínio", "Localização", "text"},
     {"contactName", "Contato", "Contato", "text"},
     {"contactNumber", "Telefone", "Contato", "text"},
-    {"link", "Link do anúncio", "Anúncio", "text"},
+    {"sourceUrl", "Link do anúncio", "Anúncio", "text"},
     {"sitePublishedAt", "Publicado em", "Anúncio", "text"},
     {"siteUpdatedAt", "Atualizado em", "Anúncio", "text"},
-    {"piscina", "Piscina", "Preferências", "boolean"},
-    {"porteiro24h", "Porteiro 24h", "Preferências", "boolean"},
-    {"academia", "Academia", "Preferências", "boolean"},
-    {"vistaLivre", "Vista livre", "Preferências", "boolean"},
-    {"piscinaTermica", "Piscina térmica", "Preferências", "boolean"}
+    {"features.pool", "Piscina", "Características", "boolean"},
+    {"features.doorman24h", "Porteiro 24h", "Características", "boolean"},
+    {"features.gym", "Academia", "Características", "boolean"},
+    {"features.unobstructedView", "Vista livre", "Características", "boolean"},
+    {"features.heatedPool", "Piscina térmica", "Características", "boolean"}
   ]
 
   def create(collection_id, imported_data, opts \\ [])
@@ -61,6 +62,7 @@ defmodule MinhaCasaAi.Listings.MergeSessions do
     requested_target = Keyword.get(opts, :target_listing_id)
 
     with {:ok, _} <- Listings.get_collection(collection_id, user_id, org_id),
+         imported_data = ListingData.normalize(imported_data),
          {:ok, target} <- resolve_target(collection_id, imported_data, requested_target),
          {:ok, session} <- insert_session(target, imported_data, user_id, org_id),
          {:ok, _job} <-
@@ -96,7 +98,7 @@ defmodule MinhaCasaAi.Listings.MergeSessions do
   end
 
   def apply(id, params, opts \\ []) when is_binary(id) and is_map(params) do
-    field_paths = string_list(params["fieldPaths"])
+    field_paths = params["fieldPaths"] |> string_list() |> Enum.map(&ListingData.canonical_path/1)
     field_values = field_values_map(params["fieldValues"])
     image_refs = resolve_image_refs(params)
 
@@ -133,7 +135,10 @@ defmodule MinhaCasaAi.Listings.MergeSessions do
             Repo.rollback(:stale_listing)
           end
 
-          allowed_fields = get_in(session.payload || %{}, ["fields"]) || []
+          allowed_fields =
+            (get_in(session.payload || %{}, ["fields"]) || [])
+            |> Enum.map(&canonical_field/1)
+
           selected_paths = MapSet.new(field_paths)
 
           field_updates =
@@ -151,7 +156,17 @@ defmodule MinhaCasaAi.Listings.MergeSessions do
               %{}
             end
 
-          updates = deep_merge(listing.data || %{}, deep_merge(field_updates, image_updates))
+          updates =
+            listing.data
+            |> then(&ListingData.normalize(&1 || %{}))
+            |> deep_merge(deep_merge(field_updates, image_updates))
+            |> ListingData.normalize()
+
+          updates =
+            case ListingData.validate(updates) do
+              {:ok, valid} -> valid
+              {:error, _errors} -> Repo.rollback(:invalid_listing_data)
+            end
 
           updated =
             listing
@@ -229,12 +244,12 @@ defmodule MinhaCasaAi.Listings.MergeSessions do
       status: effective_status(session),
       targetListingId: session.target_listing_id,
       collectionId: session.collection_id,
-      currentData: session.current_data || %{},
-      importedData: session.imported_data || %{},
-      fields: payload["fields"] || [],
+      currentData: ListingData.normalize(session.current_data || %{}),
+      importedData: ListingData.normalize(session.imported_data || %{}),
+      fields: Enum.map(payload["fields"] || [], &canonical_field/1),
       verdict: payload["verdict"],
       confidence: payload["confidence"],
-      suggestions: payload["suggestions"] || [],
+      suggestions: Enum.map(payload["suggestions"] || [], &canonical_field/1),
       signals: payload["signals"] || %{},
       gallery: build_gallery_json(session),
       stats: %{
@@ -252,24 +267,33 @@ defmodule MinhaCasaAi.Listings.MergeSessions do
     |> Base.encode16(case: :lower)
   end
 
+  defp canonical_field(%{"path" => path} = field) when is_binary(path),
+    do: Map.put(field, "path", ListingData.canonical_path(path))
+
+  defp canonical_field(field), do: field
+
   def field_differences(current, imported) when is_map(current) and is_map(imported) do
+    current = ListingData.normalize(current)
+    imported = ListingData.normalize(imported)
+
     regular =
       Enum.flat_map(@field_definitions, fn {path, label, group, value_type} ->
         difference(path, label, group, value_type, current, imported)
       end)
 
-    preference_keys =
+    feature_keys =
       imported
-      |> Map.get("preferences", %{})
+      |> Map.get("features", %{})
       |> case do
         value when is_map(value) -> Map.keys(value)
         _ -> []
       end
+      |> Enum.reject(&(&1 in ~w(pool doorman24h gym unobstructedView heatedPool)))
 
-    preferences =
-      Enum.flat_map(preference_keys, fn key ->
+    features =
+      Enum.flat_map(feature_keys, fn key ->
         difference(
-          "preferences.#{key}",
+          "features.#{key}",
           humanize_preference(key),
           "Preferências",
           "boolean",
@@ -278,7 +302,7 @@ defmodule MinhaCasaAi.Listings.MergeSessions do
         )
       end)
 
-    regular ++ preferences
+    regular ++ features
   end
 
   defp do_prepare(session) do
@@ -433,8 +457,8 @@ defmodule MinhaCasaAi.Listings.MergeSessions do
       target_listing_id: target.id,
       status: "preparing",
       target_version: listing_version(target),
-      imported_data: imported_data,
-      current_data: target.data || %{},
+      imported_data: ListingData.normalize(imported_data),
+      current_data: ListingData.normalize(target.data || %{}),
       payload: %{},
       expires_at: DateTime.add(now(), @expires_in_seconds, :second)
     })
@@ -461,7 +485,7 @@ defmodule MinhaCasaAi.Listings.MergeSessions do
     end
   end
 
-  defp normalize_field_value("anoConstrucao", value), do: ConstructionYear.normalize(value)
+  defp normalize_field_value("constructionYear", value), do: ConstructionYear.normalize(value)
   defp normalize_field_value(_path, value), do: value
 
   defp meaningful?(nil), do: false
@@ -496,7 +520,7 @@ defmodule MinhaCasaAi.Listings.MergeSessions do
     explicit = listing_image_url_entries(data)
 
     scraped =
-      case data["link"] do
+      case data["sourceUrl"] do
         link when is_binary(link) and link != "" ->
           case ScrapingAnt.scrape_url(link) do
             {:ok, result} -> [Map.get(result, :og_image_url) | List.wrap(result.image_urls)]
@@ -979,7 +1003,10 @@ defmodule MinhaCasaAi.Listings.MergeSessions do
         :error -> field["incomingValue"]
       end
 
-    normalize_field_value(field["path"], value) || field["incomingValue"]
+    case normalize_field_value(field["path"], value) do
+      nil -> field["incomingValue"]
+      normalized -> normalized
+    end
   end
 
   defp coerce_field_value(value, "text", _fallback) when is_binary(value), do: String.trim(value)
@@ -1012,7 +1039,7 @@ defmodule MinhaCasaAi.Listings.MergeSessions do
     |> Enum.filter(fn {key, value} ->
       is_binary(key) and (is_binary(value) or is_number(value) or is_boolean(value))
     end)
-    |> Map.new()
+    |> Map.new(fn {key, value} -> {ListingData.canonical_path(key), value} end)
   end
 
   defp field_values_map(_), do: %{}
@@ -1141,7 +1168,7 @@ defmodule MinhaCasaAi.Listings.MergeSessions do
 
     Enum.each(removed_keys, &Storage.delete_object/1)
 
-    old_cover = data["imageCoverIndex"] || 0
+    old_cover = data["coverImageIndex"] || 0
 
     new_cover =
       case Enum.find_index(selected_existing, &(&1 == old_cover)) do
@@ -1159,7 +1186,7 @@ defmodule MinhaCasaAi.Listings.MergeSessions do
         "imageUrls" => final_paths,
         "imageUrl" => List.first(final_paths),
         "imageFingerprints" => final_fingerprints,
-        "imageCoverIndex" => new_cover,
+        "coverImageIndex" => new_cover,
         "imageIngestionStatus" => "ready",
         "imageIngestionError" => nil
       }

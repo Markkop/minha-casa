@@ -4,10 +4,10 @@ defmodule MinhaCasaAi.Listings.MergeAdvisorTest do
   alias MinhaCasaAi.Listings.MergeAdvisor
 
   @fields [
-    %{"path" => "preco", "valueType" => "number"},
-    %{"path" => "titulo", "valueType" => "text"},
-    %{"path" => "preferences.piscina", "valueType" => "boolean"},
-    %{"path" => "m2Privado", "valueType" => "number"}
+    %{"path" => "price", "valueType" => "number"},
+    %{"path" => "title", "valueType" => "text"},
+    %{"path" => "features.pool", "valueType" => "boolean"},
+    %{"path" => "privateAreaM2", "valueType" => "number"}
   ]
 
   test "normalizes a valid duplicate verdict with suggestions" do
@@ -15,9 +15,9 @@ defmodule MinhaCasaAi.Listings.MergeAdvisorTest do
       "verdict" => "duplicate",
       "confidence" => 0.92,
       "suggestions" => [
-        %{"path" => "preco", "suggestedValue" => 1_100_000, "note" => "Preço mais recente."},
-        %{"path" => "titulo", "suggestedValue" => "  Apto novo  ", "note" => nil},
-        %{"path" => "preferences.piscina", "suggestedValue" => true, "note" => ""}
+        %{"path" => "price", "suggestedValue" => 1_100_000, "note" => "Preço mais recente."},
+        %{"path" => "title", "suggestedValue" => "  Apto novo  ", "note" => nil},
+        %{"path" => "features.pool", "suggestedValue" => true, "note" => ""}
       ]
     }
 
@@ -27,12 +27,12 @@ defmodule MinhaCasaAi.Listings.MergeAdvisorTest do
 
     assert advice["suggestions"] == [
              %{
-               "path" => "preco",
+               "path" => "price",
                "suggestedValue" => 1_100_000,
                "note" => "Preço mais recente."
              },
-             %{"path" => "titulo", "suggestedValue" => "Apto novo", "note" => nil},
-             %{"path" => "preferences.piscina", "suggestedValue" => true, "note" => nil}
+             %{"path" => "title", "suggestedValue" => "Apto novo", "note" => nil},
+             %{"path" => "features.pool", "suggestedValue" => true, "note" => nil}
            ]
   end
 
@@ -42,9 +42,9 @@ defmodule MinhaCasaAi.Listings.MergeAdvisorTest do
       "confidence" => 0.7,
       "suggestions" => [
         %{"path" => "naoExiste", "suggestedValue" => "x", "note" => nil},
-        %{"path" => "preco", "suggestedValue" => "não numérico", "note" => nil},
-        %{"path" => "preferences.piscina", "suggestedValue" => "talvez", "note" => nil},
-        %{"path" => "titulo", "suggestedValue" => "   ", "note" => nil}
+        %{"path" => "price", "suggestedValue" => "não numérico", "note" => nil},
+        %{"path" => "features.pool", "suggestedValue" => "talvez", "note" => nil},
+        %{"path" => "title", "suggestedValue" => "   ", "note" => nil}
       ]
     }
 
@@ -57,8 +57,8 @@ defmodule MinhaCasaAi.Listings.MergeAdvisorTest do
       "verdict" => "duplicate",
       "confidence" => 1.5,
       "suggestions" => [
-        %{"path" => "m2Privado", "suggestedValue" => "85,5", "note" => nil},
-        %{"path" => "preco", "suggestedValue" => "1100000", "note" => nil}
+        %{"path" => "privateAreaM2", "suggestedValue" => "85,5", "note" => nil},
+        %{"path" => "price", "suggestedValue" => "1100000", "note" => nil}
       ]
     }
 
@@ -73,7 +73,7 @@ defmodule MinhaCasaAi.Listings.MergeAdvisorTest do
       "verdict" => "distinct",
       "confidence" => 0.85,
       "suggestions" => [
-        %{"path" => "preco", "suggestedValue" => 1, "note" => nil}
+        %{"path" => "price", "suggestedValue" => 1, "note" => nil}
       ]
     }
 
@@ -92,8 +92,8 @@ defmodule MinhaCasaAi.Listings.MergeAdvisorTest do
       "verdict" => "duplicate",
       "confidence" => 0.9,
       "suggestions" => [
-        %{"path" => "preco", "suggestedValue" => 1_000, "note" => nil},
-        %{"path" => "preco", "suggestedValue" => 2_000, "note" => nil}
+        %{"path" => "price", "suggestedValue" => 1_000, "note" => nil},
+        %{"path" => "price", "suggestedValue" => 2_000, "note" => nil}
       ]
     }
 

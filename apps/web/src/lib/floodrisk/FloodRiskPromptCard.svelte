@@ -1,6 +1,6 @@
 <script lang="ts">
   import { Copy } from "@lucide/svelte";
-  import type { Imovel } from "$lib/anuncios/types";
+  import type { Property } from "$lib/listings/types";
   import { buildFloodRiskPrompt } from "$lib/floodrisk/flood-risk-prompt";
   import { resolveListingDisplayTitle } from "$lib/listing-display-title";
 
@@ -8,7 +8,7 @@
     selectedListing,
     isLoadingListings = false
   }: {
-    selectedListing: Imovel | null;
+    selectedListing: Property | null;
     isLoadingListings?: boolean;
   } = $props();
 
@@ -48,13 +48,13 @@
     <div
       class="flex flex-1 items-center justify-center rounded-md border border-app-border bg-app-bg p-6 text-center text-sm text-app-muted"
     >
-      Carregando imoveis...
+      Carregando properties...
     </div>
   {:else if !selectedListing}
     <div
       class="flex flex-1 items-center justify-center rounded-md border border-dashed border-app-border bg-app-bg p-6 text-center text-sm text-app-muted"
     >
-      Selecione um imovel no breadcrumb acima para montar o prompt com endereco e coordenadas.
+      Selecione um property no breadcrumb acima para montar o prompt com address e coordenadas.
     </div>
   {:else}
     <div class="mb-3 rounded-md border border-app-border bg-app-bg px-3 py-2">

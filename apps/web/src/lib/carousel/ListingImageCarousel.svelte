@@ -1,6 +1,6 @@
 <script lang="ts">
   import emblaCarouselSvelte from "embla-carousel-svelte";
-  import ListingThumbnailImage from "$lib/components/anuncios/ListingThumbnailImage.svelte";
+  import ListingThumbnailImage from "$lib/components/listings/ListingThumbnailImage.svelte";
   import { createListingEmblaCarousel } from "$lib/carousel/listing-embla-carousel.svelte";
   import type { ListingCarouselPreset } from "$lib/carousel/listing-carousel-options";
   import { cn } from "$lib/utils";

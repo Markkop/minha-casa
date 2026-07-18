@@ -29,23 +29,23 @@ export function buildPreviewUrls(portals: Portal[], filters: PortalFilterSet, pa
   const pageValues = Array.from({ length: Math.max(1, Math.min(pages, 5)) }, (_, index) => index + 1);
   return portals.flatMap((portal) => {
     const bairros = filters.bairros.length ? filters.bairros : [""];
-    return bairros.flatMap((bairro) =>
+    return bairros.flatMap((neighborhood) =>
       pageValues.map((page) => ({
         portal,
-        url: buildPortalUrl(portal, filters, bairro, page)
+        url: buildPortalUrl(portal, filters, neighborhood, page)
       }))
     );
   });
 }
 
-export function buildPortalUrl(portal: Portal, filters: PortalFilterSet, bairro: string, page: number) {
-  const tipo = filters.tiposImovel[0] ?? "apartamento";
+export function buildPortalUrl(portal: Portal, filters: PortalFilterSet, neighborhood: string, page: number) {
+  const tipo = filters.tiposImovel[0] ?? "apartment";
   const transPath = filters.transacao === "aluguel" ? "aluguel" : "venda";
   const params = new URLSearchParams();
   if (filters.precoMin) params.set("precoMinimo", String(filters.precoMin));
   if (filters.precoMax) params.set("precoMaximo", String(filters.precoMax));
-  if (filters.quartos.length) params.set("quartos", filters.quartos.join(","));
-  if (filters.banheiros.length) params.set("banheiros", filters.banheiros.join(","));
+  if (filters.bedrooms.length) params.set("bedrooms", filters.bedrooms.join(","));
+  if (filters.bathrooms.length) params.set("bathrooms", filters.bathrooms.join(","));
   if (filters.vagas.length) params.set("vagas", filters.vagas.join(","));
   if (filters.areaMin) params.set("areaMinima", String(filters.areaMin));
   if (filters.areaMax) params.set("areaMaxima", String(filters.areaMax));
@@ -53,17 +53,17 @@ export function buildPortalUrl(portal: Portal, filters: PortalFilterSet, bairro:
   if (filters.amenidades.length) params.set("amenidades", filters.amenidades.join(","));
   if (page > 1) params.set("pagina", String(page));
   const query = params.toString();
-  const baseCity = `${filters.uf}/${filters.cidade}${bairro ? `/${bairro}` : ""}`;
+  const baseCity = `${filters.uf}/${filters.city}${neighborhood ? `/${neighborhood}` : ""}`;
   const path =
     portal === "zap"
-      ? `https://www.zapimoveis.com.br/${transPath}/${tipo}s/${filters.uf}+${filters.cidade}${bairro ? `/${bairro}` : ""}/`
+      ? `https://www.zapimoveis.com.br/${transPath}/${tipo}s/${filters.uf}+${filters.city}${neighborhood ? `/${neighborhood}` : ""}/`
       : portal === "vivareal"
         ? `https://www.vivareal.com.br/${transPath}/${baseCity}/${tipo}/`
         : portal === "olx"
-          ? `https://www.olx.com.br/imoveis/${transPath}/${baseCity}/${tipo}s`
+          ? `https://www.olx.com.br/properties/${transPath}/${baseCity}/${tipo}s`
           : portal === "chavesnamao"
-            ? `https://www.chavesnamao.com.br/imoveis/${transPath}/${baseCity}/`
-            : `https://www.imovelweb.com.br/${tipo}s-${transPath}-${filters.cidade}${bairro ? `-${bairro}` : ""}.html`;
+            ? `https://www.chavesnamao.com.br/properties/${transPath}/${baseCity}/`
+            : `https://www.imovelweb.com.br/${tipo}s-${transPath}-${filters.city}${neighborhood ? `-${neighborhood}` : ""}.html`;
   return query ? `${path}?${query}` : path;
 }
 
@@ -79,8 +79,8 @@ export function applySavedLinkToFilter(
     const filterSet: PortalFilterSet = {
       ...currentFilterSet,
       transacao: path.includes("aluguel") || path.includes("para-alugar") ? "aluguel" : "venda",
-      cidade: slug(path.split("/").filter(Boolean).find((part) => part.includes("-")) ?? currentFilterSet.cidade),
-      tiposImovel: path.includes("casa") ? ["casa"] : ["apartamento"]
+      city: slug(path.split("/").filter(Boolean).find((part) => part.includes("-")) ?? currentFilterSet.city),
+      tiposImovel: path.includes("house") ? ["house"] : ["apartment"]
     };
     const precoMin = url.searchParams.get("precoMinimo") || url.searchParams.get("ps");
     const precoMax = url.searchParams.get("precoMaximo") || url.searchParams.get("pe");

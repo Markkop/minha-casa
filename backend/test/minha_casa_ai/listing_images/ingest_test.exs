@@ -84,8 +84,8 @@ defmodule MinhaCasaAi.ListingImages.IngestTest do
           ["/api/listings/id/images/0", "/api/listings/id/images/1"]
         )
 
-      assert updates["imageCoverIndex"] == 0
-      assert updates["imageCategories"] == nil
+      assert updates["coverImageIndex"] == 0
+      refute Map.has_key?(updates, "imageCategories")
       assert updates["imageEnvironments"] == nil
       refute Map.has_key?(updates, "imageVisualAnalysis")
       assert updates["imageIngestionStatus"] == "ready"

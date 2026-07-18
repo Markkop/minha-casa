@@ -139,7 +139,7 @@ describe("chart event legend entries", () => {
       { id: "venda", label: "Venda", kind: "sale" },
       { id: "quantia-extra", label: "Quantia extra", kind: "extra" },
       { id: "reforma-concluida", label: "Reforma concluída", kind: "reform" },
-      { id: "imovel-quitado", label: "Imóvel quitado", kind: "payoff" }
+      { id: "property-quitado", label: "Imóvel quitado", kind: "payoff" }
     ]);
   });
 

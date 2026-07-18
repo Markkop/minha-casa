@@ -4,16 +4,16 @@
 
 export type ListingTitleInput = {
   id?: string
-  titulo?: string
-  tituloManual?: string | null
-  tipoImovel?: "casa" | "apartamento" | null
-  quartos?: number | null
-  bairro?: string | null
-  cidade?: string | null
-  endereco?: string
-  preco?: number | null
-  m2Totais?: number | null
-  andar?: number | null
+  title?: string
+  manualTitle?: string | null
+  propertyType?: "house" | "apartment" | null
+  bedrooms?: number | null
+  neighborhood?: string | null
+  city?: string | null
+  address?: string
+  price?: number | null
+  totalAreaM2?: number | null
+  floor?: number | null
   condominiumName?: string | null
 }
 
@@ -24,16 +24,16 @@ const STREET_TOKEN_PATTERN =
   /\b(rua|av\.?|avenida|alameda|travessa|rodovia|estrada|servidão|servidao|praça|praca|largo)\b/i
 
 export const LISTING_TITLE_REGEN_FIELDS = [
-  "tipoImovel",
-  "quartos",
-  "bairro",
-  "cidade",
-  "endereco",
-  "preco",
-  "m2Totais",
-  "andar",
+  "propertyType",
+  "bedrooms",
+  "neighborhood",
+  "city",
+  "address",
+  "price",
+  "totalAreaM2",
+  "floor",
   "condominiumName",
-  "tituloManual",
+  "manualTitle",
 ] as const
 
 export type ListingTitleRegenField = (typeof LISTING_TITLE_REGEN_FIELDS)[number]
@@ -63,8 +63,8 @@ function normalizeKey(value: string): string {
   return value.trim().toLowerCase().replace(/\s+/g, " ")
 }
 
-export function extractStreetLabelTwoWords(endereco: string): string | null {
-  const trimmed = endereco?.trim()
+export function extractStreetLabelTwoWords(address: string): string | null {
+  const trimmed = address?.trim()
   if (!trimmed) return null
 
   let rest = trimmed
@@ -87,19 +87,19 @@ export function extractStreetLabelTwoWords(endereco: string): string | null {
   return normalizeLocationLabel(`${words[0]} ${words[1]}`)
 }
 
-export function extractAddressNumber(endereco: string): string | null {
-  const trimmed = endereco?.trim()
+export function extractAddressNumber(address: string): string | null {
+  const trimmed = address?.trim()
   if (!trimmed) return null
   const match = trimmed.match(/\b(\d{1,5})\b/)
   return match?.[1] ?? null
 }
 
 function propertyTypeLabel(
-  tipoImovel: ListingTitleInput["tipoImovel"],
+  propertyType: ListingTitleInput["propertyType"],
   compact = false
 ): string {
-  if (tipoImovel === "casa") return "Casa"
-  if (tipoImovel === "apartamento") return compact ? "Apto" : "Apartamento"
+  if (propertyType === "house") return "Casa"
+  if (propertyType === "apartment") return compact ? "Apto" : "Apartamento"
   return "Imóvel"
 }
 
@@ -110,10 +110,10 @@ export function mobileListingDisplayTitle(title: string): string {
   return trimmed.replace(/^Apartamento\b/, "Apto")
 }
 
-function quartosPhrase(quartos: number | null | undefined): string | null {
-  if (quartos == null || quartos < 0) return null
-  if (quartos === 1) return "um quarto"
-  return `${quartos} quartos`
+function quartosPhrase(bedrooms: number | null | undefined): string | null {
+  if (bedrooms == null || bedrooms < 0) return null
+  if (bedrooms === 1) return "um quarto"
+  return `${bedrooms} bedrooms`
 }
 
 /** Casa/Apartamento prefix when building collection titles. */
@@ -121,8 +121,8 @@ export function collectionShowsPropertyTypePrefix(
   listings: ListingTitleInput[]
 ): boolean {
   if (listings.length <= 1) return true
-  const hasCasa = listings.some((l) => l.tipoImovel === "casa")
-  const hasApto = listings.some((l) => l.tipoImovel === "apartamento")
+  const hasCasa = listings.some((l) => l.propertyType === "house")
+  const hasApto = listings.some((l) => l.propertyType === "apartment")
   return hasCasa && hasApto
 }
 
@@ -132,39 +132,39 @@ type BuildListingTitleOptions = {
 }
 
 export type LocationLevel =
-  | "bairro"
-  | "cidade"
+  | "neighborhood"
+  | "city"
   | "rua"
   | "numero"
   | "condominio"
-  | "preco"
+  | "price"
   | "m2"
-  | "andar"
+  | "floor"
   | "id"
 
 function locationAtLevel(
   listing: ListingTitleInput,
   level: LocationLevel
 ): string | null {
-  const endereco = listing.endereco?.trim() ?? ""
+  const address = listing.address?.trim() ?? ""
 
   switch (level) {
-    case "bairro": {
-      const bairro = listing.bairro?.trim()
-      if (bairro) return normalizeLocationLabel(bairro)
+    case "neighborhood": {
+      const neighborhood = listing.neighborhood?.trim()
+      if (neighborhood) return normalizeLocationLabel(neighborhood)
       return null
     }
-    case "cidade": {
-      const cidade = listing.cidade?.trim()
-      if (cidade) return normalizeLocationLabel(cidade)
+    case "city": {
+      const city = listing.city?.trim()
+      if (city) return normalizeLocationLabel(city)
       return null
     }
     case "rua":
-      if (isPlaceholderEndereco(endereco)) return null
-      return extractStreetLabelTwoWords(endereco)
+      if (isPlaceholderEndereco(address)) return null
+      return extractStreetLabelTwoWords(address)
     case "numero": {
-      const street = extractStreetLabelTwoWords(endereco)
-      const number = extractAddressNumber(endereco)
+      const street = extractStreetLabelTwoWords(address)
+      const number = extractAddressNumber(address)
       if (street && number) return `${street}, ${number}`
       if (number) return `nº ${number}`
       return null
@@ -174,16 +174,16 @@ function locationAtLevel(
       if (name) return normalizeLocationLabel(name)
       return null
     }
-    case "preco":
-      return formatCompactPrice(listing.preco)
+    case "price":
+      return formatCompactPrice(listing.price)
     case "m2":
-      if (listing.m2Totais != null && listing.m2Totais > 0) {
-        return `${listing.m2Totais} m²`
+      if (listing.totalAreaM2 != null && listing.totalAreaM2 > 0) {
+        return `${listing.totalAreaM2} m²`
       }
       return null
-    case "andar":
-      if (listing.tipoImovel === "apartamento" && (listing.andar ?? 0) > 0) {
-        return listing.andar === 10 ? "andar 10+" : `andar ${listing.andar}`
+    case "floor":
+      if (listing.propertyType === "apartment" && (listing.floor ?? 0) > 0) {
+        return listing.floor === 10 ? "floor 10+" : `floor ${listing.floor}`
       }
       return null
     case "id":
@@ -194,8 +194,8 @@ function locationAtLevel(
   }
 }
 
-function isPlaceholderEndereco(endereco: string | undefined): boolean {
-  const trimmed = endereco?.trim().toLowerCase() ?? ""
+function isPlaceholderEndereco(address: string | undefined): boolean {
+  const trimmed = address?.trim().toLowerCase() ?? ""
   return trimmed === "" || trimmed === "endereço não informado"
 }
 
@@ -203,20 +203,20 @@ function defaultLocationLabel(
   listing: ListingTitleInput,
   options?: ListingDisplayTitleOptions
 ): string {
-  const bairro = locationAtLevel(listing, "bairro")
-  const cidade = locationAtLevel(listing, "cidade")
+  const neighborhood = locationAtLevel(listing, "neighborhood")
+  const city = locationAtLevel(listing, "city")
   if (options?.excludeStreet) {
-    return bairro ?? cidade ?? "Sem local"
+    return neighborhood ?? city ?? "Sem local"
   }
   const street =
-    !isPlaceholderEndereco(listing.endereco) ? locationAtLevel(listing, "rua") : null
-  return bairro ?? cidade ?? street ?? "Sem local"
+    !isPlaceholderEndereco(listing.address) ? locationAtLevel(listing, "rua") : null
+  return neighborhood ?? city ?? street ?? "Sem local"
 }
 
-function formatCompactPrice(preco: number | null | undefined): string | null {
-  if (preco == null || preco <= 0) return null
-  if (preco >= 1_000_000) {
-    const millions = preco / 1_000_000
+function formatCompactPrice(price: number | null | undefined): string | null {
+  if (price == null || price <= 0) return null
+  if (price >= 1_000_000) {
+    const millions = price / 1_000_000
     const rounded =
       millions >= 10
         ? Math.round(millions)
@@ -224,11 +224,11 @@ function formatCompactPrice(preco: number | null | undefined): string | null {
     const formatted = String(rounded).replace(".", ",")
     return `R$ ${formatted} mi`
   }
-  if (preco >= 1_000) {
-    const thousands = Math.round(preco / 1_000)
+  if (price >= 1_000) {
+    const thousands = Math.round(price / 1_000)
     return `R$ ${thousands} mil`
   }
-  return `R$ ${preco}`
+  return `R$ ${price}`
 }
 
 export function buildBaseListingTitle(
@@ -238,16 +238,16 @@ export function buildBaseListingTitle(
 ): string {
   const showPrefix = options?.showPropertyTypePrefix ?? true
   const prep = options?.locationPreposition ?? "em"
-  const tipo = propertyTypeLabel(listing.tipoImovel)
-  const quartos = quartosPhrase(listing.quartos)
+  const tipo = propertyTypeLabel(listing.propertyType)
+  const bedrooms = quartosPhrase(listing.bedrooms)
   const local = locationLabel ?? defaultLocationLabel(listing)
   const locationPart = `${prep} ${local}`
 
-  if (quartos) {
+  if (bedrooms) {
     if (showPrefix) {
-      return `${tipo} com ${quartos} ${locationPart}`
+      return `${tipo} com ${bedrooms} ${locationPart}`
     }
-    return `${quartos} ${locationPart}`
+    return `${bedrooms} ${locationPart}`
   }
   if (showPrefix) {
     return `${tipo} ${locationPart}`
@@ -256,9 +256,9 @@ export function buildBaseListingTitle(
 }
 
 function collisionKey(listing: ListingTitleInput, locationLabel: string): string {
-  const tipo = listing.tipoImovel ?? ""
-  const quartos = listing.quartos ?? ""
-  return `${tipo}|${quartos}|${normalizeKey(locationLabel)}`
+  const tipo = listing.propertyType ?? ""
+  const bedrooms = listing.bedrooms ?? ""
+  return `${tipo}|${bedrooms}|${normalizeKey(locationLabel)}`
 }
 
 function streetGroupKey(listing: ListingTitleInput): string | null {
@@ -270,18 +270,18 @@ const ESCALATION_LEVELS: LocationLevel[] = [
   "rua",
   "numero",
   "condominio",
-  "preco",
+  "price",
   "m2",
-  "andar",
+  "floor",
   "id",
 ]
 
-/** Extra disambiguation when multiple listings share a street (no bairro in title). */
+/** Extra disambiguation when multiple listings share a street (no neighborhood in title). */
 const SAME_STREET_ESCALATION_LEVELS: LocationLevel[] = [
   "condominio",
-  "preco",
+  "price",
   "m2",
-  "andar",
+  "floor",
   "id",
 ]
 
@@ -324,16 +324,16 @@ const LISTING_TITLE_LOCATION_SUFFIX_PATTERN = /\s+(?:em|na)\s+.+$/i
 
 /** Comparison table slot header on mobile — property type and room count only. */
 export function comparisonMobileSlotListingLabel(
-  listing: Pick<ListingTitleInput, "tipoImovel" | "quartos">
+  listing: Pick<ListingTitleInput, "propertyType" | "bedrooms">
 ): string {
-  const tipo = propertyTypeLabel(listing.tipoImovel, true)
-  const quartos = listing.quartos
+  const tipo = propertyTypeLabel(listing.propertyType, true)
+  const bedrooms = listing.bedrooms
 
-  if (quartos == null || quartos < 0) {
+  if (bedrooms == null || bedrooms < 0) {
     return tipo
   }
 
-  const quartosLabel = quartos === 1 ? "1 quarto" : `${quartos} quartos`
+  const quartosLabel = bedrooms === 1 ? "1 quarto" : `${bedrooms} bedrooms`
   return `${tipo} ${quartosLabel}`
 }
 
@@ -494,7 +494,7 @@ export function buildListingDisplayTitles(
 ): Map<string, string> {
   const result = new Map<string, string>()
   const showPropertyTypePrefix = collectionShowsPropertyTypePrefix(listings)
-  const autoListings = listings.filter((l) => !l.tituloManual?.trim())
+  const autoListings = listings.filter((l) => !l.manualTitle?.trim())
   const escalationLevels = escalationLevelsFor(options)
 
   const baseLocations = new Map<string, string>()
@@ -596,8 +596,8 @@ export function buildListingDisplayTitles(
 
   for (const listing of listings) {
     const id = listing.id ?? ""
-    if (listing.tituloManual?.trim()) {
-      result.set(id, listing.tituloManual.trim())
+    if (listing.manualTitle?.trim()) {
+      result.set(id, listing.manualTitle.trim())
     } else if (!result.has(id) && id) {
       result.set(id, buildBaseListingTitle(listing))
     }
@@ -606,8 +606,8 @@ export function buildListingDisplayTitles(
   return result
 }
 
-/** Anuncios table/map titles: bairro only, no street name or number. */
-export function buildAnunciosListingDisplayTitles(
+/** Property list/map titles: neighborhood only, no street name or number. */
+export function buildPropertyListDisplayTitles(
   listings: ListingTitleInput[]
 ): Map<string, string> {
   return buildListingDisplayTitles(listings, ANUNCIOS_LISTING_TITLE_OPTIONS)
@@ -617,8 +617,8 @@ export function resolveListingDisplayTitle(
   listing: ListingTitleInput,
   titlesMap?: Map<string, string>
 ): string {
-  if (listing.tituloManual?.trim()) {
-    return listing.tituloManual.trim()
+  if (listing.manualTitle?.trim()) {
+    return listing.manualTitle.trim()
   }
   if (listing.id && titlesMap?.has(listing.id)) {
     return titlesMap.get(listing.id)!
@@ -628,7 +628,7 @@ export function resolveListingDisplayTitle(
 
 /** Apply generated titles to listing data objects (pre-import, no ids yet). */
 export function applyGeneratedTitlesToListingData<
-  T extends ListingTitleInput & { titulo?: string },
+  T extends ListingTitleInput & { title?: string },
 >(listings: T[]): T[] {
   const withIds = listings.map((l, index) => ({
     ...l,
@@ -636,32 +636,32 @@ export function applyGeneratedTitlesToListingData<
   }))
   const titles = buildListingDisplayTitles(withIds)
   return listings.map((listing, index) => {
-    if (listing.tituloManual?.trim()) {
-      return { ...listing, titulo: listing.tituloManual.trim() }
+    if (listing.manualTitle?.trim()) {
+      return { ...listing, title: listing.manualTitle.trim() }
     }
     const id = listing.id ?? `temp-${index}`
     const title = titles.get(id) ?? buildBaseListingTitle(listing)
-    return { ...listing, titulo: title }
+    return { ...listing, title: title }
   })
 }
 
-/** Merge generated titulo into listing data; respects tituloManual. */
-export function syncListingTituloInData<T extends ListingTitleInput & { titulo: string }>(
+/** Merge generated title into listing data; respects manualTitle. */
+export function syncListingTituloInData<T extends ListingTitleInput & { title: string }>(
   listing: T,
   titlesMap: Map<string, string>
 ): T {
-  if (listing.tituloManual?.trim()) {
-    return { ...listing, titulo: listing.tituloManual.trim() }
+  if (listing.manualTitle?.trim()) {
+    return { ...listing, title: listing.manualTitle.trim() }
   }
   const id = listing.id
   if (id && titlesMap.has(id)) {
-    return { ...listing, titulo: titlesMap.get(id)! }
+    return { ...listing, title: titlesMap.get(id)! }
   }
-  return { ...listing, titulo: buildBaseListingTitle(listing) }
+  return { ...listing, title: buildBaseListingTitle(listing) }
 }
 
 export function syncCollectionListingTitulos<
-  T extends ListingTitleInput & { titulo: string },
+  T extends ListingTitleInput & { title: string },
 >(listings: T[]): T[] {
   const titles = buildListingDisplayTitles(listings)
   return listings.map((l) => syncListingTituloInData(l, titles))
@@ -672,20 +672,20 @@ export function collectionNeedsTitleSync(
 ): boolean {
   const titles = buildListingDisplayTitles(listings)
   return listings.some((listing) => {
-    if (listing.tituloManual?.trim()) return false
+    if (listing.manualTitle?.trim()) return false
     const id = listing.id
     if (!id) return false
     const expected = titles.get(id)
-    return Boolean(expected && listing.titulo !== expected)
+    return Boolean(expected && listing.title !== expected)
   })
 }
 
 /** Title for a new listing before insert, using current collection for disambiguation. */
 export function prepareListingDataForCreate<
-  T extends ListingTitleInput & { titulo: string },
+  T extends ListingTitleInput & { title: string },
 >(data: T, existing: ListingTitleInput[]): T {
-  if (data.tituloManual?.trim()) {
-    return { ...data, titulo: data.tituloManual.trim() }
+  if (data.manualTitle?.trim()) {
+    return { ...data, title: data.manualTitle.trim() }
   }
   const batch = [
     ...existing.map((l, index) => ({
@@ -695,6 +695,6 @@ export function prepareListingDataForCreate<
     { ...data, id: "__new__" },
   ]
   const titled = applyGeneratedTitlesToListingData(batch)
-  const title = titled[titled.length - 1]?.titulo ?? buildBaseListingTitle(data)
-  return { ...data, titulo: title }
+  const title = titled[titled.length - 1]?.title ?? buildBaseListingTitle(data)
+  return { ...data, title: title }
 }

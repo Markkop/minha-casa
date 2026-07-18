@@ -25,7 +25,7 @@ defmodule MinhaCasaAi.ListingImages.Ingest do
     data = data || %{}
 
     link =
-      case Map.get(data, "link") do
+      case Map.get(data, "sourceUrl") do
         s when is_binary(s) -> String.trim(s)
         _ -> ""
       end
@@ -199,9 +199,8 @@ defmodule MinhaCasaAi.ListingImages.Ingest do
       "imageStorageKeys" => keys,
       "imageUrls" => paths,
       "imageUrl" => List.first(paths),
-      "imageCoverIndex" => 0,
+      "coverImageIndex" => 0,
       "imageFingerprints" => fingerprints,
-      "imageCategories" => nil,
       "imageEnvironments" => nil,
       "imageIngestionStatus" => "ready",
       "imageIngestionError" => nil

@@ -10,7 +10,7 @@ defmodule MinhaCasaAi.PropertyAnalyses.HermesStepsTest do
     Xray
   }
 
-  @bundle %{catalog_count: 5, listing_facts: %{"cidade" => "Florianópolis"}}
+  @bundle %{catalog_count: 5, listing_facts: %{"city" => "Florianópolis"}}
 
   describe "Clima" do
     test "normalize happy path" do

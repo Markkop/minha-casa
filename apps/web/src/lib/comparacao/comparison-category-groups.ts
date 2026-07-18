@@ -1,33 +1,33 @@
-import type { Imovel } from "$lib/anuncios/types"
+import type { Property } from "$lib/listings/types"
 
-export type ComparisonCategoryDimension = "bairro" | "quartos" | "garagem"
+export type ComparisonCategoryDimension = "neighborhood" | "bedrooms" | "parkingSpots"
 
 export type ComparisonCategoryGroup = {
   key: string
   label: string
-  listings: Imovel[]
+  listings: Property[]
 }
 
 export type ComparisonCategoryGroupResult = {
   groups: ComparisonCategoryGroup[]
-  missing: Imovel[]
+  missing: Property[]
 }
 
-function numericLabel(dimension: "quartos" | "garagem", value: number): string {
-  if (dimension === "quartos") return `${value} ${value === 1 ? "quarto" : "quartos"}`
+function numericLabel(dimension: "bedrooms" | "parkingSpots", value: number): string {
+  if (dimension === "bedrooms") return `${value} ${value === 1 ? "quarto" : "bedrooms"}`
   return `${value} ${value === 1 ? "vaga" : "vagas"}`
 }
 
 export function buildComparisonCategoryGroups(
-  listings: Imovel[],
+  listings: Property[],
   dimension: ComparisonCategoryDimension
 ): ComparisonCategoryGroupResult {
   const groupsByKey = new Map<string, ComparisonCategoryGroup>()
-  const missing: Imovel[] = []
+  const missing: Property[] = []
 
   for (const listing of listings) {
-    if (dimension === "bairro") {
-      const label = typeof listing.bairro === "string" ? listing.bairro.trim() : ""
+    if (dimension === "neighborhood") {
+      const label = typeof listing.neighborhood === "string" ? listing.neighborhood.trim() : ""
 
       if (!label) {
         missing.push(listing)
@@ -64,7 +64,7 @@ export function buildComparisonCategoryGroups(
   }
 
   const groups = [...groupsByKey.values()]
-  if (dimension === "bairro") {
+  if (dimension === "neighborhood") {
     groups.sort((left, right) => left.label.localeCompare(right.label, "pt-BR"))
   } else {
     groups.sort((left, right) => Number(right.key) - Number(left.key))

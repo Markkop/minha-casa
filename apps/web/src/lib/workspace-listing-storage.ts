@@ -1,4 +1,4 @@
-import type { Imovel } from "$lib/anuncios/types";
+import type { Property } from "$lib/listings/types";
 import { sortSelectableListings } from "$lib/listings/listing-selector";
 
 export const WORKSPACE_LISTING_STORAGE_PREFIX = "minha-casa:workspace-listing";
@@ -9,7 +9,7 @@ export function getWorkspaceListingStorageKey(collectionId: string) {
 
 export function readStoredWorkspaceListingId(
   collectionId: string,
-  listings: Imovel[]
+  listings: Property[]
 ): string | null {
   if (typeof window === "undefined") return null;
 

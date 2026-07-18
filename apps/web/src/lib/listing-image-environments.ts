@@ -1,16 +1,15 @@
-import type { Imovel } from "$lib/anuncios/types";
-import type { ListingImageCategoryKey } from "$lib/listing-image-categories";
-import { normalizeCoverIndex } from "$lib/listing-image-categories";
+import type { Property } from "$lib/listings/types";
+import { normalizeCoverIndex } from "$lib/listing-images-core";
 
 export type ImageEnvironmentKind =
-  | "areaExterna"
-  | "sala"
-  | "cozinha"
-  | "quarto"
-  | "banheiro"
-  | "garagem"
-  | "varanda"
-  | "areaServico"
+  | "exterior"
+  | "livingRoom"
+  | "kitchen"
+  | "bedroom"
+  | "bathroom"
+  | "garage"
+  | "balcony"
+  | "utilityRoom"
   | "custom";
 
 export interface ImageEnvironmentColumn {
@@ -27,26 +26,26 @@ export interface GalleryImage {
 }
 
 export const ENVIRONMENT_KIND_LABELS: Record<ImageEnvironmentKind, string> = {
-  areaExterna: "Área externa",
-  sala: "Sala",
-  cozinha: "Cozinha",
-  quarto: "Quarto",
-  banheiro: "Banheiro",
-  garagem: "Garagem",
-  varanda: "Varanda",
-  areaServico: "Área de serviço",
+  exterior: "Área externa",
+  livingRoom: "Sala",
+  kitchen: "Cozinha",
+  bedroom: "Quarto",
+  bathroom: "Banheiro",
+  garage: "Garagem",
+  balcony: "Varanda",
+  utilityRoom: "Área de serviço",
   custom: "Outro"
 };
 
 const KIND_SORT_ORDER: ImageEnvironmentKind[] = [
-  "areaExterna",
-  "sala",
-  "cozinha",
-  "quarto",
-  "banheiro",
-  "garagem",
-  "varanda",
-  "areaServico",
+  "exterior",
+  "livingRoom",
+  "kitchen",
+  "bedroom",
+  "bathroom",
+  "garage",
+  "balcony",
+  "utilityRoom",
   "custom"
 ];
 
@@ -73,82 +72,29 @@ function createColumn(
 }
 
 export function buildDefaultEnvironmentColumns(listing: {
-  quartos: number | null;
-  banheiros: number | null;
-  garagem: number | null;
+  bedrooms: number | null;
+  bathrooms: number | null;
+  parkingSpots: number | null;
 }): ImageEnvironmentColumn[] {
   const columns: ImageEnvironmentColumn[] = [
-    createColumn("areaExterna", ENVIRONMENT_KIND_LABELS.areaExterna),
-    createColumn("sala", ENVIRONMENT_KIND_LABELS.sala),
-    createColumn("cozinha", ENVIRONMENT_KIND_LABELS.cozinha)
+    createColumn("exterior", ENVIRONMENT_KIND_LABELS.exterior),
+    createColumn("livingRoom", ENVIRONMENT_KIND_LABELS.livingRoom),
+    createColumn("kitchen", ENVIRONMENT_KIND_LABELS.kitchen)
   ];
 
-  for (let index = 1; index <= positiveCount(listing.quartos); index += 1) {
-    columns.push(createColumn("quarto", `Quarto ${index}`, index));
+  for (let index = 1; index <= positiveCount(listing.bedrooms); index += 1) {
+    columns.push(createColumn("bedroom", `Quarto ${index}`, index));
   }
 
-  for (let index = 1; index <= positiveCount(listing.banheiros); index += 1) {
-    columns.push(createColumn("banheiro", `Banheiro ${index}`, index));
+  for (let index = 1; index <= positiveCount(listing.bathrooms); index += 1) {
+    columns.push(createColumn("bathroom", `Banheiro ${index}`, index));
   }
 
-  if (positiveCount(listing.garagem) > 0) {
-    columns.push(createColumn("garagem", ENVIRONMENT_KIND_LABELS.garagem));
+  if (positiveCount(listing.parkingSpots) > 0) {
+    columns.push(createColumn("garage", ENVIRONMENT_KIND_LABELS.garage));
   }
 
   return columns;
-}
-
-function categoryToKind(category: ListingImageCategoryKey): {
-  kind: ImageEnvironmentKind;
-  ordinal?: number;
-} {
-  if (category === "fachada" || category === "areaExterna") {
-    return { kind: "areaExterna" };
-  }
-  if (category === "sala") return { kind: "sala" };
-  if (category.startsWith("quarto-")) {
-    return { kind: "quarto", ordinal: Number(category.slice("quarto-".length)) || 1 };
-  }
-  if (category.startsWith("banheiro-")) {
-    return { kind: "banheiro", ordinal: Number(category.slice("banheiro-".length)) || 1 };
-  }
-  return { kind: "custom" };
-}
-
-function findColumnForCategory(
-  columns: ImageEnvironmentColumn[],
-  category: ListingImageCategoryKey
-): ImageEnvironmentColumn | undefined {
-  const { kind, ordinal } = categoryToKind(category);
-  if (kind === "quarto" || kind === "banheiro") {
-    return (
-      columns.find((column) => column.kind === kind && column.ordinal === ordinal) ??
-      columns.find((column) => column.kind === kind)
-    );
-  }
-  return columns.find((column) => column.kind === kind);
-}
-
-export function migrateFromImageCategories(
-  categories: Record<string, ListingImageCategoryKey> | null | undefined,
-  columns: ImageEnvironmentColumn[]
-): ImageEnvironmentColumn[] {
-  if (!categories || Object.keys(categories).length === 0) return columns;
-
-  const next = columns.map((column) => ({ ...column, imageIndices: [...column.imageIndices] }));
-
-  for (const [indexKey, category] of Object.entries(categories)) {
-    const imageIndex = Number(indexKey);
-    if (!Number.isInteger(imageIndex) || imageIndex < 0) continue;
-
-    const column = findColumnForCategory(next, category);
-    if (!column) continue;
-    if (!column.imageIndices.includes(imageIndex)) {
-      column.imageIndices.push(imageIndex);
-    }
-  }
-
-  return next;
 }
 
 export function filterStaleImageIndices(
@@ -164,7 +110,7 @@ export function filterStaleImageIndices(
 }
 
 export function resolveEnvironmentColumns(
-  listing: Pick<Imovel, "quartos" | "banheiros" | "garagem" | "imageEnvironments" | "imageCategories">,
+  listing: Pick<Property, "bedrooms" | "bathrooms" | "parkingSpots" | "imageEnvironments">,
   imageCount: number
 ): ImageEnvironmentColumn[] {
   let columns: ImageEnvironmentColumn[];
@@ -176,7 +122,6 @@ export function resolveEnvironmentColumns(
     }));
   } else {
     columns = buildDefaultEnvironmentColumns(listing);
-    columns = migrateFromImageCategories(listing.imageCategories, columns);
   }
 
   return filterStaleImageIndices(columns, imageCount);
@@ -342,12 +287,12 @@ export function addEnvironmentColumn(
       : ENVIRONMENT_KIND_LABELS[kind]);
 
   const ordinal =
-    kind === "quarto" || kind === "banheiro"
+    kind === "bedroom" || kind === "bathroom"
       ? kindCount + 1
       : undefined;
 
   const resolvedLabel =
-    (kind === "quarto" || kind === "banheiro") && label && !label.match(/\d/)
+    (kind === "bedroom" || kind === "bathroom") && label && !label.match(/\d/)
       ? `${label} ${ordinal}`
       : defaultLabel;
 
@@ -372,13 +317,13 @@ export function updateColumnLabel(
 }
 
 export const ADD_COLUMN_PRESETS: { kind: ImageEnvironmentKind; label: string }[] = [
-  { kind: "areaExterna", label: ENVIRONMENT_KIND_LABELS.areaExterna },
-  { kind: "sala", label: ENVIRONMENT_KIND_LABELS.sala },
-  { kind: "cozinha", label: ENVIRONMENT_KIND_LABELS.cozinha },
-  { kind: "quarto", label: "Quarto" },
-  { kind: "banheiro", label: "Banheiro" },
-  { kind: "garagem", label: ENVIRONMENT_KIND_LABELS.garagem },
-  { kind: "varanda", label: ENVIRONMENT_KIND_LABELS.varanda },
-  { kind: "areaServico", label: ENVIRONMENT_KIND_LABELS.areaServico },
+  { kind: "exterior", label: ENVIRONMENT_KIND_LABELS.exterior },
+  { kind: "livingRoom", label: ENVIRONMENT_KIND_LABELS.livingRoom },
+  { kind: "kitchen", label: ENVIRONMENT_KIND_LABELS.kitchen },
+  { kind: "bedroom", label: "Quarto" },
+  { kind: "bathroom", label: "Banheiro" },
+  { kind: "garage", label: ENVIRONMENT_KIND_LABELS.garage },
+  { kind: "balcony", label: ENVIRONMENT_KIND_LABELS.balcony },
+  { kind: "utilityRoom", label: ENVIRONMENT_KIND_LABELS.utilityRoom },
   { kind: "custom", label: "Outro" }
 ];

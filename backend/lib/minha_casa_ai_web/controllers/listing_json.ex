@@ -1,7 +1,7 @@
 defmodule MinhaCasaAiWeb.ListingJSON do
   @moduledoc false
 
-  alias MinhaCasaAi.Listings.{Collection, Listing}
+  alias MinhaCasaAi.Listings.{Collection, Listing, ListingData}
 
   def collection(%Collection{} = collection) do
     %{
@@ -29,7 +29,7 @@ defmodule MinhaCasaAiWeb.ListingJSON do
     %{
       id: listing.id,
       collectionId: listing.collection_id,
-      data: listing.data || %{},
+      data: ListingData.normalize(listing.data || %{}),
       createdAt: datetime_to_iso(listing.created_at),
       updatedAt: datetime_to_iso(listing.updated_at)
     }
@@ -39,14 +39,14 @@ defmodule MinhaCasaAiWeb.ListingJSON do
   def listings(rows), do: Enum.map(rows, &listing/1)
 
   def public_listing(%Listing{} = listing) do
-    allowed = ~w(titulo endereco bairro cidade tipoImovel quartos suites banheiros garagem
-      anoConstrucao preco m2Totais m2Privado piscina porteiro24h academia vistaLivre
-      piscinaTermica preferences condominiumName imageUrl imageUrls imageStorageKeys
-      imageIngestionStatus observacoes starred strikethrough etapa)
+    allowed =
+      ~w(title address neighborhood city propertyType bedrooms suites bathrooms parkingSpots
+      constructionYear price totalAreaM2 privateAreaM2 features condominiumName imageUrl imageUrls
+      imageStorageKeys imageIngestionStatus notes starred strikethrough stage)
 
     %{
       id: listing.id,
-      data: Map.take(listing.data || %{}, allowed),
+      data: listing.data |> then(&ListingData.normalize(&1 || %{})) |> Map.take(allowed),
       createdAt: datetime_to_iso(listing.created_at),
       updatedAt: datetime_to_iso(listing.updated_at)
     }

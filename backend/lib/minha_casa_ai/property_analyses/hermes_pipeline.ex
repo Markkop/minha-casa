@@ -6,6 +6,7 @@ defmodule MinhaCasaAi.PropertyAnalyses.HermesPipeline do
   alias MinhaCasaAi.Config
   alias MinhaCasaAi.Integrations.HermesAgent
   alias MinhaCasaAi.Integrations.Langfuse.Trace
+  alias MinhaCasaAi.Listings.ListingData
   alias MinhaCasaAi.PropertyAnalyses
   alias MinhaCasaAi.PropertyAnalyses.{GeocodeStep, HermesBundle}
 
@@ -367,7 +368,7 @@ defmodule MinhaCasaAi.PropertyAnalyses.HermesPipeline do
   end
 
   defp resolve_address(listing, input) do
-    data = listing.data || %{}
+    data = ListingData.normalize(listing.data || %{})
 
     case GeocodeStep.run(data, input) do
       {:ok, geocode} when is_map(geocode) ->
@@ -375,16 +376,16 @@ defmodule MinhaCasaAi.PropertyAnalyses.HermesPipeline do
           "lat" => Map.get(geocode, "lat"),
           "lng" => Map.get(geocode, "lng"),
           "formattedAddress" => Map.get(geocode, "formattedAddress"),
-          "cidade" => data["cidade"] || data["city"],
-          "bairro" => data["bairro"] || data["neighborhood"]
+          "cidade" => data["city"],
+          "bairro" => data["neighborhood"]
         }
         |> Enum.reject(fn {_k, v} -> is_nil(v) or v == "" end)
         |> Map.new()
 
       _ ->
         %{
-          "cidade" => data["cidade"] || data["city"],
-          "bairro" => data["bairro"] || data["neighborhood"]
+          "cidade" => data["city"],
+          "bairro" => data["neighborhood"]
         }
         |> Enum.reject(fn {_k, v} -> is_nil(v) or v == "" end)
         |> Map.new()

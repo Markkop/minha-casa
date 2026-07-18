@@ -40,11 +40,10 @@ defmodule MinhaCasaAi.ListingImages.CoverProbe do
   end
 
   @doc """
-  Picks the cover image URL candidate from listing data: the scraped
-  `coverImageUrl` (og:image) when present, otherwise the first image URL.
+  Picks the canonical cover image URL candidate, then falls back to the gallery.
   """
   def cover_url(data) when is_map(data) do
-    [data["coverImageUrl"] | List.wrap(data["imageUrls"]) ++ [data["imageUrl"]]]
+    [data["imageUrl"] | List.wrap(data["imageUrls"])]
     |> Enum.find(&public_http_url?/1)
   end
 

@@ -102,11 +102,27 @@ defmodule MinhaCasaAi.Listings.SaveListingTest do
                "anoConstrucao" => "1998"
              })
 
-    assert listing.data["anoConstrucao"] == 1998
+    assert listing.data["constructionYear"] == 1998
 
     assert {:ok, updated} =
              Listings.update_listing(collection.id, listing.id, %{"anoConstrucao" => 10_000})
 
-    assert updated.data["anoConstrucao"] == nil
+    assert updated.data["constructionYear"] == nil
+  end
+
+  test "rejects unknown ListingData v2 fields in an update", %{collection: collection} do
+    assert {:ok, listing} =
+             Listings.save_listing(collection.id, %{
+               "title" => "Apartamento",
+               "address" => "Rua Teste, 321"
+             })
+
+    assert {:error, [%{field: "internalNotes", reason: reason}]} =
+             Listings.update_listing(collection.id, listing.id, %{
+               "internalNotes" => "must not persist"
+             })
+
+    assert reason == "is not supported by ListingData v2"
+    assert Repo.reload!(listing).data == listing.data
   end
 end

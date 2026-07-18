@@ -10,7 +10,7 @@
   let saving = $state(false);
   let error = $state("");
   let editingId = $state<string | null>(null);
-  let draft = $state({ city: "", neighborhood: "", propertyType: "casa" as "casa" | "apartamento", pricePerM2: 0, notes: "" });
+  let draft = $state({ city: "", neighborhood: "", propertyType: "house" as "house" | "apartment", pricePerM2: 0, notes: "" });
 
   async function load() {
     loading = true;
@@ -39,7 +39,7 @@
 
   function reset() {
     editingId = null;
-    draft = { city: "", neighborhood: "", propertyType: "casa", pricePerM2: 0, notes: "" };
+    draft = { city: "", neighborhood: "", propertyType: "house", pricePerM2: 0, notes: "" };
   }
 
   async function save() {
@@ -72,8 +72,8 @@
     <input class="h-10 rounded-md border border-app-border px-3" placeholder="Cidade" bind:value={draft.city} required />
     <input class="h-10 rounded-md border border-app-border px-3" placeholder="Bairro" bind:value={draft.neighborhood} required />
     <select class="h-10 rounded-md border border-app-border px-3" bind:value={draft.propertyType}>
-      <option value="casa">Casa</option>
-      <option value="apartamento">Apartamento</option>
+      <option value="house">Casa</option>
+      <option value="apartment">Apartamento</option>
     </select>
     <input class="h-10 rounded-md border border-app-border px-3" type="number" min="0" placeholder="R$/m2" bind:value={draft.pricePerM2} required />
     <input class="h-10 rounded-md border border-app-border px-3" placeholder="Notas" bind:value={draft.notes} />
@@ -92,7 +92,7 @@
       { key: "neighborhood", label: "Bairro", value: (row) => row.neighborhood },
       { key: "propertyType", label: "Tipo", value: (row) => row.propertyType },
       { key: "pricePerM2", label: "R$/m2", value: (row) => row.pricePerM2 },
-      { key: "listingCount", label: "Anuncios", value: (row) => row.listingCount ?? 0 }
+      { key: "listingCount", label: "Imóveis", value: (row) => row.listingCount ?? 0 }
     ]}
     onEdit={edit}
     onDelete={remove}

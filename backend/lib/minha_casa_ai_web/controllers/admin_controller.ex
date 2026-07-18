@@ -54,15 +54,9 @@ defmodule MinhaCasaAiWeb.AdminController do
     })
   end
 
-  def addons(conn, _params) do
-    json(conn, %{addons: Billing.list_addons() |> Enum.map(&BillingJSON.addon/1)})
-  end
-
-  def organizations_addons(conn, _params) do
+  def organizations(conn, _params) do
     json(conn, %{
-      organizations:
-        Billing.list_organizations_with_addons() |> Enum.map(&AdminJSON.organization_addons_row/1),
-      availableAddons: Billing.list_addons() |> Enum.map(&BillingJSON.addon/1)
+      organizations: Billing.list_organizations() |> Enum.map(&AdminJSON.organization_row/1)
     })
   end
 
@@ -137,102 +131,6 @@ defmodule MinhaCasaAiWeb.AdminController do
 
       {:error, :not_found} ->
         not_found(conn, "User")
-    end
-  end
-
-  def user_addons(conn, %{"user_id" => user_id}) do
-    case Billing.list_user_addons(user_id) do
-      {:ok, %{user: user, addons: addons}} ->
-        json(conn, %{
-          user: user_response(user),
-          addons: Enum.map(addons, &BillingJSON.addon_grant/1)
-        })
-
-      {:error, :not_found} ->
-        not_found(conn, "User")
-    end
-  end
-
-  def grant_user_addon(conn, %{"user_id" => user_id} = params) do
-    case Billing.grant_user_addon(conn.assigns.current_user_id, user_id, params) do
-      {:ok, %{grant: grant, addon: addon, updated: updated}} ->
-        json(conn, %{
-          userAddon: BillingJSON.addon_grant(%{grant: grant, addon: addon}),
-          updated: updated
-        })
-
-      {:error, :not_found} ->
-        not_found(conn, "Addon or user")
-
-      {:error, :invalid} ->
-        conn |> put_status(:bad_request) |> json(%{error: "addonSlug is required"})
-
-      {:error, :invalid_date} ->
-        conn |> put_status(:bad_request) |> json(%{error: "expiresAt must be a valid ISO date"})
-
-      {:error, changeset} ->
-        changeset_error(conn, changeset)
-    end
-  end
-
-  def revoke_user_addon(conn, %{"user_id" => user_id, "slug" => slug}) do
-    case Billing.revoke_user_addon(user_id, slug) do
-      {:ok, grant} ->
-        json(conn, %{
-          success: true,
-          revokedGrant: BillingJSON.addon_grant(%{grant: grant, addon: nil})
-        })
-
-      {:error, :not_found} ->
-        not_found(conn, "Addon grant")
-    end
-  end
-
-  def organization_addons(conn, %{"org_id" => org_id}) do
-    case Billing.list_organization_addons(org_id) do
-      {:ok, %{organization: org, addons: addons}} ->
-        json(conn, %{
-          organization: %{id: org.id, name: org.name, slug: org.slug},
-          addons: Enum.map(addons, &BillingJSON.addon_grant/1)
-        })
-
-      {:error, :not_found} ->
-        not_found(conn, "Organization")
-    end
-  end
-
-  def grant_organization_addon(conn, %{"org_id" => org_id} = params) do
-    case Billing.grant_organization_addon(conn.assigns.current_user_id, org_id, params) do
-      {:ok, %{grant: grant, addon: addon, updated: updated}} ->
-        json(conn, %{
-          organizationAddon: BillingJSON.addon_grant(%{grant: grant, addon: addon}),
-          updated: updated
-        })
-
-      {:error, :not_found} ->
-        not_found(conn, "Addon or organization")
-
-      {:error, :invalid} ->
-        conn |> put_status(:bad_request) |> json(%{error: "addonSlug is required"})
-
-      {:error, :invalid_date} ->
-        conn |> put_status(:bad_request) |> json(%{error: "expiresAt must be a valid ISO date"})
-
-      {:error, changeset} ->
-        changeset_error(conn, changeset)
-    end
-  end
-
-  def revoke_organization_addon(conn, %{"org_id" => org_id, "slug" => slug}) do
-    case Billing.revoke_organization_addon(org_id, slug) do
-      {:ok, grant} ->
-        json(conn, %{
-          success: true,
-          revokedGrant: BillingJSON.addon_grant(%{grant: grant, addon: nil})
-        })
-
-      {:error, :not_found} ->
-        not_found(conn, "Addon grant")
     end
   end
 

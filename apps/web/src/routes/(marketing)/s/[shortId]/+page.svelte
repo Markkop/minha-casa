@@ -28,7 +28,7 @@
     {#if error}
       <h1 class="text-xl font-semibold">Link nao encontrado</h1>
       <p class="mt-2 text-sm text-app-muted">{error}</p>
-      <a class="mt-4 inline-flex rounded-md bg-app-fg px-4 py-2 text-sm font-medium text-white" href="/anuncios">Abrir anuncios</a>
+      <a class="mt-4 inline-flex rounded-md bg-app-fg px-4 py-2 text-sm font-medium text-white" href="/lista">Abrir Lista</a>
     {:else}
       <p class="text-sm text-app-muted">Abrindo link...</p>
     {/if}

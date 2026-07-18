@@ -2,10 +2,11 @@ defmodule MinhaCasaAi.PropertyAnalyses.GeocodeStep do
   @moduledoc false
 
   alias MinhaCasaAi.Integrations.{GoogleGeocoding, NominatimGeocoding}
+  alias MinhaCasaAi.Listings.ListingData
 
   def run(listing_data, input) do
     input = input || %{}
-    data = listing_data || %{}
+    data = ListingData.normalize(listing_data || %{})
 
     override =
       case Map.get(input, "addressOverride") do
@@ -83,7 +84,7 @@ defmodule MinhaCasaAi.PropertyAnalyses.GeocodeStep do
 
   defp build_address_query(data) do
     parts =
-      [data["endereco"], data["bairro"], data["cidade"]]
+      [data["address"], data["neighborhood"], data["city"]]
       |> Enum.filter(&(is_binary(&1) and String.trim(&1) != ""))
       |> Enum.map(&String.trim/1)
 

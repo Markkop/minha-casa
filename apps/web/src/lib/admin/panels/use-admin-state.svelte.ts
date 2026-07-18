@@ -1,7 +1,5 @@
 import {
   adminApi,
-  type AdminAddon,
-  type AdminAddonGrant,
   type AdminOrganization,
   type AdminPlan,
   type AdminStats,
@@ -19,18 +17,14 @@ export type AdminMode =
   | "edit-user"
   | "grant-subscription"
   | "subscriptions"
-  | "user-addons"
-  | "org-addons";
+  | "organization";
 
 export function createAdminState() {
   let users = $state<AdminUser[]>([]);
   let plans = $state<AdminPlan[]>([]);
   let stats = $state<AdminStats | null>(null);
-  let addons = $state<AdminAddon[]>([]);
   let organizations = $state<AdminOrganization[]>([]);
   let subscriptions = $state<AdminSubscription[]>([]);
-  let userAddons = $state<AdminAddonGrant[]>([]);
-  let orgAddons = $state<AdminAddonGrant[]>([]);
   let stripeReconciliation = $state<StripeReconciliation | null>(null);
   let loadingStripe = $state(false);
 
@@ -49,8 +43,6 @@ export function createAdminState() {
   let subscriptionDays = $state("30");
   let grantReason = $state<GrantReason>("pilot");
   let grantNotes = $state("");
-  let selectedAddonSlug = $state("");
-  let addonExpiresAt = $state("");
   let editSubscriptionId = $state("");
   let editSubscriptionStatus = $state<AdminSubscription["status"]>("active");
   let editSubscriptionExpiresAt = $state("");
@@ -72,17 +64,15 @@ export function createAdminState() {
     loading = true;
     error = "";
     try {
-      const [usersData, plansData, statsData, addonsData, orgsData] = await Promise.all([
+      const [usersData, plansData, statsData, orgsData] = await Promise.all([
         adminApi.fetchUsers(),
         adminApi.fetchPlans(),
         adminApi.fetchStats(),
-        adminApi.fetchAddons(),
-        adminApi.fetchOrganizationsWithAddons()
+        adminApi.fetchOrganizations()
       ]);
       users = usersData.users;
       plans = plansData.plans;
       stats = statsData.stats;
-      addons = addonsData.addons;
       organizations = orgsData.organizations;
     } catch (err) {
       error = errorMessage(err, "Erro ao carregar dados administrativos");
@@ -264,68 +254,13 @@ export function createAdminState() {
     }
   }
 
-  async function openUserAddons(user: AdminUser) {
-    selectedUser = user;
-    mode = "user-addons";
-    selectedAddonSlug = addons[0]?.slug ?? "";
-    addonExpiresAt = "";
-    userAddons = [];
-    error = "";
-    try {
-      userAddons = (await adminApi.fetchUserAddons(user.id)).addons;
-    } catch (err) {
-      error = errorMessage(err, "Erro ao carregar addons");
-    }
-  }
-
-  async function grantUserAddon() {
-    if (!selectedUser || !selectedAddonSlug) return;
-    saving = true;
-    error = "";
-    try {
-      await adminApi.grantUserAddon(selectedUser.id, {
-        addonSlug: selectedAddonSlug,
-        enabled: true,
-        expiresAt: addonExpiresAt ? new Date(addonExpiresAt).toISOString() : null
-      });
-      userAddons = (await adminApi.fetchUserAddons(selectedUser.id)).addons;
-      addonExpiresAt = "";
-    } catch (err) {
-      error = errorMessage(err, "Erro ao conceder addon");
-    } finally {
-      saving = false;
-    }
-  }
-
-  async function revokeUserAddon(grant: AdminAddonGrant) {
-    if (!selectedUser || !confirm(`Revogar ${grant.addon?.name ?? grant.addonSlug}?`)) return;
-    saving = true;
-    error = "";
-    try {
-      await adminApi.revokeUserAddon(selectedUser.id, grant.addonSlug);
-      userAddons = userAddons.filter((item) => item.id !== grant.id);
-    } catch (err) {
-      error = errorMessage(err, "Erro ao revogar addon");
-    } finally {
-      saving = false;
-    }
-  }
-
-  async function openOrgAddons(org: AdminOrganization) {
+  function openOrganization(org: AdminOrganization) {
     selectedOrg = org;
-    mode = "org-addons";
-    selectedAddonSlug = addons[0]?.slug ?? "";
-    addonExpiresAt = "";
+    mode = "organization";
     subscriptionDays = "30";
     grantReason = "pilot";
     grantNotes = "";
-    orgAddons = [];
     error = "";
-    try {
-      orgAddons = (await adminApi.fetchOrganizationAddons(org.id)).addons;
-    } catch (err) {
-      error = errorMessage(err, "Erro ao carregar addons da organizacao");
-    }
   }
 
   async function grantAgencySubscription() {
@@ -345,45 +280,10 @@ export function createAdminState() {
         grantReason,
         notes: grantNotes.trim() || "Concessão manual de Imobiliária via Super Admin"
       });
-      organizations = (await adminApi.fetchOrganizationsWithAddons()).organizations;
+      organizations = (await adminApi.fetchOrganizations()).organizations;
       await refreshStats();
     } catch (err) {
       error = errorMessage(err, "Erro ao conceder plano Imobiliária");
-    } finally {
-      saving = false;
-    }
-  }
-
-  async function grantOrgAddon() {
-    if (!selectedOrg || !selectedAddonSlug) return;
-    saving = true;
-    error = "";
-    try {
-      await adminApi.grantOrganizationAddon(selectedOrg.id, {
-        addonSlug: selectedAddonSlug,
-        enabled: true,
-        expiresAt: addonExpiresAt ? new Date(addonExpiresAt).toISOString() : null
-      });
-      orgAddons = (await adminApi.fetchOrganizationAddons(selectedOrg.id)).addons;
-      organizations = (await adminApi.fetchOrganizationsWithAddons()).organizations;
-      addonExpiresAt = "";
-    } catch (err) {
-      error = errorMessage(err, "Erro ao conceder addon");
-    } finally {
-      saving = false;
-    }
-  }
-
-  async function revokeOrgAddon(grant: AdminAddonGrant) {
-    if (!selectedOrg || !confirm(`Revogar ${grant.addon?.name ?? grant.addonSlug}?`)) return;
-    saving = true;
-    error = "";
-    try {
-      await adminApi.revokeOrganizationAddon(selectedOrg.id, grant.addonSlug);
-      orgAddons = orgAddons.filter((item) => item.id !== grant.id);
-      organizations = (await adminApi.fetchOrganizationsWithAddons()).organizations;
-    } catch (err) {
-      error = errorMessage(err, "Erro ao revogar addon");
     } finally {
       saving = false;
     }
@@ -412,8 +312,6 @@ export function createAdminState() {
     selectedUser = null;
     selectedOrg = null;
     subscriptions = [];
-    userAddons = [];
-    orgAddons = [];
     editSubscriptionId = "";
     grantNotes = "";
   }
@@ -451,7 +349,7 @@ export function createAdminState() {
   }
 
   function isUserMode() {
-    return mode === "edit-user" || mode === "grant-subscription" || mode === "subscriptions" || mode === "user-addons";
+    return mode === "edit-user" || mode === "grant-subscription" || mode === "subscriptions";
   }
 
   return {
@@ -464,20 +362,11 @@ export function createAdminState() {
     get stats() {
       return stats;
     },
-    get addons() {
-      return addons;
-    },
     get organizations() {
       return organizations;
     },
     get subscriptions() {
       return subscriptions;
-    },
-    get userAddons() {
-      return userAddons;
-    },
-    get orgAddons() {
-      return orgAddons;
     },
     get stripeReconciliation() {
       return stripeReconciliation;
@@ -551,18 +440,6 @@ export function createAdminState() {
     set grantNotes(value: string) {
       grantNotes = value;
     },
-    get selectedAddonSlug() {
-      return selectedAddonSlug;
-    },
-    set selectedAddonSlug(value: string) {
-      selectedAddonSlug = value;
-    },
-    get addonExpiresAt() {
-      return addonExpiresAt;
-    },
-    set addonExpiresAt(value: string) {
-      addonExpiresAt = value;
-    },
     get editSubscriptionId() {
       return editSubscriptionId;
     },
@@ -609,13 +486,8 @@ export function createAdminState() {
     startEditSubscription,
     saveSubscription,
     setSubscriptionStatus,
-    openUserAddons,
-    grantUserAddon,
-    revokeUserAddon,
-    openOrgAddons,
+    openOrganization,
     grantAgencySubscription,
-    grantOrgAddon,
-    revokeOrgAddon,
     savePlanStripe,
     closeModal,
     handleModalKeydown,

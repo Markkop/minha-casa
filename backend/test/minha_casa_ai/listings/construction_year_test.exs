@@ -16,13 +16,13 @@ defmodule MinhaCasaAi.Listings.ConstructionYearTest do
   end
 
   test "normalizes an explicitly present data field and preserves absent fields" do
-    assert ConstructionYear.normalize_data(%{"anoConstrucao" => "1998", "preco" => 1}) ==
-             %{"anoConstrucao" => 1998, "preco" => 1}
+    assert ConstructionYear.normalize_data(%{"constructionYear" => "1998", "price" => 1}) ==
+             %{"constructionYear" => 1998, "price" => 1}
 
-    assert ConstructionYear.normalize_data(%{"anoConstrucao" => ""}) == %{
-             "anoConstrucao" => nil
+    assert ConstructionYear.normalize_data(%{"constructionYear" => ""}) == %{
+             "constructionYear" => nil
            }
 
-    assert ConstructionYear.normalize_data(%{"preco" => 1}) == %{"preco" => 1}
+    assert ConstructionYear.normalize_data(%{"price" => 1}) == %{"price" => 1}
   end
 end

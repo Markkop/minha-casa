@@ -8,7 +8,15 @@ defmodule MinhaCasaAiWeb.CollectionController do
   alias MinhaCasaAi.Financeiro.Scenario
   alias MinhaCasaAi.Listings.MergeSessions
   alias MinhaCasaAi.Listings.DisplayTitle
-  alias MinhaCasaAi.Listings.{Collection, CollectionPolicy, CollectionSharing, Listing}
+
+  alias MinhaCasaAi.Listings.{
+    Collection,
+    CollectionPolicy,
+    CollectionSharing,
+    Listing,
+    ListingData
+  }
+
   alias MinhaCasaAi.Config
   alias MinhaCasaAi.Repo
   alias MinhaCasaAi.Workspace.ListingComparisonNote
@@ -216,6 +224,7 @@ defmodule MinhaCasaAiWeb.CollectionController do
     with {:ok, _collection, _access} <-
            CollectionPolicy.authorize(profile.user_id, id, :add_listing),
          :ok <- Entitlements.ensure_listing_capacity(entitlement),
+         {:ok, data} <- ListingData.validate(data),
          :ok <- validate_listing_data(data) do
       candidates = Listings.duplicate_candidates(id, data)
       resolve_listing_create(conn, id, data, candidates, duplicate_action, profile, params)
@@ -230,6 +239,11 @@ defmodule MinhaCasaAiWeb.CollectionController do
         conn
         |> put_status(:bad_request)
         |> json(%{error: "Listing title and address are required"})
+
+      {:error, errors} when is_list(errors) ->
+        conn
+        |> put_status(:unprocessable_entity)
+        |> json(%{error: "Invalid listing data", details: errors})
     end
   end
 
@@ -305,8 +319,16 @@ defmodule MinhaCasaAiWeb.CollectionController do
                user_id: profile.user_id,
                org_id: profile.org_id
              ) do
-          {:ok, listing} -> json(conn, %{listing: ListingJSON.listing(listing)})
-          {:error, _} -> not_found(conn, "Listing")
+          {:ok, listing} ->
+            json(conn, %{listing: ListingJSON.listing(listing)})
+
+          {:error, errors} when is_list(errors) ->
+            conn
+            |> put_status(:unprocessable_entity)
+            |> json(%{error: "Invalid listing data", details: errors})
+
+          {:error, _} ->
+            not_found(conn, "Listing")
         end
 
       {:error, _} ->
@@ -416,7 +438,8 @@ defmodule MinhaCasaAiWeb.CollectionController do
                 %Listing{}
                 |> Listing.changeset(%{
                   collection_id: collection.id,
-                  data: public_copy_data(listing.data || %{})
+                  data:
+                    listing.data |> then(&ListingData.normalize(&1 || %{})) |> public_copy_data()
                 })
                 |> Repo.insert!()
 
@@ -565,7 +588,7 @@ defmodule MinhaCasaAiWeb.CollectionController do
     do: Map.drop(data, ["internalNotes", "internalObservations", "aiResult", "aiMetadata"])
 
   defp validate_listing_data(data) do
-    if string(data["titulo"]) != "" and string(data["endereco"]) != "" do
+    if string(data["title"]) != "" and string(data["address"]) != "" do
       :ok
     else
       {:error, :invalid_listing}

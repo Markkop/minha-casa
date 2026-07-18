@@ -5,7 +5,7 @@ export type CondominiumAddDraft = {
   city: string;
   neighborhood: string;
   address: string;
-  propertyType: "" | "casa" | "apartamento";
+  propertyType: "" | "house" | "apartment";
   amenities: string;
   notes: string;
 };
@@ -15,7 +15,7 @@ export const emptyAdd: CondominiumAddDraft = {
   city: "",
   neighborhood: "",
   address: "",
-  propertyType: "" as "" | "casa" | "apartamento",
+  propertyType: "" as "" | "house" | "apartment",
   amenities: "",
   notes: ""
 };

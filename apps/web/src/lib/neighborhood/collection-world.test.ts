@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { Imovel } from "$lib/anuncios/types";
+import type { Property } from "$lib/listings/types";
 import {
   deriveCollectionGeography,
   deriveCollectionMetrics,
@@ -8,33 +8,28 @@ import {
   type LocatedCollectionListing
 } from "$lib/neighborhood/collection-world";
 
-function listing(id: string, overrides: Partial<Imovel> = {}): Imovel {
+function listing(id: string, overrides: Partial<Property> = {}): Property {
   return {
     id,
-    titulo: `Imóvel ${id}`,
-    endereco: "",
-    m2Totais: null,
-    m2Privado: null,
-    quartos: null,
+    title: `Imóvel ${id}`,
+    address: "",
+    totalAreaM2: null,
+    privateAreaM2: null,
+    bedrooms: null,
     suites: null,
-    banheiros: null,
-    garagem: null,
-    anoConstrucao: null,
-    preco: null,
-    precoM2: null,
-    piscina: null,
-    porteiro24h: null,
-    academia: null,
-    vistaLivre: null,
-    piscinaTermica: null,
-    link: null,
+    bathrooms: null,
+    parkingSpots: null,
+    constructionYear: null,
+    price: null,
+    pricePerM2: null,
+    sourceUrl: null,
     createdAt: "2026-07-17T00:00:00.000Z",
     ...overrides
   };
 }
 
 describe("métricas do mapa da coleção", () => {
-  it("não inventa métricas quando preço, área e bairro não foram informados", () => {
+  it("não inventa métricas quando preço, área e neighborhood não foram informados", () => {
     expect(deriveCollectionMetrics([listing("1"), listing("2")])).toEqual([
       {
         key: "total",
@@ -47,9 +42,9 @@ describe("métricas do mapa da coleção", () => {
 
   it("calcula mediana, preço por m² e bairros somente a partir dos valores presentes", () => {
     const metrics = deriveCollectionMetrics([
-      listing("1", { preco: 600_000, m2Privado: 60, bairro: "Centro" }),
-      listing("2", { preco: 900_000, precoM2: 12_000, bairro: "centro" }),
-      listing("3", { preco: 1_500_000, m2Totais: 100, bairro: "Trindade" }),
+      listing("1", { price: 600_000, privateAreaM2: 60, neighborhood: "Centro" }),
+      listing("2", { price: 900_000, pricePerM2: 12_000, neighborhood: "centro" }),
+      listing("3", { price: 1_500_000, totalAreaM2: 100, neighborhood: "Trindade" }),
       listing("4")
     ]);
 
@@ -72,8 +67,8 @@ describe("geografia do mapa da coleção", () => {
   });
 
   it("preserva coordenadas próximas e cria um payload sem geometria inventada", () => {
-    const first = listing("1", { bairro: "Centro", cidade: "Florianópolis" });
-    const second = listing("2", { bairro: "Centro", cidade: "Florianópolis" });
+    const first = listing("1", { neighborhood: "Centro", city: "Florianópolis" });
+    const second = listing("2", { neighborhood: "Centro", city: "Florianópolis" });
     const located: LocatedCollectionListing[] = [
       { listing: first, location: { lat: -27.595, lng: -48.553 } },
       { listing: second, location: { lat: -27.594, lng: -48.552 } }

@@ -1,22 +1,22 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import {
-    coercePreferenceCatalog,
-    defaultPreferenceCatalog,
-    type ListingPreferenceOption
-  } from "$lib/anuncios/listing-preferences";
-  import { DEFAULT_PROPERTY_DISPLAY, type MetricVariant } from "$lib/anuncios/listings-display-prefs";
-  import { extractUniqueContacts } from "$lib/anuncios/listings-contact";
-  import type { Imovel } from "$lib/anuncios/types";
-  import EditModal from "$lib/components/anuncios/EditModal.svelte";
-  import ImageModal from "$lib/components/anuncios/ImageModal.svelte";
-  import ListingMobileCard from "$lib/components/anuncios/ListingMobileCard.svelte";
-  import { createListingRowInteractionsRegistry } from "$lib/components/anuncios/listing-row-interactions-registry.svelte";
+    coerceFeatureCatalog,
+    defaultFeatureCatalog,
+    type ListingFeatureOption
+  } from "$lib/listings/listing-features";
+  import { DEFAULT_PROPERTY_DISPLAY, type MetricVariant } from "$lib/listings/listings-display-prefs";
+  import { extractUniqueContacts } from "$lib/listings/listings-contact";
+  import type { Property } from "$lib/listings/types";
+  import EditModal from "$lib/components/listings/EditModal.svelte";
+  import ImageModal from "$lib/components/listings/ImageModal.svelte";
+  import ListingMobileCard from "$lib/components/listings/ListingMobileCard.svelte";
+  import { createListingRowInteractionsRegistry } from "$lib/components/listings/listing-row-interactions-registry.svelte";
   import {
     DEFAULT_VISIBLE_COLUMNS,
     type ListingsTableColumn
-  } from "$lib/components/anuncios/listings-table-shared";
-  import { computeListingToolbarVisibility } from "$lib/anuncios/listing-toolbar-visibility";
+  } from "$lib/components/listings/listings-table-shared";
+  import { computeListingToolbarVisibility } from "$lib/listings/listing-toolbar-visibility";
   import {
     buildComparisonPriceBands,
     chooseAutomaticPriceBandConfig,
@@ -48,29 +48,29 @@
     key: string;
     label: string;
     accessibleLabel: string;
-    listings: Imovel[];
+    listings: Property[];
   };
 
   const dimensionOptions: { value: ComparisonDistributionDimension; label: string }[] = [
-    { value: "preco", label: "Preço" },
+    { value: "price", label: "Preço" },
     { value: "privado", label: "Área privativa" },
     { value: "total", label: "Área total" },
-    { value: "bairro", label: "Bairro" },
-    { value: "quartos", label: "Quartos" },
-    { value: "garagem", label: "Garagem" }
+    { value: "neighborhood", label: "Bairro" },
+    { value: "bedrooms", label: "Quartos" },
+    { value: "parkingSpots", label: "Garagem" }
   ];
 
   function isBandedDimension(
     value: ComparisonDistributionDimension
   ): value is ComparisonPriceMetric {
-    return value === "preco" || value === "privado" || value === "total";
+    return value === "price" || value === "privado" || value === "total";
   }
 
   let dimension = $state<ComparisonDistributionDimension>("privado");
   let bandMode = $state<"fixed" | "auto">("auto");
-  let editingListing = $state<Imovel | null>(null);
+  let editingListing = $state<Property | null>(null);
   let imageModalListingId = $state<string | null>(null);
-  let preferenceCatalog = $state<ListingPreferenceOption[]>(defaultPreferenceCatalog());
+  let featureCatalog = $state<ListingFeatureOption[]>(defaultFeatureCatalog());
   let distributionScaleElement = $state<HTMLDivElement | null>(null);
   let desktopAutoItemsPerBand = $state<number | null>(null);
 
@@ -79,7 +79,7 @@
     ...DEFAULT_VISIBLE_COLUMNS,
     image: true,
     property: true,
-    etapa: true,
+    stage: true,
     price: true,
     area: true,
     value: true
@@ -87,7 +87,7 @@
 
   const rowInteractionsRegistry = createListingRowInteractionsRegistry({
     getListingById: (listingId) => ctx.listings.find((listing) => listing.id === listingId),
-    getPreferenceCatalog: () => preferenceCatalog,
+    getFeatureCatalog: () => featureCatalog,
     updateListing: (listingId, updates) => ctx.updateListing(listingId, updates),
     removeListing: (listingId) => ctx.removeListing(listingId)
   });
@@ -117,10 +117,10 @@
     chooseAutomaticPriceBandConfig(ctx.listings, bandMetric, automaticGroupOptions)
   );
   const fixedBandSize = $derived(
-    dimension === "preco" ? chooseDefaultListingPriceBandSize(ctx.listings) : 1_000
+    dimension === "price" ? chooseDefaultListingPriceBandSize(ctx.listings) : 1_000
   );
   const fixedBandOptionLabel = $derived(
-    dimension === "preco" ? formatCompactBandSize(fixedBandSize) : "R$ 1.000"
+    dimension === "price" ? formatCompactBandSize(fixedBandSize) : "R$ 1.000"
   );
   const bandSize = $derived(
     bandMode === "auto" ? automaticBandConfig.bandSize : fixedBandSize
@@ -175,7 +175,7 @@
   });
 
   onMount(() => {
-    void loadPreferenceCatalog();
+    void loadFeatureCatalog();
 
     const mobileQuery = window.matchMedia(DISTRIBUTION_MOBILE_QUERY);
 
@@ -209,20 +209,20 @@
     };
   });
 
-  async function loadPreferenceCatalog() {
+  async function loadFeatureCatalog() {
     try {
-      const response = await workspaceApi.fetchListingPreferences();
-      preferenceCatalog = coercePreferenceCatalog(response.preferences);
+      const response = await workspaceApi.fetchListingFeatures();
+      featureCatalog = coerceFeatureCatalog(response.features);
     } catch (error) {
-      console.error("Failed to load listing preferences catalog:", error);
+      console.error("Failed to load listing features catalog:", error);
     }
   }
 
-  function openImageModal(listing: Imovel) {
+  function openImageModal(listing: Property) {
     imageModalListingId = listing.id;
   }
 
-  function openEditListing(listing: Imovel) {
+  function openEditListing(listing: Property) {
     editingListing = listing;
   }
 
@@ -253,23 +253,23 @@
     end: number,
     metric: ComparisonPriceMetric
   ): string {
-    const suffix = metric === "preco" ? "" : "/m²";
+    const suffix = metric === "price" ? "" : "/m²";
     return `${formatCurrency(start)}–${formatCurrency(end)}${suffix}`;
   }
 </script>
 
-{#snippet listingCard(listing: Imovel)}
+{#snippet listingCard(listing: Property)}
   <div
     class="w-full md:min-w-0 md:basis-[var(--desktop-card-basis)] md:grow-0 md:shrink-0"
     style={`--desktop-card-basis: ${desktopCardBasis};`}
   >
     <ListingMobileCard
-      imovel={listing}
+      property={listing}
       {visibleColumns}
       imageColumnView="image"
       {enabledMetricVariants}
       propertyDisplay={DEFAULT_PROPERTY_DISPLAY}
-      {preferenceCatalog}
+      {featureCatalog}
       {toolbarVisibility}
       {activeMetricVariant}
       hasOtherCollections={ctx.collections.length > 1}
@@ -280,7 +280,7 @@
       {openImageModal}
       {openEditListing}
       getRowInteractions={(item) => rowInteractionsRegistry.getForListing(item)}
-      displayTitle={mobileListingDisplayTitle(ctx.getAnunciosListingDisplayTitle(listing))}
+      displayTitle={mobileListingDisplayTitle(ctx.getPropertyListDisplayTitle(listing))}
       density="compact"
     />
   </div>
@@ -392,7 +392,7 @@
 <EditModal
   isOpen={editingListing !== null}
   listing={editingListing}
-  {preferenceCatalog}
+  {featureCatalog}
   {uniqueContacts}
   onClose={() => (editingListing = null)}
   onListingUpdated={reloadActiveListings}

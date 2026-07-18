@@ -21,7 +21,7 @@ export function createExplorarState() {
   let name = $state("Busca exploratoria");
   let filterSet = $state<PortalFilterSet>(defaultFilterSet());
   let bairrosText = $state("");
-  let tiposText = $state("apartamento");
+  let tiposText = $state("apartment");
   let quartosText = $state("");
   let banheirosText = $state("");
   let vagasText = $state("");
@@ -35,8 +35,8 @@ export function createExplorarState() {
   let loading = $state(true);
   let running = $state(false);
   let error = $state("");
-  let rowAxis = $state<MatrixAxis>("quartos");
-  let colAxis = $state<MatrixAxis>("bairro");
+  let rowAxis = $state<MatrixAxis>("bedrooms");
+  let colAxis = $state<MatrixAxis>("neighborhood");
   let matrixMetric = $state<MatrixMetric>("median_preco_m2");
   let matrixPortalFilter = $state<Portal | "all">("all");
   let selectedMatrixCell = $state<MatrixCell | null>(null);
@@ -49,21 +49,21 @@ export function createExplorarState() {
   const portalStats = $derived.by((): PortalStat[] => {
     return PORTALS.map((portal) => {
       const rows = cards.filter((card) => card.portal === portal);
-      return { portal, count: rows.length, medianM2: median(rows.map((card) => card.precoM2)) };
+      return { portal, count: rows.length, medianM2: median(rows.map((card) => card.pricePerM2)) };
     });
   });
   const bairroStats = $derived.by((): BairroStat[] => {
     const groups = new Map<string, ShortListing[]>();
     for (const card of cards) {
-      const key = card.bairro || "Sem bairro";
+      const key = card.neighborhood || "Sem bairro";
       groups.set(key, [...(groups.get(key) ?? []), card]);
     }
     return [...groups.entries()]
-      .map(([bairro, rows]) => ({
-        bairro,
+      .map(([neighborhood, rows]) => ({
+        neighborhood,
         count: rows.length,
-        medianM2: median(rows.map((card) => card.precoM2)),
-        minPrice: minValue(rows.map((card) => card.preco))
+        medianM2: median(rows.map((card) => card.pricePerM2)),
+        minPrice: minValue(rows.map((card) => card.price))
       }))
       .sort((a, b) => b.count - a.count)
       .slice(0, 8);
@@ -85,9 +85,9 @@ export function createExplorarState() {
     return {
       ...filterSet,
       bairros: splitText(bairrosText),
-      tiposImovel: splitText(tiposText).length > 0 ? splitText(tiposText) : ["apartamento"],
-      quartos: splitNumbers(quartosText),
-      banheiros: splitNumbers(banheirosText),
+      tiposImovel: splitText(tiposText).length > 0 ? splitText(tiposText) : ["apartment"],
+      bedrooms: splitNumbers(quartosText),
+      bathrooms: splitNumbers(banheirosText),
       vagas: splitNumbers(vagasText),
       suites: splitNumbers(suitesText)
     };
@@ -108,8 +108,8 @@ export function createExplorarState() {
     filterSet = search.filterSet;
     bairrosText = search.filterSet.bairros.join(", ");
     tiposText = search.filterSet.tiposImovel.join(", ");
-    quartosText = search.filterSet.quartos.join(", ");
-    banheirosText = search.filterSet.banheiros.join(", ");
+    quartosText = search.filterSet.bedrooms.join(", ");
+    banheirosText = search.filterSet.bathrooms.join(", ");
     vagasText = search.filterSet.vagas.join(", ");
     suitesText = search.filterSet.suites.join(", ");
     enabledPortals = search.enabledPortals.length > 0 ? search.enabledPortals : [...PORTALS];
@@ -291,12 +291,12 @@ export function createExplorarState() {
     if (key === "tiposImovel") tiposText = next.join(", ");
   }
 
-  function toggleNumberList(key: "quartos" | "banheiros" | "vagas" | "suites", value: number) {
+  function toggleNumberList(key: "bedrooms" | "bathrooms" | "vagas" | "suites", value: number) {
     const list = filterSet[key];
     const next = list.includes(value) ? list.filter((item) => item !== value) : [...list, value].sort((a, b) => a - b);
     filterSet = { ...filterSet, [key]: next };
-    if (key === "quartos") quartosText = next.join(", ");
-    if (key === "banheiros") banheirosText = next.join(", ");
+    if (key === "bedrooms") quartosText = next.join(", ");
+    if (key === "bathrooms") banheirosText = next.join(", ");
     if (key === "vagas") vagasText = next.join(", ");
     if (key === "suites") suitesText = next.join(", ");
   }
@@ -304,7 +304,7 @@ export function createExplorarState() {
   function resetFilters() {
     filterSet = defaultFilterSet();
     bairrosText = "";
-    tiposText = "apartamento";
+    tiposText = "apartment";
     quartosText = "";
     banheirosText = "";
     vagasText = "";

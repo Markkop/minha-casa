@@ -1,4 +1,4 @@
-import type { Imovel } from "$lib/anuncios/types";
+import type { Property } from "$lib/listings/types";
 
 export const LISTING_SELECTOR_POPOVER_CLASS =
   "w-[min(calc(100vw-1.5rem),24rem)] p-2 sm:w-96";
@@ -17,37 +17,37 @@ export function formatListingPrice(value: number | null | undefined): string {
   }).format(value);
 }
 
-export function formatListingAddress(listing: Imovel): string {
-  return listing.endereco?.trim() || "Endereço não informado";
+export function formatListingAddress(listing: Property): string {
+  return listing.address?.trim() || "Endereço não informado";
 }
 
-export function getListingThumbUrl(listing: Imovel): string | null {
+export function getListingThumbUrl(listing: Property): string | null {
   return listing.imageUrl || listing.imageUrls?.[0] || null;
 }
 
 export function sortSelectableListings(
-  listings: Imovel[],
+  listings: Property[],
   options: Pick<ListingSelectorFilterOptions, "includeStrikethrough"> = {}
-): Imovel[] {
+): Property[] {
   return [...listings]
     .filter((listing) => options.includeStrikethrough || !listing.strikethrough)
-    .sort((a, b) => (a.titulo ?? "").localeCompare(b.titulo ?? "", "pt-BR"));
+    .sort((a, b) => (a.title ?? "").localeCompare(b.title ?? "", "pt-BR"));
 }
 
 export function filterSelectableListings(
-  listings: Imovel[],
+  listings: Property[],
   query: string,
   options: ListingSelectorFilterOptions = {}
-): Imovel[] {
+): Property[] {
   const q = query.trim().toLowerCase();
   const limit = options.limit === undefined ? 12 : options.limit;
-  const limitResults = (items: Imovel[]) => (limit === null ? items : items.slice(0, limit));
+  const limitResults = (items: Property[]) => (limit === null ? items : items.slice(0, limit));
   const base = sortSelectableListings(listings, options);
   if (!q) return limitResults(base);
   return limitResults(
     base
     .filter((listing) => {
-      const hay = [listing.titulo, listing.bairro, listing.endereco, listing.cidade]
+      const hay = [listing.title, listing.neighborhood, listing.address, listing.city]
         .filter(Boolean)
         .join(" ")
         .toLowerCase();

@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { Snippet } from "svelte";
-  import { Flag, LogOut, Settings, Waves, ClipboardList } from "@lucide/svelte";
+  import { Flag, LogOut, Settings, ClipboardList } from "@lucide/svelte";
   import AnchoredPopover from "$lib/components/ui/AnchoredPopover.svelte";
   import { isPlatformSuperAdmin } from "$lib/admin/platform-role";
 
@@ -16,7 +16,6 @@
   let {
     user,
     initials,
-    hasFloodRisk,
     accountMenuItems,
     accountOpen = $bindable(false),
     onCloseChrome,
@@ -25,7 +24,6 @@
   }: {
     user?: ShellUser | null;
     initials: string;
-    hasFloodRisk: boolean;
     accountMenuItems?: Snippet;
     accountOpen?: boolean;
     compact?: boolean;
@@ -76,12 +74,6 @@
       <div class="truncate font-medium">{user?.name || "Usuário"}</div>
       <div class="truncate text-xs text-app-muted">{user?.email}</div>
     </div>
-    {#if hasFloodRisk}
-      <a href="/floodrisk" role="menuitem" class="flex items-center gap-2 px-3 py-2 hover:bg-app-surface-muted" onclick={onCloseChrome}>
-        <Waves class="h-4 w-4" />
-        <span>Risco enchente</span>
-      </a>
-    {/if}
     {#if isPlatformSuperAdmin(user)}
       <a href="/admin/feature-flags" role="menuitem" class="flex items-center gap-2 px-3 py-2 hover:bg-app-surface-muted" onclick={onCloseChrome}>
         <Flag class="h-4 w-4" />

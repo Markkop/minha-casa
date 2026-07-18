@@ -1,5 +1,5 @@
 <script lang="ts">
-  import FeatureTestBanner from "$lib/addons/FeatureTestBanner.svelte";
+  import FeatureTestBanner from "$lib/tools/FeatureTestBanner.svelte";
   import FloodRiskClient from "$lib/floodrisk/FloodRiskClient.svelte";
   import FloodRiskQuerySync from "$lib/floodrisk/FloodRiskQuerySync.svelte";
   import WorkspaceListingQuerySync from "$lib/components/workspace/WorkspaceListingQuerySync.svelte";

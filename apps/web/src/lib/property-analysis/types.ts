@@ -23,7 +23,7 @@ export type AmbienteCategoria =
   | "areaServico"
   | "varanda"
   | "areaExterna"
-  | "garagem"
+  | "parkingSpots"
   | "fachada"
   | "areaComum"
   | "circulacao"
@@ -104,7 +104,7 @@ export interface InventoryItem {
 
 export interface PontoAtencao {
   id: string
-  titulo: string
+  title: string
   descricao: string
   custoMinBrl: number
   custoMaxBrl: number

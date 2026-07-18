@@ -4,14 +4,14 @@ import type { MatrixAxis, MatrixCell, MatrixData, MatrixMetric } from "./types";
 import type { ShortListing } from "$lib/workspace/client";
 
 function axisValue(listing: ShortListing, axis: MatrixAxis): string {
-  if (axis === "quartos") return listing.quartos != null ? String(listing.quartos) : "-";
-  if (axis === "banheiros") return listing.banheiros != null ? String(listing.banheiros) : "-";
+  if (axis === "bedrooms") return listing.bedrooms != null ? String(listing.bedrooms) : "-";
+  if (axis === "bathrooms") return listing.bathrooms != null ? String(listing.bathrooms) : "-";
   if (axis === "vagas") return listing.vagas != null ? String(listing.vagas) : "-";
-  if (axis === "bairro") return listing.bairro ?? "-";
-  if (axis === "tipo_imovel") return listing.tipoImovel ?? "-";
+  if (axis === "neighborhood") return listing.neighborhood ?? "-";
+  if (axis === "tipo_imovel") return listing.propertyType ?? "-";
   if (axis === "portal") return portalLabels[listing.portal] ?? listing.portal;
   if (axis === "area_bucket") return bucketArea(listing.areaPrivada ?? listing.areaTotal);
-  if (axis === "preco_bucket") return bucketPrice(listing.preco);
+  if (axis === "preco_bucket") return bucketPrice(listing.price);
   return "-";
 }
 
@@ -33,7 +33,7 @@ function bucketPrice(priceValue: number | null | undefined) {
 
 function metricValue(listings: ShortListing[], metric: MatrixMetric): number | null {
   const values = listings
-    .map((listing) => (metric === "median_preco" ? listing.preco : metric === "count" ? 1 : listing.precoM2))
+    .map((listing) => (metric === "median_preco" ? listing.price : metric === "count" ? 1 : listing.pricePerM2))
     .filter((value): value is number => typeof value === "number" && Number.isFinite(value));
   if (metric === "count") return values.length;
   if (values.length === 0) return null;

@@ -12,7 +12,7 @@
     <h2 class="text-xl font-semibold">Dados que coletamos</h2>
     <ul class="list-disc space-y-2 pl-6 text-muted-foreground">
       <li>Dados de conta, como nome, email, imagem de perfil e identificadores retornados por provedores de autenticação, incluindo Google.</li>
-      <li>Conteúdo criado no app, como coleções, anúncios, organizações, preferências e dados importados pelo usuário.</li>
+      <li>Conteúdo criado no app, como coleções, imóveis, organizações, preferências e dados importados pelo usuário.</li>
       <li>Dados de assinatura e pagamento necessários para processar planos, cobranças e acesso a recursos pagos.</li>
       <li>Cookies e tokens de sessão usados para manter o usuário autenticado e proteger rotas privadas.</li>
       <li>Dados do assistente WhatsApp (Meta), como identificador WhatsApp, número de telefone, mensagens enviadas ao bot e eventos de webhook, quando você conecta ou usa o canal.</li>

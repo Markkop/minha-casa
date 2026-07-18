@@ -97,8 +97,8 @@
         {#each state.selectedMatrixCell.listings as listing (listing.id)}
           <li class="flex items-start justify-between gap-2 border-b border-app-border pb-2 last:border-b-0">
             <div>
-              <p class="font-medium">{listing.title ?? "Sem titulo"}</p>
-              <p class="text-app-muted">{portalLabels[listing.portal]} · {listing.bairro ?? "-"} · {formatNumber(listing.precoM2)} R$/m2 · {money(listing.preco)}</p>
+              <p class="font-medium">{listing.title ?? "Sem título"}</p>
+              <p class="text-app-muted">{portalLabels[listing.portal]} · {listing.neighborhood ?? "-"} · {formatNumber(listing.pricePerM2)} R$/m2 · {money(listing.price)}</p>
             </div>
             <a class="shrink-0 underline" href={listing.sourceUrl} target="_blank" rel="noreferrer">Ver</a>
           </li>

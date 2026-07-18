@@ -7,7 +7,7 @@ export function isSafeRedirectPath(path: string | null): path is string {
   return true;
 }
 
-export function safeRedirectPath(path: string | null, fallback = "/anuncios") {
+export function safeRedirectPath(path: string | null, fallback = "/lista") {
   return isSafeRedirectPath(path) ? path : fallback;
 }
 

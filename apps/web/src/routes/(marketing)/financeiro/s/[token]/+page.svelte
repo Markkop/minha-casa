@@ -1,5 +1,5 @@
 <script lang="ts">
-  import CollectionsProvider from "$lib/components/anuncios/CollectionsProvider.svelte";
+  import CollectionsProvider from "$lib/components/listings/CollectionsProvider.svelte";
   import FinanceiroSharedImportPopover from "$lib/components/financiamento/FinanceiroSharedImportPopover.svelte";
   import SettingsProvider from "$lib/components/financiamento/SettingsProvider.svelte";
   import SimulatorClient from "$lib/components/financiamento/SimulatorClient.svelte";

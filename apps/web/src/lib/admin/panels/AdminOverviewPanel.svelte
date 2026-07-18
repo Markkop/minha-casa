@@ -28,7 +28,7 @@
         ["Assinaturas", admin.stats.activeSubscriptions],
         ["Famílias e imobiliárias", admin.organizations.length],
         ["Coleções", admin.stats.totalCollections],
-        ["Anúncios", admin.stats.totalListings],
+        ["Imóveis", admin.stats.totalListings],
         ["Novos em 30 dias", admin.stats.recentUsers]
       ] as item}
         <div class="rounded-md border border-app-border bg-app-surface p-4">

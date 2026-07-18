@@ -27,8 +27,8 @@ export const defaultBlocks: ElementHeight[] = [
   { id: "talude", name: "Talude", height_rel_creek: 1.2, x_pos: 2.75, width: 1.5, depth: 10, color: colors.slope },
   { id: "rua", name: "Nivel Rua", height_rel_creek: 2, x_pos: 5.5, width: 4, depth: 10, color: colors.street },
   { id: "calcada", name: "Calcada", height_rel_creek: 2.15, x_pos: 9, width: 3, depth: 10, color: colors.sidewalk },
-  { id: "garagem", name: "Piso Garagem", height_rel_creek: 2.4, x_pos: 12, width: 3, depth: 10, color: colors.garage },
-  { id: "casa", name: "Piso Casa", height_rel_creek: 2.7, x_pos: 16.5, width: 6, depth: 10, color: colors.houseGround },
+  { id: "parkingSpots", name: "Piso Garagem", height_rel_creek: 2.4, x_pos: 12, width: 3, depth: 10, color: colors.garage },
+  { id: "house", name: "Piso Casa", height_rel_creek: 2.7, x_pos: 16.5, width: 6, depth: 10, color: colors.houseGround },
   { id: "quintal", name: "Quintal", height_rel_creek: 2.5, x_pos: 21.5, width: 4, depth: 10, color: colors.garden }
 ];
 

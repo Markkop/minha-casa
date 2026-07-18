@@ -8,9 +8,79 @@ defmodule MinhaCasaAiWeb.McpController do
   alias MinhaCasaAi.Listings
   alias MinhaCasaAi.Listings.Collection
   alias MinhaCasaAi.Listings.CollectionPolicy
+  alias MinhaCasaAi.Listings.ListingData
   alias MinhaCasaAi.Workspace.SavedLinks
   alias MinhaCasaAi.Workspace.Profile
   alias MinhaCasaAiWeb.SavedLinkJSON
+
+  @listing_data_schema %{
+    type: "object",
+    properties: %{
+      title: %{type: ["string", "null"]},
+      manualTitle: %{type: ["string", "null"]},
+      address: %{type: ["string", "null"]},
+      neighborhood: %{type: ["string", "null"]},
+      city: %{type: ["string", "null"]},
+      totalAreaM2: %{type: ["number", "null"]},
+      privateAreaM2: %{type: ["number", "null"]},
+      bedrooms: %{type: ["number", "null"]},
+      suites: %{type: ["number", "null"]},
+      bathrooms: %{type: ["number", "null"]},
+      parkingSpots: %{type: ["number", "null"]},
+      constructionYear: %{type: ["integer", "null"], minimum: 1000, maximum: 9999},
+      price: %{type: ["number", "null"]},
+      pricePerM2: %{type: ["number", "null"]},
+      floor: %{type: ["number", "null"]},
+      propertyType: %{type: ["string", "null"], enum: ["house", "apartment", nil]},
+      stage: %{
+        type: ["string", "null"],
+        enum: [
+          "analyzing",
+          "considering",
+          "scheduling_visit",
+          "visit_scheduled",
+          "visiting",
+          "visited",
+          "negotiating",
+          "offer_submitted",
+          "on_hold",
+          "discarding",
+          "discarded",
+          "sold",
+          nil
+        ]
+      },
+      sourceUrl: %{type: ["string", "null"]},
+      notes: %{type: ["string", "null"]},
+      features: %{type: "object", additionalProperties: %{type: ["boolean", "null"]}},
+      contactName: %{type: ["string", "null"]},
+      contactNumber: %{type: ["string", "null"]},
+      condominiumName: %{type: ["string", "null"]},
+      condominiumId: %{type: ["string", "null"]},
+      regionId: %{type: ["string", "null"]},
+      coverImageIndex: %{type: ["integer", "null"], minimum: 0},
+      imageUrl: %{type: ["string", "null"]},
+      imageUrls: %{type: ["array", "null"], items: %{type: "string"}},
+      imageStorageKeys: %{type: ["array", "null"], items: %{type: "string"}},
+      imageFingerprints: %{type: ["array", "null"], items: %{type: "object"}},
+      imageEnvironments: %{type: ["array", "null"], items: %{type: "object"}},
+      imageIngestionStatus: %{
+        type: ["string", "null"],
+        enum: ["idle", "pending", "processing", "ready", "failed", nil]
+      },
+      imageIngestionError: %{type: ["string", "null"]},
+      starred: %{type: ["boolean", "null"]},
+      visited: %{type: ["boolean", "null"]},
+      strikethrough: %{type: ["boolean", "null"]},
+      discardedReason: %{type: ["string", "null"]},
+      addedAt: %{type: ["string", "null"]},
+      sitePublishedAt: %{type: ["string", "null"]},
+      siteUpdatedAt: %{type: ["string", "null"]},
+      customLat: %{type: ["number", "null"]},
+      customLng: %{type: ["number", "null"]}
+    },
+    additionalProperties: false
+  }
 
   @tools [
     %{
@@ -33,7 +103,7 @@ defmodule MinhaCasaAiWeb.McpController do
         type: "object",
         properties: %{
           collectionId: %{type: "string"},
-          data: %{type: "object"}
+          data: @listing_data_schema
         },
         required: ["collectionId", "data"]
       }
@@ -45,7 +115,7 @@ defmodule MinhaCasaAiWeb.McpController do
         type: "object",
         properties: %{
           collectionId: %{type: "string"},
-          data: %{type: "object"}
+          data: @listing_data_schema
         },
         required: ["data"]
       }
@@ -77,7 +147,7 @@ defmodule MinhaCasaAiWeb.McpController do
         properties: %{
           collectionId: %{type: "string"},
           listingId: %{type: "string"},
-          data: %{type: "object"}
+          data: @listing_data_schema
         },
         required: ["collectionId", "listingId", "data"]
       }
@@ -195,7 +265,11 @@ defmodule MinhaCasaAiWeb.McpController do
          {:ok, listing} <-
            Listings.save_listing(collection_id, data, user_id: user_id, org_id: org_id) do
       encode(%{
-        listing: %{id: listing.id, collectionId: listing.collection_id, data: listing.data}
+        listing: %{
+          id: listing.id,
+          collectionId: listing.collection_id,
+          data: ListingData.normalize(listing.data || %{})
+        }
       })
     else
       {:error, :forbidden} -> error_result("adding listings is not allowed in this profile")
@@ -222,7 +296,7 @@ defmodule MinhaCasaAiWeb.McpController do
          match?({:ok, _, _}, CollectionPolicy.authorize(actor.user_id, collection_id, :view)) do
       listings =
         Listings.list_listings(collection_id, limit: limit)
-        |> Enum.map(fn l -> %{id: l.id, data: l.data} end)
+        |> Enum.map(fn l -> %{id: l.id, data: ListingData.normalize(l.data || %{})} end)
 
       encode(%{listings: listings})
     else
@@ -246,7 +320,7 @@ defmodule MinhaCasaAiWeb.McpController do
              user_id: actor.user_id,
              org_id: actor.org_id
            ) do
-      encode(%{listing: %{id: listing.id, data: listing.data}})
+      encode(%{listing: %{id: listing.id, data: ListingData.normalize(listing.data || %{})}})
     else
       {:error, reason} -> error_result(inspect(reason))
     end

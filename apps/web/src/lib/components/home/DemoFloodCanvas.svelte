@@ -38,7 +38,7 @@
       color: floodSceneColors.sidewalk
     },
     {
-      id: "casa",
+      id: "house",
       name: "Piso Casa",
       height_rel_creek: 2.7,
       x_pos: 8.5,
@@ -185,7 +185,7 @@
     top.receiveShadow = true;
     group.add(top);
 
-    if (block.id === "casa") group.add(createHouse(block));
+    if (block.id === "house") group.add(createHouse(block));
     return group;
   }
 

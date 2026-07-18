@@ -85,7 +85,7 @@
       <p class="mt-3 text-sm leading-6 text-app-muted">
         Sua conta foi vinculada. Volte ao Telegram e envie anuncios, links ou arquivos para analise.
       </p>
-      <Button class="mt-6 w-full" onclick={() => void goto("/anuncios")}>Ir para anuncios</Button>
+      <Button class="mt-6 w-full" onclick={() => void goto("/lista")}>Ir para Lista</Button>
     {:else}
       <p class="mt-3 text-sm leading-6 text-app-muted">
         Envie uma mensagem para o bot no Telegram para receber um link com codigo de conexao.

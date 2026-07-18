@@ -90,13 +90,13 @@
         onchange={(event) => {
           const value = event.currentTarget.value;
           rowEdit.updateDraft({
-            propertyType: value === "none" ? null : (value as "casa" | "apartamento")
+            propertyType: value === "none" ? null : (value as "house" | "apartment")
           });
         }}
       >
         <option value="none">—</option>
-        <option value="casa">Casa</option>
-        <option value="apartamento">Apartamento</option>
+        <option value="house">Casa</option>
+        <option value="apartment">Apartamento</option>
       </select>
     {:else if condominium.propertyType}
       <span class="capitalize">{condominium.propertyType}</span>
@@ -128,7 +128,7 @@
   </WorkspaceTableCell>
   <WorkspaceTableCell>
     <span class="rounded-full bg-app-surface-muted px-2 py-0.5 text-xs text-app-muted">
-      {condominium.source === "listing" ? "anúncio" : "manual"}
+      {condominium.source === "listing" ? "imóvel" : "manual"}
     </span>
   </WorkspaceTableCell>
   <WorkspaceTableActions>

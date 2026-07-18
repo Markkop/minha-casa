@@ -1,5 +1,5 @@
-import type { Imovel } from "$lib/anuncios/types";
-import { getTipoImovelOption } from "$lib/components/anuncios/listings-table-shared";
+import type { Property } from "$lib/listings/types";
+import { getPropertyTypeOption } from "$lib/components/listings/listings-table-shared";
 import { resolveListingDisplayTitle } from "$lib/listing-display-title";
 
 const OUTPUT_FORMAT = `
@@ -23,7 +23,7 @@ Para cada cenario, use um bloco:
 #SCENARIO_START
 #SCENARIO_KIND=current|historical|future
 #SCENARIO_YEAR=
-#SCENARIO_LABEL= (titulo curto, no maximo 5 palavras)
+#SCENARIO_LABEL= (title curto, no maximo 5 palavras)
 #SCENARIO_RAIN_24H_MM=
 #SCENARIO_WATER_LEVEL_M_RELATIVE_TO_STREET=
 #SCENARIO_CONFIDENCE=
@@ -41,21 +41,21 @@ Interpretacao das cotas:
 - SCENARIO_WATER_LEVEL_M_RELATIVE_TO_STREET: positivo = agua acima da rua, negativo = abaixo da rua
 `.trim();
 
-export function buildFloodRiskPrompt(listing: Imovel | null): string {
+export function buildFloodRiskPrompt(listing: Property | null): string {
   if (!listing) return "";
 
   const title = resolveListingDisplayTitle(listing);
-  const tipo = getTipoImovelOption(listing.tipoImovel).label;
-  const addressParts = [listing.endereco, listing.bairro, listing.cidade].filter(Boolean);
+  const tipo = getPropertyTypeOption(listing.propertyType).label;
+  const addressParts = [listing.address, listing.neighborhood, listing.city].filter(Boolean);
   const address = addressParts.join(", ") || "Endereco nao informado";
 
   const hasCoords = listing.customLat != null && listing.customLng != null;
   const coordsSection = hasCoords
     ? `Coordenadas informadas pelo usuario: latitude ${listing.customLat}, longitude ${listing.customLng}.`
-    : "Coordenadas customizadas nao informadas. Estime com base no endereco e registre incertezas em #ASSUMPTIONS=.";
+    : "Coordenadas customizadas nao informadas. Estime com base no address e registre incertezas em #ASSUMPTIONS=.";
 
   return [
-    "Voce e um assistente de analise de risco de enchente para imoveis no Brasil.",
+    "Você é um assistente de análise de risco de enchente para imóveis no Brasil.",
     "Esta e uma estimativa informativa para apoio a decisao — NAO substitui laudo tecnico, ART ou estudo hidrologico.",
     "",
     "=== IMOVEL ===",

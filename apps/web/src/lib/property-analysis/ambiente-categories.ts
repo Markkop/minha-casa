@@ -9,7 +9,7 @@ export const CATEGORIA_LABELS: Record<AmbienteCategoria, string> = {
   areaServico: "Área de serviço",
   varanda: "Varanda",
   areaExterna: "Área externa",
-  garagem: "Garagem",
+  parkingSpots: "Garagem",
   fachada: "Fachada",
   areaComum: "Área comum",
   circulacao: "Circulação",

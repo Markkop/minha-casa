@@ -3,7 +3,6 @@
   import { page } from "$app/state";
   import { AlertCircle, Calendar, Check, CheckCircle, Crown, FlaskConical } from "@lucide/svelte";
   import { billingApi } from "$lib/billing/client";
-  import GrantedAddonsSection from "$lib/addons/GrantedAddonsSection.svelte";
   import Button from "$lib/components/ui/Button.svelte";
   import type { AdminPlan, AdminSubscription } from "$lib/admin/client";
   import { isSafeRedirectPath } from "$lib/navigation/safe-redirect";
@@ -188,10 +187,6 @@
         </section>
       {/if}
 
-      <div class="mb-8">
-        <GrantedAddonsSection />
-      </div>
-
       <section>
         <h2 class="mb-6 text-center text-2xl font-semibold">Planos disponíveis</h2>
         <div class="grid gap-6 sm:grid-cols-2 xl:grid-cols-4">
@@ -226,7 +221,7 @@
               </ul>
               {#if plan.slug === "free"}
                 <a
-                  href="/anuncios"
+                  href="/lista"
                   class={`mt-6 flex h-11 items-center justify-center rounded-md font-medium ${current ? "bg-app-surface-muted text-app-muted" : "border border-app-border bg-white text-app-fg"}`}
                 >
                   {current ? "Plano atual" : "Usar Free"}

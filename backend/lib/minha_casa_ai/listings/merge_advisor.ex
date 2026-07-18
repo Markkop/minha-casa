@@ -11,7 +11,7 @@ defmodule MinhaCasaAi.Listings.MergeAdvisor do
   alias MinhaCasaAi.Integrations.{OpenAIResponses, OpenAISchemas}
 
   @data_drop_keys ~w(
-    imageStorageKeys imageFingerprints imageCategories imageEnvironments
+    imageStorageKeys imageFingerprints imageEnvironments
     imageIngestionStatus imageIngestionError imageUrls
   )
 

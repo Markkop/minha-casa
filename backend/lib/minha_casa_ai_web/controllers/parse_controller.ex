@@ -6,7 +6,7 @@ defmodule MinhaCasaAiWeb.ParseController do
   alias MinhaCasaAi.Listings.DisplayTitle
   alias MinhaCasaAi.Organizations.Organization
   alias MinhaCasaAi.Repo
-  alias MinhaCasaAi.Workspace.{ListingPreferences, Profile}
+  alias MinhaCasaAi.Workspace.{ListingFeatures, Profile}
 
   def create(conn, params) do
     input = Map.merge(conn.body_params, params)
@@ -86,8 +86,8 @@ defmodule MinhaCasaAiWeb.ParseController do
            conn.assigns[:current_org_id],
            conn.assigns[:current_workspace_id]
          ) do
-      {:error, :missing_profile} -> ListingPreferences.default_system_options()
-      profile -> ListingPreferences.list_catalog(profile)
+      {:error, :missing_profile} -> ListingFeatures.default_system_options()
+      profile -> ListingFeatures.list_catalog(profile)
     end
   end
 

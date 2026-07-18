@@ -36,9 +36,9 @@ defmodule MinhaCasaAi.Integrations.LangfuseTest do
     prompt = PromptDefinitions.get("hermes/step/idade")["prompt"]
 
     assert prompt =~ "Ano civil atual: {{current_year}}"
-    assert prompt =~ "anoConstrucao válido, esse ano é autoritativo"
-    assert prompt =~ "{{current_year}} - anoConstrucao"
-    assert prompt =~ "anoConstrucao futuro"
+    assert prompt =~ "constructionYear válido, esse ano é autoritativo"
+    assert prompt =~ "{{current_year}} - constructionYear"
+    assert prompt =~ "constructionYear futuro"
   end
 
   test "merge advisor includes construction year among useful improvements" do

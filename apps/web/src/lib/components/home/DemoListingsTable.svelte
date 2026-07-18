@@ -14,12 +14,12 @@
   import Card from "$lib/components/ui/Card.svelte";
   import Input from "$lib/components/ui/Input.svelte";
   import Tooltip from "$lib/components/ui/Tooltip.svelte";
-  import type { Imovel } from "$lib/anuncios/types";
+  import type { Property } from "$lib/listings/types";
   import { cn } from "$lib/utils";
 
-  type SortKey = "titulo" | "m2Totais" | "m2Privado" | "quartos" | "preco" | "precoM2" | "addedAt";
+  type SortKey = "title" | "totalAreaM2" | "privateAreaM2" | "bedrooms" | "price" | "pricePerM2" | "addedAt";
   type SortDirection = "asc" | "desc";
-  type PropertyTypeFilter = "all" | "casa" | "apartamento";
+  type PropertyTypeFilter = "all" | "house" | "apartment";
 
   interface SortState {
     key: SortKey;
@@ -31,13 +31,13 @@
     onUpdateListing,
     onDeleteListing
   } = $props<{
-    listings: Imovel[];
-    onUpdateListing: (id: string, updates: Partial<Imovel>) => void;
+    listings: Property[];
+    onUpdateListing: (id: string, updates: Partial<Property>) => void;
     onDeleteListing: (id: string) => void;
   }>();
 
   let searchQuery = $state("");
-  let sort = $state<SortState>({ key: "preco", direction: "desc" });
+  let sort = $state<SortState>({ key: "price", direction: "desc" });
   let propertyTypeFilter = $state<PropertyTypeFilter>("all");
   let showStrikethrough = $state(true);
 
@@ -48,7 +48,7 @@
     };
   }
 
-  const filteredListings = $derived.by((): Imovel[] => {
+  const filteredListings = $derived.by((): Property[] => {
     const source = listings;
     const query = searchQuery;
     const currentSort = sort;
@@ -56,15 +56,15 @@
     const includeStrikethrough = showStrikethrough;
 
     return source
-      .filter((listing: Imovel) => {
+      .filter((listing: Property) => {
         if (query) {
           const normalizedQuery = query.toLowerCase();
-          const matchesTitle = listing.titulo.toLowerCase().includes(normalizedQuery);
-          const matchesAddress = listing.endereco.toLowerCase().includes(normalizedQuery);
+          const matchesTitle = listing.title.toLowerCase().includes(normalizedQuery);
+          const matchesAddress = listing.address.toLowerCase().includes(normalizedQuery);
           if (!matchesTitle && !matchesAddress) return false;
         }
 
-        if (typeFilter !== "all" && listing.tipoImovel !== typeFilter) {
+        if (typeFilter !== "all" && listing.propertyType !== typeFilter) {
           return false;
         }
 
@@ -72,26 +72,26 @@
 
         return true;
       })
-      .sort((a: Imovel, b: Imovel) => {
+      .sort((a: Property, b: Property) => {
         const { key, direction } = currentSort;
         const multiplier = direction === "asc" ? 1 : -1;
 
-        let valA: string | number | boolean | null | undefined = a[key as keyof Imovel] as
+        let valA: string | number | boolean | null | undefined = a[key as keyof Property] as
           | string
           | number
           | boolean
           | null
           | undefined;
-        let valB: string | number | boolean | null | undefined = b[key as keyof Imovel] as
+        let valB: string | number | boolean | null | undefined = b[key as keyof Property] as
           | string
           | number
           | boolean
           | null
           | undefined;
 
-        if (key === "precoM2") {
-          valA = a.preco && a.m2Privado ? a.preco / a.m2Privado : 0;
-          valB = b.preco && b.m2Privado ? b.preco / b.m2Privado : 0;
+        if (key === "pricePerM2") {
+          valA = a.price && a.privateAreaM2 ? a.price / a.privateAreaM2 : 0;
+          valB = b.price && b.privateAreaM2 ? b.price / b.privateAreaM2 : 0;
         }
 
         if (valA === null || valA === undefined) return 1;
@@ -168,8 +168,8 @@
           class="h-10 w-[140px] rounded-md border border-app-border bg-app-surface px-3 text-sm text-app-fg shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-action"
         >
           <option value="all">Todos tipos</option>
-          <option value="casa">Casas</option>
-          <option value="apartamento">Aptos</option>
+          <option value="house">Casas</option>
+          <option value="apartment">Aptos</option>
         </select>
       </div>
     </div>
@@ -197,12 +197,12 @@
         <thead>
           <tr class="border-b border-app-border hover:bg-transparent">
             <th class="w-[50px] px-3 py-2"></th>
-            {@render sortableHeader("Título", "titulo")}
-            {@render sortableHeader("Total", "m2Totais", "center")}
-            {@render sortableHeader("Priv.", "m2Privado", "center")}
-            {@render sortableHeader("Quartos", "quartos", "center")}
-            {@render sortableHeader("Preço", "preco", "right")}
-            {@render sortableHeader("Preço/m²", "precoM2", "right")}
+            {@render sortableHeader("Título", "title")}
+            {@render sortableHeader("Total", "totalAreaM2", "center")}
+            {@render sortableHeader("Priv.", "privateAreaM2", "center")}
+            {@render sortableHeader("Quartos", "bedrooms", "center")}
+            {@render sortableHeader("Preço", "price", "right")}
+            {@render sortableHeader("Preço/m²", "pricePerM2", "right")}
             <th class="w-[120px] px-3 py-2 text-right text-xs font-medium text-app-muted">Ações</th>
           </tr>
         </thead>
@@ -241,34 +241,34 @@
                         listing.strikethrough && "line-through"
                       )}
                     >
-                      {#if listing.tipoImovel === "casa"}
+                      {#if listing.propertyType === "house"}
                         <Home class="h-3 w-3 text-app-subtle" />
                       {:else}
                         <Building class="h-3 w-3 text-app-subtle" />
                       {/if}
-                      {listing.titulo}
+                      {listing.title}
                     </span>
-                    <span class="text-xs text-app-muted">{listing.endereco}</span>
+                    <span class="text-xs text-app-muted">{listing.address}</span>
                   </div>
                 </td>
                 <td class="px-3 py-2 text-center text-app-fg">
-                  {listing.m2Totais !== null ? `${formatNumber(listing.m2Totais)} m²` : "—"}
+                  {listing.totalAreaM2 !== null ? `${formatNumber(listing.totalAreaM2)} m²` : "—"}
                 </td>
                 <td class="px-3 py-2 text-center text-app-fg">
-                  {listing.m2Privado !== null ? `${formatNumber(listing.m2Privado)} m²` : "—"}
+                  {listing.privateAreaM2 !== null ? `${formatNumber(listing.privateAreaM2)} m²` : "—"}
                 </td>
                 <td class="px-3 py-2 text-center text-app-fg">
                   <div class="flex items-center justify-center gap-1">
                     <BedDouble class="h-3 w-3 text-app-subtle" />
-                    {listing.quartos || "—"}
+                    {listing.bedrooms || "—"}
                   </div>
                 </td>
                 <td class="px-3 py-2 text-right font-bold text-app-fg">
-                  {formatCurrency(listing.preco)}
+                  {formatCurrency(listing.price)}
                 </td>
                 <td class="px-3 py-2 text-right text-app-muted">
-                  {listing.preco && listing.m2Privado
-                    ? formatCurrency(listing.preco / listing.m2Privado)
+                  {listing.price && listing.privateAreaM2
+                    ? formatCurrency(listing.price / listing.privateAreaM2)
                     : "—"}
                 </td>
                 <td class="px-3 py-2 text-right">

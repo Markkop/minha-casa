@@ -4,7 +4,7 @@
   import AdminAuditPanel from "$lib/admin/panels/AdminAuditPanel.svelte";
   import AdminGrantsPanel from "$lib/admin/panels/AdminGrantsPanel.svelte";
   import AdminOverviewPanel from "$lib/admin/panels/AdminOverviewPanel.svelte";
-  import AdminOrgAddonsPanel from "$lib/admin/panels/AdminOrgAddonsPanel.svelte";
+  import AdminOrganizationsPanel from "$lib/admin/panels/AdminOrganizationsPanel.svelte";
   import AdminPlansPanel from "$lib/admin/panels/AdminPlansPanel.svelte";
   import AdminUsersPanel from "$lib/admin/panels/AdminUsersPanel.svelte";
   import { createAdminState } from "$lib/admin/panels/use-admin-state.svelte";
@@ -47,7 +47,7 @@
     {:else if admin.panel === "plans"}
       <AdminPlansPanel {admin} />
     {:else if admin.panel === "workspaces"}
-      <AdminOrgAddonsPanel {admin} />
+      <AdminOrganizationsPanel {admin} />
     {:else}
       <AdminAuditPanel {admin} />
     {/if}

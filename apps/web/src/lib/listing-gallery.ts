@@ -1,5 +1,5 @@
-import type { Imovel } from "$lib/anuncios/types";
-import { normalizeCoverIndex } from "$lib/listing-image-categories";
+import type { Property } from "$lib/listings/types";
+import { normalizeCoverIndex } from "$lib/listing-images-core";
 import {
   resolveEnvironmentColumns,
   resolveGalleryImagesFromEnvironments,
@@ -10,23 +10,23 @@ import { resolveListingImages } from "$lib/listing-images";
 
 export type { GalleryImage };
 
-export function resolveListingGalleryImages(listing: Imovel): GalleryImage[] {
+export function resolveListingGalleryImages(listing: Property): GalleryImage[] {
   const resolved = resolveListingImages({
     listingId: listing.id,
     imageUrl: listing.imageUrl,
     imageUrls: listing.imageUrls,
     imageStorageKeys: listing.imageStorageKeys,
-    imageCoverIndex: listing.imageCoverIndex
+    coverImageIndex: listing.coverImageIndex
   });
 
-  const coverIndex = normalizeCoverIndex(listing.imageCoverIndex, resolved.imageUrls.length);
+  const coverIndex = normalizeCoverIndex(listing.coverImageIndex, resolved.imageUrls.length);
   const columns = resolveEnvironmentColumns(listing, resolved.imageUrls.length);
 
   return resolveGalleryImagesFromEnvironments(resolved.imageUrls, coverIndex, columns);
 }
 
 export function getImageEnvironmentLabel(
-  listing: Imovel,
+  listing: Property,
   imageIndex: number
 ): string | null {
   const resolved = resolveListingImages({
@@ -34,7 +34,7 @@ export function getImageEnvironmentLabel(
     imageUrl: listing.imageUrl,
     imageUrls: listing.imageUrls,
     imageStorageKeys: listing.imageStorageKeys,
-    imageCoverIndex: listing.imageCoverIndex
+    coverImageIndex: listing.coverImageIndex
   });
 
   const columns = resolveEnvironmentColumns(listing, resolved.imageUrls.length);

@@ -5,6 +5,7 @@ defmodule MinhaCasaAi.PropertyAnalyses.HermesBundle do
 
   alias MinhaCasaAi.Config
   alias MinhaCasaAi.ListingImages
+  alias MinhaCasaAi.Listings.ListingData
   alias MinhaCasaAi.PropertyAnalyses.{ImageSources, Limits, ListingFacts}
 
   def prepare!(analysis, listing) do
@@ -12,7 +13,7 @@ defmodule MinhaCasaAi.PropertyAnalyses.HermesBundle do
     File.rm_rf!(root)
     File.mkdir_p!(Path.join(root, "images"))
 
-    listing_data = listing.data || %{}
+    listing_data = ListingData.normalize(listing.data || %{})
 
     sources =
       listing.id

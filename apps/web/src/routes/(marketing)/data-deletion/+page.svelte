@@ -24,7 +24,7 @@
     <h2 class="text-xl font-semibold">Quais dados podemos excluir</h2>
     <ul class="list-disc space-y-2 pl-6 text-muted-foreground">
       <li><strong>WhatsApp (Meta):</strong> identificador WhatsApp, número de telefone, códigos de vinculação, eventos de webhook e histórico de conversas do bot vinculado à sua conta.</li>
-      <li><strong>Conta Minha Casa:</strong> perfil, email, sessões, coleções, anúncios importados, organizações e demais conteúdo criado no aplicativo.</li>
+      <li><strong>Conta Minha Casa:</strong> perfil, email, sessões, coleções, imóveis importados, organizações e demais conteúdo criado no aplicativo.</li>
       <li><strong>Telegram (se conectado):</strong> identificador do chat, códigos de vinculação e dados associados ao bot no Telegram.</li>
     </ul>
   </section>

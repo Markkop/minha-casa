@@ -1,4 +1,4 @@
-import type { Imovel } from "$lib/anuncios/types";
+import type { Property } from "$lib/listings/types";
 import {
   fillBlankComparisonSlots,
   normalizeComparisonSlots,
@@ -35,7 +35,7 @@ export function resolveFixedCell(
 
 export function readStoredComparisonSelection(
   collectionId: string,
-  listings: Imovel[]
+  listings: Property[]
 ): { slots: ComparisonSlot[]; fixedCell: FixedCell | null } | null {
   if (typeof window === "undefined") return null;
 

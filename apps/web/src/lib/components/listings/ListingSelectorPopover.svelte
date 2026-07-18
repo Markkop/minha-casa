@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { Snippet } from "svelte";
-  import type { Imovel } from "$lib/anuncios/types";
-  import ToolbarAnchoredPopover from "$lib/components/anuncios/ToolbarAnchoredPopover.svelte";
+  import type { Property } from "$lib/listings/types";
+  import ToolbarAnchoredPopover from "$lib/components/listings/ToolbarAnchoredPopover.svelte";
   import ListingSelectorPanel from "$lib/components/listings/ListingSelectorPanel.svelte";
   import type { PanelAlign, PanelSide } from "$lib/floating-position";
   import {
@@ -26,9 +26,9 @@
     trigger
   }: {
     open?: boolean;
-    listings: Imovel[];
+    listings: Property[];
     selectedId: string | null;
-    onSelect: (listing: Imovel) => void;
+    onSelect: (listing: Property) => void;
     onClear?: () => void;
     clearLabel?: string;
     title?: string;
@@ -46,7 +46,7 @@
     if (!open) panel?.resetQuery();
   });
 
-  function handleSelect(listing: Imovel) {
+  function handleSelect(listing: Property) {
     onSelect(listing);
     open = false;
   }

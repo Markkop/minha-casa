@@ -41,7 +41,7 @@ defmodule MinhaCasaAi.Listings.MergeSessionsApplyTest do
       %Listing{}
       |> Listing.changeset(%{
         collection_id: collection.id,
-        data: %{"titulo" => "Atual", "preco" => 1_000_000, "starred" => true}
+        data: %{"title" => "Atual", "price" => 1_000_000, "starred" => true}
       })
       |> Repo.insert!()
 
@@ -81,15 +81,15 @@ defmodule MinhaCasaAi.Listings.MergeSessionsApplyTest do
     assert {:ok, updated} =
              MergeSessions.apply(session.id, %{"fieldPaths" => ["preco"], "imageRefs" => []})
 
-    assert updated.data["preco"] == 1_100_000
-    assert updated.data["titulo"] == "Atual"
+    assert updated.data["price"] == 1_100_000
+    assert updated.data["title"] == "Atual"
     assert updated.data["starred"] == true
 
     assert {:ok, same} =
              MergeSessions.apply(session.id, %{"fieldPaths" => ["titulo"], "imageRefs" => []})
 
     assert same.id == updated.id
-    assert same.data["titulo"] == "Atual"
+    assert same.data["title"] == "Atual"
   end
 
   test "applies edited text field values", %{collection: collection, listing: listing} do
@@ -105,7 +105,7 @@ defmodule MinhaCasaAi.Listings.MergeSessionsApplyTest do
                "imageRefs" => []
              })
 
-    assert updated.data["titulo"] == "Título editado"
+    assert updated.data["title"] == "Título editado"
   end
 
   test "applies typed number and boolean field values", %{
@@ -130,9 +130,9 @@ defmodule MinhaCasaAi.Listings.MergeSessionsApplyTest do
                "imageRefs" => []
              })
 
-    assert updated.data["preco"] == 1_250_000
-    assert updated.data["m2Privado"] == 85.5
-    assert updated.data["piscina"] == true
+    assert updated.data["price"] == 1_250_000
+    assert updated.data["privateAreaM2"] == 85.5
+    assert updated.data["features"]["pool"] == true
   end
 
   test "falls back to incoming value when typed override is invalid", %{
@@ -151,7 +151,7 @@ defmodule MinhaCasaAi.Listings.MergeSessionsApplyTest do
                "imageRefs" => []
              })
 
-    assert updated.data["preco"] == 1_100_000
+    assert updated.data["price"] == 1_100_000
   end
 
   test "rejects a stale target version", %{collection: collection, listing: listing} do

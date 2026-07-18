@@ -11,7 +11,7 @@
 
   const ctx = getCollectionsContext();
 
-  const WORKSPACE_LISTING_ROUTES = ["/analise", "/financeiro", "/floodrisk"] as const;
+  const WORKSPACE_LISTING_ROUTES = ["/financeiro", "/floodrisk"] as const;
 
   const isWorkspaceListingRoute = $derived(
     WORKSPACE_LISTING_ROUTES.some(

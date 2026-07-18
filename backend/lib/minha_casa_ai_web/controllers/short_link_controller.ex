@@ -41,14 +41,14 @@ defmodule MinhaCasaAiWeb.ShortLinkController do
     end
   end
 
-  defp redirect_target(%{collection_id: collection_id, listing_id: listing_id, data: data}) do
+  defp redirect_target(%{listing_id: listing_id, data: data}) do
     data = data || %{}
-    link = data["link"]
+    link = data["sourceUrl"] || data["link"]
 
     if valid_http_url?(link) do
       String.trim(link)
     else
-      "/anuncios?collection=#{collection_id}&listing=#{listing_id}"
+      "/imoveis/#{listing_id}"
     end
   end
 

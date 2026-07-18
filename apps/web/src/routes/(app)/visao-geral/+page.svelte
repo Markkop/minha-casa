@@ -49,8 +49,8 @@
 
   <div class="grid gap-3 md:grid-cols-2">
     {#each [
-      { title: "Importar ou revisar anuncios", description: "Use a colecao ativa para revisar e adicionar imoveis.", href: "/anuncios" },
-      { title: "Comparar favoritos", description: "Monte a comparacao com os imoveis da colecao ativa.", href: "/comparacao" },
+      { title: "Importar ou revisar imóveis", description: "Use a coleção ativa para revisar e adicionar imóveis.", href: "/lista" },
+      { title: "Comparar favoritos", description: "Monte a comparação com os imóveis da coleção ativa.", href: "/comparacao" },
       { title: "Completar referencias de regiao", description: `${counts.regions} regiao(oes) cadastrada(s).`, href: "/regioes" },
       { title: "Organizar contatos e links", description: `${counts.contacts} contato(s), ${counts.links} link(s) e ${counts.condominiums} condominio(s).`, href: "/contatos" }
     ] as step}

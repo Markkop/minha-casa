@@ -70,7 +70,6 @@
                 <Button class="h-8 px-3" variant="secondary" onclick={() => admin.openEditUser(user)}><Pencil class="h-4 w-4" /> Editar</Button>
                 <Button class="h-8 px-3" variant="secondary" onclick={() => admin.openGrantSubscription(user)}>Conceder</Button>
                 <Button class="h-8 px-3" variant="secondary" onclick={() => void admin.openSubscriptions(user)}>Assinaturas</Button>
-                <Button class="h-8 px-3" variant="secondary" onclick={() => void admin.openUserAddons(user)}>Addons</Button>
                 <Button class="h-8 px-3" variant="danger" onclick={() => void admin.deleteUser(user)}><Trash2 class="h-4 w-4" /></Button>
               </div>
             </td>
@@ -84,9 +83,7 @@
 {#if admin.userDetailsOpen && admin.selectedUser}
   <UserDetailsModal
     user={admin.selectedUser}
-    availableAddons={admin.addons}
     onClose={admin.closeUserDetails}
-    onUserUpdated={admin.loadAll}
   />
 {/if}
 

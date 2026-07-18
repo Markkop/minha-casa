@@ -1,7 +1,7 @@
 <script lang="ts">
   import { Check, ChevronDown, DollarSign, Pencil, Trash2 } from "@lucide/svelte";
   import PageToolbarButton from "$lib/components/page-toolbar/PageToolbarButton.svelte";
-  import ToolbarAnchoredPopover from "$lib/components/anuncios/ToolbarAnchoredPopover.svelte";
+  import ToolbarAnchoredPopover from "$lib/components/listings/ToolbarAnchoredPopover.svelte";
   import Input from "$lib/components/ui/Input.svelte";
   import type { SimulatorScenarioSnapshot } from "$lib/financiamento/simulator-scenarios-storage";
   import { cn } from "$lib/utils";

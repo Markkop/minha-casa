@@ -2,13 +2,13 @@
   import { PanelLeft, PanelRight } from "@lucide/svelte";
   import { cn } from "$lib/utils";
   import { workspaceChromeRowClass, workspaceTopBarControlClass } from "$lib/workspace-chrome";
-  import AnaliseListingBreadcrumb from "$lib/components/analise/AnaliseListingBreadcrumb.svelte";
+  import PropertyBreadcrumb from "$lib/components/property-details/PropertyBreadcrumb.svelte";
   import CollectionBreadcrumb from "$lib/components/workspace/CollectionBreadcrumb.svelte";
   import OrganizationSwitcher from "$lib/components/workspace/OrganizationSwitcher.svelte";
 
   let {
     showSubscriptionPendingChrome,
-    showAnaliseListingBreadcrumb,
+    showPropertyBreadcrumb,
     showOrgBreadcrumb,
     orgBreadcrumbClass,
     collectionBreadcrumbClass,
@@ -18,7 +18,7 @@
     onToggleRightSidebar
   }: {
     showSubscriptionPendingChrome: boolean;
-    showAnaliseListingBreadcrumb: boolean;
+    showPropertyBreadcrumb: boolean;
     showOrgBreadcrumb: boolean;
     orgBreadcrumbClass: string;
     collectionBreadcrumbClass: string;
@@ -54,7 +54,7 @@
               aria-hidden="true"
             ></div>
           </li>
-          {#if showAnaliseListingBreadcrumb}
+          {#if showPropertyBreadcrumb}
             <li class="text-app-subtle" aria-hidden="true">
               <span class="text-sm leading-none">/</span>
             </li>
@@ -80,12 +80,12 @@
           <li class="relative z-[2] min-w-0 shrink">
             <CollectionBreadcrumb class={collectionBreadcrumbClass} />
           </li>
-          {#if showAnaliseListingBreadcrumb}
+          {#if showPropertyBreadcrumb}
             <li class="relative z-[1] shrink-0 text-app-subtle" aria-hidden="true">
               <span class="text-sm leading-none">/</span>
             </li>
             <li class="relative z-0 min-w-0 shrink">
-              <AnaliseListingBreadcrumb class="w-fit min-w-0 max-w-full" />
+              <PropertyBreadcrumb class="w-fit min-w-0 max-w-full" />
             </li>
           {/if}
         {/if}

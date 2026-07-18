@@ -27,9 +27,9 @@
       <p class="text-sm text-app-muted">Sem cards para agrupar.</p>
     {:else}
       <div class="grid gap-2">
-        {#each state.bairroStats as stat (stat.bairro)}
+        {#each state.bairroStats as stat (stat.neighborhood)}
           <div class="flex items-center justify-between rounded-md border border-app-border bg-white px-3 py-2 text-sm">
-            <span>{stat.bairro}</span>
+            <span>{stat.neighborhood}</span>
             <span class="text-app-muted">{stat.count} · {formatNumber(stat.medianM2)} R$/m2 · min {money(stat.minPrice)}</span>
           </div>
         {/each}
@@ -40,7 +40,7 @@
 
 <section class="rounded-md border border-app-border bg-app-surface">
   <div class="flex items-center justify-between border-b border-app-border p-4">
-    <h2 class="text-sm font-semibold">Anuncios ({state.cards.length})</h2>
+    <h2 class="text-sm font-semibold">Imóveis ({state.cards.length})</h2>
   </div>
   {#if state.cards.length === 0}
     <div class="p-5 text-sm text-app-muted">Nenhum resultado carregado ainda.</div>
@@ -61,12 +61,12 @@
         <tbody>
           {#each state.cards as card (card.id)}
             <tr class="border-t border-app-border">
-              <td class="px-3 py-3 font-medium text-app-fg">{card.title ?? "Sem titulo"}</td>
+              <td class="px-3 py-3 font-medium text-app-fg">{card.title ?? "Sem título"}</td>
               <td class="px-3 py-3 text-app-muted">{portalLabels[card.portal] ?? card.portal}</td>
-              <td class="px-3 py-3 text-app-muted">{[card.bairro, card.cidade, card.uf].filter(Boolean).join(", ")}</td>
-              <td class="px-3 py-3">{money(card.preco)}</td>
-              <td class="px-3 py-3">{formatNumber(card.precoM2)}</td>
-              <td class="px-3 py-3 text-app-muted">{card.quartos ?? "-"} q · {card.banheiros ?? "-"} b · {card.areaPrivada ?? card.areaTotal ?? "-"} m2</td>
+              <td class="px-3 py-3 text-app-muted">{[card.neighborhood, card.city, card.uf].filter(Boolean).join(", ")}</td>
+              <td class="px-3 py-3">{money(card.price)}</td>
+              <td class="px-3 py-3">{formatNumber(card.pricePerM2)}</td>
+              <td class="px-3 py-3 text-app-muted">{card.bedrooms ?? "-"} q · {card.bathrooms ?? "-"} b · {card.areaPrivada ?? card.areaTotal ?? "-"} m2</td>
               <td class="px-3 py-3 text-right">
                 <FloatingTooltip label="Abrir" side="bottom">
                   <a class="inline-flex h-9 w-9 items-center justify-center rounded-md text-app-muted hover:bg-app-surface-muted hover:text-app-fg" href={card.sourceUrl} target="_blank" rel="noreferrer">

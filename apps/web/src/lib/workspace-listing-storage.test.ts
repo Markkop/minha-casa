@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { Imovel } from "$lib/anuncios/types";
+import type { Property } from "$lib/listings/types";
 import {
   getWorkspaceListingStorageKey,
   readStoredWorkspaceListingId,
@@ -22,26 +22,21 @@ function createLocalStorageMock() {
   };
 }
 
-function makeListing(id: string, overrides: Partial<Imovel> = {}): Imovel {
+function makeListing(id: string, overrides: Partial<Property> = {}): Property {
   return {
     id,
-    titulo: `Listing ${id}`,
-    endereco: "Rua Teste",
-    m2Totais: 100,
-    m2Privado: 90,
-    quartos: 2,
+    title: `Listing ${id}`,
+    address: "Rua Teste",
+    totalAreaM2: 100,
+    privateAreaM2: 90,
+    bedrooms: 2,
     suites: null,
-    banheiros: 1,
-    garagem: 1,
-    anoConstrucao: null,
-    preco: 500_000,
-    precoM2: 5_000,
-    piscina: null,
-    porteiro24h: null,
-    academia: null,
-    vistaLivre: null,
-    piscinaTermica: null,
-    link: null,
+    bathrooms: 1,
+    parkingSpots: 1,
+    constructionYear: null,
+    price: 500_000,
+    pricePerM2: 5_000,
+    sourceUrl: null,
     createdAt: "2026-01-01T00:00:00.000Z",
     ...overrides
   };

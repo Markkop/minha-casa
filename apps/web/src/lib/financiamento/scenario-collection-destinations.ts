@@ -1,4 +1,4 @@
-import { toCollection, type Collection } from "$lib/anuncios/types";
+import { toCollection, type Collection } from "$lib/listings/types";
 import { workspaceApi, type Organization } from "$lib/workspace/client";
 
 export type ScenarioCollectionDestination = {
@@ -17,7 +17,7 @@ function destination(
     collection,
     organizationId,
     profileLabel,
-    label: `${collection.label} - ${profileLabel}`
+    label: `${collection.name} - ${profileLabel}`
   };
 }
 

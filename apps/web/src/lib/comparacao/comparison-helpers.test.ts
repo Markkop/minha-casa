@@ -1,5 +1,5 @@
 import { beforeAll, describe, expect, it, vi } from "vitest";
-import type { Imovel } from "$lib/anuncios/types";
+import type { Property } from "$lib/listings/types";
 import type { ComparisonSlot } from "./comparison-helpers";
 
 vi.mock("@lucide/svelte", () => {
@@ -24,26 +24,21 @@ beforeAll(async () => {
   helpers = await import("./comparison-helpers");
 });
 
-function listing(id: string, options: Partial<Imovel> = {}): Imovel {
+function listing(id: string, options: Partial<Property> = {}): Property {
   return {
     id,
-    titulo: id,
-    endereco: "",
-    m2Totais: null,
-    m2Privado: null,
-    quartos: null,
+    title: id,
+    address: "",
+    totalAreaM2: null,
+    privateAreaM2: null,
+    bedrooms: null,
     suites: null,
-    banheiros: null,
-    garagem: null,
-    anoConstrucao: null,
-    preco: null,
-    precoM2: null,
-    piscina: null,
-    porteiro24h: null,
-    academia: null,
-    vistaLivre: null,
-    piscinaTermica: null,
-    link: null,
+    bathrooms: null,
+    parkingSpots: null,
+    constructionYear: null,
+    price: null,
+    pricePerM2: null,
+    sourceUrl: null,
     createdAt: "",
     ...options
   };

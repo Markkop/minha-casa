@@ -9,7 +9,6 @@ export interface AdminPlan {
   isActive: boolean;
   stripePriceId: string | null;
   limits: Record<string, unknown>;
-  capabilities?: string[] | Record<string, boolean> | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -92,27 +91,6 @@ export interface AdminAuditEvent {
   insertedAt: string;
 }
 
-export interface AdminAddon {
-  id: string;
-  name: string;
-  slug: string;
-  description: string | null;
-  createdAt: string | null;
-}
-
-export interface AdminAddonGrant {
-  id: string;
-  userId?: string | null;
-  organizationId?: string | null;
-  addonSlug: string;
-  grantedAt: string;
-  grantedBy: string | null;
-  enabled: boolean;
-  expiresAt: string | null;
-  addon: AdminAddon | null;
-  grantedByUser?: AdminUserSummary | null;
-}
-
 export interface AdminOrganization {
   id: string;
   name: string;
@@ -127,14 +105,6 @@ export interface AdminOrganization {
   seatsUsed?: number;
   seatsIncluded?: number;
   owner?: AdminUserSummary | null;
-  addons?: {
-    addonSlug: string;
-    addonName: string;
-    enabled: boolean;
-    expiresAt: string | null;
-    grantedAt: string;
-    grantedBy: string | null;
-  }[];
 }
 
 export interface StripeReconciliation {
@@ -182,22 +152,8 @@ export const adminApi = {
   updateSubscription: (id: string, input: { status?: AdminSubscription["status"]; expiresAt?: string; notes?: string }) =>
     api.patch<{ subscription: AdminSubscription; plan: AdminPlan }>(`/admin/subscriptions/${id}`, input),
 
-  fetchAddons: () => api.get<{ addons: AdminAddon[] }>("/admin/addons"),
-  fetchUserAddons: (userId: string) =>
-    api.get<{ user: AdminUserSummary; addons: AdminAddonGrant[] }>(`/admin/users/${userId}/addons`),
-  grantUserAddon: (userId: string, input: { addonSlug: string; enabled?: boolean; expiresAt?: string | null }) =>
-    api.post<{ userAddon: AdminAddonGrant; updated: boolean }>(`/admin/users/${userId}/addons`, input),
-  revokeUserAddon: (userId: string, addonSlug: string) =>
-    api.delete<{ success: true }>(`/admin/users/${userId}/addons/${encodeURIComponent(addonSlug)}`),
-
-  fetchOrganizationsWithAddons: () =>
-    api.get<{ organizations: AdminOrganization[]; availableAddons: AdminAddon[] }>("/admin/organizations/addons"),
-  fetchOrganizationAddons: (orgId: string) =>
-    api.get<{ organization: AdminOrganization; addons: AdminAddonGrant[] }>(`/admin/organizations/${orgId}/addons`),
-  grantOrganizationAddon: (orgId: string, input: { addonSlug: string; enabled?: boolean; expiresAt?: string | null }) =>
-    api.post<{ organizationAddon: AdminAddonGrant; updated: boolean }>(`/admin/organizations/${orgId}/addons`, input),
-  revokeOrganizationAddon: (orgId: string, addonSlug: string) =>
-    api.delete<{ success: true }>(`/admin/organizations/${orgId}/addons/${encodeURIComponent(addonSlug)}`)
+  fetchOrganizations: () =>
+    api.get<{ organizations: AdminOrganization[] }>("/admin/organizations")
 };
 
 export interface AdminFeatureFlags {
@@ -239,7 +195,7 @@ export const adminFeatureFlagMeta: {
   {
     key: "contatos",
     label: "Contatos",
-    description: "Lista de contatos capturados dos anuncios.",
+    description: "Lista de contatos associados aos imóveis.",
     group: "navigation",
     navHref: "/contatos"
   },
@@ -267,7 +223,7 @@ export const adminFeatureFlagMeta: {
   {
     key: "deepAnalysis",
     label: "Analise profunda",
-    description: "Secao de analise profunda na pagina de Analise.",
+    description: "Seção de análise profunda nos detalhes do imóvel.",
     group: "analysis"
   }
 ];

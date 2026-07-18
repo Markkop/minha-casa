@@ -41,7 +41,10 @@ defmodule MinhaCasaAiWeb.ApiConsolidationTest do
 
   test "canonical listing image route is authenticated and the internal route is namespaced" do
     canonical = Phoenix.Router.route_info(Router, "GET", "/api/listings/listing-1/images/0", "")
-    internal = Phoenix.Router.route_info(Router, "GET", "/api/internal/listings/listing-1/images/0", "")
+
+    internal =
+      Phoenix.Router.route_info(Router, "GET", "/api/internal/listings/listing-1/images/0", "")
+
     shared =
       Phoenix.Router.route_info(
         Router,

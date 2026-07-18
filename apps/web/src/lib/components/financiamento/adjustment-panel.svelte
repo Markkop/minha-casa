@@ -709,7 +709,7 @@
 
         <div class="pt-2">
           {@render sectionCheckbox(
-            "tem-imovel",
+            "tem-property",
             "Tenho imóvel para permutar ou vender",
             params.temImovelParaNegociar,
             (checked) => patch({ temImovelParaNegociar: checked })
@@ -749,7 +749,7 @@
               params.valorApartamento,
               changed("valorApartamento")
             )}
-            extrasAriaLabel="valor-imovel-negociar-variacoes"
+            extrasAriaLabel="valor-property-negociar-variacoes"
           >
             {#snippet extras()}
               <ScenarioFilterPills
@@ -798,7 +798,7 @@
               params.custoManutencaoImovelMensal,
               changed("custoManutencaoImovelMensal")
             )}
-            extrasAriaLabel="custo-manutencao-imovel-variacoes"
+            extrasAriaLabel="custo-manutencao-property-variacoes"
           >
             {#snippet extras()}
               <ScenarioFilterPills
@@ -849,7 +849,7 @@
               suggestionReferenceParams !== null &&
                 !Object.is(saleTimingValue(params), saleTimingValue(suggestionReferenceParams))
             )}
-            extrasAriaLabel="tempo-venda-imovel-variacoes"
+            extrasAriaLabel="tempo-venda-property-variacoes"
           >
             {#snippet extras()}
               <ScenarioFilterPills
@@ -911,7 +911,7 @@
             params.valorImovel,
             changed("valorImovel")
           )}
-          extrasAriaLabel="valor-imovel-alvo-variacoes"
+          extrasAriaLabel="valor-property-alvo-variacoes"
         >
           {#snippet extras()}
             <ScenarioFilterPills

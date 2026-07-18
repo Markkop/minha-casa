@@ -47,10 +47,10 @@ export function createDemoPropertyMarkers(
 ): PropertyMarker[] {
   const area = neighborhood.place.neighborhood || neighborhood.place.city || "Centro";
   const fixtures = [
-    ["MC-204", "R$ 780 mil", "Novo", -185, 160, "Apartamento · 2 quartos"],
-    ["FL-118", "R$ 1,24 mi", "Disponível", 120, 205, "Cobertura · 3 quartos"],
+    ["MC-204", "R$ 780 mil", "Novo", -185, 160, "Apartamento · 2 bedrooms"],
+    ["FL-118", "R$ 1,24 mi", "Disponível", 120, 205, "Cobertura · 3 bedrooms"],
     ["CT-452", "R$ 640 mil", "Reservado", 245, -35, "Apartamento · 1 quarto"],
-    ["SC-091", "R$ 920 mil", "Disponível", -35, -185, "Apartamento · 3 quartos"],
+    ["SC-091", "R$ 920 mil", "Disponível", -35, -185, "Apartamento · 3 bedrooms"],
     ["IL-307", "R$ 1,08 mi", "Novo", -265, -105, "Apartamento · vista urbana"],
     ["BR-814", "R$ 570 mil", "Vendido", 300, 245, "Estúdio · 42 m²"]
   ] as const;

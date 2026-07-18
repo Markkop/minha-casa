@@ -134,19 +134,19 @@ defmodule MinhaCasaAi.Listings.DisplayTitle do
     Enum.map(listings, fn listing ->
       cond do
         present_manual?(listing) ->
-          Map.put(listing, "titulo", String.trim(listing["tituloManual"]))
+          Map.put(listing, "title", String.trim(listing["manualTitle"]))
 
         Map.has_key?(titles, listing["id"]) ->
-          Map.put(listing, "titulo", Map.get(titles, listing["id"]))
+          Map.put(listing, "title", Map.get(titles, listing["id"]))
 
         true ->
-          Map.put(listing, "titulo", build_base_title(listing))
+          Map.put(listing, "title", build_base_title(listing))
       end
     end)
   end
 
   defp present_manual?(listing) do
-    case listing["tituloManual"] do
+    case listing["manualTitle"] do
       v when is_binary(v) -> String.trim(v) != ""
       _ -> false
     end
@@ -158,8 +158,8 @@ defmodule MinhaCasaAi.Listings.DisplayTitle do
         true
 
       true ->
-        has_casa = Enum.any?(listings, &(&1["tipoImovel"] == "casa"))
-        has_apto = Enum.any?(listings, &(&1["tipoImovel"] == "apartamento"))
+        has_casa = Enum.any?(listings, &(&1["propertyType"] == "house"))
+        has_apto = Enum.any?(listings, &(&1["propertyType"] == "apartment"))
         has_casa and has_apto
     end
   end
@@ -254,16 +254,16 @@ defmodule MinhaCasaAi.Listings.DisplayTitle do
   end
 
   defp collision_key(listing, location_label) do
-    tipo = listing["tipoImovel"] || ""
-    quartos = listing["quartos"] || ""
+    tipo = listing["propertyType"] || ""
+    quartos = listing["bedrooms"] || ""
     "#{tipo}|#{quartos}|#{normalize_key(location_label)}"
   end
 
   defp build_base_title(listing, location_label \\ nil, opts \\ []) do
     show_prefix = Keyword.get(opts, :show_property_type_prefix, true)
     prep = Keyword.get(opts, :location_preposition, "em")
-    tipo = property_type_label(listing["tipoImovel"])
-    quartos = quartos_phrase(listing["quartos"])
+    tipo = property_type_label(listing["propertyType"])
+    quartos = quartos_phrase(listing["bedrooms"])
     local = location_label || default_location_label(listing)
     location_part = "#{prep} #{local}"
 
@@ -356,8 +356,8 @@ defmodule MinhaCasaAi.Listings.DisplayTitle do
     end
   end
 
-  defp property_type_label("casa"), do: "Casa"
-  defp property_type_label("apartamento"), do: "Apartamento"
+  defp property_type_label("house"), do: "Casa"
+  defp property_type_label("apartment"), do: "Apartamento"
   defp property_type_label(_), do: "Imóvel"
 
   defp quartos_phrase(n) when n == 1, do: "um quarto"
@@ -372,7 +372,7 @@ defmodule MinhaCasaAi.Listings.DisplayTitle do
   end
 
   defp location_at_level(listing, :bairro) do
-    case listing["bairro"] do
+    case listing["neighborhood"] do
       v when is_binary(v) ->
         t = String.trim(v)
         if t != "", do: title_case_location(t), else: nil
@@ -383,7 +383,7 @@ defmodule MinhaCasaAi.Listings.DisplayTitle do
   end
 
   defp location_at_level(listing, :cidade) do
-    case listing["cidade"] do
+    case listing["city"] do
       v when is_binary(v) ->
         t = String.trim(v)
         if t != "", do: title_case_location(t), else: nil
@@ -394,12 +394,12 @@ defmodule MinhaCasaAi.Listings.DisplayTitle do
   end
 
   defp location_at_level(listing, :rua) do
-    endereco = listing["endereco"] || ""
+    endereco = listing["address"] || ""
     extract_street_two_words(endereco)
   end
 
   defp location_at_level(listing, :numero) do
-    endereco = listing["endereco"] || ""
+    endereco = listing["address"] || ""
     street = extract_street_two_words(endereco)
     number = extract_address_number(endereco)
 
@@ -421,18 +421,18 @@ defmodule MinhaCasaAi.Listings.DisplayTitle do
     end
   end
 
-  defp location_at_level(listing, :preco), do: format_compact_price(listing["preco"])
+  defp location_at_level(listing, :preco), do: format_compact_price(listing["price"])
 
   defp location_at_level(listing, :m2) do
-    case listing["m2Totais"] do
+    case listing["totalAreaM2"] do
       n when is_number(n) and n > 0 -> "#{trunc(n)} m²"
       _ -> nil
     end
   end
 
   defp location_at_level(listing, :andar) do
-    if listing["tipoImovel"] == "apartamento" and is_number(listing["andar"]) do
-      if listing["andar"] == 10, do: "andar 10+", else: "andar #{listing["andar"]}"
+    if listing["propertyType"] == "apartment" and is_number(listing["floor"]) do
+      if listing["floor"] == 10, do: "andar 10+", else: "andar #{listing["floor"]}"
     else
       nil
     end

@@ -186,10 +186,10 @@
     </a>
     <nav>
       <a class="rail-action active" href="#neighborhood" aria-label="Visão do bairro"><Home size={18} /></a>
-      <a class="rail-action" href="/anuncios" aria-label="Anúncios"><Building2 size={18} /></a>
+      <a class="rail-action" href="/lista" aria-label="Lista"><Building2 size={18} /></a>
       <button class="rail-action" type="button" aria-label="Camadas do mapa"><Layers3 size={18} /></button>
       <button class="rail-action" type="button" aria-label="Estatísticas"><BarChart3 size={18} /></button>
-      <a class="rail-action" href={user ? "/anuncios" : "/login"} aria-label="Perfil"><UserRound size={18} /></a>
+      <a class="rail-action" href={user ? "/lista" : "/login"} aria-label="Perfil"><UserRound size={18} /></a>
     </nav>
     <button
       class="atmosphere-toggle"
@@ -215,7 +215,7 @@
       </div>
 
       <div class="account-actions">
-        <a class="account-pill" href={user ? "/anuncios" : "/login"}>
+        <a class="account-pill" href={user ? "/lista" : "/login"}>
           <span class="avatar">{accountLabel.slice(0, 1).toUpperCase()}</span>
           <span>{accountLabel}</span>
         </a>

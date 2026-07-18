@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  buildAnunciosListingDisplayTitles,
+  buildPropertyListDisplayTitles,
   buildListingDisplayTitles,
   collectionShowsPropertyTypePrefix,
   extractAddressNumber,
@@ -12,8 +12,8 @@ import {
 
 describe("listingTitleRegenFieldChanged", () => {
   it("detects title-relevant field updates", () => {
-    expect(listingTitleRegenFieldChanged({ bairro: "Centro" })).toBe(true);
-    expect(listingTitleRegenFieldChanged({ titulo: "Manual title" })).toBe(false);
+    expect(listingTitleRegenFieldChanged({ neighborhood: "Centro" })).toBe(true);
+    expect(listingTitleRegenFieldChanged({ title: "Manual title" })).toBe(false);
   });
 });
 
@@ -34,15 +34,15 @@ describe("extractAddressNumber", () => {
 describe("collectionShowsPropertyTypePrefix", () => {
   it("shows prefix for a single listing", () => {
     expect(
-      collectionShowsPropertyTypePrefix([{ tipoImovel: "casa", quartos: 3 }])
+      collectionShowsPropertyTypePrefix([{ propertyType: "house", bedrooms: 3 }])
     ).toBe(true);
   });
 
   it("shows prefix when collection mixes casa and apartamento", () => {
     expect(
       collectionShowsPropertyTypePrefix([
-        { tipoImovel: "casa", quartos: 3 },
-        { tipoImovel: "apartamento", quartos: 4 }
+        { propertyType: "house", bedrooms: 3 },
+        { propertyType: "apartment", bedrooms: 4 }
       ])
     ).toBe(true);
   });
@@ -50,8 +50,8 @@ describe("collectionShowsPropertyTypePrefix", () => {
   it("hides prefix for multiple listings of the same type", () => {
     expect(
       collectionShowsPropertyTypePrefix([
-        { tipoImovel: "casa", quartos: 3 },
-        { tipoImovel: "casa", quartos: 4 }
+        { propertyType: "house", bedrooms: 3 },
+        { propertyType: "house", bedrooms: 4 }
       ])
     ).toBe(false);
   });
@@ -59,14 +59,14 @@ describe("collectionShowsPropertyTypePrefix", () => {
 
 describe("mobileListingDisplayTitle", () => {
   it("shortens Apartamento prefix to Apto", () => {
-    expect(mobileListingDisplayTitle("Apartamento com 4 quartos em Itacorubi")).toBe(
-      "Apto com 4 quartos em Itacorubi"
+    expect(mobileListingDisplayTitle("Apartamento com 4 bedrooms em Itacorubi")).toBe(
+      "Apto com 4 bedrooms em Itacorubi"
     );
   });
 
   it("leaves titles without Apartamento prefix unchanged", () => {
-    expect(mobileListingDisplayTitle("Casa com 3 quartos em Itacorubi")).toBe(
-      "Casa com 3 quartos em Itacorubi"
+    expect(mobileListingDisplayTitle("Casa com 3 bedrooms em Itacorubi")).toBe(
+      "Casa com 3 bedrooms em Itacorubi"
     );
     expect(mobileListingDisplayTitle("Vista Mar Apartamento")).toBe("Vista Mar Apartamento");
   });
@@ -74,184 +74,184 @@ describe("mobileListingDisplayTitle", () => {
 
 describe("mobileCompactListingDisplayTitle", () => {
   it("drops location suffix and shortens Apartamento on mobile", () => {
-    expect(mobileCompactListingDisplayTitle("Apartamento com 4 quartos em Itacorubi")).toBe(
-      "Apto com 4 quartos"
+    expect(mobileCompactListingDisplayTitle("Apartamento com 4 bedrooms em Itacorubi")).toBe(
+      "Apto com 4 bedrooms"
     );
   });
 });
 
 describe("buildListingDisplayTitles", () => {
-  it("omits property type for multiple casas in the same bairro", () => {
+  it("omits property type for multiple casas in the same neighborhood", () => {
     const titles = buildListingDisplayTitles([
       {
         id: "a",
-        tipoImovel: "casa",
-        quartos: 3,
-        bairro: "Itacorubi",
-        endereco: "Avenida Buriti, 5000"
+        propertyType: "house",
+        bedrooms: 3,
+        neighborhood: "Itacorubi",
+        address: "Avenida Buriti, 5000"
       },
       {
         id: "b",
-        tipoImovel: "casa",
-        quartos: 3,
-        bairro: "Itacorubi",
-        endereco: "Rua Maria Luiza Agostinho, 102"
+        propertyType: "house",
+        bedrooms: 3,
+        neighborhood: "Itacorubi",
+        address: "Rua Maria Luiza Agostinho, 102"
       }
     ]);
 
-    expect(titles.get("a")).toBe("3 quartos na Buriti em Itacorubi");
-    expect(titles.get("b")).toBe("3 quartos na Maria Luiza em Itacorubi");
+    expect(titles.get("a")).toBe("3 bedrooms na Buriti em Itacorubi");
+    expect(titles.get("b")).toBe("3 bedrooms na Maria Luiza em Itacorubi");
   });
 
-  it("keeps property type when casa and apartamento share a bairro", () => {
+  it("keeps property type when casa and apartamento share a neighborhood", () => {
     const titles = buildListingDisplayTitles([
       {
         id: "a",
-        tipoImovel: "casa",
-        quartos: 3,
-        bairro: "Itacorubi",
-        endereco: "Avenida Buriti, 5000"
+        propertyType: "house",
+        bedrooms: 3,
+        neighborhood: "Itacorubi",
+        address: "Avenida Buriti, 5000"
       },
       {
         id: "b",
-        tipoImovel: "apartamento",
-        quartos: 4,
-        bairro: "Itacorubi",
-        endereco: "Avenida Itamarati, 380"
+        propertyType: "apartment",
+        bedrooms: 4,
+        neighborhood: "Itacorubi",
+        address: "Avenida Itamarati, 380"
       }
     ]);
 
-    expect(titles.get("a")).toBe("Casa com 3 quartos em Itacorubi");
-    expect(titles.get("b")).toBe("Apartamento com 4 quartos em Itacorubi");
+    expect(titles.get("a")).toBe("Casa com 3 bedrooms em Itacorubi");
+    expect(titles.get("b")).toBe("Apartamento com 4 bedrooms em Itacorubi");
   });
 
   it("disambiguates colliding casas with na street instead of dot suffix", () => {
     const titles = buildListingDisplayTitles([
       {
         id: "a",
-        tipoImovel: "casa",
-        quartos: 3,
-        bairro: "Itacorubi",
-        endereco: "Rua Itapeva, 61"
+        propertyType: "house",
+        bedrooms: 3,
+        neighborhood: "Itacorubi",
+        address: "Rua Itapeva, 61"
       },
       {
         id: "b",
-        tipoImovel: "casa",
-        quartos: 3,
-        bairro: "Itacorubi",
-        endereco: "Rua Maria Luiza Agostinho, 102"
+        propertyType: "house",
+        bedrooms: 3,
+        neighborhood: "Itacorubi",
+        address: "Rua Maria Luiza Agostinho, 102"
       }
     ]);
 
-    expect(titles.get("a")).toBe("3 quartos na Itapeva em Itacorubi");
-    expect(titles.get("b")).toBe("3 quartos na Maria Luiza em Itacorubi");
+    expect(titles.get("a")).toBe("3 bedrooms na Itapeva em Itacorubi");
+    expect(titles.get("b")).toBe("3 bedrooms na Maria Luiza em Itacorubi");
   });
 
-  it("uses street number without bairro when multiple listings share a street", () => {
+  it("uses street number without neighborhood when multiple listings share a street", () => {
     const titles = buildListingDisplayTitles([
       {
         id: "a",
-        tipoImovel: "casa",
-        quartos: 3,
-        bairro: "Itacorubi",
-        endereco: "Rua Maria Luiza Agostinho, 45"
+        propertyType: "house",
+        bedrooms: 3,
+        neighborhood: "Itacorubi",
+        address: "Rua Maria Luiza Agostinho, 45"
       },
       {
         id: "b",
-        tipoImovel: "apartamento",
-        quartos: 4,
-        bairro: "Itacorubi",
-        endereco: "Rua Maria Luiza Agostinho, 102"
+        propertyType: "apartment",
+        bedrooms: 4,
+        neighborhood: "Itacorubi",
+        address: "Rua Maria Luiza Agostinho, 102"
       }
     ]);
 
-    expect(titles.get("a")).toBe("Casa com 3 quartos na Maria Luiza, 45");
-    expect(titles.get("b")).toBe("Apartamento com 4 quartos na Maria Luiza, 102");
+    expect(titles.get("a")).toBe("Casa com 3 bedrooms na Maria Luiza, 45");
+    expect(titles.get("b")).toBe("Apartamento com 4 bedrooms na Maria Luiza, 102");
   });
 });
 
-describe("buildAnunciosListingDisplayTitles", () => {
-  it("uses bairro only when multiple listings share a street", () => {
-    const titles = buildAnunciosListingDisplayTitles([
+describe("buildPropertyListDisplayTitles", () => {
+  it("uses neighborhood only when multiple listings share a street", () => {
+    const titles = buildPropertyListDisplayTitles([
       {
         id: "a",
-        tipoImovel: "casa",
-        quartos: 3,
-        bairro: "Itacorubi",
-        endereco: "Rua Maria Luiza Agostinho, 45"
+        propertyType: "house",
+        bedrooms: 3,
+        neighborhood: "Itacorubi",
+        address: "Rua Maria Luiza Agostinho, 45"
       },
       {
         id: "b",
-        tipoImovel: "apartamento",
-        quartos: 4,
-        bairro: "Itacorubi",
-        endereco: "Rua Maria Luiza Agostinho, 102"
+        propertyType: "apartment",
+        bedrooms: 4,
+        neighborhood: "Itacorubi",
+        address: "Rua Maria Luiza Agostinho, 102"
       }
     ]);
 
-    expect(titles.get("a")).toBe("Casa com 3 quartos em Itacorubi");
-    expect(titles.get("b")).toBe("Apartamento com 4 quartos em Itacorubi");
+    expect(titles.get("a")).toBe("Casa com 3 bedrooms em Itacorubi");
+    expect(titles.get("b")).toBe("Apartamento com 4 bedrooms em Itacorubi");
   });
 
-  it("disambiguates same-bairro collisions with numbered suffixes", () => {
-    const titles = buildAnunciosListingDisplayTitles([
+  it("disambiguates same-neighborhood collisions with numbered suffixes", () => {
+    const titles = buildPropertyListDisplayTitles([
       {
         id: "a",
-        tipoImovel: "casa",
-        quartos: 3,
-        bairro: "Itacorubi",
-        endereco: "Rua Maria Luiza Agostinho, 45",
-        preco: 500_000
+        propertyType: "house",
+        bedrooms: 3,
+        neighborhood: "Itacorubi",
+        address: "Rua Maria Luiza Agostinho, 45",
+        price: 500_000
       },
       {
         id: "b",
-        tipoImovel: "casa",
-        quartos: 3,
-        bairro: "Itacorubi",
-        endereco: "Rua Maria Luiza Agostinho, 102",
-        preco: 800_000
+        propertyType: "house",
+        bedrooms: 3,
+        neighborhood: "Itacorubi",
+        address: "Rua Maria Luiza Agostinho, 102",
+        price: 800_000
       }
     ]);
 
-    expect(titles.get("a")).toBe("3 quartos em Itacorubi (1)");
-    expect(titles.get("b")).toBe("3 quartos em Itacorubi (2)");
+    expect(titles.get("a")).toBe("3 bedrooms em Itacorubi (1)");
+    expect(titles.get("b")).toBe("3 bedrooms em Itacorubi (2)");
   });
 
-  it("omits street names when multiple casas share a bairro on different streets", () => {
-    const titles = buildAnunciosListingDisplayTitles([
+  it("omits street names when multiple casas share a neighborhood on different streets", () => {
+    const titles = buildPropertyListDisplayTitles([
       {
         id: "a",
-        tipoImovel: "casa",
-        quartos: 3,
-        bairro: "Itacorubi",
-        endereco: "Avenida Buriti, 5000",
-        preco: 500_000
+        propertyType: "house",
+        bedrooms: 3,
+        neighborhood: "Itacorubi",
+        address: "Avenida Buriti, 5000",
+        price: 500_000
       },
       {
         id: "b",
-        tipoImovel: "casa",
-        quartos: 3,
-        bairro: "Itacorubi",
-        endereco: "Rua Maria Luiza Agostinho, 102",
-        preco: 800_000
+        propertyType: "house",
+        bedrooms: 3,
+        neighborhood: "Itacorubi",
+        address: "Rua Maria Luiza Agostinho, 102",
+        price: 800_000
       }
     ]);
 
-    expect(titles.get("a")).toBe("3 quartos em Itacorubi (1)");
-    expect(titles.get("b")).toBe("3 quartos em Itacorubi (2)");
+    expect(titles.get("a")).toBe("3 bedrooms em Itacorubi (1)");
+    expect(titles.get("b")).toBe("3 bedrooms em Itacorubi (2)");
   });
 
-  it("leaves single-listing titles with bairro unchanged", () => {
-    const titles = buildAnunciosListingDisplayTitles([
+  it("leaves single-listing titles with neighborhood unchanged", () => {
+    const titles = buildPropertyListDisplayTitles([
       {
         id: "a",
-        tipoImovel: "casa",
-        quartos: 3,
-        bairro: "Itacorubi",
-        endereco: "Avenida Buriti, 5000"
+        propertyType: "house",
+        bedrooms: 3,
+        neighborhood: "Itacorubi",
+        address: "Avenida Buriti, 5000"
       }
     ]);
 
-    expect(titles.get("a")).toBe("Casa com 3 quartos em Itacorubi");
+    expect(titles.get("a")).toBe("Casa com 3 bedrooms em Itacorubi");
   });
 });

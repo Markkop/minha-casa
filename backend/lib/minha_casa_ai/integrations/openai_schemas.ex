@@ -2,41 +2,41 @@ defmodule MinhaCasaAi.Integrations.OpenAISchemas do
   @moduledoc false
   # JSON schemas for OpenAI Responses structured outputs (strict mode).
 
-  alias MinhaCasaAi.Workspace.ListingPreferences
+  alias MinhaCasaAi.Workspace.ListingFeatures
 
   def listing_base_properties do
     %{
-      "titulo" => %{"type" => ["string", "null"]},
-      "endereco" => %{"type" => ["string", "null"]},
-      "bairro" => %{"type" => ["string", "null"]},
-      "cidade" => %{"type" => ["string", "null"]},
-      "m2Totais" => %{"type" => ["number", "null"]},
-      "m2Privado" => %{"type" => ["number", "null"]},
-      "quartos" => %{"type" => ["number", "null"]},
+      "title" => %{"type" => ["string", "null"]},
+      "address" => %{"type" => ["string", "null"]},
+      "neighborhood" => %{"type" => ["string", "null"]},
+      "city" => %{"type" => ["string", "null"]},
+      "totalAreaM2" => %{"type" => ["number", "null"]},
+      "privateAreaM2" => %{"type" => ["number", "null"]},
+      "bedrooms" => %{"type" => ["number", "null"]},
       "suites" => %{"type" => ["number", "null"]},
-      "banheiros" => %{"type" => ["number", "null"]},
-      "garagem" => %{"type" => ["number", "null"]},
-      "preco" => %{"type" => ["number", "null"]},
-      "tipoImovel" => %{"type" => ["string", "null"]},
+      "bathrooms" => %{"type" => ["number", "null"]},
+      "parkingSpots" => %{"type" => ["number", "null"]},
+      "price" => %{"type" => ["number", "null"]},
+      "propertyType" => %{"type" => ["string", "null"], "enum" => ["house", "apartment", nil]},
       "condominiumName" => %{"type" => ["string", "null"]},
       "contactName" => %{"type" => ["string", "null"]},
       "contactNumber" => %{"type" => ["string", "null"]},
       "sitePublishedAt" => %{"type" => ["string", "null"]},
       "siteUpdatedAt" => %{"type" => ["string", "null"]},
-      "anoConstrucao" => %{
+      "constructionYear" => %{
         "type" => ["integer", "null"],
         "minimum" => 1000,
         "maximum" => 9999
       },
-      "link" => %{"type" => ["string", "null"]}
+      "sourceUrl" => %{"type" => ["string", "null"]}
     }
   end
 
   def listing_fields_properties(catalog \\ nil) do
-    catalog = catalog || ListingPreferences.default_system_options()
+    catalog = catalog || ListingFeatures.default_system_options()
 
     listing_base_properties()
-    |> Map.merge(ListingPreferences.listing_parse_schema_properties(catalog))
+    |> Map.merge(ListingFeatures.listing_parse_schema_properties(catalog))
   end
 
   def listing_parse_schema(catalog \\ nil) do
