@@ -7,8 +7,10 @@
     Home,
     LayoutDashboard,
     Link2,
+    Loader2,
     MapPinned,
     Puzzle,
+    RefreshCw,
     Users
   } from "@lucide/svelte";
   import { page } from "$app/state";
@@ -32,12 +34,18 @@
   } from "$lib/workspace-chrome";
   import ImportExportMenuItems from "$lib/components/listings/ImportExportMenuItems.svelte";
   import { workspaceApi } from "$lib/workspace/client";
+  import { setActiveWorkspaceUserId } from "$lib/active-workspace";
+  import {
+    createWorkspaceProfilesState,
+    setWorkspaceProfilesContext
+  } from "$lib/workspace/workspace-profiles-context.svelte";
   import {
     createWorkspaceRightSidebarState,
     setWorkspaceRightSidebarContext
   } from "$lib/workspace-right-sidebar.svelte";
 
   type ShellUser = {
+    id: string;
     name?: string | null;
     email?: string | null;
     image?: string | null;
@@ -69,6 +77,8 @@
   });
   const rightSidebar = createWorkspaceRightSidebarState();
   setWorkspaceRightSidebarContext(rightSidebar);
+  const workspaceProfiles = createWorkspaceProfilesState();
+  setWorkspaceProfilesContext(workspaceProfiles);
 
   const shouldLoadCollections = $derived(Boolean(user));
   const showSubscriptionPendingChrome = false;
@@ -140,7 +150,7 @@
   );
 
   $effect(() => {
-    if (!user) {
+    if (!user || !workspaceProfiles.ready) {
       hasFamily = false;
       hasAgency = false;
       return;
@@ -162,6 +172,26 @@
 
     return () => {
       cancelled = true;
+    };
+  });
+
+  $effect(() => {
+    const userId = user?.id?.trim() || null;
+    setActiveWorkspaceUserId(userId);
+    if (!userId) {
+      workspaceProfiles.reset();
+      return;
+    }
+
+    void workspaceProfiles.bootstrap();
+  });
+
+  $effect(() => {
+    if (!user?.id) return;
+    const reloadProfiles = () => void workspaceProfiles.bootstrap();
+    window.addEventListener("minha-casa:workspace-profiles-changed", reloadProfiles);
+    return () => {
+      window.removeEventListener("minha-casa:workspace-profiles-changed", reloadProfiles);
     };
   });
 
@@ -224,7 +254,7 @@
   <ImportExportMenuItems />
 {/snippet}
 
-<CollectionsProvider enabled={shouldLoadCollections}>
+<CollectionsProvider enabled={shouldLoadCollections && workspaceProfiles.ready}>
   <div
     data-slot="sidebar-wrapper"
     class="min-h-svh bg-app-bg text-app-fg"
@@ -287,7 +317,29 @@
         </div>
       {/if}
 
-      {@render children?.()}
+      {#if workspaceProfiles.ready}
+        {@render children?.()}
+      {:else if workspaceProfiles.error}
+        <main class="grid min-h-[calc(100vh-var(--nav-height,2.75rem))] place-items-center bg-app-bg px-4 text-app-fg">
+          <div class="w-full max-w-md rounded-md border border-app-border bg-app-surface p-6 text-center shadow-sm">
+            <p class="font-medium">Erro ao carregar perfil</p>
+            <p class="mt-2 text-sm text-app-muted">{workspaceProfiles.error}</p>
+            <button
+              type="button"
+              class="mx-auto mt-4 inline-flex h-9 items-center gap-2 rounded-md border border-app-border px-3 text-sm transition hover:bg-app-surface-muted"
+              onclick={() => void workspaceProfiles.bootstrap()}
+            >
+              <RefreshCw class="h-4 w-4" />
+              <span>Tentar novamente</span>
+            </button>
+          </div>
+        </main>
+      {:else}
+        <main class="flex min-h-[calc(100vh-var(--nav-height,2.75rem))] items-center justify-center bg-app-bg text-app-muted" aria-busy="true">
+          <Loader2 class="h-5 w-5 animate-spin" />
+          <span class="ml-2 text-sm">Carregando perfil...</span>
+        </main>
+      {/if}
     </div>
 
     <WorkspaceRightSidebar sidebar={rightSidebar} />

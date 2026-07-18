@@ -1,5 +1,6 @@
 import { goto, invalidate } from "$app/navigation";
 import { setActiveOrganizationIdCache } from "$lib/active-organization";
+import { setActiveWorkspaceId, setActiveWorkspaceUserId } from "$lib/active-workspace";
 import { signOut } from "$lib/auth-client";
 
 const AUTH_INVALIDATION_KEY = "minha-casa:auth";
@@ -12,6 +13,8 @@ export async function logoutToHome() {
   }
 
   setActiveOrganizationIdCache(null);
+  setActiveWorkspaceId(null);
+  setActiveWorkspaceUserId(null);
   await goto("/", { replaceState: true });
   await invalidate(AUTH_INVALIDATION_KEY);
 }

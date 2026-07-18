@@ -46,5 +46,6 @@ defmodule MinhaCasaAi.Listings.Collection do
     |> validate_inclusion(:kind, ~w(general template presentation))
     |> validate_inclusion(:visibility, ~w(private team))
     |> validate_inclusion(:status, ~w(active archived))
+    |> unique_constraint(:is_default, name: :collections_one_default_per_workspace_idx)
   end
 end

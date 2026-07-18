@@ -13,6 +13,7 @@ defmodule MinhaCasaAiWeb.CollectionController do
     Collection,
     CollectionPolicy,
     CollectionSharing,
+    Collections,
     Deletion,
     Listing,
     ListingData
@@ -92,32 +93,52 @@ defmodule MinhaCasaAiWeb.CollectionController do
       if name == "" do
         conn |> put_status(:bad_request) |> json(%{error: "Collection name is required"})
       else
-        with :ok <- Entitlements.ensure_collection_capacity(entitlement) do
-          is_first? = Repo.one(from(c in scoped(Collection, profile), select: count(c.id))) == 0
-          is_default = params["isDefault"] == true or is_first?
+        result =
+          Collections.with_workspace_lock(profile.workspace_id, fn ->
+            case Entitlements.ensure_collection_capacity(entitlement) do
+              :ok ->
+                is_first? =
+                  Repo.one(from(c in scoped(Collection, profile), select: count(c.id))) == 0
 
-          if is_default do
-            scoped(Collection, profile) |> Repo.update_all(set: [is_default: false])
-          end
+                is_default = params["isDefault"] == true or is_first?
 
-          attrs =
-            Map.merge(profile_values(profile), %{
-              name: name,
-              is_default: is_default,
-              is_public: false
-            })
+                if is_default do
+                  scoped(Collection, profile) |> Repo.update_all(set: [is_default: false])
+                end
 
-          case %Collection{} |> Collection.changeset(attrs) |> Repo.insert() do
-            {:ok, collection} ->
-              conn
-              |> put_status(:created)
-              |> json(%{collection: ListingJSON.collection(collection)})
+                attrs =
+                  Map.merge(profile_values(profile), %{
+                    name: name,
+                    is_default: is_default,
+                    is_public: false
+                  })
 
-            {:error, changeset} ->
-              changeset_error(conn, changeset)
-          end
-        else
-          {:error, reason} -> quota_error(conn, reason)
+                case %Collection{} |> Collection.changeset(attrs) |> Repo.insert() do
+                  {:ok, collection} -> {:ok, collection}
+                  {:error, changeset} -> Repo.rollback({:changeset, changeset})
+                end
+
+              {:error, reason} ->
+                Repo.rollback({:quota, reason})
+            end
+          end)
+
+        case result do
+          {:ok, {:ok, collection}} ->
+            conn
+            |> put_status(:created)
+            |> json(%{collection: ListingJSON.collection(collection)})
+
+          {:error, {:changeset, %Ecto.Changeset{} = changeset}} ->
+            changeset_error(conn, changeset)
+
+          {:error, {:quota, reason}} ->
+            quota_error(conn, reason)
+
+          {:error, _reason} ->
+            conn
+            |> put_status(:conflict)
+            |> json(%{error: "Could not create collection"})
         end
       end
     end
@@ -149,13 +170,29 @@ defmodule MinhaCasaAiWeb.CollectionController do
         |> maybe_put_bool(params, "isDefault", :is_default)
         |> maybe_put_bool(params, "isPublic", :is_public)
 
-      if attrs[:is_default] == true do
-        scoped(Collection, profile) |> Repo.update_all(set: [is_default: false])
-      end
+      result =
+        Collections.with_workspace_lock(profile.workspace_id, fn ->
+          if attrs[:is_default] == true do
+            scoped(Collection, profile) |> Repo.update_all(set: [is_default: false])
+          end
 
-      case collection |> Collection.changeset(attrs) |> Repo.update() do
-        {:ok, collection} -> json(conn, %{collection: ListingJSON.collection(collection)})
-        {:error, changeset} -> changeset_error(conn, changeset)
+          case collection |> Collection.changeset(attrs) |> Repo.update() do
+            {:ok, collection} -> {:ok, collection}
+            {:error, changeset} -> Repo.rollback({:changeset, changeset})
+          end
+        end)
+
+      case result do
+        {:ok, {:ok, collection}} ->
+          json(conn, %{collection: ListingJSON.collection(collection)})
+
+        {:error, {:changeset, changeset}} ->
+          changeset_error(conn, changeset)
+
+        {:error, _reason} ->
+          conn
+          |> put_status(:conflict)
+          |> json(%{error: "Could not update collection"})
       end
     else
       {:error, _} -> not_found(conn, "Collection")
@@ -167,29 +204,47 @@ defmodule MinhaCasaAiWeb.CollectionController do
 
     with {:ok, %Collection{} = collection, _access} <-
            CollectionPolicy.authorize(profile.user_id, id, :manage) do
-      collection_count = Repo.one(from(c in scoped(Collection, profile), select: count(c.id)))
+      result =
+        Collections.with_workspace_lock(profile.workspace_id, fn ->
+          active_collection_count =
+            Repo.one(
+              from(c in scoped(Collection, profile),
+                where: c.status == "active",
+                select: count(c.id)
+              )
+            )
 
-      if collection.is_default and collection_count <= 1 do
-        conn
-        |> put_status(:bad_request)
-        |> json(%{error: "Cannot delete the only default collection"})
-      else
-        promote_collection_id =
-          if collection.is_default do
-            scoped(Collection, profile)
-            |> where([c], c.id != ^collection.id)
-            |> order_by([c], asc: c.created_at)
-            |> limit(1)
-            |> select([c], c.id)
-            |> Repo.one()
+          if collection.is_default and collection.status == "active" and
+               active_collection_count <= 1 do
+            {:error, :only_default}
+          else
+            promote_collection_id =
+              if collection.is_default do
+                scoped(Collection, profile)
+                |> where([c], c.id != ^collection.id and c.status == "active")
+                |> order_by([c], asc: c.created_at, asc: c.id)
+                |> limit(1)
+                |> select([c], c.id)
+                |> Repo.one()
+              end
+
+            Deletion.delete_collection(collection,
+              promote_collection_id: promote_collection_id
+            )
           end
+        end)
 
-        case Deletion.delete_collection(collection,
-               promote_collection_id: promote_collection_id
-             ) do
-          {:ok, _} -> json(conn, %{success: true})
-          {:error, _} -> not_found(conn, "Collection")
-        end
+      case result do
+        {:ok, {:error, :only_default}} ->
+          conn
+          |> put_status(:bad_request)
+          |> json(%{error: "Cannot delete the only default collection"})
+
+        {:ok, {:ok, _deleted}} ->
+          json(conn, %{success: true})
+
+        _ ->
+          not_found(conn, "Collection")
       end
     else
       {:error, _} -> not_found(conn, "Collection")

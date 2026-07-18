@@ -9,7 +9,7 @@ defmodule MinhaCasaAi.Workspaces do
   import Ecto.Query
 
   alias MinhaCasaAi.Accounts.User
-  alias MinhaCasaAi.Listings.{Collection, CollectionAccessGrant}
+  alias MinhaCasaAi.Listings.{Collection, CollectionAccessGrant, Collections}
   alias MinhaCasaAi.Organizations.{Organization, OrganizationMember}
   alias MinhaCasaAi.Repo
   alias MinhaCasaAi.Retention
@@ -20,6 +20,23 @@ defmodule MinhaCasaAi.Workspaces do
     ensure_owned_workspace(user_id, "personal")
   end
 
+  def ensure_personal_profile(user_id) do
+    Repo.transaction(fn ->
+      case ensure_personal_workspace(user_id) do
+        {:ok, workspace} ->
+          _collection = Collections.ensure_default_collection_for_workspace!(workspace, user_id)
+          workspace
+
+        {:error, reason} ->
+          Repo.rollback(reason)
+      end
+    end)
+    |> case do
+      {:ok, workspace} -> {:ok, workspace}
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
   def ensure_professional_workspace(user_id) do
     ensure_owned_workspace(user_id, "professional")
   end
@@ -27,11 +44,10 @@ defmodule MinhaCasaAi.Workspaces do
   def get(id), do: Repo.get(Workspace, id)
 
   def personal_for(user_id) do
-    Repo.get_by(Workspace, owner_user_id: user_id, type: "personal") ||
-      case ensure_personal_workspace(user_id) do
-        {:ok, workspace} -> workspace
-        _ -> nil
-      end
+    case ensure_personal_profile(user_id) do
+      {:ok, workspace} -> workspace
+      _ -> nil
+    end
   end
 
   def professional_for(user_id),
@@ -42,25 +58,42 @@ defmodule MinhaCasaAi.Workspaces do
 
   def workspace_id_for(user_id, org_id \\ nil) do
     case org_id && Repo.get(Organization, org_id) do
-      %Organization{workspace_id: workspace_id} -> workspace_id
-      _ -> personal_for(user_id) && personal_for(user_id).id
+      %Organization{workspace_id: workspace_id} ->
+        workspace_id
+
+      _ ->
+        case personal_for(user_id) do
+          %Workspace{id: workspace_id} -> workspace_id
+          _ -> nil
+        end
     end
   end
 
   def resolve_access(user_id, requested_workspace_id \\ nil) do
+    requested? =
+      is_binary(requested_workspace_id) and String.trim(requested_workspace_id) != ""
+
     workspace =
-      if is_binary(requested_workspace_id) and String.trim(requested_workspace_id) != "" do
-        Repo.get(Workspace, requested_workspace_id)
-      else
-        personal_for(user_id)
-      end
+      if requested?, do: Repo.get(Workspace, requested_workspace_id), else: personal_for(user_id)
 
     case workspace do
       nil ->
         {:error, :not_found}
 
-      %Workspace{owner_user_id: ^user_id, type: type} = row
-      when type in ["personal", "professional"] ->
+      %Workspace{owner_user_id: ^user_id, type: "personal"} = row ->
+        if requested? do
+          case ensure_personal_profile(user_id) do
+            {:ok, %Workspace{id: id} = personal} when id == row.id ->
+              {:ok, %{workspace: personal, access: "owner", org_id: nil}}
+
+            _ ->
+              {:error, :not_found}
+          end
+        else
+          {:ok, %{workspace: row, access: "owner", org_id: nil}}
+        end
+
+      %Workspace{owner_user_id: ^user_id, type: "professional"} = row ->
         {:ok, %{workspace: row, access: "owner", org_id: nil}}
 
       %Workspace{type: "organization"} = row ->
@@ -111,40 +144,43 @@ defmodule MinhaCasaAi.Workspaces do
   end
 
   defp ensure_owned_workspace(user_id, type) do
-    case Repo.get_by(Workspace, owner_user_id: user_id, type: type) do
-      %Workspace{} = workspace ->
-        {:ok, workspace}
+    Repo.transaction(fn ->
+      Repo.query!("SELECT pg_advisory_xact_lock(hashtext($1))", [
+        "workspace:#{type}:#{user_id}"
+      ])
 
-      nil ->
-        with %User{} = user <- Repo.get(User, user_id) do
+      case Repo.get_by(Workspace, owner_user_id: user_id, type: type) do
+        %Workspace{} = workspace ->
+          workspace
+
+        nil ->
+          user = Repo.get(User, user_id)
+          if is_nil(user), do: Repo.rollback(:not_found)
+
           label =
             if type == "professional",
               do: "Corretor — #{user.name || user.email}",
               else: user.name || user.email
 
-          Repo.transaction(fn ->
-            workspace =
-              %Workspace{}
-              |> Workspace.changeset(%{
-                type: type,
-                owner_user_id: user_id,
-                name: label,
-                status: "active"
-              })
-              |> Repo.insert!()
+          workspace =
+            %Workspace{}
+            |> Workspace.changeset(%{
+              type: type,
+              owner_user_id: user_id,
+              name: label,
+              status: "active"
+            })
+            |> Repo.insert!()
 
-            case Retention.initialize_workspace(workspace) do
-              :ok -> Repo.get!(Workspace, workspace.id)
-              {:error, reason} -> Repo.rollback(reason)
-            end
-          end)
-          |> case do
-            {:ok, workspace} -> {:ok, workspace}
-            {:error, reason} -> {:error, reason}
+          case Retention.initialize_workspace(workspace) do
+            :ok -> Repo.get!(Workspace, workspace.id)
+            {:error, reason} -> Repo.rollback(reason)
           end
-        else
-          nil -> {:error, :not_found}
-        end
+      end
+    end)
+    |> case do
+      {:ok, workspace} -> {:ok, workspace}
+      {:error, reason} -> {:error, reason}
     end
   end
 

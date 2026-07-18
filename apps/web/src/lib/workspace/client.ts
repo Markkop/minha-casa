@@ -495,7 +495,10 @@ export async function enrichSavedLink(id: string, _orgId?: string | null) {
 
 export const workspaceApi = {
   fetchProfiles: () =>
-    api.get<{ profiles: WorkspaceProfile[]; activeWorkspaceId: string }>("/profiles"),
+    api.get<{ profiles: WorkspaceProfile[]; activeWorkspaceId: string }>("/profiles", {
+      workspaceId: null,
+      organizationId: null
+    }),
   fetchOrganizations: () => api.get<{ organizations: Organization[] }>("/organizations"),
   updateAgencyName: (id: string, name: string) =>
     api.patch<{ organization: Organization }>(`/agencies/${id}`, { name }),
