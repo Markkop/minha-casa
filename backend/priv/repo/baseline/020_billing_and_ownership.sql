@@ -114,11 +114,18 @@ CREATE INDEX IF NOT EXISTS listings_collection_id_idx ON listings (collection_id
 -- migrate:split
 
 INSERT INTO plans (name, slug, description, price_in_cents, is_active, limits)
-VALUES
+SELECT seed.*
+FROM (VALUES
   ('Teste', 'teste', 'Plano de teste interno', 0, true,
    '{"collectionsLimit": null, "listingsPerCollection": null, "aiParsesPerMonth": null, "canShare": true, "canCreateOrg": true}'::jsonb),
   ('Plus', 'plus', 'Acesso completo à plataforma', 2000, true,
    '{"collectionsLimit": null, "listingsPerCollection": null, "aiParsesPerMonth": null, "canShare": true, "canCreateOrg": true}'::jsonb)
+) AS seed(name, slug, description, price_in_cents, is_active, limits)
+WHERE NOT EXISTS (
+  SELECT 1
+  FROM schema_migrations
+  WHERE version >= 20260717140000
+)
 ON CONFLICT (slug) DO NOTHING;
 -- migrate:split
 
