@@ -3,12 +3,21 @@ defmodule MinhaCasaAiWeb.AttachmentController do
 
   alias MinhaCasaAi.Attachments
   alias MinhaCasaAi.Attachments.Attachment
+  alias MinhaCasaAi.Workspaces
 
   def create(conn, params) do
     attrs =
       params
       |> Map.put(:user_id, conn.assigns[:current_user_id])
       |> Map.put(:org_id, conn.assigns[:current_org_id])
+      |> Map.put(
+        :workspace_id,
+        conn.assigns[:current_workspace_id] ||
+          Workspaces.workspace_id_for(
+            conn.assigns[:current_user_id],
+            conn.assigns[:current_org_id]
+          )
+      )
 
     case Attachments.create_from_base64(attrs) do
       {:ok, %Attachment{} = attachment} ->
@@ -25,6 +34,7 @@ defmodule MinhaCasaAiWeb.AttachmentController do
   defp attachment_json(attachment) do
     %{
       id: attachment.id,
+      workspaceId: attachment.workspace_id,
       storageKey: attachment.storage_key,
       filename: attachment.filename,
       contentType: attachment.content_type,
@@ -40,6 +50,7 @@ defmodule MinhaCasaAiWeb.AttachmentController do
   defp map_error(:empty_file), do: {:bad_request, "Arquivo vazio"}
   defp map_error(:file_too_large), do: {:bad_request, "Arquivo muito grande"}
   defp map_error(:missing_content_type), do: {:bad_request, "Content type is required"}
+  defp map_error(:missing_workspace), do: {:bad_request, "Workspace is required"}
 
   defp map_error({:minio_upload_failed, _reason}),
     do: {:bad_gateway, "Falha ao enviar arquivo para o storage"}

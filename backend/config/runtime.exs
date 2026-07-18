@@ -117,6 +117,7 @@ config :minha_casa_ai, MinhaCasaAi.Config,
   langfuse_env: System.get_env("LANGFUSE_ENV", "local"),
   langfuse_prompt_label: System.get_env("LANGFUSE_PROMPT_LABEL", "production"),
   portal_search_cache_ttl_days:
-    String.to_integer(System.get_env("PORTAL_SEARCH_CACHE_TTL_DAYS") || "30")
+    String.to_integer(System.get_env("PORTAL_SEARCH_CACHE_TTL_DAYS") || "30"),
+  retention_purge_enabled: System.get_env("RETENTION_PURGE_ENABLED", "true") not in ["false", "0"]
 
 config :image, concurrency: String.to_integer(System.get_env("VIPS_CONCURRENCY") || "2")

@@ -13,6 +13,7 @@ defmodule MinhaCasaAiWeb.CollectionController do
     Collection,
     CollectionPolicy,
     CollectionSharing,
+    Deletion,
     Listing,
     ListingData
   }
@@ -173,25 +174,22 @@ defmodule MinhaCasaAiWeb.CollectionController do
         |> put_status(:bad_request)
         |> json(%{error: "Cannot delete the only default collection"})
       else
-        Repo.transaction(fn ->
-          from(l in Listing, where: l.collection_id == ^id) |> Repo.delete_all()
-          Repo.delete!(collection)
-
+        promote_collection_id =
           if collection.is_default do
             scoped(Collection, profile)
+            |> where([c], c.id != ^collection.id)
+            |> order_by([c], asc: c.created_at)
             |> limit(1)
+            |> select([c], c.id)
             |> Repo.one()
-            |> case do
-              nil ->
-                :ok
-
-              next_collection ->
-                next_collection |> Collection.changeset(%{is_default: true}) |> Repo.update!()
-            end
           end
-        end)
 
-        json(conn, %{success: true})
+        case Deletion.delete_collection(collection,
+               promote_collection_id: promote_collection_id
+             ) do
+          {:ok, _} -> json(conn, %{success: true})
+          {:error, _} -> not_found(conn, "Collection")
+        end
       end
     else
       {:error, _} -> not_found(conn, "Collection")

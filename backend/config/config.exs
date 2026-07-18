@@ -30,9 +30,10 @@ config :minha_casa_ai, Oban,
   plugins: [
     {Oban.Plugins.Cron,
      crontab: [
-       {"*/15 * * * *", MinhaCasaAi.Workers.ListingMergeSessionSweepWorker}
+       {"*/15 * * * *", MinhaCasaAi.Workers.ListingMergeSessionSweepWorker},
+       {"15 3 * * *", MinhaCasaAi.Workers.RetentionSweepWorker}
      ]}
   ],
-  queues: [ai: 5, default: 5, webhooks: 5, images: 3, portal_search: 3]
+  queues: [ai: 5, default: 5, webhooks: 5, images: 3, portal_search: 3, storage: 2, retention: 2]
 
 import_config "#{config_env()}.exs"

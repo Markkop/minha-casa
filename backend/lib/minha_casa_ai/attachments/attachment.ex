@@ -7,6 +7,7 @@ defmodule MinhaCasaAi.Attachments.Attachment do
   schema "ai_attachments" do
     field :user_id, :binary_id
     field :org_id, :binary_id
+    field :workspace_id, :binary_id
     field :storage_key, :string
     field :filename, :string
     field :content_type, :string
@@ -21,6 +22,7 @@ defmodule MinhaCasaAi.Attachments.Attachment do
     |> cast(attrs, [
       :user_id,
       :org_id,
+      :workspace_id,
       :storage_key,
       :filename,
       :content_type,
@@ -28,6 +30,6 @@ defmodule MinhaCasaAi.Attachments.Attachment do
       :source,
       :metadata
     ])
-    |> validate_required([:storage_key, :content_type, :byte_size, :source])
+    |> validate_required([:workspace_id, :storage_key, :content_type, :byte_size, :source])
   end
 end

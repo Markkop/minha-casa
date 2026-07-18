@@ -33,6 +33,19 @@ describe("PLAN_CATALOG", () => {
     expect(agency?.features).toContain("Seat adicional por R$ 39/mês");
   });
 
+  it("discloses inactivity retention for every tier", () => {
+    expect(
+      PLAN_CATALOG.map((plan) =>
+        plan.features.find((feature) => feature.startsWith("Retenção por"))
+      )
+    ).toEqual([
+      "Retenção por 30 dias sem atividade",
+      "Retenção por 360 dias sem atividade",
+      "Retenção por 360 dias sem atividade",
+      "Retenção por 720 dias sem atividade da equipe"
+    ]);
+  });
+
   it("does not expose internal AI credits", () => {
     const visibleCopy = JSON.stringify(PLAN_CATALOG);
 

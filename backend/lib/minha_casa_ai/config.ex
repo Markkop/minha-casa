@@ -112,6 +112,15 @@ defmodule MinhaCasaAi.Config do
     end
   end
 
+  def retention_purge_enabled? do
+    case get(:retention_purge_enabled) do
+      false -> false
+      "false" -> false
+      "0" -> false
+      _ -> true
+    end
+  end
+
   def langfuse_enabled? do
     case get(:langfuse_enabled) do
       false -> false

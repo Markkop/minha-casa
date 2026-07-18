@@ -14,6 +14,52 @@ defmodule MinhaCasaAi.Attachments.Storage do
     end
   end
 
+  def get_object(key) when is_binary(key) do
+    if Config.configured?(:minio) do
+      ExAws.S3.get_object(Config.minio_bucket(), key)
+      |> ExAws.request(ex_aws_config())
+      |> case do
+        {:ok, %{body: body}} when is_binary(body) ->
+          {:ok, body}
+
+        {:ok, %{"Body" => body}} when is_binary(body) ->
+          {:ok, body}
+
+        {:error, reason} when is_tuple(reason) ->
+          if not_found?(reason),
+            do: {:error, :object_not_found},
+            else: {:error, {:minio_download_failed, reason}}
+
+        {:error, reason} ->
+          {:error, {:minio_download_failed, reason}}
+      end
+    else
+      {:error, :minio_not_configured}
+    end
+  end
+
+  def delete_object(key) when is_binary(key) do
+    if Config.configured?(:minio) do
+      ExAws.S3.delete_object(Config.minio_bucket(), key)
+      |> ExAws.request(ex_aws_config())
+      |> case do
+        {:ok, _} ->
+          :ok
+
+        {:error, reason} ->
+          if not_found?(reason),
+            do: :ok,
+            else: {:error, {:minio_delete_failed, reason}}
+      end
+    else
+      {:error, :minio_not_configured}
+    end
+  end
+
+  defp not_found?({:http_error, 404, _}), do: true
+  defp not_found?({_, value}) when is_tuple(value), do: not_found?(value)
+  defp not_found?(_), do: false
+
   defp ex_aws_config do
     uri = URI.parse(Config.minio_endpoint())
     scheme = (uri.scheme || "http") <> "://"

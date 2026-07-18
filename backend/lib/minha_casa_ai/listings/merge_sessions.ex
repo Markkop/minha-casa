@@ -7,6 +7,7 @@ defmodule MinhaCasaAi.Listings.MergeSessions do
   alias MinhaCasaAi.ListingImages
   alias MinhaCasaAi.ListingImages.Fingerprint
   alias MinhaCasaAi.ListingImages.Storage
+  alias MinhaCasaAi.ListingImages.StorageCleanup
   alias MinhaCasaAi.Listings
 
   alias MinhaCasaAi.Listings.{
@@ -1125,7 +1126,7 @@ defmodule MinhaCasaAi.Listings.MergeSessions do
                  {:ok, bytes, content_type} <- Storage.get_object(key),
                  index <- length(keys),
                  {:ok, stored_key} <-
-                   Storage.put_listing_image(listing.id, index, bytes, content_type) do
+                   Storage.put_versioned_listing_image(listing.id, bytes, content_type) do
               {
                 keys ++ [stored_key],
                 paths ++ ["/api/listings/#{listing.id}/images/#{index}"],
@@ -1149,7 +1150,8 @@ defmodule MinhaCasaAi.Listings.MergeSessions do
              true <- byte_size(body) > 0,
              {:ok, fingerprint} <- Fingerprint.from_bytes(body),
              index <- length(keys),
-             {:ok, stored_key} <- Storage.put_listing_image(listing.id, index, body, content_type) do
+             {:ok, stored_key} <-
+               Storage.put_versioned_listing_image(listing.id, body, content_type) do
           {
             keys ++ [stored_key],
             paths ++ ["/api/listings/#{listing.id}/images/#{index}"],
@@ -1166,8 +1168,6 @@ defmodule MinhaCasaAi.Listings.MergeSessions do
       |> Enum.filter(fn {_key, index} -> index not in selected_existing end)
       |> Enum.map(fn {key, _index} -> key end)
 
-    Enum.each(removed_keys, &Storage.delete_object/1)
-
     old_cover = data["coverImageIndex"] || 0
 
     new_cover =
@@ -1177,6 +1177,10 @@ defmodule MinhaCasaAi.Listings.MergeSessions do
       end
 
     final_keys = Enum.filter(final_keys, &is_binary/1)
+
+    removed_keys
+    |> StorageCleanup.stale_keys(final_keys)
+    |> then(&StorageCleanup.enqueue!(keys: &1))
 
     if gallery_unchanged?(data, final_keys, final_paths, selected_new_ordered, removed_keys) do
       %{}
@@ -1211,11 +1215,13 @@ defmodule MinhaCasaAi.Listings.MergeSessions do
   end
 
   defp cleanup_payload_images(payload) do
-    payload
-    |> Map.get("images", [])
-    |> Enum.map(& &1["storageKey"])
-    |> Enum.filter(&is_binary/1)
-    |> Enum.each(&Storage.delete_object/1)
+    keys =
+      payload
+      |> Map.get("images", [])
+      |> Enum.map(& &1["storageKey"])
+      |> Enum.filter(&is_binary/1)
+
+    StorageCleanup.enqueue!(keys: keys)
   end
 
   defp public_http_url?(value) when is_binary(value) do

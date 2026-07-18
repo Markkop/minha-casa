@@ -12,6 +12,7 @@ defmodule MinhaCasaAi.Workspaces do
   alias MinhaCasaAi.Listings.{Collection, CollectionAccessGrant}
   alias MinhaCasaAi.Organizations.{Organization, OrganizationMember}
   alias MinhaCasaAi.Repo
+  alias MinhaCasaAi.Retention
   alias MinhaCasaAi.Workspaces.Workspace
   alias MinhaCasaAi.Entitlements
 
@@ -121,14 +122,26 @@ defmodule MinhaCasaAi.Workspaces do
               do: "Corretor — #{user.name || user.email}",
               else: user.name || user.email
 
-          %Workspace{}
-          |> Workspace.changeset(%{
-            type: type,
-            owner_user_id: user_id,
-            name: label,
-            status: "active"
-          })
-          |> Repo.insert()
+          Repo.transaction(fn ->
+            workspace =
+              %Workspace{}
+              |> Workspace.changeset(%{
+                type: type,
+                owner_user_id: user_id,
+                name: label,
+                status: "active"
+              })
+              |> Repo.insert!()
+
+            case Retention.initialize_workspace(workspace) do
+              :ok -> Repo.get!(Workspace, workspace.id)
+              {:error, reason} -> Repo.rollback(reason)
+            end
+          end)
+          |> case do
+            {:ok, workspace} -> {:ok, workspace}
+            {:error, reason} -> {:error, reason}
+          end
         else
           nil -> {:error, :not_found}
         end

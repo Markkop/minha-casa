@@ -3,12 +3,15 @@ defmodule MinhaCasaAi.Channel.Agent do
   Shared inbound message orchestration for WhatsApp, Telegram, and future web chat.
   """
 
+  alias MinhaCasaAi.Attachments
   alias MinhaCasaAi.Channel.{ContentDetector, ReplyFormatter}
   alias MinhaCasaAi.Chat
+  alias MinhaCasaAi.Retention
   alias MinhaCasaAi.Telegram.Client, as: TelegramClient
   alias MinhaCasaAi.Telegram.Identities, as: TelegramIdentities
   alias MinhaCasaAi.WhatsApp.Client, as: WhatsAppClient
   alias MinhaCasaAi.WhatsApp.Identities, as: WhatsAppIdentities
+  alias MinhaCasaAi.Workspaces
 
   def handle_whatsapp(%{wa_id: wa_id, phone: phone} = inbound) do
     user_id =
@@ -21,11 +24,22 @@ defmodule MinhaCasaAi.Channel.Agent do
       {:error, :not_linked}
     else
       org_id = WhatsAppIdentities.default_org_id(user_id)
+      workspace_id = Workspaces.workspace_id_for(user_id, org_id)
 
-      with {:ok, parser_input} <- ContentDetector.from_whatsapp_message(inbound),
+      with :ok <- Retention.record_activity(workspace_id),
+           {:ok, parser_input} <- ContentDetector.from_whatsapp_message(inbound),
+           {:ok, parser_input} <-
+             persist_media(parser_input, user_id, org_id, workspace_id, "whatsapp"),
            :ok <- WhatsAppClient.send_text(phone, "Analisando sua mensagem…"),
            {:ok, %{workflow: workflow}} <-
-             start_chat_workflow(user_id, org_id, "whatsapp", inbound, parser_input) do
+             start_chat_workflow(
+               user_id,
+               org_id,
+               workspace_id,
+               "whatsapp",
+               inbound,
+               parser_input
+             ) do
         {:ok, workflow}
       else
         {:error, reason} ->
@@ -46,11 +60,22 @@ defmodule MinhaCasaAi.Channel.Agent do
       {:error, :not_linked}
     else
       org_id = TelegramIdentities.default_org_id(user_id)
+      workspace_id = Workspaces.workspace_id_for(user_id, org_id)
 
-      with {:ok, parser_input} <- ContentDetector.from_telegram_message(inbound),
+      with :ok <- Retention.record_activity(workspace_id),
+           {:ok, parser_input} <- ContentDetector.from_telegram_message(inbound),
+           {:ok, parser_input} <-
+             persist_media(parser_input, user_id, org_id, workspace_id, "telegram"),
            :ok <- TelegramClient.send_message(chat_id, "Analisando sua mensagem…"),
            {:ok, %{workflow: workflow}} <-
-             start_chat_workflow(user_id, org_id, "telegram", inbound, parser_input) do
+             start_chat_workflow(
+               user_id,
+               org_id,
+               workspace_id,
+               "telegram",
+               inbound,
+               parser_input
+             ) do
         {:ok, workflow}
       else
         {:error, reason} ->
@@ -60,7 +85,7 @@ defmodule MinhaCasaAi.Channel.Agent do
     end
   end
 
-  defp start_chat_workflow(user_id, org_id, channel, inbound, parser_input) do
+  defp start_chat_workflow(user_id, org_id, workspace_id, channel, inbound, parser_input) do
     reply_meta =
       case channel do
         "whatsapp" ->
@@ -107,7 +132,9 @@ defmodule MinhaCasaAi.Channel.Agent do
            channel: channel,
            user_id: user_id,
            org_id: org_id,
+           workspace_id: workspace_id,
            content: content,
+           attachments: attachment_references(parser_input),
            metadata: metadata
          }) do
       {:ok, %{workflow: %{id: _} = workflow}} ->
@@ -120,4 +147,48 @@ defmodule MinhaCasaAi.Channel.Agent do
         {:error, reason}
     end
   end
+
+  defp persist_media(
+         %{"kind" => kind, "base64" => _} = parser_input,
+         user_id,
+         org_id,
+         workspace_id,
+         channel
+       )
+       when kind in ["image", "pdf"] do
+    attrs =
+      parser_input
+      |> Map.take(["base64", "filename", "mimeType"])
+      |> Map.put("contentType", parser_input["mimeType"] || default_content_type(kind))
+      |> Map.put(:user_id, user_id)
+      |> Map.put(:org_id, org_id)
+      |> Map.put(:workspace_id, workspace_id)
+      |> Map.put(:source, channel)
+
+    with {:ok, attachment} <- Attachments.create_from_base64(attrs) do
+      {:ok,
+       parser_input
+       |> Map.delete("base64")
+       |> Map.put("attachmentId", attachment.id)
+       |> Map.put("mimeType", attachment.content_type)}
+    end
+  end
+
+  defp persist_media(parser_input, _user_id, _org_id, _workspace_id, _channel),
+    do: {:ok, parser_input}
+
+  defp attachment_references(%{"attachmentId" => id} = input) do
+    [
+      %{
+        "attachmentId" => id,
+        "filename" => input["filename"],
+        "contentType" => input["mimeType"]
+      }
+    ]
+  end
+
+  defp attachment_references(_), do: []
+
+  defp default_content_type("image"), do: "image/jpeg"
+  defp default_content_type("pdf"), do: "application/pdf"
 end

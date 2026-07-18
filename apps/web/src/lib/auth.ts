@@ -3,6 +3,46 @@ import { betterAuth } from "better-auth";
 import { jwt } from "better-auth/plugins";
 import { getAuthPgPool } from "$lib/server/pg-pool";
 
+export const RETENTION_LOGIN_SQL =
+  "SELECT refresh_retention_on_login($1::uuid) AS refreshed_workspace_count";
+
+type RetentionQueryPool = Pick<ReturnType<typeof getAuthPgPool>, "query">;
+
+export async function recordLoginActivity(
+  userId: string,
+  pool: RetentionQueryPool = getAuthPgPool()
+): Promise<void> {
+  await pool.query(RETENTION_LOGIN_SQL, [userId]);
+}
+
+function reportRetentionActivityError(userId: string, error: unknown): void {
+  console.error("Could not refresh workspace retention after login", {
+    userId,
+    error
+  });
+}
+
+export function createRetentionDatabaseHooks(
+  recordActivity: (userId: string) => Promise<void> = recordLoginActivity,
+  reportError: (userId: string, error: unknown) => void = reportRetentionActivityError
+) {
+  return {
+    session: {
+      create: {
+        after: async (session: { userId: string }) => {
+          try {
+            await recordActivity(session.userId);
+          } catch (error) {
+            reportError(session.userId, error);
+          }
+        }
+      }
+    }
+  };
+}
+
+export const RETENTION_DATABASE_HOOKS = createRetentionDatabaseHooks();
+
 export const AUTH_MODEL_CONFIG = {
   user: {
     modelName: "users",
@@ -82,6 +122,7 @@ export function getAuth(): ReturnType<typeof betterAuth> {
     baseURL: process.env.BETTER_AUTH_URL,
     secret: process.env.BETTER_AUTH_SECRET,
     database: getAuthPgPool(),
+    databaseHooks: RETENTION_DATABASE_HOOKS,
     emailAndPassword: {
       enabled: true,
       requireEmailVerification: false

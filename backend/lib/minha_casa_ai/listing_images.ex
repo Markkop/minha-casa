@@ -39,30 +39,15 @@ defmodule MinhaCasaAi.ListingImages do
     end
   end
 
-  defp mark_pending(collection_id, listing_id, overwrite) do
-    updates =
-      %{
-        "imageIngestionStatus" => "pending",
-        "imageIngestionError" => nil
-      }
-      |> maybe_clear_images(overwrite)
+  defp mark_pending(collection_id, listing_id, _overwrite) do
+    updates = %{
+      "imageIngestionStatus" => "pending",
+      "imageIngestionError" => nil
+    }
 
     case Listings.update_listing(collection_id, listing_id, updates) do
       {:ok, listing} -> {:ok, listing}
       error -> error
     end
   end
-
-  defp maybe_clear_images(updates, true) do
-    Map.merge(updates, %{
-      "imageStorageKeys" => [],
-      "imageUrls" => [],
-      "imageUrl" => nil,
-      "coverImageIndex" => nil,
-      "imageFingerprints" => [],
-      "imageEnvironments" => nil
-    })
-  end
-
-  defp maybe_clear_images(updates, _), do: updates
 end

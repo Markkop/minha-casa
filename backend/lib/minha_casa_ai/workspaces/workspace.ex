@@ -13,6 +13,11 @@ defmodule MinhaCasaAi.Workspaces.Workspace do
     field :name, :string
     field :status, :string, default: "active"
     field :settings, :map, default: %{}
+    field :retention_status, :string
+    field :retention_last_activity_at, :utc_datetime
+    field :retention_plan_slug, :string
+    field :retention_expires_at, :utc_datetime
+    field :content_purged_at, :utc_datetime
     timestamps(inserted_at: :created_at, updated_at: :updated_at, type: :utc_datetime)
   end
 
@@ -21,7 +26,18 @@ defmodule MinhaCasaAi.Workspaces.Workspace do
 
   def changeset(workspace, attrs) do
     workspace
-    |> cast(attrs, [:type, :owner_user_id, :name, :status, :settings])
+    |> cast(attrs, [
+      :type,
+      :owner_user_id,
+      :name,
+      :status,
+      :settings,
+      :retention_status,
+      :retention_last_activity_at,
+      :retention_plan_slug,
+      :retention_expires_at,
+      :content_purged_at
+    ])
     |> validate_required([:type, :name, :status])
     |> validate_inclusion(:type, @types)
     |> validate_inclusion(:status, @statuses)

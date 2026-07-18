@@ -5,6 +5,7 @@ defmodule MinhaCasaAi.Organizations do
   alias MinhaCasaAi.Listings.{Collection, Listing}
   alias MinhaCasaAi.Organizations.{Organization, OrganizationInvite, OrganizationMember}
   alias MinhaCasaAi.Repo
+  alias MinhaCasaAi.Retention
   alias MinhaCasaAi.Workspaces.Workspace
 
   @invite_ttl_days 7
@@ -89,6 +90,8 @@ defmodule MinhaCasaAi.Organizations do
             joined_at: DateTime.utc_now()
           })
           |> Repo.insert!()
+
+          :ok = Retention.initialize_workspace(workspace)
 
           org
           |> Map.put(:role, "owner")

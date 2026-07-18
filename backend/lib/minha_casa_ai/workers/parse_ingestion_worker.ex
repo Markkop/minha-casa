@@ -21,7 +21,7 @@ defmodule MinhaCasaAi.Workers.ParseIngestionWorker do
     else
       Workflows.mark_processing!(run)
 
-      case ListingParser.parse(strip_reply_metadata(run.input)) do
+      case ListingParser.parse(strip_reply_metadata(run.input), workspace_id: run.workspace_id) do
         {:ok, listings} ->
           result = %{"listings" => listings}
           Workflows.mark_ready!(run, result)

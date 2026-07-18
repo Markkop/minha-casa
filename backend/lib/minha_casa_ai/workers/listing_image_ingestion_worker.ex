@@ -22,6 +22,7 @@ defmodule MinhaCasaAi.Workers.ListingImageIngestionWorker do
     try do
       case Ingest.run(listing_id, collection_id) do
         :ok -> :ok
+        {:error, :listing_not_found} -> {:cancel, "listing not found"}
         {:error, _} = error -> error
       end
     rescue

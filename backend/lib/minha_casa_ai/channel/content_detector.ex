@@ -19,7 +19,13 @@ defmodule MinhaCasaAi.Channel.ContentDetector do
   def from_whatsapp_message(%{type: "image", message: %{"image" => image}}) do
     with {:ok, %{base64: base64, mime_type: mime}} <-
            MinhaCasaAi.WhatsApp.Media.download_base64(image) do
-      {:ok, %{"kind" => "image", "base64" => base64, "mimeType" => mime}}
+      {:ok,
+       %{
+         "kind" => "image",
+         "base64" => base64,
+         "mimeType" => mime,
+         "filename" => media_filename("whatsapp-image", image, extension_for(mime, ".jpg"))
+       }}
     end
   end
 
@@ -28,7 +34,14 @@ defmodule MinhaCasaAi.Channel.ContentDetector do
 
     if String.contains?(mime, "pdf") do
       with {:ok, %{base64: base64}} <- MinhaCasaAi.WhatsApp.Media.download_base64(doc) do
-        {:ok, %{"kind" => "pdf", "base64" => base64}}
+        {:ok,
+         %{
+           "kind" => "pdf",
+           "base64" => base64,
+           "mimeType" => "application/pdf",
+           "filename" =>
+             Map.get(doc, "filename") || media_filename("whatsapp-document", doc, ".pdf")
+         }}
       end
     else
       {:error, :unsupported_document}
@@ -62,7 +75,13 @@ defmodule MinhaCasaAi.Channel.ContentDetector do
     file_id = Map.get(photo, "file_id")
 
     with {:ok, %{base64: base64}} <- MinhaCasaAi.Telegram.Media.download_base64(file_id) do
-      {:ok, %{"kind" => "image", "base64" => base64, "mimeType" => "image/jpeg"}}
+      {:ok,
+       %{
+         "kind" => "image",
+         "base64" => base64,
+         "mimeType" => "image/jpeg",
+         "filename" => media_filename("telegram-photo", photo, ".jpg")
+       }}
     end
   end
 
@@ -72,7 +91,14 @@ defmodule MinhaCasaAi.Channel.ContentDetector do
     if String.contains?(mime, "pdf") do
       with {:ok, %{base64: base64}} <-
              MinhaCasaAi.Telegram.Media.download_base64(Map.get(doc, "file_id")) do
-        {:ok, %{"kind" => "pdf", "base64" => base64}}
+        {:ok,
+         %{
+           "kind" => "pdf",
+           "base64" => base64,
+           "mimeType" => "application/pdf",
+           "filename" =>
+             Map.get(doc, "file_name") || media_filename("telegram-document", doc, ".pdf")
+         }}
       end
     else
       {:error, :unsupported_document}
@@ -91,4 +117,13 @@ defmodule MinhaCasaAi.Channel.ContentDetector do
       _ -> nil
     end
   end
+
+  defp media_filename(prefix, media, extension) do
+    id = Map.get(media, "id") || Map.get(media, "file_unique_id") || Map.get(media, "file_id")
+    "#{prefix}-#{id || Ecto.UUID.generate()}#{extension}"
+  end
+
+  defp extension_for("image/png", _fallback), do: ".png"
+  defp extension_for("image/webp", _fallback), do: ".webp"
+  defp extension_for(_, fallback), do: fallback
 end

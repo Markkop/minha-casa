@@ -22,6 +22,7 @@ export const PLAN_CATALOG = [
     features: [
       "2 coleções pessoais",
       "Até 20 imóveis salvos",
+      "Retenção por 30 dias sem atividade",
       "Comparação de imóveis",
       "Acesso a coleções recebidas"
     ],
@@ -36,6 +37,7 @@ export const PLAN_CATALOG = [
     features: [
       "100 coleções por perfil",
       "Até 1.000 imóveis por perfil",
+      "Retenção por 360 dias sem atividade",
       "Uma Família com até 4 pessoas",
       "Coleções familiares colaborativas",
       "Apresentações externas somente leitura"
@@ -51,6 +53,7 @@ export const PLAN_CATALOG = [
     features: [
       "Workspace profissional separado",
       "250 coleções e até 2.500 imóveis",
+      "Retenção por 360 dias sem atividade",
       "Coleções-modelo reutilizáveis",
       "Branding profissional",
       "Apresentações e colaboração com clientes"
@@ -67,6 +70,7 @@ export const PLAN_CATALOG = [
       "10 seats incluídos",
       "Seat adicional por R$ 39/mês",
       "500 coleções e até 5.000 imóveis",
+      "Retenção por 720 dias sem atividade da equipe",
       "Papéis de owner, admin e corretor",
       "Branding, governança e modelos da equipe"
     ],

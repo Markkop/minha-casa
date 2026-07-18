@@ -47,6 +47,7 @@ services:
     environment:
       MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:-minhacasa}
       MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-minhacasa_local_password}
+      RETENTION_PURGE_ENABLED: ${RETENTION_PURGE_ENABLED:-true}
       MINIO_BUCKET: ${MINIO_BUCKET:-minha-casa-ai}
     entrypoint:
       - /bin/sh

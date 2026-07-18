@@ -9,6 +9,7 @@ defmodule MinhaCasaAi.Accounts.User do
     field :image, :string
     field :is_admin, :boolean, default: false
     field :stripe_customer_id, :string
+    field :last_login_at, :utc_datetime
     timestamps(inserted_at: :created_at, updated_at: :updated_at, type: :utc_datetime)
   end
 end

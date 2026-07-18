@@ -1,6 +1,7 @@
 defmodule MinhaCasaAi.ListingImages.Ingest do
   alias MinhaCasaAi.Integrations.ScrapingAnt
   alias MinhaCasaAi.ListingImages.Storage
+  alias MinhaCasaAi.ListingImages.StorageCleanup
   alias MinhaCasaAi.ListingImages.Fingerprint
   alias MinhaCasaAi.Listings
   alias MinhaCasaAi.Listings.Listing
@@ -23,6 +24,7 @@ defmodule MinhaCasaAi.ListingImages.Ingest do
 
   defp run_for_listing(%Listing{id: listing_id, collection_id: collection_id, data: data}) do
     data = data || %{}
+    previous_keys = List.wrap(data["imageStorageKeys"])
 
     link =
       case Map.get(data, "sourceUrl") do
@@ -57,8 +59,14 @@ defmodule MinhaCasaAi.ListingImages.Ingest do
 
                   {:error, :download_failed}
                 else
-                  persist_success(collection_id, listing_id, keys, paths, fingerprints)
-                  :ok
+                  persist_success(
+                    collection_id,
+                    listing_id,
+                    previous_keys,
+                    keys,
+                    paths,
+                    fingerprints
+                  )
                 end
             end
 
@@ -106,7 +114,7 @@ defmodule MinhaCasaAi.ListingImages.Ingest do
           {:ok, bytes, content_type} ->
             gallery_index = length(keys)
 
-            case Storage.put_listing_image(listing_id, gallery_index, bytes, content_type) do
+            case Storage.put_versioned_listing_image(listing_id, bytes, content_type) do
               {:ok, key} ->
                 fingerprint =
                   case Fingerprint.from_bytes(bytes) do
@@ -207,12 +215,39 @@ defmodule MinhaCasaAi.ListingImages.Ingest do
     }
   end
 
-  defp persist_success(collection_id, listing_id, keys, paths, fingerprints) do
-    Listings.update_listing(
-      collection_id,
-      listing_id,
-      success_updates(keys, paths, fingerprints)
-    )
+  defp persist_success(
+         collection_id,
+         listing_id,
+         previous_keys,
+         keys,
+         paths,
+         fingerprints
+       ) do
+    Repo.transaction(fn ->
+      case Listings.update_listing(
+             collection_id,
+             listing_id,
+             success_updates(keys, paths, fingerprints)
+           ) do
+        {:ok, listing} ->
+          previous_keys
+          |> StorageCleanup.stale_keys(keys)
+          |> then(&StorageCleanup.enqueue!(keys: &1))
+
+          listing
+
+        {:error, reason} ->
+          Repo.rollback(reason)
+      end
+    end)
+    |> case do
+      {:ok, _listing} ->
+        :ok
+
+      {:error, reason} ->
+        StorageCleanup.enqueue!(keys: keys)
+        {:error, reason}
+    end
   end
 
   @doc false

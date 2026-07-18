@@ -1,4 +1,5 @@
 defmodule MinhaCasaAi.Integrations.ListingParser do
+  alias MinhaCasaAi.Attachments
   alias MinhaCasaAi.Integrations.{OpenAIListingParser, PdfText, ScrapingAnt}
   alias MinhaCasaAi.Workspace.ListingFeatures
 
@@ -17,6 +18,13 @@ defmodule MinhaCasaAi.Integrations.ListingParser do
 
   def parse(%{"rawText" => raw_text} = input, opts) when is_binary(raw_text),
     do: parse(Map.put(input, "kind", "text"), opts)
+
+  def parse(%{"kind" => kind, "attachmentId" => attachment_id} = input, opts)
+      when kind in ["image", "pdf"] and is_binary(attachment_id) do
+    with {:ok, materialized} <- materialize_attachment(input, opts) do
+      parse(materialized, opts)
+    end
+  end
 
   def parse(%{"kind" => "image", "base64" => base64, "mimeType" => mime_type} = input, opts) do
     with :ok <- assert_size(base64, @max_image_bytes) do
@@ -49,6 +57,24 @@ defmodule MinhaCasaAi.Integrations.ListingParser do
   end
 
   def parse(_, _opts), do: {:error, :invalid_request}
+
+  @doc false
+  def materialize_attachment(%{"attachmentId" => attachment_id} = input, opts) do
+    workspace_id = Keyword.get(opts, :workspace_id)
+    loader = Keyword.get(opts, :attachment_loader, &Attachments.fetch_base64/2)
+
+    if is_binary(workspace_id) do
+      with {:ok, attachment, base64} <- loader.(attachment_id, workspace_id) do
+        {:ok,
+         input
+         |> Map.delete("attachmentId")
+         |> Map.put("base64", base64)
+         |> Map.put("mimeType", attachment.content_type)}
+      end
+    else
+      {:error, :missing_workspace}
+    end
+  end
 
   defp parser_opts(input, opts) do
     catalog =

@@ -1,6 +1,6 @@
 <main class="mx-auto max-w-3xl space-y-8 px-6 py-12">
   <div class="space-y-3">
-    <p class="text-sm text-muted-foreground">Última atualização: maio de 2026</p>
+    <p class="text-sm text-muted-foreground">Última atualização: julho de 2026</p>
     <h1 class="text-3xl font-bold tracking-tight">Termos de Uso</h1>
     <p class="text-muted-foreground">Ao usar a Minha Casa, você concorda com estes termos. Se não concordar, não use o serviço.</p>
   </div>
@@ -33,8 +33,17 @@
   <section class="space-y-3">
     <h2 class="text-xl font-semibold">Informações e análises</h2>
     <p class="text-muted-foreground">
-      Simulações, estimativas, análises de anúncios, mapas, risco, financiamento ou qualquer saída automatizada são apenas informativas.
+      Simulações, estimativas, análises de imóveis, mapas, risco, financiamento ou qualquer saída automatizada são apenas informativas.
       Elas não substituem avaliação profissional, jurídica, financeira, engenharia, vistoria ou diligência própria antes de comprar, vender ou alugar imóveis.
+    </p>
+  </section>
+
+  <section class="space-y-3">
+    <h2 class="text-xl font-semibold">Retenção por inatividade</h2>
+    <p class="text-muted-foreground">
+      Coleções, imóveis salvos, imagens e anexos podem ser excluídos permanentemente após períodos contínuos
+      sem atividade: 30 dias no Free, 360 dias no Pro e Corretor, e 720 dias no Imobiliária. O prazo aplicável
+      é renovado por nova atividade da conta ou da equipe, conforme descrito na Política de Privacidade.
     </p>
   </section>
 

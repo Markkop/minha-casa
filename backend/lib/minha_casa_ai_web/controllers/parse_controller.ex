@@ -20,7 +20,10 @@ defmodule MinhaCasaAiWeb.ParseController do
              collection_id: blank_to_nil(input["collectionId"]),
              idempotency_key: idempotency_key(conn, input)
            ) do
-      case ListingParser.parse(input, catalog: catalog) do
+      case ListingParser.parse(input,
+             catalog: catalog,
+             workspace_id: workspace_access.workspace.id
+           ) do
         {:ok, listings} ->
           {:ok, _} = AiUsage.consume(reservation)
           json(conn, %{listings: DisplayTitle.apply_to_listings(listings), usageAlert: alert})
@@ -103,6 +106,9 @@ defmodule MinhaCasaAiWeb.ParseController do
   defp map_error(:file_too_large), do: {:bad_request, "Arquivo muito grande."}
   defp map_error(:empty_file), do: {:bad_request, "Arquivo vazio"}
   defp map_error(:invalid_base64), do: {:bad_request, "Dados do arquivo inválidos"}
+  defp map_error(:attachment_not_found), do: {:not_found, "Attachment não encontrado"}
+  defp map_error(:object_not_found), do: {:not_found, "Arquivo do attachment não encontrado"}
+  defp map_error(:missing_workspace), do: {:bad_request, "Workspace is required"}
 
   defp map_error(:pdf_tool_unavailable),
     do: {:service_unavailable, "Leitura de PDF indisponível no servidor no momento."}

@@ -15,6 +15,13 @@ defmodule MinhaCasaAi.ListingImages.Storage do
     put_object(key, bytes, content_type)
   end
 
+  def put_versioned_listing_image(listing_id, bytes, content_type)
+      when is_binary(listing_id) and is_binary(bytes) and is_binary(content_type) do
+    ext = Map.get(@content_type_ext, content_type, "jpg")
+    key = "listings/#{listing_id}/gallery/#{Ecto.UUID.generate()}.#{ext}"
+    put_object(key, bytes, content_type)
+  end
+
   def put_staged_merge_image(session_id, image_id, bytes, content_type)
       when is_binary(session_id) and is_binary(image_id) and is_binary(bytes) do
     ext = Map.get(@content_type_ext, content_type, "jpg")
@@ -53,6 +60,65 @@ defmodule MinhaCasaAi.ListingImages.Storage do
     end
   end
 
+  def delete_objects(keys) when is_list(keys) do
+    keys = normalize_targets(keys)
+
+    cond do
+      keys == [] ->
+        :ok
+
+      not Config.configured?(:minio) ->
+        {:error, :minio_not_configured}
+
+      true ->
+        ExAws.S3.delete_all_objects(Config.minio_bucket(), keys, quiet: true)
+        |> ExAws.request(ex_aws_config())
+        |> case do
+          {:ok, _} -> :ok
+          {:error, reason} -> {:error, {:minio_batch_delete_failed, reason}}
+        end
+    end
+  end
+
+  def delete_prefix(prefix) when is_binary(prefix) do
+    prefix = String.trim(prefix)
+
+    cond do
+      prefix == "" ->
+        {:error, :invalid_prefix}
+
+      not Config.configured?(:minio) ->
+        {:error, :minio_not_configured}
+
+      true ->
+        try do
+          keys =
+            Config.minio_bucket()
+            |> ExAws.S3.list_objects_v2(prefix: prefix)
+            |> ExAws.stream!(ex_aws_config())
+            |> Stream.map(& &1.key)
+            |> Enum.to_list()
+
+          delete_objects(keys)
+        rescue
+          exception -> {:error, {:minio_prefix_delete_failed, exception}}
+        end
+    end
+  end
+
+  def delete_targets(keys, prefixes) when is_list(keys) and is_list(prefixes) do
+    with :ok <- delete_objects(keys) do
+      prefixes
+      |> normalize_targets()
+      |> Enum.reduce_while(:ok, fn prefix, :ok ->
+        case delete_prefix(prefix) do
+          :ok -> {:cont, :ok}
+          {:error, _} = error -> {:halt, error}
+        end
+      end)
+    end
+  end
+
   def get_object(key) when is_binary(key) do
     if Config.configured?(:minio) do
       ExAws.S3.get_object(Config.minio_bucket(), key)
@@ -72,6 +138,17 @@ defmodule MinhaCasaAi.ListingImages.Storage do
   def listing_image_key(listing_id, index, content_type) do
     ext = Map.get(@content_type_ext, content_type, "jpg")
     "listings/#{listing_id}/#{index}.#{ext}"
+  end
+
+  @doc false
+  def normalize_targets_for_test(values), do: normalize_targets(values)
+
+  defp normalize_targets(values) do
+    values
+    |> Enum.filter(&is_binary/1)
+    |> Enum.map(&String.trim/1)
+    |> Enum.reject(&(&1 == ""))
+    |> Enum.uniq()
   end
 
   defp content_type_from_headers(headers) when is_list(headers) do

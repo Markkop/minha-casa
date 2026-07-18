@@ -5,6 +5,7 @@ defmodule MinhaCasaAi.Listings do
     Collection,
     CollectionPolicy,
     Collections,
+    Deletion,
     Duplicates,
     Listing,
     ListingData
@@ -192,7 +193,7 @@ defmodule MinhaCasaAi.Listings do
     with {:ok, _} <- authorize_collection(collection_id, user_id, org_id, :edit_existing),
          %Listing{} = listing <-
            Repo.get_by(Listing, id: listing_id, collection_id: collection_id) do
-      Repo.delete(listing)
+      Deletion.delete_listing(listing)
     else
       nil -> {:error, :listing_not_found}
       {:error, _} = err -> err
