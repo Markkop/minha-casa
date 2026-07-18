@@ -5,13 +5,11 @@
  */
 
 export interface FeatureFlags {
-  organizations: boolean;
   publicCollections: boolean;
   mapProvider: "google" | "leaflet" | "auto";
 }
 
 const defaultFlags: FeatureFlags = {
-  organizations: true,
   publicCollections: true,
   mapProvider: "auto"
 };
@@ -53,7 +51,6 @@ export function getFlag<K extends keyof FeatureFlags>(key: K): FeatureFlags[K] {
 
 export function getAllFlags(): FeatureFlags {
   return {
-    organizations: getFlag("organizations"),
     publicCollections: getFlag("publicCollections"),
     mapProvider: getFlag("mapProvider")
   };

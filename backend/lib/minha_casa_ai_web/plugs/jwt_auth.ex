@@ -7,7 +7,8 @@ defmodule MinhaCasaAiWeb.Plugs.JwtAuth do
   import Phoenix.Controller
 
   alias MinhaCasaAi.Auth.JWKS
-  alias MinhaCasaAi.Organizations
+  alias MinhaCasaAi.Organizations.Organization
+  alias MinhaCasaAi.{PlatformRoles, Repo, Workspaces}
 
   def init(opts), do: opts
 
@@ -15,17 +16,20 @@ defmodule MinhaCasaAiWeb.Plugs.JwtAuth do
     with ["Bearer " <> token] <- get_req_header(conn, "authorization"),
          {:ok, claims} <- JWKS.verify_token(token),
          user_id when is_binary(user_id) <- claims["sub"] || claims["id"],
-         {:ok, org_id} <- verified_org_id(conn, user_id) do
+         {:ok, workspace_access} <- verified_workspace(conn, user_id) do
       conn
       |> assign(:current_user_id, user_id)
-      |> assign(:current_org_id, org_id)
-      |> assign(:current_user_is_admin, claims["isAdmin"] == true)
+      |> assign(:current_workspace_id, workspace_access.workspace.id)
+      |> assign(:current_workspace, workspace_access.workspace)
+      |> assign(:current_workspace_access, workspace_access.access)
+      |> assign(:current_org_id, workspace_access.org_id)
+      |> assign(:current_user_is_admin, PlatformRoles.super_admin?(user_id))
       |> assign(:current_auth_claims, claims)
     else
-      {:error, :forbidden_org} ->
+      {:error, :forbidden} ->
         conn
         |> put_status(:forbidden)
-        |> json(%{error: "You are not a member of this organization"})
+        |> json(%{error: "You do not have access to this workspace"})
         |> halt()
 
       _ ->
@@ -36,22 +40,29 @@ defmodule MinhaCasaAiWeb.Plugs.JwtAuth do
     end
   end
 
-  defp verified_org_id(conn, user_id) do
-    org_id =
+  defp verified_workspace(conn, user_id) do
+    workspace_id =
+      conn
+      |> get_req_header("x-workspace-id")
+      |> List.first()
+      |> blank_to_nil()
+
+    legacy_org_id =
       conn
       |> get_req_header("x-organization-id")
       |> List.first()
       |> blank_to_nil()
 
-    cond do
-      is_nil(org_id) ->
-        {:ok, nil}
+    workspace_id = workspace_id || legacy_workspace_id(legacy_org_id)
+    Workspaces.resolve_access(user_id, workspace_id)
+  end
 
-      Organizations.member?(user_id, org_id) ->
-        {:ok, org_id}
+  defp legacy_workspace_id(nil), do: nil
 
-      true ->
-        {:error, :forbidden_org}
+  defp legacy_workspace_id(org_id) do
+    case Repo.get(Organization, org_id) do
+      %Organization{workspace_id: workspace_id} -> workspace_id
+      _ -> "invalid"
     end
   end
 

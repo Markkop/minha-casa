@@ -17,7 +17,8 @@ defmodule MinhaCasaAi.Repo.Migrations.CreateListingPreferenceCatalog do
 
     create(
       constraint(:listing_preference_catalog, :listing_preference_catalog_owner_check,
-        check: "(user_id IS NOT NULL AND org_id IS NULL) OR (user_id IS NULL AND org_id IS NOT NULL)"
+        check:
+          "(user_id IS NOT NULL AND org_id IS NULL) OR (user_id IS NULL AND org_id IS NOT NULL)"
       )
     )
 

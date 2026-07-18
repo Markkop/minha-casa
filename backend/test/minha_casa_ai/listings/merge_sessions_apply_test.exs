@@ -6,6 +6,7 @@ defmodule MinhaCasaAi.Listings.MergeSessionsApplyTest do
   alias MinhaCasaAi.Listings.MergeSessions
   alias MinhaCasaAi.Listings.{Collection, Listing, ListingMergeSession}
   alias MinhaCasaAi.Repo
+  alias MinhaCasaAi.Workspaces
 
   setup do
     user_id = Ecto.UUID.generate()
@@ -23,11 +24,16 @@ defmodule MinhaCasaAi.Listings.MergeSessionsApplyTest do
       ]
     )
 
+    {:ok, workspace} = Workspaces.ensure_personal_workspace(user_id)
+
     collection =
       %Collection{}
       |> Collection.changeset(%{
         name: "Merge test #{System.unique_integer([:positive])}",
-        user_id: user_id
+        user_id: user_id,
+        workspace_id: workspace.id,
+        created_by_user_id: user_id,
+        responsible_user_id: user_id
       })
       |> Repo.insert!()
 
@@ -51,6 +57,8 @@ defmodule MinhaCasaAi.Listings.MergeSessionsApplyTest do
       Repo.delete_all(
         from saved_collection in Collection, where: saved_collection.id == ^collection.id
       )
+
+      Repo.delete!(workspace)
 
       Ecto.Adapters.SQL.query!(Repo, "DELETE FROM users WHERE id = $1", [
         Ecto.UUID.dump!(user_id)
@@ -174,7 +182,10 @@ defmodule MinhaCasaAi.Listings.MergeSessionsApplyTest do
              )
   end
 
-  test "session_json exposes gallery with value types", %{collection: collection, listing: listing} do
+  test "session_json exposes gallery with value types", %{
+    collection: collection,
+    listing: listing
+  } do
     session =
       ready_session(collection.id, listing, [
         field("titulo", "Atual", "Importado", "text")

@@ -9,6 +9,7 @@ defmodule MinhaCasaAi.Billing.SubscriptionAccessTest do
   alias MinhaCasaAi.Billing
   alias MinhaCasaAi.Billing.{Plan, Subscription}
   alias MinhaCasaAi.Repo
+  alias MinhaCasaAi.Workspaces
   alias MinhaCasaAiWeb.SubscriptionController
   alias MinhaCasaAiWeb.Plugs.RequireSubscription
 
@@ -30,13 +31,16 @@ defmodule MinhaCasaAi.Billing.SubscriptionAccessTest do
         limits: %{}
       })
 
+    {:ok, workspace} = Workspaces.ensure_personal_workspace(user.id)
+
     on_exit(fn ->
       Repo.delete_all(from s in Subscription, where: s.user_id == ^user.id)
       Repo.delete!(plan)
+      Repo.delete!(workspace)
       Repo.delete!(user)
     end)
 
-    %{user: user, plan: plan}
+    %{user: user, plan: plan, workspace: workspace}
   end
 
   test "returns a current active subscription whose expiration is in the future", %{
@@ -71,21 +75,28 @@ defmodule MinhaCasaAi.Billing.SubscriptionAccessTest do
     refute Billing.active_subscription?(user.id)
   end
 
-  test "subscription plug allows a user with a valid subscription", %{user: user, plan: plan} do
+  test "subscription plug allows a user with a valid subscription", %{
+    user: user,
+    plan: plan,
+    workspace: workspace
+  } do
     insert_subscription(user, plan, "active", DateTime.add(now(), 60, :second))
 
     conn =
       conn(:get, "/api/collections")
       |> assign(:current_user_id, user.id)
       |> assign(:current_user_is_admin, false)
+      |> assign(:current_workspace, workspace)
+      |> assign(:current_workspace_access, "owner")
       |> RequireSubscription.call([])
 
     refute conn.halted
   end
 
-  test "subscription plug rejects a user whose active subscription is expired", %{
+  test "subscription plug falls back to Free when a personal subscription is expired", %{
     user: user,
-    plan: plan
+    plan: plan,
+    workspace: workspace
   } do
     insert_subscription(user, plan, "active", DateTime.add(now(), -60, :second))
 
@@ -93,18 +104,24 @@ defmodule MinhaCasaAi.Billing.SubscriptionAccessTest do
       conn(:get, "/api/collections")
       |> assign(:current_user_id, user.id)
       |> assign(:current_user_is_admin, false)
+      |> assign(:current_workspace, workspace)
+      |> assign(:current_workspace_access, "owner")
       |> RequireSubscription.call([])
 
-    assert conn.halted
-    assert conn.status == 402
-    assert Jason.decode!(conn.resp_body) == %{"error" => "Subscription required"}
+    refute conn.halted
+    assert conn.assigns.current_entitlement.plan_slug == "free"
   end
 
-  test "subscription plug preserves the admin bypass", %{user: user} do
+  test "subscription plug allows a Super Admin personal workspace", %{
+    user: user,
+    workspace: workspace
+  } do
     conn =
       conn(:get, "/api/collections")
       |> assign(:current_user_id, user.id)
       |> assign(:current_user_is_admin, true)
+      |> assign(:current_workspace, workspace)
+      |> assign(:current_workspace_access, "owner")
       |> RequireSubscription.call([])
 
     refute conn.halted

@@ -59,7 +59,7 @@ defmodule MinhaCasaAi.PropertyAnalyses.HermesSteps.Xray do
     max_c = Step.int_or_nil(Map.get(p, "custoMaxBrl")) || min_c
     max_c = if max_c < min_c, do: min_c, else: max_c
 
-  idx =
+    idx =
       case Map.get(p, "id") do
         id when is_binary(id) and id != "" -> id
         _ -> nil
@@ -88,7 +88,8 @@ defmodule MinhaCasaAi.PropertyAnalyses.HermesSteps.Xray do
         %{
           "id" => "#{ambiente_id}-xray-#{length(pontos) + i}",
           "titulo" => "Verificação recomendada",
-          "descricao" => "Não foi possível inferir um ponto específico; inspecione este ambiente na visita.",
+          "descricao" =>
+            "Não foi possível inferir um ponto específico; inspecione este ambiente na visita.",
           "custoMinBrl" => 0,
           "custoMaxBrl" => 0
         }
@@ -96,5 +97,4 @@ defmodule MinhaCasaAi.PropertyAnalyses.HermesSteps.Xray do
 
     pontos ++ placeholders
   end
-
 end

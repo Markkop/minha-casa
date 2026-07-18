@@ -57,6 +57,7 @@ defmodule MinhaCasaAi.Assistant.LLM do
 
   defp do_run(user_id, text, ctx) do
     {instructions, prompt_ref} = PromptHelpers.compile("assistant/instructions", %{})
+
     lf =
       case PromptHelpers.langfuse_ctx("assistant/llm", prompt_ref) do
         nil -> nil

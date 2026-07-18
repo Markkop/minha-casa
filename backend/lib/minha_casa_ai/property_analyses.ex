@@ -2,6 +2,7 @@ defmodule MinhaCasaAi.PropertyAnalyses do
   import Ecto.Query
 
   alias MinhaCasaAi.Listings
+  alias MinhaCasaAi.Listings.Collection
   alias MinhaCasaAi.PropertyAnalyses.ListingAnalysis
   alias MinhaCasaAi.PropertyAnalyses.SpaceSlug
   alias MinhaCasaAi.Repo
@@ -71,7 +72,8 @@ defmodule MinhaCasaAi.PropertyAnalyses do
           status: "received",
           input: workflow_input,
           user_id: user_id,
-          org_id: org_id
+          org_id: org_id,
+          workspace_id: Repo.get!(Collection, listing.collection_id).workspace_id
         })
         |> Repo.insert!()
 
@@ -379,7 +381,9 @@ defmodule MinhaCasaAi.PropertyAnalyses do
           end)
 
         ambientes = Map.put(ambientes, "cards", cards)
-        merged = Map.put(result, "ambientes", ambientes) |> Map.put("schemaVersion", @schema_version)
+
+        merged =
+          Map.put(result, "ambientes", ambientes) |> Map.put("schemaVersion", @schema_version)
 
         locked |> update_analysis!(%{result: merged})
       end)

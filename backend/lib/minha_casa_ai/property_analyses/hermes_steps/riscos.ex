@@ -52,5 +52,4 @@ defmodule MinhaCasaAi.PropertyAnalyses.HermesSteps.Riscos do
     |> Enum.reject(&(&1 == ""))
     |> Enum.uniq()
   end
-
 end

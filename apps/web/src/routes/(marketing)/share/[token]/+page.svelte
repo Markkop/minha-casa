@@ -1,9 +1,10 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { page } from "$app/state";
-  import { ExternalLink, Search, Star } from "@lucide/svelte";
+  import { Copy, Search, Star } from "@lucide/svelte";
+  import { goto } from "$app/navigation";
+  import { getSession } from "$lib/auth-client";
   import { config } from "$lib/config";
-  import FloatingTooltip from "$lib/components/ui/FloatingTooltip.svelte";
   import { workspaceApi, type Listing, type ListingData, type SharedCollection } from "$lib/workspace/client";
 
   type SortKey = "titulo" | "preco" | "m2Totais" | "m2Privado" | "quartos" | "precoM2";
@@ -17,6 +18,8 @@
   let query = $state("");
   let sortKey = $state<SortKey>("preco");
   let sortDirection = $state<"asc" | "desc">("asc");
+  let isAuthenticated = $state(false);
+  let copying = $state(false);
 
   const listings = $derived.by(() => {
     const rows = data?.listings ?? [];
@@ -41,6 +44,9 @@
       const token = page.params.token;
       if (!token) throw new Error("Token ausente");
       data = await workspaceApi.fetchSharedCollection(token);
+      const session = await getSession();
+      isAuthenticated = Boolean(session.data?.user);
+      if (isAuthenticated) await workspaceApi.claimSharedCollection(token);
     } catch (err) {
       error = err instanceof Error ? err.message : "Colecao compartilhada nao encontrada";
     } finally {
@@ -54,6 +60,19 @@
     } else {
       sortKey = key;
       sortDirection = key === "titulo" ? "asc" : "desc";
+    }
+  }
+
+  async function copyToPersonal() {
+    if (!data) return;
+    copying = true;
+    try {
+      const result = await workspaceApi.copyCollection(data.collection.id, {});
+      await goto(`/anuncios?collection=${encodeURIComponent(result.collection.id)}`);
+    } catch (err) {
+      error = err instanceof Error ? err.message : "Não foi possível copiar a coleção";
+    } finally {
+      copying = false;
     }
   }
 
@@ -134,6 +153,16 @@
             <h1 class="text-2xl font-semibold">{data.collection.name}</h1>
             <p class="mt-1 text-sm text-app-muted">{data.metadata.totalListings} anuncio(s)</p>
           </div>
+          <div class="flex flex-col gap-2 sm:flex-row">
+            {#if isAuthenticated}
+              <button type="button" class="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-app-fg px-4 text-sm text-white" onclick={() => void copyToPersonal()} disabled={copying}>
+                <Copy class="h-4 w-4" /> {copying ? "Copiando..." : "Copiar para Pessoal"}
+              </button>
+            {:else}
+              <a class="inline-flex h-10 items-center justify-center rounded-md bg-app-fg px-4 text-sm text-white" href={`/login?callbackURL=${encodeURIComponent(page.url.pathname)}`}>
+                Entrar para salvar
+              </a>
+            {/if}
           <div class="relative md:w-80">
             <Search class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-app-muted" />
             <input
@@ -141,6 +170,7 @@
               placeholder="Buscar na colecao"
               bind:value={query}
             />
+          </div>
           </div>
         </div>
       </header>
@@ -164,14 +194,12 @@
                   </th>
                 {/each}
                 <th class="px-3 py-2 font-medium">Local</th>
-                <th class="px-3 py-2 font-medium">Contato</th>
-                <th class="px-3 py-2 text-right font-medium">Link</th>
               </tr>
             </thead>
             <tbody>
               {#if listings.length === 0}
                 <tr>
-                  <td class="px-3 py-8 text-center text-app-muted" colspan="8">Nenhum anuncio encontrado.</td>
+                  <td class="px-3 py-8 text-center text-app-muted" colspan="6">Nenhum anuncio encontrado.</td>
                 </tr>
               {:else}
                 {#each listings as listing (listing.id)}
@@ -197,24 +225,6 @@
                     <td class="px-3 py-3 text-app-muted">
                       <div>{listing.data.endereco ?? "-"}</div>
                       <div class="text-xs">{[listing.data.bairro, listing.data.cidade].filter(Boolean).join(", ")}</div>
-                    </td>
-                    <td class="px-3 py-3 text-app-muted">
-                      <div>{listing.data.corretor ?? "-"}</div>
-                      <div class="text-xs">{listing.data.telefone ?? ""}</div>
-                    </td>
-                    <td class="px-3 py-3 text-right">
-                      {#if listing.data.link}
-                        <FloatingTooltip label="Abrir anuncio" side="bottom">
-                          <a
-                            class="inline-flex h-9 w-9 items-center justify-center rounded-md text-app-muted hover:bg-app-surface-muted hover:text-app-fg"
-                            href={String(listing.data.link)}
-                            target="_blank"
-                            rel="noreferrer"
-                          >
-                            <ExternalLink class="h-4 w-4" />
-                          </a>
-                        </FloatingTooltip>
-                      {/if}
                     </td>
                   </tr>
                 {/each}

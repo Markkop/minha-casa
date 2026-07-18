@@ -17,7 +17,8 @@ defmodule MinhaCasaAi.Channel.ContentDetector do
   end
 
   def from_whatsapp_message(%{type: "image", message: %{"image" => image}}) do
-    with {:ok, %{base64: base64, mime_type: mime}} <- MinhaCasaAi.WhatsApp.Media.download_base64(image) do
+    with {:ok, %{base64: base64, mime_type: mime}} <-
+           MinhaCasaAi.WhatsApp.Media.download_base64(image) do
       {:ok, %{"kind" => "image", "base64" => base64, "mimeType" => mime}}
     end
   end
@@ -55,7 +56,8 @@ defmodule MinhaCasaAi.Channel.ContentDetector do
     end
   end
 
-  def from_telegram_message(%{type: "photo", message: %{"photo" => photos}}) when is_list(photos) do
+  def from_telegram_message(%{type: "photo", message: %{"photo" => photos}})
+      when is_list(photos) do
     photo = List.last(photos)
     file_id = Map.get(photo, "file_id")
 

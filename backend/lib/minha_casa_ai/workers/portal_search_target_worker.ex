@@ -6,6 +6,7 @@ defmodule MinhaCasaAi.Workers.PortalSearchTargetWorker do
   alias MinhaCasaAi.Config
   alias MinhaCasaAi.Integrations.{Langfuse.Trace, ScrapingAnt}
   alias MinhaCasaAi.PortalSearches
+
   alias MinhaCasaAi.PortalSearches.{
     Broadcast,
     Cache,
@@ -101,7 +102,8 @@ defmodule MinhaCasaAi.Workers.PortalSearchTargetWorker do
              extraction_status: "pending"
            }),
          {:ok, cards} <- extract(scraped.text, target, trace_ctx, scraped.html),
-         source_urls <- Enum.map(cards, &(&1["listingUrl"] || &1["source_url"])) |> Enum.reject(&is_nil/1),
+         source_urls <-
+           Enum.map(cards, &(&1["listingUrl"] || &1["source_url"])) |> Enum.reject(&is_nil/1),
          _page <-
            Cache.mark_extracted!(page, %{
              card_count: length(cards),
@@ -168,7 +170,11 @@ defmodule MinhaCasaAi.Workers.PortalSearchTargetWorker do
             trace_id: trace_ctx[:trace_id],
             parent_observation_id: trace_ctx[:observation_id],
             name: "openai:results_extractor",
-            metadata: %{portal: target.portal, url: target.url, listing_urls: length(listing_urls)}
+            metadata: %{
+              portal: target.portal,
+              url: target.url,
+              listing_urls: length(listing_urls)
+            }
           }
         end
 

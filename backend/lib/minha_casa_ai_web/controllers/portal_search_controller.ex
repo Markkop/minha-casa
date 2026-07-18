@@ -209,7 +209,8 @@ defmodule MinhaCasaAiWeb.PortalSearchController do
   defp profile(conn) do
     case Profile.profile_from_headers(
            conn.assigns[:current_user_id],
-           conn.assigns[:current_org_id]
+           conn.assigns[:current_org_id],
+           conn.assigns[:current_workspace_id]
          ) do
       {:error, :missing_profile} -> {:error, :unauthorized, "Unauthorized"}
       profile -> {:ok, profile}

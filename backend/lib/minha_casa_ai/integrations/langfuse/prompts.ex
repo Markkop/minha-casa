@@ -3,7 +3,7 @@ defmodule MinhaCasaAi.Integrations.Langfuse.Prompts do
   Fetches prompts from Langfuse (cached) with snapshot fallback and `{{var}}` compilation.
   """
 
-  alias MinhaCasaAi.Integrations.Langfuse.{Client, Config, DefaultPrompts}
+  alias MinhaCasaAi.Integrations.Langfuse.{Client, Config, DefaultPrompts, PromptCache}
 
   @table :langfuse_prompt_cache
   @ttl_ms 60_000
@@ -38,7 +38,16 @@ defmodule MinhaCasaAi.Integrations.Langfuse.Prompts do
   def ensure_table! do
     case :ets.info(@table) do
       :undefined ->
-        :ets.new(@table, [:named_table, :set, :public, read_concurrency: true])
+        case Process.whereis(PromptCache) do
+          nil ->
+            case PromptCache.start_link([]) do
+              {:ok, _pid} -> :ok
+              {:error, {:already_started, _pid}} -> :ok
+            end
+
+          _pid ->
+            :ok
+        end
 
       _ ->
         :ok

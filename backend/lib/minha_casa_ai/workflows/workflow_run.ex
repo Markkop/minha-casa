@@ -12,12 +12,13 @@ defmodule MinhaCasaAi.Workflows.WorkflowRun do
     field :error, :string
     field :user_id, :binary_id
     field :org_id, :binary_id
+    field :workspace_id, :binary_id
     timestamps(type: :utc_datetime)
   end
 
   def changeset(run, attrs) do
     run
-    |> cast(attrs, [:kind, :status, :input, :result, :error, :user_id, :org_id])
-    |> validate_required([:kind, :status, :input])
+    |> cast(attrs, [:kind, :status, :input, :result, :error, :user_id, :org_id, :workspace_id])
+    |> validate_required([:kind, :status, :input, :workspace_id])
   end
 end

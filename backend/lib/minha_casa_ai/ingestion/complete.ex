@@ -48,7 +48,13 @@ defmodule MinhaCasaAi.Ingestion.Complete do
           handle_single(run, hd(listings), collection, conversation_id, 0)
 
         true ->
-          %{saved: [], duplicates: [], pending_type: nil, collection: collection, workflow_id: run.id}
+          %{
+            saved: [],
+            duplicates: [],
+            pending_type: nil,
+            collection: collection,
+            workflow_id: run.id
+          }
       end
     end
   end
@@ -110,7 +116,8 @@ defmodule MinhaCasaAi.Ingestion.Complete do
     }
   end
 
-  defp set_duplicate_pending!(conversation_id, run, collection, duplicates) when is_binary(conversation_id) do
+  defp set_duplicate_pending!(conversation_id, run, collection, duplicates)
+       when is_binary(conversation_id) do
     items =
       Enum.map(duplicates, fn d ->
         %{
@@ -131,7 +138,8 @@ defmodule MinhaCasaAi.Ingestion.Complete do
 
   defp set_duplicate_pending!(_, _, _, _), do: :ok
 
-  defp set_multi_pending!(conversation_id, run, collection, listings) when is_binary(conversation_id) do
+  defp set_multi_pending!(conversation_id, run, collection, listings)
+       when is_binary(conversation_id) do
     items =
       Enum.with_index(listings)
       |> Enum.map(fn {data, index} ->

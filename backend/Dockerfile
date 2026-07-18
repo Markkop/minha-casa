@@ -8,7 +8,7 @@ ENV MIX_ENV=prod
 
 RUN mix local.hex --force && mix local.rebar --force
 
-COPY mix.exs ./
+COPY mix.exs mix.lock ./
 RUN mix deps.get --only prod
 RUN mkdir config
 COPY config/config.exs config/prod.exs config/runtime.exs config/

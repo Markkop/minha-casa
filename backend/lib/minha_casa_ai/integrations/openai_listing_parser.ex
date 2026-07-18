@@ -33,7 +33,8 @@ defmodule MinhaCasaAi.Integrations.OpenAIListingParser do
     end
   end
 
-  def parse_image(base64, mime_type, opts \\ []) when is_binary(base64) and is_binary(mime_type) do
+  def parse_image(base64, mime_type, opts \\ [])
+      when is_binary(base64) and is_binary(mime_type) do
     catalog = Keyword.get(opts, :catalog, ListingPreferences.default_system_options())
     compile_vars = prompt_compile_vars(catalog)
 

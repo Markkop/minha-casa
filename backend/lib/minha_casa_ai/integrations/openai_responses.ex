@@ -177,36 +177,35 @@ defmodule MinhaCasaAi.Integrations.OpenAIResponses do
       {"authorization", "Bearer #{api_key}"}
     ]
 
-    encoded = Jason.encode!(body)
-
-    case :hackney.post(@api_url, headers, encoded,
-           with_body: true,
-           recv_timeout: timeout,
-           pool: :default
+    case Req.post(@api_url,
+           headers: headers,
+           json: body,
+           receive_timeout: timeout,
+           retry: false
          ) do
-      {:ok, status, _, resp} when status in 200..299 and is_binary(resp) ->
-        case Jason.decode(resp) do
-          {:ok, map} ->
-            if map["status"] == "incomplete" do
-              {:error, :empty_ai_response}
-            else
-              {:ok, map}
-            end
-
-          _ ->
-            {:error, :empty_ai_response}
+      {:ok, %{status: status, body: resp}} when status in 200..299 and is_map(resp) ->
+        if resp["status"] == "incomplete" do
+          {:error, :empty_ai_response}
+        else
+          {:ok, resp}
         end
 
-      {:ok, 401, _, _} ->
+      {:ok, %{status: status, body: resp}} when status in 200..299 and is_binary(resp) ->
+        case Jason.decode(resp) do
+          {:ok, map} when is_map(map) -> {:ok, map}
+          _ -> {:error, :empty_ai_response}
+        end
+
+      {:ok, %{status: 401}} ->
         {:error, :openai_unauthorized}
 
-      {:ok, 429, _, _} ->
+      {:ok, %{status: 429}} ->
         {:error, :openai_rate_limited}
 
-      {:ok, status, _, _} when status >= 500 ->
+      {:ok, %{status: status}} when status >= 500 ->
         {:error, :openai_unavailable}
 
-      {:ok, _, _, _} ->
+      {:ok, _} ->
         {:error, :openai_error}
 
       {:error, _} ->

@@ -9,7 +9,10 @@ defmodule MinhaCasaAi.Integrations.ListingParser do
 
   def parse(%{"kind" => "text", "rawText" => raw_text} = input, opts) when is_binary(raw_text) do
     text = String.trim(raw_text)
-    if text == "", do: {:error, :empty_text}, else: OpenAIListingParser.parse_text(text, parser_opts(input, opts))
+
+    if text == "",
+      do: {:error, :empty_text},
+      else: OpenAIListingParser.parse_text(text, parser_opts(input, opts))
   end
 
   def parse(%{"rawText" => raw_text} = input, opts) when is_binary(raw_text),

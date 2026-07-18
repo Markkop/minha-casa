@@ -74,7 +74,8 @@ defmodule MinhaCasaAi.PortalSearches.HermesSteps.ResultsExtractor do
       "condoFee" => to_float(card["condoFee"] || card["condo_fee"]),
       "amenities" => amenities(card),
       "thumbnailUrl" => string_or_nil(card["thumbnailUrl"] || card["thumbnail_url"]),
-      "listingUrl" => string_or_nil(card["listingUrl"] || card["listing_url"] || card["source_url"])
+      "listingUrl" =>
+        string_or_nil(card["listingUrl"] || card["listing_url"] || card["source_url"])
     }
     |> Enum.reject(fn {_k, v} -> is_nil(v) end)
     |> Map.new()

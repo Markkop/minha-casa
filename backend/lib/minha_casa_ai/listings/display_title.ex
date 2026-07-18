@@ -17,7 +17,7 @@ defmodule MinhaCasaAi.Listings.DisplayTitle do
         id = listing["id"] || "temp-#{index}"
         Map.put(listing, "id", id)
       end)
-      |> Enum.reject(&(present_manual?(&1)))
+      |> Enum.reject(&present_manual?(&1))
 
     base_locations =
       auto
@@ -76,7 +76,9 @@ defmodule MinhaCasaAi.Listings.DisplayTitle do
               Map.put(
                 acc,
                 id,
-                build_base_title(listing, loc, show_property_type_prefix: show_property_type_prefix)
+                build_base_title(listing, loc,
+                  show_property_type_prefix: show_property_type_prefix
+                )
               )
             end
 
@@ -169,9 +171,16 @@ defmodule MinhaCasaAi.Listings.DisplayTitle do
     end
   end
 
-  defp assign_unique_titles(group, _show_property_type_prefix, min_escalation, max_escalation, build_candidate) do
+  defp assign_unique_titles(
+         group,
+         _show_property_type_prefix,
+         min_escalation,
+         max_escalation,
+         build_candidate
+       ) do
     {assigned, _used} =
-      Enum.reduce(min_escalation..max_escalation, {%{}, MapSet.new()}, fn escalation, {assigned, used} ->
+      Enum.reduce(min_escalation..max_escalation, {%{}, MapSet.new()}, fn escalation,
+                                                                          {assigned, used} ->
         Enum.reduce(group, {assigned, used}, fn listing, {assigned, used} ->
           id = listing["id"]
 
@@ -273,12 +282,21 @@ defmodule MinhaCasaAi.Listings.DisplayTitle do
     end
   end
 
-  defp build_title_with_escalation(listing, base_location, escalation_index, show_property_type_prefix) do
+  defp build_title_with_escalation(
+         listing,
+         base_location,
+         escalation_index,
+         show_property_type_prefix
+       ) do
     title_opts = [show_property_type_prefix: show_property_type_prefix]
 
     cond do
       escalation_index <= 0 ->
-        build_base_title(listing, base_location, Keyword.put(title_opts, :location_preposition, "em"))
+        build_base_title(
+          listing,
+          base_location,
+          Keyword.put(title_opts, :location_preposition, "em")
+        )
 
       location_at_level(listing, :rua) ->
         street = location_at_level(listing, :rua)

@@ -38,7 +38,11 @@ defmodule MinhaCasaAi.Workers.PropertyAnalysisWorker do
   defp run_pipeline(analysis, listing, opts) do
     cond do
       not Config.configured?(:hermes) ->
-        PropertyAnalyses.mark_failed!(analysis, "Hermes não configurado (HERMES_API_URL / HERMES_API_KEY)")
+        PropertyAnalyses.mark_failed!(
+          analysis,
+          "Hermes não configurado (HERMES_API_URL / HERMES_API_KEY)"
+        )
+
         {:error, :hermes_not_configured}
 
       not Config.configured?(:openai) ->

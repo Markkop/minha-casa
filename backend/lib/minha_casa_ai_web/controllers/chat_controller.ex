@@ -10,7 +10,8 @@ defmodule MinhaCasaAiWeb.ChatController do
       attachments: params["attachments"] || [],
       channel: "web",
       user_id: conn.assigns[:current_user_id],
-      org_id: conn.assigns[:current_org_id]
+      org_id: conn.assigns[:current_org_id],
+      workspace_id: conn.assigns[:current_workspace_id]
     }
 
     case Chat.create_message(attrs) do

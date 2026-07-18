@@ -13,8 +13,11 @@ defmodule MinhaCasaAiWeb.WorkspaceController do
   def contacts_create(conn, params) do
     with {:ok, profile} <- profile(conn) do
       case DecisionData.create_contact(profile, params) do
-        {:ok, contact} -> conn |> put_status(:created) |> json(%{contact: WorkspaceJSON.contact(contact)})
-        {:error, changeset} -> changeset_error(conn, changeset)
+        {:ok, contact} ->
+          conn |> put_status(:created) |> json(%{contact: WorkspaceJSON.contact(contact)})
+
+        {:error, changeset} ->
+          changeset_error(conn, changeset)
       end
     end
   end
@@ -47,8 +50,11 @@ defmodule MinhaCasaAiWeb.WorkspaceController do
   def regions_create(conn, params) do
     with {:ok, profile} <- profile(conn) do
       case DecisionData.create_region(profile, params) do
-        {:ok, region} -> conn |> put_status(:created) |> json(%{region: WorkspaceJSON.region(region)})
-        {:error, changeset} -> changeset_error(conn, changeset)
+        {:ok, region} ->
+          conn |> put_status(:created) |> json(%{region: WorkspaceJSON.region(region)})
+
+        {:error, changeset} ->
+          changeset_error(conn, changeset)
       end
     end
   end
@@ -74,7 +80,9 @@ defmodule MinhaCasaAiWeb.WorkspaceController do
 
   def condominiums_index(conn, _params) do
     with {:ok, profile} <- profile(conn) do
-      json(conn, %{condominiums: WorkspaceJSON.condominiums(DecisionData.list_condominiums(profile))})
+      json(conn, %{
+        condominiums: WorkspaceJSON.condominiums(DecisionData.list_condominiums(profile))
+      })
     end
   end
 
@@ -82,7 +90,9 @@ defmodule MinhaCasaAiWeb.WorkspaceController do
     with {:ok, profile} <- profile(conn) do
       case DecisionData.create_condominium(profile, params) do
         {:ok, condominium} ->
-          conn |> put_status(:created) |> json(%{condominium: WorkspaceJSON.condominium(condominium)})
+          conn
+          |> put_status(:created)
+          |> json(%{condominium: WorkspaceJSON.condominium(condominium)})
 
         {:error, changeset} ->
           changeset_error(conn, changeset)
@@ -111,7 +121,9 @@ defmodule MinhaCasaAiWeb.WorkspaceController do
 
   def listing_preferences_index(conn, _params) do
     with {:ok, profile} <- profile(conn) do
-      json(conn, %{preferences: WorkspaceJSON.listing_preferences(ListingPreferences.list_catalog(profile))})
+      json(conn, %{
+        preferences: WorkspaceJSON.listing_preferences(ListingPreferences.list_catalog(profile))
+      })
     end
   end
 
@@ -134,23 +146,32 @@ defmodule MinhaCasaAiWeb.WorkspaceController do
 
   def comparison_notes_index(conn, _params) do
     with {:ok, profile} <- profile(conn) do
-      json(conn, %{notes: WorkspaceJSON.comparison_notes(DecisionData.list_comparison_notes(profile))})
+      json(conn, %{
+        notes: WorkspaceJSON.comparison_notes(DecisionData.list_comparison_notes(profile))
+      })
     end
   end
 
   def comparison_notes_upsert(conn, params) do
     with {:ok, profile} <- profile(conn) do
       case DecisionData.upsert_comparison_note(profile, params) do
-        {:ok, note} -> json(conn, %{note: WorkspaceJSON.comparison_note(note)})
-        {:error, :listing_required} -> conn |> put_status(:bad_request) |> json(%{error: "Listing ID is required"})
-        {:error, :not_found} -> not_found(conn, "Listing")
-        {:error, changeset} -> changeset_error(conn, changeset)
+        {:ok, note} ->
+          json(conn, %{note: WorkspaceJSON.comparison_note(note)})
+
+        {:error, :listing_required} ->
+          conn |> put_status(:bad_request) |> json(%{error: "Listing ID is required"})
+
+        {:error, :not_found} ->
+          not_found(conn, "Listing")
+
+        {:error, changeset} ->
+          changeset_error(conn, changeset)
       end
     end
   end
 
   defp profile(conn) do
-    case Profile.profile_from_headers(conn.assigns[:current_user_id], conn.assigns[:current_org_id]) do
+    case profile_with_access(conn) do
       {:error, :missing_profile} ->
         conn |> put_status(:unauthorized) |> json(%{error: "Unauthorized"}) |> halt()
         {:error, :halted}
@@ -158,6 +179,23 @@ defmodule MinhaCasaAiWeb.WorkspaceController do
       profile ->
         {:ok, profile}
     end
+  end
+
+  defp profile_with_access(%{assigns: %{current_workspace_access: "external"}} = conn) do
+    %{
+      user_id: conn.assigns.current_user_id,
+      org_id: conn.assigns[:current_org_id],
+      workspace_id: conn.assigns.current_workspace_id,
+      access: "external"
+    }
+  end
+
+  defp profile_with_access(conn) do
+    Profile.profile_from_headers(
+      conn.assigns[:current_user_id],
+      conn.assigns[:current_org_id],
+      conn.assigns[:current_workspace_id]
+    )
   end
 
   defp changeset_error(conn, %Ecto.Changeset{} = changeset) do

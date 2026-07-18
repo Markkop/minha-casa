@@ -5,6 +5,7 @@ config :minha_casa_ai,
   generators: [binary_id: true]
 
 config :minha_casa_ai, MinhaCasaAiWeb.Endpoint,
+  adapter: Bandit.PhoenixAdapter,
   url: [host: "localhost"],
   render_errors: [
     formats: [json: MinhaCasaAiWeb.ErrorJSON],
@@ -20,6 +21,8 @@ config :logger, :console,
 config :phoenix, :json_library, Jason
 
 config :req, default_finch: MinhaCasaAi.Finch
+
+config :ex_aws, http_client: ExAws.Request.Req
 
 config :minha_casa_ai, Oban,
   repo: MinhaCasaAi.Repo,

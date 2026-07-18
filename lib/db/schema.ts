@@ -8,6 +8,7 @@ import {
   uuid,
   index,
   uniqueIndex,
+  type AnyPgColumn,
 } from "drizzle-orm/pg-core"
 import { relations } from "drizzle-orm"
 
@@ -29,6 +30,23 @@ export const users = pgTable(
   },
   (table) => [
     uniqueIndex("users_email_idx").on(table.email),
+  ]
+)
+
+export const platformUserRoles = pgTable(
+  "platform_user_roles",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    role: text("role").$type<"super_admin">().notNull(),
+    grantedByUserId: uuid("granted_by_user_id").references(() => users.id, { onDelete: "set null" }),
+    grantedAt: timestamp("granted_at", { withTimezone: true }).defaultNow().notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex("platform_user_roles_user_id_role_index").on(table.userId, table.role),
+    index("platform_user_roles_role_index").on(table.role),
   ]
 )
 
@@ -119,8 +137,8 @@ export const jwks = pgTable("jwks", {
 // ============================================================================
 export const plans = pgTable("plans", {
   id: uuid("id").primaryKey().defaultRandom(),
-  name: text("name").notNull().unique(), // "Teste", "Plus"
-  slug: text("slug").notNull().unique(), // "teste", "plus"
+  name: text("name").notNull().unique(),
+  slug: text("slug").notNull().unique(), // free, pro, corretor, imobiliaria
   description: text("description"),
   priceInCents: integer("price_in_cents").notNull().default(0), // Price in BRL cents
   isActive: boolean("is_active").default(true).notNull(),
@@ -142,6 +160,15 @@ export interface PlanLimits {
   aiParsesPerMonth: number | null
   canShare: boolean
   canCreateOrg: boolean
+  listingsLimit?: number
+  aiParsesPerCycle?: number
+  canShareReadOnly?: boolean
+  canShareEditable?: boolean
+  canCreateFamily?: boolean
+  familyMembersLimit?: number
+  professionalWorkspace?: boolean
+  includedSeats?: number
+  additionalSeatPriceInCents?: number
 }
 
 // ============================================================================
@@ -172,6 +199,14 @@ export const subscriptions = pgTable(
     currentPeriodEnd: timestamp("current_period_end", { withTimezone: true }),
     cancelAtPeriodEnd: boolean("cancel_at_period_end").default(false),
     lastPaymentFailedAt: timestamp("last_payment_failed_at", { withTimezone: true }), // Track payment failures
+    source: text("source").$type<"stripe" | "manual" | "trial">().default("manual").notNull(),
+    targetWorkspaceId: uuid("target_workspace_id").references(
+      (): AnyPgColumn => workspaces.id,
+      { onDelete: "restrict" },
+    ),
+    grantReason: text("grant_reason").$type<"friend" | "pilot" | "test" | "support" | "promotion" | "other">(),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+    revokedByUserId: uuid("revoked_by_user_id").references(() => users.id, { onDelete: "set null" }),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
   },
@@ -180,12 +215,37 @@ export const subscriptions = pgTable(
     index("subscriptions_status_idx").on(table.status),
     index("subscriptions_stripe_sub_id_idx").on(table.stripeSubscriptionId),
     index("subscriptions_stripe_customer_id_idx").on(table.stripeCustomerId),
+    index("subscriptions_target_workspace_id_status_index").on(table.targetWorkspaceId, table.status),
+    index("subscriptions_source_status_index").on(table.source, table.status),
   ]
 )
 
 // ============================================================================
 // Organizations
 // ============================================================================
+export const workspaceTypeEnum = ["personal", "professional", "organization"] as const
+export const workspaceStatusEnum = ["active", "frozen", "archived"] as const
+
+export const workspaces = pgTable(
+  "workspaces",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    type: text("type").$type<(typeof workspaceTypeEnum)[number]>().notNull(),
+    ownerUserId: uuid("owner_user_id").references(() => users.id, { onDelete: "restrict" }),
+    name: text("name").notNull(),
+    status: text("status").$type<(typeof workspaceStatusEnum)[number]>().notNull().default("active"),
+    settings: jsonb("settings").$type<Record<string, unknown>>().default({}).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    index("workspaces_owner_user_id_index").on(table.ownerUserId),
+    index("workspaces_type_status_index").on(table.type, table.status),
+  ]
+)
+
+export const organizationKindEnum = ["family", "agency"] as const
+
 export const organizations = pgTable(
   "organizations",
   {
@@ -194,20 +254,30 @@ export const organizations = pgTable(
     slug: text("slug").notNull().unique(),
     ownerId: uuid("owner_id")
       .notNull()
-      .references(() => users.id, { onDelete: "cascade" }),
+      .references(() => users.id, { onDelete: "restrict" }),
+    workspaceId: uuid("workspace_id")
+      .notNull()
+      .references(() => workspaces.id, { onDelete: "restrict" }),
+    kind: text("kind").$type<(typeof organizationKindEnum)[number]>().notNull().default("family"),
+    status: text("status").$type<(typeof workspaceStatusEnum)[number]>().notNull().default("active"),
+    settings: jsonb("settings").$type<Record<string, unknown>>().default({}).notNull(),
+    billingOwnerUserId: uuid("billing_owner_user_id").references(() => users.id, { onDelete: "set null" }),
+    sponsorUserId: uuid("sponsor_user_id").references(() => users.id, { onDelete: "set null" }),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (table) => [
     uniqueIndex("organizations_slug_idx").on(table.slug),
     index("organizations_owner_id_idx").on(table.ownerId),
+    uniqueIndex("organizations_workspace_id_index").on(table.workspaceId),
+    index("organizations_kind_status_index").on(table.kind, table.status),
   ]
 )
 
 // ============================================================================
 // Organization Members
 // ============================================================================
-export const orgMemberRoleEnum = ["owner", "admin", "member"] as const
+export const orgMemberRoleEnum = ["owner", "admin", "member", "broker"] as const
 export type OrgMemberRole = (typeof orgMemberRoleEnum)[number]
 
 export const organizationMembers = pgTable(
@@ -270,10 +340,22 @@ export const collections = pgTable(
     id: uuid("id").primaryKey().defaultRandom(),
     userId: uuid("user_id").references(() => users.id, { onDelete: "cascade" }),
     orgId: uuid("org_id").references(() => organizations.id, { onDelete: "cascade" }),
+    workspaceId: uuid("workspace_id").notNull().references(() => workspaces.id, { onDelete: "restrict" }),
+    createdByUserId: uuid("created_by_user_id").references(() => users.id, { onDelete: "set null" }),
+    responsibleUserId: uuid("responsible_user_id").references(() => users.id, { onDelete: "set null" }),
     name: text("name").notNull(),
     isPublic: boolean("is_public").default(false).notNull(),
     shareToken: text("share_token").unique(),
     isDefault: boolean("is_default").default(false).notNull(),
+    kind: text("kind").$type<"general" | "template" | "presentation">().default("general").notNull(),
+    visibility: text("visibility").$type<"private" | "team">().default("private").notNull(),
+    sourceCollectionId: uuid("source_collection_id").references(
+      (): AnyPgColumn => collections.id,
+      { onDelete: "set null" },
+    ),
+    tags: text("tags").array().default([]).notNull(),
+    status: text("status").$type<"active" | "archived">().default("active").notNull(),
+    publicationSettings: jsonb("publication_settings").$type<Record<string, unknown>>().default({}).notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
   },
@@ -281,6 +363,141 @@ export const collections = pgTable(
     index("collections_user_id_idx").on(table.userId),
     index("collections_org_id_idx").on(table.orgId),
     uniqueIndex("collections_share_token_idx").on(table.shareToken),
+    index("collections_workspace_id_created_at_index").on(table.workspaceId, table.createdAt),
+    index("collections_responsible_user_id_index").on(table.responsibleUserId),
+    index("collections_source_collection_id_index").on(table.sourceCollectionId),
+    index("collections_workspace_id_visibility_index").on(table.workspaceId, table.visibility),
+  ]
+)
+
+export const collectionAccessGrants = pgTable(
+  "collection_access_grants",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    collectionId: uuid("collection_id").notNull().references(() => collections.id, { onDelete: "cascade" }),
+    userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    role: text("role").$type<"viewer" | "editor">().notNull(),
+    status: text("status").$type<"active" | "revoked" | "expired">().default("active").notNull(),
+    grantedByUserId: uuid("granted_by_user_id").references(() => users.id, { onDelete: "set null" }),
+    expiresAt: timestamp("expires_at", { withTimezone: true }),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+    revokedByUserId: uuid("revoked_by_user_id").references(() => users.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex("collection_access_grants_collection_id_user_id_index").on(table.collectionId, table.userId),
+    index("collection_access_grants_user_id_status_index").on(table.userId, table.status),
+  ]
+)
+
+export const collectionShareLinks = pgTable(
+  "collection_share_links",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    collectionId: uuid("collection_id").notNull().references(() => collections.id, { onDelete: "cascade" }),
+    tokenHash: text("token_hash").notNull(),
+    createdByUserId: uuid("created_by_user_id").references(() => users.id, { onDelete: "set null" }),
+    expiresAt: timestamp("expires_at", { withTimezone: true }),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+    lastAccessedAt: timestamp("last_accessed_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex("collection_share_links_token_hash_index").on(table.tokenHash),
+    index("collection_share_links_collection_id_revoked_at_index").on(table.collectionId, table.revokedAt),
+  ]
+)
+
+export const collectionCollaborationInvites = pgTable(
+  "collection_collaboration_invites",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    collectionId: uuid("collection_id").notNull().references(() => collections.id, { onDelete: "cascade" }),
+    tokenHash: text("token_hash").notNull(),
+    role: text("role").$type<"viewer" | "editor">().default("editor").notNull(),
+    status: text("status").$type<"pending" | "accepted" | "revoked" | "expired">().default("pending").notNull(),
+    invitedEmail: text("invited_email"),
+    createdByUserId: uuid("created_by_user_id").references(() => users.id, { onDelete: "set null" }),
+    acceptedByUserId: uuid("accepted_by_user_id").references(() => users.id, { onDelete: "set null" }),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    acceptedAt: timestamp("accepted_at", { withTimezone: true }),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex("collection_collaboration_invites_token_hash_index").on(table.tokenHash),
+    index("collection_collaboration_invites_collection_id_status_index").on(table.collectionId, table.status),
+    index("collection_collaboration_invites_invited_email_index").on(table.invitedEmail),
+  ]
+)
+
+export const auditEvents = pgTable(
+  "audit_events",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    actorUserId: uuid("actor_user_id").references(() => users.id, { onDelete: "set null" }),
+    workspaceId: uuid("workspace_id").references(() => workspaces.id, { onDelete: "set null" }),
+    action: text("action").notNull(),
+    targetType: text("target_type").notNull(),
+    targetId: uuid("target_id"),
+    beforeData: jsonb("before"),
+    afterData: jsonb("after"),
+    metadata: jsonb("metadata").$type<Record<string, unknown>>().default({}).notNull(),
+    ipAddress: text("ip_address"),
+    requestId: text("request_id"),
+    occurredAt: timestamp("occurred_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    index("audit_events_actor_user_id_occurred_at_index").on(table.actorUserId, table.occurredAt),
+    index("audit_events_workspace_id_occurred_at_index").on(table.workspaceId, table.occurredAt),
+    index("audit_events_target_type_target_id_index").on(table.targetType, table.targetId),
+    index("audit_events_action_occurred_at_index").on(table.action, table.occurredAt),
+  ]
+)
+
+export const aiUsageReservations = pgTable(
+  "ai_usage_reservations",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    workspaceId: uuid("workspace_id").notNull().references(() => workspaces.id, { onDelete: "restrict" }),
+    actorUserId: uuid("actor_user_id").references(() => users.id, { onDelete: "set null" }),
+    collectionId: uuid("collection_id").references(() => collections.id, { onDelete: "set null" }),
+    operation: text("operation").$type<"listing_parse">().default("listing_parse").notNull(),
+    credits: integer("credits").default(1).notNull(),
+    status: text("status").$type<"reserved" | "consumed" | "released">().default("reserved").notNull(),
+    idempotencyKey: text("idempotency_key").notNull(),
+    cycleStartsAt: timestamp("cycle_starts_at", { withTimezone: true }).notNull(),
+    cycleEndsAt: timestamp("cycle_ends_at", { withTimezone: true }).notNull(),
+    consumedAt: timestamp("consumed_at", { withTimezone: true }),
+    releasedAt: timestamp("released_at", { withTimezone: true }),
+    metadata: jsonb("metadata").$type<Record<string, unknown>>().default({}).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex("ai_usage_reservations_idempotency_key_index").on(table.idempotencyKey),
+    index("ai_usage_reservations_workspace_cycle_status_index").on(table.workspaceId, table.cycleStartsAt, table.status),
+  ]
+)
+
+export const aiUsageEvents = pgTable(
+  "ai_usage_events",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    reservationId: uuid("reservation_id").notNull().references(() => aiUsageReservations.id, { onDelete: "restrict" }),
+    workspaceId: uuid("workspace_id").notNull().references(() => workspaces.id, { onDelete: "restrict" }),
+    actorUserId: uuid("actor_user_id").references(() => users.id, { onDelete: "set null" }),
+    eventType: text("event_type").$type<"reserved" | "consumed" | "released">().notNull(),
+    creditsDelta: integer("credits_delta").notNull(),
+    metadata: jsonb("metadata").$type<Record<string, unknown>>().default({}).notNull(),
+    occurredAt: timestamp("occurred_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    index("ai_usage_events_workspace_id_occurred_at_index").on(table.workspaceId, table.occurredAt),
+    index("ai_usage_events_reservation_id_occurred_at_index").on(table.reservationId, table.occurredAt),
   ]
 )
 

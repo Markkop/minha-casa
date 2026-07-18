@@ -8,7 +8,15 @@ defmodule MinhaCasaAi.Listings.MergeSessions do
   alias MinhaCasaAi.ListingImages.Fingerprint
   alias MinhaCasaAi.ListingImages.Storage
   alias MinhaCasaAi.Listings
-  alias MinhaCasaAi.Listings.{ConstructionYear, Duplicates, Listing, ListingMergeSession, MergeAdvisor}
+
+  alias MinhaCasaAi.Listings.{
+    ConstructionYear,
+    Duplicates,
+    Listing,
+    ListingMergeSession,
+    MergeAdvisor
+  }
+
   alias MinhaCasaAi.Repo
   alias MinhaCasaAi.Workers.ListingMergePreparationWorker
 
@@ -550,8 +558,7 @@ defmodule MinhaCasaAi.Listings.MergeSessions do
         %{
           "index" => index,
           "storageKey" => key,
-          "previewUrl" =>
-            Enum.at(urls, index) || workspace_listing_image_url(listing_id, index),
+          "previewUrl" => Enum.at(urls, index) || workspace_listing_image_url(listing_id, index),
           "fingerprint" => Enum.at(fingerprints, index)
         }
       end)
@@ -720,7 +727,15 @@ defmodule MinhaCasaAi.Listings.MergeSessions do
     end
   end
 
-  defp classify_candidate({:ok, {url, :error}}, _session_id, _existing, accepted, skipped, _capacity, stats) do
+  defp classify_candidate(
+         {:ok, {url, :error}},
+         _session_id,
+         _existing,
+         accepted,
+         skipped,
+         _capacity,
+         stats
+       ) do
     {
       accepted,
       skipped ++ [skipped_gallery_item(url, nil, "failed")],
@@ -1046,7 +1061,7 @@ defmodule MinhaCasaAi.Listings.MergeSessions do
     imported_urls_to_add =
       (session.imported_data || %{})
       |> listing_image_url_entries()
-      |> Enum.filter(&(MapSet.member?(selected_imported_urls, url_ref_id(&1))))
+      |> Enum.filter(&MapSet.member?(selected_imported_urls, url_ref_id(&1)))
 
     total =
       length(selected_existing) + length(selected_new_ordered) + length(imported_urls_to_add)
@@ -1074,9 +1089,9 @@ defmodule MinhaCasaAi.Listings.MergeSessions do
 
     {final_keys, final_paths, final_fingerprints} =
       Enum.reduce(selected_new_ordered, {final_keys, final_paths, final_fingerprints}, fn id,
-                                                                                        {keys,
-                                                                                         paths,
-                                                                                         fps} ->
+                                                                                          {keys,
+                                                                                           paths,
+                                                                                           fps} ->
         case Map.get(payload_image_map, id) do
           %{} = image ->
             with key when is_binary(key) <- image["storageKey"],
@@ -1100,9 +1115,9 @@ defmodule MinhaCasaAi.Listings.MergeSessions do
 
     {final_keys, final_paths, final_fingerprints} =
       Enum.reduce(imported_urls_to_add, {final_keys, final_paths, final_fingerprints}, fn url,
-                                                                                        {keys,
-                                                                                         paths,
-                                                                                         fps} ->
+                                                                                          {keys,
+                                                                                           paths,
+                                                                                           fps} ->
         with {:ok, body, content_type} <- fetch_image_bytes(url),
              true <- byte_size(body) > 0,
              {:ok, fingerprint} <- Fingerprint.from_bytes(body),

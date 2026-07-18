@@ -4,6 +4,7 @@ defmodule MinhaCasaAi.Workflows do
   alias MinhaCasaAi.Repo
   alias MinhaCasaAi.Workflows.WorkflowRun
   alias MinhaCasaAi.Workers.ParseIngestionWorker
+  alias MinhaCasaAi.Workspaces
 
   def create_ingestion(attrs) do
     Repo.transaction(fn ->
@@ -14,7 +15,10 @@ defmodule MinhaCasaAi.Workflows do
           status: "received",
           input: Map.get(attrs, :input, %{}),
           user_id: Map.get(attrs, :user_id),
-          org_id: Map.get(attrs, :org_id)
+          org_id: Map.get(attrs, :org_id),
+          workspace_id:
+            Map.get(attrs, :workspace_id) ||
+              Workspaces.workspace_id_for(Map.get(attrs, :user_id), Map.get(attrs, :org_id))
         })
         |> Repo.insert!()
 

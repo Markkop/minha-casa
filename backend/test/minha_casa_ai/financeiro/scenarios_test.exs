@@ -6,6 +6,7 @@ defmodule MinhaCasaAi.Financeiro.ScenariosTest do
   alias MinhaCasaAi.Financeiro.{Scenario, Scenarios, SharedSnapshot, SharedSnapshots}
   alias MinhaCasaAi.Listings.Collection
   alias MinhaCasaAi.Repo
+  alias MinhaCasaAi.Workspaces
 
   setup do
     user_id = Ecto.UUID.generate()
@@ -15,18 +16,27 @@ defmodule MinhaCasaAi.Financeiro.ScenariosTest do
 
     insert_user!(user_id, "financeiro-scenario-#{unique}@example.com")
     insert_user!(other_user_id, "financeiro-scenario-other-#{unique}@example.com")
+    {:ok, personal_workspace} = Workspaces.ensure_personal_workspace(user_id)
+    {:ok, other_workspace} = Workspaces.ensure_personal_workspace(other_user_id)
+    org_workspace_id = Ecto.UUID.generate()
+
+    Repo.query!(
+      "INSERT INTO workspaces (id, type, name, status, created_at, updated_at) VALUES ($1, 'organization', $2, 'active', now(), now())",
+      [Ecto.UUID.dump!(org_workspace_id), "Financeiro Org"]
+    )
 
     Ecto.Adapters.SQL.query!(
       Repo,
       """
-      INSERT INTO organizations (id, name, slug, owner_id)
-      VALUES ($1, $2, $3, $4)
+      INSERT INTO organizations (id, name, slug, owner_id, workspace_id)
+      VALUES ($1, $2, $3, $4, $5)
       """,
       [
         Ecto.UUID.dump!(org_id),
         "Financeiro Org",
         "financeiro-scenario-org-#{unique}",
-        Ecto.UUID.dump!(user_id)
+        Ecto.UUID.dump!(user_id),
+        Ecto.UUID.dump!(org_workspace_id)
       ]
     )
 
@@ -44,6 +54,9 @@ defmodule MinhaCasaAi.Financeiro.ScenariosTest do
       |> Collection.changeset(%{
         user_id: user_id,
         org_id: nil,
+        workspace_id: personal_workspace.id,
+        created_by_user_id: user_id,
+        responsible_user_id: user_id,
         name: "Pessoal",
         is_default: true,
         is_public: false
@@ -55,6 +68,10 @@ defmodule MinhaCasaAi.Financeiro.ScenariosTest do
       |> Collection.changeset(%{
         user_id: nil,
         org_id: org_id,
+        workspace_id: org_workspace_id,
+        created_by_user_id: user_id,
+        responsible_user_id: user_id,
+        visibility: "team",
         name: "Organização",
         is_default: true,
         is_public: false
@@ -69,9 +86,17 @@ defmodule MinhaCasaAi.Financeiro.ScenariosTest do
         from s in SharedSnapshot, where: s.user_id == ^user_id or s.org_id == ^org_id
       )
 
+      Repo.delete_all(from(c in Collection, where: c.id in ^collection_ids))
+
       Ecto.Adapters.SQL.query!(Repo, "DELETE FROM organizations WHERE id = $1", [
         Ecto.UUID.dump!(org_id)
       ])
+
+      Repo.delete_all(
+        from(w in MinhaCasaAi.Workspaces.Workspace,
+          where: w.id in ^[personal_workspace.id, other_workspace.id, org_workspace_id]
+        )
+      )
 
       Ecto.Adapters.SQL.query!(Repo, "DELETE FROM users WHERE id IN ($1, $2)", [
         Ecto.UUID.dump!(user_id),
@@ -130,11 +155,12 @@ defmodule MinhaCasaAi.Financeiro.ScenariosTest do
   end
 
   test "creates scenarios in an organization profile", %{
+    user_id: user_id,
     org_id: org_id,
     org_collection: collection
   } do
     assert {:ok, scenario} =
-             Scenarios.create(collection.id, %{user_id: nil, org_id: org_id}, %{
+             Scenarios.create(collection.id, %{user_id: user_id, org_id: org_id}, %{
                name: "Cenário da organização",
                payload: payload()
              })

@@ -23,7 +23,7 @@
     try {
       const result = await workspaceApi.acceptOrganizationInvite(data.token);
       await setActiveOrganizationId(result.organization.id);
-      await goto("/organizacoes");
+      await goto(result.organization.kind === "agency" ? "/imobiliaria" : "/familia");
     } catch (err) {
       error = err instanceof Error ? err.message : "Erro ao aceitar convite";
     } finally {
@@ -34,7 +34,9 @@
 
 <main class="grid min-h-screen place-items-center bg-app-bg px-4 py-10">
   <section class="w-full max-w-md rounded-md border border-app-border bg-app-surface p-6 shadow-sm">
-    <p class="text-xs font-medium uppercase text-app-muted">Convite de organizacao</p>
+    <p class="text-xs font-medium uppercase text-app-muted">
+      Convite de {data.invite?.organization.kind === "agency" ? "imobiliária" : "família"}
+    </p>
 
     {#if data.invite}
       <h1 class="mt-2 text-2xl font-semibold">{data.invite.organization.name}</h1>
@@ -43,7 +45,7 @@
       </p>
       <dl class="mt-5 grid gap-3 rounded-md border border-app-border bg-white p-4 text-sm">
         <div class="flex items-center justify-between gap-3">
-          <dt class="text-app-muted">Organizacao</dt>
+          <dt class="text-app-muted">{data.invite.organization.kind === "agency" ? "Imobiliária" : "Família"}</dt>
           <dd class="font-medium">@{data.invite.organization.slug}</dd>
         </div>
         <div class="flex items-center justify-between gap-3">

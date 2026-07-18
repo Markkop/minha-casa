@@ -37,7 +37,8 @@ defmodule MinhaCasaAi.Integrations.NominatimGeocoding do
     _ -> {:error, :nominatim_network_error}
   end
 
-  defp parse_result(%{"lat" => lat, "lon" => lon} = row, query) when is_binary(lat) and is_binary(lon) do
+  defp parse_result(%{"lat" => lat, "lon" => lon} = row, query)
+       when is_binary(lat) and is_binary(lon) do
     display = Map.get(row, "display_name", query)
 
     with {lat_f, _} <- Float.parse(lat),

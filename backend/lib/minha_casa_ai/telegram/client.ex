@@ -67,6 +67,7 @@ defmodule MinhaCasaAi.Telegram.Client do
   end
 
   defp normalize_chat_id(chat_id) when is_integer(chat_id), do: chat_id
+
   defp normalize_chat_id(chat_id) when is_binary(chat_id) do
     case Integer.parse(chat_id) do
       {id, ""} -> id

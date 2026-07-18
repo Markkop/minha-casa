@@ -61,17 +61,19 @@ describe("resolveSubscriptionAccess", () => {
     vi.restoreAllMocks();
   });
 
-  it("grants administrators access without querying subscriptions", async () => {
+  it("treats an administrator without a plan like any other Free user", async () => {
+    mockSubscriptionQuery([]);
+
     await expect(
       resolveSubscriptionAccess({ id: "admin-1", isAdmin: true })
     ).resolves.toEqual({
       state: "active",
-      source: "admin",
+      source: "free",
       subscription: null,
       plan: null
     });
 
-    expect(dbMocks.getDb).not.toHaveBeenCalled();
+    expect(dbMocks.getDb).toHaveBeenCalledTimes(1);
   });
 
   it("returns the most recent active, unexpired subscription", async () => {
@@ -80,7 +82,7 @@ describe("resolveSubscriptionAccess", () => {
       status: "active",
       expiresAt: new Date("2026-08-01T00:00:00.000Z")
     };
-    const plan = { id: "plan-plus", slug: "plus", isActive: false };
+    const plan = { id: "plan-pro", slug: "pro", isActive: true };
     const query = mockSubscriptionQuery([{ subscription, plan }]);
 
     await expect(resolveSubscriptionAccess({ id: "user-1" })).resolves.toEqual({
@@ -99,11 +101,12 @@ describe("resolveSubscriptionAccess", () => {
     expect(query.limit).toHaveBeenCalledWith(1);
   });
 
-  it("returns inactive when there is no active, unexpired subscription", async () => {
+  it("returns Free access when there is no active, unexpired subscription", async () => {
     mockSubscriptionQuery([]);
 
     await expect(resolveSubscriptionAccess({ id: "user-1" })).resolves.toEqual({
-      state: "inactive",
+      state: "active",
+      source: "free",
       subscription: null,
       plan: null
     });
@@ -151,7 +154,7 @@ describe("getSubscriptionAccess", () => {
     const second = getSubscriptionAccess(locals);
 
     expect(second).toBe(first);
-    await expect(first).resolves.toMatchObject({ state: "inactive" });
+    await expect(first).resolves.toMatchObject({ state: "active", source: "free" });
     expect(dbMocks.getDb).toHaveBeenCalledTimes(1);
   });
 });

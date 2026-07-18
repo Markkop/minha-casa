@@ -5,7 +5,7 @@ defmodule MinhaCasaAi.Workspace.DecisionData do
 
   import Ecto.Query
 
-  alias MinhaCasaAi.Listings.{Collection, Listing}
+  alias MinhaCasaAi.Listings.{Collection, CollectionAccessGrant, CollectionPolicy, Listing}
   alias MinhaCasaAi.Repo
   alias MinhaCasaAi.Workspace.{Condominium, Contact, ListingComparisonNote, Profile, Region}
 
@@ -148,11 +148,17 @@ defmodule MinhaCasaAi.Workspace.DecisionData do
       related =
         Enum.filter(listings, fn listing ->
           data = listing.data || %{}
+
           data["condominiumId"] == condominium.id ||
-            (is_binary(data["condominiumName"]) and normalize_name(data["condominiumName"]) == normalized)
+            (is_binary(data["condominiumName"]) and
+               normalize_name(data["condominiumName"]) == normalized)
         end)
 
-      %{condominium | listing_count: length(related), listings: Enum.map(related, &listing_summary/1)}
+      %{
+        condominium
+        | listing_count: length(related),
+          listings: Enum.map(related, &listing_summary/1)
+      }
     end)
   end
 
@@ -175,6 +181,22 @@ defmodule MinhaCasaAi.Workspace.DecisionData do
 
   def delete_condominium(id, profile), do: delete_scoped(Condominium, id, profile)
 
+  def list_comparison_notes(%{access: "external", user_id: user_id, workspace_id: workspace_id}) do
+    now = DateTime.utc_now(:second)
+
+    ListingComparisonNote
+    |> join(:inner, [n], l in Listing, on: l.id == n.listing_id)
+    |> join(:inner, [_n, l], c in Collection, on: c.id == l.collection_id)
+    |> join(:inner, [_n, _l, c], g in CollectionAccessGrant, on: g.collection_id == c.id)
+    |> where(
+      [_n, _l, c, g],
+      c.workspace_id == ^workspace_id and g.user_id == ^user_id and g.status == "active" and
+        (is_nil(g.expires_at) or g.expires_at > ^now)
+    )
+    |> select([n], n)
+    |> Repo.all()
+  end
+
   def list_comparison_notes(profile) do
     listing_ids = Enum.map(profile_listings(profile), & &1.id)
 
@@ -187,28 +209,46 @@ defmodule MinhaCasaAi.Workspace.DecisionData do
     end
   end
 
+  def upsert_comparison_note(%{access: "external", user_id: user_id}, attrs) do
+    listing_id = string(attrs["listingId"] || attrs[:listing_id])
+
+    with true <- is_binary(listing_id) and listing_id != "",
+         %Listing{} = listing <- Repo.get(Listing, listing_id),
+         {:ok, _collection, _access} <-
+           CollectionPolicy.authorize(user_id, listing.collection_id, :edit_existing) do
+      persist_comparison_note(listing_id, attrs)
+    else
+      false -> {:error, :listing_required}
+      _ -> {:error, :not_found}
+    end
+  end
+
   def upsert_comparison_note(profile, attrs) do
     listing_id = string(attrs["listingId"] || attrs[:listing_id])
 
     with true <- is_binary(listing_id) and listing_id != "",
          {:ok, _listing} <- ensure_listing_in_profile(listing_id, profile) do
-      values = %{
-        listing_id: listing_id,
-        pros: text_list(attrs["pros"] || attrs[:pros]),
-        cons: text_list(attrs["cons"] || attrs[:cons]),
-        notes: optional_string(attrs["notes"] || attrs[:notes])
-      }
-
-      case Repo.get_by(ListingComparisonNote, listing_id: listing_id) do
-        nil -> %ListingComparisonNote{}
-        note -> note
-      end
-      |> ListingComparisonNote.changeset(values)
-      |> Repo.insert_or_update()
+      persist_comparison_note(listing_id, attrs)
     else
       false -> {:error, :listing_required}
       error -> error
     end
+  end
+
+  defp persist_comparison_note(listing_id, attrs) do
+    values = %{
+      listing_id: listing_id,
+      pros: text_list(attrs["pros"] || attrs[:pros]),
+      cons: text_list(attrs["cons"] || attrs[:cons]),
+      notes: optional_string(attrs["notes"] || attrs[:notes])
+    }
+
+    case Repo.get_by(ListingComparisonNote, listing_id: listing_id) do
+      nil -> %ListingComparisonNote{}
+      note -> note
+    end
+    |> ListingComparisonNote.changeset(values)
+    |> Repo.insert_or_update()
   end
 
   defp sync_contacts_from_listings(profile) do

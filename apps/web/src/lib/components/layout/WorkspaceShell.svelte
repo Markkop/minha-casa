@@ -9,7 +9,8 @@
     Link2,
     MapPinned,
     Puzzle,
-    ScanSearch
+    ScanSearch,
+    Users
   } from "@lucide/svelte";
   import { page } from "$app/state";
   import { ADDONS_OPEN_ACCESS, hasAddonAccess } from "$lib/addons/access";
@@ -32,8 +33,8 @@
     WORKSPACE_SIDEBAR_WIDTH,
     workspaceTopBarControlClass
   } from "$lib/workspace-chrome";
-  import { workspaceApi } from "$lib/workspace/client";
   import ImportExportMenuItems from "$lib/components/anuncios/ImportExportMenuItems.svelte";
+  import { workspaceApi } from "$lib/workspace/client";
   import {
     createWorkspaceRightSidebarState,
     setWorkspaceRightSidebarContext
@@ -62,7 +63,8 @@
   let mobileOpen = $state(false);
   let accountOpen = $state(false);
   let hasFloodRisk = $state(false);
-  let hasTeamOrganizations = $state(false);
+  let hasFamily = $state(false);
+  let hasAgency = $state(false);
   const isAdmin = $derived(Boolean(user?.isAdmin));
   let featureFlagsSyncTick = $state(0);
   const featureFlags = $derived.by((): AdminFeatureFlags => {
@@ -103,7 +105,13 @@
         link.adminFlag !== "visaoGeral" &&
         getAdminFeatureFlag(featureFlags, link.adminFlag, isAdmin)
     );
-    return [...beforeCore, ...coreLinks, ...afterCore];
+    const membershipLinks: NavLink[] = [
+      ...(hasFamily ? [{ href: "/familia", label: "Família", icon: Users }] : []),
+      ...(hasAgency
+        ? [{ href: "/imobiliaria", label: "Imobiliária", icon: Building2 }]
+        : [])
+    ];
+    return [...beforeCore, ...coreLinks, ...membershipLinks, ...afterCore];
   });
 
   const pathname = $derived(page.url.pathname);
@@ -112,7 +120,8 @@
       pathname.startsWith("/floodrisk") ||
       pathname.startsWith("/financeiro")
   );
-  const showOrgBreadcrumb = $derived(hasTeamOrganizations);
+  const showOrgBreadcrumb = $derived(Boolean(user));
+  let aiUsageAlert = $state<"near_limit" | "limit_reached" | null>(null);
 
   const orgBreadcrumbClass = $derived(
     cn(
@@ -135,21 +144,9 @@
     )
   );
 
-  function refreshOrganizations() {
-    void workspaceApi
-      .fetchOrganizations()
-      .then((result) => {
-        hasTeamOrganizations = result.organizations.length > 0;
-      })
-      .catch(() => {
-        hasTeamOrganizations = false;
-      });
-  }
-
   $effect(() => {
     if (!user) {
       hasFloodRisk = false;
-      hasTeamOrganizations = false;
       return;
     }
 
@@ -165,7 +162,32 @@
           hasFloodRisk = false;
         });
     }
-    refreshOrganizations();
+  });
+
+  $effect(() => {
+    if (!user) {
+      hasFamily = false;
+      hasAgency = false;
+      return;
+    }
+
+    let cancelled = false;
+    void workspaceApi
+      .fetchOrganizations()
+      .then(({ organizations }) => {
+        if (cancelled) return;
+        hasFamily = organizations.some((organization) => organization.kind === "family");
+        hasAgency = organizations.some((organization) => organization.kind === "agency");
+      })
+      .catch(() => {
+        if (cancelled) return;
+        hasFamily = false;
+        hasAgency = false;
+      });
+
+    return () => {
+      cancelled = true;
+    };
   });
 
   const isActive = (href: string, currentPath: string) =>
@@ -208,10 +230,14 @@
     featureFlagsSyncTick += 1;
   }
 
+  function handleAiUsageAlert(event: Event) {
+    const detail = (event as CustomEvent).detail;
+    if (detail === "near_limit" || detail === "limit_reached") aiUsageAlert = detail;
+  }
+
   $effect(() => {
-    window.addEventListener("minha-casa:organization-context-change", refreshOrganizations);
-    return () =>
-      window.removeEventListener("minha-casa:organization-context-change", refreshOrganizations);
+    window.addEventListener("minha-casa:ai-usage-alert", handleAiUsageAlert);
+    return () => window.removeEventListener("minha-casa:ai-usage-alert", handleAiUsageAlert);
   });
 </script>
 
@@ -263,6 +289,27 @@
         rightSidebarDesktopOnly={rightSidebar.registration?.desktopOnly ?? false}
         onToggleRightSidebar={rightSidebar.toggle}
       />
+
+      {#if aiUsageAlert}
+        <div
+          class={cn(
+            "mx-3 mt-3 flex items-center justify-between gap-4 rounded-md border px-4 py-3 text-sm md:mx-5",
+            aiUsageAlert === "limit_reached"
+              ? "border-red-300 bg-red-50 text-red-900 dark:border-red-900 dark:bg-red-950/40 dark:text-red-100"
+              : "border-amber-300 bg-amber-50 text-amber-950 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-100"
+          )}
+          role="status"
+        >
+          <span>
+            {aiUsageAlert === "limit_reached"
+              ? "O parsing está indisponível neste perfil até a renovação ou alteração do plano."
+              : "O uso de parsing deste perfil está próximo do limite do ciclo."}
+          </span>
+          <button type="button" class="shrink-0 underline underline-offset-2" onclick={() => (aiUsageAlert = null)}>
+            Fechar
+          </button>
+        </div>
+      {/if}
 
       {@render children?.()}
     </div>

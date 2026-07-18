@@ -11,7 +11,8 @@ defmodule MinhaCasaAi.Listings.Nearby do
     user_id = Keyword.get(opts, :user_id)
     org_id = Keyword.get(opts, :org_id)
 
-    with {:ok, listing} <- Listings.get_listing_by_id(listing_id, user_id: user_id, org_id: org_id),
+    with {:ok, listing} <-
+           Listings.get_listing_by_id(listing_id, user_id: user_id, org_id: org_id),
          coords <- resolve_coords(listing.data || %{}) do
       case coords do
         {:skip, result} ->

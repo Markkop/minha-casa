@@ -82,5 +82,4 @@ defmodule MinhaCasaAiWeb.ListingMergeSessionController do
       org_id: conn.assigns[:current_org_id]
     ] ++ extra
   end
-
 end

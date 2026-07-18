@@ -40,7 +40,10 @@ defmodule MinhaCasaAi.Telegram.LinkCodes do
     |> Repo.update!()
   end
 
-  def expire_pending_for_chat_id!(chat_id, _now \\ DateTime.utc_now() |> DateTime.truncate(:second)) do
+  def expire_pending_for_chat_id!(
+        chat_id,
+        _now \\ DateTime.utc_now() |> DateTime.truncate(:second)
+      ) do
     chat_id = to_string(chat_id)
 
     from(c in LinkCode,

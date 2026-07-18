@@ -6,6 +6,7 @@ defmodule MinhaCasaAi.Listings.SaveListingTest do
   alias MinhaCasaAi.Listings
   alias MinhaCasaAi.Listings.Collection
   alias MinhaCasaAi.Repo
+  alias MinhaCasaAi.Workspaces
 
   setup do
     :ok = Oban.pause_queue(queue: :images)
@@ -24,11 +25,16 @@ defmodule MinhaCasaAi.Listings.SaveListingTest do
       ]
     )
 
+    {:ok, workspace} = Workspaces.ensure_personal_workspace(user_id)
+
     collection =
       %Collection{}
       |> Collection.changeset(%{
         name: "Image ingestion test #{System.unique_integer([:positive])}",
-        user_id: user_id
+        user_id: user_id,
+        workspace_id: workspace.id,
+        created_by_user_id: user_id,
+        responsible_user_id: user_id
       })
       |> Repo.insert!()
 
@@ -49,6 +55,8 @@ defmodule MinhaCasaAi.Listings.SaveListingTest do
         from saved_collection in Collection,
           where: saved_collection.id == ^collection.id
       )
+
+      Repo.delete!(workspace)
 
       Ecto.Adapters.SQL.query!(Repo, "DELETE FROM users WHERE id = $1", [
         Ecto.UUID.dump!(user_id)

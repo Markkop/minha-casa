@@ -7,6 +7,7 @@ defmodule MinhaCasaAi.Workspace.SavedLink do
   schema "saved_links" do
     field :user_id, :binary_id
     field :org_id, :binary_id
+    field :workspace_id, :binary_id
     field :title, :string
     field :url, :string
     field :description, :string
@@ -16,8 +17,8 @@ defmodule MinhaCasaAi.Workspace.SavedLink do
 
   def changeset(link, attrs) do
     link
-    |> cast(attrs, [:user_id, :org_id, :title, :url, :description])
-    |> validate_required([:title, :url])
+    |> cast(attrs, [:user_id, :org_id, :workspace_id, :title, :url, :description])
+    |> validate_required([:workspace_id, :title, :url])
     |> validate_owner()
     |> validate_url()
   end

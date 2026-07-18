@@ -7,46 +7,12 @@
   import Button from "$lib/components/ui/Button.svelte";
   import type { AdminPlan, AdminSubscription } from "$lib/admin/client";
   import { isSafeRedirectPath } from "$lib/navigation/safe-redirect";
-
-  type Tier = {
-    slug: "plus" | "pro";
-    name: string;
-    description: string;
-    fallbackPrice: string;
-    features: string[];
-    cta: "checkout" | "coming_soon";
-  };
-
-  const tiers: Tier[] = [
-    {
-      slug: "plus",
-      name: "Plus",
-      description: "Extraia dados dos seus imóveis favoritos",
-      fallbackPrice: "R$ 20,00",
-      features: [
-        "Captura manual de anúncios (Ctrl+C, Ctrl+V)",
-        "Extração automática de dados do anúncio",
-        "Criar e organizar coleções de imóveis",
-        "Compartilhar coleções com outras pessoas",
-        "Salvar e comparar anúncios na plataforma"
-      ],
-      cta: "checkout"
-    },
-    {
-      slug: "pro",
-      name: "Pro",
-      description: "Recursos avançados",
-      fallbackPrice: "R$ 200,00",
-      features: [
-        "Tudo do Plus",
-        "Financeiro: simulação de compra e financiamento",
-        "Mapa de risco de enchente por região",
-        "Criar organizações (times / imobiliárias)",
-        "Feedback direto com o desenvolvedor"
-      ],
-      cta: "coming_soon"
-    }
-  ];
+  import {
+    findPlanCatalogEntry,
+    formatPlanMonthlyPrice,
+    PLAN_CATALOG,
+    type PlanSlug
+  } from "$lib/plans/catalog";
 
   let plans = $state<AdminPlan[]>([]);
   let subscription = $state<AdminSubscription | null>(null);
@@ -61,6 +27,7 @@
   const success = $derived(page.url.searchParams.get("success") === "true");
   const cancelled = $derived(page.url.searchParams.get("cancelled") === "true");
   const redirectPath = $derived(page.url.searchParams.get("redirect"));
+  const selectedPlan = $derived(findPlanCatalogEntry(page.url.searchParams.get("plan")));
 
   onMount(() => {
     void loadBilling();
@@ -90,14 +57,8 @@
     }
   }
 
-  function planFor(slug: string) {
+  function planFor(slug: PlanSlug) {
     return plans.find((plan) => plan.slug === slug) ?? null;
-  }
-
-  function formatPrice(plan: AdminPlan | null, fallback: string) {
-    if (!plan) return fallback;
-    if (plan.priceInCents === 0) return "Gratis";
-    return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(plan.priceInCents / 100);
   }
 
   function formatDate(value: string | null | undefined) {
@@ -155,7 +116,7 @@
     <header class="mb-10 text-center">
       <h1 class="text-4xl font-bold sm:text-5xl">Assinatura</h1>
       <p class="mx-auto mt-4 max-w-3xl text-lg text-app-muted">
-        Gerencie seu plano e veja as opcoes disponiveis enquanto o checkout Stripe e portado para Phoenix.
+        Escolha o plano certo para sua busca, sua atuação profissional ou sua equipe.
       </p>
     </header>
 
@@ -223,7 +184,7 @@
         </section>
       {:else}
         <section class="mb-8 rounded-md border border-app-border bg-app-surface p-5 text-center text-sm text-app-muted">
-          Voce ainda nao possui uma assinatura ativa. Escolha um plano abaixo ou peca uma concessao manual a um admin durante a migracao.
+          Você está no plano Free. Escolha um upgrade abaixo quando quiser ampliar seu uso.
         </section>
       {/if}
 
@@ -232,52 +193,70 @@
       </div>
 
       <section>
-        <h2 class="mb-6 text-center text-2xl font-semibold">Planos disponiveis</h2>
-        <div class="mx-auto grid max-w-4xl gap-6 md:grid-cols-2">
-          {#each tiers as tier}
-            {@const apiPlan = planFor(tier.slug)}
-            {@const current = currentPlan?.slug === tier.slug}
-            <article class={`relative flex flex-col rounded-md border bg-app-surface p-6 ${current ? "border-app-action border-2 shadow-sm" : "border-app-border"}`}>
+        <h2 class="mb-6 text-center text-2xl font-semibold">Planos disponíveis</h2>
+        <div class="grid gap-6 sm:grid-cols-2 xl:grid-cols-4">
+          {#each PLAN_CATALOG as plan (plan.slug)}
+            {@const apiPlan = planFor(plan.slug)}
+            {@const current = plan.slug === "free" ? !hasActiveSubscription : currentPlan?.slug === plan.slug}
+            {@const selected = selectedPlan?.slug === plan.slug}
+            <article class={`relative flex flex-col rounded-xl border bg-app-surface p-6 ${current || selected ? "border-app-action border-2 shadow-sm" : "border-app-border"}`}>
               {#if current}
-                <span class="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-app-action px-3 py-1 text-xs font-bold text-app-fg">Seu plano</span>
+                <span class="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-app-action px-3 py-1 text-xs font-bold text-app-action-foreground">Seu plano</span>
+              {:else if selected}
+                <span class="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-app-action px-3 py-1 text-xs font-bold text-app-action-foreground">Selecionado</span>
               {/if}
-              <div class="text-center">
-                <h3 class="text-2xl font-bold">{tier.name}</h3>
-                <p class="mt-2 text-app-muted">{tier.description}</p>
-                <div class="mt-4">
-                  <span class="text-4xl font-bold">{formatPrice(apiPlan, tier.fallbackPrice)}</span>
-                  <span class="ml-2 text-sm text-app-muted">/mes</span>
+              <div>
+                <p class="text-sm font-medium text-app-muted">{plan.audience}</p>
+                <h3 class="mt-2 text-2xl font-bold">{plan.name}</h3>
+                <p class="mt-2 min-h-12 text-sm leading-6 text-app-muted">{plan.description}</p>
+                <div class="mt-5 flex items-end gap-1">
+                  <span class="text-4xl font-bold">{formatPlanMonthlyPrice(plan)}</span>
+                  {#if plan.monthlyPriceInCents > 0}
+                    <span class="pb-1 text-sm text-app-muted">/mês</span>
+                  {/if}
                 </div>
               </div>
               <ul class="mt-6 flex-1 space-y-3">
-                {#each tier.features as feature}
+                {#each plan.features as feature}
                   <li class="flex items-start gap-2 text-sm text-app-muted">
                     <Check class="mt-0.5 h-5 w-5 shrink-0 text-app-accent" />
                     <span>{feature}</span>
                   </li>
                 {/each}
               </ul>
-              <button
-                class={`mt-6 h-11 rounded-md font-medium ${current ? "bg-app-surface-muted text-app-muted" : apiPlan?.stripePriceId ? "bg-app-fg text-white" : "border border-app-border bg-white text-app-muted"}`}
-                disabled={current || !apiPlan?.stripePriceId || checkoutPlanId === apiPlan?.id}
-                onclick={() => void startCheckout(apiPlan)}
-              >
-                {#if current}
-                  Plano atual
-                {:else if checkoutPlanId === apiPlan?.id}
-                  Abrindo checkout...
-                {:else if apiPlan?.stripePriceId}
-                  Assinar
-                {:else}
-                  Checkout em breve
-                {/if}
-              </button>
-              {#if tier.slug === "plus" && apiPlan && !apiPlan.stripePriceId}
-                <p class="mt-3 text-center text-xs text-app-muted">Plano sem Stripe Price ID configurado.</p>
+              {#if plan.slug === "free"}
+                <a
+                  href="/anuncios"
+                  class={`mt-6 flex h-11 items-center justify-center rounded-md font-medium ${current ? "bg-app-surface-muted text-app-muted" : "border border-app-border bg-white text-app-fg"}`}
+                >
+                  {current ? "Plano atual" : "Usar Free"}
+                </a>
+              {:else}
+                <button
+                  class={`mt-6 h-11 rounded-md font-medium ${current ? "bg-app-surface-muted text-app-muted" : apiPlan?.stripePriceId ? "bg-app-fg text-white" : "border border-app-border bg-white text-app-muted"}`}
+                  disabled={current || !apiPlan?.stripePriceId || checkoutPlanId === apiPlan?.id}
+                  onclick={() => void startCheckout(apiPlan)}
+                >
+                  {#if current}
+                    Plano atual
+                  {:else if checkoutPlanId === apiPlan?.id}
+                    Abrindo checkout...
+                  {:else if apiPlan?.stripePriceId}
+                    Assinar {plan.name}
+                  {:else}
+                    Checkout em breve
+                  {/if}
+                </button>
+              {/if}
+              {#if plan.slug !== "free" && apiPlan && !apiPlan.stripePriceId}
+                <p class="mt-3 text-center text-xs text-app-muted">Checkout ainda não configurado para este plano.</p>
               {/if}
             </article>
           {/each}
         </div>
+        <p class="mt-8 text-center text-sm text-app-muted">
+          Imobiliária inclui 10 seats. Cada seat adicional custa R$ 39/mês.
+        </p>
       </section>
     {/if}
   </section>

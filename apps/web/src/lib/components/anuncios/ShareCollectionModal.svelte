@@ -34,7 +34,7 @@
     error = null;
     shareUrl =
       collection.shareToken && typeof window !== "undefined"
-        ? `${window.location.origin}/anuncios?share=${collection.shareToken}`
+        ? `${window.location.origin}/share/${collection.shareToken}`
         : null;
   });
 

@@ -209,7 +209,7 @@
         scenarioDestinations = ctx.collections.map((collection) => ({
           collection,
           organizationId: collection.orgId ?? null,
-          profileLabel: collection.orgId ? "Organização" : "Pessoal",
+          profileLabel: collection.orgId ? "Família ou imobiliária" : "Pessoal",
           label: collection.label
         }));
       });

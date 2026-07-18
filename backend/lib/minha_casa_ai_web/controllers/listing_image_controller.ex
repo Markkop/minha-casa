@@ -1,11 +1,9 @@
 defmodule MinhaCasaAiWeb.ListingImageController do
   use MinhaCasaAiWeb, :controller
 
-  import Ecto.Query
-
   alias MinhaCasaAi.ListingImages
   alias MinhaCasaAi.Listings
-  alias MinhaCasaAi.Listings.{Collection, Listing}
+  alias MinhaCasaAi.Listings.{CollectionPolicy, CollectionSharing, Listing}
   alias MinhaCasaAi.Repo
 
   def ingest(conn, %{"id" => listing_id}) do
@@ -13,7 +11,9 @@ defmodule MinhaCasaAiWeb.ListingImageController do
     org_id = conn.assigns[:current_org_id]
     overwrite = ingest_overwrite?(conn)
 
-    with {:ok, listing} <- Listings.get_listing_by_id(listing_id, user_id: user_id, org_id: org_id),
+    with {:ok, listing} <-
+           Listings.get_listing_by_id(listing_id, user_id: user_id, org_id: org_id),
+         {:ok, _, _} <- CollectionPolicy.authorize(user_id, listing.collection_id, :add_listing),
          {:ok, result} <-
            ListingImages.enqueue_ingestion(listing_id, listing.collection_id,
              user_id: user_id,
@@ -93,32 +93,33 @@ defmodule MinhaCasaAiWeb.ListingImageController do
     end
   end
 
-  defp authorize_listing_access(listing_id, user_id, org_id) do
-    case Listings.get_listing_by_id(listing_id, user_id: user_id, org_id: org_id) do
-      {:ok, _} ->
-        :ok
+  defp authorize_listing_access(listing_id, user_id, _org_id) do
+    case Repo.get(Listing, listing_id) do
+      %Listing{} = listing when is_binary(user_id) ->
+        case CollectionPolicy.authorize(user_id, listing.collection_id, :view) do
+          {:ok, _, _} -> :ok
+          _ -> {:error, :listing_not_found}
+        end
 
-      {:error, :listing_not_found} when is_nil(user_id) ->
+      %Listing{} when is_nil(user_id) ->
         # Internal serve from the Svelte share proxy (secret already validated).
         case Listings.get_listing_by_id(listing_id) do
           {:ok, _} -> :ok
           error -> error
         end
 
-      error ->
-        error
+      _ ->
+        {:error, :listing_not_found}
     end
   end
 
   defp authorize_shared_listing_access(token, listing_id) do
-    query =
-      from c in Collection,
-        join: l in Listing,
-        on: l.collection_id == c.id,
-        where: c.share_token == ^token and c.is_public == true and l.id == ^listing_id,
-        select: l.id
-
-    if Repo.exists?(query), do: :ok, else: {:error, :listing_not_found}
+    with {:ok, collection, _link} <- CollectionSharing.resolve_link(token),
+         %Listing{} <- Repo.get_by(Listing, id: listing_id, collection_id: collection.id) do
+      :ok
+    else
+      _ -> {:error, :listing_not_found}
+    end
   end
 
   defp ingest_overwrite?(conn) do

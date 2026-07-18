@@ -2,7 +2,12 @@
 import type { Session, User } from "$lib/auth";
 import type { SubscriptionAccess } from "$lib/server/subscription-access";
 
-type AppUser = User & { isAdmin?: boolean | null };
+type AppUser = User & {
+  /** Legacy platform-admin flag kept during the Super Admin migration. */
+  isAdmin?: boolean | null;
+  isSuperAdmin?: boolean | null;
+  superAdmin?: boolean | null;
+};
 
 declare global {
   namespace App {

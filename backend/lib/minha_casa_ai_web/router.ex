@@ -25,10 +25,10 @@ defmodule MinhaCasaAiWeb.Router do
     post "/webhooks/whatsapp", WhatsAppWebhookController, :receive
     post "/webhooks/telegram", TelegramWebhookController, :receive
     post "/api/webhooks/stripe", StripeWebhookController, :receive
-    post "/mcp", McpController, :handle
     get "/api/shared/:token", CollectionController, :shared
     get "/api/financeiro/snapshots/:token", FinanceiroSnapshotController, :show
     get "/api/organization-invites/:token", OrganizationInviteController, :show
+    get "/api/collaboration-invites/:token", CollectionSharingController, :invite_preview
 
     get "/api/shared/:token/listings/:listing_id/images/:index",
         ListingImageController,
@@ -44,6 +44,9 @@ defmodule MinhaCasaAiWeb.Router do
     pipe_through [:api, :authenticated]
 
     get "/me", UserController, :me
+    get "/profiles", ProfileController, :index
+    post "/shared/:token/claim", CollectionSharingController, :claim_link
+    post "/collaboration-invites/:token/accept", CollectionSharingController, :accept_invite
     get "/subscriptions", SubscriptionController, :show_current
     post "/subscriptions", SubscriptionController, :create
     post "/checkout/session", SubscriptionController, :checkout
@@ -76,10 +79,8 @@ defmodule MinhaCasaAiWeb.Router do
            :revoke_organization_addon
 
     get "/organizations", OrganizationController, :index
-    post "/organizations", OrganizationController, :create
     get "/organizations/:id", OrganizationController, :show
-    put "/organizations/:id", OrganizationController, :update
-    delete "/organizations/:id", OrganizationController, :delete
+    patch "/agencies/:id", OrganizationController, :update_agency
     get "/organizations/:id/members", OrganizationController, :members
     post "/organizations/:id/members", OrganizationController, :add_member
     put "/organizations/:id/members/:user_id", OrganizationController, :update_member
@@ -96,6 +97,12 @@ defmodule MinhaCasaAiWeb.Router do
     get "/whatsapp/status", WhatsAppLinkController, :status
     post "/telegram/link", TelegramLinkController, :link
     get "/telegram/status", TelegramLinkController, :status
+  end
+
+  scope "/", MinhaCasaAiWeb do
+    pipe_through [:api, :authenticated]
+
+    post "/mcp", McpController, :handle
   end
 
   scope "/api", MinhaCasaAiWeb do
@@ -174,6 +181,8 @@ defmodule MinhaCasaAiWeb.Router do
     delete "/collections/:id", CollectionController, :delete
     post "/collections/:id/share", CollectionController, :share
     delete "/collections/:id/share", CollectionController, :revoke_share
+    post "/collections/:id/collaboration-invites", CollectionSharingController, :create_invite
+    delete "/collections/:id/grants/:grant_id", CollectionSharingController, :revoke_grant
     post "/collections/:id/copy", CollectionController, :copy
     post "/collections/:id/sync-listing-titles", CollectionController, :sync_listing_titles
     get "/collections/:id/financeiro-scenarios", FinanceiroScenarioController, :index

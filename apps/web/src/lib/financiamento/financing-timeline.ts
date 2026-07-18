@@ -299,7 +299,6 @@ export function simularTimelineMensal(input: SimularTimelineInput): TimelineResu
     mes++;
     const saldoInicio = saldoDevedor;
     const financiamentoAtivo = saldoDevedor > 0;
-    let juros = 0;
     let prestacao = 0;
     let aporteAplicado = 0;
 
@@ -327,10 +326,8 @@ export function simularTimelineMensal(input: SimularTimelineInput): TimelineResu
       const amortizacaoTotal = amortizacaoContrato + aporteAplicado;
       /** Parcela do financiamento (SAC + juros + seguros), sem aporte extra voluntário. */
       prestacao = amortizacaoContrato + parcelaSAC.juros + seguros;
-      juros = parcelaSAC.juros;
-
       saldoDevedor = Math.max(0, saldoDevedor - amortizacaoTotal);
-      totalJuros += juros;
+      totalJuros += parcelaSAC.juros;
       totalPago += prestacao + aporteAplicado;
     }
 

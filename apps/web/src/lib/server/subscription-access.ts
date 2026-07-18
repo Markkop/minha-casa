@@ -12,7 +12,7 @@ export type SubscriptionAccess =
     }
   | {
       state: "active";
-      source: "admin";
+      source: "free";
       subscription: null;
       plan: null;
     }
@@ -28,17 +28,10 @@ export type SubscriptionAccess =
       error: unknown;
     };
 
-type AccessUser = {
-  id: string;
-  isAdmin?: boolean | null;
-};
+type AccessUser = { id: string; isAdmin?: boolean | null };
 
 /** Resolve route entitlement from the database; persisted status alone is never sufficient. */
 export async function resolveSubscriptionAccess(user: AccessUser): Promise<SubscriptionAccess> {
-  if (user.isAdmin) {
-    return { state: "active", source: "admin", subscription: null, plan: null };
-  }
-
   try {
     const now = new Date();
     const rows = await getDb()
@@ -56,7 +49,7 @@ export async function resolveSubscriptionAccess(user: AccessUser): Promise<Subsc
       .limit(1);
 
     if (rows.length === 0) {
-      return { state: "inactive", subscription: null, plan: null };
+      return { state: "active", source: "free", subscription: null, plan: null };
     }
 
     return {

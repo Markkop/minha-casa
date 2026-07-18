@@ -63,7 +63,12 @@ defmodule MinhaCasaAi.PortalSearches.Pipeline do
         tags: ["portal_search"]
       )
 
-    PortalSearches.update_run!(run, %{trace_id: trace.trace_id, status: "running", started_at: DateTime.utc_now()})
+    PortalSearches.update_run!(run, %{
+      trace_id: trace.trace_id,
+      status: "running",
+      started_at: DateTime.utc_now()
+    })
+
     trace
   end
 

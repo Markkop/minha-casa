@@ -13,8 +13,19 @@ defmodule MinhaCasaAi.PortalSearches.ShortListingRunHit do
 
   def changeset(hit, attrs) do
     hit
-    |> cast(attrs, [:portal_search_run_id, :short_listing_id, :portal_search_target_id, :rank, :cache_origin])
-    |> validate_required([:portal_search_run_id, :short_listing_id, :portal_search_target_id, :cache_origin])
+    |> cast(attrs, [
+      :portal_search_run_id,
+      :short_listing_id,
+      :portal_search_target_id,
+      :rank,
+      :cache_origin
+    ])
+    |> validate_required([
+      :portal_search_run_id,
+      :short_listing_id,
+      :portal_search_target_id,
+      :cache_origin
+    ])
     |> validate_inclusion(:cache_origin, ~w(fresh page_cache listing_cache))
   end
 end

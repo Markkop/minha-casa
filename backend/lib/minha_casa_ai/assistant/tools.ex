@@ -47,7 +47,8 @@ defmodule MinhaCasaAi.Assistant.Tools do
       with %{} = collection <- Listings.ensure_default_collection!(user_id, nil),
            {:ok, listing} <- Listings.get_listing(collection.id, listing_id, user_id: user_id),
            starred = !(listing.data["starred"] == true),
-           {:ok, _} <- Listings.toggle_starred(collection.id, listing_id, starred, user_id: user_id) do
+           {:ok, _} <-
+             Listings.toggle_starred(collection.id, listing_id, starred, user_id: user_id) do
         label = if starred, do: "adicionado aos", else: "removido dos"
         {:ok, "Imóvel #{label} favoritos."}
       else

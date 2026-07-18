@@ -24,9 +24,15 @@ defmodule MinhaCasaAi.PortalSearches.UrlBuilders.Shared do
     query = URI.decode_query(uri.query || "")
 
     cond do
-      page = parse_page(query["pagina"]) -> page
-      page = parse_page(query["o"]) -> page
-      page = parse_page(query["pag"]) -> page
+      page = parse_page(query["pagina"]) ->
+        page
+
+      page = parse_page(query["o"]) ->
+        page
+
+      page = parse_page(query["pag"]) ->
+        page
+
       true ->
         case Regex.run(~r/pagina-(\d+)/, uri.path || "") do
           [_, page] -> parse_page(page) || 1

@@ -51,7 +51,14 @@ defmodule MinhaCasaAi.Integrations.OpenAIListingParserPreferencesTest do
   test "preference_list_for_prompt lists keys and labels" do
     text =
       ListingPreferences.preference_list_for_prompt([
-        %{key: "piscina", label: "Piscina", source: "system", visible: true, sort_order: 0, legacy_key: "piscina"}
+        %{
+          key: "piscina",
+          label: "Piscina",
+          source: "system",
+          visible: true,
+          sort_order: 0,
+          legacy_key: "piscina"
+        }
       ])
 
     assert text =~ "piscina: Piscina"

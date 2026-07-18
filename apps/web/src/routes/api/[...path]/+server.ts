@@ -2,7 +2,10 @@ import { env } from "$env/dynamic/private";
 import { getAuth } from "$lib/auth";
 import { ACTIVE_ORGANIZATION_COOKIE_NAME } from "$lib/organization-context";
 import { resolvePhoenixAuthorization } from "$lib/server/api-proxy-auth";
-import { preparePhoenixRequest } from "$lib/server/api-proxy-request";
+import {
+  preparePhoenixRequest,
+  preparePhoenixResponseHeaders
+} from "$lib/server/api-proxy-request";
 import type { RequestHandler } from "./$types";
 
 function phoenixBaseUrl(): string {
@@ -79,8 +82,7 @@ async function proxyToPhoenix({
     );
   }
 
-  const responseHeaders = new Headers(upstream.headers);
-  responseHeaders.delete("transfer-encoding");
+  const responseHeaders = preparePhoenixResponseHeaders(upstream.headers);
 
   return new Response(upstream.body, {
     status: upstream.status,

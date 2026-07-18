@@ -6,11 +6,11 @@ defmodule MinhaCasaAi.Financeiro.Scenarios do
   import Ecto.Query
 
   alias MinhaCasaAi.Financeiro.{Scenario, SharedSnapshot, SharedSnapshots}
-  alias MinhaCasaAi.Listings
+  alias MinhaCasaAi.Listings.CollectionPolicy
   alias MinhaCasaAi.Repo
 
   def list(collection_id, profile) do
-    with {:ok, _collection} <- authorize_collection(collection_id, profile) do
+    with {:ok, _collection} <- authorize_collection(collection_id, profile, :view) do
       scenarios =
         Scenario
         |> where([s], s.collection_id == ^collection_id)
@@ -22,7 +22,7 @@ defmodule MinhaCasaAi.Financeiro.Scenarios do
   end
 
   def create(collection_id, profile, attrs) when is_map(attrs) do
-    with {:ok, _collection} <- authorize_collection(collection_id, profile) do
+    with {:ok, _collection} <- authorize_collection(collection_id, profile, :edit_existing) do
       %Scenario{}
       |> Scenario.changeset(%{
         collection_id: collection_id,
@@ -34,7 +34,7 @@ defmodule MinhaCasaAi.Financeiro.Scenarios do
   end
 
   def update(collection_id, scenario_id, profile, attrs) when is_map(attrs) do
-    with {:ok, _collection} <- authorize_collection(collection_id, profile),
+    with {:ok, _collection} <- authorize_collection(collection_id, profile, :edit_existing),
          %Scenario{} = scenario <- get_in_collection(collection_id, scenario_id) do
       scenario
       |> Scenario.rename_changeset(%{
@@ -48,7 +48,7 @@ defmodule MinhaCasaAi.Financeiro.Scenarios do
   end
 
   def delete(collection_id, scenario_id, profile) do
-    with {:ok, _collection} <- authorize_collection(collection_id, profile),
+    with {:ok, _collection} <- authorize_collection(collection_id, profile, :edit_existing),
          %Scenario{} = scenario <- get_in_collection(collection_id, scenario_id) do
       Repo.delete(scenario)
     else
@@ -60,7 +60,7 @@ defmodule MinhaCasaAi.Financeiro.Scenarios do
   def import_shared(collection_id, profile, attrs) when is_map(attrs) do
     token = attrs |> Map.get("token", Map.get(attrs, :token, "")) |> string()
 
-    with {:ok, _collection} <- authorize_collection(collection_id, profile),
+    with {:ok, _collection} <- authorize_collection(collection_id, profile, :edit_existing),
          true <- token != "",
          %SharedSnapshot{} = snapshot <- SharedSnapshots.get_public_snapshot(token) do
       create(collection_id, profile, %{
@@ -86,8 +86,11 @@ defmodule MinhaCasaAi.Financeiro.Scenarios do
     }
   end
 
-  defp authorize_collection(collection_id, profile) do
-    Listings.get_collection(collection_id, profile.user_id, profile.org_id)
+  defp authorize_collection(collection_id, profile, action) do
+    case CollectionPolicy.authorize(profile.user_id, collection_id, action) do
+      {:ok, collection, _} -> {:ok, collection}
+      {:error, _} -> {:error, :collection_not_found}
+    end
   end
 
   defp get_in_collection(collection_id, scenario_id) do

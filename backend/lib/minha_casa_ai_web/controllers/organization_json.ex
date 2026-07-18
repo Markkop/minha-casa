@@ -7,6 +7,11 @@ defmodule MinhaCasaAiWeb.OrganizationJSON do
       name: org.name,
       slug: org.slug,
       ownerId: org.owner_id,
+      workspaceId: org.workspace_id,
+      kind: org.kind,
+      status: org.status,
+      billingOwnerUserId: Map.get(org, :billing_owner_user_id),
+      sponsorUserId: Map.get(org, :sponsor_user_id),
       role: Map.get(org, :role),
       userRole: Map.get(org, :role),
       joinedAt: datetime_to_iso(Map.get(org, :joined_at)),
@@ -58,7 +63,8 @@ defmodule MinhaCasaAiWeb.OrganizationJSON do
       organization: %{
         id: preview.organization.id,
         name: preview.organization.name,
-        slug: preview.organization.slug
+        slug: preview.organization.slug,
+        kind: preview.organization.kind
       }
     }
   end

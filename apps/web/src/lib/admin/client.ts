@@ -9,6 +9,7 @@ export interface AdminPlan {
   isActive: boolean;
   stripePriceId: string | null;
   limits: Record<string, unknown>;
+  capabilities?: string[] | Record<string, boolean> | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -22,6 +23,8 @@ export interface AdminSubscription {
   expiresAt: string;
   grantedBy: string | null;
   notes: string | null;
+  source?: "stripe" | "manual" | "trial" | null;
+  grantReason?: "friend" | "pilot" | "test" | "support" | "promotion" | "other" | null;
   stripeCustomerId?: string | null;
   stripeSubscriptionId?: string | null;
   stripeStatus?: string | null;
@@ -44,8 +47,14 @@ export interface AdminUser {
   email: string;
   name: string;
   isAdmin: boolean;
+  /** Explicit aliases used by the new platform role when available. */
+  isSuperAdmin?: boolean | null;
+  superAdmin?: boolean | null;
   emailVerified: boolean;
   createdAt: string;
+  lastSeenAt?: string | null;
+  status?: "active" | "suspended" | string;
+  workspaces?: { id: string; name: string; type: string; role?: string | null }[];
   subscription: {
     id: string;
     status: string;
@@ -63,6 +72,24 @@ export interface AdminStats {
   activePlans: number;
   recentUsers: number;
   subscriptionsByPlan: { planName: string; planSlug: string; count: number }[];
+  manualGrants?: number;
+  totalFamilies?: number;
+  totalProfessionalWorkspaces?: number;
+  totalAgencies?: number;
+  totalSeats?: number;
+  frozenWorkspaces?: number;
+  billingFailures?: number;
+  auditEvents?: AdminAuditEvent[];
+}
+
+export interface AdminAuditEvent {
+  id: string;
+  action: string;
+  actorName?: string | null;
+  actorEmail?: string | null;
+  targetLabel?: string | null;
+  reason?: string | null;
+  insertedAt: string;
 }
 
 export interface AdminAddon {
@@ -91,6 +118,14 @@ export interface AdminOrganization {
   name: string;
   slug: string;
   createdAt?: string;
+  kind?: "family" | "agency" | string;
+  status?: string;
+  workspaceId?: string | null;
+  workspaceType?: string | null;
+  frozen?: boolean;
+  membersCount?: number;
+  seatsUsed?: number;
+  seatsIncluded?: number;
   owner?: AdminUserSummary | null;
   addons?: {
     addonSlug: string;
@@ -140,7 +175,7 @@ export const adminApi = {
   updatePlanStripePrice: (slug: string, stripePriceId: string | null) =>
     api.patch<{ plan: AdminPlan }>(`/admin/plans/${encodeURIComponent(slug)}`, { stripePriceId }),
 
-  grantSubscription: (input: { userId: string; planId: string; expiresAt: string; notes?: string }) =>
+  grantSubscription: (input: { userId: string; planId: string; expiresAt: string; organizationId?: string; notes?: string; grantReason?: "friend" | "pilot" | "test" | "support" | "promotion" | "other" }) =>
     api.post<{ subscription: AdminSubscription }>("/subscriptions", input),
   fetchUserSubscriptions: (userId: string) =>
     api.get<{ user: AdminUserSummary; subscriptions: AdminSubscription[] }>(`/admin/subscriptions/user/${userId}`),

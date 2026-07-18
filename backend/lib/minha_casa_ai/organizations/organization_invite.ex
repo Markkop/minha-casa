@@ -2,7 +2,7 @@ defmodule MinhaCasaAi.Organizations.OrganizationInvite do
   use Ecto.Schema
   import Ecto.Changeset
 
-  @roles ~w(owner admin member)
+  @roles ~w(owner admin member broker)
   @statuses ~w(pending accepted revoked)
 
   @primary_key {:id, :binary_id, autogenerate: true}

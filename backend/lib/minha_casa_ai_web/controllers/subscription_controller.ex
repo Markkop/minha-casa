@@ -99,6 +99,16 @@ defmodule MinhaCasaAiWeb.SubscriptionController do
         |> put_status(:bad_request)
         |> json(%{error: "Cannot create subscription for inactive plan"})
 
+      {:error, :plan_conflict} ->
+        conn
+        |> put_status(:conflict)
+        |> json(%{error: "Pro and Corretor are mutually exclusive", code: "plan_conflict"})
+
+      {:error, :target_workspace_required} ->
+        conn
+        |> put_status(:bad_request)
+        |> json(%{error: "An agency workspace is required for this plan"})
+
       {:error, :not_found} ->
         conn |> put_status(:not_found) |> json(%{error: "User or plan not found"})
 

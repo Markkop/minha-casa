@@ -4,13 +4,15 @@ defmodule MinhaCasaAiWeb.CollectionController do
   import Ecto.Query
 
   alias MinhaCasaAi.Listings
+  alias MinhaCasaAi.Entitlements
+  alias MinhaCasaAi.Financeiro.Scenario
   alias MinhaCasaAi.Listings.MergeSessions
   alias MinhaCasaAi.Listings.DisplayTitle
-  alias MinhaCasaAi.Listings.{Collection, Listing}
-  alias MinhaCasaAi.Accounts.User
-  alias MinhaCasaAi.Organizations
+  alias MinhaCasaAi.Listings.{Collection, CollectionPolicy, CollectionSharing, Listing}
   alias MinhaCasaAi.Config
   alias MinhaCasaAi.Repo
+  alias MinhaCasaAi.Workspace.ListingComparisonNote
+  alias MinhaCasaAi.Workspaces
   alias MinhaCasaAiWeb.ListingJSON
 
   def index(conn, _params) do
@@ -34,10 +36,7 @@ defmodule MinhaCasaAiWeb.CollectionController do
     token = string(token)
 
     with true <- token != "",
-         %Collection{} = collection <-
-           Collection
-           |> where([c], c.share_token == ^token and c.is_public == true)
-           |> Repo.one() do
+         {:ok, %Collection{} = collection, _link} <- CollectionSharing.resolve_link(token) do
       rows =
         Listing
         |> where([l], l.collection_id == ^collection.id)
@@ -50,80 +49,67 @@ defmodule MinhaCasaAiWeb.CollectionController do
           collection
           |> ListingJSON.collection()
           |> Map.take([:id, :name, :createdAt, :updatedAt]),
-        listings: ListingJSON.listings(rows),
+        listings: ListingJSON.public_listings(rows),
         metadata: %{totalListings: length(rows)}
       })
     else
       false -> conn |> put_status(:bad_request) |> json(%{error: "Token is required"})
-      nil -> conn |> put_status(:not_found) |> json(%{error: "Shared collection not found"})
+      _ -> conn |> put_status(:not_found) |> json(%{error: "Shared collection not found"})
     end
   end
 
   def public_index(conn, _params) do
-    rows =
-      Repo.all(
-        from c in Collection,
-          left_join: u in User,
-          on: u.id == c.user_id,
-          left_join: l in Listing,
-          on: l.collection_id == c.id,
-          where: c.is_public == true,
-          group_by: [c.id, u.name],
-          order_by: [desc: c.updated_at],
-          select: %{collection: c, owner_name: u.name, listings_count: count(l.id)}
-      )
-
-    json(conn, %{collections: Enum.map(rows, &public_collection/1)})
+    # Sharing by secret link is intentionally unlisted. A future public directory
+    # must use an explicit publication flag instead of reusing `is_public`.
+    json(conn, %{collections: []})
   end
 
-  def public_show(conn, %{"id" => id}) do
-    collection_row =
-      Repo.one(
-        from c in Collection,
-          left_join: u in User,
-          on: u.id == c.user_id,
-          where: c.id == ^id and c.is_public == true,
-          select: %{collection: c, owner_name: u.name}
-      )
-
-    case collection_row do
-      nil ->
-        conn |> put_status(:not_found) |> json(%{error: "Collection not found or is not public"})
-
-      row ->
-        listings =
-          Listing
-          |> where([l], l.collection_id == ^id)
-          |> order_by([l], desc: l.created_at)
-          |> Repo.all()
-
-        json(conn, %{collection: public_collection(row), listings: ListingJSON.listings(listings)})
-    end
+  def public_show(conn, _params) do
+    conn
+    |> put_status(:not_found)
+    |> json(%{error: "Public collection directory is disabled"})
   end
 
   def create(conn, params) do
     profile = current_profile(conn)
     name = string(params["name"])
+    entitlement = Entitlements.for_workspace(conn.assigns.current_workspace)
 
-    if name == "" do
-      conn |> put_status(:bad_request) |> json(%{error: "Collection name is required"})
+    if profile.access == "external" do
+      conn
+      |> put_status(:forbidden)
+      |> json(%{error: "External profiles cannot create collections"})
     else
-      is_first? = Repo.one(from(c in scoped(Collection, profile), select: count(c.id))) == 0
-      is_default = params["isDefault"] == true or is_first?
+      if name == "" do
+        conn |> put_status(:bad_request) |> json(%{error: "Collection name is required"})
+      else
+        with :ok <- Entitlements.ensure_collection_capacity(entitlement) do
+          is_first? = Repo.one(from(c in scoped(Collection, profile), select: count(c.id))) == 0
+          is_default = params["isDefault"] == true or is_first?
 
-      if is_default do
-        scoped(Collection, profile) |> Repo.update_all(set: [is_default: false])
-      end
+          if is_default do
+            scoped(Collection, profile) |> Repo.update_all(set: [is_default: false])
+          end
 
-      attrs =
-        Map.merge(profile_values(profile), %{name: name, is_default: is_default, is_public: false})
+          attrs =
+            Map.merge(profile_values(profile), %{
+              name: name,
+              is_default: is_default,
+              is_public: false
+            })
 
-      case %Collection{} |> Collection.changeset(attrs) |> Repo.insert() do
-        {:ok, collection} ->
-          conn |> put_status(:created) |> json(%{collection: ListingJSON.collection(collection)})
+          case %Collection{} |> Collection.changeset(attrs) |> Repo.insert() do
+            {:ok, collection} ->
+              conn
+              |> put_status(:created)
+              |> json(%{collection: ListingJSON.collection(collection)})
 
-        {:error, changeset} ->
-          changeset_error(conn, changeset)
+            {:error, changeset} ->
+              changeset_error(conn, changeset)
+          end
+        else
+          {:error, reason} -> quota_error(conn, reason)
+        end
       end
     end
   end
@@ -146,8 +132,8 @@ defmodule MinhaCasaAiWeb.CollectionController do
   def update(conn, %{"id" => id} = params) do
     profile = current_profile(conn)
 
-    with %Collection{} = collection <-
-           scoped(Collection, profile) |> where([c], c.id == ^id) |> Repo.one() do
+    with {:ok, %Collection{} = collection, _access} <-
+           CollectionPolicy.authorize(profile.user_id, id, :manage) do
       attrs =
         %{}
         |> maybe_put_name(params)
@@ -163,15 +149,15 @@ defmodule MinhaCasaAiWeb.CollectionController do
         {:error, changeset} -> changeset_error(conn, changeset)
       end
     else
-      nil -> not_found(conn, "Collection")
+      {:error, _} -> not_found(conn, "Collection")
     end
   end
 
   def delete(conn, %{"id" => id}) do
     profile = current_profile(conn)
 
-    with %Collection{} = collection <-
-           scoped(Collection, profile) |> where([c], c.id == ^id) |> Repo.one() do
+    with {:ok, %Collection{} = collection, _access} <-
+           CollectionPolicy.authorize(profile.user_id, id, :manage) do
       collection_count = Repo.one(from(c in scoped(Collection, profile), select: count(c.id)))
 
       if collection.is_default and collection_count <= 1 do
@@ -200,7 +186,7 @@ defmodule MinhaCasaAiWeb.CollectionController do
         json(conn, %{success: true})
       end
     else
-      nil -> not_found(conn, "Collection")
+      {:error, _} -> not_found(conn, "Collection")
     end
   end
 
@@ -224,15 +210,21 @@ defmodule MinhaCasaAiWeb.CollectionController do
 
   def create_listing(conn, %{"id" => id, "data" => data} = params) when is_map(data) do
     profile = current_profile(conn)
+    entitlement = Entitlements.for_workspace(conn.assigns.current_workspace)
     duplicate_action = params["duplicateAction"] || "check"
 
-    with true <- collection_allowed?(id, profile),
+    with {:ok, _collection, _access} <-
+           CollectionPolicy.authorize(profile.user_id, id, :add_listing),
+         :ok <- Entitlements.ensure_listing_capacity(entitlement),
          :ok <- validate_listing_data(data) do
       candidates = Listings.duplicate_candidates(id, data)
       resolve_listing_create(conn, id, data, candidates, duplicate_action, profile, params)
     else
-      false ->
+      {:error, :forbidden} ->
         not_found(conn, "Collection")
+
+      {:error, reason} when reason in [:workspace_frozen, :listing_limit] ->
+        quota_error(conn, reason)
 
       {:error, :invalid_listing} ->
         conn
@@ -307,116 +299,135 @@ defmodule MinhaCasaAiWeb.CollectionController do
       when is_map(data) do
     profile = current_profile(conn)
 
-    case Listings.update_listing(id, listing_id, data,
-           user_id: profile.user_id,
-           org_id: profile.org_id
-         ) do
-      {:ok, listing} -> json(conn, %{listing: ListingJSON.listing(listing)})
-      {:error, _} -> not_found(conn, "Listing")
+    case CollectionPolicy.authorize(profile.user_id, id, :edit_existing) do
+      {:ok, _, _} ->
+        case Listings.update_listing(id, listing_id, data,
+               user_id: profile.user_id,
+               org_id: profile.org_id
+             ) do
+          {:ok, listing} -> json(conn, %{listing: ListingJSON.listing(listing)})
+          {:error, _} -> not_found(conn, "Listing")
+        end
+
+      {:error, _} ->
+        not_found(conn, "Listing")
     end
   end
 
   def delete_listing(conn, %{"id" => id, "listing_id" => listing_id}) do
     profile = current_profile(conn)
 
-    case Listings.delete_listing(id, listing_id, user_id: profile.user_id, org_id: profile.org_id) do
-      {:ok, _} -> json(conn, %{success: true})
-      {:error, _} -> not_found(conn, "Listing")
+    case CollectionPolicy.authorize(profile.user_id, id, :edit_existing) do
+      {:ok, _, _} ->
+        case Listings.delete_listing(id, listing_id,
+               user_id: profile.user_id,
+               org_id: profile.org_id
+             ) do
+          {:ok, _} -> json(conn, %{success: true})
+          {:error, _} -> not_found(conn, "Listing")
+        end
+
+      {:error, _} ->
+        not_found(conn, "Listing")
     end
   end
 
   def share(conn, %{"id" => id}) do
-    profile = current_profile(conn)
+    case CollectionSharing.create_link(id, conn.assigns.current_user_id, conn.body_params) do
+      {:ok, _link, token} ->
+        collection = Repo.get!(Collection, id)
 
-    with %Collection{} = collection <-
-           scoped(Collection, profile) |> where([c], c.id == ^id) |> Repo.one() do
-      attrs =
-        if string(collection.share_token) == "" do
-          %{share_token: generate_share_token(), is_public: true}
-        else
-          %{is_public: true}
-        end
+        json(conn, %{
+          collection: ListingJSON.collection(collection),
+          shareUrl: share_url(conn, token)
+        })
 
-      case collection |> Collection.changeset(attrs) |> Repo.update() do
-        {:ok, collection} ->
-          json(conn, %{
-            collection: ListingJSON.collection(collection),
-            shareUrl: share_url(conn, collection.share_token)
-          })
+      {:error, :sharing_not_allowed} ->
+        conn |> put_status(:forbidden) |> json(%{error: "Your plan cannot create this share"})
 
-        {:error, changeset} ->
-          changeset_error(conn, changeset)
-      end
-    else
-      nil -> not_found(conn, "Collection")
+      {:error, :forbidden} ->
+        not_found(conn, "Collection")
+
+      {:error, changeset} ->
+        changeset_error(conn, changeset)
     end
   end
 
   def revoke_share(conn, %{"id" => id}) do
-    profile = current_profile(conn)
+    case CollectionSharing.revoke_links(id, conn.assigns.current_user_id) do
+      :ok ->
+        json(conn, %{collection: ListingJSON.collection(Repo.get!(Collection, id)), success: true})
 
-    with %Collection{} = collection <-
-           scoped(Collection, profile) |> where([c], c.id == ^id) |> Repo.one() do
-      case collection
-           |> Collection.changeset(%{share_token: nil, is_public: false})
-           |> Repo.update() do
-        {:ok, collection} ->
-          json(conn, %{collection: ListingJSON.collection(collection), success: true})
-
-        {:error, changeset} ->
-          changeset_error(conn, changeset)
-      end
-    else
-      nil -> not_found(conn, "Collection")
+      {:error, _} ->
+        not_found(conn, "Collection")
     end
   end
 
   def copy(conn, %{"id" => id} = params) do
     user_id = conn.assigns[:current_user_id]
-    source_profile = current_profile(conn)
-    target_org_id = blank_to_nil(params["targetOrgId"] || params["target_org_id"])
-    include_listings = Map.get(params, "includeListings", true) != false
+    personal = Workspaces.personal_for(user_id)
+    entitlement = Entitlements.for_workspace(personal)
 
-    with %Collection{} = source <-
-           scoped(Collection, source_profile) |> where([c], c.id == ^id) |> Repo.one(),
-         :ok <- authorize_copy_target(user_id, target_org_id) do
+    with {:ok, %Collection{} = source, _access} <- CollectionPolicy.authorize(user_id, id, :view) do
       collection_name =
         case string(params["newName"]) do
           "" -> "#{source.name} (cópia)"
           name -> name
         end
 
-      target_profile = %{user_id: user_id, org_id: target_org_id}
+      source_listings =
+        Repo.all(
+          from(l in Listing, where: l.collection_id == ^source.id, order_by: [asc: l.created_at])
+        )
 
       result =
         Repo.transaction(fn ->
+          Repo.query!("SELECT pg_advisory_xact_lock(hashtext($1))", [personal.id])
+
+          if Entitlements.ensure_collection_capacity(entitlement) != :ok,
+            do: Repo.rollback(:collection_limit)
+
+          if Entitlements.ensure_listing_capacity(entitlement, length(source_listings)) != :ok,
+            do: Repo.rollback(:listing_limit)
+
           {:ok, collection} =
             %Collection{}
-            |> Collection.changeset(
-              Map.merge(profile_values(target_profile), %{
-                name: collection_name,
-                is_public: false,
-                is_default: false
-              })
-            )
+            |> Collection.changeset(%{
+              user_id: user_id,
+              org_id: nil,
+              workspace_id: personal.id,
+              created_by_user_id: user_id,
+              responsible_user_id: user_id,
+              name: collection_name,
+              is_public: false,
+              is_default: false,
+              kind: source.kind,
+              visibility: "private",
+              source_collection_id: source.id,
+              tags: source.tags,
+              status: "active",
+              publication_settings: source.publication_settings
+            })
             |> Repo.insert()
 
-          copied_count =
-            if include_listings do
-              source_listings = Repo.all(from(l in Listing, where: l.collection_id == ^source.id))
-
-              Enum.each(source_listings, fn listing ->
+          listing_map =
+            Enum.map(source_listings, fn listing ->
+              copied =
                 %Listing{}
-                |> Listing.changeset(%{collection_id: collection.id, data: listing.data || %{}})
+                |> Listing.changeset(%{
+                  collection_id: collection.id,
+                  data: public_copy_data(listing.data || %{})
+                })
                 |> Repo.insert!()
-              end)
 
-              length(source_listings)
-            else
-              0
-            end
+              {listing.id, copied.id}
+            end)
+            |> Map.new()
 
-          %{collection: collection, copied_count: copied_count}
+          copy_comparison_notes(listing_map)
+          copy_scenarios(source.id, collection.id)
+
+          %{collection: collection, copied_count: length(source_listings)}
         end)
 
       case result do
@@ -426,17 +437,15 @@ defmodule MinhaCasaAiWeb.CollectionController do
             copiedListingsCount: copied_count
           })
 
+        {:error, reason} when reason in [:collection_limit, :listing_limit] ->
+          quota_error(conn, reason)
+
         {:error, changeset} ->
           changeset_error(conn, changeset)
       end
     else
-      nil ->
+      {:error, _} ->
         not_found(conn, "Collection")
-
-      {:error, :forbidden} ->
-        conn
-        |> put_status(:forbidden)
-        |> json(%{error: "Only organization owners and admins can copy into this organization"})
     end
   end
 
@@ -469,20 +478,49 @@ defmodule MinhaCasaAiWeb.CollectionController do
   end
 
   defp current_profile(conn) do
-    %{user_id: conn.assigns[:current_user_id], org_id: conn.assigns[:current_org_id]}
+    %{
+      user_id: conn.assigns[:current_user_id],
+      org_id: conn.assigns[:current_org_id],
+      workspace_id: conn.assigns[:current_workspace_id],
+      access: conn.assigns[:current_workspace_access]
+    }
   end
 
-  defp scoped(queryable, %{org_id: org_id}) when is_binary(org_id),
-    do: from(c in queryable, where: c.org_id == ^org_id)
+  defp scoped(queryable, %{workspace_id: workspace_id, access: "external", user_id: user_id}) do
+    now = DateTime.utc_now(:second)
 
-  defp scoped(queryable, %{user_id: user_id}) do
-    from(c in queryable, where: c.user_id == ^user_id and is_nil(c.org_id))
+    from(c in queryable,
+      join: g in MinhaCasaAi.Listings.CollectionAccessGrant,
+      on: g.collection_id == c.id,
+      where:
+        c.workspace_id == ^workspace_id and g.user_id == ^user_id and g.status == "active" and
+          (is_nil(g.expires_at) or g.expires_at > ^now)
+    )
   end
 
-  defp profile_values(%{org_id: org_id}) when is_binary(org_id),
-    do: %{user_id: nil, org_id: org_id}
+  defp scoped(queryable, %{workspace_id: workspace_id}),
+    do: from(c in queryable, where: c.workspace_id == ^workspace_id)
 
-  defp profile_values(%{user_id: user_id}), do: %{user_id: user_id, org_id: nil}
+  defp profile_values(%{org_id: org_id, workspace_id: workspace_id, user_id: user_id})
+       when is_binary(org_id),
+       do: %{
+         user_id: nil,
+         org_id: org_id,
+         workspace_id: workspace_id,
+         created_by_user_id: user_id,
+         responsible_user_id: user_id,
+         visibility: "team"
+       }
+
+  defp profile_values(%{user_id: user_id, workspace_id: workspace_id}),
+    do: %{
+      user_id: user_id,
+      org_id: nil,
+      workspace_id: workspace_id,
+      created_by_user_id: user_id,
+      responsible_user_id: user_id,
+      visibility: "private"
+    }
 
   defp collection_allowed?(id, profile) do
     scoped(Collection, profile) |> where([c], c.id == ^id) |> Repo.exists?()
@@ -494,21 +532,37 @@ defmodule MinhaCasaAiWeb.CollectionController do
     |> Map.put(:listingsCount, count)
   end
 
-  defp public_collection(%{collection: collection, owner_name: owner_name} = row) do
-    collection
-    |> ListingJSON.collection()
-    |> Map.put(:ownerName, owner_name)
-    |> Map.put(:listingsCount, Map.get(row, :listings_count))
+  defp copy_comparison_notes(listing_map) do
+    source_ids = Map.keys(listing_map)
+
+    Repo.all(from(n in ListingComparisonNote, where: n.listing_id in ^source_ids))
+    |> Enum.each(fn note ->
+      %ListingComparisonNote{}
+      |> ListingComparisonNote.changeset(%{
+        listing_id: listing_map[note.listing_id],
+        pros: note.pros,
+        cons: note.cons,
+        notes: note.notes
+      })
+      |> Repo.insert!()
+    end)
   end
 
-  defp authorize_copy_target(_user_id, nil), do: :ok
-
-  defp authorize_copy_target(user_id, org_id) do
-    case Organizations.get_membership(user_id, org_id) do
-      %{role: role} when role in ["owner", "admin"] -> :ok
-      _ -> {:error, :forbidden}
-    end
+  defp copy_scenarios(source_id, target_id) do
+    Repo.all(from(s in Scenario, where: s.collection_id == ^source_id))
+    |> Enum.each(fn scenario ->
+      %Scenario{}
+      |> Scenario.changeset(%{
+        collection_id: target_id,
+        name: scenario.name,
+        payload: scenario.payload
+      })
+      |> Repo.insert!()
+    end)
   end
+
+  defp public_copy_data(data),
+    do: Map.drop(data, ["internalNotes", "internalObservations", "aiResult", "aiMetadata"])
 
   defp validate_listing_data(data) do
     if string(data["titulo"]) != "" and string(data["endereco"]) != "" do
@@ -536,24 +590,27 @@ defmodule MinhaCasaAiWeb.CollectionController do
   defp string(value) when is_binary(value), do: String.trim(value)
   defp string(_), do: ""
 
-  defp blank_to_nil(value) when is_binary(value) do
-    value = String.trim(value)
-    if value == "", do: nil, else: value
-  end
-
-  defp blank_to_nil(_), do: nil
-
-  defp generate_share_token do
-    :crypto.strong_rand_bytes(12) |> Base.url_encode64(padding: false)
-  end
-
   defp share_url(_conn, token) do
     base = Config.app_public_url() || ""
-    String.trim_trailing(base, "/") <> "/anuncios?share=#{token}"
+    String.trim_trailing(base, "/") <> "/share/#{token}"
   end
 
   defp changeset_error(conn, %Ecto.Changeset{} = changeset) do
     conn |> put_status(:bad_request) |> json(%{error: first_changeset_error(changeset)})
+  end
+
+  defp changeset_error(conn, reason) when is_atom(reason), do: quota_error(conn, reason)
+
+  defp quota_error(conn, reason) do
+    {status, message} =
+      case reason do
+        :workspace_frozen -> {:locked, "Workspace is read-only"}
+        :collection_limit -> {:unprocessable_entity, "Collection limit reached"}
+        :listing_limit -> {:unprocessable_entity, "Listing limit reached"}
+        _ -> {:bad_request, "Operation could not be completed"}
+      end
+
+    conn |> put_status(status) |> json(%{error: message, code: Atom.to_string(reason)})
   end
 
   defp first_changeset_error(%Ecto.Changeset{} = changeset) do

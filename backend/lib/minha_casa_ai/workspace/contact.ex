@@ -7,6 +7,7 @@ defmodule MinhaCasaAi.Workspace.Contact do
   schema "contacts" do
     field :user_id, :binary_id
     field :org_id, :binary_id
+    field :workspace_id, :binary_id
     field :name, :string
     field :phone, :string
     field :normalized_phone, :string
@@ -20,7 +21,18 @@ defmodule MinhaCasaAi.Workspace.Contact do
 
   def changeset(contact, attrs) do
     contact
-    |> cast(attrs, [:user_id, :org_id, :name, :phone, :normalized_phone, :email, :notes, :source])
+    |> cast(attrs, [
+      :user_id,
+      :org_id,
+      :workspace_id,
+      :name,
+      :phone,
+      :normalized_phone,
+      :email,
+      :notes,
+      :source
+    ])
+    |> validate_required([:workspace_id])
     |> validate_inclusion(:source, ["manual", "listing"])
     |> validate_required([:source])
     |> validate_contact_method()

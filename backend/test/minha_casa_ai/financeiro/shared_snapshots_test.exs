@@ -4,7 +4,9 @@ defmodule MinhaCasaAi.Financeiro.SharedSnapshotsTest do
   import Ecto.Query
 
   alias MinhaCasaAi.Financeiro.{SharedSnapshot, SharedSnapshots}
+  alias MinhaCasaAi.Organizations.Organization
   alias MinhaCasaAi.Repo
+  alias MinhaCasaAi.Workspaces.Workspace
 
   setup do
     user_id = Ecto.UUID.generate()
@@ -22,9 +24,14 @@ defmodule MinhaCasaAi.Financeiro.SharedSnapshotsTest do
     on_exit(fn ->
       Repo.delete_all(from s in SharedSnapshot, where: s.user_id == ^user_id)
 
+      workspace_ids =
+        Repo.all(from(o in Organization, where: o.owner_id == ^user_id, select: o.workspace_id))
+
       Ecto.Adapters.SQL.query!(Repo, "DELETE FROM organizations WHERE owner_id = $1", [
         Ecto.UUID.dump!(user_id)
       ])
+
+      Repo.delete_all(from(w in Workspace, where: w.id in ^workspace_ids))
 
       Ecto.Adapters.SQL.query!(Repo, "DELETE FROM users WHERE id = $1", [
         Ecto.UUID.dump!(user_id)
@@ -53,21 +60,7 @@ defmodule MinhaCasaAi.Financeiro.SharedSnapshotsTest do
   end
 
   test "creates a static snapshot for an organization profile", %{user_id: user_id} do
-    org_id = Ecto.UUID.generate()
-
-    Ecto.Adapters.SQL.query!(
-      Repo,
-      """
-      INSERT INTO organizations (id, name, slug, owner_id)
-      VALUES ($1, $2, $3, $4)
-      """,
-      [
-        Ecto.UUID.dump!(org_id),
-        "Financeiro Org",
-        "financeiro-org-#{System.unique_integer([:positive])}",
-        Ecto.UUID.dump!(user_id)
-      ]
-    )
+    org_id = insert_organization!(user_id, "Financeiro Org", "financeiro-org")
 
     assert {:ok, snapshot} =
              SharedSnapshots.create_snapshot(%{user_id: nil, org_id: org_id}, %{
@@ -82,21 +75,7 @@ defmodule MinhaCasaAi.Financeiro.SharedSnapshotsTest do
   test "prefers organization ownership when authenticated profile has user and org", %{
     user_id: user_id
   } do
-    org_id = Ecto.UUID.generate()
-
-    Ecto.Adapters.SQL.query!(
-      Repo,
-      """
-      INSERT INTO organizations (id, name, slug, owner_id)
-      VALUES ($1, $2, $3, $4)
-      """,
-      [
-        Ecto.UUID.dump!(org_id),
-        "Financeiro Org Owner",
-        "financeiro-org-owner-#{System.unique_integer([:positive])}",
-        Ecto.UUID.dump!(user_id)
-      ]
-    )
+    org_id = insert_organization!(user_id, "Financeiro Org Owner", "financeiro-org-owner")
 
     assert {:ok, snapshot} =
              SharedSnapshots.create_snapshot(%{user_id: user_id, org_id: org_id}, %{
@@ -142,5 +121,28 @@ defmodule MinhaCasaAi.Financeiro.SharedSnapshotsTest do
 
   defp errors_on(changeset) do
     Ecto.Changeset.traverse_errors(changeset, fn {message, _opts} -> message end)
+  end
+
+  defp insert_organization!(user_id, name, slug_prefix) do
+    workspace_id = Ecto.UUID.generate()
+    org_id = Ecto.UUID.generate()
+
+    Repo.query!(
+      "INSERT INTO workspaces (id, type, name, status, created_at, updated_at) VALUES ($1, 'organization', $2, 'active', now(), now())",
+      [Ecto.UUID.dump!(workspace_id), name]
+    )
+
+    Repo.query!(
+      "INSERT INTO organizations (id, name, slug, owner_id, workspace_id) VALUES ($1, $2, $3, $4, $5)",
+      [
+        Ecto.UUID.dump!(org_id),
+        name,
+        "#{slug_prefix}-#{System.unique_integer([:positive])}",
+        Ecto.UUID.dump!(user_id),
+        Ecto.UUID.dump!(workspace_id)
+      ]
+    )
+
+    org_id
   end
 end

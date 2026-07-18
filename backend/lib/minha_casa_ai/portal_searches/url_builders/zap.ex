@@ -39,14 +39,17 @@ defmodule MinhaCasaAi.PortalSearches.UrlBuilders.Zap do
           "tipos" => tipos_param,
           "precoMinimo" => filter_set["precoMin"],
           "precoMaximo" => filter_set["precoMax"],
-          "quartos" => if(filter_set["quartos"] != [], do: Shared.comma_list(filter_set["quartos"])),
-          "banheiros" => if(filter_set["banheiros"] != [], do: Shared.comma_list(filter_set["banheiros"])),
+          "quartos" =>
+            if(filter_set["quartos"] != [], do: Shared.comma_list(filter_set["quartos"])),
+          "banheiros" =>
+            if(filter_set["banheiros"] != [], do: Shared.comma_list(filter_set["banheiros"])),
           "vagas" => if(filter_set["vagas"] != [], do: Shared.comma_list(filter_set["vagas"])),
           "areaMinima" => filter_set["areaMin"],
           "areaMaxima" => filter_set["areaMax"],
           "valorCondominioMaximo" => filter_set["condominioMax"],
           "amenidades" => if(amenidades != "", do: amenidades),
-          "proximoMetro" => if("proximo_metro" in Map.get(filter_set, "amenidades", []), do: "true"),
+          "proximoMetro" =>
+            if("proximo_metro" in Map.get(filter_set, "amenidades", []), do: "true"),
           "pagina" => if(page > 1, do: page)
         }
 

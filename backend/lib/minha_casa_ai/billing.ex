@@ -2,6 +2,7 @@ defmodule MinhaCasaAi.Billing do
   import Ecto.Query
 
   alias MinhaCasaAi.Accounts.User
+  alias MinhaCasaAi.{Audit, Organizations, PlatformRoles, Workspaces}
 
   alias MinhaCasaAi.Billing.{
     Addon,
@@ -13,16 +14,14 @@ defmodule MinhaCasaAi.Billing do
   }
 
   alias MinhaCasaAi.Listings.{Collection, Listing}
-  alias MinhaCasaAi.Organizations.Organization
+  alias MinhaCasaAi.Organizations.{Organization, OrganizationInvite, OrganizationMember}
+  alias MinhaCasaAi.Accounts.PlatformUserRole
+  alias MinhaCasaAi.Audit.AuditEvent
+  alias MinhaCasaAi.Workspaces.Workspace
   alias MinhaCasaAi.Config
   alias MinhaCasaAi.Repo
 
-  def admin?(user_id) when is_binary(user_id) do
-    case Repo.get(User, user_id) do
-      %User{is_admin: true} -> true
-      _ -> false
-    end
-  end
+  def admin?(user_id) when is_binary(user_id), do: PlatformRoles.super_admin?(user_id)
 
   def admin?(_), do: false
 
@@ -234,27 +233,62 @@ defmodule MinhaCasaAi.Billing do
     user_id = Map.get(attrs, "userId") || Map.get(attrs, "user_id")
     plan_id = Map.get(attrs, "planId") || Map.get(attrs, "plan_id")
     notes = Map.get(attrs, "notes")
+    source = Map.get(attrs, "source", "manual")
+    grant_reason = Map.get(attrs, "grantReason") || Map.get(attrs, "grant_reason") || "other"
+    starts_at_value = Map.get(attrs, "startsAt") || Map.get(attrs, "starts_at")
 
     with true <- is_binary(user_id) and is_binary(plan_id),
          %User{} <- Repo.get(User, user_id),
-         %Plan{is_active: true} <- Repo.get(Plan, plan_id),
+         %Plan{is_active: true} = plan <- Repo.get(Plan, plan_id),
          {:ok, expires_at} <-
-           parse_datetime(Map.get(attrs, "expiresAt") || Map.get(attrs, "expires_at")) do
+           parse_datetime(Map.get(attrs, "expiresAt") || Map.get(attrs, "expires_at")),
+         {:ok, starts_at} <- parse_optional_datetime(starts_at_value),
+         {:ok, target_workspace} <- grant_target_workspace(user_id, plan, attrs),
+         :ok <- ensure_personal_plan_compatibility(user_id, plan.slug, attrs) do
       Repo.transaction(fn ->
-        from(s in Subscription, where: s.user_id == ^user_id and s.status == "active")
-        |> Repo.update_all(set: [status: "expired", updated_at: DateTime.utc_now(:second)])
+        subscription =
+          %Subscription{}
+          |> Subscription.changeset(%{
+            user_id: user_id,
+            plan_id: plan_id,
+            status: "active",
+            starts_at: starts_at || DateTime.utc_now(:second),
+            expires_at: expires_at,
+            granted_by: admin_id,
+            notes: blank_to_nil(notes),
+            source: source,
+            target_workspace_id: target_workspace.id,
+            grant_reason: grant_reason
+          })
+          |> Repo.insert!()
 
-        %Subscription{}
-        |> Subscription.changeset(%{
-          user_id: user_id,
-          plan_id: plan_id,
-          status: "active",
-          starts_at: DateTime.utc_now(:second),
-          expires_at: expires_at,
-          granted_by: admin_id,
-          notes: blank_to_nil(notes)
+        target_workspace
+        |> MinhaCasaAi.Workspaces.Workspace.changeset(%{status: "active"})
+        |> Repo.update!()
+
+        case Repo.get_by(Organization, workspace_id: target_workspace.id) do
+          %Organization{} = organization ->
+            organization |> Organization.update_changeset(%{status: "active"}) |> Repo.update!()
+
+          _ ->
+            :ok
+        end
+
+        Audit.record!(%{
+          actor_user_id: admin_id,
+          workspace_id: target_workspace.id,
+          action: "entitlement.granted",
+          target_type: "subscription",
+          target_id: subscription.id,
+          after: %{
+            "plan" => plan.slug,
+            "source" => source,
+            "expiresAt" => DateTime.to_iso8601(expires_at)
+          },
+          metadata: %{"reason" => grant_reason}
         })
-        |> Repo.insert!()
+
+        subscription
       end)
     else
       false -> {:error, :invalid}
@@ -290,14 +324,14 @@ defmodule MinhaCasaAi.Billing do
 
   def update_user(admin_id, user_id, attrs) do
     with %User{} = user <- Repo.get(User, user_id),
-         :ok <- validate_self_admin_change(admin_id, user_id, attrs) do
+         :ok <- validate_self_admin_change(admin_id, user_id, attrs),
+         :ok <- update_platform_role(admin_id, user_id, Map.get(attrs, "isAdmin")) do
       update_attrs =
         %{}
-        |> maybe_put(:is_admin, Map.get(attrs, "isAdmin"))
         |> maybe_put(:name, trimmed_name(Map.get(attrs, "name")))
         |> Map.put(:updated_at, DateTime.utc_now(:second))
 
-      if map_size(update_attrs) == 1 do
+      if map_size(update_attrs) == 1 and not is_boolean(Map.get(attrs, "isAdmin")) do
         {:error, :empty}
       else
         from(u in User, where: u.id == ^user.id)
@@ -310,6 +344,104 @@ defmodule MinhaCasaAi.Billing do
       error -> error
     end
   end
+
+  defp update_platform_role(_admin_id, _user_id, nil), do: :ok
+
+  defp update_platform_role(admin_id, user_id, true) do
+    case PlatformRoles.grant_super_admin(admin_id, user_id) do
+      {:ok, _} -> :ok
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  defp update_platform_role(admin_id, user_id, false) do
+    case PlatformRoles.revoke_super_admin(admin_id, user_id) do
+      {:ok, :ok} -> :ok
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  defp update_platform_role(_, _, _), do: {:error, :invalid}
+
+  defp grant_target_workspace(user_id, %Plan{slug: "corretor"}, _attrs),
+    do: Workspaces.ensure_professional_workspace(user_id)
+
+  defp grant_target_workspace(user_id, %Plan{slug: "pro"}, _attrs) do
+    with {:ok, personal} <- Workspaces.ensure_personal_workspace(user_id),
+         {:ok, _family} <- Organizations.ensure_family_for_user(user_id) do
+      {:ok, personal}
+    end
+  end
+
+  defp grant_target_workspace(user_id, %Plan{slug: "imobiliaria"}, attrs) do
+    workspace_id = Map.get(attrs, "targetWorkspaceId") || Map.get(attrs, "target_workspace_id")
+    org_id = Map.get(attrs, "organizationId") || Map.get(attrs, "organization_id")
+
+    workspace =
+      cond do
+        is_binary(workspace_id) ->
+          Repo.one(
+            from(o in Organization,
+              where:
+                o.workspace_id == ^workspace_id and o.kind == "agency" and
+                  (o.owner_id == ^user_id or o.billing_owner_user_id == ^user_id),
+              select: o.workspace_id,
+              limit: 1
+            )
+          )
+          |> then(&(&1 && Workspaces.get(&1)))
+
+        is_binary(org_id) ->
+          Repo.one(
+            from(o in Organization,
+              where:
+                o.id == ^org_id and o.kind == "agency" and
+                  (o.owner_id == ^user_id or o.billing_owner_user_id == ^user_id),
+              select: o.workspace_id,
+              limit: 1
+            )
+          )
+          |> then(&(&1 && Workspaces.get(&1)))
+
+        true ->
+          with {:ok, agency} <- Organizations.ensure_agency_for_owner(user_id) do
+            Workspaces.get(agency.workspace_id)
+          end
+      end
+
+    case workspace do
+      %MinhaCasaAi.Workspaces.Workspace{type: "organization"} = row -> {:ok, row}
+      _ -> {:error, :target_workspace_required}
+    end
+  end
+
+  defp grant_target_workspace(user_id, %Plan{slug: "free"}, _attrs),
+    do: Workspaces.ensure_personal_workspace(user_id)
+
+  defp grant_target_workspace(_, _, _), do: {:error, :invalid}
+
+  defp ensure_personal_plan_compatibility(user_id, slug, attrs)
+       when slug in ["pro", "corretor"] do
+    other_slug = if slug == "pro", do: "corretor", else: "pro"
+    now = DateTime.utc_now(:second)
+
+    conflict =
+      Repo.exists?(
+        from(s in Subscription,
+          join: p in Plan,
+          on: p.id == s.plan_id,
+          where:
+            s.user_id == ^user_id and s.status == "active" and s.expires_at >= ^now and
+              p.slug == ^other_slug
+        )
+      )
+
+    if conflict and Map.get(attrs, "confirmPlanSwitch") != true,
+      do: {:error, :plan_conflict},
+      else: :ok
+  end
+
+  defp ensure_personal_plan_compatibility(_, _, _), do: :ok
 
   def delete_user(admin_id, user_id) do
     with true <- admin_id != user_id,
@@ -337,9 +469,29 @@ defmodule MinhaCasaAi.Billing do
         )
       )
 
+    recent_audit =
+      Repo.all(
+        from(e in AuditEvent,
+          left_join: u in User,
+          on: u.id == e.actor_user_id,
+          order_by: [desc: e.occurred_at],
+          limit: 25,
+          select: %{
+            id: e.id,
+            action: e.action,
+            actor_name: u.name,
+            actor_email: u.email,
+            target_label: e.target_type,
+            reason: fragment("?->>'reason'", e.metadata),
+            inserted_at: e.occurred_at
+          }
+        )
+      )
+
     %{
       total_users: Repo.aggregate(User, :count),
-      total_admins: Repo.aggregate(from(u in User, where: u.is_admin == true), :count),
+      total_admins:
+        Repo.aggregate(from(r in PlatformUserRole, where: r.role == "super_admin"), :count),
       active_subscriptions:
         Repo.aggregate(from(s in Subscription, where: s.status == "active"), :count),
       total_collections: Repo.aggregate(Collection, :count),
@@ -352,7 +504,33 @@ defmodule MinhaCasaAi.Billing do
           ),
           :count
         ),
-      subscriptions_by_plan: subscriptions_by_plan
+      subscriptions_by_plan: subscriptions_by_plan,
+      manual_grants:
+        Repo.aggregate(
+          from(s in Subscription, where: s.source in ["manual", "trial"] and s.status == "active"),
+          :count
+        ),
+      total_families: Repo.aggregate(from(o in Organization, where: o.kind == "family"), :count),
+      total_agencies: Repo.aggregate(from(o in Organization, where: o.kind == "agency"), :count),
+      total_professional_workspaces:
+        Repo.aggregate(from(w in Workspace, where: w.type == "professional"), :count),
+      frozen_workspaces:
+        Repo.aggregate(from(w in Workspace, where: w.status == "frozen"), :count),
+      total_seats:
+        Repo.aggregate(
+          from(m in OrganizationMember,
+            join: o in Organization,
+            on: o.id == m.org_id,
+            where: o.kind == "agency"
+          ),
+          :count
+        ),
+      billing_failures:
+        Repo.aggregate(
+          from(s in Subscription, where: not is_nil(s.last_payment_failed_at)),
+          :count
+        ),
+      audit_events: recent_audit
     }
   end
 
@@ -463,11 +641,33 @@ defmodule MinhaCasaAi.Billing do
     addons = addon_map()
     owners = users_map(Enum.map(orgs, & &1.owner_id))
     grants_by_org = Enum.group_by(grants, & &1.organization_id)
+    now = DateTime.utc_now(:second)
+
+    member_counts =
+      Repo.all(
+        from(m in OrganizationMember,
+          group_by: m.org_id,
+          select: {m.org_id, count(m.user_id)}
+        )
+      )
+      |> Map.new()
+
+    pending_invite_counts =
+      Repo.all(
+        from(i in OrganizationInvite,
+          where: i.status == "pending" and i.expires_at > ^now,
+          group_by: i.org_id,
+          select: {i.org_id, count(i.id)}
+        )
+      )
+      |> Map.new()
 
     Enum.map(orgs, fn org ->
       %{
         organization: org,
         owner: Map.get(owners, org.owner_id),
+        members_count: Map.get(member_counts, org.id, 0),
+        pending_invites_count: Map.get(pending_invite_counts, org.id, 0),
         addons:
           Enum.map(
             Map.get(grants_by_org, org.id, []),
@@ -764,11 +964,14 @@ defmodule MinhaCasaAi.Billing do
     with true <- is_binary(user_id) and is_binary(plan_id) and is_binary(stripe_subscription_id),
          true <-
            is_nil(Repo.get_by(Subscription, stripe_subscription_id: stripe_subscription_id)),
-         %Plan{} <- Repo.get(Plan, plan_id) do
+         %Plan{} = plan <- Repo.get(Plan, plan_id),
+         {:ok, target_workspace} <- grant_target_workspace(user_id, plan, %{}) do
       now = DateTime.utc_now(:second)
       default_expires_at = DateTime.add(now, 30, :day)
 
-      from(s in Subscription, where: s.user_id == ^user_id and s.status == "active")
+      from(s in Subscription,
+        where: s.user_id == ^user_id and s.status == "active" and s.source == "stripe"
+      )
       |> Repo.update_all(set: [status: "expired", updated_at: now])
 
       %Subscription{}
@@ -782,7 +985,9 @@ defmodule MinhaCasaAi.Billing do
         stripe_subscription_id: stripe_subscription_id,
         stripe_status: "active",
         current_period_end: default_expires_at,
-        cancel_at_period_end: false
+        cancel_at_period_end: false,
+        source: "stripe",
+        target_workspace_id: target_workspace.id
       })
       |> Repo.insert!()
 
@@ -999,7 +1204,6 @@ defmodule MinhaCasaAi.Billing do
   defp validate_self_admin_change(_, _, _), do: :ok
 
   defp maybe_put(map, _key, nil), do: map
-  defp maybe_put(map, :is_admin, value) when is_boolean(value), do: Map.put(map, :is_admin, value)
 
   defp maybe_put(map, :name, value) when is_binary(value) and value != "",
     do: Map.put(map, :name, value)

@@ -79,7 +79,9 @@ defmodule MinhaCasaAi.PortalSearches.FilterSet do
   defp validate(%{"transacao" => t}) when t in @transacoes, do: :ok
   defp validate(_), do: {:error, :invalid_transacao}
 
-  defp ensure_tipos(%{"tiposImovel" => []} = map), do: Map.put(map, "tiposImovel", ["apartamento"])
+  defp ensure_tipos(%{"tiposImovel" => []} = map),
+    do: Map.put(map, "tiposImovel", ["apartamento"])
+
   defp ensure_tipos(map), do: map
 
   defp put_string(map, key, valid?, default) do

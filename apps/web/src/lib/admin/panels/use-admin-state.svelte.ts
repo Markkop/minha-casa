@@ -9,8 +9,10 @@ import {
   type StripeReconciliation,
   type AdminUser
 } from "$lib/admin/client";
+import { isPlatformSuperAdmin } from "$lib/admin/platform-role";
 
-export type AdminPanel = "users" | "plans" | "org-addons" | "stripe";
+export type AdminPanel = "overview" | "users" | "grants" | "plans" | "workspaces" | "audit";
+export type GrantReason = "friend" | "pilot" | "test" | "support" | "promotion" | "other";
 
 export type AdminMode =
   | "none"
@@ -32,7 +34,7 @@ export function createAdminState() {
   let stripeReconciliation = $state<StripeReconciliation | null>(null);
   let loadingStripe = $state(false);
 
-  let panel = $state<AdminPanel>("users");
+  let panel = $state<AdminPanel>("overview");
   let loading = $state(true);
   let saving = $state(false);
   let error = $state("");
@@ -45,6 +47,8 @@ export function createAdminState() {
   let editName = $state("");
   let selectedPlanId = $state("");
   let subscriptionDays = $state("30");
+  let grantReason = $state<GrantReason>("pilot");
+  let grantNotes = $state("");
   let selectedAddonSlug = $state("");
   let addonExpiresAt = $state("");
   let editSubscriptionId = $state("");
@@ -55,10 +59,14 @@ export function createAdminState() {
   const filteredUsers = $derived.by(() => {
     const term = search.trim().toLowerCase();
     if (!term) return users;
-    return users.filter((user) => `${user.name} ${user.email}`.toLowerCase().includes(term));
+    return users.filter((user) => `${user.id} ${user.name} ${user.email}`.toLowerCase().includes(term));
   });
 
-  const paidPlans = $derived(plans.filter((plan) => plan.slug !== "teste"));
+  const paidPlans = $derived(
+    plans.filter((plan) => ["pro", "corretor", "imobiliaria"].includes(plan.slug))
+  );
+  const agencyPlan = $derived(plans.find((plan) => plan.slug === "imobiliaria") ?? null);
+  const selectedPlan = $derived(plans.find((plan) => plan.id === selectedPlanId) ?? null);
 
   async function loadAll() {
     loading = true;
@@ -96,16 +104,23 @@ export function createAdminState() {
   }
 
   function openStripePanel() {
-    panel = "stripe";
+    panel = "overview";
     if (!stripeReconciliation) void loadStripeReconciliation();
   }
 
   async function toggleAdmin(user: AdminUser) {
+    const isSuperAdmin = isPlatformSuperAdmin(user);
+    const action = isSuperAdmin ? "remover o papel global de Super Admin de" : "promover a Super Admin";
+    if (!confirm(`Deseja ${action} ${user.name} (${user.email})?`)) return;
     saving = true;
     error = "";
     try {
-      const { user: updated } = await adminApi.updateUser(user.id, { isAdmin: !user.isAdmin });
-      users = users.map((item) => (item.id === user.id ? { ...item, isAdmin: updated.isAdmin } : item));
+      const { user: updated } = await adminApi.updateUser(user.id, { isAdmin: !isSuperAdmin });
+      users = users.map((item) =>
+        item.id === user.id
+          ? { ...item, isAdmin: updated.isAdmin, isSuperAdmin: updated.isSuperAdmin, superAdmin: updated.superAdmin }
+          : item
+      );
       await refreshStats();
     } catch (err) {
       error = errorMessage(err, "Erro ao atualizar permissao");
@@ -164,6 +179,8 @@ export function createAdminState() {
     selectedUser = user;
     selectedPlanId = paidPlans[0]?.id ?? plans[0]?.id ?? "";
     subscriptionDays = "30";
+    grantReason = "pilot";
+    grantNotes = "";
     mode = "grant-subscription";
   }
 
@@ -178,7 +195,8 @@ export function createAdminState() {
         userId: selectedUser.id,
         planId: selectedPlanId,
         expiresAt: expiresAt.toISOString(),
-        notes: "Granted via Svelte admin"
+        grantReason,
+        notes: grantNotes.trim() || "Concessão manual via Super Admin"
       });
       closeModal();
       await loadAll();
@@ -187,6 +205,10 @@ export function createAdminState() {
     } finally {
       saving = false;
     }
+  }
+
+  function selectGrantPlan(planId: string) {
+    selectedPlanId = planId;
   }
 
   async function openSubscriptions(user: AdminUser) {
@@ -294,12 +316,41 @@ export function createAdminState() {
     mode = "org-addons";
     selectedAddonSlug = addons[0]?.slug ?? "";
     addonExpiresAt = "";
+    subscriptionDays = "30";
+    grantReason = "pilot";
+    grantNotes = "";
     orgAddons = [];
     error = "";
     try {
       orgAddons = (await adminApi.fetchOrganizationAddons(org.id)).addons;
     } catch (err) {
       error = errorMessage(err, "Erro ao carregar addons da organizacao");
+    }
+  }
+
+  async function grantAgencySubscription() {
+    if (!selectedOrg?.owner || !agencyPlan) return;
+    if (!confirm(`Ativar o plano Imobiliária para ${selectedOrg.name}?`)) return;
+
+    saving = true;
+    error = "";
+    try {
+      const expiresAt = new Date();
+      expiresAt.setDate(expiresAt.getDate() + Math.max(parseInt(subscriptionDays, 10) || 1, 1));
+      await adminApi.grantSubscription({
+        userId: selectedOrg.owner.id,
+        organizationId: selectedOrg.id,
+        planId: agencyPlan.id,
+        expiresAt: expiresAt.toISOString(),
+        grantReason,
+        notes: grantNotes.trim() || "Concessão manual de Imobiliária via Super Admin"
+      });
+      organizations = (await adminApi.fetchOrganizationsWithAddons()).organizations;
+      await refreshStats();
+    } catch (err) {
+      error = errorMessage(err, "Erro ao conceder plano Imobiliária");
+    } finally {
+      saving = false;
     }
   }
 
@@ -364,6 +415,7 @@ export function createAdminState() {
     userAddons = [];
     orgAddons = [];
     editSubscriptionId = "";
+    grantNotes = "";
   }
 
   function handleModalKeydown(event: KeyboardEvent) {
@@ -478,11 +530,26 @@ export function createAdminState() {
     set selectedPlanId(value: string) {
       selectedPlanId = value;
     },
+    get selectedPlan() {
+      return selectedPlan;
+    },
     get subscriptionDays() {
       return subscriptionDays;
     },
     set subscriptionDays(value: string) {
       subscriptionDays = value;
+    },
+    get grantReason() {
+      return grantReason;
+    },
+    set grantReason(value: GrantReason) {
+      grantReason = value;
+    },
+    get grantNotes() {
+      return grantNotes;
+    },
+    set grantNotes(value: string) {
+      grantNotes = value;
     },
     get selectedAddonSlug() {
       return selectedAddonSlug;
@@ -523,6 +590,9 @@ export function createAdminState() {
     get paidPlans() {
       return paidPlans;
     },
+    get agencyPlan() {
+      return agencyPlan;
+    },
     loadAll,
     loadStripeReconciliation,
     openStripePanel,
@@ -533,6 +603,7 @@ export function createAdminState() {
     saveUserName,
     deleteUser,
     openGrantSubscription,
+    selectGrantPlan,
     grantSubscription,
     openSubscriptions,
     startEditSubscription,
@@ -542,6 +613,7 @@ export function createAdminState() {
     grantUserAddon,
     revokeUserAddon,
     openOrgAddons,
+    grantAgencySubscription,
     grantOrgAddon,
     revokeOrgAddon,
     savePlanStripe,
@@ -551,6 +623,7 @@ export function createAdminState() {
     formatMoney,
     statusLabel,
     statusClass,
+    isPlatformSuperAdmin,
     isUserMode
   };
 }

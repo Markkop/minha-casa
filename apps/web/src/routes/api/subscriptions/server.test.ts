@@ -40,7 +40,7 @@ describe("GET /api/subscriptions", () => {
       status: "active",
       expiresAt: new Date("2026-08-01T00:00:00.000Z")
     };
-    const plan = { id: "plan-plus", slug: "plus" };
+    const plan = { id: "plan-pro", slug: "pro" };
     const locals = { user: { id: "user-1" } };
     accessMocks.getSubscriptionAccess.mockResolvedValue({
       state: "active",

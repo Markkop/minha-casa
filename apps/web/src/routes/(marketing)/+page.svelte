@@ -2,7 +2,6 @@
   import DemoListingsSection from "$lib/components/home/DemoListingsSection.svelte";
   import DemoFinanciamentoSection from "$lib/components/home/DemoFinanciamentoSection.svelte";
   import DemoFloodSection from "$lib/components/home/DemoFloodSection.svelte";
-  import { getFlag } from "$lib/feature-flags";
 
   interface Feature {
     href: string;
@@ -10,17 +9,11 @@
     title: string;
     description: string;
     highlights: string[];
-    featureFlag?: "organizations";
   }
 
   const allFeatures: Feature[] = [];
 
-  const features = $derived(
-    allFeatures.filter((feature) => {
-      if (!feature.featureFlag) return true;
-      return getFlag(feature.featureFlag);
-    })
-  );
+  const features = allFeatures;
 </script>
 
 <svelte:head>

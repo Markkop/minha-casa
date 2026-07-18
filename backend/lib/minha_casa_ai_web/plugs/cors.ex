@@ -28,7 +28,7 @@ defmodule MinhaCasaAiWeb.Plugs.Cors do
       |> put_resp_header("access-control-allow-methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
       |> put_resp_header(
         "access-control-allow-headers",
-        "authorization, content-type, x-organization-id"
+        "authorization, content-type, x-workspace-id, x-organization-id"
       )
 
     if conn.method == "OPTIONS" do

@@ -4,6 +4,7 @@ defmodule MinhaCasaAi.Chat do
   alias MinhaCasaAi.Chat.{Conversation, Message}
   alias MinhaCasaAi.Repo
   alias MinhaCasaAi.Workflows
+  alias MinhaCasaAi.Workspaces
 
   def create_message(attrs) do
     Repo.transaction(fn ->
@@ -33,7 +34,10 @@ defmodule MinhaCasaAi.Chat do
         Workflows.create_ingestion(%{
           input: input,
           user_id: Map.get(attrs, :user_id),
-          org_id: Map.get(attrs, :org_id)
+          org_id: Map.get(attrs, :org_id),
+          workspace_id:
+            Map.get(attrs, :workspace_id) ||
+              Workspaces.workspace_id_for(Map.get(attrs, :user_id), Map.get(attrs, :org_id))
         })
 
       %{message: message, workflow: run, conversation_id: conversation_id}
@@ -135,6 +139,9 @@ defmodule MinhaCasaAi.Chat do
       channel: channel,
       user_id: Map.get(attrs, :user_id),
       org_id: Map.get(attrs, :org_id),
+      workspace_id:
+        Map.get(attrs, :workspace_id) ||
+          Workspaces.workspace_id_for(Map.get(attrs, :user_id), Map.get(attrs, :org_id)),
       metadata: metadata
     })
     |> Repo.insert!()

@@ -45,25 +45,18 @@
       {#each gallery as item}
         {@const selectable = isGalleryItemSelectable(item)}
         {@const selected = selectedImageRefs.includes(item.ref)}
-        <div
+        <button
+          type="button"
           class={cn(
-            "group relative overflow-hidden rounded-lg border bg-app-surface-muted transition-colors",
+            "group relative w-full overflow-hidden rounded-lg border bg-app-surface-muted text-left transition-colors",
             selectable ? "cursor-pointer" : "opacity-70",
             selected ? "border-app-action ring-1 ring-app-action" : "border-app-border",
             item.status === "duplicate" && !selected && "border-dashed"
           )}
-          role={selectable ? "button" : undefined}
-          tabindex={selectable ? 0 : undefined}
+          disabled={!selectable}
           onclick={() => {
             if (!selectable) return;
             onToggleImage(item.ref, !selected);
-          }}
-          onkeydown={(event) => {
-            if (!selectable) return;
-            if (event.key === "Enter" || event.key === " ") {
-              event.preventDefault();
-              onToggleImage(item.ref, !selected);
-            }
           }}
         >
           <img
@@ -88,14 +81,10 @@
 
           {#if selectable}
             <span class="absolute left-2 top-2 flex h-6 w-6 items-center justify-center rounded-md bg-app-surface/90 shadow-sm">
-              <input
-                type="checkbox"
-                class="h-4 w-4 accent-app-action"
-                checked={selected}
-                onclick={(event) => event.stopPropagation()}
-                onchange={(event) =>
-                  onToggleImage(item.ref, (event.currentTarget as HTMLInputElement).checked)}
-              />
+              <span
+                class="flex h-4 w-4 items-center justify-center rounded border border-app-border bg-white text-[10px] font-bold text-app-action"
+                aria-hidden="true"
+              >{selected ? "✓" : ""}</span>
             </span>
           {/if}
 
@@ -111,7 +100,7 @@
               </span>
             {/if}
           </div>
-        </div>
+        </button>
       {/each}
     </div>
   {:else}

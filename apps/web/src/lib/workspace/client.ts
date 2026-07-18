@@ -122,13 +122,38 @@ export interface Collection {
   id: string;
   userId: string | null;
   orgId: string | null;
+  workspaceId: string;
+  createdByUserId?: string | null;
+  responsibleUserId?: string | null;
   name: string;
   isPublic: boolean;
   shareToken: string | null;
   isDefault: boolean;
+  kind?: "general" | "template" | "presentation";
+  visibility?: "private" | "team";
+  sourceCollectionId?: string | null;
+  tags?: string[];
+  status?: "active" | "archived";
   listingsCount?: number;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface WorkspaceProfile {
+  id: string;
+  workspaceId: string;
+  organizationId?: string;
+  type: "personal" | "professional" | "family" | "agency" | "external";
+  label: string;
+  status: "active" | "frozen" | "archived";
+  access: string;
+  plan?: "free" | "pro" | "corretor" | "imobiliaria" | null;
+  collectionIds?: string[];
+  capabilities?: {
+    canParse?: boolean;
+    canShareReadOnly?: boolean;
+    canShareEditable?: boolean;
+  };
 }
 
 export interface Listing {
@@ -324,13 +349,16 @@ export interface SharedCollection {
   };
 }
 
-export type OrganizationRole = "owner" | "admin" | "member";
+export type OrganizationRole = "owner" | "admin" | "member" | "broker";
 
 export interface Organization {
   id: string;
   name: string;
   slug: string;
   ownerId: string;
+  workspaceId: string;
+  kind: "family" | "agency";
+  status: "active" | "frozen" | "archived";
   role: OrganizationRole;
   userRole: OrganizationRole;
   joinedAt: string;
@@ -371,6 +399,7 @@ export interface OrganizationInvitePreview {
     id: string;
     name: string;
     slug: string;
+    kind: "family" | "agency";
   };
 }
 
@@ -427,12 +456,11 @@ export async function enrichSavedLink(id: string, _orgId?: string | null) {
 }
 
 export const workspaceApi = {
+  fetchProfiles: () =>
+    api.get<{ profiles: WorkspaceProfile[]; activeWorkspaceId: string }>("/profiles"),
   fetchOrganizations: () => api.get<{ organizations: Organization[] }>("/organizations"),
-  createOrganization: (input: { name: string; slug?: string }) =>
-    api.post<{ organization: Organization }>("/organizations", input),
-  updateOrganization: (id: string, input: { name: string }) =>
-    api.put<{ organization: Organization }>(`/organizations/${id}`, input),
-  deleteOrganization: (id: string) => api.delete<{ success: true }>(`/organizations/${id}`),
+  updateAgencyName: (id: string, name: string) =>
+    api.patch<{ organization: Organization }>(`/agencies/${id}`, { name }),
   fetchOrganizationMembers: (id: string) => api.get<{ members: OrganizationMember[] }>(`/organizations/${id}/members`),
   addOrganizationMember: (id: string, input: { email: string; role: OrganizationRole }) =>
     api.post<{ member: OrganizationMember }>(`/organizations/${id}/members`, input),
@@ -491,12 +519,13 @@ export const workspaceApi = {
     api.put<{ listing: Listing }>(`/collections/${collectionId}/listings/${listingId}`, { data }),
   deleteListing: (collectionId: string, listingId: string) =>
     api.delete<{ success: true }>(`/collections/${collectionId}/listings/${listingId}`),
-  parseListings: (input:
+  parseListings: (input: (
     | { kind: "text"; rawText: string }
     | { kind: "url"; url: string }
     | { kind: "image"; base64: string; mimeType: string }
     | { kind: "pdf"; base64: string }
-  ) => api.post<{ listings: ListingData[] }>("/workspace/parse", input),
+  ) & { collectionId?: string; idempotencyKey?: string }) =>
+    api.post<{ listings: ListingData[]; usageAlert?: "near_limit" | "limit_reached" | null }>("/workspace/parse", input),
   checkDuplicate: async (collectionId: string, data: ListingData) => {
     try {
       return await api.post<{ duplicateCandidates: DuplicateCandidate[] }>("/workspace/listings/check-duplicate", { collectionId, data });
@@ -592,6 +621,8 @@ export const workspaceApi = {
 
   fetchSharedCollection: (token: string) =>
     api.get<SharedCollection>(`/shared/${encodeURIComponent(token)}`, { auth: false }),
+  claimSharedCollection: (token: string) =>
+    api.post<{ success: true; grantId: string; collectionId: string }>(`/shared/${encodeURIComponent(token)}/claim`, {}),
 
   fetchSavedLinks: () => fetchSavedLinks(),
   createSavedLink: (input: Parameters<typeof createSavedLink>[0]) => createSavedLink(input),

@@ -111,7 +111,11 @@ export function scenarioChartColor(
 }
 
 export function scenarioLabel(cenario: CenarioCompleto): string {
-  const parts = [formatCurrencyCompact(cenario.valorImovel)];
+  const valueLabel =
+    cenario.valorImovel >= 1_000_000
+      ? `R$ ${(cenario.valorImovel / 1_000_000).toFixed(2)}M`
+      : formatCurrencyCompact(cenario.valorImovel);
+  const parts = [valueLabel];
   if (cenario.estrategia === "permuta") {
     parts.push("permuta");
   } else if (cenario.vendaEm !== undefined) {

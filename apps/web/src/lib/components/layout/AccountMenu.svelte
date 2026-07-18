@@ -1,14 +1,16 @@
 <script lang="ts">
   import type { Snippet } from "svelte";
-  import { Flag, LogOut, Settings, Users, Waves, ClipboardList } from "@lucide/svelte";
+  import { Flag, LogOut, Settings, Waves, ClipboardList } from "@lucide/svelte";
   import AnchoredPopover from "$lib/components/ui/AnchoredPopover.svelte";
-  import { getFlag } from "$lib/feature-flags";
+  import { isPlatformSuperAdmin } from "$lib/admin/platform-role";
 
   type ShellUser = {
     name?: string | null;
     email?: string | null;
     image?: string | null;
     isAdmin?: boolean | null;
+    isSuperAdmin?: boolean | null;
+    superAdmin?: boolean | null;
   };
 
   let {
@@ -80,20 +82,14 @@
         <span>Risco enchente</span>
       </a>
     {/if}
-    {#if getFlag("organizations")}
-      <a href="/organizacoes" role="menuitem" class="flex items-center gap-2 px-3 py-2 hover:bg-app-surface-muted" onclick={onCloseChrome}>
-        <Users class="h-4 w-4" />
-        <span>Organizações</span>
-      </a>
-    {/if}
-    {#if user?.isAdmin}
+    {#if isPlatformSuperAdmin(user)}
       <a href="/admin/feature-flags" role="menuitem" class="flex items-center gap-2 px-3 py-2 hover:bg-app-surface-muted" onclick={onCloseChrome}>
         <Flag class="h-4 w-4" />
         <span>Feature flags</span>
       </a>
       <a href="/admin" role="menuitem" class="flex items-center gap-2 px-3 py-2 hover:bg-app-surface-muted" onclick={onCloseChrome}>
         <Settings class="h-4 w-4" />
-        <span>Admin</span>
+        <span>Super Admin</span>
       </a>
     {/if}
     <a href="/subscribe" role="menuitem" class="flex items-center gap-2 px-3 py-2 hover:bg-app-surface-muted" onclick={onCloseChrome}>

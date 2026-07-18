@@ -3,8 +3,6 @@ defmodule MinhaCasaAi.Application do
 
   @impl true
   def start(_type, _args) do
-    {:ok, _} = Application.ensure_all_started(:hackney)
-
     children = [
       MinhaCasaAiWeb.Telemetry,
       MinhaCasaAi.Repo,
@@ -12,6 +10,7 @@ defmodule MinhaCasaAi.Application do
       {Finch, name: MinhaCasaAi.Finch},
       {Phoenix.PubSub, name: MinhaCasaAi.PubSub},
       {Oban, Application.fetch_env!(:minha_casa_ai, Oban)},
+      MinhaCasaAi.Integrations.Langfuse.PromptCache,
       MinhaCasaAi.Integrations.Langfuse.IngestionBuffer,
       MinhaCasaAiWeb.Endpoint
     ]

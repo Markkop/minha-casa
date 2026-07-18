@@ -39,8 +39,7 @@ defmodule MinhaCasaAi.Integrations.GooglePlaces do
             %{
               "skipped" => true,
               "reason" => "google_billing_required",
-              "hint" =>
-                "Ative faturamento e a Places API no Google Cloud (mesma chave do Maps)."
+              "hint" => "Ative faturamento e a Places API no Google Cloud (mesma chave do Maps)."
             }
 
           false ->

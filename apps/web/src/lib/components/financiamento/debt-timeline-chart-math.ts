@@ -359,7 +359,7 @@ export function buildXAxisLabelTicks(
 
   return selected
     .sort((a, b) => a.month - b.month)
-    .map(({ priority, estimatedWidth, ...tick }) => tick);
+    .map(({ month, x, label, kind, textAnchor }) => ({ month, x, label, kind, textAnchor }));
 }
 
 /** @deprecated Use buildXAxisLabelTicks */
@@ -490,7 +490,7 @@ export function maxMonthlyTotalData(
   return Math.max(
     1,
     rendaMensal,
-    ...cenarios.map((cenario) => cenario.rendaMensal),
+    ...cenarios.map((cenario) => cenario.rendaMensal ?? 0),
     ...cenarios.map((cenario) => prePurchaseMonthlyOutflow(cenario.custoMensal ?? custoMensal)),
     ...maxTotal
   );

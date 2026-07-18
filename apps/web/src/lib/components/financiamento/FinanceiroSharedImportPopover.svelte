@@ -60,7 +60,7 @@
         destinations = ctx.collections.map((collection) => ({
           collection,
           organizationId: collection.orgId ?? null,
-          profileLabel: collection.orgId ? "Organização" : "Pessoal",
+          profileLabel: collection.orgId ? "Família ou imobiliária" : "Pessoal",
           label: collection.label
         }));
         selectedCollectionId = ctx.activeCollection?.id ?? destinations[0]?.collection.id ?? "";

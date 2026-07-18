@@ -15,7 +15,7 @@ defmodule MinhaCasaAi.Integrations.Langfuse.Cost do
     output = int(usage["output_tokens"] || usage["completion_tokens"])
     total = int(usage["total_tokens"]) || input + output
 
-  %{
+    %{
       input: input,
       output: output,
       total: total,

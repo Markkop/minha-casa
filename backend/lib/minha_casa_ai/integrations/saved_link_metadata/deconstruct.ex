@@ -72,7 +72,9 @@ defmodule MinhaCasaAi.Integrations.SavedLinkMetadata.Deconstruct do
       []
       |> maybe_word(hints.site_label)
       |> maybe_word(hints.listing_type)
-      |> maybe_word(if "venda" in path_segments or "comprar" in path_segments, do: "venda", else: nil)
+      |> maybe_word(
+        if "venda" in path_segments or "comprar" in path_segments, do: "venda", else: nil
+      )
       |> maybe_word(hints.neighborhood)
       |> maybe_word(hints.map_region || hints.city)
       |> maybe_word(
@@ -80,7 +82,9 @@ defmodule MinhaCasaAi.Integrations.SavedLinkMetadata.Deconstruct do
           do: String.replace(hints.region_path, "-", " "),
           else: nil
       )
-      |> maybe_word(if String.contains?(hostname, "pmf"), do: "prefeitura florianópolis", else: nil)
+      |> maybe_word(
+        if String.contains?(hostname, "pmf"), do: "prefeitura florianópolis", else: nil
+      )
       |> maybe_word(hints.quartos)
       |> maybe_word(hints.ordem)
       |> maybe_word(if "map" in path_segments, do: "mapa", else: nil)
@@ -140,7 +144,8 @@ defmodule MinhaCasaAi.Integrations.SavedLinkMetadata.Deconstruct do
   def region_hint_from_viewport(_), do: nil
 
   def description_from_hints(%{hints: hints}) do
-    if hints.listing_type || hints.quartos || hints.price_range || hints.ordem || hints.location_label do
+    if hints.listing_type || hints.quartos || hints.price_range || hints.ordem ||
+         hints.location_label do
       desc = "Busca de #{hints.listing_type || "imóveis"}"
       desc = if hints.quartos, do: desc <> " com #{hints.quartos}", else: desc
       desc = if hints.location_label, do: desc <> " em #{hints.location_label}", else: desc
@@ -175,7 +180,7 @@ defmodule MinhaCasaAi.Integrations.SavedLinkMetadata.Deconstruct do
         "apartamentos"
 
       Enum.any?(path_segments, &String.contains?(&1, "casa")) ||
-          String.contains?(tipos, "casa") ||
+        String.contains?(tipos, "casa") ||
           String.contains?(Map.get(query_params, "by_type_or_subtype_slug[0]", ""), "casa") ->
         "casas"
 
@@ -358,7 +363,9 @@ defmodule MinhaCasaAi.Integrations.SavedLinkMetadata.Deconstruct do
     name
     |> String.split(~r/[\s-]+/, trim: true)
     |> Enum.map(fn word ->
-      if word == "", do: "", else: String.upcase(String.first(word)) <> String.slice(word, 1..-1//1)
+      if word == "",
+        do: "",
+        else: String.upcase(String.first(word)) <> String.slice(word, 1..-1//1)
     end)
     |> Enum.join(" ")
   end

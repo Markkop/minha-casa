@@ -13,6 +13,7 @@ defmodule MinhaCasaAi.PropertyAnalyses.HermesBundle do
     File.mkdir_p!(Path.join(root, "images"))
 
     listing_data = listing.data || %{}
+
     sources =
       listing.id
       |> ImageSources.list(listing_data)

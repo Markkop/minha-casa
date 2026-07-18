@@ -273,10 +273,10 @@ defmodule MinhaCasaAi.PropertyAnalyses.HermesPipeline do
       {prompt_text, prompt_ref} = PromptTemplates.for_step(step_module, bundle, address, opts)
 
       hermes_opts =
-        Keyword.merge(hermes_opts, [
+        Keyword.merge(hermes_opts,
           session_id: session_id,
           langfuse: hermes_langfuse_ctx(trace_ctx, key, prompt_ref)
-        ])
+        )
 
       with {:ok, raw} <- HermesAgent.run(prompt_text, hermes_opts),
            section <- step_module.normalize(raw, bundle) do

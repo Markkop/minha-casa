@@ -4,20 +4,44 @@ defmodule MinhaCasaAi.Integrations.Langfuse.PromptDefinitions do
   def all do
     [
       %{"name" => "listing-parser/system", "type" => "text", "prompt" => listing_parser_system()},
-      %{"name" => "listing-parser/vision-user", "type" => "text", "prompt" => listing_parser_vision()},
+      %{
+        "name" => "listing-parser/vision-user",
+        "type" => "text",
+        "prompt" => listing_parser_vision()
+      },
       %{"name" => "listing-merge/advisor", "type" => "text", "prompt" => listing_merge_advisor()},
-      %{"name" => "saved-link-metadata/system", "type" => "text", "prompt" => saved_link_metadata_system()},
-      %{"name" => "assistant/instructions", "type" => "text", "prompt" => assistant_instructions()},
-      %{"name" => "hermes/global-instructions", "type" => "text", "prompt" => hermes_global_instructions()},
+      %{
+        "name" => "saved-link-metadata/system",
+        "type" => "text",
+        "prompt" => saved_link_metadata_system()
+      },
+      %{
+        "name" => "assistant/instructions",
+        "type" => "text",
+        "prompt" => assistant_instructions()
+      },
+      %{
+        "name" => "hermes/global-instructions",
+        "type" => "text",
+        "prompt" => hermes_global_instructions()
+      },
       %{"name" => "hermes/pt-rules", "type" => "text", "prompt" => pt_rules()},
-      %{"name" => "hermes/inventory-vocab-block", "type" => "text", "prompt" => inventory_vocab_block()},
+      %{
+        "name" => "hermes/inventory-vocab-block",
+        "type" => "text",
+        "prompt" => inventory_vocab_block()
+      },
       %{"name" => "hermes/step/clima", "type" => "text", "prompt" => step_clima()},
       %{"name" => "hermes/step/riscos", "type" => "text", "prompt" => step_riscos()},
       %{"name" => "hermes/step/mercado", "type" => "text", "prompt" => step_mercado()},
       %{"name" => "hermes/step/idade", "type" => "text", "prompt" => step_idade()},
       %{"name" => "hermes/step/ambientes", "type" => "text", "prompt" => step_ambientes()},
       %{"name" => "hermes/step/xray-card", "type" => "text", "prompt" => step_xray_card()},
-      %{"name" => "portal_search/results_extractor", "type" => "text", "prompt" => portal_search_results_extractor()}
+      %{
+        "name" => "portal_search/results_extractor",
+        "type" => "text",
+        "prompt" => portal_search_results_extractor()
+      }
     ]
   end
 

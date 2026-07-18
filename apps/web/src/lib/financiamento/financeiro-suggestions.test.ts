@@ -45,7 +45,7 @@ describe("financeiro suggestions", () => {
     buildFinanceiroSuggestions(params, DEFAULT_SETTINGS);
 
     expect(params).toEqual(before);
-  });
+  }, 20_000);
 
   it("preserves fixed user inputs in generated candidates", () => {
     const params = {

@@ -19,7 +19,16 @@ defmodule MinhaCasaAi.PortalSearches.PortalSearchRun do
 
   def changeset(run, attrs) do
     run
-    |> cast(attrs, [:portal_search_id, :status, :started_at, :finished_at, :error, :totals, :trace_id, :refresh])
+    |> cast(attrs, [
+      :portal_search_id,
+      :status,
+      :started_at,
+      :finished_at,
+      :error,
+      :totals,
+      :trace_id,
+      :refresh
+    ])
     |> validate_required([:portal_search_id, :status])
     |> validate_inclusion(:status, ~w(queued running completed failed))
   end

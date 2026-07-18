@@ -23,11 +23,11 @@ defmodule MinhaCasaAiWeb.PropertyAnalysisController do
       |> Enum.map(fn {k, v} -> {camelize_key(k), v} end)
       |> Map.new()
 
-    case PropertyAnalyses.create(listing_id, [
+    case PropertyAnalyses.create(listing_id,
            user_id: conn.assigns[:current_user_id],
            org_id: conn.assigns[:current_org_id],
            input: input
-         ]) do
+         ) do
       {:ok, analysis} ->
         conn
         |> put_status(:accepted)
@@ -48,7 +48,9 @@ defmodule MinhaCasaAiWeb.PropertyAnalysisController do
           step == "xray" ->
             conn
             |> put_status(:bad_request)
-            |> json(%{error: "Use POST .../ambientes/:ambiente_id/xray/retry para reexecutar o x-ray."})
+            |> json(%{
+              error: "Use POST .../ambientes/:ambiente_id/xray/retry para reexecutar o x-ray."
+            })
 
           PropertyAnalyses.valid_pipeline_step?(step) ->
             do_retry_step(conn, id, step, profile)
@@ -168,7 +170,8 @@ defmodule MinhaCasaAiWeb.PropertyAnalysisController do
   defp profile(conn) do
     case Profile.profile_from_headers(
            conn.assigns[:current_user_id],
-           conn.assigns[:current_org_id]
+           conn.assigns[:current_org_id],
+           conn.assigns[:current_workspace_id]
          ) do
       {:error, :missing_profile} -> {:error, :unauthorized, "Missing profile"}
       profile -> {:ok, profile}

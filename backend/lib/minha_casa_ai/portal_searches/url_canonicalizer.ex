@@ -12,7 +12,15 @@ defmodule MinhaCasaAi.PortalSearches.UrlCanonicalizer do
         q ->
           q
           |> URI.decode_query()
-          |> Map.drop(["utm_source", "utm_medium", "utm_campaign", "utm_term", "utm_content", "fbclid", "gclid"])
+          |> Map.drop([
+            "utm_source",
+            "utm_medium",
+            "utm_campaign",
+            "utm_term",
+            "utm_content",
+            "fbclid",
+            "gclid"
+          ])
           |> Enum.sort_by(fn {k, _} -> k end)
           |> URI.encode_query()
       end

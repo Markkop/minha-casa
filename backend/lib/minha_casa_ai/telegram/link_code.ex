@@ -17,7 +17,14 @@ defmodule MinhaCasaAi.Telegram.LinkCode do
 
   def changeset(link_code, attrs) do
     link_code
-    |> cast(attrs, [:code, :chat_id, :telegram_user_id, :status, :expires_at, :consumed_by_user_id])
+    |> cast(attrs, [
+      :code,
+      :chat_id,
+      :telegram_user_id,
+      :status,
+      :expires_at,
+      :consumed_by_user_id
+    ])
     |> validate_required([:code, :chat_id, :status, :expires_at])
     |> validate_inclusion(:status, ["pending", "consumed", "expired"])
     |> unique_constraint(:code)

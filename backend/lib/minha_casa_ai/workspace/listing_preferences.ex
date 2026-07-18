@@ -13,7 +13,12 @@ defmodule MinhaCasaAi.Workspace.ListingPreferences do
     %{key: "academia", label: "Academia", legacy_key: "academia", sort_order: 1},
     %{key: "portaria", label: "Portaria 24h", legacy_key: "porteiro24h", sort_order: 2},
     %{key: "vista_livre", label: "Vista livre", legacy_key: "vistaLivre", sort_order: 3},
-    %{key: "piscina_termica", label: "Piscina térmica", legacy_key: "piscinaTermica", sort_order: 4},
+    %{
+      key: "piscina_termica",
+      label: "Piscina térmica",
+      legacy_key: "piscinaTermica",
+      sort_order: 4
+    },
     %{key: "esquina", label: "Esquina", legacy_key: nil, sort_order: 5},
     %{key: "cobertura", label: "Cobertura", legacy_key: nil, sort_order: 6},
     %{key: "jardim", label: "Jardim", legacy_key: nil, sort_order: 7},

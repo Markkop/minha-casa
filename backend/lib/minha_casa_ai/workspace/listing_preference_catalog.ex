@@ -7,6 +7,7 @@ defmodule MinhaCasaAi.Workspace.ListingPreferenceCatalog do
   schema "listing_preference_catalog" do
     field :user_id, :binary_id
     field :org_id, :binary_id
+    field :workspace_id, :binary_id
     field :key, :string
     field :label, :string
     field :source, :string, default: "custom"
@@ -19,8 +20,18 @@ defmodule MinhaCasaAi.Workspace.ListingPreferenceCatalog do
 
   def changeset(row, attrs) do
     row
-    |> cast(attrs, [:user_id, :org_id, :key, :label, :source, :visible, :sort_order, :legacy_key])
-    |> validate_required([:key, :label, :source, :visible, :sort_order])
+    |> cast(attrs, [
+      :user_id,
+      :org_id,
+      :workspace_id,
+      :key,
+      :label,
+      :source,
+      :visible,
+      :sort_order,
+      :legacy_key
+    ])
+    |> validate_required([:workspace_id, :key, :label, :source, :visible, :sort_order])
     |> validate_inclusion(:source, ["system", "custom"])
     |> validate_owner()
   end

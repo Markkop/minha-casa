@@ -38,16 +38,13 @@ const REQUIRED_PARAM_KEYS = [
   "cenariosOcultosGraficos"
 ] as const satisfies readonly (keyof SimulatorParams)[];
 
-const YAML_PARAM_KEYS = [
-  ...REQUIRED_PARAM_KEYS,
-  "scenarioVariations",
-  "inicioReformaMeses",
-  "inicioAporteExtraMeses",
-  "tempoRecebimentoExtraMeses",
-  "tempoVendaPosteriorMeses"
-] as const satisfies readonly (keyof SimulatorParams)[];
-
-type YamlParamKey = (typeof YAML_PARAM_KEYS)[number];
+type YamlParamKey =
+  | (typeof REQUIRED_PARAM_KEYS)[number]
+  | "scenarioVariations"
+  | "inicioReformaMeses"
+  | "inicioAporteExtraMeses"
+  | "tempoRecebimentoExtraMeses"
+  | "tempoVendaPosteriorMeses";
 type FinanceiroYamlParams = Pick<SimulatorParams, YamlParamKey>;
 
 function isRecord(value: unknown): value is Record<string, unknown> {

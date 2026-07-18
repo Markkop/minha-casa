@@ -10,7 +10,9 @@ defmodule MinhaCasaAi.Workers.PropertyAnalysisCardXrayWorker do
   alias MinhaCasaAi.PropertyAnalyses.HermesPipeline
 
   @impl Oban.Worker
-  def perform(%Oban.Job{args: %{"analysis_id" => analysis_id, "ambiente_id" => ambiente_id} = args}) do
+  def perform(%Oban.Job{
+        args: %{"analysis_id" => analysis_id, "ambiente_id" => ambiente_id} = args
+      }) do
     analysis = PropertyAnalyses.get!(analysis_id)
     listing_id = analysis.input["listingId"] || analysis.listing_id
 

@@ -16,7 +16,7 @@ defmodule MinhaCasaAi.MixProject do
   def application do
     [
       mod: {MinhaCasaAi.Application, []},
-      extra_applications: [:logger, :runtime_tools, :hackney]
+      extra_applications: [:logger, :runtime_tools]
     ]
   end
 
@@ -31,16 +31,15 @@ defmodule MinhaCasaAi.MixProject do
       {:telemetry_metrics, "~> 1.0"},
       {:telemetry_poller, "~> 1.0"},
       {:jason, "~> 1.4"},
-      {:plug_cowboy, "~> 2.7"},
+      {:bandit, "~> 1.12"},
       {:ecto_sql, "~> 3.12"},
       {:postgrex, ">= 0.0.0"},
       {:oban, "~> 2.22"},
-      {:finch, "~> 0.22"},
-      {:req, "~> 0.5"},
+      {:finch, "~> 0.23"},
+      {:req, "~> 0.6"},
       {:jose, "~> 1.11"},
-      {:ex_aws, "~> 2.5"},
+      {:ex_aws, "~> 2.7"},
       {:ex_aws_s3, "~> 2.5"},
-      {:hackney, "~> 1.20"},
       {:image, "~> 0.68"},
       {:reactor, "~> 1.0"},
       {:hermes_mcp, "~> 0.14.1"}

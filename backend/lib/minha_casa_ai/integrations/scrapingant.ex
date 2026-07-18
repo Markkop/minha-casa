@@ -123,7 +123,9 @@ defmodule MinhaCasaAi.Integrations.ScrapingAnt do
   defp scrape_error(nil, fallback), do: {:error, fallback}
 
   defp scrape_error(html, _fallback) when is_binary(html) do
-    if blocked_page?(html), do: {:error, :portal_blocked}, else: {:error, :scraped_content_too_short}
+    if blocked_page?(html),
+      do: {:error, :portal_blocked},
+      else: {:error, :scraped_content_too_short}
   end
 
   defp build_result(uri, html) do
@@ -207,7 +209,10 @@ defmodule MinhaCasaAi.Integrations.ScrapingAnt do
       {:error, reason} ->
         require Logger
 
-        Logger.warning("[scrapingant] network error host=#{uri.host} browser=#{browser?} reason=#{inspect(reason)}")
+        Logger.warning(
+          "[scrapingant] network error host=#{uri.host} browser=#{browser?} reason=#{inspect(reason)}"
+        )
+
         {:error, :scrapingant_network_error}
     end
   end

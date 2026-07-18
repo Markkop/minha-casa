@@ -7,6 +7,7 @@ defmodule MinhaCasaAi.Workspace.Condominium do
   schema "condominiums" do
     field :user_id, :binary_id
     field :org_id, :binary_id
+    field :workspace_id, :binary_id
     field :name, :string
     field :city, :string
     field :neighborhood, :string
@@ -26,6 +27,7 @@ defmodule MinhaCasaAi.Workspace.Condominium do
     |> cast(attrs, [
       :user_id,
       :org_id,
+      :workspace_id,
       :name,
       :city,
       :neighborhood,
@@ -35,6 +37,7 @@ defmodule MinhaCasaAi.Workspace.Condominium do
       :notes,
       :source
     ])
+    |> validate_required([:workspace_id])
     |> validate_required([:name, :source])
     |> validate_inclusion(:source, ["manual", "listing"])
     |> validate_inclusion(:property_type, ["casa", "apartamento"])

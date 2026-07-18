@@ -7,6 +7,7 @@ defmodule MinhaCasaAi.Chat.Conversation do
   schema "chat_conversations" do
     field :user_id, :binary_id
     field :org_id, :binary_id
+    field :workspace_id, :binary_id
     field :channel, :string
     field :status, :string, default: "open"
     field :metadata, :map, default: %{}
@@ -15,7 +16,7 @@ defmodule MinhaCasaAi.Chat.Conversation do
 
   def changeset(conversation, attrs) do
     conversation
-    |> cast(attrs, [:user_id, :org_id, :channel, :status, :metadata])
-    |> validate_required([:channel, :status])
+    |> cast(attrs, [:user_id, :org_id, :workspace_id, :channel, :status, :metadata])
+    |> validate_required([:workspace_id, :channel, :status])
   end
 end

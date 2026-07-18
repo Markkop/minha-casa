@@ -10,21 +10,6 @@ defmodule MinhaCasaAiWeb.OrganizationController do
     json(conn, %{organizations: OrganizationJSON.organizations(organizations)})
   end
 
-  def create(conn, params) do
-    case Organizations.create(current_user_id(conn), params) do
-      {:ok, organization} ->
-        conn
-        |> put_status(:created)
-        |> json(%{organization: OrganizationJSON.organization(organization)})
-
-      {:error, :invalid} ->
-        conn |> put_status(:bad_request) |> json(%{error: "Organization name is required"})
-
-      {:error, changeset} ->
-        changeset_error(conn, changeset)
-    end
-  end
-
   def show(conn, %{"id" => id}) do
     case Organizations.get_for_user(id, current_user_id(conn)) do
       {:ok, organization} ->
@@ -35,44 +20,47 @@ defmodule MinhaCasaAiWeb.OrganizationController do
     end
   end
 
-  def update(conn, %{"id" => id} = params) do
-    user_id = current_user_id(conn)
-
-    with {:ok, %Organization{} = organization} <- Organizations.get_for_user(id, user_id),
-         true <- Organizations.can_update_org?(Map.get(organization, :role)) do
-      case Organizations.update(organization, params) do
-        {:ok, updated} ->
-          {:ok, organization} = Organizations.get_for_user(updated.id, user_id)
-          json(conn, %{organization: OrganizationJSON.organization(organization)})
-
-        {:error, changeset} ->
-          changeset_error(conn, changeset)
-      end
-    else
-      {:error, :not_found} -> not_found(conn, "Organization")
-      false -> forbidden(conn, "Only owners and admins can update organization details")
-    end
-  end
-
-  def delete(conn, %{"id" => id}) do
-    user_id = current_user_id(conn)
-
-    with {:ok, %Organization{} = organization} <- Organizations.get_for_user(id, user_id),
-         true <- Organizations.can_delete_org?(organization, user_id),
-         {:ok, _} <- Organizations.delete(organization) do
-      json(conn, %{success: true})
-    else
-      {:error, :not_found} -> not_found(conn, "Organization")
-      false -> forbidden(conn, "Only the owner can delete the organization")
-      {:error, changeset} -> changeset_error(conn, changeset)
-    end
-  end
-
   def members(conn, %{"id" => id}) do
     with {:ok, _organization} <- Organizations.get_for_user(id, current_user_id(conn)) do
       json(conn, %{members: OrganizationJSON.members(Organizations.list_members(id))})
     else
       {:error, :not_found} -> not_found(conn, "Organization")
+    end
+  end
+
+  def update_agency(conn, %{"id" => id} = params) do
+    user_id = current_user_id(conn)
+
+    with {:ok, %Organization{} = organization} <- Organizations.get_for_user(id, user_id),
+         {:agency, true} <- {:agency, organization.kind == "agency"},
+         true <- Organizations.can_manage_members?(Map.get(organization, :role)),
+         {:ok, updated} <- Organizations.rename_agency(organization, Map.get(params, "name")) do
+      refreshed =
+        updated
+        |> Map.put(:role, Map.get(organization, :role))
+        |> Map.put(:joined_at, Map.get(organization, :joined_at))
+        |> Map.put(:member_count, Map.get(organization, :member_count, 0))
+        |> Map.put(:collections_count, Map.get(organization, :collections_count, 0))
+        |> Map.put(:listings_count, Map.get(organization, :listings_count, 0))
+
+      json(conn, %{organization: OrganizationJSON.organization(refreshed)})
+    else
+      {:error, :not_found} ->
+        not_found(conn, "Agency")
+
+      {:agency, false} ->
+        not_found(conn, "Agency")
+
+      false ->
+        forbidden(conn, "Only owners and admins can rename an agency")
+
+      {:error, :invalid_name} ->
+        conn
+        |> put_status(:bad_request)
+        |> json(%{error: "Name must have between 2 and 100 characters"})
+
+      {:error, changeset} ->
+        changeset_error(conn, changeset)
     end
   end
 
@@ -230,12 +218,13 @@ defmodule MinhaCasaAiWeb.OrganizationController do
     end
   end
 
-  defp can_change_role?("owner", _current, role) when role in ["owner", "admin", "member"],
-    do: :ok
+  defp can_change_role?("owner", _current, role)
+       when role in ["owner", "admin", "member", "broker"],
+       do: :ok
 
   defp can_change_role?(_, "owner", _), do: {:error, :forbidden_role}
   defp can_change_role?(_, _, "owner"), do: {:error, :forbidden_role}
-  defp can_change_role?(_, _, role) when role in ["admin", "member"], do: :ok
+  defp can_change_role?(_, _, role) when role in ["admin", "member", "broker"], do: :ok
   defp can_change_role?(_, _, _), do: {:error, :invalid_role}
 
   defp ensure_owner_remains(org_id, "owner", next_role) when next_role != "owner" do
@@ -255,6 +244,15 @@ defmodule MinhaCasaAiWeb.OrganizationController do
 
     conn |> put_status(:bad_request) |> json(%{error: error || "Invalid data"})
   end
+
+  defp changeset_error(conn, :seat_limit),
+    do: conn |> put_status(:conflict) |> json(%{error: "No seats are available"})
+
+  defp changeset_error(conn, :family_membership_exists),
+    do: conn |> put_status(:conflict) |> json(%{error: "A user can belong to only one Family"})
+
+  defp changeset_error(conn, _),
+    do: conn |> put_status(:bad_request) |> json(%{error: "Operation could not be completed"})
 
   defp forbidden(conn, message), do: conn |> put_status(:forbidden) |> json(%{error: message})
 

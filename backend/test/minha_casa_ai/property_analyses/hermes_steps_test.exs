@@ -40,7 +40,9 @@ defmodule MinhaCasaAi.PropertyAnalyses.HermesStepsTest do
     end
 
     test "normalize accepts top-level string paragraph" do
-      result = Riscos.normalize("Risco moderado de enchentes em períodos de chuva intensa.", @bundle)
+      result =
+        Riscos.normalize("Risco moderado de enchentes em períodos de chuva intensa.", @bundle)
+
       assert String.contains?(result["paragrafo"], "enchentes")
     end
   end

@@ -9,6 +9,7 @@ defmodule MinhaCasaAi.PortalSearches.PortalSearch do
   schema "portal_searches" do
     field :user_id, :binary_id
     field :org_id, :binary_id
+    field :workspace_id, :binary_id
     field :name, :string
     field :filter_set, :map, default: %{}
     field :enabled_portals, {:array, :string}, default: []
@@ -20,8 +21,17 @@ defmodule MinhaCasaAi.PortalSearches.PortalSearch do
 
   def changeset(search, attrs) do
     search
-    |> cast(attrs, [:user_id, :org_id, :name, :filter_set, :enabled_portals, :max_pages, :last_run_id])
-    |> validate_required([:name, :filter_set, :enabled_portals])
+    |> cast(attrs, [
+      :user_id,
+      :org_id,
+      :workspace_id,
+      :name,
+      :filter_set,
+      :enabled_portals,
+      :max_pages,
+      :last_run_id
+    ])
+    |> validate_required([:workspace_id, :name, :filter_set, :enabled_portals])
     |> validate_owner()
     |> validate_filter_set()
   end

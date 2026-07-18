@@ -75,7 +75,10 @@ defmodule MinhaCasaAi.PropertyAnalyses.GeocodeStep do
   end
 
   defp geocode_failure_reason({:google_status, "REQUEST_DENIED"}), do: "google_billing_required"
-  defp geocode_failure_reason({:google_status, status}) when is_binary(status), do: "google_#{String.downcase(status)}"
+
+  defp geocode_failure_reason({:google_status, status}) when is_binary(status),
+    do: "google_#{String.downcase(status)}"
+
   defp geocode_failure_reason(_), do: "geocode_failed"
 
   defp build_address_query(data) do

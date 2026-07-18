@@ -54,9 +54,12 @@ defmodule MinhaCasaAi.PortalSearches.UrlBuilders.Olx do
           %{
             "ps" => filter_set["precoMin"],
             "pe" => filter_set["precoMax"],
-            "rooms" => if(filter_set["quartos"] != [], do: Shared.comma_list(filter_set["quartos"])),
-            "bathrooms" => if(filter_set["banheiros"] != [], do: Shared.comma_list(filter_set["banheiros"])),
-            "garage_spaces" => if(filter_set["vagas"] != [], do: Shared.comma_list(filter_set["vagas"])),
+            "rooms" =>
+              if(filter_set["quartos"] != [], do: Shared.comma_list(filter_set["quartos"])),
+            "bathrooms" =>
+              if(filter_set["banheiros"] != [], do: Shared.comma_list(filter_set["banheiros"])),
+            "garage_spaces" =>
+              if(filter_set["vagas"] != [], do: Shared.comma_list(filter_set["vagas"])),
             "size" => filter_set["areaMin"],
             "size_e" => filter_set["areaMax"],
             "o" => if(page > 1, do: page)
@@ -66,7 +69,10 @@ defmodule MinhaCasaAi.PortalSearches.UrlBuilders.Olx do
         Shared.append_query(base, params)
       end
 
-    %{urls: urls, notes: ["OLX: bairro como segmento de path; cidades metro usam sufixo -e-regiao."]}
+    %{
+      urls: urls,
+      notes: ["OLX: bairro como segmento de path; cidades metro usam sufixo -e-regiao."]
+    }
   end
 
   defp olx_path_segments(segments, bairro, tipo_path) do

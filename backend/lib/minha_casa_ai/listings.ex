@@ -1,7 +1,15 @@
 defmodule MinhaCasaAi.Listings do
   import Ecto.Query
 
-  alias MinhaCasaAi.Listings.{Collection, Collections, ConstructionYear, Duplicates, Listing}
+  alias MinhaCasaAi.Listings.{
+    Collection,
+    CollectionPolicy,
+    Collections,
+    ConstructionYear,
+    Duplicates,
+    Listing
+  }
+
   alias MinhaCasaAi.Repo
 
   defdelegate get_default_collection_id(user_id, org_id \\ nil),
@@ -14,7 +22,7 @@ defmodule MinhaCasaAi.Listings do
     user_id = Keyword.get(opts, :user_id)
     org_id = Keyword.get(opts, :org_id)
 
-    with {:ok, _collection} <- authorize_collection(collection_id, user_id, org_id) do
+    with {:ok, _collection} <- authorize_collection(collection_id, user_id, org_id, :add_listing) do
       %Listing{}
       |> Listing.changeset(%{
         collection_id: collection_id,
@@ -35,7 +43,10 @@ defmodule MinhaCasaAi.Listings do
     end
   end
 
-  defp maybe_enqueue_image_ingestion(%Listing{id: id, collection_id: collection_id, data: data}, opts) do
+  defp maybe_enqueue_image_ingestion(
+         %Listing{id: id, collection_id: collection_id, data: data},
+         opts
+       ) do
     data = data || %{}
     link = data["link"]
 
@@ -114,7 +125,7 @@ defmodule MinhaCasaAi.Listings do
         {:error, :listing_not_found}
 
       %Listing{} = listing ->
-        with {:ok, _} <- authorize_collection(listing.collection_id, user_id, org_id) do
+        with {:ok, _} <- authorize_collection(listing.collection_id, user_id, org_id, :view) do
           {:ok, listing}
         end
     end
@@ -124,8 +135,9 @@ defmodule MinhaCasaAi.Listings do
     user_id = Keyword.get(opts, :user_id)
     org_id = Keyword.get(opts, :org_id)
 
-    with {:ok, _} <- authorize_collection(collection_id, user_id, org_id),
-         %Listing{} = listing <- Repo.get_by(Listing, id: listing_id, collection_id: collection_id) do
+    with {:ok, _} <- authorize_collection(collection_id, user_id, org_id, :view),
+         %Listing{} = listing <-
+           Repo.get_by(Listing, id: listing_id, collection_id: collection_id) do
       {:ok, listing}
     else
       nil -> {:error, :listing_not_found}
@@ -137,8 +149,9 @@ defmodule MinhaCasaAi.Listings do
     user_id = Keyword.get(opts, :user_id)
     org_id = Keyword.get(opts, :org_id)
 
-    with {:ok, _} <- authorize_collection(collection_id, user_id, org_id),
-         %Listing{} = listing <- Repo.get_by(Listing, id: listing_id, collection_id: collection_id) do
+    with {:ok, _} <- authorize_collection(collection_id, user_id, org_id, :edit_existing),
+         %Listing{} = listing <-
+           Repo.get_by(Listing, id: listing_id, collection_id: collection_id) do
       merged =
         (listing.data || %{})
         |> Map.merge(ConstructionYear.normalize_data(data_updates))
@@ -156,8 +169,9 @@ defmodule MinhaCasaAi.Listings do
     user_id = Keyword.get(opts, :user_id)
     org_id = Keyword.get(opts, :org_id)
 
-    with {:ok, _} <- authorize_collection(collection_id, user_id, org_id),
-         %Listing{} = listing <- Repo.get_by(Listing, id: listing_id, collection_id: collection_id) do
+    with {:ok, _} <- authorize_collection(collection_id, user_id, org_id, :edit_existing),
+         %Listing{} = listing <-
+           Repo.get_by(Listing, id: listing_id, collection_id: collection_id) do
       Repo.delete(listing)
     else
       nil -> {:error, :listing_not_found}
@@ -170,38 +184,23 @@ defmodule MinhaCasaAi.Listings do
   end
 
   def get_collection(collection_id, user_id, org_id \\ nil) do
-    authorize_collection(collection_id, user_id, org_id)
+    authorize_collection(collection_id, user_id, org_id, :view)
   end
 
-  defp authorize_collection(collection_id, nil, nil) do
+  defp authorize_collection(collection_id, nil, nil, _action) do
     case Repo.get(Collection, collection_id) do
       nil -> {:error, :collection_not_found}
       collection -> {:ok, collection}
     end
   end
 
-  defp authorize_collection(collection_id, user_id, org_id) do
-    cond do
-      is_binary(org_id) ->
-        Collection
-        |> where([c], c.id == ^collection_id and c.org_id == ^org_id)
-        |> Repo.one()
-        |> case do
-          nil -> {:error, :collection_not_found}
-          collection -> {:ok, collection}
-        end
-
-      is_binary(user_id) ->
-        Collection
-        |> where([c], c.id == ^collection_id and c.user_id == ^user_id and is_nil(c.org_id))
-        |> Repo.one()
-        |> case do
-          nil -> {:error, :collection_not_found}
-          collection -> {:ok, collection}
-        end
-
-      true ->
-        authorize_collection(collection_id, nil, nil)
+  defp authorize_collection(collection_id, user_id, _org_id, action) when is_binary(user_id) do
+    case CollectionPolicy.authorize(user_id, collection_id, action) do
+      {:ok, collection, _access} -> {:ok, collection}
+      {:error, _} -> {:error, :collection_not_found}
     end
   end
+
+  defp authorize_collection(collection_id, _user_id, _org_id, action),
+    do: authorize_collection(collection_id, nil, nil, action)
 end

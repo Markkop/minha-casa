@@ -3,6 +3,7 @@
   import ModalCloseButton from "$lib/components/anuncios/ModalCloseButton.svelte";
   import Button from "$lib/components/ui/Button.svelte";
   import Switch from "$lib/components/ui/Switch.svelte";
+  import { isPlatformSuperAdmin } from "$lib/admin/platform-role";
   import {
     adminApi,
     type AdminAddon,
@@ -204,11 +205,17 @@
           <span class="text-sm text-app-muted">Criado em</span>
           <p class="font-medium">{formatDate(user.createdAt)}</p>
         </div>
+        {#if user.lastSeenAt}
+          <div>
+            <span class="text-sm text-app-muted">Último acesso</span>
+            <p class="font-medium">{formatDateTime(user.lastSeenAt)}</p>
+          </div>
+        {/if}
         <div>
           <span class="text-sm text-app-muted">Status</span>
           <div class="mt-1 flex flex-wrap items-center gap-2">
-            {#if user.isAdmin}
-              <span class="rounded px-2 py-0.5 text-xs bg-blue-100 text-blue-700">Admin</span>
+            {#if isPlatformSuperAdmin(user)}
+              <span class="rounded px-2 py-0.5 text-xs bg-blue-100 text-blue-700">Super Admin</span>
             {/if}
             {#if user.emailVerified}
               <span class="rounded px-2 py-0.5 text-xs bg-emerald-100 text-emerald-800">Email Verificado</span>
@@ -218,6 +225,20 @@
           </div>
         </div>
       </div>
+
+      {#if user.workspaces?.length}
+        <div>
+          <h3 class="mb-3 text-lg font-medium">Workspaces e memberships</h3>
+          <div class="grid gap-2 sm:grid-cols-2">
+            {#each user.workspaces as workspace (workspace.id)}
+              <div class="rounded-lg border border-app-border p-3">
+                <div class="font-medium">{workspace.name}</div>
+                <div class="text-xs text-app-muted">{workspace.type}{workspace.role ? ` · ${workspace.role}` : ""}</div>
+              </div>
+            {/each}
+          </div>
+        </div>
+      {/if}
 
       <div>
         <h3 class="mb-3 text-lg font-medium">Assinatura</h3>

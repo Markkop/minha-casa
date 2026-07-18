@@ -7,6 +7,7 @@ defmodule MinhaCasaAi.Workspace.Region do
   schema "regions" do
     field :user_id, :binary_id
     field :org_id, :binary_id
+    field :workspace_id, :binary_id
     field :city, :string
     field :neighborhood, :string
     field :property_type, :string
@@ -19,7 +20,17 @@ defmodule MinhaCasaAi.Workspace.Region do
 
   def changeset(region, attrs) do
     region
-    |> cast(attrs, [:user_id, :org_id, :city, :neighborhood, :property_type, :price_per_m2, :notes])
+    |> cast(attrs, [
+      :user_id,
+      :org_id,
+      :workspace_id,
+      :city,
+      :neighborhood,
+      :property_type,
+      :price_per_m2,
+      :notes
+    ])
+    |> validate_required([:workspace_id])
     |> validate_required([:city, :neighborhood, :property_type, :price_per_m2])
     |> validate_inclusion(:property_type, ["casa", "apartamento"])
     |> validate_number(:price_per_m2, greater_than_or_equal_to: 0)

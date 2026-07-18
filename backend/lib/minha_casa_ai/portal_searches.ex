@@ -91,7 +91,9 @@ defmodule MinhaCasaAi.PortalSearches do
   defp maybe_put_portals(map, _), do: map
 
   defp maybe_put_max_pages(map, nil, _admin?), do: map
-  defp maybe_put_max_pages(map, pages, admin?), do: Map.put(map, :max_pages, Limits.clamp_pages(pages, admin?))
+
+  defp maybe_put_max_pages(map, pages, admin?),
+    do: Map.put(map, :max_pages, Limits.clamp_pages(pages, admin?))
 
   defp maybe_put_filter_set(map, nil), do: map
 
@@ -178,7 +180,11 @@ defmodule MinhaCasaAi.PortalSearches do
 
   def mark_target_running!(target) do
     target
-    |> PortalSearchTarget.changeset(%{status: "running", started_at: DateTime.utc_now(), error: nil})
+    |> PortalSearchTarget.changeset(%{
+      status: "running",
+      started_at: DateTime.utc_now(),
+      error: nil
+    })
     |> Repo.update!()
   end
 
@@ -196,7 +202,11 @@ defmodule MinhaCasaAi.PortalSearches do
 
   def mark_target_failed!(target, message) do
     target
-    |> PortalSearchTarget.changeset(%{status: "failed", finished_at: DateTime.utc_now(), error: message})
+    |> PortalSearchTarget.changeset(%{
+      status: "failed",
+      finished_at: DateTime.utc_now(),
+      error: message
+    })
     |> Repo.update!()
   end
 
@@ -224,7 +234,9 @@ defmodule MinhaCasaAi.PortalSearches do
 
       failed =
         Repo.aggregate(
-          from(t in PortalSearchTarget, where: t.portal_search_run_id == ^run_id and t.status == "failed"),
+          from(t in PortalSearchTarget,
+            where: t.portal_search_run_id == ^run_id and t.status == "failed"
+          ),
           :count
         )
 

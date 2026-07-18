@@ -23,7 +23,8 @@ defmodule MinhaCasaAiWeb.Plugs.WhatsAppSignature do
 
     raw_body = conn.assigns[:raw_body] |> List.first()
 
-    if is_binary(signature) and is_binary(raw_body) and secure_equals?(signature, secret, raw_body) do
+    if is_binary(signature) and is_binary(raw_body) and
+         secure_equals?(signature, secret, raw_body) do
       conn
     else
       conn

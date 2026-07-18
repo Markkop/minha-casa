@@ -58,9 +58,14 @@ defmodule MinhaCasaAiWeb.SavedLinkController do
         case parse_update(params) do
           {:ok, attrs} ->
             case SavedLinks.update_link(id, profile, attrs) do
-              {:ok, link} -> json(conn, %{link: SavedLinkJSON.link(link)})
-              {:error, :not_found} -> error(conn, :not_found, "Saved link")
-              {:error, %Ecto.Changeset{} = changeset} -> error(conn, :bad_request, first_changeset_error(changeset))
+              {:ok, link} ->
+                json(conn, %{link: SavedLinkJSON.link(link)})
+
+              {:error, :not_found} ->
+                error(conn, :not_found, "Saved link")
+
+              {:error, %Ecto.Changeset{} = changeset} ->
+                error(conn, :bad_request, first_changeset_error(changeset))
             end
 
           {:error, message} ->
@@ -89,9 +94,14 @@ defmodule MinhaCasaAiWeb.SavedLinkController do
     case profile(conn) do
       {:ok, profile} ->
         case SavedLinks.enrich_link(id, profile) do
-          {:ok, link} -> json(conn, %{link: SavedLinkJSON.link(link)})
-          {:error, :not_found} -> error(conn, :not_found, "Saved link")
-          {:error, %Ecto.Changeset{} = changeset} -> error(conn, :bad_request, first_changeset_error(changeset))
+          {:ok, link} ->
+            json(conn, %{link: SavedLinkJSON.link(link)})
+
+          {:error, :not_found} ->
+            error(conn, :not_found, "Saved link")
+
+          {:error, %Ecto.Changeset{} = changeset} ->
+            error(conn, :bad_request, first_changeset_error(changeset))
         end
 
       {:error, status, message} ->
@@ -102,7 +112,8 @@ defmodule MinhaCasaAiWeb.SavedLinkController do
   defp profile(conn) do
     case Profile.profile_from_headers(
            conn.assigns[:current_user_id],
-           conn.assigns[:current_org_id]
+           conn.assigns[:current_org_id],
+           conn.assigns[:current_workspace_id]
          ) do
       {:error, :missing_profile} -> {:error, :unauthorized, "Unauthorized"}
       profile -> {:ok, profile}
@@ -121,7 +132,9 @@ defmodule MinhaCasaAiWeb.SavedLinkController do
         description = optional_string_param(params, "description")
 
         resolved_title =
-          if String.trim(title) != "", do: String.trim(title), else: SavedLinks.fallback_title_from_url(url)
+          if String.trim(title) != "",
+            do: String.trim(title),
+            else: SavedLinks.fallback_title_from_url(url)
 
         desc = if String.trim(title) != "", do: description, else: nil
 

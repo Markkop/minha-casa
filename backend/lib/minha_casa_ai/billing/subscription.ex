@@ -18,6 +18,11 @@ defmodule MinhaCasaAi.Billing.Subscription do
     field :current_period_end, :utc_datetime
     field :cancel_at_period_end, :boolean, default: false
     field :last_payment_failed_at, :utc_datetime
+    field :source, :string, default: "manual"
+    field :target_workspace_id, :binary_id
+    field :grant_reason, :string
+    field :revoked_at, :utc_datetime
+    field :revoked_by_user_id, :binary_id
     timestamps(inserted_at: :created_at, updated_at: :updated_at, type: :utc_datetime)
   end
 
@@ -36,10 +41,24 @@ defmodule MinhaCasaAi.Billing.Subscription do
       :stripe_status,
       :current_period_end,
       :cancel_at_period_end,
-      :last_payment_failed_at
+      :last_payment_failed_at,
+      :source,
+      :target_workspace_id,
+      :grant_reason,
+      :revoked_at,
+      :revoked_by_user_id
     ])
     |> validate_required([:user_id, :plan_id, :status, :expires_at])
     |> validate_inclusion(:status, ["active", "expired", "cancelled"])
+    |> validate_inclusion(:source, ["stripe", "manual", "trial"])
+    |> validate_inclusion(:grant_reason, [
+      "friend",
+      "pilot",
+      "test",
+      "support",
+      "promotion",
+      "other"
+    ])
   end
 
   def update_changeset(subscription, attrs) do
@@ -53,8 +72,22 @@ defmodule MinhaCasaAi.Billing.Subscription do
       :stripe_status,
       :current_period_end,
       :cancel_at_period_end,
-      :last_payment_failed_at
+      :last_payment_failed_at,
+      :source,
+      :target_workspace_id,
+      :grant_reason,
+      :revoked_at,
+      :revoked_by_user_id
     ])
     |> validate_inclusion(:status, ["active", "expired", "cancelled"])
+    |> validate_inclusion(:source, ["stripe", "manual", "trial"])
+    |> validate_inclusion(:grant_reason, [
+      "friend",
+      "pilot",
+      "test",
+      "support",
+      "promotion",
+      "other"
+    ])
   end
 end

@@ -62,5 +62,4 @@ defmodule MinhaCasaAi.PropertyAnalyses.HermesSteps.Clima do
     |> Map.new()
     |> Map.put_new("descricao", "")
   end
-
 end

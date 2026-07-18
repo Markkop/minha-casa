@@ -22,6 +22,9 @@ defmodule MinhaCasaAiWeb.AdminController do
       {:error, :self_admin} ->
         conn |> put_status(:bad_request) |> json(%{error: "Cannot remove your own admin status"})
 
+      {:error, :last_super_admin} ->
+        conn |> put_status(:conflict) |> json(%{error: "Cannot remove the last Super Admin"})
+
       {:error, :empty} ->
         conn |> put_status(:bad_request) |> json(%{error: "At least one field must be provided"})
     end
@@ -249,6 +252,7 @@ defmodule MinhaCasaAiWeb.AdminController do
       email: user.email,
       name: user.name,
       isAdmin: user.is_admin,
+      isSuperAdmin: Billing.admin?(user.id),
       emailVerified: user.email_verified,
       createdAt: BillingJSON.datetime_to_iso(user.created_at)
     }

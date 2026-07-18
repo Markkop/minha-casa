@@ -33,5 +33,4 @@ defmodule MinhaCasaAi.PropertyAnalyses.HermesSteps.Mercado do
       |> Map.new()
     end
   end
-
 end

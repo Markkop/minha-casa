@@ -1,4 +1,5 @@
 import { redirect } from "@sveltejs/kit";
+import { isPlatformSuperAdmin } from "$lib/admin/platform-role";
 import type { LayoutServerLoad } from "./$types";
 
 export const load: LayoutServerLoad = ({ locals }) => {
@@ -7,9 +8,9 @@ export const load: LayoutServerLoad = ({ locals }) => {
     throw redirect(303, "/login?redirect=/admin");
   }
 
-  if (!(user as { isAdmin?: boolean }).isAdmin) {
+  if (!isPlatformSuperAdmin(user)) {
     throw redirect(303, "/anuncios");
   }
 
-  return {};
+  return { isSuperAdmin: true };
 };

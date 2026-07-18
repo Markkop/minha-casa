@@ -1,29 +1,91 @@
 defmodule MinhaCasaAiWeb.ParseController do
   use MinhaCasaAiWeb, :controller
 
+  alias MinhaCasaAi.{AiUsage, Entitlements, Workspaces}
   alias MinhaCasaAi.Integrations.ListingParser
   alias MinhaCasaAi.Listings.DisplayTitle
+  alias MinhaCasaAi.Organizations.Organization
+  alias MinhaCasaAi.Repo
   alias MinhaCasaAi.Workspace.{ListingPreferences, Profile}
 
   def create(conn, params) do
     input = Map.merge(conn.body_params, params)
     catalog = catalog_for(conn)
 
-    case ListingParser.parse(input, catalog: catalog) do
-      {:ok, listings} ->
-        json(conn, %{listings: DisplayTitle.apply_to_listings(listings)})
+    with {:ok, workspace_access} <- workspace_access(conn),
+         entitlement = Entitlements.for_workspace(workspace_access.workspace),
+         {:ok, %{reservation: reservation, alert: alert}} <-
+           AiUsage.reserve(entitlement, conn.assigns[:current_user_id],
+             access: workspace_access.access,
+             collection_id: blank_to_nil(input["collectionId"]),
+             idempotency_key: idempotency_key(conn, input)
+           ) do
+      case ListingParser.parse(input, catalog: catalog) do
+        {:ok, listings} ->
+          {:ok, _} = AiUsage.consume(reservation)
+          json(conn, %{listings: DisplayTitle.apply_to_listings(listings), usageAlert: alert})
 
-      {:error, reason} ->
-        {status, message} = map_error(reason)
+        {:error, reason} ->
+          {:ok, _} = AiUsage.release(reservation, %{"reason" => inspect(reason)})
+          {status, message} = map_error(reason)
 
+          conn
+          |> put_status(status)
+          |> json(%{error: message})
+      end
+    else
+      {:error, :limit_reached} ->
         conn
-        |> put_status(status)
-        |> json(%{error: message})
+        |> put_status(:too_many_requests)
+        |> json(%{
+          error: "O parsing está temporariamente indisponível para este perfil.",
+          usageAlert: "limit_reached"
+        })
+
+      {:error, :parsing_forbidden} ->
+        conn
+        |> put_status(:forbidden)
+        |> json(%{error: "Parsing não está disponível neste perfil."})
+
+      {:error, _} ->
+        conn |> put_status(:forbidden) |> json(%{error: "Workspace inválido para parsing."})
     end
   end
 
+  defp workspace_access(%{assigns: %{current_workspace: workspace}} = conn) do
+    {:ok, %{workspace: workspace, access: conn.assigns[:current_workspace_access] || "owner"}}
+  end
+
+  defp workspace_access(conn) do
+    workspace_id =
+      case conn.assigns[:current_org_id] && Repo.get(Organization, conn.assigns[:current_org_id]) do
+        %Organization{workspace_id: id} -> id
+        _ -> nil
+      end
+
+    Workspaces.resolve_access(conn.assigns[:current_user_id], workspace_id)
+  end
+
+  defp idempotency_key(conn, input) do
+    conn |> get_req_header("x-idempotency-key") |> List.first() ||
+      blank_to_nil(input["idempotencyKey"]) || Ecto.UUID.generate()
+  end
+
+  defp blank_to_nil(value) when is_binary(value) do
+    case String.trim(value) do
+      "" -> nil
+      trimmed -> trimmed
+    end
+  end
+
+  defp blank_to_nil(_), do: nil
+
   defp catalog_for(conn) do
-    case Profile.profile_from_headers(conn.assigns[:current_user_id], conn.assigns[:current_org_id]) do
+    case Profile.profile_from_headers(
+           conn.assigns[:current_user_id],
+           conn.assigns[:current_org_id],
+           conn.assigns[:current_workspace_id]
+         ) do
       {:error, :missing_profile} -> ListingPreferences.default_system_options()
       profile -> ListingPreferences.list_catalog(profile)
     end

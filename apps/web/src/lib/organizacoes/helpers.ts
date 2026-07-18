@@ -21,6 +21,7 @@ export function pickInitialOrganizationId(
 export function organizationRoleLabel(role: OrganizationRole): string {
   if (role === "owner") return "Dono";
   if (role === "admin") return "Admin";
+  if (role === "broker") return "Corretor";
   return "Membro";
 }
 

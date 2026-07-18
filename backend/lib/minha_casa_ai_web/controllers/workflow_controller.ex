@@ -11,7 +11,8 @@ defmodule MinhaCasaAiWeb.WorkflowController do
     case Workflows.create_ingestion(%{
            input: input,
            user_id: conn.assigns[:current_user_id],
-           org_id: conn.assigns[:current_org_id]
+           org_id: conn.assigns[:current_org_id],
+           workspace_id: conn.assigns[:current_workspace_id]
          }) do
       {:ok, run} ->
         conn

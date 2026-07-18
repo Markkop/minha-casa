@@ -16,6 +16,9 @@ function org(partial: Partial<Organization> & Pick<Organization, "id">): Organiz
     role,
     userRole: partial.userRole ?? role,
     ownerId: partial.ownerId ?? "owner-1",
+    workspaceId: partial.workspaceId ?? `workspace-${partial.id}`,
+    kind: partial.kind ?? "family",
+    status: partial.status ?? "active",
     joinedAt: partial.joinedAt ?? "2026-01-01T00:00:00.000Z",
     createdAt: partial.createdAt ?? "2026-01-01T00:00:00.000Z",
     updatedAt: partial.updatedAt ?? "2026-01-01T00:00:00.000Z",
@@ -46,6 +49,7 @@ describe("organizationRoleLabel", () => {
     expect(organizationRoleLabel("owner")).toBe("Dono");
     expect(organizationRoleLabel("admin")).toBe("Admin");
     expect(organizationRoleLabel("member")).toBe("Membro");
+    expect(organizationRoleLabel("broker")).toBe("Corretor");
   });
 });
 

@@ -42,6 +42,14 @@ defmodule MinhaCasaAiWeb.OrganizationInviteController do
       {:error, :unavailable} ->
         conn |> put_status(:gone) |> json(%{error: "Invite is no longer available"})
 
+      {:error, :seat_limit} ->
+        conn
+        |> put_status(:conflict)
+        |> json(%{error: "This organization has no available seats"})
+
+      {:error, :family_membership_exists} ->
+        conn |> put_status(:conflict) |> json(%{error: "A user can belong to only one Family"})
+
       {:error, %Ecto.Changeset{} = changeset} ->
         changeset_error(conn, changeset)
     end

@@ -344,7 +344,16 @@ export function createCollectionsState() {
   }
 
   async function parseListingInput(input: ParseRequest) {
-    const result = await workspaceApi.parseListings(input);
+    const result = await workspaceApi.parseListings({
+      ...input,
+      collectionId: activeCollection?.id,
+      idempotencyKey: crypto.randomUUID()
+    });
+    if (result.usageAlert && typeof window !== "undefined") {
+      window.dispatchEvent(
+        new CustomEvent("minha-casa:ai-usage-alert", { detail: result.usageAlert })
+      );
+    }
     return result.listings;
   }
 

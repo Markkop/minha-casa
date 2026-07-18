@@ -5,6 +5,7 @@ defmodule MinhaCasaAi.Organizations do
   alias MinhaCasaAi.Listings.{Collection, Listing}
   alias MinhaCasaAi.Organizations.{Organization, OrganizationInvite, OrganizationMember}
   alias MinhaCasaAi.Repo
+  alias MinhaCasaAi.Workspaces.Workspace
 
   @invite_ttl_days 7
   @invite_token_bytes 24
@@ -47,42 +48,120 @@ defmodule MinhaCasaAi.Organizations do
 
   def create(user_id, attrs) do
     name = attrs |> Map.get("name", "") |> string()
+    kind = attrs |> Map.get("kind", "family") |> string()
     provided_slug = attrs |> Map.get("slug", "") |> string()
     slug = if provided_slug == "", do: slugify(name), else: slugify(provided_slug)
 
-    if name == "" or slug == "" do
+    if name == "" or slug == "" or kind not in ["family", "agency"] do
       {:error, :invalid}
     else
-      Repo.transaction(fn ->
-        org =
-          %Organization{}
-          |> Organization.changeset(%{name: name, slug: unique_slug(slug), owner_id: user_id})
+      if kind == "family" and family_membership_exists?(user_id) do
+        {:error, :family_membership_exists}
+      else
+        Repo.transaction(fn ->
+          initial_status = if kind == "agency", do: "frozen", else: "active"
+
+          workspace =
+            %Workspace{}
+            |> Workspace.changeset(%{type: "organization", name: name, status: initial_status})
+            |> Repo.insert!()
+
+          org =
+            %Organization{}
+            |> Organization.changeset(%{
+              name: name,
+              slug: unique_slug(slug),
+              owner_id: user_id,
+              workspace_id: workspace.id,
+              kind: kind,
+              status: initial_status,
+              billing_owner_user_id: user_id,
+              sponsor_user_id: if(kind == "family", do: user_id, else: nil),
+              settings: if(kind == "family", do: %{"sponsorUserId" => user_id}, else: %{})
+            })
+            |> Repo.insert!()
+
+          %OrganizationMember{}
+          |> OrganizationMember.changeset(%{
+            org_id: org.id,
+            user_id: user_id,
+            role: "owner",
+            joined_at: DateTime.utc_now()
+          })
           |> Repo.insert!()
 
-        %OrganizationMember{}
-        |> OrganizationMember.changeset(%{
-          org_id: org.id,
-          user_id: user_id,
-          role: "owner",
-          joined_at: DateTime.utc_now()
-        })
-        |> Repo.insert!()
-
-        org
-        |> Map.put(:role, "owner")
-        |> Map.put(:joined_at, DateTime.utc_now())
-        |> Map.merge(counts(org.id))
-      end)
+          org
+          |> Map.put(:role, "owner")
+          |> Map.put(:joined_at, DateTime.utc_now())
+          |> Map.merge(counts(org.id))
+        end)
+      end
     end
   end
 
-  def update(org, attrs) do
-    org
-    |> Organization.update_changeset(%{name: string(Map.get(attrs, "name"))})
-    |> Repo.update()
+  def ensure_family_for_user(user_id) when is_binary(user_id) do
+    case Enum.find(list_for_user(user_id), &(&1.kind == "family")) do
+      %Organization{} = family ->
+        {:ok, family}
+
+      nil ->
+        with %User{} <- Repo.get(User, user_id) do
+          create(user_id, %{"name" => "Família", "kind" => "family"})
+        else
+          nil -> {:error, :not_found}
+        end
+    end
   end
 
-  def delete(%Organization{} = org), do: Repo.delete(org)
+  def ensure_agency_for_owner(user_id) when is_binary(user_id) do
+    agency =
+      Repo.one(
+        from(o in Organization,
+          where:
+            o.kind == "agency" and
+              (o.owner_id == ^user_id or o.billing_owner_user_id == ^user_id),
+          order_by: [asc: o.created_at],
+          limit: 1
+        )
+      )
+
+    case agency do
+      %Organization{} = existing ->
+        get_for_user(existing.id, user_id)
+
+      nil ->
+        with %User{} <- Repo.get(User, user_id) do
+          create(user_id, %{
+            "name" => "Imobiliária",
+            "kind" => "agency"
+          })
+        else
+          nil -> {:error, :not_found}
+        end
+    end
+  end
+
+  def rename_agency(%Organization{kind: "agency"} = organization, name) do
+    name = string(name)
+
+    if String.length(name) in 2..100 do
+      Repo.transaction(fn ->
+        updated =
+          organization
+          |> Organization.update_changeset(%{name: name})
+          |> Repo.update!()
+
+        Workspace
+        |> Repo.get!(organization.workspace_id)
+        |> Workspace.changeset(%{name: name})
+        |> Repo.update!()
+
+        updated
+      end)
+    else
+      {:error, :invalid_name}
+    end
+  end
 
   def list_members(org_id) do
     OrganizationMember
@@ -101,10 +180,14 @@ defmodule MinhaCasaAi.Organizations do
     |> Repo.all()
   end
 
-  def add_member(org_id, email, role) when role in ["owner", "admin", "member"] do
+  def add_member(org_id, email, role) when role in ["owner", "admin", "member", "broker"] do
     email = email |> string() |> String.downcase()
 
-    with %User{} = user <- Repo.get_by(User, email: email),
+    with %Organization{} = org <- Repo.get(Organization, org_id),
+         :ok <- validate_role_for_kind(org.kind, role),
+         %User{} = user <- Repo.get_by(User, email: email),
+         :ok <- ensure_family_membership_available(org, user.id),
+         :ok <- ensure_seat_available(org),
          nil <- get_membership(user.id, org_id) do
       %OrganizationMember{}
       |> OrganizationMember.changeset(%{
@@ -126,32 +209,57 @@ defmodule MinhaCasaAi.Organizations do
 
   def add_member(_, _, _), do: {:error, :invalid_role}
 
-  def update_member_role(org_id, user_id, role) when role in ["owner", "admin", "member"] do
-    case get_membership(user_id, org_id) do
-      nil ->
-        {:error, :not_found}
+  def update_member_role(org_id, user_id, role)
+      when role in ["owner", "admin", "member", "broker"] do
+    org = Repo.get(Organization, org_id)
 
-      member ->
-        member
-        |> OrganizationMember.changeset(%{role: role})
-        |> Repo.update()
-        |> case do
-          {:ok, updated} ->
-            user = Repo.get!(User, updated.user_id)
-            {:ok, member_with_user(updated, user)}
+    with %Organization{} <- org,
+         :ok <- validate_role_for_kind(org.kind, role) do
+      case get_membership(user_id, org_id) do
+        nil ->
+          {:error, :not_found}
 
-          error ->
-            error
-        end
+        member ->
+          member
+          |> OrganizationMember.changeset(%{role: role})
+          |> Repo.update()
+          |> case do
+            {:ok, updated} ->
+              user = Repo.get!(User, updated.user_id)
+              {:ok, member_with_user(updated, user)}
+
+            error ->
+              error
+          end
+      end
+    else
+      nil -> {:error, :not_found}
+      error -> error
     end
   end
 
   def update_member_role(_, _, _), do: {:error, :invalid_role}
 
   def remove_member(org_id, user_id) do
+    org = Repo.get(Organization, org_id)
+
     case get_membership(user_id, org_id) do
-      nil -> {:error, :not_found}
-      member -> Repo.delete(member)
+      nil ->
+        {:error, :not_found}
+
+      member ->
+        Repo.transaction(fn ->
+          if org && org.kind == "agency" do
+            from(c in Collection,
+              where: c.workspace_id == ^org.workspace_id and c.responsible_user_id == ^user_id
+            )
+            |> Repo.update_all(
+              set: [responsible_user_id: nil, updated_at: DateTime.utc_now(:second)]
+            )
+          end
+
+          Repo.delete!(member)
+        end)
     end
   end
 
@@ -164,19 +272,27 @@ defmodule MinhaCasaAi.Organizations do
     |> Repo.all()
   end
 
-  def create_invite(org_id, created_by_user_id, role) when role in ["owner", "admin", "member"] do
+  def create_invite(org_id, created_by_user_id, role)
+      when role in ["owner", "admin", "member", "broker"] do
     now = DateTime.utc_now() |> DateTime.truncate(:second)
 
-    %OrganizationInvite{}
-    |> OrganizationInvite.changeset(%{
-      org_id: org_id,
-      token: generate_invite_token(),
-      role: role,
-      status: "pending",
-      created_by_user_id: created_by_user_id,
-      expires_at: DateTime.add(now, @invite_ttl_days * 24 * 60 * 60, :second)
-    })
-    |> Repo.insert()
+    with %Organization{} = org <- Repo.get(Organization, org_id),
+         :ok <- validate_role_for_kind(org.kind, role),
+         :ok <- ensure_seat_available(org) do
+      %OrganizationInvite{}
+      |> OrganizationInvite.changeset(%{
+        org_id: org_id,
+        token: generate_invite_token(),
+        role: role,
+        status: "pending",
+        created_by_user_id: created_by_user_id,
+        expires_at: DateTime.add(now, @invite_ttl_days * 24 * 60 * 60, :second)
+      })
+      |> Repo.insert()
+    else
+      nil -> {:error, :not_found}
+      error -> error
+    end
   end
 
   def create_invite(_, _, _), do: {:error, :invalid_role}
@@ -228,21 +344,28 @@ defmodule MinhaCasaAi.Organizations do
           {:already_member, invite}
 
         true ->
-          case insert_invite_member(invite, user_id, now) do
-            {:ok, member} ->
-              accepted_invite =
-                invite
-                |> OrganizationInvite.changeset(%{
-                  status: "accepted",
-                  accepted_by_user_id: user_id,
-                  accepted_at: now
-                })
-                |> Repo.update!()
+          org = Repo.get!(Organization, invite.org_id)
 
-              {:accepted, member, accepted_invite}
+          with :ok <- ensure_family_membership_available(org, user_id),
+               :ok <- ensure_seat_available(org, invite.id) do
+            case insert_invite_member(invite, user_id, now) do
+              {:ok, member} ->
+                accepted_invite =
+                  invite
+                  |> OrganizationInvite.changeset(%{
+                    status: "accepted",
+                    accepted_by_user_id: user_id,
+                    accepted_at: now
+                  })
+                  |> Repo.update!()
 
-            {:error, changeset} ->
-              Repo.rollback(changeset)
+                {:accepted, member, accepted_invite}
+
+              {:error, changeset} ->
+                Repo.rollback(changeset)
+            end
+          else
+            {:error, reason} -> Repo.rollback(reason)
           end
       end
     end)
@@ -256,7 +379,8 @@ defmodule MinhaCasaAi.Organizations do
       {:ok, {:already_member, invite}} ->
         {:ok, :already_member, organization_for_user!(invite.org_id, user_id)}
 
-      {:error, reason} when reason in [:not_found, :unavailable, :expired] ->
+      {:error, reason}
+      when reason in [:not_found, :unavailable, :expired, :family_membership_exists, :seat_limit] ->
         {:error, reason}
 
       {:error, %Ecto.Changeset{} = changeset} ->
@@ -274,9 +398,12 @@ defmodule MinhaCasaAi.Organizations do
   def can_manage_members?(role), do: role in ["owner", "admin"]
   def can_delete_org?(%Organization{owner_id: owner_id}, user_id), do: owner_id == user_id
   def can_update_org?(role), do: role in ["owner", "admin"]
-  def can_assign_member_role?("owner", role) when role in ["owner", "admin", "member"], do: :ok
+
+  def can_assign_member_role?("owner", role) when role in ["owner", "admin", "member", "broker"],
+    do: :ok
+
   def can_assign_member_role?(_, "owner"), do: {:error, :forbidden_role}
-  def can_assign_member_role?(_, role) when role in ["admin", "member"], do: :ok
+  def can_assign_member_role?(_, role) when role in ["admin", "member", "broker"], do: :ok
   def can_assign_member_role?(_, _), do: {:error, :invalid_role}
 
   def invite_url(%OrganizationInvite{token: token}), do: invite_url(token)
@@ -325,6 +452,57 @@ defmodule MinhaCasaAi.Organizations do
     }
   end
 
+  defp validate_role_for_kind("family", role) when role in ["owner", "admin", "member"], do: :ok
+  defp validate_role_for_kind("agency", role) when role in ["owner", "admin", "broker"], do: :ok
+  defp validate_role_for_kind(_, _), do: {:error, :invalid_role}
+
+  defp ensure_family_membership_available(%Organization{kind: "family", id: org_id}, user_id) do
+    exists =
+      Repo.exists?(
+        from(m in OrganizationMember,
+          join: o in Organization,
+          on: o.id == m.org_id,
+          where: m.user_id == ^user_id and o.kind == "family" and o.id != ^org_id
+        )
+      )
+
+    if exists, do: {:error, :family_membership_exists}, else: :ok
+  end
+
+  defp ensure_family_membership_available(_, _), do: :ok
+
+  defp family_membership_exists?(user_id) do
+    Repo.exists?(
+      from(m in OrganizationMember,
+        join: o in Organization,
+        on: o.id == m.org_id,
+        where: m.user_id == ^user_id and o.kind == "family"
+      )
+    )
+  end
+
+  defp ensure_seat_available(%Organization{} = org, accepting_invite_id \\ nil) do
+    member_count =
+      Repo.aggregate(from(m in OrganizationMember, where: m.org_id == ^org.id), :count)
+
+    pending_query =
+      from(i in OrganizationInvite,
+        where:
+          i.org_id == ^org.id and i.status == "pending" and
+            i.expires_at > ^DateTime.utc_now(:second)
+      )
+
+    pending_query =
+      if accepting_invite_id,
+        do: where(pending_query, [i], i.id != ^accepting_invite_id),
+        else: pending_query
+
+    pending_count = Repo.aggregate(pending_query, :count)
+
+    limit = if org.kind == "family", do: 4, else: Map.get(org.settings || %{}, "seatLimit", 10)
+    if member_count + pending_count < limit, do: :ok, else: {:error, :seat_limit}
+  end
+
   defp get_invite_by_token(token) do
     token = string(token)
 
@@ -345,7 +523,8 @@ defmodule MinhaCasaAi.Organizations do
       organization: %{
         id: org.id,
         name: org.name,
-        slug: org.slug
+        slug: org.slug,
+        kind: org.kind
       },
       available: invite_available?(invite)
     }

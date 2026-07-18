@@ -274,10 +274,18 @@ defmodule MinhaCasaAi.Integrations.SavedLinkMetadata do
   end
 
   defp pick_fallback_metadata(state) do
-    %{url: url, fetch_snap: fetch, scrape_snap: scrape, brave_results: brave, path: path, brave_query: bq} =
+    %{
+      url: url,
+      fetch_snap: fetch,
+      scrape_snap: scrape,
+      brave_results: brave,
+      path: path,
+      brave_query: bq
+    } =
       state
 
     fetch_desc = sanitize_description(Map.get(fetch, :meta_description))
+
     fetch_title =
       case Map.get(fetch, :title_tag) do
         t when is_binary(t) -> String.trim(t)
@@ -315,7 +323,8 @@ defmodule MinhaCasaAi.Integrations.SavedLinkMetadata do
         else
           Map.merge(base, %{
             title: fallback_title_from_url(url),
-            description: sanitize_description(Deconstruct.description_from_hints(state.deconstructed)),
+            description:
+              sanitize_description(Deconstruct.description_from_hints(state.deconstructed)),
             path: "fallback"
           })
         end
@@ -374,7 +383,10 @@ defmodule MinhaCasaAi.Integrations.SavedLinkMetadata do
              reasoning_effort: "low",
              max_output_tokens: 400,
              timeout: 45_000,
-             schema: %{name: "saved_link_metadata", schema: OpenAISchemas.saved_link_metadata_schema()},
+             schema: %{
+               name: "saved_link_metadata",
+               schema: OpenAISchemas.saved_link_metadata_schema()
+             },
              langfuse: lf
            ) do
         {:ok, parsed} ->
@@ -428,7 +440,10 @@ defmodule MinhaCasaAi.Integrations.SavedLinkMetadata do
 
   defp truncate_title(title) when is_binary(title) do
     trimmed = String.trim(title)
-    if String.length(trimmed) <= @title_max, do: trimmed, else: String.slice(trimmed, 0, @title_max - 1) <> "…"
+
+    if String.length(trimmed) <= @title_max,
+      do: trimmed,
+      else: String.slice(trimmed, 0, @title_max - 1) <> "…"
   end
 
   defp blocked_page?(title, text) do

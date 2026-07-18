@@ -3,6 +3,7 @@ import { buildJsonRequestParts } from "$lib/api/request-init";
 import { config } from "$lib/config";
 import { getApiToken } from "$lib/stores/auth";
 import { getActiveOrganizationId, setActiveOrganizationId } from "$lib/active-organization";
+import { getActiveWorkspaceId, setActiveWorkspaceId } from "$lib/active-workspace";
 
 export class ApiError extends Error {
   constructor(
@@ -21,9 +22,10 @@ type RequestOptions = {
   auth?: boolean;
   signal?: AbortSignal;
   organizationId?: string | null;
+  workspaceId?: string | null;
 };
 
-export { getActiveOrganizationId, setActiveOrganizationId };
+export { getActiveOrganizationId, setActiveOrganizationId, getActiveWorkspaceId, setActiveWorkspaceId };
 
 async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const { method = "GET", body, headers = {}, auth = true } = options;
@@ -35,6 +37,9 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
     if (token) requestParts.headers.set("Authorization", `Bearer ${token}`);
   }
   if (auth) {
+    const workspaceId = "workspaceId" in options ? options.workspaceId : getActiveWorkspaceId();
+    if (workspaceId) requestParts.headers.set("X-Workspace-Id", workspaceId);
+
     const organizationId =
       "organizationId" in options ? options.organizationId : getActiveOrganizationId();
     if (organizationId) {
@@ -65,6 +70,15 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
 
   if (!response.ok) {
     const data = await response.json().catch(() => null);
+    if (
+      typeof window !== "undefined" &&
+      data &&
+      typeof data === "object" &&
+      "usageAlert" in data &&
+      (data.usageAlert === "near_limit" || data.usageAlert === "limit_reached")
+    ) {
+      window.dispatchEvent(new CustomEvent("minha-casa:ai-usage-alert", { detail: data.usageAlert }));
+    }
     throw new ApiError(response.status, data);
   }
 
