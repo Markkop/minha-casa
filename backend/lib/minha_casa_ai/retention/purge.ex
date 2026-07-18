@@ -9,6 +9,7 @@ defmodule MinhaCasaAi.Retention.Purge do
   alias MinhaCasaAi.ListingImages.StorageCleanup
   alias MinhaCasaAi.Listings.{Collection, Deletion, Listing, ListingMergeSession}
   alias MinhaCasaAi.Repo
+  alias MinhaCasaAi.Retention.Policy
   alias MinhaCasaAi.Workflows.WorkflowRun
   alias MinhaCasaAi.Workspaces.Workspace
 
@@ -21,6 +22,8 @@ defmodule MinhaCasaAi.Retention.Purge do
         |> where([workspace], workspace.id == ^workspace_id)
         |> lock("FOR UPDATE")
         |> Repo.one()
+
+      workspace = refresh_effective_retention!(workspace, now)
 
       cond do
         is_nil(workspace) ->
@@ -39,6 +42,44 @@ defmodule MinhaCasaAi.Retention.Purge do
   end
 
   def purge_workspace(_workspace_id, _now), do: {:error, :invalid_workspace}
+
+  defp refresh_effective_retention!(%Workspace{} = workspace, now) do
+    case Ecto.Adapters.SQL.query!(
+           Repo,
+           "SELECT retention_plan_slug_for_workspace($1::uuid, $2::timestamptz)",
+           [Ecto.UUID.dump!(workspace.id), now]
+         ) do
+      %{rows: [[plan_slug]]} when is_binary(plan_slug) ->
+        with {:ok, days} <- Policy.days_for_slug(plan_slug),
+             %DateTime{} = last_activity <- workspace.retention_last_activity_at do
+          expires_at = DateTime.add(last_activity, days, :day)
+
+          if workspace.retention_plan_slug != plan_slug or
+               is_nil(workspace.retention_expires_at) or
+               DateTime.compare(workspace.retention_expires_at, expires_at) != :eq do
+            {1, _} =
+              Workspace
+              |> where([stored], stored.id == ^workspace.id)
+              |> Repo.update_all(
+                set: [
+                  retention_plan_slug: plan_slug,
+                  retention_expires_at: expires_at,
+                  updated_at: now
+                ]
+              )
+
+            %{workspace | retention_plan_slug: plan_slug, retention_expires_at: expires_at}
+          else
+            workspace
+          end
+        else
+          _ -> workspace
+        end
+
+      _ ->
+        workspace
+    end
+  end
 
   defp purge_locked_workspace!(workspace, now) do
     collections =

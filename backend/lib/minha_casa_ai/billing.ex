@@ -2,7 +2,7 @@ defmodule MinhaCasaAi.Billing do
   import Ecto.Query
 
   alias MinhaCasaAi.Accounts.User
-  alias MinhaCasaAi.{Audit, Organizations, PlatformRoles, Workspaces}
+  alias MinhaCasaAi.{Audit, Organizations, PlatformRoles, Retention, StripeClient, Workspaces}
 
   alias MinhaCasaAi.Billing.{
     Plan,
@@ -68,8 +68,13 @@ defmodule MinhaCasaAi.Billing do
          %Plan{is_active: true} = plan <- Repo.get(Plan, plan_id),
          {:price, price_id} when is_binary(price_id) and price_id != "" <-
            {:price, plan.stripe_price_id},
+         {:ok, checkout_context} <- prepare_checkout(user, plan, attrs),
          {:ok, response} <-
-           stripe_post("/v1/checkout/sessions", checkout_form(user, plan, attrs, app_url)) do
+           StripeClient.post(
+             "/v1/checkout/sessions",
+             checkout_form(user, plan, attrs, app_url, checkout_context),
+             idempotency_key: checkout_idempotency_key(user_id, plan_id, attrs)
+           ) do
       {:ok, %{checkout_url: response["url"], session_id: response["id"]}}
     else
       {:stripe, false} -> {:error, :stripe_not_configured}
@@ -77,6 +82,9 @@ defmodule MinhaCasaAi.Billing do
       nil -> {:error, :not_found}
       %Plan{is_active: false} -> {:error, :inactive_plan}
       {:price, _} -> {:error, :missing_stripe_price}
+      {:seat_price, _} -> {:error, :missing_stripe_seat_price}
+      {:seats, _} -> {:error, :invalid_seat_count}
+      {:existing_subscription, true} -> {:error, :already_subscribed}
       {:error, _} = error -> error
     end
   end
@@ -85,11 +93,12 @@ defmodule MinhaCasaAi.Billing do
     app_url = Config.app_public_url() || "http://localhost:5173"
 
     with {:stripe, true} <- {:stripe, Config.configured?(:stripe)},
-         %User{stripe_customer_id: customer_id} <- Repo.get(User, user_id),
+         %User{} = user <- Repo.get(User, user_id),
+         customer_id <- billing_customer_for_user(user),
          {:customer, customer_id} when is_binary(customer_id) and customer_id != "" <-
            {:customer, customer_id},
          {:ok, response} <-
-           stripe_post("/v1/billing_portal/sessions", %{
+           StripeClient.post("/v1/billing_portal/sessions", %{
              "customer" => customer_id,
              "return_url" => "#{String.trim_trailing(app_url, "/")}/lista"
            }) do
@@ -100,6 +109,21 @@ defmodule MinhaCasaAi.Billing do
       {:customer, _} -> {:error, :missing_customer}
       {:error, _} = error -> error
     end
+  end
+
+  defp billing_customer_for_user(%User{} = user) do
+    Repo.one(
+      from(o in Organization,
+        join: s in Subscription,
+        on: s.target_workspace_id == o.workspace_id,
+        where:
+          (o.owner_id == ^user.id or o.billing_owner_user_id == ^user.id) and
+            not is_nil(o.stripe_customer_id) and s.status == "active",
+        order_by: [desc: s.created_at],
+        select: o.stripe_customer_id,
+        limit: 1
+      )
+    ) || user.stripe_customer_id
   end
 
   def verify_stripe_event(raw_body, signature_header) do
@@ -145,7 +169,8 @@ defmodule MinhaCasaAi.Billing do
 
   def stripe_reconciliation do
     with {:stripe, true} <- {:stripe, Config.configured?(:stripe)},
-         {:ok, response} <- stripe_get("/v1/subscriptions", %{"limit" => 100, "status" => "all"}) do
+         {:ok, response} <-
+           StripeClient.get("/v1/subscriptions", %{"limit" => 100, "status" => "all"}) do
       stripe_subs = response["data"] || []
 
       local_subs =
@@ -617,12 +642,27 @@ defmodule MinhaCasaAi.Billing do
       )
       |> Map.new()
 
+    licensed_seats =
+      Repo.all(
+        from(s in Subscription,
+          join: p in Plan,
+          on: p.id == s.plan_id,
+          where: s.status == "active" and p.slug == "imobiliaria",
+          distinct: s.target_workspace_id,
+          order_by: [asc: s.target_workspace_id, desc: s.created_at],
+          select:
+            {s.target_workspace_id, coalesce(s.licensed_seats, coalesce(p.included_seats, 10))}
+        )
+      )
+      |> Map.new()
+
     Enum.map(orgs, fn org ->
       %{
         organization: org,
         owner: Map.get(owners, org.owner_id),
         members_count: Map.get(member_counts, org.id, 0),
-        pending_invites_count: Map.get(pending_invite_counts, org.id, 0)
+        pending_invites_count: Map.get(pending_invite_counts, org.id, 0),
+        licensed_seats: Map.get(licensed_seats, org.workspace_id)
       }
     end)
   end
@@ -635,7 +675,114 @@ defmodule MinhaCasaAi.Billing do
   defp with_plan(subscription),
     do: %{subscription: subscription, plan: Repo.get(Plan, subscription.plan_id)}
 
-  defp checkout_form(%User{} = user, %Plan{} = plan, attrs, app_url) do
+  defp prepare_checkout(%User{} = user, %Plan{slug: "imobiliaria"} = plan, attrs) do
+    with {:ok, workspace} <- grant_target_workspace(user.id, plan, attrs),
+         %Organization{} = organization <-
+           Repo.get_by(Organization, workspace_id: workspace.id, kind: "agency"),
+         total_seats <- checkout_total_seats(attrs, plan.included_seats || 10),
+         {:seats, true} <-
+           {:seats, is_integer(total_seats) and total_seats >= (plan.included_seats || 10)},
+         additional_seats <- max(total_seats - (plan.included_seats || 10), 0),
+         {:seat_price, true} <-
+           {:seat_price,
+            additional_seats == 0 or
+              (is_binary(plan.stripe_additional_seat_price_id) and
+                 plan.stripe_additional_seat_price_id != "")},
+         {:existing_subscription, false} <-
+           {:existing_subscription, active_workspace_subscription?(workspace.id)},
+         {:ok, customer_id} <- ensure_organization_stripe_customer(organization, user) do
+      {:ok,
+       %{
+         organization: organization,
+         workspace: workspace,
+         customer_id: customer_id,
+         total_seats: total_seats,
+         included_seats: plan.included_seats || 10,
+         seat_price_id: plan.stripe_additional_seat_price_id
+       }}
+    else
+      nil -> {:error, :target_workspace_required}
+      {:seats, false} -> {:error, :invalid_seat_count}
+      {:seat_price, false} -> {:error, :missing_stripe_seat_price}
+      {:existing_subscription, true} -> {:error, :already_subscribed}
+      {:error, _} = error -> error
+    end
+  end
+
+  defp prepare_checkout(_user, _plan, _attrs), do: {:ok, %{}}
+
+  defp checkout_total_seats(attrs, default) do
+    case Map.get(attrs, "totalSeats") || Map.get(attrs, "total_seats") do
+      value when is_integer(value) ->
+        value
+
+      value when is_binary(value) ->
+        case Integer.parse(value) do
+          {parsed, ""} -> parsed
+          _ -> :invalid
+        end
+
+      nil ->
+        default
+
+      _ ->
+        :invalid
+    end
+  end
+
+  defp active_workspace_subscription?(workspace_id) do
+    now = DateTime.utc_now(:second)
+
+    Repo.exists?(
+      from(s in Subscription,
+        where:
+          s.target_workspace_id == ^workspace_id and s.status == "active" and
+            (is_nil(s.expires_at) or s.expires_at >= ^now)
+      )
+    )
+  end
+
+  defp ensure_organization_stripe_customer(
+         %Organization{stripe_customer_id: customer_id},
+         _user
+       )
+       when is_binary(customer_id) and customer_id != "",
+       do: {:ok, customer_id}
+
+  defp ensure_organization_stripe_customer(%Organization{} = organization, %User{} = user) do
+    with {:ok, customer} <-
+           StripeClient.post(
+             "/v1/customers",
+             %{
+               "name" => organization.name,
+               "email" => user.email,
+               "metadata[organizationId]" => organization.id,
+               "metadata[billingOwnerUserId]" => user.id
+             },
+             idempotency_key: "organization-customer:#{organization.id}"
+           ),
+         customer_id when is_binary(customer_id) <- customer["id"],
+         {:ok, _} <-
+           organization
+           |> Organization.update_changeset(%{stripe_customer_id: customer_id})
+           |> Repo.update() do
+      {:ok, customer_id}
+    else
+      nil -> {:error, {:stripe, "Stripe did not return a customer id"}}
+      {:error, _} = error -> error
+    end
+  end
+
+  defp checkout_idempotency_key(user_id, plan_id, attrs) do
+    organization_id =
+      Map.get(attrs, "organizationId") || Map.get(attrs, "organization_id") || "new"
+
+    seats = Map.get(attrs, "totalSeats") || Map.get(attrs, "total_seats") || "default"
+    request_id = Map.get(attrs, "requestId") || Map.get(attrs, "request_id") || "default"
+    "checkout:#{user_id}:#{plan_id}:#{organization_id}:#{seats}:#{request_id}"
+  end
+
+  defp checkout_form(%User{} = user, %Plan{} = plan, attrs, app_url, context) do
     app_url = String.trim_trailing(app_url, "/")
 
     success_url =
@@ -656,77 +803,50 @@ defmodule MinhaCasaAi.Billing do
       "subscription_data[metadata][userId]" => user.id,
       "subscription_data[metadata][planId]" => plan.id
     }
-    |> maybe_put_customer(user)
+    |> put_checkout_context(context)
+    |> maybe_put_customer(user, context)
     |> maybe_put_coupon(coupon_id)
   end
 
-  defp maybe_put_customer(form, %User{stripe_customer_id: customer_id})
+  defp maybe_put_customer(form, _user, %{customer_id: customer_id})
        when is_binary(customer_id) and customer_id != "",
        do: Map.put(form, "customer", customer_id)
 
-  defp maybe_put_customer(form, %User{email: email}), do: Map.put(form, "customer_email", email)
+  defp maybe_put_customer(form, %User{stripe_customer_id: customer_id}, _context)
+       when is_binary(customer_id) and customer_id != "",
+       do: Map.put(form, "customer", customer_id)
+
+  defp maybe_put_customer(form, %User{email: email}, _context),
+    do: Map.put(form, "customer_email", email)
+
+  defp put_checkout_context(form, %{organization: %Organization{} = organization} = context) do
+    total_seats = context.total_seats
+    included_seats = context.included_seats
+    additional_seats = max(total_seats - included_seats, 0)
+
+    form
+    |> Map.put("metadata[organizationId]", organization.id)
+    |> Map.put("metadata[targetWorkspaceId]", organization.workspace_id)
+    |> Map.put("metadata[licensedSeats]", Integer.to_string(total_seats))
+    |> Map.put("subscription_data[metadata][organizationId]", organization.id)
+    |> Map.put("subscription_data[metadata][targetWorkspaceId]", organization.workspace_id)
+    |> Map.put("subscription_data[metadata][licensedSeats]", Integer.to_string(total_seats))
+    |> maybe_put_seat_line_item(context.seat_price_id, additional_seats)
+  end
+
+  defp put_checkout_context(form, _context), do: form
+
+  defp maybe_put_seat_line_item(form, price_id, quantity)
+       when is_binary(price_id) and price_id != "" and quantity > 0 do
+    form
+    |> Map.put("line_items[1][price]", price_id)
+    |> Map.put("line_items[1][quantity]", Integer.to_string(quantity))
+  end
+
+  defp maybe_put_seat_line_item(form, _price_id, _quantity), do: form
 
   defp maybe_put_coupon(form, nil), do: Map.put(form, "allow_promotion_codes", "true")
   defp maybe_put_coupon(form, coupon_id), do: Map.put(form, "discounts[0][coupon]", coupon_id)
-
-  defp stripe_post(path, form) do
-    case Req.post("https://api.stripe.com" <> path,
-           auth: {:bearer, Config.stripe_secret_key()},
-           form: form,
-           receive_timeout: 30_000
-         ) do
-      {:ok, %{status: status, body: body}} when status in 200..299 ->
-        {:ok, body}
-
-      {:ok, %{body: %{"error" => %{"message" => message}}}} ->
-        {:error, {:stripe, message}}
-
-      {:ok, %{status: status, body: body}} ->
-        {:error, {:stripe, "Stripe request failed with status #{status}: #{inspect(body)}"}}
-
-      {:error, reason} ->
-        {:error, {:stripe, inspect(reason)}}
-    end
-  end
-
-  defp stripe_get(path, params) do
-    case Req.get("https://api.stripe.com" <> path,
-           auth: {:bearer, Config.stripe_secret_key()},
-           params: params,
-           receive_timeout: 30_000
-         ) do
-      {:ok, %{status: status, body: body}} when status in 200..299 ->
-        {:ok, body}
-
-      {:ok, %{body: %{"error" => %{"message" => message}}}} ->
-        {:error, {:stripe, message}}
-
-      {:ok, %{status: status, body: body}} ->
-        {:error, {:stripe, "Stripe request failed with status #{status}: #{inspect(body)}"}}
-
-      {:error, reason} ->
-        {:error, {:stripe, inspect(reason)}}
-    end
-  end
-
-  defp stripe_delete(path) do
-    case Req.delete("https://api.stripe.com" <> path,
-           auth: {:bearer, Config.stripe_secret_key()},
-           receive_timeout: 30_000
-         ) do
-      {:ok, %{status: status, body: body}} when status in 200..299 ->
-        {:ok, body}
-
-      {:ok, %{body: %{"error" => %{"message" => message}}}} ->
-        {:error, {:stripe, message}}
-
-      {:ok, %{status: status, body: body}} ->
-        {:error, {:stripe, "Stripe request failed with status #{status}: #{inspect(body)}"}}
-
-      {:error, reason} ->
-        {:error, {:stripe, inspect(reason)}}
-    end
-  end
 
   defp maybe_sync_stripe_subscription(
          %Subscription{stripe_subscription_id: stripe_id} = subscription,
@@ -744,9 +864,11 @@ defmodule MinhaCasaAi.Billing do
 
         result =
           if immediate do
-            stripe_delete("/v1/subscriptions/#{stripe_id}")
+            StripeClient.delete("/v1/subscriptions/#{stripe_id}")
           else
-            stripe_post("/v1/subscriptions/#{stripe_id}", %{"cancel_at_period_end" => "true"})
+            StripeClient.post("/v1/subscriptions/#{stripe_id}", %{
+              "cancel_at_period_end" => "true"
+            })
           end
 
         case result do
@@ -765,7 +887,9 @@ defmodule MinhaCasaAi.Billing do
         end
 
       status == "active" ->
-        case stripe_post("/v1/subscriptions/#{stripe_id}", %{"cancel_at_period_end" => "false"}) do
+        case StripeClient.post("/v1/subscriptions/#{stripe_id}", %{
+               "cancel_at_period_end" => "false"
+             }) do
           {:ok, stripe_sub} -> {:ok, stripe_fields_from_subscription(stripe_sub)}
           {:error, _} -> {:ok, %{}}
         end
@@ -789,6 +913,9 @@ defmodule MinhaCasaAi.Billing do
   defp handle_stripe_event("customer.subscription.updated", subscription),
     do: handle_subscription_updated(subscription)
 
+  defp handle_stripe_event("customer.subscription.created", subscription),
+    do: handle_subscription_updated(subscription)
+
   defp handle_stripe_event("customer.subscription.deleted", subscription),
     do: handle_subscription_deleted(subscription)
 
@@ -801,81 +928,135 @@ defmodule MinhaCasaAi.Billing do
     plan_id = get_in(session, ["metadata", "planId"])
     stripe_subscription_id = string_or_nil(session["subscription"])
     stripe_customer_id = string_or_nil(session["customer"])
+    metadata = session["metadata"] || %{}
 
-    with true <- is_binary(user_id) and is_binary(plan_id) and is_binary(stripe_subscription_id),
-         true <-
-           is_nil(Repo.get_by(Subscription, stripe_subscription_id: stripe_subscription_id)),
-         %Plan{} = plan <- Repo.get(Plan, plan_id),
-         {:ok, target_workspace} <- grant_target_workspace(user_id, plan, %{}) do
-      now = DateTime.utc_now(:second)
-      default_expires_at = DateTime.add(now, 30, :day)
+    result =
+      with true <-
+             is_binary(user_id) and is_binary(plan_id) and is_binary(stripe_subscription_id),
+           %Plan{} = plan <- Repo.get(Plan, plan_id),
+           {:ok, stripe_sub} <-
+             StripeClient.get("/v1/subscriptions/#{stripe_subscription_id}", %{
+               "expand[]" => "items.data.price"
+             }),
+           {:ok, target_workspace} <- grant_target_workspace(user_id, plan, metadata) do
+        now = DateTime.utc_now(:second)
+        period_end = subscription_period_end(stripe_sub) || DateTime.add(now, 30, :day)
+        stripe_status = stripe_sub["status"] || "active"
+        item_fields = stripe_item_fields(stripe_sub, plan)
 
-      from(s in Subscription,
-        where: s.user_id == ^user_id and s.status == "active" and s.source == "stripe"
-      )
-      |> Repo.update_all(set: [status: "expired", updated_at: now])
+        from(s in Subscription,
+          where:
+            s.target_workspace_id == ^target_workspace.id and s.status == "active" and
+              s.source == "stripe" and s.stripe_subscription_id != ^stripe_subscription_id
+        )
+        |> Repo.update_all(set: [status: "expired", updated_at: now])
 
-      %Subscription{}
-      |> Subscription.changeset(%{
-        user_id: user_id,
-        plan_id: plan_id,
-        status: "active",
-        starts_at: now,
-        expires_at: default_expires_at,
-        stripe_customer_id: stripe_customer_id,
-        stripe_subscription_id: stripe_subscription_id,
-        stripe_status: "active",
-        current_period_end: default_expires_at,
-        cancel_at_period_end: false,
-        source: "stripe",
-        target_workspace_id: target_workspace.id
-      })
-      |> Repo.insert!()
+        attrs =
+          %{
+            user_id: user_id,
+            plan_id: plan_id,
+            status: map_stripe_status(stripe_status),
+            starts_at: now,
+            expires_at: period_end,
+            stripe_customer_id: stripe_customer_id,
+            stripe_subscription_id: stripe_subscription_id,
+            stripe_status: stripe_status,
+            current_period_end: period_end,
+            cancel_at_period_end: stripe_sub["cancel_at_period_end"] || false,
+            source: "stripe",
+            target_workspace_id: target_workspace.id
+          }
+          |> Map.merge(item_fields)
 
-      if stripe_customer_id do
-        from(u in User, where: u.id == ^user_id)
-        |> Repo.update_all(set: [stripe_customer_id: stripe_customer_id, updated_at: now])
+        case Repo.get_by(Subscription, stripe_subscription_id: stripe_subscription_id) do
+          nil ->
+            %Subscription{} |> Subscription.changeset(attrs) |> Repo.insert!()
+
+          %Subscription{} = existing ->
+            existing |> Subscription.update_changeset(attrs) |> Repo.update!()
+        end
+
+        if stripe_customer_id && plan.slug != "imobiliaria" do
+          from(u in User, where: u.id == ^user_id)
+          |> Repo.update_all(set: [stripe_customer_id: stripe_customer_id, updated_at: now])
+        end
+
+        activate_workspace!(target_workspace.id, stripe_customer_id)
+        :ok
+      else
+        false -> {:error, :invalid_subscription_metadata}
+        nil -> {:error, :subscription_plan_not_found}
+        {:error, _} = error -> error
       end
-    end
 
-    :ok
+    case result do
+      :ok -> :ok
+      {:error, reason} -> raise "Unable to activate Stripe subscription: #{inspect(reason)}"
+    end
   end
 
   defp handle_checkout_completed(_), do: :ok
 
   defp handle_subscription_updated(%{"id" => stripe_id} = stripe_sub) do
     with %Subscription{} = subscription <-
-           Repo.get_by(Subscription, stripe_subscription_id: stripe_id) do
+           Repo.get_by(Subscription, stripe_subscription_id: stripe_id),
+         %Plan{} = plan <- Repo.get(Plan, subscription.plan_id) do
+      now = DateTime.utc_now(:second)
+      period_end = subscription_period_end(stripe_sub)
+
       fields =
         stripe_sub
         |> stripe_fields_from_subscription()
         |> Map.put(:status, map_stripe_status(stripe_sub["status"]))
-        |> put_if_present(:expires_at, unix_to_datetime(stripe_sub["current_period_end"]))
-        |> Map.put(:updated_at, DateTime.utc_now(:second))
+        |> put_if_present(:expires_at, period_end)
+        |> Map.merge(stripe_item_fields(stripe_sub, plan, subscription, now))
+        |> Map.put(:updated_at, now)
 
       from(s in Subscription, where: s.id == ^subscription.id)
       |> Repo.update_all(set: Map.to_list(fields))
+
+      if map_stripe_status(stripe_sub["status"]) == "active" do
+        activate_workspace!(subscription.target_workspace_id, subscription.stripe_customer_id)
+      else
+        freeze_workspace!(subscription.target_workspace_id)
+      end
+    else
+      nil ->
+        handle_checkout_completed(%{
+          "mode" => "subscription",
+          "metadata" => stripe_sub["metadata"] || %{},
+          "subscription" => stripe_id,
+          "customer" => stripe_sub["customer"]
+        })
     end
 
     :ok
   end
 
   defp handle_subscription_deleted(%{"id" => stripe_id}) do
-    from(s in Subscription, where: s.stripe_subscription_id == ^stripe_id)
-    |> Repo.update_all(
-      set: [
-        status: "cancelled",
-        stripe_status: "canceled",
-        cancel_at_period_end: false,
-        updated_at: DateTime.utc_now(:second)
-      ]
-    )
+    case Repo.get_by(Subscription, stripe_subscription_id: stripe_id) do
+      %Subscription{} = subscription ->
+        from(s in Subscription, where: s.id == ^subscription.id)
+        |> Repo.update_all(
+          set: [
+            status: "cancelled",
+            stripe_status: "canceled",
+            cancel_at_period_end: false,
+            updated_at: DateTime.utc_now(:second)
+          ]
+        )
+
+        freeze_workspace!(subscription.target_workspace_id)
+
+      nil ->
+        :ok
+    end
 
     :ok
   end
 
   defp handle_payment_failed(invoice) do
-    stripe_id = string_or_nil(invoice["subscription"])
+    stripe_id = invoice_subscription_id(invoice)
 
     if stripe_id do
       from(s in Subscription, where: s.stripe_subscription_id == ^stripe_id)
@@ -892,15 +1073,35 @@ defmodule MinhaCasaAi.Billing do
   end
 
   defp handle_invoice_paid(invoice) do
-    stripe_id = string_or_nil(invoice["subscription"])
+    stripe_id = invoice_subscription_id(invoice)
 
     if stripe_id do
-      from(s in Subscription,
-        where: s.stripe_subscription_id == ^stripe_id and s.stripe_status == "past_due"
-      )
-      |> Repo.update_all(
-        set: [status: "active", stripe_status: "active", updated_at: DateTime.utc_now(:second)]
-      )
+      case Repo.get_by(Subscription, stripe_subscription_id: stripe_id) do
+        %Subscription{} = subscription ->
+          now = DateTime.utc_now(:second)
+
+          pending_fields =
+            if subscription.pending_licensed_seats && subscription.pending_seats_effective_at &&
+                 DateTime.compare(subscription.pending_seats_effective_at, now) != :gt do
+              [
+                licensed_seats: subscription.pending_licensed_seats,
+                pending_licensed_seats: nil,
+                pending_seats_effective_at: nil
+              ]
+            else
+              []
+            end
+
+          from(s in Subscription, where: s.id == ^subscription.id)
+          |> Repo.update_all(
+            set: [status: "active", stripe_status: "active", updated_at: now] ++ pending_fields
+          )
+
+          activate_workspace!(subscription.target_workspace_id, subscription.stripe_customer_id)
+
+        nil ->
+          :ok
+      end
     end
 
     :ok
@@ -923,14 +1124,22 @@ defmodule MinhaCasaAi.Billing do
     stripe_id = string_or_nil(session["subscription"])
 
     if stripe_id do
-      from(s in Subscription, where: s.stripe_subscription_id == ^stripe_id)
-      |> Repo.update_all(
-        set: [
-          status: "expired",
-          stripe_status: "incomplete_expired",
-          updated_at: DateTime.utc_now(:second)
-        ]
-      )
+      case Repo.get_by(Subscription, stripe_subscription_id: stripe_id) do
+        %Subscription{} = subscription ->
+          from(s in Subscription, where: s.id == ^subscription.id)
+          |> Repo.update_all(
+            set: [
+              status: "expired",
+              stripe_status: "incomplete_expired",
+              updated_at: DateTime.utc_now(:second)
+            ]
+          )
+
+          freeze_workspace!(subscription.target_workspace_id)
+
+        nil ->
+          :ok
+      end
     end
 
     :ok
@@ -941,7 +1150,86 @@ defmodule MinhaCasaAi.Billing do
       stripe_status: stripe_sub["status"],
       cancel_at_period_end: stripe_sub["cancel_at_period_end"]
     }
-    |> put_if_present(:current_period_end, unix_to_datetime(stripe_sub["current_period_end"]))
+    |> put_if_present(:current_period_end, subscription_period_end(stripe_sub))
+  end
+
+  defp stripe_item_fields(stripe_sub, %Plan{} = plan, existing \\ nil, _now \\ nil) do
+    items = get_in(stripe_sub, ["items", "data"]) || []
+    base = Enum.find(items, &(stripe_item_price_id(&1) == plan.stripe_price_id))
+
+    seat =
+      Enum.find(items, &(stripe_item_price_id(&1) == plan.stripe_additional_seat_price_id))
+
+    included = plan.included_seats
+    stripe_licensed = if included, do: included + stripe_item_quantity(seat), else: nil
+
+    licensed_seats =
+      case existing do
+        %Subscription{licensed_seats: licensed} when is_integer(licensed) -> licensed
+        _ -> stripe_licensed
+      end
+
+    %{}
+    |> put_if_present(:stripe_base_item_id, base && base["id"])
+    |> put_if_present(:stripe_seat_item_id, seat && seat["id"])
+    |> put_if_present(:licensed_seats, licensed_seats)
+  end
+
+  defp stripe_item_price_id(%{"price" => %{"id" => id}}), do: id
+  defp stripe_item_price_id(%{"price" => id}) when is_binary(id), do: id
+  defp stripe_item_price_id(_), do: nil
+
+  defp stripe_item_quantity(%{"quantity" => value}) when is_integer(value), do: value
+  defp stripe_item_quantity(_), do: 0
+
+  defp invoice_subscription_id(invoice) do
+    string_or_nil(invoice["subscription"]) ||
+      string_or_nil(get_in(invoice, ["parent", "subscription_details", "subscription"]))
+  end
+
+  defp subscription_period_end(stripe_sub) do
+    direct = unix_to_datetime(stripe_sub["current_period_end"])
+
+    direct ||
+      (get_in(stripe_sub, ["items", "data"]) || [])
+      |> Enum.map(&unix_to_datetime(&1["current_period_end"]))
+      |> Enum.reject(&is_nil/1)
+      |> Enum.max_by(&DateTime.to_unix/1, fn -> nil end)
+  end
+
+  defp activate_workspace!(nil, _customer_id), do: :ok
+
+  defp activate_workspace!(workspace_id, customer_id) do
+    now = DateTime.utc_now(:second)
+
+    from(w in Workspace, where: w.id == ^workspace_id)
+    |> Repo.update_all(set: [status: "active", updated_at: now])
+
+    case Repo.get_by(Organization, workspace_id: workspace_id) do
+      %Organization{} = organization ->
+        attrs =
+          %{status: "active"}
+          |> put_if_present(:stripe_customer_id, customer_id)
+
+        organization |> Organization.update_changeset(attrs) |> Repo.update!()
+
+      nil ->
+        :ok
+    end
+
+    :ok = Retention.record_activity(workspace_id, now)
+  end
+
+  defp freeze_workspace!(nil), do: :ok
+
+  defp freeze_workspace!(workspace_id) do
+    now = DateTime.utc_now(:second)
+
+    from(w in Workspace, where: w.id == ^workspace_id)
+    |> Repo.update_all(set: [status: "frozen", updated_at: now])
+
+    from(o in Organization, where: o.workspace_id == ^workspace_id)
+    |> Repo.update_all(set: [status: "frozen", updated_at: now])
   end
 
   defp map_stripe_status(status) when status in ["active", "trialing"], do: "active"

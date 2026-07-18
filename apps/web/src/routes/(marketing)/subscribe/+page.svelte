@@ -2,6 +2,7 @@
   import { onMount } from "svelte";
   import { page } from "$app/state";
   import { AlertCircle, Calendar, Check, CheckCircle, Crown, FlaskConical } from "@lucide/svelte";
+  import { ApiError } from "$lib/api/client";
   import { billingApi } from "$lib/billing/client";
   import Button from "$lib/components/ui/Button.svelte";
   import type { AdminPlan, AdminSubscription } from "$lib/admin/client";
@@ -21,7 +22,11 @@
   let checkoutPlanId = $state<string | null>(null);
   let portalLoading = $state(false);
   let error = $state("");
+  let accountError = $state("");
   let stripeTestMode = $state(false);
+  let authenticated = $state<boolean | null>(null);
+  let paymentSyncing = $state(false);
+  let agencySeats = $state(10);
 
   const success = $derived(page.url.searchParams.get("success") === "true");
   const cancelled = $derived(page.url.searchParams.get("cancelled") === "true");
@@ -35,25 +40,59 @@
   async function loadBilling() {
     loading = true;
     error = "";
+    accountError = "";
     try {
-      const [plansData, subscriptionData] = await Promise.all([
-        billingApi.fetchPlans(),
-        billingApi.fetchCurrentSubscription()
-      ]);
+      const plansData = await billingApi.fetchPlans();
       plans = plansData.plans;
       stripeTestMode = plansData.stripeTestMode ?? false;
-      subscription = subscriptionData.subscription;
-      currentPlan = subscriptionData.plan;
-      hasActiveSubscription = subscriptionData.hasActiveSubscription;
-      if (hasActiveSubscription && isSafeRedirectPath(redirectPath)) {
-        window.location.replace(redirectPath);
-        return;
+
+      try {
+        const subscriptionData = await billingApi.fetchCurrentSubscription();
+        authenticated = true;
+        applySubscription(subscriptionData);
+      } catch (err) {
+        if (err instanceof ApiError && err.status === 401) {
+          authenticated = false;
+          applySubscription(null);
+        } else {
+          authenticated = null;
+          accountError = errorMessage(err, "Não foi possível consultar sua assinatura agora.");
+        }
       }
     } catch (err) {
-      error = errorMessage(err, "Erro ao carregar assinatura");
+      error = errorMessage(err, "Erro ao carregar os planos");
     } finally {
       loading = false;
     }
+
+    if (success && authenticated && !hasActiveSubscription) void pollForSubscription();
+  }
+
+  function applySubscription(
+    data: Awaited<ReturnType<typeof billingApi.fetchCurrentSubscription>> | null
+  ) {
+    subscription = data?.subscription ?? null;
+    currentPlan = data?.plan ?? null;
+    hasActiveSubscription = data?.hasActiveSubscription ?? false;
+    if (hasActiveSubscription && isSafeRedirectPath(redirectPath)) {
+      window.location.replace(redirectPath);
+    }
+  }
+
+  async function pollForSubscription() {
+    if (paymentSyncing) return;
+    paymentSyncing = true;
+    for (let attempt = 0; attempt < 10; attempt += 1) {
+      await new Promise((resolve) => window.setTimeout(resolve, 1_500));
+      try {
+        const data = await billingApi.fetchCurrentSubscription();
+        applySubscription(data);
+        if (data.hasActiveSubscription) break;
+      } catch {
+        // The checkout succeeded; transient webhook/API errors are safe to retry.
+      }
+    }
+    paymentSyncing = false;
   }
 
   function planFor(slug: PlanSlug) {
@@ -71,6 +110,11 @@
 
   async function startCheckout(plan: AdminPlan | null) {
     if (!plan) return;
+    if (authenticated === false) {
+      const returnTo = `${page.url.pathname}${page.url.search}`;
+      window.location.href = `/login?redirect=${encodeURIComponent(returnTo)}`;
+      return;
+    }
     checkoutPlanId = plan.id;
     error = "";
     try {
@@ -78,14 +122,33 @@
       const redirect = isSafeRedirectPath(redirectPath) ? `&redirect=${encodeURIComponent(redirectPath)}` : "";
       const session = await billingApi.createCheckoutSession({
         planId: plan.id,
+        totalSeats:
+          plan.slug === "imobiliaria"
+            ? Math.max(
+                plan.includedSeats ?? 10,
+                Number.isFinite(agencySeats) ? Math.trunc(agencySeats) : plan.includedSeats ?? 10
+              )
+            : undefined,
         successUrl: `${origin}/subscribe?success=true&session_id={CHECKOUT_SESSION_ID}${redirect}`,
         cancelUrl: `${origin}/subscribe?cancelled=true`
       });
       window.location.href = session.checkoutUrl;
     } catch (err) {
+      if (err instanceof ApiError && err.status === 401) {
+        const returnTo = `${page.url.pathname}${page.url.search}`;
+        window.location.href = `/login?redirect=${encodeURIComponent(returnTo)}`;
+        return;
+      }
       error = errorMessage(err, "Erro ao iniciar checkout");
       checkoutPlanId = null;
     }
+  }
+
+  function formatMoney(valueInCents: number) {
+    return new Intl.NumberFormat("pt-BR", {
+      style: "currency",
+      currency: "BRL"
+    }).format(valueInCents / 100);
   }
 
   async function openPortal() {
@@ -144,9 +207,22 @@
         </div>
       {/if}
 
+      {#if accountError}
+        <div class="mb-6 rounded-md border border-amber-200 bg-amber-50 p-4 text-center text-sm text-amber-900">
+          <AlertCircle class="mr-2 inline h-5 w-5" /> {accountError} Os planos continuam disponíveis abaixo.
+        </div>
+      {/if}
+
       {#if success}
         <div class="mb-6 rounded-md border border-emerald-200 bg-emerald-50 p-4 text-center text-sm text-emerald-800">
-          <CheckCircle class="mr-2 inline h-5 w-5" /> Pagamento recebido. Se a assinatura ainda nao apareceu, o webhook pode estar processando.
+          <CheckCircle class="mr-2 inline h-5 w-5" />
+          {#if hasActiveSubscription}
+            Pagamento confirmado e assinatura ativada.
+          {:else if paymentSyncing}
+            Pagamento recebido. Estamos ativando sua assinatura automaticamente...
+          {:else}
+            Pagamento recebido. A ativação ainda está sendo processada; você pode atualizar esta página em instantes.
+          {/if}
         </div>
       {/if}
 
@@ -183,7 +259,9 @@
         </section>
       {:else}
         <section class="mb-8 rounded-md border border-app-border bg-app-surface p-5 text-center text-sm text-app-muted">
-          Você está no plano Free. Escolha um upgrade abaixo quando quiser ampliar seu uso.
+          {authenticated === false
+            ? "Veja todos os planos sem entrar. Ao escolher um plano pago, você poderá acessar ou criar sua conta antes do checkout."
+            : "Você está no plano Free. Escolha um upgrade abaixo quando quiser ampliar seu uso."}
         </section>
       {/if}
 
@@ -219,6 +297,32 @@
                   </li>
                 {/each}
               </ul>
+              {#if plan.slug === "imobiliaria" && apiPlan}
+                {@const includedSeats = apiPlan.includedSeats ?? 10}
+                {@const additionalSeatPrice = apiPlan.additionalSeatPriceInCents ?? 3900}
+                <div class="mt-5 rounded-md border border-app-border bg-white p-3">
+                  <label for="checkout-agency-seats" class="text-sm font-semibold">Tamanho da equipe</label>
+                  <div class="mt-2 flex items-center gap-2">
+                    <input
+                      id="checkout-agency-seats"
+                      class="h-10 w-24 rounded-md border border-app-border bg-white px-3 text-sm"
+                      type="number"
+                      min={includedSeats}
+                      max="500"
+                      step="1"
+                      required
+                      bind:value={agencySeats}
+                    />
+                    <span class="text-sm text-app-muted">seats no total</span>
+                  </div>
+                  <p class="mt-2 text-xs leading-5 text-app-muted">
+                    {includedSeats} incluídos + {formatMoney(additionalSeatPrice)} por seat adicional.
+                    Total estimado: {formatMoney(
+                      plan.monthlyPriceInCents + Math.max(0, agencySeats - includedSeats) * additionalSeatPrice
+                    )}/mês.
+                  </p>
+                </div>
+              {/if}
               {#if plan.slug === "free"}
                 <a
                   href="/lista"
@@ -237,7 +341,7 @@
                   {:else if checkoutPlanId === apiPlan?.id}
                     Abrindo checkout...
                   {:else if apiPlan?.stripePriceId}
-                    Assinar {plan.name}
+                    {authenticated === false ? `Entrar para assinar ${plan.name}` : `Assinar ${plan.name}`}
                   {:else}
                     Checkout em breve
                   {/if}

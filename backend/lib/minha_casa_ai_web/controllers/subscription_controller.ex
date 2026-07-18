@@ -48,6 +48,26 @@ defmodule MinhaCasaAiWeb.SubscriptionController do
         |> put_status(:bad_request)
         |> json(%{error: "Plan is not configured for online payment. Please contact support."})
 
+      {:error, :missing_stripe_seat_price} ->
+        conn
+        |> put_status(:service_unavailable)
+        |> json(%{error: "Additional seats are not configured for online payment."})
+
+      {:error, :invalid_seat_count} ->
+        conn
+        |> put_status(:unprocessable_entity)
+        |> json(%{error: "The selected seat count is below the plan minimum."})
+
+      {:error, :already_subscribed} ->
+        conn
+        |> put_status(:conflict)
+        |> json(%{error: "This agency already has an active subscription."})
+
+      {:error, :target_workspace_required} ->
+        conn
+        |> put_status(:bad_request)
+        |> json(%{error: "An agency owned by the billing user is required."})
+
       {:error, {:stripe, message}} ->
         conn |> put_status(:bad_gateway) |> json(%{error: message})
     end

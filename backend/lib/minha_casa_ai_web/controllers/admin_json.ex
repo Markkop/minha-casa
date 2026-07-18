@@ -76,10 +76,9 @@ defmodule MinhaCasaAiWeb.AdminJSON do
         organization: org,
         owner: owner,
         members_count: members_count,
-        pending_invites_count: pending_invites_count
+        pending_invites_count: pending_invites_count,
+        licensed_seats: licensed_seats
       }) do
-    seats_used = members_count + pending_invites_count
-
     %{
       id: org.id,
       name: org.name,
@@ -90,8 +89,10 @@ defmodule MinhaCasaAiWeb.AdminJSON do
       workspaceId: Map.get(org, :workspace_id),
       frozen: Map.get(org, :status) == "frozen",
       membersCount: members_count,
-      seatsUsed: seats_used,
-      seatsIncluded: if(Map.get(org, :kind) == "agency", do: 10, else: 4),
+      pendingInvitesCount: pending_invites_count,
+      seatsUsed: members_count,
+      licensedSeats: licensed_seats,
+      seatsIncluded: if(Map.get(org, :kind) == "agency", do: licensed_seats || 10, else: 4),
       owner: BillingJSON.user_summary(owner)
     }
   end

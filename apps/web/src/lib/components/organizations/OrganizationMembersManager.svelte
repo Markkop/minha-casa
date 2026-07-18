@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { Building2, Copy, Link2, Pencil, Users, X } from "@lucide/svelte";
+  import { Building2, Copy, CreditCard, Link2, Pencil, Users, X } from "@lucide/svelte";
+  import { billingApi, type SeatChangePreview, type SeatSummary } from "$lib/billing/client";
   import PageScaffold from "$lib/components/layout/PageScaffold.svelte";
   import Button from "$lib/components/ui/Button.svelte";
   import {
@@ -52,6 +53,13 @@
   let initialized = $state(false);
   let editingAgencyName = $state(false);
   let agencyName = $state("");
+  let seatSummary = $state<SeatSummary | null>(null);
+  let seatPreview = $state<SeatChangePreview | null>(null);
+  let desiredSeats = $state(10);
+  let loadingSeats = $state(false);
+  let previewingSeats = $state(false);
+  let updatingSeats = $state(false);
+  let seatError = $state("");
 
   $effect(() => {
     organizations = initialOrganizations.filter(
@@ -110,6 +118,9 @@
     copiedInviteId = null;
     memberRole = defaultRole;
     inviteRole = defaultRole;
+    seatSummary = null;
+    seatPreview = null;
+    seatError = "";
 
     const organization = organizations.find((item) => item.id === id);
     agencyName = organization?.name ?? "";
@@ -120,6 +131,7 @@
         organization?.role === "owner" || organization?.role === "admin"
           ? (await workspaceApi.fetchOrganizationInvites(id)).invites
           : [];
+      if (kind === "agency") await refreshSeatSummary(id);
     } catch (err) {
       error = err instanceof Error ? err.message : "Erro ao carregar membros e convites";
       members = [];
@@ -128,6 +140,88 @@
       loadingMembers = false;
       loadingInvites = false;
     }
+  }
+
+  async function refreshSeatSummary(organizationId = selectedId) {
+    if (kind !== "agency" || !organizationId) return;
+    loadingSeats = true;
+    seatError = "";
+    try {
+      seatSummary = (await billingApi.fetchSeatSummary(organizationId)).seats;
+      desiredSeats = seatSummary.pendingLicensedSeats ?? seatSummary.licensedSeats;
+    } catch (err) {
+      seatSummary = null;
+      seatError = errorMessage(err, "Erro ao carregar seats da imobiliária");
+    } finally {
+      loadingSeats = false;
+    }
+  }
+
+  async function previewSeatChange() {
+    if (!selected || !seatSummary) return;
+    const normalizedDesiredSeats = Number.isFinite(desiredSeats)
+      ? Math.trunc(desiredSeats)
+      : seatSummary.licensedSeats;
+    const totalSeats = Math.max(
+      seatSummary.includedSeats,
+      seatSummary.usedSeats,
+      normalizedDesiredSeats
+    );
+    desiredSeats = totalSeats;
+    previewingSeats = true;
+    seatError = "";
+    try {
+      seatPreview = (await billingApi.previewSeatChange(selected.id, totalSeats)).preview;
+    } catch (err) {
+      seatPreview = null;
+      seatError = errorMessage(err, "Erro ao calcular a alteração de seats");
+    } finally {
+      previewingSeats = false;
+    }
+  }
+
+  async function confirmSeatChange() {
+    if (!selected || !seatPreview) return;
+    updatingSeats = true;
+    seatError = "";
+    try {
+      seatSummary = (
+        await billingApi.updateSeats(selected.id, {
+          totalSeats: seatPreview.totalSeats,
+          quoteToken: seatPreview.quoteToken
+        })
+      ).seats;
+      desiredSeats = seatSummary.pendingLicensedSeats ?? seatSummary.licensedSeats;
+      seatPreview = null;
+    } catch (err) {
+      seatError = errorMessage(err, "Erro ao atualizar os seats");
+    } finally {
+      updatingSeats = false;
+    }
+  }
+
+  function formatMoney(valueInCents: number, currency = "BRL") {
+    return new Intl.NumberFormat("pt-BR", {
+      style: "currency",
+      currency: currency.toUpperCase()
+    }).format(valueInCents / 100);
+  }
+
+  function formatSeatDate(value: string | null | undefined) {
+    if (!value) return "na próxima renovação";
+    return new Intl.DateTimeFormat("pt-BR", {
+      day: "2-digit",
+      month: "long",
+      year: "numeric"
+    }).format(new Date(value));
+  }
+
+  function errorMessage(err: unknown, fallback: string) {
+    if (err && typeof err === "object" && "data" in err) {
+      const data = (err as { data?: { error?: string } }).data;
+      if (data?.error) return data.error;
+    }
+    return err instanceof Error ? err.message : fallback;
   }
 
   async function activateSelected() {
@@ -175,8 +269,13 @@
       memberEmail = "";
       memberRole = defaultRole;
       await refreshOrganizations();
+      await refreshSeatSummary();
     } catch (err) {
       error = err instanceof Error ? err.message : "Erro ao adicionar membro";
+      if (kind === "agency" && seatSummary?.canManageBilling) {
+        desiredSeats = Math.max(seatSummary.licensedSeats + 1, seatSummary.usedSeats + 1);
+        seatPreview = null;
+      }
     } finally {
       saving = false;
     }
@@ -193,6 +292,7 @@
       });
       invites = [response.invite, ...invites];
       inviteRole = defaultRole;
+      await refreshSeatSummary();
     } catch (err) {
       error = err instanceof Error ? err.message : "Erro ao criar convite";
     } finally {
@@ -254,6 +354,7 @@
       await workspaceApi.removeOrganizationMember(selected.id, member.userId);
       members = members.filter((item) => item.userId !== member.userId);
       await refreshOrganizations();
+      await refreshSeatSummary();
     } catch (err) {
       error = err instanceof Error ? err.message : "Erro ao remover membro";
     } finally {
@@ -363,6 +464,126 @@
               </Button>
             </div>
           </section>
+
+          {#if kind === "agency"}
+            <section class="rounded-md border border-app-border bg-app-surface p-4" aria-labelledby="seat-billing-title">
+              <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                <div class="min-w-0 flex-1">
+                  <div class="flex items-center gap-2">
+                    <CreditCard class="h-4 w-4 text-app-muted" />
+                    <h2 id="seat-billing-title" class="text-sm font-semibold">Seats e cobrança</h2>
+                  </div>
+
+                  {#if loadingSeats}
+                    <p class="mt-3 text-sm text-app-muted">Carregando capacidade da equipe...</p>
+                  {:else if seatSummary}
+                    <div class="mt-3 flex flex-wrap items-baseline gap-x-2 gap-y-1">
+                      <strong class="text-2xl">{seatSummary.usedSeats} de {seatSummary.licensedSeats}</strong>
+                      <span class="text-sm text-app-muted">seats em uso</span>
+                    </div>
+                    <div class="mt-2 h-2 max-w-xl overflow-hidden rounded-full bg-app-surface-muted">
+                      <div
+                        class="h-full rounded-full bg-app-action transition-all"
+                        style={`width: ${Math.min(100, (seatSummary.usedSeats / Math.max(1, seatSummary.licensedSeats)) * 100)}%`}
+                      ></div>
+                    </div>
+                    <p class="mt-3 text-sm text-app-muted">
+                      O plano inclui {seatSummary.includedSeats} seats. Cada seat adicional custa
+                      {formatMoney(seatSummary.additionalSeatPriceInCents, seatSummary.currency)}/mês.
+                    </p>
+                    <p class="mt-1 text-xs text-app-muted">
+                      {seatSummary.pendingInvites === 1
+                        ? "1 convite pendente não reserva um seat; ele será validado quando for aceito."
+                        : `${seatSummary.pendingInvites} convites pendentes não reservam seats; eles serão validados quando forem aceitos.`}
+                    </p>
+                    {#if seatSummary.pendingLicensedSeats !== null && seatSummary.pendingLicensedSeats !== undefined}
+                      <div class="mt-3 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+                        Redução agendada para {seatSummary.pendingLicensedSeats} seats em
+                        {formatSeatDate(seatSummary.pendingSeatsEffectiveAt)}. Até lá, a capacidade atual continua disponível.
+                      </div>
+                    {/if}
+                  {:else}
+                    <p class="mt-3 text-sm text-app-muted">A capacidade de seats ficará disponível com a assinatura da imobiliária.</p>
+                  {/if}
+                </div>
+
+                {#if seatSummary?.canManageBilling}
+                  <form
+                    class="w-full rounded-md border border-app-border bg-white p-4 lg:w-[360px]"
+                    onsubmit={(event) => {
+                      event.preventDefault();
+                      void previewSeatChange();
+                    }}
+                  >
+                    <label for="licensed-seats" class="text-sm font-semibold">Capacidade da equipe</label>
+                    <p class="mt-1 text-xs leading-5 text-app-muted">
+                      Aumentos são cobrados proporcionalmente agora. Reduções entram em vigor na próxima renovação.
+                    </p>
+                    <div class="mt-3 flex gap-2">
+                      <input
+                        id="licensed-seats"
+                        class="h-10 min-w-0 flex-1 rounded-md border border-app-border bg-white px-3 text-sm"
+                        type="number"
+                        min={Math.max(seatSummary.includedSeats, seatSummary.usedSeats)}
+                        max="500"
+                        step="1"
+                        required
+                        bind:value={desiredSeats}
+                        oninput={() => (seatPreview = null)}
+                      />
+                      <Button
+                        type="submit"
+                        variant="secondary"
+                        disabled={previewingSeats || desiredSeats === (seatSummary.pendingLicensedSeats ?? seatSummary.licensedSeats)}
+                      >
+                        {previewingSeats ? "Calculando..." : "Revisar"}
+                      </Button>
+                    </div>
+
+                    {#if seatPreview}
+                      <div class="mt-4 rounded-md bg-app-surface-muted p-3 text-sm">
+                        <div class="flex justify-between gap-4">
+                          <span class="text-app-muted">Nova capacidade</span>
+                          <strong>{seatPreview.totalSeats} seats</strong>
+                        </div>
+                        <div class="mt-2 flex justify-between gap-4">
+                          <span class="text-app-muted">Cobrança agora</span>
+                          <strong>{formatMoney(seatPreview.amountDueNow, seatPreview.currency)}</strong>
+                        </div>
+                        <div class="mt-2 flex justify-between gap-4">
+                          <span class="text-app-muted">Novo total mensal</span>
+                          <strong>{formatMoney(seatPreview.monthlyTotalInCents ?? seatPreview.nextInvoiceAmount, seatPreview.currency)}</strong>
+                        </div>
+                        <p class="mt-3 text-xs leading-5 text-app-muted">
+                          {seatPreview.change === "decrease"
+                            ? `A redução entra em vigor em ${formatSeatDate(seatPreview.effectiveAt)}.`
+                            : seatPreview.change === "increase"
+                              ? "O Stripe calcula o valor proporcional restante deste ciclo."
+                              : "A capacidade já está configurada assim."}
+                        </p>
+                        <Button
+                          class="mt-3 w-full"
+                          type="button"
+                          disabled={updatingSeats || seatPreview.change === "unchanged"}
+                          onclick={() => void confirmSeatChange()}
+                        >
+                          {updatingSeats ? "Atualizando..." : "Confirmar alteração"}
+                        </Button>
+                      </div>
+                    {/if}
+                  </form>
+                {:else if seatSummary}
+                  <div class="w-full rounded-md bg-app-surface-muted p-3 text-sm text-app-muted lg:w-[300px]">
+                    Somente o dono da imobiliária pode alterar seats e cobrança.
+                  </div>
+                {/if}
+              </div>
+
+              {#if seatError}
+                <div class="mt-4 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">{seatError}</div>
+              {/if}
+            </section>
+          {/if}
 
           <section class="rounded-md border border-app-border bg-app-surface p-4">
             <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">

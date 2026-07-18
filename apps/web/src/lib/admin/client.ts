@@ -8,6 +8,9 @@ export interface AdminPlan {
   priceInCents: number;
   isActive: boolean;
   stripePriceId: string | null;
+  includedSeats?: number | null;
+  additionalSeatPriceInCents?: number | null;
+  stripeAdditionalSeatPriceId?: string | null;
   limits: Record<string, unknown>;
   createdAt: string;
   updatedAt: string;
@@ -102,8 +105,10 @@ export interface AdminOrganization {
   workspaceType?: string | null;
   frozen?: boolean;
   membersCount?: number;
+  pendingInvitesCount?: number;
   seatsUsed?: number;
   seatsIncluded?: number;
+  licensedSeats?: number | null;
   owner?: AdminUserSummary | null;
 }
 

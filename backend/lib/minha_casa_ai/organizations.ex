@@ -2,6 +2,7 @@ defmodule MinhaCasaAi.Organizations do
   import Ecto.Query
 
   alias MinhaCasaAi.Accounts.User
+  alias MinhaCasaAi.Billing.{Plan, Subscription}
   alias MinhaCasaAi.Listings.{Collection, Listing}
   alias MinhaCasaAi.Organizations.{Organization, OrganizationInvite, OrganizationMember}
   alias MinhaCasaAi.Repo
@@ -186,27 +187,41 @@ defmodule MinhaCasaAi.Organizations do
   def add_member(org_id, email, role) when role in ["owner", "admin", "member", "broker"] do
     email = email |> string() |> String.downcase()
 
-    with %Organization{} = org <- Repo.get(Organization, org_id),
-         :ok <- validate_role_for_kind(org.kind, role),
-         %User{} = user <- Repo.get_by(User, email: email),
-         :ok <- ensure_family_membership_available(org, user.id),
-         :ok <- ensure_seat_available(org),
-         nil <- get_membership(user.id, org_id) do
-      %OrganizationMember{}
-      |> OrganizationMember.changeset(%{
-        org_id: org_id,
-        user_id: user.id,
-        role: role,
-        joined_at: DateTime.utc_now()
-      })
-      |> Repo.insert()
-      |> case do
-        {:ok, member} -> {:ok, member_with_user(member, user)}
-        error -> error
+    Repo.transaction(fn ->
+      org =
+        Organization
+        |> where([organization], organization.id == ^org_id)
+        |> lock("FOR UPDATE")
+        |> Repo.one()
+
+      user = Repo.get_by(User, email: email)
+
+      with %Organization{} <- org,
+           :ok <- validate_role_for_kind(org.kind, role),
+           %User{} <- user,
+           :ok <- ensure_family_membership_available(org, user.id),
+           :ok <- ensure_seat_available(org),
+           nil <- get_membership(user.id, org_id),
+           {:ok, member} <-
+             %OrganizationMember{}
+             |> OrganizationMember.changeset(%{
+               org_id: org_id,
+               user_id: user.id,
+               role: role,
+               joined_at: DateTime.utc_now()
+             })
+             |> Repo.insert() do
+        member_with_user(member, user)
+      else
+        nil when is_nil(org) -> Repo.rollback(:not_found)
+        nil when is_nil(user) -> Repo.rollback(:user_not_found)
+        %OrganizationMember{} -> Repo.rollback(:already_member)
+        {:error, reason} -> Repo.rollback(reason)
       end
-    else
-      nil -> {:error, :user_not_found}
-      %OrganizationMember{} -> {:error, :already_member}
+    end)
+    |> case do
+      {:ok, member} -> {:ok, member}
+      {:error, reason} -> {:error, reason}
     end
   end
 
@@ -347,7 +362,11 @@ defmodule MinhaCasaAi.Organizations do
           {:already_member, invite}
 
         true ->
-          org = Repo.get!(Organization, invite.org_id)
+          org =
+            Organization
+            |> where([organization], organization.id == ^invite.org_id)
+            |> lock("FOR UPDATE")
+            |> Repo.one!()
 
           with :ok <- ensure_family_membership_available(org, user_id),
                :ok <- ensure_seat_available(org, invite.id) do
@@ -488,22 +507,46 @@ defmodule MinhaCasaAi.Organizations do
     member_count =
       Repo.aggregate(from(m in OrganizationMember, where: m.org_id == ^org.id), :count)
 
-    pending_query =
+    pending_count = pending_seat_count(org, accepting_invite_id)
+    limit = seat_limit(org)
+    if member_count + pending_count < limit, do: :ok, else: {:error, :seat_limit}
+  end
+
+  defp pending_seat_count(%Organization{kind: "agency"}, _accepting_invite_id), do: 0
+
+  defp pending_seat_count(%Organization{} = org, accepting_invite_id) do
+    query =
       from(i in OrganizationInvite,
         where:
           i.org_id == ^org.id and i.status == "pending" and
             i.expires_at > ^DateTime.utc_now(:second)
       )
 
-    pending_query =
+    query =
       if accepting_invite_id,
-        do: where(pending_query, [i], i.id != ^accepting_invite_id),
-        else: pending_query
+        do: where(query, [i], i.id != ^accepting_invite_id),
+        else: query
 
-    pending_count = Repo.aggregate(pending_query, :count)
+    Repo.aggregate(query, :count)
+  end
 
-    limit = if org.kind == "family", do: 4, else: Map.get(org.settings || %{}, "seatLimit", 10)
-    if member_count + pending_count < limit, do: :ok, else: {:error, :seat_limit}
+  defp seat_limit(%Organization{kind: "family"}), do: 4
+
+  defp seat_limit(%Organization{kind: "agency", workspace_id: workspace_id}) do
+    now = DateTime.utc_now(:second)
+
+    Repo.one(
+      from(s in Subscription,
+        join: p in Plan,
+        on: p.id == s.plan_id,
+        where:
+          s.target_workspace_id == ^workspace_id and s.status == "active" and
+            s.expires_at >= ^now and p.slug == "imobiliaria",
+        order_by: [desc: s.created_at],
+        select: coalesce(s.licensed_seats, coalesce(p.included_seats, 10)),
+        limit: 1
+      )
+    ) || 0
   end
 
   defp get_invite_by_token(token) do

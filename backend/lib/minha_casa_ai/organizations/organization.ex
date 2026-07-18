@@ -14,6 +14,7 @@ defmodule MinhaCasaAi.Organizations.Organization do
     field :settings, :map, default: %{}
     field :billing_owner_user_id, :binary_id
     field :sponsor_user_id, :binary_id
+    field :stripe_customer_id, :string
     timestamps(inserted_at: :created_at, updated_at: :updated_at, type: :utc_datetime)
   end
 
@@ -28,7 +29,8 @@ defmodule MinhaCasaAi.Organizations.Organization do
       :status,
       :settings,
       :billing_owner_user_id,
-      :sponsor_user_id
+      :sponsor_user_id,
+      :stripe_customer_id
     ])
     |> validate_required([:name, :slug, :owner_id, :workspace_id, :kind, :status])
     |> validate_format(:slug, ~r/^[a-z0-9]+(?:-[a-z0-9]+)*$/)
@@ -40,7 +42,14 @@ defmodule MinhaCasaAi.Organizations.Organization do
 
   def update_changeset(organization, attrs) do
     organization
-    |> cast(attrs, [:name, :status, :settings, :billing_owner_user_id, :sponsor_user_id])
+    |> cast(attrs, [
+      :name,
+      :status,
+      :settings,
+      :billing_owner_user_id,
+      :sponsor_user_id,
+      :stripe_customer_id
+    ])
     |> validate_required([:name])
     |> validate_inclusion(:status, ~w(active frozen archived))
   end
