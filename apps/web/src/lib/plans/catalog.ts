@@ -30,7 +30,7 @@ export const PLAN_CATALOG = [
     slug: "pro",
     name: "Pro",
     audience: "Para compradores e famílias",
-    description: "Conduza uma busca ativa e tome decisões em conjunto.",
+    description: "Avance no seu planejamento e tome decisões em conjunto.",
     monthlyPriceInCents: 2_900,
     features: [
       "100 coleções por perfil",
@@ -45,7 +45,7 @@ export const PLAN_CATALOG = [
     slug: "corretor",
     name: "Corretor",
     audience: "Para corretores autônomos",
-    description: "Organize atendimentos e apresente imóveis com sua marca.",
+    description: "Organize, compartilhe e apresente imóveis com sua marca.",
     monthlyPriceInCents: 7_900,
     features: [
       "250 coleções e até 2.500 imóveis",
@@ -59,7 +59,7 @@ export const PLAN_CATALOG = [
     slug: "imobiliaria",
     name: "Imobiliária",
     audience: "Para equipes imobiliárias",
-    description: "Padronize a operação da equipe com gestão e identidade próprias.",
+    description: "Impressione seus clientes com o melhor comparativo de imóveis do mercado.",
     monthlyPriceInCents: 19_900,
     features: [
       "Até 10 licenças",
