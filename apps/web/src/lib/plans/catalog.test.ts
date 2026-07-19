@@ -26,11 +26,11 @@ describe("PLAN_CATALOG", () => {
     ]);
   });
 
-  it("includes the agency seat offer", () => {
+  it("includes the agency license limit without advertising additional access", () => {
     const agency = findPlanCatalogEntry("imobiliaria");
 
-    expect(agency?.features).toContain("10 seats incluídos");
-    expect(agency?.features).toContain("Seat adicional por R$ 39/mês");
+    expect(agency?.features).toContain("Até 10 licenças");
+    expect(JSON.stringify(agency)).not.toMatch(/seat|adicional por/i);
   });
 
   it("discloses inactivity retention for every tier", () => {

@@ -12,6 +12,15 @@ import { isPlatformSuperAdmin } from "$lib/admin/platform-role";
 export type AdminPanel = "overview" | "users" | "grants" | "plans" | "workspaces" | "audit";
 export type GrantReason = "friend" | "pilot" | "test" | "support" | "promotion" | "other";
 
+export function minimumLicenseLimit(organization: AdminOrganization): number {
+  return Math.max(10, organization.licensesUsed ?? organization.membersCount ?? 0);
+}
+
+export function validLicenseLimit(value: string, minimum: number): number | null {
+  const parsed = Number(value);
+  return Number.isInteger(parsed) && parsed >= minimum ? parsed : null;
+}
+
 export type AdminMode =
   | "none"
   | "edit-user"
@@ -43,6 +52,7 @@ export function createAdminState() {
   let subscriptionDays = $state("30");
   let grantReason = $state<GrantReason>("pilot");
   let grantNotes = $state("");
+  let licenseLimit = $state("10");
   let editSubscriptionId = $state("");
   let editSubscriptionStatus = $state<AdminSubscription["status"]>("active");
   let editSubscriptionExpiresAt = $state("");
@@ -256,11 +266,41 @@ export function createAdminState() {
 
   function openOrganization(org: AdminOrganization) {
     selectedOrg = org;
+    licenseLimit = String(org.licenseLimit ?? minimumLicenseLimit(org));
     mode = "organization";
     subscriptionDays = "30";
     grantReason = "pilot";
     grantNotes = "";
     error = "";
+  }
+
+  async function saveOrganizationLicenseLimit() {
+    if (!selectedOrg || selectedOrg.kind !== "agency") return;
+
+    const minimum = minimumLicenseLimit(selectedOrg);
+    const nextLimit = validLicenseLimit(licenseLimit, minimum);
+    if (nextLimit === null) {
+      error = `Informe um número inteiro de licenças igual ou maior que ${minimum}.`;
+      return;
+    }
+
+    saving = true;
+    error = "";
+    try {
+      const { organization } = await adminApi.updateOrganizationLicenseLimit(
+        selectedOrg.id,
+        nextLimit
+      );
+      organizations = organizations.map((item) =>
+        item.id === organization.id ? organization : item
+      );
+      selectedOrg = organization;
+      licenseLimit = String(organization.licenseLimit ?? nextLimit);
+    } catch (err) {
+      error = errorMessage(err, "Erro ao atualizar o limite de licenças");
+    } finally {
+      saving = false;
+    }
   }
 
   async function grantAgencySubscription() {
@@ -440,6 +480,15 @@ export function createAdminState() {
     set grantNotes(value: string) {
       grantNotes = value;
     },
+    get licenseLimit() {
+      return licenseLimit;
+    },
+    set licenseLimit(value: string) {
+      licenseLimit = value;
+    },
+    get minimumLicenseLimit() {
+      return selectedOrg ? minimumLicenseLimit(selectedOrg) : 10;
+    },
     get editSubscriptionId() {
       return editSubscriptionId;
     },
@@ -487,6 +536,7 @@ export function createAdminState() {
     saveSubscription,
     setSubscriptionStatus,
     openOrganization,
+    saveOrganizationLicenseLimit,
     grantAgencySubscription,
     savePlanStripe,
     closeModal,

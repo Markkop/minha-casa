@@ -3,6 +3,7 @@ defmodule MinhaCasaAiWeb.AdminController do
 
   alias MinhaCasaAi.Billing
   alias MinhaCasaAi.Config
+  alias MinhaCasaAi.Organizations
   alias MinhaCasaAiWeb.{AdminJSON, BillingJSON}
 
   plug :require_admin
@@ -58,6 +59,42 @@ defmodule MinhaCasaAiWeb.AdminController do
     json(conn, %{
       organizations: Billing.list_organizations() |> Enum.map(&AdminJSON.organization_row/1)
     })
+  end
+
+  def update_license_limit(conn, %{"id" => id, "licenseLimit" => license_limit}) do
+    case Organizations.update_license_limit(id, license_limit) do
+      {:ok, _organization} ->
+        row = Enum.find(Billing.list_organizations(), &(&1.organization.id == id))
+        json(conn, %{organization: AdminJSON.organization_row(row)})
+
+      {:error, :not_found} ->
+        not_found(conn, "Organization")
+
+      {:error, :agency_only} ->
+        conn |> put_status(:unprocessable_entity) |> json(%{error: "Only agencies have licenses"})
+
+      {:error, :invalid_license_limit} ->
+        conn
+        |> put_status(:unprocessable_entity)
+        |> json(%{error: "licenseLimit must be an integer"})
+
+      {:error, {:license_limit_too_low, minimum}} ->
+        conn
+        |> put_status(:unprocessable_entity)
+        |> json(%{
+          error: "licenseLimit cannot be lower than #{minimum}",
+          minimumLicenseLimit: minimum
+        })
+
+      {:error, changeset} ->
+        changeset_error(conn, changeset)
+    end
+  end
+
+  def update_license_limit(conn, _params) do
+    conn
+    |> put_status(:unprocessable_entity)
+    |> json(%{error: "licenseLimit must be an integer"})
   end
 
   def stripe_reconciliation(conn, _params) do

@@ -67,8 +67,7 @@ export const PLAN_CATALOG = [
     description: "Padronize a operação da equipe com gestão e identidade próprias.",
     monthlyPriceInCents: 19_900,
     features: [
-      "10 seats incluídos",
-      "Seat adicional por R$ 39/mês",
+      "Até 10 licenças",
       "500 coleções e até 5.000 imóveis",
       "Retenção por 720 dias sem atividade da equipe",
       "Papéis de owner, admin e corretor",

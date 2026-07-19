@@ -16,11 +16,6 @@ defmodule MinhaCasaAi.Billing.Subscription do
     field :stripe_subscription_id, :string
     field :stripe_status, :string
     field :stripe_base_item_id, :string
-    field :stripe_seat_item_id, :string
-    field :licensed_seats, :integer
-    field :pending_licensed_seats, :integer
-    field :pending_seats_effective_at, :utc_datetime
-    field :stripe_schedule_id, :string
     field :current_period_end, :utc_datetime
     field :cancel_at_period_end, :boolean, default: false
     field :last_payment_failed_at, :utc_datetime
@@ -46,11 +41,6 @@ defmodule MinhaCasaAi.Billing.Subscription do
       :stripe_subscription_id,
       :stripe_status,
       :stripe_base_item_id,
-      :stripe_seat_item_id,
-      :licensed_seats,
-      :pending_licensed_seats,
-      :pending_seats_effective_at,
-      :stripe_schedule_id,
       :current_period_end,
       :cancel_at_period_end,
       :last_payment_failed_at,
@@ -83,11 +73,6 @@ defmodule MinhaCasaAi.Billing.Subscription do
       :stripe_subscription_id,
       :stripe_status,
       :stripe_base_item_id,
-      :stripe_seat_item_id,
-      :licensed_seats,
-      :pending_licensed_seats,
-      :pending_seats_effective_at,
-      :stripe_schedule_id,
       :current_period_end,
       :cancel_at_period_end,
       :last_payment_failed_at,

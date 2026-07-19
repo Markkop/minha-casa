@@ -79,6 +79,7 @@ defmodule MinhaCasaAi.Organizations do
               status: initial_status,
               billing_owner_user_id: user_id,
               sponsor_user_id: if(kind == "family", do: user_id, else: nil),
+              license_limit: if(kind == "agency", do: 10, else: nil),
               settings: if(kind == "family", do: %{"sponsorUserId" => user_id}, else: %{})
             })
             |> Repo.insert!()
@@ -167,6 +168,41 @@ defmodule MinhaCasaAi.Organizations do
     end
   end
 
+  def update_license_limit(org_id, license_limit) when is_integer(license_limit) do
+    Repo.transaction(fn ->
+      organization =
+        Organization
+        |> where([organization], organization.id == ^org_id)
+        |> lock("FOR UPDATE")
+        |> Repo.one()
+
+      with %Organization{kind: "agency"} = agency <- organization,
+           members_count <-
+             Repo.aggregate(
+               from(m in OrganizationMember, where: m.org_id == ^agency.id),
+               :count
+             ),
+           minimum <- max(10, members_count),
+           :ok <- validate_license_limit(license_limit, minimum),
+           {:ok, updated} <-
+             agency
+             |> Organization.license_limit_changeset(%{license_limit: license_limit})
+             |> Repo.update() do
+        updated
+      else
+        nil -> Repo.rollback(:not_found)
+        %Organization{} -> Repo.rollback(:agency_only)
+        {:error, reason} -> Repo.rollback(reason)
+      end
+    end)
+    |> case do
+      {:ok, organization} -> {:ok, organization}
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  def update_license_limit(_org_id, _license_limit), do: {:error, :invalid_license_limit}
+
   def list_members(org_id) do
     OrganizationMember
     |> where([m], m.org_id == ^org_id)
@@ -200,7 +236,7 @@ defmodule MinhaCasaAi.Organizations do
            :ok <- validate_role_for_kind(org.kind, role),
            %User{} <- user,
            :ok <- ensure_family_membership_available(org, user.id),
-           :ok <- ensure_seat_available(org),
+           :ok <- ensure_license_available(org),
            nil <- get_membership(user.id, org_id),
            {:ok, member} <-
              %OrganizationMember{}
@@ -296,7 +332,7 @@ defmodule MinhaCasaAi.Organizations do
 
     with %Organization{} = org <- Repo.get(Organization, org_id),
          :ok <- validate_role_for_kind(org.kind, role),
-         :ok <- ensure_seat_available(org) do
+         :ok <- ensure_license_available(org) do
       %OrganizationInvite{}
       |> OrganizationInvite.changeset(%{
         org_id: org_id,
@@ -369,7 +405,7 @@ defmodule MinhaCasaAi.Organizations do
             |> Repo.one!()
 
           with :ok <- ensure_family_membership_available(org, user_id),
-               :ok <- ensure_seat_available(org, invite.id) do
+               :ok <- ensure_license_available(org, invite.id) do
             case insert_invite_member(invite, user_id, now) do
               {:ok, member} ->
                 accepted_invite =
@@ -402,7 +438,13 @@ defmodule MinhaCasaAi.Organizations do
         {:ok, :already_member, organization_for_user!(invite.org_id, user_id)}
 
       {:error, reason}
-      when reason in [:not_found, :unavailable, :expired, :family_membership_exists, :seat_limit] ->
+      when reason in [
+             :not_found,
+             :unavailable,
+             :expired,
+             :family_membership_exists,
+             :license_limit
+           ] ->
         {:error, reason}
 
       {:error, %Ecto.Changeset{} = changeset} ->
@@ -503,18 +545,18 @@ defmodule MinhaCasaAi.Organizations do
     )
   end
 
-  defp ensure_seat_available(%Organization{} = org, accepting_invite_id \\ nil) do
+  defp ensure_license_available(%Organization{} = org, accepting_invite_id \\ nil) do
     member_count =
       Repo.aggregate(from(m in OrganizationMember, where: m.org_id == ^org.id), :count)
 
-    pending_count = pending_seat_count(org, accepting_invite_id)
-    limit = seat_limit(org)
-    if member_count + pending_count < limit, do: :ok, else: {:error, :seat_limit}
+    pending_count = pending_license_count(org, accepting_invite_id)
+    limit = license_limit(org)
+    if member_count + pending_count < limit, do: :ok, else: {:error, :license_limit}
   end
 
-  defp pending_seat_count(%Organization{kind: "agency"}, _accepting_invite_id), do: 0
+  defp pending_license_count(%Organization{kind: "agency"}, _accepting_invite_id), do: 0
 
-  defp pending_seat_count(%Organization{} = org, accepting_invite_id) do
+  defp pending_license_count(%Organization{} = org, accepting_invite_id) do
     query =
       from(i in OrganizationInvite,
         where:
@@ -530,24 +572,32 @@ defmodule MinhaCasaAi.Organizations do
     Repo.aggregate(query, :count)
   end
 
-  defp seat_limit(%Organization{kind: "family"}), do: 4
+  defp license_limit(%Organization{kind: "family"}), do: 4
 
-  defp seat_limit(%Organization{kind: "agency", workspace_id: workspace_id}) do
+  defp license_limit(%Organization{
+         kind: "agency",
+         workspace_id: workspace_id,
+         license_limit: license_limit
+       }) do
     now = DateTime.utc_now(:second)
 
-    Repo.one(
-      from(s in Subscription,
-        join: p in Plan,
-        on: p.id == s.plan_id,
-        where:
-          s.target_workspace_id == ^workspace_id and s.status == "active" and
-            s.expires_at >= ^now and p.slug == "imobiliaria",
-        order_by: [desc: s.created_at],
-        select: coalesce(s.licensed_seats, coalesce(p.included_seats, 10)),
-        limit: 1
+    active_subscription? =
+      Repo.exists?(
+        from(s in Subscription,
+          join: p in Plan,
+          on: p.id == s.plan_id,
+          where:
+            s.target_workspace_id == ^workspace_id and s.status == "active" and
+              s.expires_at >= ^now and p.slug == "imobiliaria",
+          select: 1
+        )
       )
-    ) || 0
+
+    if active_subscription?, do: license_limit || 10, else: 0
   end
+
+  defp validate_license_limit(value, minimum) when value >= minimum, do: :ok
+  defp validate_license_limit(_value, minimum), do: {:error, {:license_limit_too_low, minimum}}
 
   defp get_invite_by_token(token) do
     token = string(token)

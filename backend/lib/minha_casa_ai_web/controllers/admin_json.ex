@@ -38,7 +38,7 @@ defmodule MinhaCasaAiWeb.AdminJSON do
       totalFamilies: stats.total_families,
       totalProfessionalWorkspaces: stats.total_professional_workspaces,
       totalAgencies: stats.total_agencies,
-      totalSeats: stats.total_seats,
+      totalLicenses: stats.total_licenses,
       frozenWorkspaces: stats.frozen_workspaces,
       billingFailures: stats.billing_failures,
       auditEvents:
@@ -76,10 +76,9 @@ defmodule MinhaCasaAiWeb.AdminJSON do
         organization: org,
         owner: owner,
         members_count: members_count,
-        pending_invites_count: pending_invites_count,
-        licensed_seats: licensed_seats
+        pending_invites_count: pending_invites_count
       }) do
-    %{
+    payload = %{
       id: org.id,
       name: org.name,
       slug: org.slug,
@@ -90,10 +89,13 @@ defmodule MinhaCasaAiWeb.AdminJSON do
       frozen: Map.get(org, :status) == "frozen",
       membersCount: members_count,
       pendingInvitesCount: pending_invites_count,
-      seatsUsed: members_count,
-      licensedSeats: licensed_seats,
-      seatsIncluded: if(Map.get(org, :kind) == "agency", do: licensed_seats || 10, else: 4),
       owner: BillingJSON.user_summary(owner)
     }
+
+    if Map.get(org, :kind) == "agency" do
+      Map.merge(payload, %{licensesUsed: members_count, licenseLimit: org.license_limit})
+    else
+      payload
+    end
   end
 end

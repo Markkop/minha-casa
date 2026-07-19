@@ -16,7 +16,7 @@
     "lint": "pnpm lint:web",
     "db:setup": "bash scripts/db-setup.sh",
     "db:migrate": "bash scripts/db-migrate.sh",
-    "stripe:sync-catalog": "node scripts/sync-stripe-catalog.mjs",
+    "stripe:verify-base-prices": "node scripts/verify-stripe-base-prices.mjs",
     "db:reset-credential-password": "node scripts/reset-credential-password.mjs"
   },
   "dependencies": {

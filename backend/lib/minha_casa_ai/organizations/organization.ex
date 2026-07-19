@@ -15,6 +15,7 @@ defmodule MinhaCasaAi.Organizations.Organization do
     field :billing_owner_user_id, :binary_id
     field :sponsor_user_id, :binary_id
     field :stripe_customer_id, :string
+    field :license_limit, :integer
     timestamps(inserted_at: :created_at, updated_at: :updated_at, type: :utc_datetime)
   end
 
@@ -30,7 +31,8 @@ defmodule MinhaCasaAi.Organizations.Organization do
       :settings,
       :billing_owner_user_id,
       :sponsor_user_id,
-      :stripe_customer_id
+      :stripe_customer_id,
+      :license_limit
     ])
     |> validate_required([:name, :slug, :owner_id, :workspace_id, :kind, :status])
     |> validate_format(:slug, ~r/^[a-z0-9]+(?:-[a-z0-9]+)*$/)
@@ -52,5 +54,13 @@ defmodule MinhaCasaAi.Organizations.Organization do
     ])
     |> validate_required([:name])
     |> validate_inclusion(:status, ~w(active frozen archived))
+  end
+
+  def license_limit_changeset(organization, attrs) do
+    organization
+    |> cast(attrs, [:license_limit])
+    |> validate_required([:license_limit])
+    |> validate_number(:license_limit, greater_than_or_equal_to: 10)
+    |> check_constraint(:license_limit, name: :organizations_license_limit_check)
   end
 end

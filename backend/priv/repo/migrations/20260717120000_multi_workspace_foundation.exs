@@ -438,7 +438,7 @@ defmodule MinhaCasaAi.Repo.Migrations.MultiWorkspaceFoundation do
       (gen_random_uuid(), 'Corretor', 'corretor', 'Para corretores autônomos', 7900, true,
        '{"collectionsLimit":250,"listingsLimit":2500,"aiParsesPerCycle":300,"canShareReadOnly":true,"canShareEditable":true,"professionalWorkspace":true}'::jsonb, now(), now()),
       (gen_random_uuid(), 'Imobiliária', 'imobiliaria', 'Para equipes de imobiliárias', 19900, true,
-       '{"collectionsLimit":500,"listingsLimit":5000,"aiParsesPerCycle":500,"canShareReadOnly":true,"canShareEditable":true,"includedSeats":10,"additionalSeatPriceInCents":3900}'::jsonb, now(), now())
+       '{"collectionsLimit":500,"listingsLimit":5000,"aiParsesPerCycle":500,"canShareReadOnly":true,"canShareEditable":true}'::jsonb, now(), now())
     ON CONFLICT (slug) DO UPDATE SET
       name = EXCLUDED.name,
       description = EXCLUDED.description,

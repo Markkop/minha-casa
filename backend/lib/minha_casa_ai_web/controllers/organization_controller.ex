@@ -245,8 +245,8 @@ defmodule MinhaCasaAiWeb.OrganizationController do
     conn |> put_status(:bad_request) |> json(%{error: error || "Invalid data"})
   end
 
-  defp changeset_error(conn, :seat_limit),
-    do: conn |> put_status(:conflict) |> json(%{error: "No seats are available"})
+  defp changeset_error(conn, :license_limit),
+    do: conn |> put_status(:conflict) |> json(%{error: "Não há licenças disponíveis"})
 
   defp changeset_error(conn, :family_membership_exists),
     do: conn |> put_status(:conflict) |> json(%{error: "A user can belong to only one Family"})

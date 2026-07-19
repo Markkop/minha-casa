@@ -54,6 +54,7 @@ defmodule MinhaCasaAiWeb.Router do
     get "/admin/users", AdminController, :users
     get "/admin/plans", AdminController, :plans
     get "/admin/organizations", AdminController, :organizations
+    patch "/admin/organizations/:id/license-limit", AdminController, :update_license_limit
     patch "/admin/users/:user_id", AdminController, :update_user
     delete "/admin/users/:user_id", AdminController, :delete_user
     get "/admin/stats", AdminController, :stats
@@ -64,9 +65,6 @@ defmodule MinhaCasaAiWeb.Router do
     get "/admin/subscriptions/user/:user_id", AdminController, :user_subscriptions
     get "/organizations", OrganizationController, :index
     get "/organizations/:id", OrganizationController, :show
-    get "/organizations/:id/billing/seats", SeatBillingController, :show
-    post "/organizations/:id/billing/seats/preview", SeatBillingController, :preview
-    put "/organizations/:id/billing/seats", SeatBillingController, :update
     patch "/agencies/:id", OrganizationController, :update_agency
     get "/organizations/:id/members", OrganizationController, :members
     post "/organizations/:id/members", OrganizationController, :add_member

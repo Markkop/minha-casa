@@ -26,7 +26,6 @@
   let stripeTestMode = $state(false);
   let authenticated = $state<boolean | null>(null);
   let paymentSyncing = $state(false);
-  let agencySeats = $state(10);
 
   const success = $derived(page.url.searchParams.get("success") === "true");
   const cancelled = $derived(page.url.searchParams.get("cancelled") === "true");
@@ -122,13 +121,6 @@
       const redirect = isSafeRedirectPath(redirectPath) ? `&redirect=${encodeURIComponent(redirectPath)}` : "";
       const session = await billingApi.createCheckoutSession({
         planId: plan.id,
-        totalSeats:
-          plan.slug === "imobiliaria"
-            ? Math.max(
-                plan.includedSeats ?? 10,
-                Number.isFinite(agencySeats) ? Math.trunc(agencySeats) : plan.includedSeats ?? 10
-              )
-            : undefined,
         successUrl: `${origin}/subscribe?success=true&session_id={CHECKOUT_SESSION_ID}${redirect}`,
         cancelUrl: `${origin}/subscribe?cancelled=true`
       });
@@ -142,13 +134,6 @@
       error = errorMessage(err, "Erro ao iniciar checkout");
       checkoutPlanId = null;
     }
-  }
-
-  function formatMoney(valueInCents: number) {
-    return new Intl.NumberFormat("pt-BR", {
-      style: "currency",
-      currency: "BRL"
-    }).format(valueInCents / 100);
   }
 
   async function openPortal() {
@@ -297,32 +282,6 @@
                   </li>
                 {/each}
               </ul>
-              {#if plan.slug === "imobiliaria" && apiPlan}
-                {@const includedSeats = apiPlan.includedSeats ?? 10}
-                {@const additionalSeatPrice = apiPlan.additionalSeatPriceInCents ?? 3900}
-                <div class="mt-5 rounded-md border border-app-border bg-white p-3">
-                  <label for="checkout-agency-seats" class="text-sm font-semibold">Tamanho da equipe</label>
-                  <div class="mt-2 flex items-center gap-2">
-                    <input
-                      id="checkout-agency-seats"
-                      class="h-10 w-24 rounded-md border border-app-border bg-white px-3 text-sm"
-                      type="number"
-                      min={includedSeats}
-                      max="500"
-                      step="1"
-                      required
-                      bind:value={agencySeats}
-                    />
-                    <span class="text-sm text-app-muted">seats no total</span>
-                  </div>
-                  <p class="mt-2 text-xs leading-5 text-app-muted">
-                    {includedSeats} incluídos + {formatMoney(additionalSeatPrice)} por seat adicional.
-                    Total estimado: {formatMoney(
-                      plan.monthlyPriceInCents + Math.max(0, agencySeats - includedSeats) * additionalSeatPrice
-                    )}/mês.
-                  </p>
-                </div>
-              {/if}
               {#if plan.slug === "free"}
                 <a
                   href="/lista"
@@ -354,7 +313,7 @@
           {/each}
         </div>
         <p class="mt-8 text-center text-sm text-app-muted">
-          Imobiliária inclui 10 seats. Cada seat adicional custa R$ 39/mês.
+          O plano Imobiliária oferece até 10 licenças para a equipe.
         </p>
       </section>
     {/if}

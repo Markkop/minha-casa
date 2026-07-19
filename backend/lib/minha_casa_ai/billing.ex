@@ -82,8 +82,6 @@ defmodule MinhaCasaAi.Billing do
       nil -> {:error, :not_found}
       %Plan{is_active: false} -> {:error, :inactive_plan}
       {:price, _} -> {:error, :missing_stripe_price}
-      {:seat_price, _} -> {:error, :missing_stripe_seat_price}
-      {:seats, _} -> {:error, :invalid_seat_count}
       {:existing_subscription, true} -> {:error, :already_subscribed}
       {:error, _} = error -> error
     end
@@ -538,7 +536,7 @@ defmodule MinhaCasaAi.Billing do
         Repo.aggregate(from(w in Workspace, where: w.type == "professional"), :count),
       frozen_workspaces:
         Repo.aggregate(from(w in Workspace, where: w.status == "frozen"), :count),
-      total_seats:
+      total_licenses:
         Repo.aggregate(
           from(m in OrganizationMember,
             join: o in Organization,
@@ -642,27 +640,12 @@ defmodule MinhaCasaAi.Billing do
       )
       |> Map.new()
 
-    licensed_seats =
-      Repo.all(
-        from(s in Subscription,
-          join: p in Plan,
-          on: p.id == s.plan_id,
-          where: s.status == "active" and p.slug == "imobiliaria",
-          distinct: s.target_workspace_id,
-          order_by: [asc: s.target_workspace_id, desc: s.created_at],
-          select:
-            {s.target_workspace_id, coalesce(s.licensed_seats, coalesce(p.included_seats, 10))}
-        )
-      )
-      |> Map.new()
-
     Enum.map(orgs, fn org ->
       %{
         organization: org,
         owner: Map.get(owners, org.owner_id),
         members_count: Map.get(member_counts, org.id, 0),
-        pending_invites_count: Map.get(pending_invite_counts, org.id, 0),
-        licensed_seats: Map.get(licensed_seats, org.workspace_id)
+        pending_invites_count: Map.get(pending_invite_counts, org.id, 0)
       }
     end)
   end
@@ -679,15 +662,6 @@ defmodule MinhaCasaAi.Billing do
     with {:ok, workspace} <- grant_target_workspace(user.id, plan, attrs),
          %Organization{} = organization <-
            Repo.get_by(Organization, workspace_id: workspace.id, kind: "agency"),
-         total_seats <- checkout_total_seats(attrs, plan.included_seats || 10),
-         {:seats, true} <-
-           {:seats, is_integer(total_seats) and total_seats >= (plan.included_seats || 10)},
-         additional_seats <- max(total_seats - (plan.included_seats || 10), 0),
-         {:seat_price, true} <-
-           {:seat_price,
-            additional_seats == 0 or
-              (is_binary(plan.stripe_additional_seat_price_id) and
-                 plan.stripe_additional_seat_price_id != "")},
          {:existing_subscription, false} <-
            {:existing_subscription, active_workspace_subscription?(workspace.id)},
          {:ok, customer_id} <- ensure_organization_stripe_customer(organization, user) do
@@ -695,40 +669,16 @@ defmodule MinhaCasaAi.Billing do
        %{
          organization: organization,
          workspace: workspace,
-         customer_id: customer_id,
-         total_seats: total_seats,
-         included_seats: plan.included_seats || 10,
-         seat_price_id: plan.stripe_additional_seat_price_id
+         customer_id: customer_id
        }}
     else
       nil -> {:error, :target_workspace_required}
-      {:seats, false} -> {:error, :invalid_seat_count}
-      {:seat_price, false} -> {:error, :missing_stripe_seat_price}
       {:existing_subscription, true} -> {:error, :already_subscribed}
       {:error, _} = error -> error
     end
   end
 
   defp prepare_checkout(_user, _plan, _attrs), do: {:ok, %{}}
-
-  defp checkout_total_seats(attrs, default) do
-    case Map.get(attrs, "totalSeats") || Map.get(attrs, "total_seats") do
-      value when is_integer(value) ->
-        value
-
-      value when is_binary(value) ->
-        case Integer.parse(value) do
-          {parsed, ""} -> parsed
-          _ -> :invalid
-        end
-
-      nil ->
-        default
-
-      _ ->
-        :invalid
-    end
-  end
 
   defp active_workspace_subscription?(workspace_id) do
     now = DateTime.utc_now(:second)
@@ -777,9 +727,8 @@ defmodule MinhaCasaAi.Billing do
     organization_id =
       Map.get(attrs, "organizationId") || Map.get(attrs, "organization_id") || "new"
 
-    seats = Map.get(attrs, "totalSeats") || Map.get(attrs, "total_seats") || "default"
     request_id = Map.get(attrs, "requestId") || Map.get(attrs, "request_id") || "default"
-    "checkout:#{user_id}:#{plan_id}:#{organization_id}:#{seats}:#{request_id}"
+    "checkout:#{user_id}:#{plan_id}:#{organization_id}:#{request_id}"
   end
 
   defp checkout_form(%User{} = user, %Plan{} = plan, attrs, app_url, context) do
@@ -819,31 +768,15 @@ defmodule MinhaCasaAi.Billing do
   defp maybe_put_customer(form, %User{email: email}, _context),
     do: Map.put(form, "customer_email", email)
 
-  defp put_checkout_context(form, %{organization: %Organization{} = organization} = context) do
-    total_seats = context.total_seats
-    included_seats = context.included_seats
-    additional_seats = max(total_seats - included_seats, 0)
-
+  defp put_checkout_context(form, %{organization: %Organization{} = organization}) do
     form
     |> Map.put("metadata[organizationId]", organization.id)
     |> Map.put("metadata[targetWorkspaceId]", organization.workspace_id)
-    |> Map.put("metadata[licensedSeats]", Integer.to_string(total_seats))
     |> Map.put("subscription_data[metadata][organizationId]", organization.id)
     |> Map.put("subscription_data[metadata][targetWorkspaceId]", organization.workspace_id)
-    |> Map.put("subscription_data[metadata][licensedSeats]", Integer.to_string(total_seats))
-    |> maybe_put_seat_line_item(context.seat_price_id, additional_seats)
   end
 
   defp put_checkout_context(form, _context), do: form
-
-  defp maybe_put_seat_line_item(form, price_id, quantity)
-       when is_binary(price_id) and price_id != "" and quantity > 0 do
-    form
-    |> Map.put("line_items[1][price]", price_id)
-    |> Map.put("line_items[1][quantity]", Integer.to_string(quantity))
-  end
-
-  defp maybe_put_seat_line_item(form, _price_id, _quantity), do: form
 
   defp maybe_put_coupon(form, nil), do: Map.put(form, "allow_promotion_codes", "true")
   defp maybe_put_coupon(form, coupon_id), do: Map.put(form, "discounts[0][coupon]", coupon_id)
@@ -1009,7 +942,7 @@ defmodule MinhaCasaAi.Billing do
         |> stripe_fields_from_subscription()
         |> Map.put(:status, map_stripe_status(stripe_sub["status"]))
         |> put_if_present(:expires_at, period_end)
-        |> Map.merge(stripe_item_fields(stripe_sub, plan, subscription, now))
+        |> Map.merge(stripe_item_fields(stripe_sub, plan))
         |> Map.put(:updated_at, now)
 
       from(s in Subscription, where: s.id == ^subscription.id)
@@ -1080,22 +1013,8 @@ defmodule MinhaCasaAi.Billing do
         %Subscription{} = subscription ->
           now = DateTime.utc_now(:second)
 
-          pending_fields =
-            if subscription.pending_licensed_seats && subscription.pending_seats_effective_at &&
-                 DateTime.compare(subscription.pending_seats_effective_at, now) != :gt do
-              [
-                licensed_seats: subscription.pending_licensed_seats,
-                pending_licensed_seats: nil,
-                pending_seats_effective_at: nil
-              ]
-            else
-              []
-            end
-
           from(s in Subscription, where: s.id == ^subscription.id)
-          |> Repo.update_all(
-            set: [status: "active", stripe_status: "active", updated_at: now] ++ pending_fields
-          )
+          |> Repo.update_all(set: [status: "active", stripe_status: "active", updated_at: now])
 
           activate_workspace!(subscription.target_workspace_id, subscription.stripe_customer_id)
 
@@ -1153,34 +1072,17 @@ defmodule MinhaCasaAi.Billing do
     |> put_if_present(:current_period_end, subscription_period_end(stripe_sub))
   end
 
-  defp stripe_item_fields(stripe_sub, %Plan{} = plan, existing \\ nil, _now \\ nil) do
+  defp stripe_item_fields(stripe_sub, %Plan{} = plan) do
     items = get_in(stripe_sub, ["items", "data"]) || []
     base = Enum.find(items, &(stripe_item_price_id(&1) == plan.stripe_price_id))
 
-    seat =
-      Enum.find(items, &(stripe_item_price_id(&1) == plan.stripe_additional_seat_price_id))
-
-    included = plan.included_seats
-    stripe_licensed = if included, do: included + stripe_item_quantity(seat), else: nil
-
-    licensed_seats =
-      case existing do
-        %Subscription{licensed_seats: licensed} when is_integer(licensed) -> licensed
-        _ -> stripe_licensed
-      end
-
     %{}
     |> put_if_present(:stripe_base_item_id, base && base["id"])
-    |> put_if_present(:stripe_seat_item_id, seat && seat["id"])
-    |> put_if_present(:licensed_seats, licensed_seats)
   end
 
   defp stripe_item_price_id(%{"price" => %{"id" => id}}), do: id
   defp stripe_item_price_id(%{"price" => id}) when is_binary(id), do: id
   defp stripe_item_price_id(_), do: nil
-
-  defp stripe_item_quantity(%{"quantity" => value}) when is_integer(value), do: value
-  defp stripe_item_quantity(_), do: 0
 
   defp invoice_subscription_id(invoice) do
     string_or_nil(invoice["subscription"]) ||

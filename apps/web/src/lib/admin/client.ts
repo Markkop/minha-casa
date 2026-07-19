@@ -8,9 +8,6 @@ export interface AdminPlan {
   priceInCents: number;
   isActive: boolean;
   stripePriceId: string | null;
-  includedSeats?: number | null;
-  additionalSeatPriceInCents?: number | null;
-  stripeAdditionalSeatPriceId?: string | null;
   limits: Record<string, unknown>;
   createdAt: string;
   updatedAt: string;
@@ -78,7 +75,7 @@ export interface AdminStats {
   totalFamilies?: number;
   totalProfessionalWorkspaces?: number;
   totalAgencies?: number;
-  totalSeats?: number;
+  totalLicenses?: number;
   frozenWorkspaces?: number;
   billingFailures?: number;
   auditEvents?: AdminAuditEvent[];
@@ -106,9 +103,8 @@ export interface AdminOrganization {
   frozen?: boolean;
   membersCount?: number;
   pendingInvitesCount?: number;
-  seatsUsed?: number;
-  seatsIncluded?: number;
-  licensedSeats?: number | null;
+  licensesUsed?: number;
+  licenseLimit?: number;
   owner?: AdminUserSummary | null;
 }
 
@@ -158,7 +154,12 @@ export const adminApi = {
     api.patch<{ subscription: AdminSubscription; plan: AdminPlan }>(`/admin/subscriptions/${id}`, input),
 
   fetchOrganizations: () =>
-    api.get<{ organizations: AdminOrganization[] }>("/admin/organizations")
+    api.get<{ organizations: AdminOrganization[] }>("/admin/organizations"),
+  updateOrganizationLicenseLimit: (organizationId: string, licenseLimit: number) =>
+    api.patch<{ organization: AdminOrganization }>(
+      `/admin/organizations/${organizationId}/license-limit`,
+      { licenseLimit }
+    )
 };
 
 export interface AdminFeatureFlags {

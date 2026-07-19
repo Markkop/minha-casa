@@ -43,8 +43,7 @@ defmodule MinhaCasaAi.Entitlements do
       "listingsLimit" => 5_000,
       "aiParsesPerCycle" => 500,
       "canShareReadOnly" => true,
-      "canShareEditable" => true,
-      "includedSeats" => 10
+      "canShareEditable" => true
     }
   }
 
