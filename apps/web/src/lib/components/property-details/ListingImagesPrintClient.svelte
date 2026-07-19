@@ -11,6 +11,7 @@
   } from "$lib/components/property-details/listing-images-print-storage";
   import { getImageEnvironmentLabel, resolveListingGalleryImages } from "$lib/listing-gallery";
   import { downloadSelectedImagesZip } from "$lib/listing-images-download";
+  import { formatApiError } from "$lib/api/error-message";
   import { buildPropertyHref } from "$lib/property-details-url";
   import { workspaceApi } from "$lib/workspace/client";
   import { cn } from "$lib/utils";
@@ -72,9 +73,9 @@
         if (cancelled) return;
         listing = toProperty(result.listing);
       })
-      .catch(() => {
+      .catch((err) => {
         if (cancelled) return;
-        loadError = "Não foi possível carregar as imagens.";
+        loadError = formatApiError(err, { action: "carregar imagens" });
       })
       .finally(() => {
         if (!cancelled) isLoading = false;
@@ -140,8 +141,7 @@
         getLabel: (originalIndex) => getImageEnvironmentLabel(listing!, originalIndex)
       });
     } catch (error) {
-      downloadError =
-        error instanceof Error ? error.message : "Não foi possível gerar o arquivo para download.";
+      downloadError = formatApiError(error, { action: "gerar arquivo para download" });
     } finally {
       isDownloading = false;
     }

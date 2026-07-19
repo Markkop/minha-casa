@@ -4,6 +4,7 @@
   import PageToolbarButton from "$lib/components/page-toolbar/PageToolbarButton.svelte";
   import ToolbarAnchoredPopover from "$lib/components/listings/ToolbarAnchoredPopover.svelte";
   import Input from "$lib/components/ui/Input.svelte";
+  import { formatApiError } from "$lib/api/error-message";
   import { setActiveOrganizationId } from "$lib/api/client";
   import { getCollectionsContext } from "$lib/collections-context.svelte";
   import {
@@ -86,7 +87,7 @@
       importedOrganizationId = selectedDestination?.organizationId ?? null;
       status = "success";
     } catch (err) {
-      error = err instanceof Error ? err.message : "Não foi possível importar o cenário.";
+      error = formatApiError(err, { action: "importar cenário" });
       status = "error";
     }
   }

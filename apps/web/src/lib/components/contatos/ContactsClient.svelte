@@ -14,6 +14,7 @@
   import WorkspaceTableEmpty from "$lib/components/workspace/table/WorkspaceTableEmpty.svelte";
   import WorkspaceTableIconButton from "$lib/components/workspace/table/WorkspaceTableIconButton.svelte";
   import WorkspaceTableInput from "$lib/components/workspace/table/WorkspaceTableInput.svelte";
+  import { formatApiError } from "$lib/api/error-message";
   import { getActiveOrganizationId } from "$lib/api/client";
   import { workspaceApi, type Contact } from "$lib/workspace/client";
   import { useInlineRowEdit } from "$lib/workspace/use-inline-row-edit.svelte";
@@ -81,7 +82,7 @@
         : await workspaceApi.fetchContacts();
       contacts = data.contacts;
     } catch (err) {
-      error = err instanceof Error ? err.message : "Erro ao carregar contatos";
+      error = formatApiError(err, { action: "carregar contatos" });
     } finally {
       loading = false;
       syncing = false;
@@ -104,7 +105,7 @@
         row.id === editingId ? { ...contact, listings: row.listings } : row
       );
     } catch (err) {
-      error = err instanceof Error ? err.message : "Erro ao salvar contato";
+      error = formatApiError(err, { action: "salvar contato" });
     } finally {
       saving = false;
     }
@@ -118,7 +119,7 @@
       addDraft = { ...emptyAdd };
       contacts = [{ ...contact, listings: [] }, ...contacts];
     } catch (err) {
-      error = err instanceof Error ? err.message : "Erro ao salvar contato";
+      error = formatApiError(err, { action: "salvar contato" });
     } finally {
       saving = false;
     }

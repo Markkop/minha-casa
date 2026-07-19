@@ -18,8 +18,15 @@
   import { buildGoogleMarkerContent } from "$lib/listings/map-google-markers";
   import { getCollectionsContext } from "$lib/collections-context.svelte";
   import MapMarkerInfoContent from "$lib/components/listings/MapMarkerInfoContent.svelte";
+  import Button from "$lib/components/ui/Button.svelte";
+  import { MAP_GOOGLE_UNAVAILABLE_MESSAGE } from "$lib/map-copy";
 
-  let props: MapViewProps = $props();
+  let {
+    onUseOtherMap,
+    ...props
+  }: MapViewProps & {
+    onUseOtherMap?: () => void;
+  } = $props();
 
   const ctx = getCollectionsContext();
   const apiKey = $derived(getGoogleMapsApiKey());
@@ -36,18 +43,9 @@
     `${props.mapViewport.lat}-${props.mapViewport.lng}-${props.mapViewport.zoom}-${props.mapViewport.source}`
   );
 
-  function parseGoogleMapsErrorMessage(message: string): string {
-    const lower = message.toLowerCase();
-    if (lower.includes("invalidkeymaperror")) {
-      return "Chave da API do Google Maps inválida. Configure PUBLIC_GOOGLE_MAPS_API_KEY no .env ou use o mapa OSM.";
-    }
-    if (lower.includes("referernotallowedmaperror")) {
-      return "RefererNotAllowedMapError: O domínio não está autorizado para usar esta chave da API do Google Maps. Verifique as restrições de referrer na Google Cloud Console.";
-    }
-    if (lower.includes("getrootnode") || lower.includes("cannot read properties")) {
-      return "Erro ao inicializar Google Maps. Verifique se a API está configurada corretamente.";
-    }
-    return `Erro ao carregar Google Maps: ${message || "Erro desconhecido"}`;
+  function markUnavailable() {
+    markGoogleMapsUnavailable();
+    error = MAP_GOOGLE_UNAVAILABLE_MESSAGE;
   }
 
   $effect(() => {
@@ -64,8 +62,7 @@
         errorMessage.includes("cannot read properties") ||
         (errorMessage.includes("undefined") && errorMessage.includes("read"))
       ) {
-        markGoogleMapsUnavailable();
-        error = parseGoogleMapsErrorMessage(event.message || "");
+        markUnavailable();
         event.preventDefault();
       }
     };
@@ -73,8 +70,7 @@
     const handleRejection = (event: PromiseRejectionEvent) => {
       const reason = String(event.reason ?? "");
       if (isGoogleMapsErrorMessage(reason)) {
-        markGoogleMapsUnavailable();
-        error = parseGoogleMapsErrorMessage(reason);
+        markUnavailable();
         event.preventDefault();
       }
     };
@@ -86,9 +82,7 @@
       const scripts = Array.from(document.querySelectorAll("script"));
       const hasGoogleMapsScript = scripts.some((script) => script.src.includes("maps.googleapis.com"));
       if (hasGoogleMapsScript && !(window as { google?: unknown }).google) {
-        markGoogleMapsUnavailable();
-        error =
-          "Google Maps API não está disponível. Verifique as configurações da API e as restrições de referrer.";
+        markUnavailable();
       }
     }, 3000);
 
@@ -109,10 +103,7 @@
       try {
         await ensureGoogleMapsLoaded();
       } catch {
-        if (!disposed) {
-          markGoogleMapsUnavailable();
-          error = "Erro ao carregar Google Maps.";
-        }
+        if (!disposed) markUnavailable();
         return;
       }
 
@@ -233,17 +224,10 @@
   }
 </script>
 
-{#if !apiKey}
-  <div class="flex h-[400px] flex-col items-center justify-center bg-app-surface-muted p-4 text-center">
-    <p class="text-app-muted mb-2">Google Maps API key não configurada.</p>
-    <p class="text-xs text-muted-foreground">
-      Configure PUBLIC_GOOGLE_MAPS_API_KEY no arquivo .env
-    </p>
-  </div>
-{:else if error}
+{#snippet mapUnavailable(message: string)}
   <div class="flex h-[400px] flex-col items-center justify-center bg-app-surface-muted p-4 text-center">
     <div class="mb-4">
-      <svg class="w-12 h-12 mx-auto text-yellow-500 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+      <svg class="mx-auto mb-2 h-12 w-12 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
         <path
           stroke-linecap="round"
           stroke-linejoin="round"
@@ -252,29 +236,23 @@
         />
       </svg>
     </div>
-    <p class="text-app-muted mb-2 font-semibold">Erro ao carregar Google Maps</p>
-    <p class="text-xs text-muted-foreground mb-4 max-w-md">{error}</p>
-    {#if error.includes("RefererNotAllowedMapError")}
-      <div class="text-xs text-muted-foreground bg-brightGrey/20 p-3 rounded mb-4 max-w-md text-left">
-        <p class="font-semibold mb-1">Como resolver:</p>
-        <ol class="list-decimal list-inside space-y-1">
-          <li>Acesse Google Cloud Console</li>
-          <li>Vá em "APIs e serviços" → "Credenciais"</li>
-          <li>Edite sua chave da API</li>
-          <li>Em "Restrições de aplicativo", adicione seu domínio</li>
-          <li>Ou remova as restrições temporariamente para testes</li>
-        </ol>
-      </div>
+    <p class="mb-4 max-w-md text-sm text-app-muted">{message}</p>
+    {#if onUseOtherMap}
+      <Button type="button" variant="secondary" onclick={onUseOtherMap}>Usar outro mapa</Button>
     {/if}
-    <p class="text-xs text-muted-foreground">
-      Use o botão acima para alternar para OpenStreetMap (OSM) como alternativa.
-    </p>
+    <p class="mt-4 text-[10px] text-muted-foreground">Mapa fornecido pelo Google</p>
   </div>
+{/snippet}
+
+{#if !apiKey}
+  {@render mapUnavailable(MAP_GOOGLE_UNAVAILABLE_MESSAGE)}
+{:else if error}
+  {@render mapUnavailable(error)}
 {:else}
   <div {@attach mapHostAttachment} class="h-[400px]">
     {#if !ready}
       <div class="flex h-full items-center justify-center bg-app-surface-muted">
-        <p class="text-app-muted">Carregando Google Maps...</p>
+        <p class="text-app-muted">Carregando mapa...</p>
       </div>
     {/if}
   </div>

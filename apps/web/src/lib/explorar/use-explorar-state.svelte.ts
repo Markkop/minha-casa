@@ -1,3 +1,4 @@
+import { formatApiError } from "$lib/api/error-message";
 import { getApiToken } from "$lib/stores/auth";
 import {
   PORTALS,
@@ -222,7 +223,7 @@ export function createExplorarState() {
     try {
       searches = (await workspaceApi.fetchPortalSearches()).searches;
     } catch (err) {
-      error = err instanceof Error ? err.message : "Erro ao carregar buscas";
+      error = formatApiError(err, { action: "carregar buscas" });
     } finally {
       loading = false;
     }
@@ -247,7 +248,7 @@ export function createExplorarState() {
         cost = null;
       }
     } catch (err) {
-      error = err instanceof Error ? err.message : "Erro ao abrir busca";
+      error = formatApiError(err, { action: "abrir busca" });
     }
   }
 
@@ -273,7 +274,7 @@ export function createExplorarState() {
       startPolling(saved.id, started.id);
       void startStream(saved.id, started.id);
     } catch (err) {
-      error = err instanceof Error ? err.message : "Erro ao iniciar busca";
+      error = formatApiError(err, { action: "iniciar busca" });
       running = false;
     }
   }

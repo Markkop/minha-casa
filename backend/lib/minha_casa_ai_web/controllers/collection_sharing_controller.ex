@@ -5,6 +5,7 @@ defmodule MinhaCasaAiWeb.CollectionSharingController do
   alias MinhaCasaAi.Listings.CollectionSharing
   alias MinhaCasaAi.Repo
   alias MinhaCasaAi.Config
+  alias MinhaCasaAiWeb.PublicError
 
   def invite_preview(conn, %{"token" => token}) do
     case CollectionSharing.invite_preview(token) do
@@ -47,15 +48,13 @@ defmodule MinhaCasaAiWeb.CollectionSharingController do
         })
 
       {:error, :sharing_not_allowed} ->
-        conn
-        |> put_status(:forbidden)
-        |> json(%{error: "Editable sharing is not available for this plan"})
+        PublicError.json_error(conn, :forbidden, :sharing_not_allowed)
 
       {:error, :forbidden} ->
         not_found(conn)
 
       {:error, changeset} ->
-        changeset_error(conn, changeset)
+        PublicError.json_error(conn, :bad_request, changeset)
     end
   end
 
@@ -67,12 +66,10 @@ defmodule MinhaCasaAiWeb.CollectionSharingController do
         json(conn, %{success: true, grantId: grant.id, collectionId: grant.collection_id})
 
       {:error, :email_mismatch} ->
-        conn
-        |> put_status(:forbidden)
-        |> json(%{error: "This invitation was sent to another email"})
+        PublicError.json_error(conn, :forbidden, :email_mismatch)
 
       {:error, reason} when reason in [:expired, :unavailable] ->
-        conn |> put_status(:gone) |> json(%{error: "Invitation is no longer available"})
+        PublicError.json_error(conn, :gone, "Invitation is no longer available")
 
       {:error, _} ->
         not_found(conn)
@@ -90,12 +87,5 @@ defmodule MinhaCasaAiWeb.CollectionSharingController do
     String.trim_trailing(Config.app_public_url() || "", "/") <> "/share/#{token}"
   end
 
-  defp not_found(conn), do: conn |> put_status(:not_found) |> json(%{error: "Share not found"})
-
-  defp changeset_error(conn, %Ecto.Changeset{} = changeset) do
-    conn |> put_status(:bad_request) |> json(%{error: inspect(changeset.errors)})
-  end
-
-  defp changeset_error(conn, _),
-    do: conn |> put_status(:bad_request) |> json(%{error: "Invalid share"})
+  defp not_found(conn), do: PublicError.json_error(conn, :not_found, :share)
 end

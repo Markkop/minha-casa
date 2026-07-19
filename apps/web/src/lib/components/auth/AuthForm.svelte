@@ -1,6 +1,7 @@
 <script lang="ts">
   import { afterNavigate } from "$app/navigation";
   import { page } from "$app/state";
+  import { formatApiError } from "$lib/api/error-message";
   import { resolveAuthMode, type AuthMode } from "$lib/auth/auth-mode";
   import { signIn, signInWithGoogle, signUp } from "$lib/auth-client";
   import GoogleIcon from "$lib/components/GoogleIcon.svelte";
@@ -78,18 +79,18 @@
       if (!isCurrentOperation(version, submittedMode)) return;
 
       if (result.error) {
-        error = result.error.message || (submittedMode === "signup"
-          ? "Não foi possível criar sua conta."
-          : "Erro ao fazer login. Verifique suas credenciais.");
+        error = formatApiError(result.error.message, {
+          action: submittedMode === "signup" ? "criar conta" : "entrar"
+        });
         return;
       }
 
       window.location.assign(redirectPath);
-    } catch {
+    } catch (err) {
       if (!isCurrentOperation(version, submittedMode)) return;
-      error = submittedMode === "signup"
-        ? "Erro ao criar conta. Tente novamente."
-        : "Erro ao fazer login. Tente novamente.";
+      error = formatApiError(err, {
+        action: submittedMode === "signup" ? "criar conta" : "entrar"
+      });
     } finally {
       if (isCurrentOperation(version, submittedMode)) loading = false;
     }
@@ -106,15 +107,15 @@
 
       if (!isCurrentOperation(version, submittedMode) || !result.error) return;
 
-      error = result.error.message || (submittedMode === "signup"
-        ? "Erro ao continuar com Google."
-        : "Erro ao entrar com Google.");
+      error = formatApiError(result.error.message, {
+        action: submittedMode === "signup" ? "continuar com Google" : "entrar com Google"
+      });
       googleLoading = false;
-    } catch {
+    } catch (err) {
       if (!isCurrentOperation(version, submittedMode)) return;
-      error = submittedMode === "signup"
-        ? "Erro ao continuar com Google."
-        : "Erro ao entrar com Google.";
+      error = formatApiError(err, {
+        action: submittedMode === "signup" ? "continuar com Google" : "entrar com Google"
+      });
       googleLoading = false;
     }
   }

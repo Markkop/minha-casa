@@ -94,7 +94,7 @@
           <input
             id="address-override"
             bind:value={addressOverride}
-            placeholder="Rua, número, neighborhood, city"
+            placeholder="Rua, número, bairro, cidade"
             class="mt-1 h-8 w-full rounded-md border border-app-border bg-white px-3 text-sm"
             disabled={skipAddress}
           />
@@ -122,7 +122,9 @@
     <p class="mt-3 text-sm text-destructive" role="alert">{error}</p>
   {/if}
 
-  {#if analysis?.status === "failed" && analysis.error}
-    <p class="mt-3 text-sm text-destructive">{analysis.error}</p>
+  {#if analysis?.status === "failed"}
+    <p class="mt-3 text-sm text-destructive" role="alert">
+      Não foi possível concluir a análise. Tente executar novamente.
+    </p>
   {/if}
 </WorkspacePanel>

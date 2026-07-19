@@ -173,7 +173,7 @@
         {#if contextStatus === "loading"}
           <span class="text-[10px] text-slate-400">Carregando mapa real…</span>
         {:else if contextStatus === "unavailable"}
-          <button type="button" class="inline-flex items-center gap-1 rounded-full border border-amber-300/20 bg-amber-300/10 px-2.5 py-1 text-[10px] text-amber-200" onclick={() => (contextRetryKey += 1)}><Info class="size-3" /> Mapa OSM indisponível · tentar novamente</button>
+          <button type="button" class="inline-flex items-center gap-1 rounded-full border border-amber-300/20 bg-amber-300/10 px-2.5 py-1 text-[10px] text-amber-200" onclick={() => (contextRetryKey += 1)}><Info class="size-3" /> Mapa indisponível no momento · tentar novamente</button>
         {:else if geography?.requiresLocalFocus}
           <span class="text-[10px] text-sky-200">Área focal real · {visibleListings.length} imóveis</span>
         {:else}

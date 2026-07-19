@@ -138,7 +138,7 @@
       onListingUpdated?.();
       onClose();
     } catch (err) {
-      error = err instanceof Error ? err.message : "Erro ao salvar alterações";
+      error = formatApiError(err, { action: "salvar alterações" });
     }
   }
 

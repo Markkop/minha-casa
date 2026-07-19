@@ -22,6 +22,7 @@
   import TabsList from "$lib/components/ui/TabsList.svelte";
   import TabsTrigger from "$lib/components/ui/TabsTrigger.svelte";
   import { getCollectionsContext } from "$lib/collections-context.svelte";
+  import { MAP_UNAVAILABLE_MESSAGE } from "$lib/map-copy";
   import {
     PROPERTY_DETAILS_TABS,
     DEFAULT_PROPERTY_DETAILS_TAB,
@@ -122,7 +123,7 @@
                 <p
                   class="flex aspect-square min-h-[220px] items-center justify-center p-4 text-sm text-app-muted"
                 >
-                  Mapa indisponível. Informe endereço ou coordenadas no imóvel.
+                  {MAP_UNAVAILABLE_MESSAGE}
                 </p>
               {/snippet}
             </ListingLocationMiniMap>

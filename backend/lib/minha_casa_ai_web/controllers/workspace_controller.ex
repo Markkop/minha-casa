@@ -2,7 +2,7 @@ defmodule MinhaCasaAiWeb.WorkspaceController do
   use MinhaCasaAiWeb, :controller
 
   alias MinhaCasaAi.Workspace.{DecisionData, ListingFeatures, Profile}
-  alias MinhaCasaAiWeb.WorkspaceJSON
+  alias MinhaCasaAiWeb.{PublicError, WorkspaceJSON}
 
   def contacts_index(conn, _params) do
     with {:ok, profile} <- profile(conn) do
@@ -26,7 +26,7 @@ defmodule MinhaCasaAiWeb.WorkspaceController do
     with {:ok, profile} <- profile(conn) do
       case DecisionData.update_contact(id, profile, params) do
         {:ok, contact} -> json(conn, %{contact: WorkspaceJSON.contact(contact)})
-        {:error, :not_found} -> not_found(conn, "Contact")
+        {:error, :not_found} -> not_found(conn, "Contato não encontrado.")
         {:error, changeset} -> changeset_error(conn, changeset)
       end
     end
@@ -36,7 +36,7 @@ defmodule MinhaCasaAiWeb.WorkspaceController do
     with {:ok, profile} <- profile(conn) do
       case DecisionData.delete_contact(id, profile) do
         {:ok, _} -> json(conn, %{success: true})
-        {:error, :not_found} -> not_found(conn, "Contact")
+        {:error, :not_found} -> not_found(conn, "Contato não encontrado.")
       end
     end
   end
@@ -63,7 +63,7 @@ defmodule MinhaCasaAiWeb.WorkspaceController do
     with {:ok, profile} <- profile(conn) do
       case DecisionData.update_region(id, profile, params) do
         {:ok, region} -> json(conn, %{region: WorkspaceJSON.region(region)})
-        {:error, :not_found} -> not_found(conn, "Region")
+        {:error, :not_found} -> not_found(conn, "Região não encontrada.")
         {:error, changeset} -> changeset_error(conn, changeset)
       end
     end
@@ -73,7 +73,7 @@ defmodule MinhaCasaAiWeb.WorkspaceController do
     with {:ok, profile} <- profile(conn) do
       case DecisionData.delete_region(id, profile) do
         {:ok, _} -> json(conn, %{success: true})
-        {:error, :not_found} -> not_found(conn, "Region")
+        {:error, :not_found} -> not_found(conn, "Região não encontrada.")
       end
     end
   end
@@ -104,7 +104,7 @@ defmodule MinhaCasaAiWeb.WorkspaceController do
     with {:ok, profile} <- profile(conn) do
       case DecisionData.update_condominium(id, profile, params) do
         {:ok, condominium} -> json(conn, %{condominium: WorkspaceJSON.condominium(condominium)})
-        {:error, :not_found} -> not_found(conn, "Condominium")
+        {:error, :not_found} -> not_found(conn, "Condomínio não encontrado.")
         {:error, changeset} -> changeset_error(conn, changeset)
       end
     end
@@ -114,7 +114,7 @@ defmodule MinhaCasaAiWeb.WorkspaceController do
     with {:ok, profile} <- profile(conn) do
       case DecisionData.delete_condominium(id, profile) do
         {:ok, _} -> json(conn, %{success: true})
-        {:error, :not_found} -> not_found(conn, "Condominium")
+        {:error, :not_found} -> not_found(conn, "Condomínio não encontrado.")
       end
     end
   end
@@ -136,10 +136,10 @@ defmodule MinhaCasaAiWeb.WorkspaceController do
           json(conn, %{features: WorkspaceJSON.listing_features(catalog)})
 
         {:error, :duplicate_keys} ->
-          conn |> put_status(:bad_request) |> json(%{error: "Duplicate feature keys"})
+          PublicError.json_error(conn, :bad_request, "Há características duplicadas.")
 
         {:error, reason} ->
-          conn |> put_status(:bad_request) |> json(%{error: inspect(reason)})
+          PublicError.json_error(conn, :bad_request, reason)
       end
     end
   end
@@ -159,10 +159,10 @@ defmodule MinhaCasaAiWeb.WorkspaceController do
           json(conn, %{note: WorkspaceJSON.comparison_note(note)})
 
         {:error, :listing_required} ->
-          conn |> put_status(:bad_request) |> json(%{error: "Listing ID is required"})
+          PublicError.json_error(conn, :bad_request, "Informe o imóvel.")
 
         {:error, :not_found} ->
-          not_found(conn, "Listing")
+          PublicError.json_error(conn, :not_found, :listing_not_found)
 
         {:error, changeset} ->
           changeset_error(conn, changeset)
@@ -173,7 +173,7 @@ defmodule MinhaCasaAiWeb.WorkspaceController do
   defp profile(conn) do
     case profile_with_access(conn) do
       {:error, :missing_profile} ->
-        conn |> put_status(:unauthorized) |> json(%{error: "Unauthorized"}) |> halt()
+        PublicError.json_error(conn, :unauthorized, :unauthorized) |> halt()
         {:error, :halted}
 
       profile ->
@@ -199,19 +199,8 @@ defmodule MinhaCasaAiWeb.WorkspaceController do
   end
 
   defp changeset_error(conn, %Ecto.Changeset{} = changeset) do
-    conn |> put_status(:bad_request) |> json(%{error: first_changeset_error(changeset)})
+    PublicError.json_error(conn, :bad_request, changeset)
   end
 
-  defp not_found(conn, name), do: conn |> put_status(:not_found) |> json(%{error: name})
-
-  defp first_changeset_error(%Ecto.Changeset{} = changeset) do
-    changeset
-    |> Ecto.Changeset.traverse_errors(fn {msg, _} -> msg end)
-    |> Enum.map(fn {field, msgs} -> "#{field} #{Enum.join(msgs, ", ")}" end)
-    |> List.first()
-    |> case do
-      nil -> "Invalid data"
-      msg -> msg
-    end
-  end
+  defp not_found(conn, message), do: PublicError.json_error(conn, :not_found, message)
 end

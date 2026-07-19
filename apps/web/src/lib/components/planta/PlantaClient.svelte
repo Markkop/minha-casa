@@ -28,6 +28,7 @@
   import Input from "$lib/components/ui/Input.svelte";
   import Slider from "$lib/components/ui/Slider.svelte";
   import WorkspacePage from "$lib/components/workspace/WorkspacePage.svelte";
+  import { formatApiError } from "$lib/api/error-message";
   import { cn } from "$lib/utils";
   import { resizePlantaFile } from "$lib/components/planta/planta-image";
   import {
@@ -199,7 +200,7 @@
       fitBlueprint();
       tool = "select";
     } catch (error) {
-      uploadError = error instanceof Error ? error.message : "Nao foi possivel usar essa imagem.";
+      uploadError = formatApiError(error, { action: "usar essa imagem" });
     } finally {
       input.value = "";
     }

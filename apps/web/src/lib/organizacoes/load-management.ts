@@ -30,8 +30,7 @@ export async function loadOrganizationManagement(
     return {
       organizations: [] as Organization[],
       activeOrganizationId,
-      organizationsError:
-        err instanceof Error ? err.message : "Não foi possível carregar os membros"
+      organizationsError: formatApiError(err, { action: "carregar imobiliárias" })
     };
   }
 }

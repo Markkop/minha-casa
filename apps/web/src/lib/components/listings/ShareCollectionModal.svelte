@@ -4,6 +4,7 @@
   import ModalCloseButton from "$lib/components/listings/ModalCloseButton.svelte";
   import ModalHeaderTitle from "$lib/components/listings/ModalHeaderTitle.svelte";
   import type { Collection } from "$lib/listings/types";
+  import { formatApiError } from "$lib/api/error-message";
   import { getCollectionsContext } from "$lib/collections-context.svelte";
   import { cn } from "$lib/utils";
 
@@ -45,7 +46,7 @@
     try {
       shareUrl = await ctx.shareCollection(collection.id);
     } catch (err) {
-      error = err instanceof Error ? err.message : "Erro ao compartilhar coleção";
+      error = formatApiError(err, { action: "compartilhar coleção" });
     } finally {
       isLoading = false;
     }
@@ -60,7 +61,7 @@
       shareUrl = null;
       showRevokeConfirm = false;
     } catch (err) {
-      error = err instanceof Error ? err.message : "Erro ao revogar compartilhamento";
+      error = formatApiError(err, { action: "revogar compartilhamento" });
     } finally {
       isLoading = false;
     }

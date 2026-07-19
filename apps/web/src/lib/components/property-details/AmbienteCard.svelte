@@ -3,7 +3,7 @@
   import WorkspacePanel from "$lib/components/workspace/WorkspacePanel.svelte";
   import Button from "$lib/components/ui/Button.svelte";
   import RoomCardPhoto from "$lib/components/property-details/RoomCardPhoto.svelte";
-  import { formatBrl, truncateError } from "$lib/components/analysis/format-brl";
+  import { formatBrl } from "$lib/components/analysis/format-brl";
   import { themeForCategoria } from "$lib/components/property-details/room-scene-theme";
   import { buildAmbienteRotulo } from "$lib/property-analysis/ambiente-categories";
   import type { AmbienteCard as AmbienteCardType, InventoryItem } from "$lib/property-analysis/types";
@@ -38,7 +38,7 @@
             variant="ghost"
             size="icon"
             class="size-7 text-app-muted hover:text-app-fg"
-            ariaLabel="Reexecutar x-ray deste ambiente"
+            ariaLabel="Reexecutar análise deste ambiente"
             onclick={onRefreshXray}
           >
             <RefreshCw class="size-3.5" />
@@ -47,14 +47,14 @@
         {#if xrayStatus === "pending"}
           <span class="inline-flex items-center gap-1 text-[10px] text-app-muted">
             <Loader2 class="size-3 animate-spin" />
-            X-ray…
+            Analisando…
           </span>
         {:else if xrayStatus === "done"}
           <span class="text-[10px] font-medium text-emerald-700 dark:text-emerald-400">
-            X-ray pronto
+            Análise pronta
           </span>
         {:else if xrayStatus === "failed"}
-          <span class="text-[10px] font-medium text-destructive">X-ray falhou</span>
+          <span class="text-[10px] font-medium text-destructive">Análise falhou</span>
         {/if}
       </div>
     </div>
@@ -100,11 +100,9 @@
         </ul>
       {:else if xrayStatus === "failed"}
         <div class="mt-2 space-y-2">
-          {#if card.xrayError}
-            <p class="text-xs text-destructive" title={card.xrayError}>
-              {truncateError(card.xrayError, 200)}
-            </p>
-          {/if}
+          <p class="text-xs text-destructive">
+            Não foi possível analisar este ambiente. Tente novamente.
+          </p>
         </div>
       {:else if xrayStatus === "done" && pontos.length > 0}
         <ul class="mt-2 space-y-3">

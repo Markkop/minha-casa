@@ -2,7 +2,7 @@ defmodule MinhaCasaAiWeb.SubscriptionController do
   use MinhaCasaAiWeb, :controller
 
   alias MinhaCasaAi.Billing
-  alias MinhaCasaAiWeb.BillingJSON
+  alias MinhaCasaAiWeb.{BillingJSON, PublicError}
 
   def show_current(conn, _params) do
     case Billing.current_subscription(conn.assigns.current_user_id) do
@@ -30,36 +30,37 @@ defmodule MinhaCasaAiWeb.SubscriptionController do
         json(conn, %{checkoutUrl: session.checkout_url, sessionId: session.session_id})
 
       {:error, :stripe_not_configured} ->
-        conn
-        |> put_status(:service_unavailable)
-        |> json(%{error: "Payment system is not configured"})
+        PublicError.json_error(conn, :service_unavailable, :stripe_not_configured)
 
       {:error, :invalid} ->
-        conn |> put_status(:bad_request) |> json(%{error: "planId is required"})
+        PublicError.json_error(conn, :bad_request, "planId is required")
 
       {:error, :not_found} ->
-        conn |> put_status(:not_found) |> json(%{error: "Plan not found"})
+        PublicError.json_error(conn, :not_found, :not_found, context: :link)
 
       {:error, :inactive_plan} ->
-        conn |> put_status(:bad_request) |> json(%{error: "Plan is not available"})
+        PublicError.json_error(conn, :bad_request, :inactive_plan)
 
       {:error, :missing_stripe_price} ->
-        conn
-        |> put_status(:bad_request)
-        |> json(%{error: "Plan is not configured for online payment. Please contact support."})
+        PublicError.json_error(
+          conn,
+          :bad_request,
+          "Este plano ainda não está disponível para pagamento online. Entre em contato com o suporte."
+        )
 
       {:error, :already_subscribed} ->
-        conn
-        |> put_status(:conflict)
-        |> json(%{error: "This agency already has an active subscription."})
+        PublicError.json_error(conn, :conflict, :already_subscribed)
 
       {:error, :target_workspace_required} ->
-        conn
-        |> put_status(:bad_request)
-        |> json(%{error: "An agency owned by the billing user is required."})
+        PublicError.json_error(conn, :bad_request, :target_workspace_required)
 
-      {:error, {:stripe, message}} ->
-        conn |> put_status(:bad_gateway) |> json(%{error: message})
+      {:error, {:stripe, _message}} ->
+        PublicError.json_error(
+          conn,
+          :bad_gateway,
+          "Não foi possível iniciar o pagamento. Tente novamente em instantes.",
+          default: "Não foi possível iniciar o pagamento. Tente novamente em instantes."
+        )
     end
   end
 
@@ -69,20 +70,25 @@ defmodule MinhaCasaAiWeb.SubscriptionController do
         json(conn, %{url: portal.url})
 
       {:error, :stripe_not_configured} ->
-        conn
-        |> put_status(:service_unavailable)
-        |> json(%{error: "Payment system is not configured"})
+        PublicError.json_error(conn, :service_unavailable, :stripe_not_configured)
 
       {:error, :missing_customer} ->
-        conn
-        |> put_status(:bad_request)
-        |> json(%{error: "No Stripe customer on file. Subscribe once through checkout first."})
+        PublicError.json_error(
+          conn,
+          :bad_request,
+          "Conclua uma assinatura antes de acessar o portal de cobrança."
+        )
 
       {:error, :not_found} ->
-        conn |> put_status(:not_found) |> json(%{error: "User not found"})
+        PublicError.json_error(conn, :not_found, :not_found, context: :link)
 
-      {:error, {:stripe, message}} ->
-        conn |> put_status(:bad_gateway) |> json(%{error: message})
+      {:error, {:stripe, _message}} ->
+        PublicError.json_error(
+          conn,
+          :bad_gateway,
+          "Não foi possível abrir o portal de cobrança. Tente novamente em instantes.",
+          default: "Não foi possível abrir o portal de cobrança. Tente novamente em instantes."
+        )
     end
   end
 
@@ -94,46 +100,37 @@ defmodule MinhaCasaAiWeb.SubscriptionController do
       |> json(%{subscription: BillingJSON.subscription(subscription)})
     else
       false ->
-        conn |> put_status(:forbidden) |> json(%{error: "Only admins can create subscriptions"})
+        PublicError.json_error(conn, :forbidden, "Somente administradores podem criar assinaturas.")
 
       {:error, :invalid} ->
-        conn
-        |> put_status(:bad_request)
-        |> json(%{error: "userId, planId, and expiresAt are required"})
+        PublicError.json_error(
+          conn,
+          :bad_request,
+          "Informe usuário, plano e data de expiração."
+        )
 
       {:error, :invalid_date} ->
-        conn |> put_status(:bad_request) |> json(%{error: "expiresAt must be a valid ISO date"})
+        PublicError.json_error(conn, :bad_request, "A data de expiração deve ser válida.")
 
       {:error, :inactive_plan} ->
-        conn
-        |> put_status(:bad_request)
-        |> json(%{error: "Cannot create subscription for inactive plan"})
+        PublicError.json_error(conn, :bad_request, "Não é possível criar assinatura para plano inativo.")
 
       {:error, :plan_conflict} ->
-        conn
-        |> put_status(:conflict)
-        |> json(%{error: "Pro and Corretor are mutually exclusive", code: "plan_conflict"})
+        PublicError.json_error(
+          conn,
+          :conflict,
+          "Os planos Pro e Corretor não podem ser combinados.",
+          code: "plan_conflict"
+        )
 
       {:error, :target_workspace_required} ->
-        conn
-        |> put_status(:bad_request)
-        |> json(%{error: "An agency workspace is required for this plan"})
+        PublicError.json_error(conn, :bad_request, "É necessário ter uma imobiliária vinculada para este plano.")
 
       {:error, :not_found} ->
-        conn |> put_status(:not_found) |> json(%{error: "User or plan not found"})
+        PublicError.json_error(conn, :not_found, "Usuário ou plano não encontrado.")
 
       {:error, changeset} ->
-        changeset_error(conn, changeset)
+        PublicError.json_error(conn, :bad_request, changeset)
     end
-  end
-
-  defp changeset_error(conn, %Ecto.Changeset{} = changeset) do
-    error =
-      changeset
-      |> Ecto.Changeset.traverse_errors(fn {msg, _} -> msg end)
-      |> Enum.map(fn {field, msgs} -> "#{field} #{Enum.join(msgs, ", ")}" end)
-      |> List.first()
-
-    conn |> put_status(:bad_request) |> json(%{error: error || "Invalid data"})
   end
 end

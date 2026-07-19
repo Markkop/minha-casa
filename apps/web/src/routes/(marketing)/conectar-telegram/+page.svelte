@@ -2,6 +2,7 @@
   import { goto } from "$app/navigation";
   import { onMount } from "svelte";
   import { getSession } from "$lib/auth-client";
+  import { formatApiError } from "$lib/api/error-message";
   import Button from "$lib/components/ui/Button.svelte";
   import { workspaceApi, type TelegramStatus } from "$lib/workspace/client";
 
@@ -61,7 +62,7 @@
       await loadStatus();
     } catch (err) {
       linkState = "error";
-      error = err instanceof Error ? err.message : "Nao foi possivel conectar o Telegram.";
+      error = formatApiError(err, { action: "conectar o Telegram" });
     }
   }
 </script>

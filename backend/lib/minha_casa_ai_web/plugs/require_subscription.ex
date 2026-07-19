@@ -6,9 +6,9 @@ defmodule MinhaCasaAiWeb.Plugs.RequireSubscription do
   """
 
   import Plug.Conn
-  import Phoenix.Controller
 
   alias MinhaCasaAi.Entitlements
+  alias MinhaCasaAiWeb.PublicError
 
   def init(opts), do: opts
 
@@ -19,8 +19,10 @@ defmodule MinhaCasaAiWeb.Plugs.RequireSubscription do
     cond do
       conn.assigns[:current_workspace_access] == "external" and not external_route_allowed?(conn) ->
         conn
-        |> put_status(:forbidden)
-        |> json(%{error: "External access is limited to granted collections"})
+        |> PublicError.json_error(
+          :forbidden,
+          "Seu acesso é limitado às coleções compartilhadas com você."
+        )
         |> halt()
 
       entitlement.workspace_status == "active" or safe_method?(conn.method) ->
@@ -28,8 +30,7 @@ defmodule MinhaCasaAiWeb.Plugs.RequireSubscription do
 
       true ->
         conn
-        |> put_status(:locked)
-        |> json(%{error: "Workspace is read-only", code: "workspace_frozen"})
+        |> PublicError.json_error(:locked, :workspace_frozen, code: "workspace_frozen")
         |> halt()
     end
   end

@@ -3,7 +3,7 @@ defmodule MinhaCasaAiWeb.OrganizationController do
 
   alias MinhaCasaAi.Organizations
   alias MinhaCasaAi.Organizations.Organization
-  alias MinhaCasaAiWeb.OrganizationJSON
+  alias MinhaCasaAiWeb.{OrganizationJSON, PublicError}
 
   def index(conn, _params) do
     organizations = Organizations.list_for_user(current_user_id(conn))
@@ -16,7 +16,7 @@ defmodule MinhaCasaAiWeb.OrganizationController do
         json(conn, %{organization: OrganizationJSON.organization(organization)})
 
       {:error, :not_found} ->
-        not_found(conn, "Organization")
+        not_found(conn, :organization)
     end
   end
 
@@ -24,7 +24,7 @@ defmodule MinhaCasaAiWeb.OrganizationController do
     with {:ok, _organization} <- Organizations.get_for_user(id, current_user_id(conn)) do
       json(conn, %{members: OrganizationJSON.members(Organizations.list_members(id))})
     else
-      {:error, :not_found} -> not_found(conn, "Organization")
+      {:error, :not_found} -> not_found(conn, :organization)
     end
   end
 
@@ -46,18 +46,16 @@ defmodule MinhaCasaAiWeb.OrganizationController do
       json(conn, %{organization: OrganizationJSON.organization(refreshed)})
     else
       {:error, :not_found} ->
-        not_found(conn, "Agency")
+        not_found(conn, :agency)
 
       {:agency, false} ->
-        not_found(conn, "Agency")
+        not_found(conn, :agency)
 
       false ->
-        forbidden(conn, "Only owners and admins can rename an agency")
+        forbidden(conn, "only owners and admins can rename an agency")
 
       {:error, :invalid_name} ->
-        conn
-        |> put_status(:bad_request)
-        |> json(%{error: "Name must have between 2 and 100 characters"})
+        PublicError.json_error(conn, :bad_request, "name must have between 2 and 100 characters")
 
       {:error, changeset} ->
         changeset_error(conn, changeset)
@@ -71,8 +69,8 @@ defmodule MinhaCasaAiWeb.OrganizationController do
          true <- Organizations.can_manage_members?(Map.get(organization, :role)) do
       json(conn, %{invites: OrganizationJSON.invites(Organizations.list_invites(id))})
     else
-      {:error, :not_found} -> not_found(conn, "Organization")
-      false -> forbidden(conn, "Only owners and admins can manage invites")
+      {:error, :not_found} -> not_found(conn, :organization)
+      false -> forbidden(conn, "only owners and admins can manage invites")
     end
   end
 
@@ -89,16 +87,16 @@ defmodule MinhaCasaAiWeb.OrganizationController do
       |> json(%{invite: OrganizationJSON.invite(invite)})
     else
       {:error, :not_found} ->
-        not_found(conn, "Organization")
+        not_found(conn, :organization)
 
       {:error, :invalid_role} ->
-        conn |> put_status(:bad_request) |> json(%{error: "Invalid role"})
+        PublicError.json_error(conn, :bad_request, :invalid)
 
       {:error, :forbidden_role} ->
-        forbidden(conn, "Only owners can create owner invites")
+        forbidden(conn, "Somente proprietários podem criar convites de proprietário.")
 
       false ->
-        forbidden(conn, "Only owners and admins can create invites")
+        forbidden(conn, "only owners and admins can create invites")
 
       {:error, changeset} ->
         changeset_error(conn, changeset)
@@ -113,8 +111,8 @@ defmodule MinhaCasaAiWeb.OrganizationController do
          {:ok, invite} <- Organizations.revoke_invite(id, invite_id) do
       json(conn, %{invite: OrganizationJSON.invite(invite)})
     else
-      {:error, :not_found} -> not_found(conn, "Invite")
-      false -> forbidden(conn, "Only owners and admins can revoke invites")
+      {:error, :not_found} -> not_found(conn, :invite)
+      false -> forbidden(conn, "only owners and admins can revoke invites")
       {:error, changeset} -> changeset_error(conn, changeset)
     end
   end
@@ -131,22 +129,22 @@ defmodule MinhaCasaAiWeb.OrganizationController do
       conn |> put_status(:created) |> json(%{member: OrganizationJSON.member(member)})
     else
       {:error, :not_found} ->
-        not_found(conn, "Organization")
+        not_found(conn, :organization)
 
       {:error, :invalid_role} ->
-        conn |> put_status(:bad_request) |> json(%{error: "Invalid role"})
+        PublicError.json_error(conn, :bad_request, :invalid)
 
       {:error, :user_not_found} ->
-        conn |> put_status(:not_found) |> json(%{error: "User not found with this email"})
+        PublicError.json_error(conn, :not_found, "user not found")
 
       {:error, :already_member} ->
-        conn |> put_status(:bad_request) |> json(%{error: "User is already a member"})
+        PublicError.json_error(conn, :bad_request, "Este usuário já é membro.")
 
       {:error, :forbidden_role} ->
-        forbidden(conn, "Only owners can assign owner role")
+        forbidden(conn, "Somente proprietários podem atribuir o papel de proprietário.")
 
       false ->
-        forbidden(conn, "Only owners and admins can add members")
+        forbidden(conn, "only owners and admins can add members")
 
       {:error, changeset} ->
         changeset_error(conn, changeset)
@@ -165,22 +163,22 @@ defmodule MinhaCasaAiWeb.OrganizationController do
       json(conn, %{member: OrganizationJSON.member(member)})
     else
       {:error, :not_found} ->
-        not_found(conn, "Organization")
+        not_found(conn, :organization)
 
       nil ->
-        not_found(conn, "Member")
+        not_found(conn, :member)
 
       {:error, :invalid_role} ->
-        conn |> put_status(:bad_request) |> json(%{error: "Invalid role"})
+        PublicError.json_error(conn, :bad_request, :invalid)
 
       {:error, :forbidden_role} ->
-        forbidden(conn, "Only owners can change owner roles")
+        forbidden(conn, "Somente proprietários podem alterar papéis de proprietário.")
 
       {:error, :last_owner} ->
-        conn |> put_status(:bad_request) |> json(%{error: "Cannot demote the last owner"})
+        PublicError.json_error(conn, :bad_request, "Não é possível rebaixar o último proprietário.")
 
       false ->
-        forbidden(conn, "Only owners and admins can update member roles")
+        forbidden(conn, "only owners and admins can update member roles")
 
       {:error, changeset} ->
         changeset_error(conn, changeset)
@@ -199,19 +197,19 @@ defmodule MinhaCasaAiWeb.OrganizationController do
       json(conn, %{success: true})
     else
       {:error, :not_found} ->
-        not_found(conn, "Organization")
+        not_found(conn, :organization)
 
       nil ->
-        not_found(conn, "Member")
+        not_found(conn, :member)
 
       {:error, :forbidden_role} ->
-        forbidden(conn, "Only owners can remove owners")
+        forbidden(conn, "Somente proprietários podem remover proprietários.")
 
       {:error, :last_owner} ->
-        conn |> put_status(:bad_request) |> json(%{error: "Cannot remove the last owner"})
+        PublicError.json_error(conn, :bad_request, "Não é possível remover o último proprietário.")
 
       false ->
-        forbidden(conn, "Only owners and admins can remove members")
+        forbidden(conn, "only owners and admins can remove members")
 
       {:error, changeset} ->
         changeset_error(conn, changeset)
@@ -236,26 +234,35 @@ defmodule MinhaCasaAiWeb.OrganizationController do
   defp current_user_id(conn), do: conn.assigns[:current_user_id]
 
   defp changeset_error(conn, %Ecto.Changeset{} = changeset) do
-    error =
-      changeset
-      |> Ecto.Changeset.traverse_errors(fn {msg, _} -> msg end)
-      |> Enum.map(fn {field, msgs} -> "#{field} #{Enum.join(msgs, ", ")}" end)
-      |> List.first()
-
-    conn |> put_status(:bad_request) |> json(%{error: error || "Invalid data"})
+    PublicError.json_error(conn, :bad_request, changeset)
   end
 
   defp changeset_error(conn, :license_limit),
-    do: conn |> put_status(:conflict) |> json(%{error: "Não há licenças disponíveis"})
+    do:
+      PublicError.json_error(
+        conn,
+        :conflict,
+        "Não há licenças disponíveis",
+        code: "license_limit"
+      )
 
   defp changeset_error(conn, :family_membership_exists),
-    do: conn |> put_status(:conflict) |> json(%{error: "A user can belong to only one Family"})
+    do: PublicError.json_error(conn, :conflict, "a user can belong to only one family")
 
   defp changeset_error(conn, _),
-    do: conn |> put_status(:bad_request) |> json(%{error: "Operation could not be completed"})
+    do: PublicError.json_error(conn, :bad_request, :invalid)
 
-  defp forbidden(conn, message), do: conn |> put_status(:forbidden) |> json(%{error: message})
+  defp forbidden(conn, message), do: PublicError.json_error(conn, :forbidden, message)
 
-  defp not_found(conn, name),
-    do: conn |> put_status(:not_found) |> json(%{error: "#{name} not found"})
+  defp not_found(conn, :organization),
+    do: PublicError.json_error(conn, :not_found, :not_found, context: :organization)
+
+  defp not_found(conn, :agency),
+    do: PublicError.json_error(conn, :not_found, :not_found, context: :agency)
+
+  defp not_found(conn, :invite),
+    do: PublicError.json_error(conn, :not_found, :not_found, context: :invite)
+
+  defp not_found(conn, :member),
+    do: PublicError.json_error(conn, :not_found, "Membro não encontrado.")
 end

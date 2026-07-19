@@ -2,7 +2,7 @@ defmodule MinhaCasaAiWeb.OrganizationInviteController do
   use MinhaCasaAiWeb, :controller
 
   alias MinhaCasaAi.Organizations
-  alias MinhaCasaAiWeb.OrganizationJSON
+  alias MinhaCasaAiWeb.{OrganizationJSON, PublicError}
 
   def show(conn, %{"token" => token}) do
     case Organizations.get_invite_preview(token) do
@@ -10,7 +10,7 @@ defmodule MinhaCasaAiWeb.OrganizationInviteController do
         json(conn, %{invite: OrganizationJSON.invite_preview(preview)})
 
       {:error, :not_found} ->
-        conn |> put_status(:not_found) |> json(%{error: "Invite not found"})
+        PublicError.json_error(conn, :not_found, :not_found, context: :invite)
     end
   end
 
@@ -34,36 +34,29 @@ defmodule MinhaCasaAiWeb.OrganizationInviteController do
         })
 
       {:error, :not_found} ->
-        conn |> put_status(:not_found) |> json(%{error: "Invite not found"})
+        PublicError.json_error(conn, :not_found, :not_found, context: :invite)
 
       {:error, :expired} ->
-        conn |> put_status(:gone) |> json(%{error: "Invite has expired"})
+        PublicError.json_error(conn, :gone, :expired)
 
       {:error, :unavailable} ->
-        conn |> put_status(:gone) |> json(%{error: "Invite is no longer available"})
+        PublicError.json_error(conn, :gone, "invite is no longer available")
 
       {:error, :license_limit} ->
-        conn
-        |> put_status(:conflict)
-        |> json(%{error: "Não há licenças disponíveis nesta imobiliária"})
+        PublicError.json_error(
+          conn,
+          :conflict,
+          "Não há licenças disponíveis nesta imobiliária",
+          code: "license_limit"
+        )
 
       {:error, :family_membership_exists} ->
-        conn |> put_status(:conflict) |> json(%{error: "A user can belong to only one Family"})
+        PublicError.json_error(conn, :conflict, "a user can belong to only one family")
 
       {:error, %Ecto.Changeset{} = changeset} ->
-        changeset_error(conn, changeset)
+        PublicError.json_error(conn, :bad_request, changeset)
     end
   end
 
   defp current_user_id(conn), do: conn.assigns[:current_user_id]
-
-  defp changeset_error(conn, %Ecto.Changeset{} = changeset) do
-    error =
-      changeset
-      |> Ecto.Changeset.traverse_errors(fn {msg, _} -> msg end)
-      |> Enum.map(fn {field, msgs} -> "#{field} #{Enum.join(msgs, ", ")}" end)
-      |> List.first()
-
-    conn |> put_status(:bad_request) |> json(%{error: error || "Invalid data"})
-  end
 end

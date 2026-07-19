@@ -23,7 +23,7 @@ defmodule MinhaCasaAiWeb.CollectionController do
   alias MinhaCasaAi.Repo
   alias MinhaCasaAi.Workspace.ListingComparisonNote
   alias MinhaCasaAi.Workspaces
-  alias MinhaCasaAiWeb.ListingJSON
+  alias MinhaCasaAiWeb.{ListingJSON, PublicError}
 
   def index(conn, _params) do
     profile = current_profile(conn)
@@ -63,8 +63,8 @@ defmodule MinhaCasaAiWeb.CollectionController do
         metadata: %{totalListings: length(rows)}
       })
     else
-      false -> conn |> put_status(:bad_request) |> json(%{error: "Token is required"})
-      _ -> conn |> put_status(:not_found) |> json(%{error: "Shared collection not found"})
+      false -> PublicError.json_error(conn, :bad_request, "token is required")
+      _ -> PublicError.json_error(conn, :not_found, "Compartilhamento não encontrado.")
     end
   end
 
@@ -76,8 +76,7 @@ defmodule MinhaCasaAiWeb.CollectionController do
 
   def public_show(conn, _params) do
     conn
-    |> put_status(:not_found)
-    |> json(%{error: "Public collection directory is disabled"})
+    |> PublicError.json_error(:not_found, "Public collection directory is disabled")
   end
 
   def create(conn, params) do
@@ -86,12 +85,10 @@ defmodule MinhaCasaAiWeb.CollectionController do
     entitlement = Entitlements.for_workspace(conn.assigns.current_workspace)
 
     if profile.access == "external" do
-      conn
-      |> put_status(:forbidden)
-      |> json(%{error: "External profiles cannot create collections"})
+      PublicError.json_error(conn, :forbidden, "external access is limited to granted collections")
     else
       if name == "" do
-        conn |> put_status(:bad_request) |> json(%{error: "Collection name is required"})
+        PublicError.json_error(conn, :bad_request, "Informe o nome da coleção.")
       else
         result =
           Collections.with_workspace_lock(profile.workspace_id, fn ->
@@ -136,9 +133,7 @@ defmodule MinhaCasaAiWeb.CollectionController do
             quota_error(conn, reason)
 
           {:error, _reason} ->
-            conn
-            |> put_status(:conflict)
-            |> json(%{error: "Could not create collection"})
+            PublicError.json_error(conn, :conflict, "Não foi possível criar a coleção.")
         end
       end
     end
@@ -190,9 +185,7 @@ defmodule MinhaCasaAiWeb.CollectionController do
           changeset_error(conn, changeset)
 
         {:error, _reason} ->
-          conn
-          |> put_status(:conflict)
-          |> json(%{error: "Could not update collection"})
+          PublicError.json_error(conn, :conflict, "Não foi possível atualizar a coleção.")
       end
     else
       {:error, _} -> not_found(conn, "Collection")
@@ -236,9 +229,11 @@ defmodule MinhaCasaAiWeb.CollectionController do
 
       case result do
         {:ok, {:error, :only_default}} ->
-          conn
-          |> put_status(:bad_request)
-          |> json(%{error: "Cannot delete the only default collection"})
+          PublicError.json_error(
+            conn,
+            :bad_request,
+            "Não é possível excluir a única coleção padrão."
+          )
 
         {:ok, {:ok, _deleted}} ->
           json(conn, %{success: true})
@@ -289,19 +284,20 @@ defmodule MinhaCasaAiWeb.CollectionController do
         quota_error(conn, reason)
 
       {:error, :invalid_listing} ->
-        conn
-        |> put_status(:bad_request)
-        |> json(%{error: "Listing title and address are required"})
+        PublicError.json_error(conn, :bad_request, :invalid_listing)
 
       {:error, errors} when is_list(errors) ->
         conn
         |> put_status(:unprocessable_entity)
-        |> json(%{error: "Invalid listing data", details: errors})
+        |> json(%{
+          error: PublicError.message_for(:invalid_listing),
+          details: PublicError.sanitize_listing_details(errors)
+        })
     end
   end
 
   def create_listing(conn, _params),
-    do: conn |> put_status(:bad_request) |> json(%{error: "Listing data is required"})
+    do: PublicError.json_error(conn, :bad_request, "listing data is required")
 
   defp resolve_listing_create(conn, id, data, [], _action, profile, _params) do
     case Listings.save_listing(id, data, user_id: profile.user_id, org_id: profile.org_id) do
@@ -343,14 +339,17 @@ defmodule MinhaCasaAiWeb.CollectionController do
         })
 
       {:error, reason} ->
-        conn |> put_status(:unprocessable_entity) |> json(%{error: inspect(reason)})
+        PublicError.json_error(conn, :unprocessable_entity, reason)
     end
   end
 
   defp resolve_listing_create(conn, _id, _data, candidates, _action, _profile, _params) do
     conn
     |> put_status(:conflict)
-    |> json(%{error: "Duplicate candidates found", duplicateCandidates: candidates})
+    |> json(%{
+      error: PublicError.message_for("duplicate candidates found"),
+      duplicateCandidates: candidates
+    })
   end
 
   def show_listing(conn, %{"id" => id, "listing_id" => listing_id}) do
@@ -378,7 +377,10 @@ defmodule MinhaCasaAiWeb.CollectionController do
           {:error, errors} when is_list(errors) ->
             conn
             |> put_status(:unprocessable_entity)
-            |> json(%{error: "Invalid listing data", details: errors})
+            |> json(%{
+              error: PublicError.message_for(:invalid_listing),
+              details: PublicError.sanitize_listing_details(errors)
+            })
 
           {:error, _} ->
             not_found(conn, "Listing")
@@ -418,7 +420,7 @@ defmodule MinhaCasaAiWeb.CollectionController do
         })
 
       {:error, :sharing_not_allowed} ->
-        conn |> put_status(:forbidden) |> json(%{error: "Your plan cannot create this share"})
+        PublicError.json_error(conn, :forbidden, "editable sharing is not available for this plan")
 
       {:error, :forbidden} ->
         not_found(conn, "Collection")
@@ -672,34 +674,29 @@ defmodule MinhaCasaAiWeb.CollectionController do
   end
 
   defp changeset_error(conn, %Ecto.Changeset{} = changeset) do
-    conn |> put_status(:bad_request) |> json(%{error: first_changeset_error(changeset)})
+    PublicError.json_error(conn, :bad_request, changeset)
   end
 
   defp changeset_error(conn, reason) when is_atom(reason), do: quota_error(conn, reason)
 
   defp quota_error(conn, reason) do
-    {status, message} =
+    status =
       case reason do
-        :workspace_frozen -> {:locked, "Workspace is read-only"}
-        :collection_limit -> {:unprocessable_entity, "Collection limit reached"}
-        :listing_limit -> {:unprocessable_entity, "Listing limit reached"}
-        _ -> {:bad_request, "Operation could not be completed"}
+        :workspace_frozen -> :locked
+        :collection_limit -> :unprocessable_entity
+        :listing_limit -> :unprocessable_entity
+        _ -> :bad_request
       end
 
-    conn |> put_status(status) |> json(%{error: message, code: Atom.to_string(reason)})
+    PublicError.json_error(conn, status, reason)
   end
 
-  defp first_changeset_error(%Ecto.Changeset{} = changeset) do
-    changeset
-    |> Ecto.Changeset.traverse_errors(fn {msg, _} -> msg end)
-    |> Enum.map(fn {field, msgs} -> "#{field} #{Enum.join(msgs, ", ")}" end)
-    |> List.first()
-    |> case do
-      nil -> "Invalid data"
-      msg -> msg
-    end
-  end
+  defp not_found(conn, "Listing"),
+    do: PublicError.json_error(conn, :not_found, :listing_not_found)
 
-  defp not_found(conn, name),
-    do: conn |> put_status(:not_found) |> json(%{error: "#{name} not found"})
+  defp not_found(conn, name) when is_binary(name),
+    do: PublicError.json_error(conn, :not_found, :not_found, context: context_for(name))
+
+  defp context_for("Collection"), do: :collection
+  defp context_for(_), do: nil
 end

@@ -27,13 +27,13 @@
 
   const summaryHint = $derived.by(() => {
     if (scenarioCount > 0) {
-      const status = parseResult?.ok ? "Resposta valida" : "Resposta com erro";
-      return `${scenarioCount} cenario${scenarioCount === 1 ? "" : "s"} · ${status}`;
+      const status = parseResult?.ok ? "Resposta válida" : "Resposta com erro";
+      return `${scenarioCount} cenário${scenarioCount === 1 ? "" : "s"} · ${status}`;
     }
     if (pastedText.trim()) {
-      return parseResult?.ok === false ? "Resposta com erro" : "Aguardando parse";
+      return parseResult?.ok === false ? "Resposta com erro" : "Aguardando leitura";
     }
-    if (selectedListing) return "Property selecionado · cole a resposta";
+    if (selectedListing) return "Imóvel selecionado · cole a resposta";
     return "Selecione um imóvel no breadcrumb";
   });
 </script>

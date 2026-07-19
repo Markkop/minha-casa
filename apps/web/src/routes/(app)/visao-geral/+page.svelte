@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { formatApiError } from "$lib/api/error-message";
   import PageScaffold from "$lib/components/layout/PageScaffold.svelte";
   import { workspaceApi } from "$lib/workspace/client";
   import { onMount } from "svelte";
@@ -22,7 +23,7 @@
         condominiums: condominiums.condominiums.length
       };
     } catch (err) {
-      error = err instanceof Error ? err.message : "Erro ao carregar visao geral";
+      error = formatApiError(err, { action: "carregar visão geral" });
     } finally {
       loading = false;
     }

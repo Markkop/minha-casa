@@ -2,7 +2,7 @@ defmodule MinhaCasaAiWeb.ListingController do
   use MinhaCasaAiWeb, :controller
 
   alias MinhaCasaAi.Listings
-  alias MinhaCasaAiWeb.ListingJSON
+  alias MinhaCasaAiWeb.{ListingJSON, PublicError}
 
   def show(conn, %{"id" => id}) do
     case Listings.get_listing_for_workspace(
@@ -18,9 +18,7 @@ defmodule MinhaCasaAiWeb.ListingController do
         })
 
       {:error, _reason} ->
-        conn
-        |> put_status(:not_found)
-        |> json(%{error: "Listing not found"})
+        PublicError.json_error(conn, :not_found, :listing_not_found)
     end
   end
 end

@@ -5,6 +5,7 @@ defmodule MinhaCasaAiWeb.ListingImageController do
   alias MinhaCasaAi.Listings
   alias MinhaCasaAi.Listings.{CollectionPolicy, CollectionSharing, Listing}
   alias MinhaCasaAi.Repo
+  alias MinhaCasaAiWeb.PublicError
 
   def ingest(conn, %{"id" => listing_id}) do
     user_id = conn.assigns[:current_user_id]
@@ -25,15 +26,13 @@ defmodule MinhaCasaAiWeb.ListingImageController do
       |> json(result)
     else
       {:error, :listing_not_found} ->
-        conn |> put_status(:not_found) |> json(%{error: "Listing not found"})
+        PublicError.json_error(conn, :not_found, :listing_not_found)
 
       {:error, :collection_not_found} ->
-        conn |> put_status(:not_found) |> json(%{error: "Listing not found"})
+        PublicError.json_error(conn, :not_found, :listing_not_found)
 
       {:error, reason} ->
-        conn
-        |> put_status(:internal_server_error)
-        |> json(%{error: "Failed to enqueue image ingestion: #{inspect(reason)}"})
+        PublicError.json_error(conn, :internal_server_error, reason)
     end
   end
 
@@ -50,19 +49,19 @@ defmodule MinhaCasaAiWeb.ListingImageController do
       |> send_resp(200, body)
     else
       {:error, :invalid_index} ->
-        conn |> put_status(:bad_request) |> json(%{error: "Invalid image index"})
+        PublicError.json_error(conn, :bad_request, "invalid image index")
 
       {:error, :listing_not_found} ->
-        conn |> put_status(:not_found) |> json(%{error: "Listing not found"})
+        PublicError.json_error(conn, :not_found, :listing_not_found)
 
       {:error, :image_not_found} ->
-        conn |> put_status(:not_found) |> json(%{error: "Image not found"})
+        PublicError.json_error(conn, :not_found, "image not found")
 
       {:error, :unauthorized} ->
-        conn |> put_status(:unauthorized) |> json(%{error: "Unauthorized"})
+        PublicError.json_error(conn, :unauthorized, :unauthorized)
 
       {:error, _} ->
-        conn |> put_status(:not_found) |> json(%{error: "Image not found"})
+        PublicError.json_error(conn, :not_found, "image not found")
     end
   end
 
@@ -76,13 +75,13 @@ defmodule MinhaCasaAiWeb.ListingImageController do
       |> send_resp(200, body)
     else
       {:error, :invalid_index} ->
-        conn |> put_status(:bad_request) |> json(%{error: "Invalid image index"})
+        PublicError.json_error(conn, :bad_request, "invalid image index")
 
       {:error, :listing_not_found} ->
-        conn |> put_status(:not_found) |> json(%{error: "Listing not found"})
+        PublicError.json_error(conn, :not_found, :listing_not_found)
 
       {:error, :image_not_found} ->
-        conn |> put_status(:not_found) |> json(%{error: "Image not found"})
+        PublicError.json_error(conn, :not_found, "image not found")
     end
   end
 

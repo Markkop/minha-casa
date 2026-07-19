@@ -3,6 +3,7 @@
   import Button from "$lib/components/ui/Button.svelte";
   import WorkspaceIntroCard from "$lib/components/workspace/WorkspaceIntroCard.svelte";
   import WorkspacePage from "$lib/components/workspace/WorkspacePage.svelte";
+  import { formatApiError } from "$lib/api/error-message";
   import { getActiveOrganizationId } from "$lib/api/client";
   import { workspaceApi, type Condominium } from "$lib/workspace/client";
   import { useInlineRowEdit } from "$lib/workspace/use-inline-row-edit.svelte";
@@ -51,7 +52,7 @@
         : await workspaceApi.fetchCondominiums();
       condominiums = data.condominiums;
     } catch (err) {
-      error = err instanceof Error ? err.message : "Erro ao carregar condomínios";
+      error = formatApiError(err, { action: "carregar condomínios" });
     } finally {
       loading = false;
       syncing = false;
@@ -94,7 +95,7 @@
           : row
       );
     } catch (err) {
-      error = err instanceof Error ? err.message : "Erro ao salvar condomínio";
+      error = formatApiError(err, { action: "salvar condomínio" });
     } finally {
       saving = false;
     }
@@ -117,7 +118,7 @@
       addAmenities = "";
       condominiums = [{ ...condominium, listingCount: 0, listings: [] }, ...condominiums];
     } catch (err) {
-      error = err instanceof Error ? err.message : "Erro ao salvar condomínio";
+      error = formatApiError(err, { action: "salvar condomínio" });
     } finally {
       saving = false;
     }

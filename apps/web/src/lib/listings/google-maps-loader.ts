@@ -35,14 +35,14 @@ export function ensureGoogleMapsLoaded(): Promise<void> {
   return new Promise((resolve, reject) => {
     const onReady = () => {
       if (isGoogleRuntimeReady()) resolve();
-      else reject(new Error("Google Maps unavailable"));
+      else reject(new Error("Mapa do Google indisponível"));
     };
 
     const existing = document.getElementById(SCRIPT_ID) as HTMLScriptElement | null;
     if (existing) {
       if (isGoogleRuntimeReady()) onReady();
       else existing.addEventListener("load", onReady, { once: true });
-      existing.addEventListener("error", () => reject(new Error("Google Maps load failed")), {
+      existing.addEventListener("error", () => reject(new Error("Não foi possível carregar o mapa do Google")), {
         once: true
       });
       return;
@@ -53,7 +53,7 @@ export function ensureGoogleMapsLoaded(): Promise<void> {
     script.src = googleMapsScriptUrl(apiKey);
     script.async = true;
     script.onload = onReady;
-    script.onerror = () => reject(new Error("Google Maps load failed"));
+    script.onerror = () => reject(new Error("Não foi possível carregar o mapa do Google"));
     document.head.appendChild(script);
   });
 }

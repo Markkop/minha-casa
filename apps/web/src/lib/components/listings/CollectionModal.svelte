@@ -5,6 +5,7 @@
   import ModalCloseButton from "$lib/components/listings/ModalCloseButton.svelte";
   import ModalHeaderTitle from "$lib/components/listings/ModalHeaderTitle.svelte";
   import type { Collection } from "$lib/listings/types";
+  import { formatApiError } from "$lib/api/error-message";
   import { getCollectionsContext } from "$lib/collections-context.svelte";
   import { getActiveOrganizationId } from "$lib/api/client";
   import { workspaceApi, type Organization } from "$lib/workspace/client";
@@ -104,7 +105,7 @@
       onCollectionChange?.();
       onClose();
     } catch (err) {
-      error = err instanceof Error ? err.message : "Erro ao salvar coleção";
+      error = formatApiError(err, { action: "salvar coleção" });
     } finally {
       isSaving = false;
     }
@@ -123,7 +124,7 @@
       onCollectionChange?.();
       onClose();
     } catch (err) {
-      error = err instanceof Error ? err.message : "Erro ao copiar coleção";
+      error = formatApiError(err, { action: "copiar coleção" });
     } finally {
       isCopying = false;
     }
@@ -141,7 +142,7 @@
       onCollectionChange?.();
       onClose();
     } catch (err) {
-      error = err instanceof Error ? err.message : "Erro ao excluir coleção";
+      error = formatApiError(err, { action: "excluir coleção" });
     } finally {
       isSaving = false;
     }

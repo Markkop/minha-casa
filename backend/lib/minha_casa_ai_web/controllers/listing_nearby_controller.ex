@@ -2,6 +2,7 @@ defmodule MinhaCasaAiWeb.ListingNearbyController do
   use MinhaCasaAiWeb, :controller
 
   alias MinhaCasaAi.Listings.Nearby
+  alias MinhaCasaAiWeb.PublicError
 
   def show(conn, %{"listing_id" => listing_id}) do
     user_id = conn.assigns[:current_user_id]
@@ -14,7 +15,7 @@ defmodule MinhaCasaAiWeb.ListingNearbyController do
         |> json(%{nearby: nearby})
 
       {:error, :listing_not_found} ->
-        conn |> put_status(:not_found) |> json(%{error: "Listing not found"})
+        PublicError.json_error(conn, :not_found, :listing_not_found)
     end
   end
 end

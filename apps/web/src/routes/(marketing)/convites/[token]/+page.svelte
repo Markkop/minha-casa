@@ -4,10 +4,13 @@
   import { setActiveOrganizationId } from "$lib/api/client";
   import { authRouteWithRedirect } from "$lib/navigation/safe-redirect";
   import { formatInviteExpiration, organizationRoleLabel } from "$lib/organizacoes/helpers";
+  import { formatApiError } from "$lib/api/error-message";
   import { workspaceApi } from "$lib/workspace/client";
 
   let { data } = $props();
 
+  const INVITE_UNAVAILABLE_MESSAGE =
+    "Este convite não está mais disponível. Peça um novo convite ao administrador.";
   let accepting = $state(false);
   let error = $state("");
 
@@ -25,7 +28,7 @@
       await setActiveOrganizationId(result.organization.id);
       await goto(result.organization.kind === "agency" ? "/imobiliaria" : "/familia");
     } catch (err) {
-      error = err instanceof Error ? err.message : "Erro ao aceitar convite";
+      error = formatApiError(err, { action: "aceitar convite" });
     } finally {
       accepting = false;
     }
@@ -41,7 +44,7 @@
     {#if data.invite}
       <h1 class="mt-2 text-2xl font-semibold">{data.invite.organization.name}</h1>
       <p class="mt-2 text-sm text-app-muted">
-        Voce foi convidado para entrar como {organizationRoleLabel(data.invite.role)}.
+        Você foi convidado para entrar como {organizationRoleLabel(data.invite.role)}.
       </p>
       <dl class="mt-5 grid gap-3 rounded-md border border-app-border bg-white p-4 text-sm">
         <div class="flex items-center justify-between gap-3">
@@ -60,7 +63,7 @@
 
       {#if !data.invite.available}
         <p class="mt-4 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
-          Este convite nao esta mais disponivel.
+          {INVITE_UNAVAILABLE_MESSAGE}
         </p>
       {:else if data.user}
         <Button class="mt-6 w-full" type="button" onclick={() => void acceptInvite()} disabled={accepting || !canAccept}>
@@ -73,9 +76,9 @@
         </div>
       {/if}
     {:else}
-      <h1 class="mt-2 text-2xl font-semibold">Convite indisponivel</h1>
+      <h1 class="mt-2 text-2xl font-semibold">Convite indisponível</h1>
       <p class="mt-2 text-sm text-app-muted">
-        {data.inviteError || "Este convite nao existe ou nao esta mais disponivel."}
+        {INVITE_UNAVAILABLE_MESSAGE}
       </p>
       <a class="mt-6 inline-flex h-10 w-full items-center justify-center rounded-md border border-border bg-card px-4 text-sm font-medium text-foreground shadow-sm transition hover:bg-muted" href="/login">Entrar</a>
     {/if}

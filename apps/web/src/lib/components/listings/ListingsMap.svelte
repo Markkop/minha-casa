@@ -353,7 +353,7 @@
           getTitle={getListingTitle}
         />
       {:else if mapProvider === "google"}
-        <GoogleMapsView {...mapViewProps} />
+        <GoogleMapsView {...mapViewProps} onUseOtherMap={() => handleProviderChange(false)} />
       {:else}
         <LeafletMapView {...mapViewProps} />
       {/if}

@@ -3,6 +3,7 @@
   import { Building2, Copy, Link2, Pencil, Users, X } from "@lucide/svelte";
   import PageScaffold from "$lib/components/layout/PageScaffold.svelte";
   import Button from "$lib/components/ui/Button.svelte";
+  import { formatApiError } from "$lib/api/error-message";
   import {
     getActiveOrganizationId,
     setActiveOrganizationId,
@@ -121,7 +122,7 @@
           ? (await workspaceApi.fetchOrganizationInvites(id)).invites
           : [];
     } catch (err) {
-      error = err instanceof Error ? err.message : "Erro ao carregar membros e convites";
+      error = formatApiError(err, { action: "carregar membros e convites" });
       members = [];
       invites = [];
     } finally {
@@ -137,7 +138,7 @@
       setActiveWorkspaceId(selected.workspaceId);
       activeId = selected.id;
     } catch (err) {
-      error = err instanceof Error ? err.message : `Erro ao ativar a ${title.toLowerCase()}`;
+      error = formatApiError(err, { action: `ativar a ${title.toLowerCase()}` });
     }
   }
 
@@ -156,7 +157,7 @@
       editingAgencyName = false;
       window.dispatchEvent(new CustomEvent("minha-casa:workspace-profiles-changed"));
     } catch (err) {
-      error = err instanceof Error ? err.message : "Erro ao atualizar o nome da imobiliária";
+      error = formatApiError(err, { action: "atualizar o nome da imobiliária" });
     } finally {
       saving = false;
     }
@@ -176,7 +177,7 @@
       memberRole = defaultRole;
       await refreshOrganizations();
     } catch (err) {
-      error = err instanceof Error ? err.message : "Erro ao adicionar membro";
+      error = formatApiError(err, { action: "adicionar membro" });
     } finally {
       saving = false;
     }
@@ -194,7 +195,7 @@
       invites = [response.invite, ...invites];
       inviteRole = defaultRole;
     } catch (err) {
-      error = err instanceof Error ? err.message : "Erro ao criar convite";
+      error = formatApiError(err, { action: "criar convite" });
     } finally {
       saving = false;
     }
@@ -208,7 +209,7 @@
       await navigator.clipboard.writeText(url);
       copiedInviteId = invite.id;
     } catch (err) {
-      error = err instanceof Error ? err.message : "Erro ao copiar convite";
+      error = formatApiError(err, { action: "copiar convite" });
     }
   }
 
@@ -221,7 +222,7 @@
       invites = invites.filter((item) => item.id !== invite.id);
       if (copiedInviteId === invite.id) copiedInviteId = null;
     } catch (err) {
-      error = err instanceof Error ? err.message : "Erro ao revogar convite";
+      error = formatApiError(err, { action: "revogar convite" });
     } finally {
       saving = false;
     }
@@ -240,7 +241,7 @@
       );
       await refreshOrganizations();
     } catch (err) {
-      error = err instanceof Error ? err.message : "Erro ao atualizar membro";
+      error = formatApiError(err, { action: "atualizar membro" });
     } finally {
       saving = false;
     }
@@ -255,7 +256,7 @@
       members = members.filter((item) => item.userId !== member.userId);
       await refreshOrganizations();
     } catch (err) {
-      error = err instanceof Error ? err.message : "Erro ao remover membro";
+      error = formatApiError(err, { action: "remover membro" });
     } finally {
       saving = false;
     }

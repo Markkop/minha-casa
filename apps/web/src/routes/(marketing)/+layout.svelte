@@ -1,5 +1,6 @@
 <script lang="ts">
   import { page } from "$app/state";
+  import { formatApiError } from "$lib/api/error-message";
   import { logoutToHome } from "$lib/auth/logout";
   import { signInWithGoogle } from "$lib/auth-client";
   import GoogleIcon from "$lib/components/GoogleIcon.svelte";
@@ -53,10 +54,10 @@
       const result = await signInWithGoogle(googleCallbackURL);
       if (!result.error) return;
 
-      googleError = result.error.message || "Erro ao entrar com Google.";
+      googleError = formatApiError(result.error.message, { action: "entrar com Google" });
       googleLoading = false;
-    } catch {
-      googleError = "Erro ao entrar com Google. Tente novamente.";
+    } catch (err) {
+      googleError = formatApiError(err, { action: "entrar com Google" });
       googleLoading = false;
     }
   }

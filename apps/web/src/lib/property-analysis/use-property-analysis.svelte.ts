@@ -1,3 +1,4 @@
+import { formatApiError } from "$lib/api/error-message";
 import {
   fetchLatestListingAnalysis,
   fetchPropertyAnalysis,
@@ -58,7 +59,7 @@ export function createPropertyAnalysis(listingId: () => string | null, orgId?: (
         analysis = await fetchLatestListingAnalysis(id, orgId?.() ?? null);
       }
     } catch (err) {
-      error = err instanceof Error ? err.message : "Erro ao carregar análise";
+      error = formatApiError(err);
     } finally {
       isLoading = false;
     }
@@ -102,7 +103,7 @@ export function createPropertyAnalysis(listingId: () => string | null, orgId?: (
       analysis = started;
       if (shouldPollAnalysis(started)) startPolling(started.id);
     } catch (err) {
-      error = err instanceof Error ? err.message : "Erro ao iniciar análise";
+      error = formatApiError(err);
     } finally {
       isStarting = false;
     }
@@ -116,7 +117,7 @@ export function createPropertyAnalysis(listingId: () => string | null, orgId?: (
       analysis = updated;
       if (shouldPollAnalysis(updated)) startPolling(updated.id);
     } catch (err) {
-      error = err instanceof Error ? err.message : "Erro ao reexecutar etapa";
+      error = formatApiError(err);
     }
   }
 
@@ -128,7 +129,7 @@ export function createPropertyAnalysis(listingId: () => string | null, orgId?: (
       analysis = updated;
       if (shouldPollAnalysis(updated)) startPolling(updated.id);
     } catch (err) {
-      error = err instanceof Error ? err.message : "Erro ao reexecutar x-ray do ambiente";
+      error = formatApiError(err);
     }
   }
 

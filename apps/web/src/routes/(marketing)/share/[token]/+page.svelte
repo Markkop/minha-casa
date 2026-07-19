@@ -5,7 +5,11 @@
   import { goto } from "$app/navigation";
   import { getSession } from "$lib/auth-client";
   import { config } from "$lib/config";
+  import { formatApiError } from "$lib/api/error-message";
   import { workspaceApi, type Listing, type ListingData, type SharedCollection } from "$lib/workspace/client";
+
+  const LINK_UNAVAILABLE_MESSAGE =
+    "Este link não está mais disponível. Pode ter expirado ou sido removido.";
 
   type SortKey = "title" | "price" | "totalAreaM2" | "privateAreaM2" | "bedrooms" | "pricePerM2";
 
@@ -47,8 +51,8 @@
       const session = await getSession();
       isAuthenticated = Boolean(session.data?.user);
       if (isAuthenticated) await workspaceApi.claimSharedCollection(token);
-    } catch (err) {
-      error = err instanceof Error ? err.message : "Colecao compartilhada nao encontrada";
+    } catch (_err) {
+      error = LINK_UNAVAILABLE_MESSAGE;
     } finally {
       loading = false;
     }
@@ -70,7 +74,7 @@
       const result = await workspaceApi.copyCollection(data.collection.id, {});
       await goto(`/lista?collection=${encodeURIComponent(result.collection.id)}`);
     } catch (err) {
-      error = err instanceof Error ? err.message : "Não foi possível copiar a coleção";
+      error = formatApiError(err, { action: "copiar coleção" });
     } finally {
       copying = false;
     }
@@ -136,18 +140,18 @@
 </script>
 
 <svelte:head>
-  <title>{data?.collection.name ?? "Colecao compartilhada"} | Minha Casa</title>
+  <title>{data?.collection.name ?? "Coleção compartilhada"} | Minha Casa</title>
 </svelte:head>
 
 <main class="min-h-screen bg-app-bg px-4 py-8 text-app-fg">
   <section class="mx-auto flex max-w-6xl flex-col gap-5">
     {#if loading}
-      <div class="rounded-md border border-app-border bg-app-surface p-6 text-sm text-app-muted">Carregando colecao...</div>
+      <div class="rounded-md border border-app-border bg-app-surface p-6 text-sm text-app-muted">Carregando coleção...</div>
     {:else if error || !data}
-      <div class="rounded-md border border-red-200 bg-red-50 p-6 text-sm text-red-700">{error || "Colecao compartilhada nao encontrada"}</div>
+      <div class="rounded-md border border-red-200 bg-red-50 p-6 text-sm text-red-700">{error || LINK_UNAVAILABLE_MESSAGE}</div>
     {:else}
       <header class="rounded-md border border-app-border bg-app-surface p-5">
-        <p class="text-xs font-medium uppercase tracking-wide text-app-muted">Colecao compartilhada</p>
+        <p class="text-xs font-medium uppercase tracking-wide text-app-muted">Coleção compartilhada</p>
         <div class="mt-2 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
           <div>
             <h1 class="text-2xl font-semibold">{data.collection.name}</h1>
@@ -167,7 +171,7 @@
             <Search class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-app-muted" />
             <input
               class="h-10 w-full rounded-md border border-app-border bg-white pl-9 pr-3 text-sm"
-              placeholder="Buscar na colecao"
+              placeholder="Buscar na coleção"
               bind:value={query}
             />
           </div>
@@ -182,9 +186,9 @@
               <tr>
                 {#each [
                   ["title", "Imóvel"],
-                  ["price", "Preco"],
+                  ["price", "Preço"],
                   ["pricePerM2", "R$/m2"],
-                  ["privateAreaM2", "Area"],
+                  ["privateAreaM2", "Área"],
                   ["bedrooms", "Quartos"]
                 ] as [key, label]}
                   <th class="px-3 py-2 font-medium">

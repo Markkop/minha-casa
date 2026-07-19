@@ -308,8 +308,8 @@
         >
           <span>
             {aiUsageAlert === "limit_reached"
-              ? "O parsing está indisponível neste perfil até a renovação ou alteração do plano."
-              : "O uso de parsing deste perfil está próximo do limite do ciclo."}
+              ? "A leitura automática de anúncios está indisponível neste perfil até a renovação ou alteração do plano."
+              : "O uso de leitura automática deste perfil está próximo do limite do ciclo."}
           </span>
           <button type="button" class="shrink-0 underline underline-offset-2" onclick={() => (aiUsageAlert = null)}>
             Fechar

@@ -30,7 +30,7 @@ export const load: PageLoad = async ({ fetch, params, parent }) => {
       token,
       user,
       invite: null as OrganizationInvitePreview | null,
-      inviteError: error instanceof Error ? error.message : "Erro ao carregar convite"
+      inviteError: formatApiError(error, { action: "carregar convite" })
     };
   }
 };

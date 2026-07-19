@@ -1,3 +1,4 @@
+import { formatApiError } from "$lib/api/error-message";
 import {
   LEGACY_ACTIVE_ORG_STORAGE_KEY,
   LEGACY_ORG_CONTEXT_STORAGE_KEY,
@@ -32,9 +33,7 @@ export async function setActiveOrganizationId(organizationId: string | null): Pr
   if (!response.ok) {
     const data = await response.json().catch(() => null);
     throw new Error(
-      typeof data === "object" && data && "error" in data && typeof data.error === "string"
-        ? data.error
-        : "Failed to update organization context"
+      formatApiError({ status: response.status, data }, { action: "atualizar organização" })
     );
   }
 

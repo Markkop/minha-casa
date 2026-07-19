@@ -3,6 +3,7 @@
   import Card from "$lib/components/ui/Card.svelte";
   import ModalCloseButton from "$lib/components/listings/ModalCloseButton.svelte";
   import ModalHeaderTitle from "$lib/components/listings/ModalHeaderTitle.svelte";
+  import { formatApiError } from "$lib/api/error-message";
   import { getCollectionsContext } from "$lib/collections-context.svelte";
   import { getActiveOrganizationId } from "$lib/api/client";
   import { workspaceApi } from "$lib/workspace/client";
@@ -98,7 +99,7 @@
       URL.revokeObjectURL(url);
       success = "Exportação concluída!";
     } catch (err) {
-      error = err instanceof Error ? err.message : "Erro ao exportar";
+      error = formatApiError(err, { action: "exportar" });
     } finally {
       isExporting = false;
     }
@@ -112,7 +113,7 @@
       copySuccess = true;
       setTimeout(() => (copySuccess = false), 2000);
     } catch (err) {
-      error = err instanceof Error ? err.message : "Erro ao copiar";
+      error = formatApiError(err, { action: "copiar" });
     } finally {
       isExporting = false;
     }

@@ -6,6 +6,7 @@
   import CollectionDestinationPicker, {
     type DestinationMode
   } from "$lib/components/listings/CollectionDestinationPicker.svelte";
+  import { formatApiError } from "$lib/api/error-message";
   import { getCollectionsContext } from "$lib/collections-context.svelte";
   import { applyGeneratedTitlesToListingData } from "$lib/listing-display-title";
   import { parseImportedListingData } from "$lib/listings/listing-json";
@@ -132,7 +133,7 @@
         onClose();
       }, 1500);
     } catch (err) {
-      error = err instanceof Error ? err.message : "Erro ao importar dados";
+      error = formatApiError(err, { action: "importar dados" });
     } finally {
       isImporting = false;
     }

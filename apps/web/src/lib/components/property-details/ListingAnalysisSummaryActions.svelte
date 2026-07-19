@@ -78,7 +78,7 @@
           type="button"
           onclick={onCopyMarkdown}
           class={cn(ACTION_BTN_CLASS, copiedMarkdown && "text-app-accent")}
-          aria-label="Copiar resumo em Markdown"
+          aria-label="Copiar como texto"
         >
           {#if copiedMarkdown}
             <Check class="h-3 w-3" />
@@ -87,7 +87,7 @@
           {/if}
         </button>
       {/snippet}
-      {copiedMarkdown ? "Copiado!" : "Copiar resumo em Markdown"}
+      {copiedMarkdown ? "Copiado!" : "Copiar como texto"}
     </ComparisonTooltip>
 
     {#if googleSearchUrl}

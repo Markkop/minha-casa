@@ -2,19 +2,27 @@
   import { RefreshCw } from "@lucide/svelte";
   import { costValue } from "./formatters";
   import type { ExplorarState } from "./use-explorar-state.svelte";
+  import {
+    explorarRunStatusLabel,
+    explorarStreamStatusNote,
+    explorarTargetStatusLabel
+  } from "$lib/status-labels";
 
   let { state }: { state: ExplorarState } = $props();
+
+  const streamNote = $derived(explorarStreamStatusNote(state.streamStatus));
 </script>
 
 {#if state.run}
   <section class="rounded-md border border-app-border bg-app-surface p-4">
     <div class="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
       <div>
-        <h2 class="font-semibold text-app-fg">Run {state.run.status}</h2>
+        <h2 class="font-semibold text-app-fg">Busca {explorarRunStatusLabel(state.run.status)}</h2>
         <p class="text-sm text-app-muted">
           Alvos finalizados: {state.finishedTargets}/{state.targets.length}
-          {#if state.streamStatus === "connected"} · stream conectado{/if}
-          {#if state.streamStatus === "fallback"} · polling ativo{/if}
+          {#if streamNote}
+            · {streamNote}
+          {/if}
         </p>
       </div>
       {#if state.running}
@@ -35,7 +43,7 @@
                 ? "bg-green-50 text-green-700"
                 : "bg-app-surface-muted text-app-muted"
           ]}>
-            {target.portal} p{target.page ?? "-"} · {target.status}{target.cardsCount ? ` · ${target.cardsCount}` : ""}
+            {target.portal} p{target.page ?? "-"} · {explorarTargetStatusLabel(target.status)}{target.cardsCount ? ` · ${target.cardsCount} anúncios` : ""}
           </span>
         {/each}
       </div>
@@ -43,7 +51,7 @@
 
     {#if state.cost}
       <p class="mt-3 text-xs text-app-muted">
-        Cache: {costValue(state.cost, "pages_from_cache")} paginas · fresh: {costValue(state.cost, "pages_fresh")} paginas · economia estimada ${Number(costValue(state.cost, "estimated_saved_usd")).toFixed(4)}
+        Páginas reutilizadas: {costValue(state.cost, "pages_from_cache")} · páginas novas: {costValue(state.cost, "pages_fresh")} · economia estimada ${Number(costValue(state.cost, "estimated_saved_usd")).toFixed(4)}
       </p>
     {/if}
   </section>

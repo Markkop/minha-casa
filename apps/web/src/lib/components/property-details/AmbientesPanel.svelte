@@ -59,7 +59,7 @@
           {/if}
         </div>
         <p class="mt-1 text-sm text-app-muted">
-          Reconhecimento por foto: inventário por ambiente e x-ray com pontos de atenção e
+          Reconhecimento por foto: inventário por ambiente e análise com pontos de atenção e
           orçamento por card.
         </p>
         {#if status === "failed" && ambientesError}
@@ -86,7 +86,7 @@
     {/if}
     {#if hasTotals}
       <p class="mt-2 text-xs text-app-muted">
-        Total estimado (x-ray):
+        Total estimado (análise):
         <span class="font-medium text-app-fg">
           {formatBrl(totals.totalMinBrl)} – {formatBrl(totals.totalMaxBrl)}
         </span>

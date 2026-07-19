@@ -2,7 +2,7 @@ defmodule MinhaCasaAiWeb.SavedLinkController do
   use MinhaCasaAiWeb, :controller
 
   alias MinhaCasaAi.Workspace.{Profile, SavedLinks}
-  alias MinhaCasaAiWeb.SavedLinkJSON
+  alias MinhaCasaAiWeb.{PublicError, SavedLinkJSON}
 
   def index(conn, _params) do
     case profile(conn) do
@@ -10,8 +10,8 @@ defmodule MinhaCasaAiWeb.SavedLinkController do
         links = SavedLinks.list_links(profile)
         json(conn, %{links: SavedLinkJSON.links(links)})
 
-      {:error, status, message} ->
-        error(conn, status, message)
+      {:error, status, reason} ->
+        PublicError.json_error(conn, status, reason)
     end
   end
 
@@ -27,15 +27,15 @@ defmodule MinhaCasaAiWeb.SavedLinkController do
                 |> json(%{link: SavedLinkJSON.link(link)})
 
               {:error, %Ecto.Changeset{} = changeset} ->
-                error(conn, :bad_request, first_changeset_error(changeset))
+                PublicError.json_error(conn, :bad_request, changeset)
             end
 
-          {:error, message} ->
-            error(conn, :bad_request, message)
+          {:error, reason} ->
+            PublicError.json_error(conn, :bad_request, reason)
         end
 
-      {:error, status, message} ->
-        error(conn, status, message)
+      {:error, status, reason} ->
+        PublicError.json_error(conn, status, reason)
     end
   end
 
@@ -44,11 +44,11 @@ defmodule MinhaCasaAiWeb.SavedLinkController do
       {:ok, profile} ->
         case SavedLinks.get_link!(id, profile) do
           {:ok, link} -> json(conn, %{link: SavedLinkJSON.link(link)})
-          {:error, :not_found} -> error(conn, :not_found, "Saved link")
+          {:error, :not_found} -> PublicError.json_error(conn, :not_found, :not_found, context: :link)
         end
 
-      {:error, status, message} ->
-        error(conn, status, message)
+      {:error, status, reason} ->
+        PublicError.json_error(conn, status, reason)
     end
   end
 
@@ -62,18 +62,18 @@ defmodule MinhaCasaAiWeb.SavedLinkController do
                 json(conn, %{link: SavedLinkJSON.link(link)})
 
               {:error, :not_found} ->
-                error(conn, :not_found, "Saved link")
+                PublicError.json_error(conn, :not_found, :not_found, context: :link)
 
               {:error, %Ecto.Changeset{} = changeset} ->
-                error(conn, :bad_request, first_changeset_error(changeset))
+                PublicError.json_error(conn, :bad_request, changeset)
             end
 
-          {:error, message} ->
-            error(conn, :bad_request, message)
+          {:error, reason} ->
+            PublicError.json_error(conn, :bad_request, reason)
         end
 
-      {:error, status, message} ->
-        error(conn, status, message)
+      {:error, status, reason} ->
+        PublicError.json_error(conn, status, reason)
     end
   end
 
@@ -82,11 +82,11 @@ defmodule MinhaCasaAiWeb.SavedLinkController do
       {:ok, profile} ->
         case SavedLinks.delete_link(id, profile) do
           {:ok, _link} -> json(conn, %{success: true})
-          {:error, :not_found} -> error(conn, :not_found, "Saved link")
+          {:error, :not_found} -> PublicError.json_error(conn, :not_found, :not_found, context: :link)
         end
 
-      {:error, status, message} ->
-        error(conn, status, message)
+      {:error, status, reason} ->
+        PublicError.json_error(conn, status, reason)
     end
   end
 
@@ -98,14 +98,14 @@ defmodule MinhaCasaAiWeb.SavedLinkController do
             json(conn, %{link: SavedLinkJSON.link(link)})
 
           {:error, :not_found} ->
-            error(conn, :not_found, "Saved link")
+            PublicError.json_error(conn, :not_found, :not_found, context: :link)
 
           {:error, %Ecto.Changeset{} = changeset} ->
-            error(conn, :bad_request, first_changeset_error(changeset))
+            PublicError.json_error(conn, :bad_request, changeset)
         end
 
-      {:error, status, message} ->
-        error(conn, status, message)
+      {:error, status, reason} ->
+        PublicError.json_error(conn, status, reason)
     end
   end
 
@@ -115,7 +115,7 @@ defmodule MinhaCasaAiWeb.SavedLinkController do
            conn.assigns[:current_org_id],
            conn.assigns[:current_workspace_id]
          ) do
-      {:error, :missing_profile} -> {:error, :unauthorized, "Unauthorized"}
+      {:error, :missing_profile} -> {:error, :unauthorized, :unauthorized}
       profile -> {:ok, profile}
     end
   end
@@ -125,7 +125,7 @@ defmodule MinhaCasaAiWeb.SavedLinkController do
 
     cond do
       is_nil(url) or url == "" ->
-        {:error, "URL is required"}
+        {:error, :invalid_url}
 
       true ->
         title = string_param(params, "title") || ""
@@ -151,7 +151,7 @@ defmodule MinhaCasaAiWeb.SavedLinkController do
 
     cond do
       Map.get(attrs, :_error) -> {:error, Map.get(attrs, :_error)}
-      attrs == %{} -> {:error, "No fields to update"}
+      attrs == %{} -> {:error, "Informe ao menos um campo para atualizar."}
       true -> {:ok, Map.drop(attrs, [:_error])}
     end
   end
@@ -175,22 +175,22 @@ defmodule MinhaCasaAiWeb.SavedLinkController do
 
   defp validate_title(value) when is_binary(value) do
     trimmed = String.trim(value)
-    if trimmed == "", do: {:error, "Title is required"}, else: {:ok, trimmed}
+    if trimmed == "", do: {:error, "Informe o título."}, else: {:ok, trimmed}
   end
 
-  defp validate_title(_), do: {:error, "Title is required"}
+  defp validate_title(_), do: {:error, "Informe o título."}
 
   defp validate_url(value) when is_binary(value) do
     trimmed = String.trim(value)
 
     cond do
-      trimmed == "" -> {:error, "URL is required"}
+      trimmed == "" -> {:error, :invalid_url}
       valid_url?(trimmed) -> {:ok, trimmed}
-      true -> {:error, "URL must be valid"}
+      true -> {:error, :invalid_url}
     end
   end
 
-  defp validate_url(_), do: {:error, "URL is required"}
+  defp validate_url(_), do: {:error, :invalid_url}
 
   defp valid_url?(url) do
     case URI.parse(url) do
@@ -213,24 +213,4 @@ defmodule MinhaCasaAiWeb.SavedLinkController do
       v -> String.trim(v)
     end
   end
-
-  defp first_changeset_error(%Ecto.Changeset{} = changeset) do
-    changeset
-    |> Ecto.Changeset.traverse_errors(fn {msg, _} -> msg end)
-    |> Enum.map(fn {field, msgs} -> "#{field} #{Enum.join(msgs, ", ")}" end)
-    |> List.first()
-    |> case do
-      nil -> "Invalid data"
-      msg -> msg
-    end
-  end
-
-  defp error(conn, :unauthorized, message),
-    do: conn |> put_status(:unauthorized) |> json(%{error: message})
-
-  defp error(conn, :not_found, message),
-    do: conn |> put_status(:not_found) |> json(%{error: message})
-
-  defp error(conn, :bad_request, message),
-    do: conn |> put_status(:bad_request) |> json(%{error: message})
 end

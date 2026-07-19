@@ -4,7 +4,7 @@ defmodule MinhaCasaAiWeb.PortalSearchController do
   alias MinhaCasaAi.PortalSearches
   alias MinhaCasaAi.PortalSearches.Broadcast
   alias MinhaCasaAi.Workspace.Profile
-  alias MinhaCasaAiWeb.PortalSearchJSON
+  alias MinhaCasaAiWeb.{PortalSearchJSON, PublicError}
 
   def index(conn, _params) do
     case profile(conn) do
@@ -12,8 +12,8 @@ defmodule MinhaCasaAiWeb.PortalSearchController do
         searches = PortalSearches.list_searches(profile)
         json(conn, %{searches: PortalSearchJSON.searches(searches)})
 
-      {:error, status, message} ->
-        error(conn, status, message)
+      {:error, status, reason} ->
+        PublicError.json_error(conn, status, reason)
     end
   end
 
@@ -26,8 +26,8 @@ defmodule MinhaCasaAiWeb.PortalSearchController do
         |> put_status(:created)
         |> json(%{search: PortalSearchJSON.search(search)})
 
-      {:error, status, message} ->
-        error(conn, status, message)
+      {:error, status, reason} ->
+        PublicError.json_error(conn, status, reason)
     end
   end
 
@@ -40,11 +40,11 @@ defmodule MinhaCasaAiWeb.PortalSearchController do
             json(conn, %{search: PortalSearchJSON.search(search)})
 
           {:error, :not_found} ->
-            error(conn, :not_found, "Portal search not found")
+            PublicError.json_error(conn, :not_found, "portal search not found")
         end
 
-      {:error, status, message} ->
-        error(conn, status, message)
+      {:error, status, reason} ->
+        PublicError.json_error(conn, status, reason)
     end
   end
 
@@ -64,11 +64,11 @@ defmodule MinhaCasaAiWeb.PortalSearchController do
             })
 
           {:error, :not_found} ->
-            error(conn, :not_found, "Portal search not found")
+            PublicError.json_error(conn, :not_found, "portal search not found")
         end
 
-      {:error, status, message} ->
-        error(conn, status, message)
+      {:error, status, reason} ->
+        PublicError.json_error(conn, status, reason)
     end
   end
 
@@ -86,15 +86,15 @@ defmodule MinhaCasaAiWeb.PortalSearchController do
                 |> json(%{run: PortalSearchJSON.run(run)})
 
               {:error, reason} ->
-                conn |> put_status(:unprocessable_entity) |> json(%{error: inspect(reason)})
+                PublicError.json_error(conn, :unprocessable_entity, reason)
             end
 
           {:error, :not_found} ->
-            error(conn, :not_found, "Portal search not found")
+            PublicError.json_error(conn, :not_found, "portal search not found")
         end
 
-      {:error, status, message} ->
-        error(conn, status, message)
+      {:error, status, reason} ->
+        PublicError.json_error(conn, status, reason)
     end
   end
 
@@ -111,11 +111,11 @@ defmodule MinhaCasaAiWeb.PortalSearchController do
           })
         else
           {:error, :not_found} ->
-            error(conn, :not_found, "Run not found")
+            PublicError.json_error(conn, :not_found, "Execução não encontrada.")
         end
 
-      {:error, status, message} ->
-        error(conn, status, message)
+      {:error, status, reason} ->
+        PublicError.json_error(conn, status, reason)
     end
   end
 
@@ -135,11 +135,11 @@ defmodule MinhaCasaAiWeb.PortalSearchController do
           json(conn, %{cards: Enum.map(cards, &PortalSearchJSON.card/1)})
         else
           {:error, :not_found} ->
-            error(conn, :not_found, "Run not found")
+            PublicError.json_error(conn, :not_found, "Execução não encontrada.")
         end
 
-      {:error, status, message} ->
-        error(conn, status, message)
+      {:error, status, reason} ->
+        PublicError.json_error(conn, status, reason)
     end
   end
 
@@ -151,11 +151,11 @@ defmodule MinhaCasaAiWeb.PortalSearchController do
           json(conn, %{cost: PortalSearchJSON.cost_summary(run)})
         else
           {:error, :not_found} ->
-            error(conn, :not_found, "Run not found")
+            PublicError.json_error(conn, :not_found, "Execução não encontrada.")
         end
 
-      {:error, status, message} ->
-        error(conn, status, message)
+      {:error, status, reason} ->
+        PublicError.json_error(conn, status, reason)
     end
   end
 
@@ -176,11 +176,11 @@ defmodule MinhaCasaAiWeb.PortalSearchController do
           sse_loop(conn)
         else
           {:error, :not_found} ->
-            error(conn, :not_found, "Run not found")
+            PublicError.json_error(conn, :not_found, "Execução não encontrada.")
         end
 
-      {:error, status, message} ->
-        error(conn, status, message)
+      {:error, status, reason} ->
+        PublicError.json_error(conn, status, reason)
     end
   end
 
@@ -212,14 +212,10 @@ defmodule MinhaCasaAiWeb.PortalSearchController do
            conn.assigns[:current_org_id],
            conn.assigns[:current_workspace_id]
          ) do
-      {:error, :missing_profile} -> {:error, :unauthorized, "Unauthorized"}
+      {:error, :missing_profile} -> {:error, :unauthorized, :unauthorized}
       profile -> {:ok, profile}
     end
   end
 
   defp admin?(conn), do: conn.assigns[:current_user_is_admin] == true
-
-  defp error(conn, status, message) do
-    conn |> put_status(status) |> json(%{error: message})
-  end
 end

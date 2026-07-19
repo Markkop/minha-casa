@@ -3,6 +3,7 @@
   import { page } from "$app/state";
   import { Download, FolderOpen, Link2, Loader2, Plus } from "@lucide/svelte";
   import Card from "$lib/components/ui/Card.svelte";
+  import { formatApiError } from "$lib/api/error-message";
   import { getActiveOrganizationId } from "$lib/api/client";
   import { cn } from "$lib/utils";
   import { workspaceApi } from "$lib/workspace/client";
@@ -72,7 +73,7 @@
       };
       showShareConfirm = true;
     } catch (err) {
-      shareImportError = err instanceof Error ? err.message : "Link de compartilhamento inválido";
+      shareImportError = formatApiError(err, { action: "carregar compartilhamento" });
     }
   }
 
@@ -92,7 +93,7 @@
     try {
       await ctx.createCollection(getDefaultFirstCollectionName(), true);
     } catch (err) {
-      createCollectionError = err instanceof Error ? err.message : "Erro ao criar coleção";
+      createCollectionError = formatApiError(err, { action: "criar coleção" });
     } finally {
       isCreatingFirstCollection = false;
     }
@@ -110,7 +111,7 @@
         await ctx.loadListings(ctx.activeCollection.id);
       }
     } catch (err) {
-      shareImportError = err instanceof Error ? err.message : "Erro ao importar coleção";
+      shareImportError = formatApiError(err, { action: "importar coleção" });
     } finally {
       isImportingShare = false;
     }

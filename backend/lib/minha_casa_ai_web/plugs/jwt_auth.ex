@@ -4,11 +4,11 @@ defmodule MinhaCasaAiWeb.Plugs.JwtAuth do
   """
 
   import Plug.Conn
-  import Phoenix.Controller
 
   alias MinhaCasaAi.Auth.JWKS
   alias MinhaCasaAi.Organizations.Organization
   alias MinhaCasaAi.{PlatformRoles, Repo, Workspaces}
+  alias MinhaCasaAiWeb.PublicError
 
   def init(opts), do: opts
 
@@ -28,14 +28,12 @@ defmodule MinhaCasaAiWeb.Plugs.JwtAuth do
     else
       {:error, :forbidden} ->
         conn
-        |> put_status(:forbidden)
-        |> json(%{error: "You do not have access to this workspace"})
+        |> PublicError.json_error(:forbidden, :forbidden)
         |> halt()
 
       _ ->
         conn
-        |> put_status(:unauthorized)
-        |> json(%{error: "Invalid or missing authentication token"})
+        |> PublicError.json_error(:unauthorized, :unauthorized)
         |> halt()
     end
   end

@@ -16,6 +16,7 @@
   import ListingLocationMiniMap from "$lib/components/listings/ListingLocationMiniMap.svelte";
   import FloatingTooltip from "$lib/components/ui/FloatingTooltip.svelte";
   import type { Property } from "$lib/listings/types";
+  import { formatApiError } from "$lib/api/error-message";
   import { getCollectionsContext } from "$lib/collections-context.svelte";
   import { workspaceApi } from "$lib/workspace/client";
   import { resolveListingGalleryImages } from "$lib/listing-gallery";
@@ -107,7 +108,7 @@
       onListingUpdated?.();
       onClose();
     } catch (err) {
-      error = err instanceof Error ? err.message : "Erro ao salvar alterações";
+      error = formatApiError(err, { action: "salvar alterações" });
     } finally {
       isSaving = false;
     }
@@ -123,7 +124,7 @@
       await ctx.refreshListing(listing.id);
       onListingUpdated?.();
     } catch (err) {
-      error = err instanceof Error ? err.message : "Erro ao buscar imagens";
+      error = formatApiError(err, { action: "buscar imagens" });
     } finally {
       isPulling = false;
     }
@@ -277,7 +278,7 @@
             type="url"
             value={currentUrl}
             oninput={(e) => updateCurrentUrl(e.currentTarget.value)}
-            placeholder="/api/listings/…/images/0"
+            placeholder="https://exemplo.com/imagem.jpg"
             disabled={isIngesting}
             class="border-app-border bg-app-surface-muted text-app-fg"
           />

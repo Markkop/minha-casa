@@ -11,6 +11,7 @@
   import ListingProsConsCard from "$lib/components/property-details/ListingProsConsCard.svelte";
   import NearbyPlacesPanel from "$lib/components/analysis/NearbyPlacesPanel.svelte";
   import PropertyImageGallery from "$lib/components/property-details/PropertyImageGallery.svelte";
+  import { MAP_UNAVAILABLE_MESSAGE } from "$lib/map-copy";
 
   let {
     listing,
@@ -56,7 +57,7 @@
           <p
             class="flex aspect-square min-h-[220px] items-center justify-center p-4 text-sm text-app-muted"
           >
-            Mapa indisponível. Informe endereço ou coordenadas no imóvel.
+            {MAP_UNAVAILABLE_MESSAGE}
           </p>
         {/snippet}
       </ListingLocationMiniMap>

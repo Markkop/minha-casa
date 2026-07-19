@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { formatApiError } from "$lib/api/error-message";
   import PageScaffold from "$lib/components/layout/PageScaffold.svelte";
   import Button from "$lib/components/ui/Button.svelte";
   import CrudTable from "$lib/components/workspace/CrudTable.svelte";
@@ -18,7 +19,7 @@
     try {
       regions = (await workspaceApi.fetchRegions()).regions;
     } catch (err) {
-      error = err instanceof Error ? err.message : "Erro ao carregar regioes";
+      error = formatApiError(err, { action: "carregar regiões" });
     } finally {
       loading = false;
     }
@@ -52,7 +53,7 @@
         : [region, ...regions];
       reset();
     } catch (err) {
-      error = err instanceof Error ? err.message : "Erro ao salvar regiao";
+      error = formatApiError(err, { action: "salvar região" });
     } finally {
       saving = false;
     }

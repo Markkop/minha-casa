@@ -19,6 +19,7 @@
   import WorkspaceTableEmpty from "$lib/components/workspace/table/WorkspaceTableEmpty.svelte";
   import WorkspaceTableIconButton from "$lib/components/workspace/table/WorkspaceTableIconButton.svelte";
   import WorkspaceTableInput from "$lib/components/workspace/table/WorkspaceTableInput.svelte";
+  import { formatApiError } from "$lib/api/error-message";
   import { getActiveOrganizationId } from "$lib/api/client";
   import {
     createSavedLink,
@@ -78,7 +79,7 @@
       const data = await fetchSavedLinks(orgId);
       links = data.links;
     } catch (err) {
-      error = err instanceof Error ? err.message : "Erro ao carregar links";
+      error = formatApiError(err, { action: "carregar links" });
     } finally {
       loading = false;
     }
@@ -94,9 +95,7 @@
       const message =
         err instanceof Error && err.name === "AbortError"
           ? "Enriquecimento demorou demais; você pode editar o título e a descrição."
-          : err instanceof Error
-            ? err.message
-            : "Não foi possível enriquecer o link";
+          : formatApiError(err, { action: "enriquecer link" });
       links = links.map((row) =>
         row.id === linkId ? { ...row, enriching: false, enrichError: message } : row
       );
@@ -120,7 +119,7 @@
         row.id === editingId ? { ...link, enriching: false, enrichError: null } : row
       );
     } catch (err) {
-      error = err instanceof Error ? err.message : "Erro ao salvar link";
+      error = formatApiError(err, { action: "salvar link" });
     } finally {
       saving = false;
     }
@@ -143,7 +142,7 @@
       void runEnrichment(link.id);
     } catch (err) {
       links = links.filter((row) => row.id !== pendingId);
-      error = err instanceof Error ? err.message : "Erro ao salvar link";
+      error = formatApiError(err, { action: "salvar link" });
     }
   }
 

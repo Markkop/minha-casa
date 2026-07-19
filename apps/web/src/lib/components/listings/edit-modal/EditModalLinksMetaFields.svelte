@@ -24,13 +24,13 @@
 
 {#if includeImageUrl}
   <div class="space-y-2 md:col-span-2">
-    <label for="imageUrl-extra" class="text-sm text-app-muted">Image URL</label>
+    <label for="imageUrl-extra" class="text-sm text-app-muted">URL da imagem</label>
     <Input
       id="imageUrl-extra"
       type="url"
       value={formData.imageUrl || ""}
       oninput={(e) => onInputChange("imageUrl", e.currentTarget.value)}
-      placeholder="Ex: https://example.com/image.jpg"
+      placeholder="Ex: https://exemplo.com/imagem.jpg"
       class={EDIT_MODAL_INPUT_CLASS}
     />
   </div>

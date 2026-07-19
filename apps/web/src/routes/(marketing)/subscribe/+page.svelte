@@ -3,7 +3,9 @@
   import { page } from "$app/state";
   import { AlertCircle, Calendar, Check, CheckCircle, Crown, FlaskConical } from "@lucide/svelte";
   import { ApiError } from "$lib/api/client";
+  import { formatApiError } from "$lib/api/error-message";
   import { billingApi } from "$lib/billing/client";
+  import { subscriptionStatusLabel } from "$lib/status-labels";
   import Button from "$lib/components/ui/Button.svelte";
   import type { AdminPlan, AdminSubscription } from "$lib/admin/client";
   import { isSafeRedirectPath } from "$lib/navigation/safe-redirect";
@@ -55,11 +57,11 @@
           applySubscription(null);
         } else {
           authenticated = null;
-          accountError = errorMessage(err, "Não foi possível consultar sua assinatura agora.");
+          accountError = formatApiError(err);
         }
       }
     } catch (err) {
-      error = errorMessage(err, "Erro ao carregar os planos");
+      error = formatApiError(err);
     } finally {
       loading = false;
     }
@@ -131,7 +133,7 @@
         window.location.href = `/login?redirect=${encodeURIComponent(returnTo)}`;
         return;
       }
-      error = errorMessage(err, "Erro ao iniciar checkout");
+      error = formatApiError(err);
       checkoutPlanId = null;
     }
   }
@@ -143,19 +145,12 @@
       const portal = await billingApi.openBillingPortal();
       window.location.href = portal.url;
     } catch (err) {
-      error = errorMessage(err, "Erro ao abrir portal de cobranca");
+      error = formatApiError(err);
     } finally {
       portalLoading = false;
     }
   }
 
-  function errorMessage(err: unknown, fallback: string) {
-    if (err && typeof err === "object" && "data" in err) {
-      const data = (err as { data?: { error?: string } }).data;
-      if (data?.error) return data.error;
-    }
-    return err instanceof Error ? err.message : fallback;
-  }
 </script>
 
 <main class="min-h-screen bg-app-bg text-app-fg">
@@ -184,7 +179,7 @@
               <div class="text-center">
                 <p class="font-semibold text-amber-900">MODO DE TESTE ATIVO</p>
                 <p class="text-sm text-amber-800">
-                  Pagamentos nesta pagina estao em modo de teste do Stripe. Nenhuma cobranca real sera processada.
+                  Pagamentos nesta página estão em modo de teste do Stripe. Nenhuma cobrança real será processada.
                 </p>
               </div>
             </div>
@@ -213,7 +208,12 @@
 
       {#if cancelled}
         <div class="mb-6 rounded-md border border-amber-200 bg-amber-50 p-4 text-center text-sm text-amber-800">
-          <AlertCircle class="mr-2 inline h-5 w-5" /> Checkout cancelado. Voce pode tentar novamente quando o checkout Svelte/Phoenix estiver ativo.
+          <AlertCircle class="mr-2 inline h-5 w-5" />
+          {#if selectedPlan}
+            Pagamento do plano {selectedPlan.name} cancelado. Nenhuma cobrança foi feita. Você pode tentar novamente quando quiser.
+          {:else}
+            Pagamento cancelado. Nenhuma cobrança foi feita. Você pode tentar novamente quando quiser.
+          {/if}
         </div>
       {/if}
 
@@ -225,8 +225,8 @@
           </div>
           <div class="grid gap-3 text-sm sm:grid-cols-2">
             <div class="flex justify-between gap-3 rounded-md bg-white p-3"><span class="text-app-muted">Plano</span><strong>{currentPlan.name}</strong></div>
-            <div class="flex justify-between gap-3 rounded-md bg-white p-3"><span class="text-app-muted">Status</span><strong>{subscription.status === "active" ? "Ativo" : subscription.status}</strong></div>
-            <div class="flex justify-between gap-3 rounded-md bg-white p-3"><span class="text-app-muted">Inicio</span><span><Calendar class="mr-1 inline h-4 w-4" />{formatDate(subscription.startsAt)}</span></div>
+            <div class="flex justify-between gap-3 rounded-md bg-white p-3"><span class="text-app-muted">Status</span><strong>{subscriptionStatusLabel(subscription.status)}</strong></div>
+            <div class="flex justify-between gap-3 rounded-md bg-white p-3"><span class="text-app-muted">Início</span><span><Calendar class="mr-1 inline h-4 w-4" />{formatDate(subscription.startsAt)}</span></div>
             <div class={`flex justify-between gap-3 rounded-md bg-white p-3 ${isExpiringSoon(subscription.expiresAt) ? "text-amber-700" : ""}`}>
               <span class="text-app-muted">Expira</span><span><Calendar class="mr-1 inline h-4 w-4" />{formatDate(subscription.expiresAt)}</span>
             </div>
@@ -237,7 +237,7 @@
           {#if subscription.stripeSubscriptionId}
             <div class="mt-4">
               <Button variant="secondary" onclick={() => void openPortal()} disabled={portalLoading}>
-                {portalLoading ? "Abrindo..." : "Abrir portal de cobranca"}
+                {portalLoading ? "Abrindo..." : "Abrir portal de cobrança"}
               </Button>
             </div>
           {/if}

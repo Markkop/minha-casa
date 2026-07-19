@@ -2,6 +2,7 @@ defmodule MinhaCasaAiWeb.PortalSearchJSON do
   @moduledoc false
 
   alias MinhaCasaAi.PortalSearches
+  alias MinhaCasaAiWeb.PublicError
 
   def searches(searches) do
     Enum.map(searches, &search/1)
@@ -27,7 +28,7 @@ defmodule MinhaCasaAiWeb.PortalSearchJSON do
       status: run.status,
       startedAt: run.started_at,
       finishedAt: run.finished_at,
-      error: run.error,
+      error: PublicError.public_failure_message(run.error),
       totals: run.totals,
       traceId: run.trace_id,
       refresh: run.refresh
@@ -44,7 +45,7 @@ defmodule MinhaCasaAiWeb.PortalSearchJSON do
       status: target.status,
       cardsCount: target.cards_count,
       cacheHit: target.cache_hit,
-      error: target.error
+      error: PublicError.public_failure_message(target.error)
     }
   end
 

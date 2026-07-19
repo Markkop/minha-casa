@@ -74,9 +74,7 @@ async function proxyToPhoenix({
     console.error("[api proxy] Phoenix unreachable", target.toString(), error);
     return new Response(
       JSON.stringify({
-        error: `Cannot reach Phoenix at ${phoenixBaseUrl()}`,
-        detail: error instanceof Error ? error.message : String(error),
-        hint: "Start the app stack: docker compose -f infra/local/docker-compose.app.yml up -d phoenix-api"
+        error: "Não foi possível conectar ao servidor. Tente novamente em instantes."
       }),
       { status: 502, headers: { "Content-Type": "application/json" } }
     );

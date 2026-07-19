@@ -5,6 +5,7 @@ defmodule MinhaCasaAiWeb.ShortLinkController do
 
   alias MinhaCasaAi.Listings.{Listing, ListingShortLink}
   alias MinhaCasaAi.Repo
+  alias MinhaCasaAiWeb.PublicError
 
   def show(conn, %{"short_id" => short_id}) do
     normalized = short_id |> to_string() |> String.trim() |> String.downcase()
@@ -12,7 +13,7 @@ defmodule MinhaCasaAiWeb.ShortLinkController do
     if Regex.match?(~r/^[a-z0-9]{4,12}$/, normalized) do
       resolve_short_link(conn, normalized)
     else
-      conn |> put_status(:not_found) |> json(%{error: "Not found"})
+      PublicError.json_error(conn, :not_found, :not_found, context: :link)
     end
   end
 
@@ -30,7 +31,7 @@ defmodule MinhaCasaAiWeb.ShortLinkController do
 
     case Repo.one(query) do
       nil ->
-        conn |> put_status(:not_found) |> json(%{error: "Not found"})
+        PublicError.json_error(conn, :not_found, :not_found, context: :link)
 
       row ->
         json(conn, %{

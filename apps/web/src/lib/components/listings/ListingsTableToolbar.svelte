@@ -168,8 +168,8 @@
 
     <PageToolbarIconButton
       variant={copiedVisibleMarkdown ? "active" : "secondary"}
-      aria-label={copiedVisibleMarkdown ? "Resultados copiados" : "Copiar resultados visíveis em Markdown"}
-      title={copiedVisibleMarkdown ? "Copiado!" : "Copiar resultados visíveis em Markdown"}
+      aria-label={copiedVisibleMarkdown ? "Resultados copiados" : "Copiar como texto"}
+      title={copiedVisibleMarkdown ? "Copiado!" : "Copiar como texto"}
       onclick={onCopyMarkdown}
       disabled={!canCopyMarkdown}
     >

@@ -5,12 +5,13 @@ defmodule MinhaCasaAiWeb.PropertyAnalysisController do
   alias MinhaCasaAi.Workers.{PropertyAnalysisCardXrayWorker, PropertyAnalysisStepWorker}
   alias MinhaCasaAi.Workflows
   alias MinhaCasaAi.Workspace.Profile
+  alias MinhaCasaAiWeb.PublicError
 
   def create(conn, params) do
     listing_id = Map.get(params, "listingId") || Map.get(params, "listing_id")
 
     if is_nil(listing_id) or listing_id == "" do
-      conn |> put_status(:bad_request) |> json(%{error: "listingId is required"})
+      PublicError.json_error(conn, :bad_request, "Informe o imóvel para análise.")
     else
       do_create(conn, params, listing_id)
     end
@@ -34,10 +35,10 @@ defmodule MinhaCasaAiWeb.PropertyAnalysisController do
         |> json(%{analysis: analysis_json(analysis)})
 
       {:error, :listing_not_found} ->
-        conn |> put_status(:not_found) |> json(%{error: "Listing not found"})
+        PublicError.json_error(conn, :not_found, :listing_not_found)
 
       {:error, reason} ->
-        conn |> put_status(:unprocessable_entity) |> json(%{error: inspect(reason)})
+        PublicError.json_error(conn, :unprocessable_entity, reason)
     end
   end
 
@@ -46,21 +47,21 @@ defmodule MinhaCasaAiWeb.PropertyAnalysisController do
       {:ok, profile} ->
         cond do
           step == "xray" ->
-            conn
-            |> put_status(:bad_request)
-            |> json(%{
-              error: "Use POST .../ambientes/:ambiente_id/xray/retry para reexecutar o x-ray."
-            })
+            PublicError.json_error(
+              conn,
+              :bad_request,
+              "Use a opção de reanalisar ambiente na interface."
+            )
 
           PropertyAnalyses.valid_pipeline_step?(step) ->
             do_retry_step(conn, id, step, profile)
 
           true ->
-            conn |> put_status(:bad_request) |> json(%{error: "Invalid step: #{step}"})
+            PublicError.json_error(conn, :bad_request, "Etapa de análise inválida.")
         end
 
-      {:error, status, message} ->
-        error(conn, status, message)
+      {:error, status, reason} ->
+        PublicError.json_error(conn, status, reason)
     end
   end
 
@@ -84,7 +85,7 @@ defmodule MinhaCasaAiWeb.PropertyAnalysisController do
         end
 
       {:error, :not_found} ->
-        conn |> put_status(:not_found) |> json(%{error: "Analysis not found"})
+        PublicError.json_error(conn, :not_found, :not_found, context: :analysis)
     end
   end
 
@@ -93,8 +94,8 @@ defmodule MinhaCasaAiWeb.PropertyAnalysisController do
       {:ok, profile} ->
         do_retry_card_xray(conn, id, ambiente_id, profile)
 
-      {:error, status, message} ->
-        error(conn, status, message)
+      {:error, status, reason} ->
+        PublicError.json_error(conn, status, reason)
     end
   end
 
@@ -109,7 +110,7 @@ defmodule MinhaCasaAiWeb.PropertyAnalysisController do
           card = PropertyAnalyses.get_ambiente_card(analysis, ambiente_id)
 
           if is_nil(card) do
-            conn |> put_status(:not_found) |> json(%{error: "Ambiente não encontrado"})
+            PublicError.json_error(conn, :not_found, "Ambiente não encontrado.")
           else
             PropertyAnalyses.mark_ambiente_xray_running!(analysis.id, ambiente_id)
 
@@ -126,7 +127,7 @@ defmodule MinhaCasaAiWeb.PropertyAnalysisController do
         end
 
       {:error, :not_found} ->
-        conn |> put_status(:not_found) |> json(%{error: "Analysis not found"})
+        PublicError.json_error(conn, :not_found, :not_found, context: :analysis)
     end
   end
 
@@ -146,11 +147,11 @@ defmodule MinhaCasaAiWeb.PropertyAnalysisController do
             })
 
           {:error, :not_found} ->
-            conn |> put_status(:not_found) |> json(%{error: "Analysis not found"})
+            PublicError.json_error(conn, :not_found, :not_found, context: :analysis)
         end
 
-      {:error, status, message} ->
-        error(conn, status, message)
+      {:error, status, reason} ->
+        PublicError.json_error(conn, status, reason)
     end
   end
 
@@ -162,8 +163,8 @@ defmodule MinhaCasaAiWeb.PropertyAnalysisController do
           {:ok, analysis} -> json(conn, %{analysis: analysis_json(analysis)})
         end
 
-      {:error, status, message} ->
-        error(conn, status, message)
+      {:error, status, reason} ->
+        PublicError.json_error(conn, status, reason)
     end
   end
 
@@ -173,7 +174,7 @@ defmodule MinhaCasaAiWeb.PropertyAnalysisController do
            conn.assigns[:current_org_id],
            conn.assigns[:current_workspace_id]
          ) do
-      {:error, :missing_profile} -> {:error, :unauthorized, "Missing profile"}
+      {:error, :missing_profile} -> {:error, :unauthorized, :missing_profile}
       profile -> {:ok, profile}
     end
   end
@@ -186,7 +187,7 @@ defmodule MinhaCasaAiWeb.PropertyAnalysisController do
       status: analysis.status,
       input: analysis.input,
       result: analysis.result,
-      error: analysis.error,
+      error: PublicError.public_failure_message(analysis.error),
       insertedAt: analysis.created_at,
       updatedAt: analysis.updated_at
     }
@@ -200,7 +201,7 @@ defmodule MinhaCasaAiWeb.PropertyAnalysisController do
       kind: run.kind,
       status: run.status,
       result: run.result,
-      error: run.error
+      error: PublicError.public_failure_message(run.error)
     }
   end
 
@@ -208,8 +209,4 @@ defmodule MinhaCasaAiWeb.PropertyAnalysisController do
   defp camelize_key("address_override"), do: "addressOverride"
   defp camelize_key("collection_id"), do: "collectionId"
   defp camelize_key(key), do: key
-
-  defp error(conn, status, message) do
-    conn |> put_status(status) |> json(%{error: message})
-  end
 end

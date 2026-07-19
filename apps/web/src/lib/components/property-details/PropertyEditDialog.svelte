@@ -10,6 +10,7 @@
   import { extractUniqueContacts } from "$lib/listings/listings-contact";
   import { isValidConstructionYear } from "$lib/listings/listing-construction-year";
   import type { Property } from "$lib/listings/types";
+  import { formatApiError } from "$lib/api/error-message";
   import { buildBaseListingTitle } from "$lib/listing-display-title";
   import { getCollectionsContext } from "$lib/collections-context.svelte";
   import { workspaceApi, type Condominium, type Region } from "$lib/workspace/client";
@@ -121,7 +122,7 @@
       );
       onClose();
     } catch (err) {
-      error = err instanceof Error ? err.message : "Erro ao salvar alterações";
+      error = formatApiError(err, { action: "salvar alterações" });
     }
   }
 

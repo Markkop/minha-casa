@@ -1,5 +1,6 @@
 <script lang="ts">
   import { Check, Copy, Share2 } from "@lucide/svelte";
+  import { formatApiError } from "$lib/api/error-message";
   import PageToolbarButton from "$lib/components/page-toolbar/PageToolbarButton.svelte";
   import PageToolbarIconButton from "$lib/components/page-toolbar/PageToolbarIconButton.svelte";
   import ToolbarAnchoredPopover from "$lib/components/listings/ToolbarAnchoredPopover.svelte";
@@ -49,7 +50,7 @@
       status = "created";
       await copyLink(url);
     } catch (err) {
-      error = err instanceof Error ? err.message : "Não foi possível criar o link.";
+      error = formatApiError(err, { action: "criar link" });
       status = "error";
     }
   }
