@@ -312,9 +312,6 @@
             </article>
           {/each}
         </div>
-        <p class="mt-8 text-center text-sm text-app-muted">
-          O plano Imobiliária oferece até 10 licenças para a equipe.
-        </p>
       </section>
     {/if}
   </section>

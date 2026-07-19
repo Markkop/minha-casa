@@ -63,9 +63,5 @@
         </article>
       {/each}
     </div>
-
-    <p class="mx-auto mt-10 max-w-3xl text-center text-sm text-app-muted">
-      O plano Imobiliária oferece até 10 licenças para a equipe.
-    </p>
   </section>
 </main>
