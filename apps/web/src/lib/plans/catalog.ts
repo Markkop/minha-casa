@@ -8,6 +8,7 @@ export type PlanCatalogEntry = {
   audience: string;
   description: string;
   monthlyPriceInCents: number;
+  priceNote?: string;
   features: readonly string[];
   highlighted?: boolean;
 };
@@ -33,8 +34,7 @@ export const PLAN_CATALOG = [
     description: "Avance no seu planejamento e tome decisões em conjunto.",
     monthlyPriceInCents: 2_900,
     features: [
-      "100 coleções por perfil",
-      "Até 1.000 imóveis por perfil",
+      "100 coleções e até 1.000 imóveis",
       "Retenção por 360 dias sem atividade",
       "Colabore com +3 familiares",
       "Compartilhamento externo"
@@ -59,10 +59,10 @@ export const PLAN_CATALOG = [
     slug: "imobiliaria",
     name: "Imobiliária",
     audience: "Para equipes imobiliárias",
-    description: "Impressione seus clientes com o melhor comparativo de imóveis do mercado.",
+    description: "Impressione seus clientes com o melhor comparativo de imóveis",
     monthlyPriceInCents: 19_900,
+    priceNote: "(até 10 corretores)",
     features: [
-      "Até 10 licenças",
       "500 coleções e até 5.000 imóveis",
       "Retenção por 720 dias sem atividade da equipe",
       "Branding profissional",

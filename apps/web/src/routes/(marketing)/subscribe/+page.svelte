@@ -270,7 +270,12 @@
                 <div class="mt-5 flex items-end gap-1">
                   <span class="text-4xl font-bold">{formatPlanMonthlyPrice(plan)}</span>
                   {#if plan.monthlyPriceInCents > 0}
-                    <span class="pb-1 text-sm text-app-muted">/mês</span>
+                    <div class="flex flex-1 items-baseline justify-between gap-2 pb-1 text-app-muted">
+                      <span class="text-sm">/mês</span>
+                      {#if plan.priceNote}
+                        <span class="text-[8px] leading-none">{plan.priceNote}</span>
+                      {/if}
+                    </div>
                   {/if}
                 </div>
               </div>

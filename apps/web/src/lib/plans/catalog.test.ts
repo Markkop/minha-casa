@@ -26,10 +26,11 @@ describe("PLAN_CATALOG", () => {
     ]);
   });
 
-  it("includes the agency license limit without advertising additional access", () => {
+  it("shows the agency seat note beside the price, not as a feature", () => {
     const agency = findPlanCatalogEntry("imobiliaria");
 
-    expect(agency?.features).toContain("Até 10 licenças");
+    expect(agency?.priceNote).toBe("(até 10 corretores)");
+    expect(agency?.features).not.toContain("Até 10 licenças");
     expect(JSON.stringify(agency)).not.toMatch(/seat|adicional por/i);
   });
 
