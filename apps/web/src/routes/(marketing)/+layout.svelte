@@ -25,6 +25,7 @@
   );
   const logoHref = $derived(user ? "/lista" : "/");
   const showMarketingHeader = $derived(page.url.pathname !== "/intelligence-demo");
+  const immersiveHeader = $derived(page.url.pathname === "/");
 
   const initials = $derived.by(() => {
     const source: string = user?.name || user?.email || "U";
@@ -64,10 +65,14 @@
 </script>
 
 {#if showMarketingHeader}
-  <MarketingHeader href={logoHref}>
+  <MarketingHeader href={logoHref} variant={immersiveHeader ? "immersive" : "default"}>
     {#snippet actions()}
       {#if user}
-        <div class="w-auto max-w-[min(100%,14rem)]">
+        <div
+          class={immersiveHeader
+            ? "immersive-account w-auto max-w-[min(100%,14rem)]"
+            : "w-auto max-w-[min(100%,14rem)]"}
+        >
           <AccountMenu
             {user}
             {initials}
@@ -81,19 +86,29 @@
         <div class="relative flex items-center gap-3">
           <a
             href="/login"
-            class="inline-flex h-8 items-center rounded-md bg-app-action px-3 text-sm font-medium text-app-action-foreground transition-colors hover:bg-app-action-hover"
+            class={immersiveHeader
+              ? "inline-flex h-8 items-center rounded-md bg-[#22d3ee] px-3 text-xs font-semibold tracking-[0.04em] text-[#030711] shadow-[0_0_24px_-8px_rgba(34,211,238,0.9)] transition-colors hover:bg-[#67e8f9] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#67e8f9]"
+              : "inline-flex h-8 items-center rounded-md bg-app-action px-3 text-sm font-medium text-app-action-foreground transition-colors hover:bg-app-action-hover"}
           >
             Entrar
           </a>
           <Button
-            class="text-sm"
+            class={immersiveHeader
+              ? "border-[rgba(103,232,249,0.24)] bg-[rgba(8,18,40,0.78)] px-2.5 text-xs text-[#dbeafe] shadow-[0_0_28px_-16px_rgba(34,211,238,0.75)] hover:bg-[rgba(12,27,58,0.92)] sm:px-3"
+              : "text-sm"}
             variant="secondary"
             size="sm"
             onclick={google}
             disabled={googleLoading}
+            ariaLabel={googleLoading ? "Conectando com Google" : "Entrar com Google"}
           >
             <GoogleIcon class="size-4" />
-            <span aria-live="polite">{googleLoading ? "Conectando..." : "Entrar com Google"}</span>
+            {#if immersiveHeader}
+              <span class="sm:hidden" aria-live="polite">{googleLoading ? "Conectando..." : "Google"}</span>
+              <span class="hidden sm:inline" aria-live="polite">{googleLoading ? "Conectando..." : "Entrar com Google"}</span>
+            {:else}
+              <span aria-live="polite">{googleLoading ? "Conectando..." : "Entrar com Google"}</span>
+            {/if}
           </Button>
 
           {#if googleError}
@@ -109,3 +124,16 @@
 {/if}
 
 {@render children?.()}
+
+<style>
+  :global(.immersive-account button[data-account-menu]) {
+    border-color: rgba(103, 232, 249, 0.24);
+    background: rgba(8, 18, 40, 0.78);
+    color: #dbeafe;
+    box-shadow: 0 0 28px -16px rgba(34, 211, 238, 0.75);
+  }
+
+  :global(.immersive-account button[data-account-menu]:hover) {
+    background: rgba(12, 27, 58, 0.92);
+  }
+</style>
