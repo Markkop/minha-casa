@@ -43,11 +43,11 @@
   .stage-title h1 { margin: 0; color: var(--home-ink); font-size: clamp(3.5rem, 7vw, 8.6rem); font-weight: 700; letter-spacing: .01em; line-height: .82; text-transform: uppercase; filter: drop-shadow(0 .5rem 2.1rem rgb(34 211 238 / 28%)); }
   .stage-title h1 b { font-weight: 700; background: linear-gradient(125deg, var(--home-cyan-soft) 5%, var(--home-blue-bright) 55%, var(--home-cyan) 100%); background-clip: text; color: transparent; }
   .stage-title > span { display: block; max-width: 30rem; margin: 1.4rem auto 0; color: var(--home-ink-dim); font-family: var(--home-mono); font-size: clamp(.68rem, 1vw, .85rem); letter-spacing: .04em; line-height: 1.65; }
-  .property-thumb { position: absolute; z-index: 2; width: clamp(11.25rem, 20vw, 16.5rem); transform: rotate(var(--rotation)); transform-origin: 50% 50%; will-change: transform; }
-  .thumb-1 { top: 37%; left: 11%; z-index: 2; }
-  .thumb-2 { top: 19%; left: 4%; z-index: 1; }
-  .thumb-3 { top: 19%; right: 4%; z-index: 1; }
-  .thumb-4 { top: 37%; right: 11%; z-index: 2; }
+  .property-thumb { position: absolute; z-index: 3; width: clamp(11.25rem, 20vw, 16.5rem); transform: rotate(var(--rotation)); transform-origin: 50% 50%; will-change: transform; }
+  .thumb-1 { top: 37%; left: 11%; z-index: 4; }
+  .thumb-2 { top: 19%; left: 4%; z-index: 2; }
+  .thumb-3 { top: 19%; right: 4%; z-index: 2; }
+  .thumb-4 { top: 37%; right: 11%; z-index: 4; }
   .frame { position: relative; overflow: hidden; aspect-ratio: 4 / 3; border: 1px solid rgb(103 232 249 / 22%); border-radius: 1rem; background: linear-gradient(135deg, var(--home-navy-600), var(--home-navy-700)); box-shadow: 0 1.25rem 3.4rem -1.25rem rgb(0 0 0 / 85%), 0 0 0 1px rgb(96 165 250 / 6%), 0 0 2.5rem -1.1rem rgb(34 211 238 / 55%); transition: transform .5s cubic-bezier(.2,.7,.2,1), box-shadow .5s ease; }
   .frame img { display: block; width: 100%; height: 100%; object-fit: cover; opacity: .92; filter: saturate(1.05) contrast(1.03); transform: scale(1.04); transition: transform .9s cubic-bezier(.2,.7,.2,1), opacity .6s; }
   .frame::after { position: absolute; inset: 0; background: linear-gradient(180deg, transparent 45%, rgb(3 7 17 / 82%) 100%), linear-gradient(120deg, rgb(34 211 238 / 10%), transparent 40%); content: ""; pointer-events: none; }

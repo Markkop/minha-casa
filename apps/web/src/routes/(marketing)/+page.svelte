@@ -23,8 +23,6 @@
 </svelte:head>
 
 <div class="immersive-home">
-  <ImmersiveEffects />
-
   <main class="home-main">
     <HomeHero />
 
@@ -95,6 +93,9 @@
   </main>
 
   <footer>MINHA CASA · INTELIGÊNCIA PARA SUA JORNADA IMOBILIÁRIA</footer>
+
+  <!-- After .home-main so onMount can reparent the chord canvas under the cards. -->
+  <ImmersiveEffects />
 </div>
 
 <style>
@@ -142,7 +143,15 @@
     font-kerning: normal;
     -webkit-font-smoothing: antialiased;
   }
-  .home-main { position: relative; z-index: 5; width: 100%; max-width: 90rem; margin: 0 auto; padding: 0 clamp(1.25rem, 5vw, 5rem); }
+  .home-main {
+    position: relative;
+    z-index: 5;
+    isolation: isolate;
+    width: 100%;
+    max-width: 90rem;
+    margin: 0 auto;
+    padding: 0 clamp(1.25rem, 5vw, 5rem);
+  }
   .list-section { position: relative; padding: 2vh 0 14vh; }
   .section-label { display: flex; align-items: center; gap: .9rem; color: var(--home-cyan-soft); font-family: var(--home-mono); font-size: .65rem; letter-spacing: .3em; text-transform: uppercase; }
   .section-label::before { width: 2.6rem; height: 1px; background: linear-gradient(90deg, var(--home-cyan), transparent); content: ""; }

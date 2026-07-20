@@ -34,6 +34,12 @@
     const home = bgCanvas.closest<HTMLElement>(".immersive-home");
     if (!home) return;
 
+    // Park chords inside .home-main so they stack under cards/panels (z-index: -1
+    // within that isolated context) while staying above the particle background.
+    const main = home.querySelector<HTMLElement>(".home-main");
+    const fxHome = fxCanvas.parentElement;
+    if (main && fxHome) main.insertBefore(fxCanvas, main.firstChild);
+
     const width = () => window.innerWidth;
     const height = () => window.innerHeight;
     const documentHeight = () => Math.max(home.scrollHeight, document.documentElement.scrollHeight);
@@ -533,6 +539,7 @@
         window.removeEventListener("scroll", handleReducedScroll);
         window.removeEventListener("resize", scheduleResize);
         window.removeEventListener("load", resize);
+        if (fxHome && fxCanvas.parentElement !== fxHome) fxHome.appendChild(fxCanvas);
         for (const link of links) link.mesh.geometry.dispose();
         for (const disposable of disposables) disposable.dispose();
       };
@@ -560,7 +567,8 @@
   .home-fx-canvas {
     position: fixed;
     inset: 0;
-    z-index: 3;
+    /* Inside .home-main (isolation): behind cards/panels, above page background. */
+    z-index: -1;
     display: block;
     width: 100%;
     height: 100%;
