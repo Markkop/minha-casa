@@ -1,25 +1,23 @@
 <script lang="ts">
-  import { onMount } from "svelte";
+  import { onMount, tick } from "svelte";
   import * as THREE from "three";
 
   let bgCanvas = $state<HTMLCanvasElement | null>(null);
-  let fxCanvas = $state<HTMLCanvasElement | null>(null);
 
-  type BeamUniforms = {
-    uTime: { value: number };
-    uColorA: { value: THREE.Color };
-    uColorB: { value: THREE.Color };
-    uOpacity: { value: number };
-    uSpeed: { value: number };
-    uPhase: { value: number };
-  };
-
-  type BeamLink = {
+  type ChordLink = {
     source: HTMLElement;
-    target?: HTMLElement;
-    mesh: THREE.Mesh<THREE.BufferGeometry, THREE.ShaderMaterial>;
-    material: THREE.ShaderMaterial & { uniforms: BeamUniforms };
+    sourceCard: HTMLElement | null;
+    mountParent: HTMLElement;
+    stackIndex: number;
+    target: HTMLElement;
+    svg: SVGSVGElement;
+    cable: SVGPathElement;
+    pulse: SVGPathElement;
+    maskFull: SVGRectElement;
+    maskHoles: SVGGElement;
     opacity: number;
+    speed: number;
+    phase: number;
     landFraction?: number;
     lastStartX: number;
     lastStartY: number;
@@ -30,15 +28,9 @@
   const ENDPOINT_EPS = 0.1;
 
   onMount(() => {
-    if (!bgCanvas || !fxCanvas) return;
+    if (!bgCanvas) return;
     const home = bgCanvas.closest<HTMLElement>(".immersive-home");
     if (!home) return;
-
-    // Park chords inside .home-main so they stack under cards/panels (z-index: -1
-    // within that isolated context) while staying above the particle background.
-    const main = home.querySelector<HTMLElement>(".home-main");
-    const fxHome = fxCanvas.parentElement;
-    if (main && fxHome) main.insertBefore(fxCanvas, main.firstChild);
 
     const width = () => window.innerWidth;
     const height = () => window.innerHeight;
@@ -62,6 +54,7 @@
     const targetFrameRate = constrainedDevice ? 30 : 60;
     const disposables: Array<{ dispose: () => void }> = [];
     const timers: number[] = [];
+    const links: ChordLink[] = [];
     let frame = 0;
     let resizeTimer = 0;
     let stopped = false;
@@ -83,54 +76,162 @@
       return texture;
     }
 
-    function beamMaterial() {
-      return new THREE.ShaderMaterial({
-        uniforms: {
-          uTime: { value: 0 },
-          uColorA: { value: new THREE.Color(0x67e8f9) },
-          uColorB: { value: new THREE.Color(0x3b82f6) },
-          uOpacity: { value: 0 },
-          uSpeed: { value: 0.5 },
-          uPhase: { value: 0 }
-        },
-        vertexShader: `
-          varying vec2 vUv;
-          void main() {
-            vUv = uv;
-            gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    function elementCenter(element: HTMLElement) {
+      const rect = element.getBoundingClientRect();
+      return {
+        x: rect.left + rect.width / 2,
+        y: rect.top + rect.height / 2
+      };
+    }
+
+    let chordUid = 0;
+
+    function createChord(
+      stackIndex: number,
+      mountParent: HTMLElement
+    ): Omit<
+      ChordLink,
+      | "source"
+      | "sourceCard"
+      | "mountParent"
+      | "target"
+      | "landFraction"
+      | "lastStartX"
+      | "lastStartY"
+      | "lastEndX"
+      | "lastEndY"
+    > {
+      const uid = `home-chord-mask-${chordUid++}`;
+      const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+      svg.setAttribute("class", "home-chord");
+      svg.setAttribute("aria-hidden", "true");
+      svg.style.zIndex = String(stackIndex);
+
+      const defs = document.createElementNS("http://www.w3.org/2000/svg", "defs");
+      const mask = document.createElementNS("http://www.w3.org/2000/svg", "mask");
+      mask.setAttribute("id", uid);
+      mask.setAttribute("maskUnits", "userSpaceOnUse");
+
+      const maskFull = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+      maskFull.setAttribute("x", "0");
+      maskFull.setAttribute("y", "0");
+      maskFull.setAttribute("fill", "#fff");
+
+      const maskHoles = document.createElementNS("http://www.w3.org/2000/svg", "g");
+      maskHoles.setAttribute("fill", "#000");
+
+      mask.append(maskFull, maskHoles);
+      defs.appendChild(mask);
+
+      const layer = document.createElementNS("http://www.w3.org/2000/svg", "g");
+      layer.setAttribute("mask", `url(#${uid})`);
+
+      const cable = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      cable.setAttribute("class", "home-chord-cable");
+      cable.setAttribute("fill", "none");
+      cable.setAttribute("stroke-linecap", "round");
+
+      const pulse = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      pulse.setAttribute("class", "home-chord-pulse");
+      pulse.setAttribute("fill", "none");
+      pulse.setAttribute("stroke-linecap", "round");
+      pulse.setAttribute("stroke-dasharray", "16 240");
+
+      layer.append(cable, pulse);
+      svg.append(defs, layer);
+      mountParent.appendChild(svg);
+
+      return {
+        stackIndex,
+        svg,
+        cable,
+        pulse,
+        maskFull,
+        maskHoles,
+        opacity: 0,
+        speed: 0.9 + Math.random() * 0.5,
+        phase: Math.random()
+      };
+    }
+
+    function homePoint(clientX: number, clientY: number) {
+      const rect = home.getBoundingClientRect();
+      return { x: clientX - rect.left, y: clientY - rect.top };
+    }
+
+    function syncChordSurface(svg: SVGSVGElement, mountParent: HTMLElement, view: { w: number; h: number }) {
+      const stackRect = mountParent.getBoundingClientRect();
+      const homeRect = home.getBoundingClientRect();
+      svg.style.left = `${homeRect.left - stackRect.left}px`;
+      svg.style.top = `${homeRect.top - stackRect.top}px`;
+      svg.style.width = `${view.w}px`;
+      svg.style.height = `${view.h}px`;
+      svg.setAttribute("viewBox", `0 0 ${view.w} ${view.h}`);
+    }
+
+    /** Opaque faces that must hide cables — z-index alone fails for overflowing SVGs. */
+    function occlusionRects(excludeCard: HTMLElement | null = null) {
+      const nodes = [
+        ...home.querySelectorAll<HTMLElement>(".property-thumb .frame"),
+        ...home.querySelectorAll<HTMLElement>(".home-panel")
+      ];
+      return nodes.flatMap((node) => {
+        if (excludeCard && excludeCard.contains(node)) return [];
+        const rect = node.getBoundingClientRect();
+        const topLeft = homePoint(rect.left, rect.top);
+        return [
+          {
+            x: topLeft.x,
+            y: topLeft.y,
+            w: rect.width,
+            h: rect.height,
+            radius: Math.min(16, rect.width * 0.08, rect.height * 0.08)
           }
-        `,
-        fragmentShader: `
-          varying vec2 vUv;
-          uniform float uTime, uOpacity, uSpeed, uPhase;
-          uniform vec3 uColorA, uColorB;
-          void main() {
-            float t = vUv.x;
-            vec3 base = mix(uColorA, uColorB, t);
-            float edge = smoothstep(1.0, 0.0, abs(vUv.y - 0.5) * 2.0);
-            float body = smoothstep(0.0, 0.34, edge);
-            float glow = pow(edge, 0.7);
-            vec3 cableColor = base * 0.72 + vec3(0.02, 0.05, 0.09);
-            const float LEAD = 0.18;
-            const float TRAIL = 0.55;
-            float cycle = fract(uTime * uSpeed * 0.16 + uPhase);
-            float position = cycle * (1.0 + LEAD + TRAIL) - LEAD;
-            float distanceToHead = t - position;
-            float bright = exp(-pow(distanceToHead * 9.0, 2.0));
-            float tail = exp(min(distanceToHead, 0.0) * 6.0) * step(distanceToHead, 0.0) * 0.6;
-            float pulse = clamp(bright + tail, 0.0, 1.0);
-            vec3 signalColor = mix(vec3(0.75, 0.92, 1.0), vec3(1.0), 0.25);
-            vec3 color = cableColor + base * glow * 0.18;
-            color = mix(color, signalColor, pulse * 0.95);
-            float alpha = uOpacity * clamp(body + glow * 0.12 + pulse * 0.35, 0.0, 1.0);
-            gl_FragColor = vec4(color, alpha);
+        ];
+      });
+    }
+
+    function applyOcclusionMask(link: ChordLink, view: { w: number; h: number }, holes: ReturnType<typeof occlusionRects>) {
+      link.maskFull.setAttribute("width", String(view.w));
+      link.maskFull.setAttribute("height", String(view.h));
+      link.maskHoles.replaceChildren();
+      for (const hole of holes) {
+        const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+        rect.setAttribute("x", String(hole.x - 1));
+        rect.setAttribute("y", String(hole.y - 1));
+        rect.setAttribute("width", String(hole.w + 2));
+        rect.setAttribute("height", String(hole.h + 2));
+        rect.setAttribute("rx", String(hole.radius));
+        rect.setAttribute("ry", String(hole.radius));
+        link.maskHoles.appendChild(rect);
+      }
+    }
+
+    function curvePath(
+      start: { x: number; y: number },
+      end: { x: number; y: number },
+      toPanel: boolean
+    ) {
+      const deltaX = end.x - start.x;
+      const deltaY = end.y - start.y;
+      const controlOne = toPanel
+        ? {
+            x: start.x + deltaX * 0.05,
+            y: start.y + Math.max(70, Math.abs(deltaY) * 0.4)
           }
-        `,
-        transparent: true,
-        depthTest: false,
-        depthWrite: false,
-        blending: THREE.NormalBlending
-      }) as THREE.ShaderMaterial & { uniforms: BeamUniforms };
+        : {
+            x: start.x,
+            y: start.y + Math.max(90, Math.abs(deltaY) * 0.45)
+          };
+      const controlTwo = {
+        x: end.x,
+        y:
+          end.y -
+          (toPanel
+            ? Math.min(180, Math.max(60, Math.abs(deltaY) * 0.35))
+            : Math.min(240, Math.max(90, Math.abs(deltaY) * 0.4)))
+      };
+      return `M ${start.x} ${start.y} C ${controlOne.x} ${controlOne.y}, ${controlTwo.x} ${controlTwo.y}, ${end.x} ${end.y}`;
     }
 
     try {
@@ -187,7 +288,8 @@
       function rebuildField() {
         fieldUnitsPerPixel = unitsPerPixel();
         const halfView = worldHeight() / 2;
-        const scrollWorld = (Math.max(documentHeight(), height()) - height()) * fieldUnitsPerPixel * backgroundParallax;
+        const scrollWorld =
+          (Math.max(documentHeight(), height()) - height()) * fieldUnitsPerPixel * backgroundParallax;
         const top = halfView + 220;
         const bottom = -scrollWorld - halfView - 220;
         const span = top - bottom;
@@ -195,10 +297,7 @@
         builtSpan = span;
         const count = Math.max(
           targetParticlesPerViewport,
-          Math.min(
-            maxParticles,
-            Math.round(targetParticlesPerViewport * (span / worldHeight()))
-          )
+          Math.min(maxParticles, Math.round(targetParticlesPerViewport * (span / worldHeight())))
         );
         for (let index = 0; index < count; index += 1) {
           positions[index * 3] = (Math.random() - 0.5) * 3000;
@@ -250,134 +349,97 @@
       disposables.push(particleMaterial);
       bgScene.add(new THREE.Points(particleGeometry, particleMaterial));
 
-      let fxWidth = width();
-      let fxHeight = height();
-      const fxPixelRatio = 1;
       const connectionsEnabled = !smallScreen && !reduceMotion;
-      const fxRenderer = connectionsEnabled
-        ? new THREE.WebGLRenderer({
-            canvas: fxCanvas,
-            antialias: true,
-            alpha: true,
-            depth: false,
-            stencil: false,
-            powerPreference: "high-performance"
-          })
-        : null;
-      if (fxRenderer) {
-        fxRenderer.setPixelRatio(fxPixelRatio);
-        fxRenderer.setClearColor(0x000000, 0);
-        disposables.push(fxRenderer);
-      } else {
-        fxCanvas.style.display = "none";
-      }
-      const fxScene = new THREE.Scene();
-      // Fixed to the viewport — never pan with scroll (chords use getBoundingClientRect coords).
-      const fxCamera = new THREE.OrthographicCamera(
-        -fxWidth / 2,
-        fxWidth / 2,
-        fxHeight / 2,
-        -fxHeight / 2,
-        -1000,
-        1000
-      );
-      fxCamera.position.z = 10;
-
       const landingFractions = [0.3, 0.14, 0.86, 0.7];
-      const listPanel = home.querySelector<HTMLElement>("[data-home-list-panel]");
-      const links: BeamLink[] = [];
 
-      if (connectionsEnabled) home.querySelectorAll<HTMLElement>("[data-home-card-id]").forEach((card, index) => {
-        const port = card.querySelector<HTMLElement>("[data-home-port]");
-        if (!port || !listPanel) return;
-        const material = beamMaterial();
-        material.uniforms.uSpeed.value = 0.9 + Math.random() * 0.5;
-        material.uniforms.uPhase.value = Math.random();
-        const mesh = new THREE.Mesh(new THREE.BufferGeometry(), material);
-        mesh.frustumCulled = false;
-        fxScene.add(mesh);
-        links.push({
-          source: port,
-          target: listPanel,
-          mesh,
-          material,
-          opacity: 0,
-          landFraction: landingFractions[index % landingFractions.length],
-          lastStartX: Number.NaN,
-          lastStartY: Number.NaN,
-          lastEndX: Number.NaN,
-          lastEndY: Number.NaN
+      async function buildChords() {
+        await tick();
+        if (stopped || !connectionsEnabled) return;
+        const listPanel = home.querySelector<HTMLElement>("[data-home-list-panel]");
+        const cardHost = home.querySelector<HTMLElement>("[data-home-chords]");
+        const cards = [...home.querySelectorAll<HTMLElement>("[data-home-card-id]")];
+        if (!listPanel || !cardHost) return;
+
+        cards.forEach((card, index) => {
+          const port = card.querySelector<HTMLElement>("[data-home-port]");
+          if (!port) return;
+          // All hero chords share one layer under every card (z-index 1 vs cards 2/4).
+          const chord = createChord(1, cardHost);
+          links.push({
+            ...chord,
+            source: port,
+            sourceCard: card,
+            mountParent: cardHost,
+            target: listPanel,
+            landFraction: landingFractions[index % landingFractions.length],
+            lastStartX: Number.NaN,
+            lastStartY: Number.NaN,
+            lastEndX: Number.NaN,
+            lastEndY: Number.NaN
+          });
         });
-      });
 
-      if (connectionsEnabled) home.querySelectorAll<HTMLElement>("[data-home-flow-port]").forEach((port) => {
-        const flowId = port.dataset.homeFlowPort;
-        const dock = flowId
-          ? home.querySelector<HTMLElement>(`[data-home-flow-dock="${flowId}"]`)
-          : null;
-        if (!dock) return;
-        const material = beamMaterial();
-        material.uniforms.uSpeed.value = 0.9 + Math.random() * 0.5;
-        material.uniforms.uPhase.value = Math.random();
-        const mesh = new THREE.Mesh(new THREE.BufferGeometry(), material);
-        mesh.frustumCulled = false;
-        fxScene.add(mesh);
-        links.push({
-          source: port,
-          target: dock,
-          mesh,
-          material,
-          opacity: 0,
-          lastStartX: Number.NaN,
-          lastStartY: Number.NaN,
-          lastEndX: Number.NaN,
-          lastEndY: Number.NaN
+        const main = home.querySelector<HTMLElement>(".home-main") ?? home;
+        home.querySelectorAll<HTMLElement>("[data-home-flow-port]").forEach((port) => {
+          const flowId = port.dataset.homeFlowPort;
+          const dock = flowId
+            ? home.querySelector<HTMLElement>(`[data-home-flow-dock="${flowId}"]`)
+            : null;
+          if (!dock) return;
+          // Behind panels (z-index 5) so flow cables tuck under panel faces.
+          const chord = createChord(1, main);
+          links.push({
+            ...chord,
+            source: port,
+            sourceCard: null,
+            mountParent: main,
+            target: dock,
+            lastStartX: Number.NaN,
+            lastStartY: Number.NaN,
+            lastEndX: Number.NaN,
+            lastEndY: Number.NaN
+          });
         });
-      });
 
-      for (const link of links) {
-        disposables.push(link.mesh.geometry, link.material);
+        relayoutLinks();
       }
 
-      function worldPoint(x: number, y: number) {
-        return new THREE.Vector3(x - fxWidth / 2, fxHeight / 2 - y, 0);
-      }
+      void buildChords();
 
-      /** Viewport-space center from getBoundingClientRect (no scrollX/scrollY). */
-      function elementCenter(element: HTMLElement) {
-        const rect = element.getBoundingClientRect();
-        return {
-          x: rect.left + rect.width / 2,
-          y: rect.top + rect.height / 2
-        };
-      }
-
-      let cordsMinY = 0;
-      let cordsMaxY = 0;
       function relayoutLinks() {
-        if (width() <= 720) {
-          for (const link of links) link.mesh.visible = false;
-          cordsMinY = Number.POSITIVE_INFINITY;
-          cordsMaxY = Number.NEGATIVE_INFINITY;
-          return;
-        }
-
-        let minY = Number.POSITIVE_INFINITY;
-        let maxY = Number.NEGATIVE_INFINITY;
+        const hide = width() <= 720;
+        const homeRect = home.getBoundingClientRect();
+        const view = {
+          w: Math.max(home.scrollWidth, homeRect.width, width()),
+          h: Math.max(home.scrollHeight, homeRect.height, height())
+        };
+        const holesCache = new Map<HTMLElement | null, ReturnType<typeof occlusionRects>>();
         for (const link of links) {
-          if (!link.target) continue;
-          link.mesh.visible = true;
-          const start = elementCenter(link.source);
-          let end = elementCenter(link.target);
+          if (hide) {
+            link.svg.style.visibility = "hidden";
+            continue;
+          }
+          link.svg.style.visibility = "visible";
+          syncChordSurface(link.svg, link.mountParent, view);
+          const exclude = link.sourceCard;
+          let holes = holesCache.get(exclude);
+          if (!holes) {
+            holes = occlusionRects(exclude);
+            holesCache.set(exclude, holes);
+          }
+          applyOcclusionMask(link, view, holes);
+
+          const startClient = elementCenter(link.source);
+          let endClient = elementCenter(link.target);
           if (link.landFraction !== undefined) {
             const rect = link.target.getBoundingClientRect();
-            end = {
+            endClient = {
               x: rect.left + rect.width * link.landFraction,
               y: rect.top
             };
           }
-          minY = Math.min(minY, start.y, end.y);
-          maxY = Math.max(maxY, start.y, end.y);
+          const start = homePoint(startClient.x, startClient.y);
+          const end = homePoint(endClient.x, endClient.y);
 
           const moved =
             Number.isNaN(link.lastStartX) ||
@@ -385,44 +447,27 @@
             Math.abs(start.y - link.lastStartY) > ENDPOINT_EPS ||
             Math.abs(end.x - link.lastEndX) > ENDPOINT_EPS ||
             Math.abs(end.y - link.lastEndY) > ENDPOINT_EPS;
-          if (!moved) continue;
 
           link.lastStartX = start.x;
           link.lastStartY = start.y;
           link.lastEndX = end.x;
           link.lastEndY = end.y;
+          if (!moved) continue;
 
-          const deltaX = end.x - start.x;
-          const deltaY = end.y - start.y;
-          const controlOne =
-            link.landFraction !== undefined
-              ? {
-                  x: start.x + deltaX * 0.05,
-                  y: start.y + Math.max(70, Math.abs(deltaY) * 0.4)
-                }
-              : {
-                  x: start.x,
-                  y: start.y + Math.max(90, Math.abs(deltaY) * 0.45)
-                };
-          const controlTwo = {
-            x: end.x,
-            y:
-              end.y -
-              (link.landFraction !== undefined
-                ? Math.min(180, Math.max(60, Math.abs(deltaY) * 0.35))
-                : Math.min(240, Math.max(90, Math.abs(deltaY) * 0.4)))
-          };
-          const curve = new THREE.CubicBezierCurve3(
-            worldPoint(start.x, start.y),
-            worldPoint(controlOne.x, controlOne.y),
-            worldPoint(controlTwo.x, controlTwo.y),
-            worldPoint(end.x, end.y)
-          );
-          link.mesh.geometry.dispose();
-          link.mesh.geometry = new THREE.TubeGeometry(curve, 56, 3.2, 5, false);
+          const d = curvePath(start, end, link.landFraction !== undefined);
+          link.cable.setAttribute("d", d);
+          link.pulse.setAttribute("d", d);
         }
-        cordsMinY = minY;
-        cordsMaxY = maxY;
+      }
+
+      function renderChords(time: number, animated: boolean) {
+        relayoutLinks();
+        for (const link of links) {
+          link.opacity = animated ? link.opacity + (1 - link.opacity) * 0.06 : 1;
+          link.svg.style.opacity = String(link.opacity);
+          const travel = ((time * link.speed * 36 + link.phase * 256) % 256) - 16;
+          link.pulse.setAttribute("stroke-dashoffset", String(-travel));
+        }
       }
 
       function resize() {
@@ -433,16 +478,6 @@
         bgRenderer.setSize(viewportWidth, viewportHeight);
         bgCamera.aspect = viewportWidth / viewportHeight;
         bgCamera.updateProjectionMatrix();
-        fxWidth = viewportWidth;
-        fxHeight = viewportHeight;
-        fxRenderer?.setPixelRatio(fxPixelRatio);
-        fxRenderer?.setSize(viewportWidth, viewportHeight);
-        fxCamera.left = -fxWidth / 2;
-        fxCamera.right = fxWidth / 2;
-        fxCamera.top = fxHeight / 2;
-        fxCamera.bottom = -fxHeight / 2;
-        fxCamera.updateProjectionMatrix();
-        // Force geometry rebuild after size change (worldPoint depends on fxWidth/fxHeight).
         for (const link of links) {
           link.lastStartX = Number.NaN;
         }
@@ -452,7 +487,7 @@
           particleMaterial.uniforms.uTime.value = 0;
           bgCamera.position.y = 0;
           bgRenderer.render(bgScene, bgCamera);
-          renderFxFrame(0, false);
+          renderChords(0, false);
         }
       }
 
@@ -470,24 +505,6 @@
       const clock = new THREE.Clock();
       const frameInterval = 1000 / targetFrameRate;
       let lastFrameTime = 0;
-      let fxHasVisibleFrame = false;
-      function renderFxFrame(time: number, animated: boolean) {
-        if (!fxRenderer) return;
-        relayoutLinks();
-        // cordsMinY/cordsMaxY are viewport Y from getBoundingClientRect.
-        if (cordsMaxY > -240 && cordsMinY < height() + 240) {
-          for (const link of links) {
-            link.opacity = animated ? link.opacity + (1 - link.opacity) * 0.06 : 1;
-            link.material.uniforms.uOpacity.value = link.opacity;
-            link.material.uniforms.uTime.value = time;
-          }
-          fxRenderer.render(fxScene, fxCamera);
-          fxHasVisibleFrame = true;
-        } else if (fxHasVisibleFrame) {
-          fxRenderer.clear();
-          fxHasVisibleFrame = false;
-        }
-      }
 
       function animate(timestamp: number) {
         if (stopped || document.hidden) {
@@ -496,8 +513,7 @@
         }
         frame = window.requestAnimationFrame(animate);
         const time = clock.getElapsedTime();
-        // FX path is unthrottled so chords stay glued to ports during scroll.
-        renderFxFrame(time, true);
+        renderChords(time, true);
         if (timestamp - lastFrameTime < frameInterval) return;
         lastFrameTime = timestamp - ((timestamp - lastFrameTime) % frameInterval);
         const scroll = window.scrollY;
@@ -518,7 +534,7 @@
       }
 
       function handleReducedScroll() {
-        renderFxFrame(0, false);
+        renderChords(0, false);
       }
 
       resize();
@@ -539,20 +555,18 @@
         window.removeEventListener("scroll", handleReducedScroll);
         window.removeEventListener("resize", scheduleResize);
         window.removeEventListener("load", resize);
-        if (fxHome && fxCanvas.parentElement !== fxHome) fxHome.appendChild(fxCanvas);
-        for (const link of links) link.mesh.geometry.dispose();
+        for (const link of links) link.svg.remove();
         for (const disposable of disposables) disposable.dispose();
       };
     } catch (error) {
       console.warn("[home] immersive WebGL effects unavailable", error);
       bgCanvas.style.display = "none";
-      fxCanvas.style.display = "none";
+      for (const link of links) link.svg.remove();
     }
   });
 </script>
 
 <canvas bind:this={bgCanvas} class="home-bg-canvas" aria-hidden="true"></canvas>
-<canvas bind:this={fxCanvas} class="home-fx-canvas" aria-hidden="true"></canvas>
 <div class="home-vignette" aria-hidden="true"></div>
 
 <style>
@@ -564,22 +578,31 @@
     pointer-events: none;
   }
 
-  .home-fx-canvas {
-    position: fixed;
-    inset: 0;
-    /* Inside .home-main (isolation): behind cards/panels, above page background. */
-    z-index: -1;
-    display: block;
-    width: 100%;
-    height: 100%;
-    pointer-events: none;
-  }
-
   .home-vignette {
     position: fixed;
     inset: 0;
     z-index: 45;
     pointer-events: none;
     background: radial-gradient(120% 100% at 50% 40%, transparent 58%, rgb(0 0 0 / 36%) 100%);
+  }
+
+  :global(.home-chord) {
+    position: absolute;
+    top: 0;
+    left: 0;
+    overflow: visible;
+    pointer-events: none;
+  }
+
+  :global(.home-chord-cable) {
+    stroke: #4cc9e8;
+    stroke-width: 2.4;
+    opacity: 0.78;
+  }
+
+  :global(.home-chord-pulse) {
+    stroke: #e8fbff;
+    stroke-width: 2;
+    opacity: 0.95;
   }
 </style>

@@ -23,6 +23,8 @@
 </svelte:head>
 
 <div class="immersive-home">
+  <ImmersiveEffects />
+
   <main class="home-main">
     <HomeHero />
 
@@ -93,9 +95,6 @@
   </main>
 
   <footer>MINHA CASA · INTELIGÊNCIA PARA SUA JORNADA IMOBILIÁRIA</footer>
-
-  <!-- After .home-main so onMount can reparent the chord canvas under the cards. -->
-  <ImmersiveEffects />
 </div>
 
 <style>
@@ -131,6 +130,7 @@
     --app-warning: #fb7185;
     --app-danger: #fb7185;
     position: relative;
+    isolation: isolate;
     min-height: 100vh;
     overflow: hidden;
     background:
@@ -143,19 +143,39 @@
     font-kerning: normal;
     -webkit-font-smoothing: antialiased;
   }
+  /* Cards keep their own z-index so they can sit above matching beam layers. */
   .home-main {
     position: relative;
-    z-index: 5;
-    isolation: isolate;
+    z-index: 1;
     width: 100%;
     max-width: 90rem;
     margin: 0 auto;
     padding: 0 clamp(1.25rem, 5vw, 5rem);
   }
   .list-section { position: relative; padding: 2vh 0 14vh; }
-  .section-label { display: flex; align-items: center; gap: .9rem; color: var(--home-cyan-soft); font-family: var(--home-mono); font-size: .65rem; letter-spacing: .3em; text-transform: uppercase; }
+  .section-label {
+    position: relative;
+    z-index: 5;
+    display: flex;
+    align-items: center;
+    gap: .9rem;
+    color: var(--home-cyan-soft);
+    font-family: var(--home-mono);
+    font-size: .65rem;
+    letter-spacing: .3em;
+    text-transform: uppercase;
+  }
   .section-label::before { width: 2.6rem; height: 1px; background: linear-gradient(90deg, var(--home-cyan), transparent); content: ""; }
-  .home-panel { position: relative; margin-top: 2rem; overflow: visible; border: 1px solid rgb(96 165 250 / 18%); border-radius: 1.25rem; background: linear-gradient(180deg, rgb(9 18 40 / 88%), rgb(5 11 26 / 94%)); box-shadow: 0 2.5rem 7.5rem -2.5rem rgb(0 0 0 / 90%), inset 0 1px 0 rgb(255 255 255 / 4%), 0 0 5rem -2.5rem rgb(34 211 238 / 50%); }
+  .home-panel {
+    position: relative;
+    z-index: 5;
+    margin-top: 2rem;
+    overflow: visible;
+    border: 1px solid rgb(96 165 250 / 18%);
+    border-radius: 1.25rem;
+    background: linear-gradient(180deg, rgb(9 18 40 / 88%), rgb(5 11 26 / 94%));
+    box-shadow: 0 2.5rem 7.5rem -2.5rem rgb(0 0 0 / 90%), inset 0 1px 0 rgb(255 255 255 / 4%), 0 0 5rem -2.5rem rgb(34 211 238 / 50%);
+  }
   .home-panel::before { position: absolute; inset: 0; border-radius: inherit; background: linear-gradient(120deg, rgb(34 211 238 / 6%), transparent 30%, transparent 70%, rgb(59 130 246 / 6%)); content: ""; pointer-events: none; }
   .panel-head { position: relative; display: flex; align-items: flex-end; justify-content: space-between; gap: 1rem; padding: 1.25rem 1.5rem 1rem; border-bottom: 1px solid var(--home-line); }
   .panel-head > div { min-width: 0; }

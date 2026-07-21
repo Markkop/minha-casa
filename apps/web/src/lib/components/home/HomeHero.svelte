@@ -7,26 +7,39 @@
     notation: "compact",
     maximumFractionDigits: 2
   });
+
+  const rotations = [3, -5, 5, -3];
+  /** Front cards (1,4) above back cards (2,3) — chords inherit this stack. */
+  const stackIndex = [4, 2, 2, 4];
 </script>
 
 <section class="home-stage" aria-labelledby="home-title">
+  <!-- Chords mount here so every cable stays under every card face. -->
+  <div class="home-chords" data-home-chords aria-hidden="true"></div>
+
   {#each INITIAL_DEMO_LISTINGS as listing, index (listing.id)}
-    <article
-      class="property-thumb thumb-{index + 1}"
-      data-home-card-id={listing.id}
-      style={`--rotation: ${[3, -5, 5, -3][index]}deg`}
+    <div
+      class="card-stack stack-{index + 1}"
+      data-home-card-stack={listing.id}
+      style={`z-index: ${stackIndex[index]}`}
     >
-      <div class="frame">
-        <img src={listing.imageUrl ?? ""} alt={listing.title} />
-        <div class="scan" aria-hidden="true"></div>
-        <span class="price">{compactCurrency.format(listing.price ?? 0)}</span>
-        <div class="tag">
-          <span class="id">IM-{String(index + 1).padStart(2, "0")}</span>
-          <span class="name">{listing.title}</span>
+      <article
+        class="property-thumb"
+        data-home-card-id={listing.id}
+        style={`--rotation: ${rotations[index]}deg`}
+      >
+        <div class="frame">
+          <img src={listing.imageUrl ?? ""} alt={listing.title} />
+          <div class="scan" aria-hidden="true"></div>
+          <span class="price">{compactCurrency.format(listing.price ?? 0)}</span>
+          <div class="tag">
+            <span class="id">IM-{String(index + 1).padStart(2, "0")}</span>
+            <span class="name">{listing.title}</span>
+          </div>
         </div>
-      </div>
-      <span class="port" data-home-port aria-hidden="true"></span>
-    </article>
+        <span class="port" data-home-port aria-hidden="true"></span>
+      </article>
+    </div>
   {/each}
 
   <div class="stage-title">
@@ -38,16 +51,39 @@
 
 <style>
   .home-stage { position: relative; display: flex; min-height: 74vh; align-items: center; justify-content: center; padding: 8rem 0 4rem; }
+  .home-chords {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    overflow: visible;
+    pointer-events: none;
+  }
   .stage-title { position: relative; z-index: 5; max-width: min(36vw, 31rem); padding: 0 .6rem; text-align: center; pointer-events: none; }
   .stage-title p { margin: 0 0 1rem; color: var(--home-ink-faint); font-family: var(--home-mono); font-size: .65rem; letter-spacing: .28em; text-transform: uppercase; }
   .stage-title h1 { margin: 0; color: var(--home-ink); font-size: clamp(3.5rem, 7vw, 8.6rem); font-weight: 700; letter-spacing: .01em; line-height: .82; text-transform: uppercase; filter: drop-shadow(0 .5rem 2.1rem rgb(34 211 238 / 28%)); }
   .stage-title h1 b { font-weight: 700; background: linear-gradient(125deg, var(--home-cyan-soft) 5%, var(--home-blue-bright) 55%, var(--home-cyan) 100%); background-clip: text; color: transparent; }
   .stage-title > span { display: block; max-width: 30rem; margin: 1.4rem auto 0; color: var(--home-ink-dim); font-family: var(--home-mono); font-size: clamp(.68rem, 1vw, .85rem); letter-spacing: .04em; line-height: 1.65; }
-  .property-thumb { position: absolute; z-index: 3; width: clamp(11.25rem, 20vw, 16.5rem); transform: rotate(var(--rotation)); transform-origin: 50% 50%; will-change: transform; }
-  .thumb-1 { top: 37%; left: 11%; z-index: 4; }
-  .thumb-2 { top: 19%; left: 4%; z-index: 2; }
-  .thumb-3 { top: 19%; right: 4%; z-index: 2; }
-  .thumb-4 { top: 37%; right: 11%; z-index: 4; }
+
+  .card-stack {
+    position: absolute;
+    width: clamp(11.25rem, 20vw, 16.5rem);
+    pointer-events: none;
+  }
+  .stack-1 { top: 37%; left: 11%; }
+  .stack-2 { top: 19%; left: 4%; }
+  .stack-3 { top: 19%; right: 4%; }
+  .stack-4 { top: 37%; right: 11%; }
+
+  .property-thumb {
+    position: relative;
+    width: 100%;
+    transform: rotate(var(--rotation));
+    transform-origin: 50% 50%;
+    will-change: transform;
+    pointer-events: auto;
+    background: var(--home-navy-800);
+    border-radius: 1rem;
+  }
   .frame { position: relative; overflow: hidden; aspect-ratio: 4 / 3; border: 1px solid rgb(103 232 249 / 22%); border-radius: 1rem; background: linear-gradient(135deg, var(--home-navy-600), var(--home-navy-700)); box-shadow: 0 1.25rem 3.4rem -1.25rem rgb(0 0 0 / 85%), 0 0 0 1px rgb(96 165 250 / 6%), 0 0 2.5rem -1.1rem rgb(34 211 238 / 55%); transition: transform .5s cubic-bezier(.2,.7,.2,1), box-shadow .5s ease; }
   .frame img { display: block; width: 100%; height: 100%; object-fit: cover; opacity: .92; filter: saturate(1.05) contrast(1.03); transform: scale(1.04); transition: transform .9s cubic-bezier(.2,.7,.2,1), opacity .6s; }
   .frame::after { position: absolute; inset: 0; background: linear-gradient(180deg, transparent 45%, rgb(3 7 17 / 82%) 100%), linear-gradient(120deg, rgb(34 211 238 / 10%), transparent 40%); content: ""; pointer-events: none; }
@@ -68,7 +104,8 @@
     .stage-title { order: -1; max-width: 100%; margin-bottom: 1.6rem; }
     .stage-title h1 { font-size: clamp(3.5rem, 17vw, 5.5rem); }
     .stage-title p { font-size: .55rem; }
-    .property-thumb { position: relative; top: auto; right: auto; left: auto; width: 100%; max-width: 20rem; margin: 0 auto 1.25rem; transform: none; }
+    .card-stack { position: relative; top: auto; right: auto; left: auto; width: 100%; max-width: 20rem; margin: 0 auto 1.25rem; }
+    .property-thumb { transform: none; }
     .property-thumb .port { display: none; }
   }
 
