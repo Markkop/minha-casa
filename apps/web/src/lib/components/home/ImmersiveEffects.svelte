@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount, tick } from "svelte";
   import * as THREE from "three";
+  import { homeConnectorPolicy } from "$lib/components/home/home-connector-policy";
 
   let bgCanvas = $state<HTMLCanvasElement | null>(null);
 
@@ -11,7 +12,12 @@
     stackIndex: number;
     target: HTMLElement;
     svg: SVGSVGElement;
+    gradient: SVGLinearGradientElement;
+    cableGlow: SVGPathElement;
+    cableBody: SVGPathElement;
     cable: SVGPathElement;
+    signalTrail: SVGPathElement;
+    signalGlow: SVGPathElement;
     pulse: SVGPathElement;
     maskFull: SVGRectElement;
     maskHoles: SVGGElement;
@@ -29,14 +35,16 @@
 
   onMount(() => {
     if (!bgCanvas) return;
-    const home = bgCanvas.closest<HTMLElement>(".immersive-home");
-    if (!home) return;
+    const homeElement = bgCanvas.closest<HTMLElement>(".immersive-home");
+    if (!homeElement) return;
+    const home: HTMLElement = homeElement;
 
     const width = () => window.innerWidth;
     const height = () => window.innerHeight;
     const documentHeight = () => Math.max(home.scrollHeight, document.documentElement.scrollHeight);
-    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const smallScreen = Math.min(width(), height()) < 700;
+    const reducedMotionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const reduceMotion = reducedMotionQuery.matches;
+    const smallScreen = width() <= 720;
     const hardwareThreads = navigator.hardwareConcurrency || 4;
     const deviceMemory = (navigator as Navigator & { deviceMemory?: number }).deviceMemory;
     const constrainedDevice = hardwareThreads <= 4 || (deviceMemory !== undefined && deviceMemory <= 4);
@@ -54,8 +62,12 @@
     const targetFrameRate = constrainedDevice ? 30 : 60;
     const disposables: Array<{ dispose: () => void }> = [];
     const timers: number[] = [];
+    const chordTimers: number[] = [];
     const links: ChordLink[] = [];
     let frame = 0;
+    let chordFrame = 0;
+    let chordMasksDirty = true;
+    let chordResizeTimer = 0;
     let resizeTimer = 0;
     let stopped = false;
 
@@ -86,6 +98,32 @@
 
     let chordUid = 0;
 
+    function createGlowFilter(id: string, blurRadius: number, includeSource: boolean) {
+      const filter = document.createElementNS("http://www.w3.org/2000/svg", "filter");
+      filter.setAttribute("id", id);
+      filter.setAttribute("x", "-50%");
+      filter.setAttribute("y", "-50%");
+      filter.setAttribute("width", "200%");
+      filter.setAttribute("height", "200%");
+
+      const blur = document.createElementNS("http://www.w3.org/2000/svg", "feGaussianBlur");
+      blur.setAttribute("stdDeviation", String(blurRadius));
+      blur.setAttribute("result", "glow");
+      filter.appendChild(blur);
+
+      if (includeSource) {
+        const merge = document.createElementNS("http://www.w3.org/2000/svg", "feMerge");
+        for (const source of ["glow", "SourceGraphic"]) {
+          const node = document.createElementNS("http://www.w3.org/2000/svg", "feMergeNode");
+          node.setAttribute("in", source);
+          merge.appendChild(node);
+        }
+        filter.appendChild(merge);
+      }
+
+      return filter;
+    }
+
     function createChord(
       stackIndex: number,
       mountParent: HTMLElement
@@ -102,12 +140,33 @@
       | "lastEndY"
     > {
       const uid = `home-chord-mask-${chordUid++}`;
+      const gradientUid = `${uid}-gradient`;
+      const cableHaloUid = `${uid}-cable-halo`;
+      const cableCoreUid = `${uid}-cable-core`;
+      const signalTailUid = `${uid}-signal-tail`;
+      const signalMidUid = `${uid}-signal-mid`;
+      const signalHeadUid = `${uid}-signal-head`;
       const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
       svg.setAttribute("class", "home-chord");
       svg.setAttribute("aria-hidden", "true");
       svg.style.zIndex = String(stackIndex);
 
       const defs = document.createElementNS("http://www.w3.org/2000/svg", "defs");
+      const gradient = document.createElementNS("http://www.w3.org/2000/svg", "linearGradient");
+      gradient.setAttribute("id", gradientUid);
+      gradient.setAttribute("gradientUnits", "userSpaceOnUse");
+      for (const [offset, color, opacity] of [
+        ["0%", "#67e8f9", "0.88"],
+        ["48%", "#22d3ee", "0.96"],
+        ["100%", "#3b82f6", "0.9"]
+      ]) {
+        const stop = document.createElementNS("http://www.w3.org/2000/svg", "stop");
+        stop.setAttribute("offset", offset);
+        stop.setAttribute("stop-color", color);
+        stop.setAttribute("stop-opacity", opacity);
+        gradient.appendChild(stop);
+      }
+
       const mask = document.createElementNS("http://www.w3.org/2000/svg", "mask");
       mask.setAttribute("id", uid);
       mask.setAttribute("maskUnits", "userSpaceOnUse");
@@ -121,30 +180,76 @@
       maskHoles.setAttribute("fill", "#000");
 
       mask.append(maskFull, maskHoles);
-      defs.appendChild(mask);
+      defs.append(
+        gradient,
+        createGlowFilter(cableHaloUid, 3, false),
+        createGlowFilter(cableCoreUid, 1.5, true),
+        createGlowFilter(signalTailUid, 2.5, false),
+        createGlowFilter(signalMidUid, 1.25, false),
+        createGlowFilter(signalHeadUid, 2.5, true),
+        mask
+      );
 
       const layer = document.createElementNS("http://www.w3.org/2000/svg", "g");
       layer.setAttribute("mask", `url(#${uid})`);
 
+      const cableGlow = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      cableGlow.setAttribute("class", "home-chord-cable-glow");
+      cableGlow.setAttribute("fill", "none");
+      cableGlow.setAttribute("stroke", `url(#${gradientUid})`);
+      cableGlow.setAttribute("stroke-linecap", "round");
+      cableGlow.setAttribute("filter", `url(#${cableHaloUid})`);
+
       const cable = document.createElementNS("http://www.w3.org/2000/svg", "path");
       cable.setAttribute("class", "home-chord-cable");
       cable.setAttribute("fill", "none");
+      cable.setAttribute("stroke", `url(#${gradientUid})`);
       cable.setAttribute("stroke-linecap", "round");
+      cable.setAttribute("filter", `url(#${cableCoreUid})`);
+
+      const cableBody = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      cableBody.setAttribute("class", "home-chord-cable-body");
+      cableBody.setAttribute("fill", "none");
+      cableBody.setAttribute("stroke", `url(#${gradientUid})`);
+      cableBody.setAttribute("stroke-linecap", "round");
+
+      const signalTrail = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      signalTrail.setAttribute("class", "home-chord-signal-trail");
+      signalTrail.setAttribute("fill", "none");
+      signalTrail.setAttribute("pathLength", "100");
+      signalTrail.setAttribute("stroke-linecap", "round");
+      signalTrail.setAttribute("stroke-dasharray", "45 155");
+      signalTrail.setAttribute("filter", `url(#${signalTailUid})`);
+
+      const signalGlow = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      signalGlow.setAttribute("class", "home-chord-signal-glow");
+      signalGlow.setAttribute("fill", "none");
+      signalGlow.setAttribute("pathLength", "100");
+      signalGlow.setAttribute("stroke-linecap", "round");
+      signalGlow.setAttribute("stroke-dasharray", "18 182");
+      signalGlow.setAttribute("filter", `url(#${signalMidUid})`);
 
       const pulse = document.createElementNS("http://www.w3.org/2000/svg", "path");
       pulse.setAttribute("class", "home-chord-pulse");
       pulse.setAttribute("fill", "none");
+      pulse.setAttribute("pathLength", "100");
       pulse.setAttribute("stroke-linecap", "round");
-      pulse.setAttribute("stroke-dasharray", "16 240");
+      pulse.setAttribute("stroke-dasharray", "5 195");
+      pulse.setAttribute("filter", `url(#${signalHeadUid})`);
 
-      layer.append(cable, pulse);
+      layer.append(cableGlow, cableBody, cable, signalTrail, signalGlow, pulse);
       svg.append(defs, layer);
       mountParent.appendChild(svg);
 
       return {
         stackIndex,
         svg,
+        gradient,
+        cableGlow,
+        cableBody,
         cable,
+        signalTrail,
+        signalGlow,
         pulse,
         maskFull,
         maskHoles,
@@ -232,6 +337,222 @@
             : Math.min(240, Math.max(90, Math.abs(deltaY) * 0.4)))
       };
       return `M ${start.x} ${start.y} C ${controlOne.x} ${controlOne.y}, ${controlTwo.x} ${controlTwo.y}, ${end.x} ${end.y}`;
+    }
+
+    const landingFractions = [0.3, 0.14, 0.86, 0.7];
+
+    async function buildChords() {
+      await tick();
+      if (stopped) return;
+      const listPanel = home.querySelector<HTMLElement>("[data-home-list-panel]");
+      const cardHost = home.querySelector<HTMLElement>("[data-home-chords]");
+      const cards = [...home.querySelectorAll<HTMLElement>("[data-home-card-id]")];
+      if (!listPanel || !cardHost) return;
+
+      cards.forEach((card, index) => {
+        const port = card.querySelector<HTMLElement>("[data-home-port]");
+        if (!port) return;
+        const chord = createChord(1, cardHost);
+        links.push({
+          ...chord,
+          source: port,
+          sourceCard: card,
+          mountParent: cardHost,
+          target: listPanel,
+          landFraction: landingFractions[index % landingFractions.length],
+          lastStartX: Number.NaN,
+          lastStartY: Number.NaN,
+          lastEndX: Number.NaN,
+          lastEndY: Number.NaN
+        });
+      });
+
+      const main = home.querySelector<HTMLElement>(".home-main") ?? home;
+      home.querySelectorAll<HTMLElement>("[data-home-flow-port]").forEach((port) => {
+        const flowId = port.dataset.homeFlowPort;
+        const dock = flowId
+          ? home.querySelector<HTMLElement>(`[data-home-flow-dock="${flowId}"]`)
+          : null;
+        if (!dock) return;
+        const chord = createChord(1, main);
+        links.push({
+          ...chord,
+          source: port,
+          sourceCard: null,
+          mountParent: main,
+          target: dock,
+          lastStartX: Number.NaN,
+          lastStartY: Number.NaN,
+          lastEndX: Number.NaN,
+          lastEndY: Number.NaN
+        });
+      });
+
+      chordMasksDirty = true;
+      renderChords(0, false);
+    }
+
+    function relayoutLinks() {
+      const policy = homeConnectorPolicy(width(), reducedMotionQuery.matches);
+      if (!policy.visible) {
+        for (const link of links) link.svg.style.visibility = "hidden";
+        return;
+      }
+      const homeRect = home.getBoundingClientRect();
+      const view = {
+        w: Math.max(home.scrollWidth, homeRect.width, width()),
+        h: Math.max(home.scrollHeight, homeRect.height, height())
+      };
+      const holesCache = new Map<HTMLElement | null, ReturnType<typeof occlusionRects>>();
+      for (const link of links) {
+        link.svg.style.visibility = "visible";
+        syncChordSurface(link.svg, link.mountParent, view);
+        if (chordMasksDirty) {
+          const exclude = link.sourceCard;
+          let holes = holesCache.get(exclude);
+          if (!holes) {
+            holes = occlusionRects(exclude);
+            holesCache.set(exclude, holes);
+          }
+          applyOcclusionMask(link, view, holes);
+        }
+
+        const startClient = elementCenter(link.source);
+        let endClient = elementCenter(link.target);
+        if (link.landFraction !== undefined) {
+          const rect = link.target.getBoundingClientRect();
+          endClient = {
+            x: rect.left + rect.width * link.landFraction,
+            y: rect.top
+          };
+        }
+        const start = homePoint(startClient.x, startClient.y);
+        const end = homePoint(endClient.x, endClient.y);
+
+        const moved =
+          Number.isNaN(link.lastStartX) ||
+          Math.abs(start.x - link.lastStartX) > ENDPOINT_EPS ||
+          Math.abs(start.y - link.lastStartY) > ENDPOINT_EPS ||
+          Math.abs(end.x - link.lastEndX) > ENDPOINT_EPS ||
+          Math.abs(end.y - link.lastEndY) > ENDPOINT_EPS;
+
+        link.lastStartX = start.x;
+        link.lastStartY = start.y;
+        link.lastEndX = end.x;
+        link.lastEndY = end.y;
+        if (!moved) continue;
+
+        const d = curvePath(start, end, link.landFraction !== undefined);
+        link.gradient.setAttribute("x1", String(start.x));
+        link.gradient.setAttribute("y1", String(start.y));
+        link.gradient.setAttribute("x2", String(end.x));
+        link.gradient.setAttribute("y2", String(end.y));
+        link.cableGlow.setAttribute("d", d);
+        link.cableBody.setAttribute("d", d);
+        link.cable.setAttribute("d", d);
+        link.signalTrail.setAttribute("d", d);
+        link.signalGlow.setAttribute("d", d);
+        link.pulse.setAttribute("d", d);
+      }
+      chordMasksDirty = false;
+    }
+
+    function renderChords(time: number, animated: boolean) {
+      const policy = homeConnectorPolicy(width(), reducedMotionQuery.matches);
+      relayoutLinks();
+      for (const link of links) {
+        link.signalTrail.style.visibility = policy.animated ? "visible" : "hidden";
+        link.signalGlow.style.visibility = policy.animated ? "visible" : "hidden";
+        link.pulse.style.visibility = policy.animated ? "visible" : "hidden";
+        if (!policy.visible) continue;
+        link.opacity = animated ? link.opacity + (1 - link.opacity) * 0.06 : 1;
+        link.svg.style.opacity = String(link.opacity);
+        if (policy.animated) {
+          const progress = (((time * link.speed * 0.16 + link.phase) % 1) * 173) - 18;
+          link.signalTrail.setAttribute("stroke-dashoffset", String(-progress + 45));
+          link.signalGlow.setAttribute("stroke-dashoffset", String(-progress + 18));
+          link.pulse.setAttribute("stroke-dashoffset", String(-progress + 2.5));
+        }
+      }
+    }
+
+    function animateChords(timestamp: number) {
+      const policy = homeConnectorPolicy(width(), reducedMotionQuery.matches);
+      if (stopped || document.hidden || !policy.animated) {
+        chordFrame = 0;
+        if (!stopped) renderChords(0, false);
+        return;
+      }
+      renderChords(timestamp / 1000, true);
+      chordFrame = window.requestAnimationFrame(animateChords);
+    }
+
+    function startChordRendering() {
+      window.cancelAnimationFrame(chordFrame);
+      chordFrame = 0;
+      const policy = homeConnectorPolicy(width(), reducedMotionQuery.matches);
+      if (policy.animated && !document.hidden) {
+        chordFrame = window.requestAnimationFrame(animateChords);
+      } else {
+        renderChords(0, false);
+      }
+    }
+
+    function scheduleChordRelayout() {
+      window.clearTimeout(chordResizeTimer);
+      chordResizeTimer = window.setTimeout(() => {
+        chordMasksDirty = true;
+        for (const link of links) link.lastStartX = Number.NaN;
+        renderChords(0, false);
+        startChordRendering();
+      }, 120);
+    }
+
+    function handleChordScroll() {
+      if (!homeConnectorPolicy(width(), reducedMotionQuery.matches).animated) {
+        renderChords(0, false);
+      }
+    }
+
+    function handleChordVisibilityChange() {
+      if (document.hidden) {
+        window.cancelAnimationFrame(chordFrame);
+        chordFrame = 0;
+      } else {
+        startChordRendering();
+      }
+    }
+
+    function handleReducedMotionChange() {
+      startChordRendering();
+    }
+
+    const chordObserver = new ResizeObserver(scheduleChordRelayout);
+    chordObserver.observe(home);
+    window.addEventListener("resize", scheduleChordRelayout, { passive: true });
+    window.addEventListener("load", scheduleChordRelayout);
+    window.addEventListener("scroll", handleChordScroll, { passive: true });
+    document.addEventListener("visibilitychange", handleChordVisibilityChange);
+    reducedMotionQuery.addEventListener("change", handleReducedMotionChange);
+    chordTimers.push(
+      window.setTimeout(scheduleChordRelayout, 400),
+      window.setTimeout(scheduleChordRelayout, 1500)
+    );
+    void buildChords();
+    startChordRendering();
+
+    function cleanupChords() {
+      stopped = true;
+      window.cancelAnimationFrame(chordFrame);
+      window.clearTimeout(chordResizeTimer);
+      for (const timer of chordTimers) window.clearTimeout(timer);
+      chordObserver.disconnect();
+      window.removeEventListener("resize", scheduleChordRelayout);
+      window.removeEventListener("load", scheduleChordRelayout);
+      window.removeEventListener("scroll", handleChordScroll);
+      document.removeEventListener("visibilitychange", handleChordVisibilityChange);
+      reducedMotionQuery.removeEventListener("change", handleReducedMotionChange);
+      for (const link of links) link.svg.remove();
     }
 
     try {
@@ -349,127 +670,6 @@
       disposables.push(particleMaterial);
       bgScene.add(new THREE.Points(particleGeometry, particleMaterial));
 
-      const connectionsEnabled = !smallScreen && !reduceMotion;
-      const landingFractions = [0.3, 0.14, 0.86, 0.7];
-
-      async function buildChords() {
-        await tick();
-        if (stopped || !connectionsEnabled) return;
-        const listPanel = home.querySelector<HTMLElement>("[data-home-list-panel]");
-        const cardHost = home.querySelector<HTMLElement>("[data-home-chords]");
-        const cards = [...home.querySelectorAll<HTMLElement>("[data-home-card-id]")];
-        if (!listPanel || !cardHost) return;
-
-        cards.forEach((card, index) => {
-          const port = card.querySelector<HTMLElement>("[data-home-port]");
-          if (!port) return;
-          // All hero chords share one layer under every card (z-index 1 vs cards 2/4).
-          const chord = createChord(1, cardHost);
-          links.push({
-            ...chord,
-            source: port,
-            sourceCard: card,
-            mountParent: cardHost,
-            target: listPanel,
-            landFraction: landingFractions[index % landingFractions.length],
-            lastStartX: Number.NaN,
-            lastStartY: Number.NaN,
-            lastEndX: Number.NaN,
-            lastEndY: Number.NaN
-          });
-        });
-
-        const main = home.querySelector<HTMLElement>(".home-main") ?? home;
-        home.querySelectorAll<HTMLElement>("[data-home-flow-port]").forEach((port) => {
-          const flowId = port.dataset.homeFlowPort;
-          const dock = flowId
-            ? home.querySelector<HTMLElement>(`[data-home-flow-dock="${flowId}"]`)
-            : null;
-          if (!dock) return;
-          // Behind panels (z-index 5) so flow cables tuck under panel faces.
-          const chord = createChord(1, main);
-          links.push({
-            ...chord,
-            source: port,
-            sourceCard: null,
-            mountParent: main,
-            target: dock,
-            lastStartX: Number.NaN,
-            lastStartY: Number.NaN,
-            lastEndX: Number.NaN,
-            lastEndY: Number.NaN
-          });
-        });
-
-        relayoutLinks();
-      }
-
-      void buildChords();
-
-      function relayoutLinks() {
-        const hide = width() <= 720;
-        const homeRect = home.getBoundingClientRect();
-        const view = {
-          w: Math.max(home.scrollWidth, homeRect.width, width()),
-          h: Math.max(home.scrollHeight, homeRect.height, height())
-        };
-        const holesCache = new Map<HTMLElement | null, ReturnType<typeof occlusionRects>>();
-        for (const link of links) {
-          if (hide) {
-            link.svg.style.visibility = "hidden";
-            continue;
-          }
-          link.svg.style.visibility = "visible";
-          syncChordSurface(link.svg, link.mountParent, view);
-          const exclude = link.sourceCard;
-          let holes = holesCache.get(exclude);
-          if (!holes) {
-            holes = occlusionRects(exclude);
-            holesCache.set(exclude, holes);
-          }
-          applyOcclusionMask(link, view, holes);
-
-          const startClient = elementCenter(link.source);
-          let endClient = elementCenter(link.target);
-          if (link.landFraction !== undefined) {
-            const rect = link.target.getBoundingClientRect();
-            endClient = {
-              x: rect.left + rect.width * link.landFraction,
-              y: rect.top
-            };
-          }
-          const start = homePoint(startClient.x, startClient.y);
-          const end = homePoint(endClient.x, endClient.y);
-
-          const moved =
-            Number.isNaN(link.lastStartX) ||
-            Math.abs(start.x - link.lastStartX) > ENDPOINT_EPS ||
-            Math.abs(start.y - link.lastStartY) > ENDPOINT_EPS ||
-            Math.abs(end.x - link.lastEndX) > ENDPOINT_EPS ||
-            Math.abs(end.y - link.lastEndY) > ENDPOINT_EPS;
-
-          link.lastStartX = start.x;
-          link.lastStartY = start.y;
-          link.lastEndX = end.x;
-          link.lastEndY = end.y;
-          if (!moved) continue;
-
-          const d = curvePath(start, end, link.landFraction !== undefined);
-          link.cable.setAttribute("d", d);
-          link.pulse.setAttribute("d", d);
-        }
-      }
-
-      function renderChords(time: number, animated: boolean) {
-        relayoutLinks();
-        for (const link of links) {
-          link.opacity = animated ? link.opacity + (1 - link.opacity) * 0.06 : 1;
-          link.svg.style.opacity = String(link.opacity);
-          const travel = ((time * link.speed * 36 + link.phase * 256) % 256) - 16;
-          link.pulse.setAttribute("stroke-dashoffset", String(-travel));
-        }
-      }
-
       function resize() {
         if (stopped) return;
         const viewportWidth = width();
@@ -478,16 +678,11 @@
         bgRenderer.setSize(viewportWidth, viewportHeight);
         bgCamera.aspect = viewportWidth / viewportHeight;
         bgCamera.updateProjectionMatrix();
-        for (const link of links) {
-          link.lastStartX = Number.NaN;
-        }
         rebuildField();
-        relayoutLinks();
         if (reduceMotion) {
           particleMaterial.uniforms.uTime.value = 0;
           bgCamera.position.y = 0;
           bgRenderer.render(bgScene, bgCamera);
-          renderChords(0, false);
         }
       }
 
@@ -513,7 +708,6 @@
         }
         frame = window.requestAnimationFrame(animate);
         const time = clock.getElapsedTime();
-        renderChords(time, true);
         if (timestamp - lastFrameTime < frameInterval) return;
         lastFrameTime = timestamp - ((timestamp - lastFrameTime) % frameInterval);
         const scroll = window.scrollY;
@@ -533,35 +727,28 @@
         }
       }
 
-      function handleReducedScroll() {
-        renderChords(0, false);
-      }
-
       resize();
       document.addEventListener("visibilitychange", handleVisibilityChange);
-      if (reduceMotion) {
-        window.addEventListener("scroll", handleReducedScroll, { passive: true });
-      } else {
+      if (!reduceMotion) {
         frame = window.requestAnimationFrame(animate);
       }
 
       return () => {
-        stopped = true;
+        cleanupChords();
         window.cancelAnimationFrame(frame);
         window.clearTimeout(resizeTimer);
         for (const timer of timers) window.clearTimeout(timer);
         observer.disconnect();
         document.removeEventListener("visibilitychange", handleVisibilityChange);
-        window.removeEventListener("scroll", handleReducedScroll);
         window.removeEventListener("resize", scheduleResize);
         window.removeEventListener("load", resize);
-        for (const link of links) link.svg.remove();
         for (const disposable of disposables) disposable.dispose();
       };
     } catch (error) {
       console.warn("[home] immersive WebGL effects unavailable", error);
       bgCanvas.style.display = "none";
-      for (const link of links) link.svg.remove();
+      for (const disposable of disposables) disposable.dispose();
+      return cleanupChords;
     }
   });
 </script>
@@ -594,15 +781,36 @@
     pointer-events: none;
   }
 
+  :global(.home-chord-cable-glow) {
+    stroke-width: 10;
+    opacity: 0.14;
+  }
+
+  :global(.home-chord-cable-body) {
+    stroke-width: 6.4;
+    opacity: 0.28;
+  }
+
   :global(.home-chord-cable) {
-    stroke: #4cc9e8;
     stroke-width: 2.4;
-    opacity: 0.78;
+    opacity: 0.82;
+  }
+
+  :global(.home-chord-signal-trail) {
+    stroke: #bfe8ff;
+    stroke-width: 5.5;
+    opacity: 0.16;
+  }
+
+  :global(.home-chord-signal-glow) {
+    stroke: #d8f5ff;
+    stroke-width: 3.8;
+    opacity: 0.48;
   }
 
   :global(.home-chord-pulse) {
-    stroke: #e8fbff;
-    stroke-width: 2;
-    opacity: 0.95;
+    stroke: #fff;
+    stroke-width: 2.6;
+    opacity: 0.98;
   }
 </style>
