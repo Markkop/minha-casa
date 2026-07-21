@@ -100,13 +100,12 @@
   @keyframes home-port-ring { 0% { opacity: .9; transform: scale(.6); } 100% { opacity: 0; transform: scale(2.2); } }
 
   @media (max-width: 720px) {
-    .home-stage { min-height: auto; flex-direction: column; gap: .4rem; padding: 6.5rem 0 3rem; }
-    .stage-title { order: -1; max-width: 100%; margin-bottom: 1.6rem; }
+    .home-stage { min-height: auto; padding: 6.5rem 0 3rem; }
+    .stage-title { max-width: 100%; }
     .stage-title h1 { font-size: clamp(3.5rem, 17vw, 5.5rem); }
     .stage-title p { font-size: .55rem; }
-    .card-stack { position: relative; top: auto; right: auto; left: auto; width: 100%; max-width: 20rem; margin: 0 auto 1.25rem; }
-    .property-thumb { transform: none; }
-    .property-thumb .port { display: none; }
+    .home-chords,
+    .card-stack { display: none; }
   }
 
   @media (prefers-reduced-motion: reduce) {
