@@ -24,6 +24,26 @@ import {
 
 export type PropertyTypeFilter = "all" | "house" | "apartment";
 
+export const LISTINGS_PIN_FAVORITES_KEY = "minha-casa:listings-pin-favorites-to-top";
+
+function getInitialPinFavoritesToTop(): boolean {
+  if (typeof window === "undefined") return true;
+  try {
+    const stored = window.localStorage.getItem(LISTINGS_PIN_FAVORITES_KEY);
+    return stored !== "false";
+  } catch {
+    return true;
+  }
+}
+
+function persistPinFavoritesToTop(value: boolean) {
+  try {
+    localStorage.setItem(LISTINGS_PIN_FAVORITES_KEY, String(value));
+  } catch {
+    // ignore storage errors
+  }
+}
+
 function persistVisibleColumns(columns: Record<ListingsTableColumn, boolean>) {
   try {
     localStorage.setItem(COLUMN_STORAGE_KEY, JSON.stringify(columns));
@@ -79,10 +99,12 @@ export function createListingsTableState(getListings: () => Property[]) {
   let visibleColumns = $state(getInitialVisibleColumns());
   let propertyDisplay = $state<ListingsPropertyDisplayPrefs>({ ...DEFAULT_PROPERTY_DISPLAY });
   let imageColumnView = $state<ImageColumnView>("image");
+  let pinFavoritesToTop = $state(true);
 
   function initFromLocalStorage() {
     propertyDisplay = getInitialPropertyDisplay();
     imageColumnView = getInitialImageColumnView();
+    pinFavoritesToTop = getInitialPinFavoritesToTop();
   }
 
   function setVisibleColumns(next: Record<ListingsTableColumn, boolean>) {
@@ -100,6 +122,11 @@ export function createListingsTableState(getListings: () => Property[]) {
     persistImageColumnView(next);
   }
 
+  function setPinFavoritesToTop(next: boolean) {
+    pinFavoritesToTop = next;
+    persistPinFavoritesToTop(next);
+  }
+
   function handleSort(key: ListingsSortKey) {
     sort = {
       key,
@@ -111,6 +138,7 @@ export function createListingsTableState(getListings: () => Property[]) {
   const enabledMetricVariants = $derived(getEnabledMetricVariants(propertyDisplay));
   const showTypeFilters = $derived(shouldShowPropertyTypeFilters(listings));
   const hasDiscardedListings = $derived(listings.some((listing) => listing.strikethrough));
+  const hasStarredListings = $derived(listings.some((listing) => listing.starred));
   const casaCount = $derived(listings.filter((listing) => listing.propertyType === "house").length);
   const aptoCount = $derived(listings.filter((listing) => listing.propertyType === "apartment").length);
   const useCasaAreaLabels = $derived(
@@ -135,9 +163,11 @@ export function createListingsTableState(getListings: () => Property[]) {
       filtered = filtered.filter((property) => property.propertyType === propertyTypeFilter);
     }
     return [...filtered].sort((a, b) => {
-      const aStarred = a.starred ? 1 : 0;
-      const bStarred = b.starred ? 1 : 0;
-      if (aStarred !== bStarred) return bStarred - aStarred;
+      if (pinFavoritesToTop) {
+        const aStarred = a.starred ? 1 : 0;
+        const bStarred = b.starred ? 1 : 0;
+        if (aStarred !== bStarred) return bStarred - aStarred;
+      }
 
       const aVal = getSortValue(a, sort.key);
       const bVal = getSortValue(b, sort.key);
@@ -191,6 +221,7 @@ export function createListingsTableState(getListings: () => Property[]) {
     setVisibleColumns,
     setPropertyDisplay,
     setImageColumnView,
+    setPinFavoritesToTop,
     handleSort,
     get enabledMetricVariants() {
       return enabledMetricVariants;
@@ -200,6 +231,12 @@ export function createListingsTableState(getListings: () => Property[]) {
     },
     get hasDiscardedListings() {
       return hasDiscardedListings;
+    },
+    get hasStarredListings() {
+      return hasStarredListings;
+    },
+    get pinFavoritesToTop() {
+      return pinFavoritesToTop;
     },
     get casaCount() {
       return casaCount;

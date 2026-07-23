@@ -200,9 +200,14 @@
       aptoCount={tableState.aptoCount}
       useCasaAreaLabels={tableState.useCasaAreaLabels}
       hasDiscardedListings={tableState.hasDiscardedListings}
+      hasStarredListings={tableState.hasStarredListings}
       bind:showStrikethrough={
         () => tableState.showStrikethrough,
         (value) => (tableState.showStrikethrough = value)
+      }
+      bind:pinFavoritesToTop={
+        () => tableState.pinFavoritesToTop,
+        (value) => tableState.setPinFavoritesToTop(value)
       }
       {copiedVisibleMarkdown}
       canCopyMarkdown={tableState.filteredAndSortedListings.length > 0}

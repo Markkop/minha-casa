@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { Snippet } from "svelte";
-  import { Check, Columns3, Copy, Search, Strikethrough } from "@lucide/svelte";
+  import { Check, Columns3, Copy, Search, Star, Strikethrough } from "@lucide/svelte";
   import { cn } from "$lib/utils";
   import {
     LISTINGS_MOBILE_FLOATING_TOOLBAR_CLASS,
@@ -40,7 +40,9 @@
     aptoCount,
     useCasaAreaLabels = false,
     hasDiscardedListings,
+    hasStarredListings,
     showStrikethrough = $bindable(true),
+    pinFavoritesToTop = $bindable(true),
     copiedVisibleMarkdown,
     canCopyMarkdown,
     onCopyMarkdown,
@@ -65,7 +67,9 @@
     aptoCount: number;
     useCasaAreaLabels?: boolean;
     hasDiscardedListings: boolean;
+    hasStarredListings: boolean;
     showStrikethrough?: boolean;
+    pinFavoritesToTop?: boolean;
     copiedVisibleMarkdown: boolean;
     canCopyMarkdown: boolean;
     onCopyMarkdown: () => void;
@@ -187,6 +191,21 @@
       saving={savingFeatureCatalog}
       onChange={(catalog) => void onFeatureCatalogChange(catalog)}
     />
+
+    {#if hasStarredListings}
+      <PageToolbarIconButton
+        variant={pinFavoritesToTop ? "active" : "secondary"}
+        aria-label={pinFavoritesToTop ? "Fixar favoritos no topo" : "Não fixar favoritos no topo"}
+        title={pinFavoritesToTop ? "Fixar favoritos no topo" : "Não fixar favoritos no topo"}
+        aria-pressed={pinFavoritesToTop}
+        onclick={() => (pinFavoritesToTop = !pinFavoritesToTop)}
+      >
+        <Star
+          class={cn("h-3.5 w-3.5", pinFavoritesToTop && "fill-current text-yellow")}
+          fill={pinFavoritesToTop ? "currentColor" : "none"}
+        />
+      </PageToolbarIconButton>
+    {/if}
 
     <div class="md:hidden">
       <ListingsSortPopover {sort} {useCasaAreaLabels} onSort={onSort} />
