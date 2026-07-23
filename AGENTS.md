@@ -11,6 +11,7 @@ docker run --rm -v "$(pwd)/backend:/app" -w /app elixir:1.18-otp-27-alpine \
 ```
 - Since mix is not available locally, please do restart/rebuild docker that way after backend code changes.
 
+- Don't auto create branches or commiting code.
 - When asked to commit and push, you can commit and push all git changes into a single commit.
 - Do not create a branch unless asked to
 - Never commit API keys, tokens, or secrets in source files (including tests and one-off scripts).

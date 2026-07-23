@@ -522,9 +522,16 @@ defmodule MinhaCasaAiWeb.CollectionController do
 
       synced =
         rows
-        |> Enum.map(fn listing -> Map.put(listing.data || %{}, "id", listing.id) end)
+        |> Enum.map(fn listing ->
+          data = listing.data || %{}
+
+          Map.merge(data, %{
+            "id" => listing.id,
+            "createdAt" => DateTime.to_iso8601(listing.created_at)
+          })
+        end)
         |> DisplayTitle.apply_to_listings()
-        |> Map.new(fn data -> {data["id"], Map.delete(data, "id")} end)
+        |> Map.new(fn data -> {data["id"], Map.drop(data, ["id", "createdAt"])} end)
 
       updated =
         Enum.map(rows, fn listing ->

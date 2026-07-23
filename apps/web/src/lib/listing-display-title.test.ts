@@ -2,24 +2,29 @@ import { describe, expect, it } from "vitest";
 import {
   buildPropertyListDisplayTitles,
   buildListingDisplayTitles,
-  collectionShowsPropertyTypePrefix,
   extractAddressNumber,
   extractStreetLabelTwoWords,
   listingTitleRegenFieldChanged,
   mobileCompactListingDisplayTitle,
-  mobileListingDisplayTitle
+  mobileListingDisplayTitle,
+  prepareListingDataForCreate,
+  resolveListingDisplayTitle
 } from "./listing-display-title";
 
 describe("listingTitleRegenFieldChanged", () => {
   it("detects title-relevant field updates", () => {
     expect(listingTitleRegenFieldChanged({ neighborhood: "Centro" })).toBe(true);
     expect(listingTitleRegenFieldChanged({ title: "Manual title" })).toBe(false);
+    expect(listingTitleRegenFieldChanged({ propertyType: "house" })).toBe(false);
   });
 });
 
 describe("extractStreetLabelTwoWords", () => {
-  it("strips street prefix and returns first two words", () => {
+  it("strips street prefix and returns the full street name without the number", () => {
     expect(extractStreetLabelTwoWords("Rua das Flores 120, Centro")).toBe("Das Flores");
+    expect(extractStreetLabelTwoWords("Rua Maria Luiza Agostinho, 102")).toBe(
+      "Maria Luiza Agostinho"
+    );
     expect(extractStreetLabelTwoWords("")).toBeNull();
   });
 });
@@ -31,166 +36,132 @@ describe("extractAddressNumber", () => {
   });
 });
 
-describe("collectionShowsPropertyTypePrefix", () => {
-  it("shows prefix for a single listing", () => {
-    expect(
-      collectionShowsPropertyTypePrefix([{ propertyType: "house", bedrooms: 3 }])
-    ).toBe(true);
-  });
-
-  it("shows prefix when collection mixes casa and apartamento", () => {
-    expect(
-      collectionShowsPropertyTypePrefix([
-        { propertyType: "house", bedrooms: 3 },
-        { propertyType: "apartment", bedrooms: 4 }
-      ])
-    ).toBe(true);
-  });
-
-  it("hides prefix for multiple listings of the same type", () => {
-    expect(
-      collectionShowsPropertyTypePrefix([
-        { propertyType: "house", bedrooms: 3 },
-        { propertyType: "house", bedrooms: 4 }
-      ])
-    ).toBe(false);
-  });
-});
-
 describe("mobileListingDisplayTitle", () => {
-  it("shortens Apartamento prefix to Apto", () => {
-    expect(mobileListingDisplayTitle("Apartamento com 4 bedrooms em Itacorubi")).toBe(
-      "Apto com 4 bedrooms em Itacorubi"
-    );
-  });
-
-  it("leaves titles without Apartamento prefix unchanged", () => {
-    expect(mobileListingDisplayTitle("Casa com 3 bedrooms em Itacorubi")).toBe(
-      "Casa com 3 bedrooms em Itacorubi"
-    );
-    expect(mobileListingDisplayTitle("Vista Mar Apartamento")).toBe("Vista Mar Apartamento");
+  it("leaves location-only titles unchanged", () => {
+    expect(mobileListingDisplayTitle("Itapeva")).toBe("Itapeva");
+    expect(mobileListingDisplayTitle("Itacorubi (2)")).toBe("Itacorubi (2)");
   });
 });
 
 describe("mobileCompactListingDisplayTitle", () => {
-  it("drops location suffix and shortens Apartamento on mobile", () => {
-    expect(mobileCompactListingDisplayTitle("Apartamento com 4 bedrooms em Itacorubi")).toBe(
-      "Apto com 4 bedrooms"
-    );
+  it("returns location-only titles unchanged", () => {
+    expect(mobileCompactListingDisplayTitle("Itapeva")).toBe("Itapeva");
+    expect(mobileCompactListingDisplayTitle("Itacorubi (2)")).toBe("Itacorubi (2)");
   });
 });
 
 describe("buildListingDisplayTitles", () => {
-  it("omits property type for multiple casas in the same neighborhood", () => {
+  it("uses street name without number for a lone listing", () => {
     const titles = buildListingDisplayTitles([
       {
         id: "a",
         propertyType: "house",
         bedrooms: 3,
         neighborhood: "Itacorubi",
-        address: "Avenida Buriti, 5000"
-      },
-      {
-        id: "b",
-        propertyType: "house",
-        bedrooms: 3,
-        neighborhood: "Itacorubi",
-        address: "Rua Maria Luiza Agostinho, 102"
+        address: "Rua Itapeva, 61",
+        createdAt: "2026-01-01T00:00:00.000Z"
       }
     ]);
 
-    expect(titles.get("a")).toBe("3 bedrooms na Buriti em Itacorubi");
-    expect(titles.get("b")).toBe("3 bedrooms na Maria Luiza em Itacorubi");
+    expect(titles.get("a")).toBe("Itapeva");
   });
 
-  it("keeps property type when casa and apartamento share a neighborhood", () => {
+  it("disambiguates same-street collisions with numbered suffixes by creation order", () => {
     const titles = buildListingDisplayTitles([
       {
         id: "a",
         propertyType: "house",
         bedrooms: 3,
         neighborhood: "Itacorubi",
-        address: "Avenida Buriti, 5000"
+        address: "Rua Maria Luiza Agostinho, 45",
+        createdAt: "2026-01-01T00:00:00.000Z"
       },
       {
         id: "b",
         propertyType: "apartment",
         bedrooms: 4,
         neighborhood: "Itacorubi",
-        address: "Avenida Itamarati, 380"
+        address: "Rua Maria Luiza Agostinho, 102",
+        createdAt: "2026-01-02T00:00:00.000Z"
       }
     ]);
 
-    expect(titles.get("a")).toBe("Casa com 3 bedrooms em Itacorubi");
-    expect(titles.get("b")).toBe("Apartamento com 4 bedrooms em Itacorubi");
+    expect(titles.get("a")).toBe("Maria Luiza Agostinho (1)");
+    expect(titles.get("b")).toBe("Maria Luiza Agostinho (2)");
   });
 
-  it("disambiguates colliding casas with na street instead of dot suffix", () => {
+  it("uses neighborhood when street is unavailable", () => {
     const titles = buildListingDisplayTitles([
       {
         id: "a",
         propertyType: "house",
         bedrooms: 3,
+        neighborhood: "Itacorubi",
+        address: "Endereço não informado",
+        createdAt: "2026-01-01T00:00:00.000Z"
+      }
+    ]);
+
+    expect(titles.get("a")).toBe("Itacorubi");
+  });
+
+  it("uses city when street and neighborhood are unavailable", () => {
+    const titles = buildListingDisplayTitles([
+      {
+        id: "a",
+        propertyType: "house",
+        bedrooms: 3,
+        city: "Florianópolis",
+        address: "Endereço não informado",
+        createdAt: "2026-01-01T00:00:00.000Z"
+      }
+    ]);
+
+    expect(titles.get("a")).toBe("Florianópolis");
+  });
+
+  it("respects manualTitle overrides", () => {
+    const titles = buildListingDisplayTitles([
+      {
+        id: "a",
+        manualTitle: "Meu imóvel favorito",
         neighborhood: "Itacorubi",
         address: "Rua Itapeva, 61"
-      },
-      {
-        id: "b",
-        propertyType: "house",
-        bedrooms: 3,
-        neighborhood: "Itacorubi",
-        address: "Rua Maria Luiza Agostinho, 102"
       }
     ]);
 
-    expect(titles.get("a")).toBe("3 bedrooms na Itapeva em Itacorubi");
-    expect(titles.get("b")).toBe("3 bedrooms na Maria Luiza em Itacorubi");
-  });
-
-  it("uses street number without neighborhood when multiple listings share a street", () => {
-    const titles = buildListingDisplayTitles([
-      {
-        id: "a",
-        propertyType: "house",
-        bedrooms: 3,
-        neighborhood: "Itacorubi",
-        address: "Rua Maria Luiza Agostinho, 45"
-      },
-      {
-        id: "b",
-        propertyType: "apartment",
-        bedrooms: 4,
-        neighborhood: "Itacorubi",
-        address: "Rua Maria Luiza Agostinho, 102"
-      }
-    ]);
-
-    expect(titles.get("a")).toBe("Casa com 3 bedrooms na Maria Luiza, 45");
-    expect(titles.get("b")).toBe("Apartamento com 4 bedrooms na Maria Luiza, 102");
+    expect(titles.get("a")).toBe("Meu imóvel favorito");
   });
 });
 
 describe("buildPropertyListDisplayTitles", () => {
-  it("uses neighborhood only when multiple listings share a street", () => {
-    const titles = buildPropertyListDisplayTitles([
+  it("uses the same location-only scheme as collection titles", () => {
+    const listings = [
       {
         id: "a",
         propertyType: "house",
         bedrooms: 3,
         neighborhood: "Itacorubi",
-        address: "Rua Maria Luiza Agostinho, 45"
+        address: "Avenida Buriti, 5000",
+        createdAt: "2026-01-01T00:00:00.000Z"
       },
       {
         id: "b",
-        propertyType: "apartment",
-        bedrooms: 4,
+        propertyType: "house",
+        bedrooms: 3,
         neighborhood: "Itacorubi",
-        address: "Rua Maria Luiza Agostinho, 102"
+        address: "Rua Maria Luiza Agostinho, 102",
+        createdAt: "2026-01-02T00:00:00.000Z"
       }
-    ]);
+    ];
 
-    expect(titles.get("a")).toBe("Casa com 3 bedrooms em Itacorubi");
-    expect(titles.get("b")).toBe("Apartamento com 4 bedrooms em Itacorubi");
+    const collectionTitles = buildListingDisplayTitles(listings);
+    const listTitles = buildPropertyListDisplayTitles(listings);
+
+    expect(listTitles.get("a")).toBe("Buriti");
+    expect(listTitles.get("b")).toBe("Maria Luiza Agostinho");
+    expect(listTitles.get("a")).toBe(collectionTitles.get("a"));
+    expect(listTitles.get("b")).toBe(collectionTitles.get("b"));
   });
 
   it("disambiguates same-neighborhood collisions with numbered suffixes", () => {
@@ -200,24 +171,24 @@ describe("buildPropertyListDisplayTitles", () => {
         propertyType: "house",
         bedrooms: 3,
         neighborhood: "Itacorubi",
-        address: "Rua Maria Luiza Agostinho, 45",
-        price: 500_000
+        address: "Endereço não informado",
+        createdAt: "2026-01-01T00:00:00.000Z"
       },
       {
         id: "b",
         propertyType: "house",
         bedrooms: 3,
         neighborhood: "Itacorubi",
-        address: "Rua Maria Luiza Agostinho, 102",
-        price: 800_000
+        address: "Endereço não informado",
+        createdAt: "2026-01-02T00:00:00.000Z"
       }
     ]);
 
-    expect(titles.get("a")).toBe("3 bedrooms em Itacorubi (1)");
-    expect(titles.get("b")).toBe("3 bedrooms em Itacorubi (2)");
+    expect(titles.get("a")).toBe("Itacorubi (1)");
+    expect(titles.get("b")).toBe("Itacorubi (2)");
   });
 
-  it("omits street names when multiple casas share a neighborhood on different streets", () => {
+  it("leaves single-listing titles without a suffix", () => {
     const titles = buildPropertyListDisplayTitles([
       {
         id: "a",
@@ -225,33 +196,43 @@ describe("buildPropertyListDisplayTitles", () => {
         bedrooms: 3,
         neighborhood: "Itacorubi",
         address: "Avenida Buriti, 5000",
-        price: 500_000
-      },
-      {
-        id: "b",
-        propertyType: "house",
-        bedrooms: 3,
-        neighborhood: "Itacorubi",
-        address: "Rua Maria Luiza Agostinho, 102",
-        price: 800_000
+        createdAt: "2026-01-01T00:00:00.000Z"
       }
     ]);
 
-    expect(titles.get("a")).toBe("3 bedrooms em Itacorubi (1)");
-    expect(titles.get("b")).toBe("3 bedrooms em Itacorubi (2)");
+    expect(titles.get("a")).toBe("Buriti");
   });
+});
 
-  it("leaves single-listing titles with neighborhood unchanged", () => {
-    const titles = buildPropertyListDisplayTitles([
+describe("prepareListingDataForCreate", () => {
+  it("assigns the next duplicate number to a new listing", () => {
+    const title = prepareListingDataForCreate(
       {
-        id: "a",
-        propertyType: "house",
-        bedrooms: 3,
+        title: "",
         neighborhood: "Itacorubi",
-        address: "Avenida Buriti, 5000"
-      }
-    ]);
+        address: "Endereço não informado"
+      },
+      [
+        {
+          id: "existing-1",
+          neighborhood: "Itacorubi",
+          address: "Endereço não informado",
+          createdAt: "2026-01-01T00:00:00.000Z"
+        }
+      ]
+    ).title;
 
-    expect(titles.get("a")).toBe("Casa com 3 bedrooms em Itacorubi");
+    expect(title).toBe("Itacorubi (2)");
+  });
+});
+
+describe("resolveListingDisplayTitle", () => {
+  it("falls back to the base location label", () => {
+    expect(
+      resolveListingDisplayTitle({
+        neighborhood: "Itacorubi",
+        address: "Rua Itapeva, 61"
+      })
+    ).toBe("Itapeva");
   });
 });

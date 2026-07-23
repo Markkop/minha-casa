@@ -102,7 +102,8 @@ export function createCollectionsState() {
       price: listing.price,
       totalAreaM2: listing.totalAreaM2,
       floor: listing.floor,
-      condominiumName: listing.condominiumName
+      condominiumName: listing.condominiumName,
+      createdAt: listing.createdAt
     };
   }
 
