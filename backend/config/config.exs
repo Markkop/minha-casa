@@ -34,6 +34,8 @@ config :minha_casa_ai, Oban,
        {"15 3 * * *", MinhaCasaAi.Workers.RetentionSweepWorker}
      ]}
   ],
-  queues: [ai: 5, default: 5, webhooks: 5, images: 3, portal_search: 3, storage: 2, retention: 2]
+  # ScrapingAnt's current plan accepts only one concurrent request. Both workers on
+  # this queue may scrape listing pages, so keep them serialized.
+  queues: [ai: 5, default: 5, webhooks: 5, images: 1, portal_search: 3, storage: 2, retention: 2]
 
 import_config "#{config_env()}.exs"
