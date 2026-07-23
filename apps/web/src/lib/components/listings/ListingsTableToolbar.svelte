@@ -194,15 +194,19 @@
 
     {#if hasStarredListings}
       <PageToolbarIconButton
-        variant={pinFavoritesToTop ? "active" : "secondary"}
+        variant="secondary"
         aria-label={pinFavoritesToTop ? "Fixar favoritos no topo" : "Não fixar favoritos no topo"}
         title={pinFavoritesToTop ? "Fixar favoritos no topo" : "Não fixar favoritos no topo"}
         aria-pressed={pinFavoritesToTop}
         onclick={() => (pinFavoritesToTop = !pinFavoritesToTop)}
       >
         <Star
-          class={cn("h-3.5 w-3.5", pinFavoritesToTop && "fill-current text-yellow")}
-          fill={pinFavoritesToTop ? "currentColor" : "none"}
+          class={cn(
+            "h-3.5 w-3.5",
+            pinFavoritesToTop ? "text-app-fg" : "text-muted-foreground"
+          )}
+          fill={pinFavoritesToTop ? "var(--color-yellow)" : "none"}
+          strokeWidth={pinFavoritesToTop ? 1.5 : undefined}
         />
       </PageToolbarIconButton>
     {/if}
