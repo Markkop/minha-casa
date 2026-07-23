@@ -62,12 +62,12 @@ describe("first proposal letter", () => {
     });
 
     expect(report.text).toContain("Olá, Jennifer! Tudo bem?");
-    expect(report.text).toMatch(/fica na mesma rua/i);
+    expect(report.text).toMatch(/fica na mesma rua e tem \d+ m² construídos a mais/i);
     expect(report.text).not.toContain("informação de piscina desconhecida");
     expect(report.text).not.toMatch(/não tem piscina|\b\d+ (quartos?|suítes?|banheiros?|vagas?) a menos/i);
     expect(report.text).not.toContain("acima do pedido");
     expect(report.text).toContain("preços anunciados");
-    expect(report.text).toContain("Se o imóvel em negociação tivesse os mesmos R$/m²");
+    expect(report.text).toContain("Se o imóvel em questão tivesse o mesmo R$/m² construído que este");
     expect(report.text).not.toMatch(/valor central|equivalente combinado/i);
     expect(report.text).toContain(`nossa proposta para fechamento é de`);
     expect(report.text).not.toMatch(/vendid[oa]|bom negócio|conservação|acabamento/i);
@@ -86,6 +86,37 @@ describe("first proposal letter", () => {
     expect(report.text).not.toContain("Piscina");
     expect(report.text).not.toContain("Desconhecida");
     expect(report.text).not.toContain("Equivalente combinado");
+  });
+
+  it("places the listing link before the narrative and starts feature facts with Tem", () => {
+    const report = generate(
+      house("reference"),
+      [
+        house("linked", {
+          address: "Avenida Link, 20",
+          bedrooms: 4,
+          suites: 2,
+          bathrooms: 3,
+          sourceUrl: "  https://example.com/imovel-linked  "
+        }),
+        house("without-link", { sourceUrl: "   " })
+      ],
+      (config) => {
+        config.blocks.comparables.focuses.linked = "features";
+      }
+    );
+    const comparables = report.blocks.find((block) => block.id === "comparables")?.text ?? "";
+    const headingPosition = comparables.indexOf("1. **Avenida Link, 20**");
+    const linkPosition = comparables.indexOf("https://example.com/imovel-linked");
+    const narrative = "Tem 1 quarto, 1 suíte e 1 banheiro a mais, além de piscina.";
+    const narrativePosition = comparables.indexOf(narrative);
+
+    expect(headingPosition).toBeGreaterThanOrEqual(0);
+    expect(linkPosition).toBeGreaterThan(headingPosition);
+    expect(comparables).toContain(narrative);
+    expect(narrativePosition).toBeGreaterThan(linkPosition);
+    expect(comparables).not.toMatch(/(?:Link do )?anúncio:/i);
+    expect(comparables.match(/https:\/\/example\.com\/imovel-linked/g)).toHaveLength(1);
   });
 
   it("mentions area gains only when they are positive and exceed 10% of the comparable average", () => {
@@ -109,12 +140,58 @@ describe("first proposal letter", () => {
     ]);
     const comparables = report.blocks.find((block) => block.id === "comparables")?.text ?? "";
 
-    expect(comparables).toContain("100 m² de terreno a mais");
-    expect(comparables).toContain("80 m² construídos a mais");
+    expect(comparables).toContain(
+      "tem 100 m² de terreno, 80 m² construídos, 2 quartos, 2 banheiros e 2 vagas a mais, além de piscina."
+    );
+    expect(comparables.match(/a mais/g)).toHaveLength(1);
     expect(comparables).not.toContain("40 m² de terreno");
     expect(comparables).not.toContain("20 m² construídos");
     expect(comparables).not.toMatch(/quarto a menos|banheiro a menos|vaga a menos/i);
     expect(comparables).not.toContain("acima do pedido");
+  });
+
+  it("compares a cheaper listing without a percentage and uses the focused m² equivalent", () => {
+    const reference = house("reference", {
+      price: 1_000_000,
+      totalAreaM2: 360,
+      privateAreaM2: 180
+    });
+    const comparables = [
+      house("focused", { price: 800_000, totalAreaM2: 300, privateAreaM2: 200 }),
+      house("support", { price: 900_000 })
+    ];
+
+    const automatic = generate(reference, comparables);
+    const automaticText = automatic.blocks.find((block) => block.id === "comparables")?.text ?? "";
+    expect(automaticText).toContain(
+      "Está anunciado por R$ 800.000, R$ 200.000 abaixo do imóvel em negociação."
+    );
+    expect(automaticText).not.toContain("%");
+    expect(automaticText).toContain(
+      "Se o imóvel em questão tivesse o mesmo R$/m² construído que este, o preço do imóvel seria R$ 720.000."
+    );
+    expect(automaticText).not.toContain("o preço do imóvel seria R$ 860.000");
+
+    const construction = generate(reference, comparables, (config) => {
+      config.blocks.comparables.focuses.focused = "construction";
+    });
+    expect(construction.blocks.find((block) => block.id === "comparables")?.text).toContain(
+      "Se o imóvel em questão tivesse o mesmo R$/m² construído que este, o preço do imóvel seria R$ 720.000."
+    );
+
+    const land = generate(reference, comparables, (config) => {
+      config.blocks.comparables.focuses.focused = "land";
+    });
+    expect(land.blocks.find((block) => block.id === "comparables")?.text).toContain(
+      "Se o imóvel em questão tivesse o mesmo R$/m² de terreno que este, o preço do imóvel seria R$ 960.000."
+    );
+
+    const price = generate(reference, comparables, (config) => {
+      config.blocks.comparables.focuses.focused = "price";
+      config.blocks.comparables.focuses.support = "price";
+    });
+    const priceText = price.blocks.find((block) => block.id === "comparables")?.text ?? "";
+    expect(priceText).not.toContain("Se o imóvel em questão");
   });
 
   it("covers above, within, and below range descriptions", () => {

@@ -238,7 +238,9 @@ function comparablesText(
   const averageConstruction = average(comparables.map((item) => item.listing.privateAreaM2));
   const items = comparables.map((item, index) => {
     const focus = config.blocks.comparables.focuses[item.listing.id] ?? "automatic";
-    return `${index + 1}. **${displayName(item.listing)}** (${formatExactCurrency(item.pricePerConstructionM2)}/m² construído):\n${comparableNarrative(reference, item, focus, averageLand, averageConstruction)}`;
+    const sourceUrl = item.listing.sourceUrl?.trim();
+    const linkLine = sourceUrl ? `\n${sourceUrl}` : "";
+    return `${index + 1}. **${displayName(item.listing)}** (${formatExactCurrency(item.pricePerConstructionM2)}/m² construído):${linkLine}\n${comparableNarrative(reference, item, focus, averageLand, averageConstruction)}`;
   });
   return ["Seguem os dados dos imóveis comparáveis:", ...items].join("\n\n");
 }
@@ -250,22 +252,36 @@ function comparableNarrative(
   averageLand: number,
   averageConstruction: number
 ): string {
-  const facts: string[] = [];
+  const contextFacts: string[] = [];
+  const advantageFacts: string[] = [];
   const includeLand = focus === "land" || focus === "automatic";
   const includeConstruction = focus === "construction" || focus === "automatic";
   const includePrice = focus === "price" || focus === "automatic";
   const includeFeatures = focus === "features" || focus === "automatic";
 
-  if (comparable.sameStreet) facts.push("fica na mesma rua");
-  if (includeLand) facts.push(areaFact(comparable.landDelta.absolute, averageLand, "terreno"));
-  if (includeConstruction) {
-    facts.push(areaFact(comparable.constructionDelta.absolute, averageConstruction, "construção"));
+  if (comparable.sameStreet) contextFacts.push("fica na mesma rua");
+  if (includeLand) {
+    advantageFacts.push(areaFact(comparable.landDelta.absolute, averageLand, "terreno"));
   }
-  if (includeFeatures) facts.push(...featureFacts(comparable.featureDeltas).slice(0, 3));
-  if (focus !== "price") facts.push(poolFact(comparable.poolState));
+  if (includeConstruction) {
+    advantageFacts.push(
+      areaFact(comparable.constructionDelta.absolute, averageConstruction, "construção")
+    );
+  }
+  if (includeFeatures) advantageFacts.push(...featureFacts(comparable.featureDeltas).slice(0, 3));
 
-  const cleanFacts = facts.filter(Boolean);
-  const factualSentence = cleanFacts.length > 0 ? `${capitalize(joinClauses(cleanFacts))}. ` : "";
+  const cleanAdvantages = advantageFacts.filter(Boolean);
+  const hasPool = focus !== "price" && comparable.poolState === "yes";
+  if (cleanAdvantages.length > 0) {
+    const poolSuffix = hasPool ? ", além de piscina" : "";
+    contextFacts.push(`tem ${joinClauses(cleanAdvantages)} a mais${poolSuffix}`);
+  } else if (hasPool) {
+    contextFacts.push("tem piscina");
+  }
+
+  const factualSentence = contextFacts.length > 0
+    ? `${capitalize(joinClauses(contextFacts))}. `
+    : "";
   const priceSentence = includePrice
     ? priceFact(reference.price, comparable.listing.price)
     : `Está anunciado por ${formatCurrency(comparable.listing.price)}.`;
@@ -275,15 +291,14 @@ function comparableNarrative(
 function areaFact(delta: number, averageArea: number, kind: "terreno" | "construção"): string {
   if (!isRelevantAreaIncrease(delta, averageArea)) return "";
   const noun = kind === "terreno" ? "de terreno" : "construídos";
-  return `tem ${formatArea(delta)} ${noun} a mais`;
+  return `${formatArea(delta)} ${noun}`;
 }
 
 function priceFact(referencePrice: number, comparablePrice: number): string {
   const difference = comparablePrice - referencePrice;
   if (difference === 0) return `Está anunciado pelo mesmo preço pedido, ${formatCurrency(comparablePrice)}.`;
   if (difference > 0) return `Está anunciado por ${formatCurrency(comparablePrice)}.`;
-  const relative = Math.abs(difference / referencePrice) * 100;
-  return `Está anunciado por ${formatCurrency(comparablePrice)}, ${formatCurrency(Math.abs(difference))} abaixo do pedido (${formatPercent(relative)}).`;
+  return `Está anunciado por ${formatCurrency(comparablePrice)}, ${formatCurrency(Math.abs(difference))} abaixo do imóvel em negociação.`;
 }
 
 function featureFacts(deltas: ComparableFeatureDelta[]): string[] {
@@ -291,7 +306,7 @@ function featureFacts(deltas: ComparableFeatureDelta[]): string[] {
     .filter((item) => item.delta > 0)
     .sort((left, right) => right.delta - left.delta)
     .map((item) => {
-      return `${formatCount(item.delta, item.field)} a mais`;
+      return formatCount(item.delta, item.field);
     });
 }
 
@@ -305,23 +320,15 @@ function formatCount(amount: number, field: ComparableFeatureDelta["field"]): st
   return `${decimal.format(amount)} ${amount === 1 ? labels[field][0] : labels[field][1]}`;
 }
 
-function poolFact(pool: ComparableComputed["poolState"]): string {
-  if (pool === "yes") return "tem piscina";
-  return "";
-}
-
 function equivalentPriceSentence(
   comparable: ComparableComputed,
   focus: ComparableFocus
 ): string {
   if (focus === "price") return "";
   if (focus === "land") {
-    return ` Se o imóvel em negociação tivesse o mesmo R$/m² de terreno deste comparável, custaria aproximadamente ${formatCurrency(comparable.equivalentByLand)}.`;
+    return ` Se o imóvel em questão tivesse o mesmo R$/m² de terreno que este, o preço do imóvel seria ${formatCurrency(comparable.equivalentByLand)}.`;
   }
-  if (focus === "construction") {
-    return ` Se o imóvel em negociação tivesse o mesmo R$/m² construído deste comparável, custaria aproximadamente ${formatCurrency(comparable.equivalentByConstruction)}.`;
-  }
-  return ` Se o imóvel em negociação tivesse os mesmos R$/m² de terreno e de construção deste comparável, custaria aproximadamente ${formatCurrency(comparable.equivalentCombined)}.`;
+  return ` Se o imóvel em questão tivesse o mesmo R$/m² construído que este, o preço do imóvel seria ${formatCurrency(comparable.equivalentByConstruction)}.`;
 }
 
 function caveatText(): string {

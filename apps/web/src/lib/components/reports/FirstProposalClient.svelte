@@ -10,6 +10,7 @@
   import WorkspacePanel from "$lib/components/workspace/WorkspacePanel.svelte";
   import { formatPricePerM2 } from "$lib/comparacao/comparison-helpers";
   import { sortSelectableListings } from "$lib/listings/listing-selector";
+  import { createReportPreviewSegments } from "$lib/reports/preview";
   import {
     calculateProposalTarget,
     createDefaultReportConfig,
@@ -236,7 +237,12 @@
             {#if currentReport}
               <article class="min-h-[min(78vh,960px)] space-y-5 bg-app-surface px-5 py-5 text-sm leading-7 text-app-fg">
                 {#each currentReport.blocks.filter((block) => block.enabled && block.text.trim()) as block (block.id)}
-                  <p class="whitespace-pre-wrap">{block.text.replaceAll("**", "")}</p>
+                  <p class="whitespace-pre-wrap break-words">{#each createReportPreviewSegments(block.text) as segment}{#if segment.href}<a
+                    href={segment.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="text-app-action underline decoration-app-action/40 underline-offset-2 hover:decoration-app-action"
+                  >{segment.text}</a>{:else}{segment.text}{/if}{/each}</p>
                 {/each}
               </article>
             {:else}
