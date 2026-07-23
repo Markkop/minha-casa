@@ -56,6 +56,15 @@
     if (type === "agency") return Building2;
     return Link2;
   }
+
+  function typeLabel(type: WorkspaceProfile["type"]) {
+    if (type === "personal") return "Pessoal";
+    if (type === "professional") return "Profissional";
+    if (type === "family") return "Família";
+    if (type === "agency") return "Imobiliária";
+    if (type === "external") return "Compartilhado comigo";
+    return "Pessoal";
+  }
 </script>
 
 {#if profilesState.error}
@@ -119,7 +128,7 @@
             <span class="min-w-0 flex-1">
               <span class="block truncate">{profile.label}</span>
               <span class="block truncate text-xs text-app-muted">
-                {profile.type === "external" ? "Compartilhado comigo" : profile.plan || profile.type}
+                {typeLabel(profile.type)}
                 {profile.status === "frozen" ? " · somente leitura" : ""}
               </span>
             </span>
@@ -131,7 +140,6 @@
             <Users class="h-4 w-4 shrink-0" />
             <span class="min-w-0 flex-1">
               <span class="block truncate">Família</span>
-              <span class="block text-xs">Disponível no Pro</span>
             </span>
           </a>
         {/if}

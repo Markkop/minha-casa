@@ -4,6 +4,7 @@
     Building2,
     CircleDollarSign,
     Contact,
+    FileText,
     Home,
     LayoutDashboard,
     Link2,
@@ -86,6 +87,7 @@
   const coreLinks: NavLink[] = [
     { href: "/lista", label: "Lista", icon: Home },
     { href: "/comparacao", label: "Comparação", icon: BarChart3 },
+    { href: "/relatorios", label: "Relatórios", icon: FileText },
     { href: "/financeiro", label: "Financeiro", icon: CircleDollarSign },
     { href: "/ferramentas", label: "Ferramentas", icon: Puzzle },
     { href: "/links", label: "Links", icon: Link2 }
@@ -123,7 +125,8 @@
   const showPropertyBreadcrumb = $derived(
     pathname.startsWith("/imoveis/") ||
       pathname.startsWith("/floodrisk") ||
-      pathname.startsWith("/financeiro")
+      pathname.startsWith("/financeiro") ||
+      pathname.startsWith("/relatorios")
   );
   const showOrgBreadcrumb = $derived(Boolean(user));
   let aiUsageAlert = $state<"near_limit" | "limit_reached" | null>(null);
