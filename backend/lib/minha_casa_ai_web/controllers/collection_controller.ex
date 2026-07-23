@@ -20,9 +20,11 @@ defmodule MinhaCasaAiWeb.CollectionController do
   }
 
   alias MinhaCasaAi.Config
+  alias MinhaCasaAi.Organizations
   alias MinhaCasaAi.Repo
   alias MinhaCasaAi.Workspace.ListingComparisonNote
   alias MinhaCasaAi.Workspaces
+  alias MinhaCasaAi.Workspaces.Workspace
   alias MinhaCasaAiWeb.{ListingJSON, PublicError}
 
   def index(conn, _params) do
@@ -442,10 +444,13 @@ defmodule MinhaCasaAiWeb.CollectionController do
 
   def copy(conn, %{"id" => id} = params) do
     user_id = conn.assigns[:current_user_id]
-    personal = Workspaces.personal_for(user_id)
-    entitlement = Entitlements.for_workspace(personal)
+    target_org_id = blank_to_nil(params["targetOrgId"] || params["target_org_id"])
+    include_listings = Map.get(params, "includeListings", true) != false
 
-    with {:ok, %Collection{} = source, _access} <- CollectionPolicy.authorize(user_id, id, :view) do
+    with {:ok, %Collection{} = source, _access} <-
+           CollectionPolicy.authorize(user_id, id, :view),
+         {:ok, target_profile, %Workspace{} = target_workspace} <-
+           copy_target_profile(user_id, target_org_id) do
       collection_name =
         case string(params["newName"]) do
           "" -> "#{source.name} (cópia)"
@@ -453,59 +458,50 @@ defmodule MinhaCasaAiWeb.CollectionController do
         end
 
       source_listings =
-        Repo.all(
-          from(l in Listing, where: l.collection_id == ^source.id, order_by: [asc: l.created_at])
-        )
+        if include_listings do
+          Repo.all(
+            from(l in Listing,
+              where: l.collection_id == ^source.id,
+              order_by: [asc: l.created_at]
+            )
+          )
+        else
+          []
+        end
+
+      entitlement = Entitlements.for_workspace(target_workspace)
 
       result =
-        Repo.transaction(fn ->
-          Repo.query!("SELECT pg_advisory_xact_lock(hashtext($1))", [personal.id])
+        Collections.with_workspace_lock(target_workspace.id, fn ->
+          with :ok <- Entitlements.ensure_collection_capacity(entitlement),
+               :ok <- ensure_copy_listing_capacity(entitlement, source_listings, include_listings) do
+            collection_attrs =
+              Map.merge(profile_values(target_profile), %{
+                name: collection_name,
+                is_public: false,
+                is_default: false,
+                kind: source.kind,
+                source_collection_id: source.id,
+                tags: source.tags,
+                status: "active",
+                publication_settings: source.publication_settings
+              })
 
-          if Entitlements.ensure_collection_capacity(entitlement) != :ok,
-            do: Repo.rollback(:collection_limit)
+            case %Collection{} |> Collection.changeset(collection_attrs) |> Repo.insert() do
+              {:ok, collection} ->
+                listing_map = copy_listings(source_listings, collection.id)
 
-          if Entitlements.ensure_listing_capacity(entitlement, length(source_listings)) != :ok,
-            do: Repo.rollback(:listing_limit)
+                copy_comparison_notes(listing_map)
+                copy_scenarios(source.id, collection.id)
 
-          {:ok, collection} =
-            %Collection{}
-            |> Collection.changeset(%{
-              user_id: user_id,
-              org_id: nil,
-              workspace_id: personal.id,
-              created_by_user_id: user_id,
-              responsible_user_id: user_id,
-              name: collection_name,
-              is_public: false,
-              is_default: false,
-              kind: source.kind,
-              visibility: "private",
-              source_collection_id: source.id,
-              tags: source.tags,
-              status: "active",
-              publication_settings: source.publication_settings
-            })
-            |> Repo.insert()
+                %{collection: collection, copied_count: length(source_listings)}
 
-          listing_map =
-            Enum.map(source_listings, fn listing ->
-              copied =
-                %Listing{}
-                |> Listing.changeset(%{
-                  collection_id: collection.id,
-                  data:
-                    listing.data |> then(&ListingData.normalize(&1 || %{})) |> public_copy_data()
-                })
-                |> Repo.insert!()
-
-              {listing.id, copied.id}
-            end)
-            |> Map.new()
-
-          copy_comparison_notes(listing_map)
-          copy_scenarios(source.id, collection.id)
-
-          %{collection: collection, copied_count: length(source_listings)}
+              {:error, changeset} ->
+                Repo.rollback({:changeset, changeset})
+            end
+          else
+            {:error, reason} -> Repo.rollback(reason)
+          end
         end)
 
       case result do
@@ -515,13 +511,24 @@ defmodule MinhaCasaAiWeb.CollectionController do
             copiedListingsCount: copied_count
           })
 
-        {:error, reason} when reason in [:collection_limit, :listing_limit] ->
+        {:error, reason}
+        when reason in [:workspace_frozen, :collection_limit, :listing_limit] ->
           quota_error(conn, reason)
 
-        {:error, changeset} ->
+        {:error, {:changeset, changeset}} ->
           changeset_error(conn, changeset)
+
+        {:error, _reason} ->
+          PublicError.json_error(conn, :conflict, "Não foi possível copiar a coleção.")
       end
     else
+      {:error, :invalid_copy_target} ->
+        PublicError.json_error(
+          conn,
+          :forbidden,
+          "Apenas proprietários e administradores podem copiar para esta organização."
+        )
+
       {:error, _} ->
         not_found(conn, "Collection")
     end
@@ -610,6 +617,54 @@ defmodule MinhaCasaAiWeb.CollectionController do
     |> Map.put(:listingsCount, count)
   end
 
+  defp copy_target_profile(user_id, nil) do
+    case Workspaces.personal_for(user_id) do
+      %Workspace{} = workspace ->
+        {:ok, %{user_id: user_id, org_id: nil, workspace_id: workspace.id}, workspace}
+
+      _ ->
+        {:error, :invalid_copy_target}
+    end
+  end
+
+  defp copy_target_profile(user_id, org_id) do
+    case Organizations.get_for_user(org_id, user_id) do
+      {:ok, %{role: role, workspace_id: workspace_id}}
+      when role in ["owner", "admin"] and is_binary(workspace_id) ->
+        case Workspaces.get(workspace_id) do
+          %Workspace{} = workspace ->
+            {:ok, %{user_id: user_id, org_id: org_id, workspace_id: workspace.id}, workspace}
+
+          _ ->
+            {:error, :invalid_copy_target}
+        end
+
+      _ ->
+        {:error, :invalid_copy_target}
+    end
+  end
+
+  defp ensure_copy_listing_capacity(_entitlement, _source_listings, false), do: :ok
+
+  defp ensure_copy_listing_capacity(entitlement, source_listings, true),
+    do: Entitlements.ensure_listing_capacity(entitlement, length(source_listings))
+
+  defp copy_listings(source_listings, target_collection_id) do
+    source_listings
+    |> Enum.map(fn listing ->
+      copied =
+        %Listing{}
+        |> Listing.changeset(%{
+          collection_id: target_collection_id,
+          data: listing.data |> then(&ListingData.normalize(&1 || %{})) |> public_copy_data()
+        })
+        |> Repo.insert!()
+
+      {listing.id, copied.id}
+    end)
+    |> Map.new()
+  end
+
   defp copy_comparison_notes(listing_map) do
     source_ids = Map.keys(listing_map)
 
@@ -667,6 +722,15 @@ defmodule MinhaCasaAiWeb.CollectionController do
 
   defp string(value) when is_binary(value), do: String.trim(value)
   defp string(_), do: ""
+
+  defp blank_to_nil(value) when is_binary(value) do
+    case String.trim(value) do
+      "" -> nil
+      trimmed -> trimmed
+    end
+  end
+
+  defp blank_to_nil(_), do: nil
 
   defp share_url(_conn, token) do
     base = Config.app_public_url() || ""
