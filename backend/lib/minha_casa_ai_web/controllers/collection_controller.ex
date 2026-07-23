@@ -8,6 +8,7 @@ defmodule MinhaCasaAiWeb.CollectionController do
   alias MinhaCasaAi.Financeiro.Scenario
   alias MinhaCasaAi.Listings.MergeSessions
   alias MinhaCasaAi.Listings.DisplayTitle
+  alias MinhaCasaAi.ListingImages.{Copy, StorageCleanup}
 
   alias MinhaCasaAi.Listings.{
     Collection,
@@ -472,37 +473,15 @@ defmodule MinhaCasaAiWeb.CollectionController do
       entitlement = Entitlements.for_workspace(target_workspace)
 
       result =
-        Collections.with_workspace_lock(target_workspace.id, fn ->
-          with :ok <- Entitlements.ensure_collection_capacity(entitlement),
-               :ok <- ensure_copy_listing_capacity(entitlement, source_listings, include_listings) do
-            collection_attrs =
-              Map.merge(profile_values(target_profile), %{
-                name: collection_name,
-                is_public: false,
-                is_default: false,
-                kind: source.kind,
-                source_collection_id: source.id,
-                tags: source.tags,
-                status: "active",
-                publication_settings: source.publication_settings
-              })
-
-            case %Collection{} |> Collection.changeset(collection_attrs) |> Repo.insert() do
-              {:ok, collection} ->
-                listing_map = copy_listings(source_listings, collection.id)
-
-                copy_comparison_notes(listing_map)
-                copy_scenarios(source.id, collection.id)
-
-                %{collection: collection, copied_count: length(source_listings)}
-
-              {:error, changeset} ->
-                Repo.rollback({:changeset, changeset})
-            end
-          else
-            {:error, reason} -> Repo.rollback(reason)
-          end
-        end)
+        prepare_and_copy(
+          source,
+          source_listings,
+          target_profile,
+          target_workspace,
+          entitlement,
+          collection_name,
+          include_listings
+        )
 
       case result do
         {:ok, %{collection: collection, copied_count: copied_count}} ->
@@ -649,20 +628,93 @@ defmodule MinhaCasaAiWeb.CollectionController do
   defp ensure_copy_listing_capacity(entitlement, source_listings, true),
     do: Entitlements.ensure_listing_capacity(entitlement, length(source_listings))
 
-  defp copy_listings(source_listings, target_collection_id) do
-    source_listings
+  defp prepare_and_copy(
+         source,
+         source_listings,
+         target_profile,
+         target_workspace,
+         entitlement,
+         collection_name,
+         include_listings
+       ) do
+    with :ok <- Entitlements.ensure_collection_capacity(entitlement),
+         :ok <- ensure_copy_listing_capacity(entitlement, source_listings, include_listings),
+         {:ok, prepared_listings, copied_image_keys} <- Copy.prepare(source_listings) do
+      result =
+        try do
+          Collections.with_workspace_lock(target_workspace.id, fn ->
+            with :ok <- Entitlements.ensure_collection_capacity(entitlement),
+                 :ok <-
+                   ensure_copy_listing_capacity(entitlement, source_listings, include_listings) do
+              collection_attrs =
+                Map.merge(profile_values(target_profile), %{
+                  name: collection_name,
+                  is_public: false,
+                  is_default: false,
+                  kind: source.kind,
+                  source_collection_id: source.id,
+                  tags: source.tags,
+                  status: "active",
+                  publication_settings: source.publication_settings
+                })
+
+              case %Collection{} |> Collection.changeset(collection_attrs) |> Repo.insert() do
+                {:ok, collection} ->
+                  listing_map = insert_copied_listings(prepared_listings, collection.id)
+
+                  copy_comparison_notes(listing_map)
+                  copy_scenarios(source.id, collection.id)
+
+                  %{collection: collection, copied_count: length(prepared_listings)}
+
+                {:error, changeset} ->
+                  Repo.rollback({:changeset, changeset})
+              end
+            else
+              {:error, reason} -> Repo.rollback(reason)
+            end
+          end)
+        rescue
+          exception ->
+            enqueue_failed_copy_cleanup(copied_image_keys)
+            reraise exception, __STACKTRACE__
+        end
+
+      if match?({:error, _}, result), do: enqueue_failed_copy_cleanup(copied_image_keys)
+      result
+    else
+      {:error, reason, copied_image_keys} ->
+        enqueue_failed_copy_cleanup(copied_image_keys)
+        {:error, {:image_copy_failed, reason}}
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  defp insert_copied_listings(prepared_listings, target_collection_id) do
+    prepared_listings
     |> Enum.map(fn listing ->
       copied =
-        %Listing{}
+        %Listing{id: listing.target_id}
         |> Listing.changeset(%{
           collection_id: target_collection_id,
-          data: listing.data |> then(&ListingData.normalize(&1 || %{})) |> public_copy_data()
+          data: listing.data |> ListingData.normalize() |> public_copy_data()
         })
         |> Repo.insert!()
 
-      {listing.id, copied.id}
+      {listing.source_id, copied.id}
     end)
     |> Map.new()
+  end
+
+  defp enqueue_failed_copy_cleanup([]), do: :ok
+
+  defp enqueue_failed_copy_cleanup(keys) do
+    case StorageCleanup.enqueue(keys: keys) do
+      {:ok, _job} -> :ok
+      {:error, _reason} -> :error
+    end
   end
 
   defp copy_comparison_notes(listing_map) do

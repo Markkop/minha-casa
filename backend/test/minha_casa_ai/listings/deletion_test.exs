@@ -3,6 +3,7 @@ defmodule MinhaCasaAi.Listings.DeletionTest do
 
   import Ecto.Query
 
+  alias MinhaCasaAi.ListingImages.References
   alias MinhaCasaAi.Listings.{Collection, Deletion, Listing, ListingMergeSession}
   alias MinhaCasaAi.Repo
   alias MinhaCasaAi.Workspaces.Workspace
@@ -91,6 +92,31 @@ defmodule MinhaCasaAi.Listings.DeletionTest do
     assert args["keys"] == ["listings/#{listing.id}/legacy-cover.jpg"]
     assert "listings/#{listing.id}/" in args["prefixes"]
     assert "listing-merge-sessions/#{session.id}/" in args["prefixes"]
+  end
+
+  test "cleanup excludes keys and prefixes still referenced by a legacy copy", %{
+    collection: collection
+  } do
+    source = insert_listing!(collection.id)
+    shared_key = List.first(source.data["imageStorageKeys"])
+
+    %Listing{}
+    |> Listing.changeset(%{
+      collection_id: collection.id,
+      data: %{
+        "title" => "Cópia legada",
+        "imageStorageKeys" => [shared_key]
+      }
+    })
+    |> Repo.insert!()
+
+    assert {:ok, %Listing{}} = Deletion.delete_listing(source)
+    assert %Oban.Job{args: args} = cleanup_job!()
+
+    targets = References.unreferenced_targets(args["keys"], args["prefixes"])
+
+    refute shared_key in targets.keys
+    refute "listings/#{source.id}/" in targets.prefixes
   end
 
   defp insert_listing!(collection_id) do

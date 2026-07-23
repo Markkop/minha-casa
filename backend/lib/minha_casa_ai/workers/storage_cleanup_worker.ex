@@ -1,14 +1,16 @@
 defmodule MinhaCasaAi.Workers.StorageCleanupWorker do
   use Oban.Worker, queue: :storage, max_attempts: 10
 
-  alias MinhaCasaAi.ListingImages.Storage
+  alias MinhaCasaAi.ListingImages.{References, Storage}
 
   @impl Oban.Worker
   def perform(%Oban.Job{args: args}) do
     keys = Map.get(args, "keys", [])
     prefixes = Map.get(args, "prefixes", [])
 
-    case Storage.delete_targets(keys, prefixes) do
+    targets = References.unreferenced_targets(keys, prefixes)
+
+    case Storage.delete_targets(targets.keys, targets.prefixes) do
       :ok -> :ok
       {:error, reason} -> {:error, reason}
     end

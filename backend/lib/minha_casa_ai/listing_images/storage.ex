@@ -22,6 +22,25 @@ defmodule MinhaCasaAi.ListingImages.Storage do
     put_object(key, bytes, content_type)
   end
 
+  def copy_listing_image(source_key, target_listing_id)
+      when is_binary(source_key) and is_binary(target_listing_id) do
+    key =
+      "listings/#{target_listing_id}/gallery/#{Ecto.UUID.generate()}#{image_extension(source_key)}"
+
+    if Config.configured?(:minio) do
+      bucket = Config.minio_bucket()
+
+      ExAws.S3.put_object_copy(bucket, key, bucket, source_key)
+      |> ExAws.request(ex_aws_config())
+      |> case do
+        {:ok, _} -> {:ok, key}
+        {:error, reason} -> {:error, {:minio_copy_failed, reason}}
+      end
+    else
+      {:error, :minio_not_configured}
+    end
+  end
+
   def put_staged_merge_image(session_id, image_id, bytes, content_type)
       when is_binary(session_id) and is_binary(image_id) and is_binary(bytes) do
     ext = Map.get(@content_type_ext, content_type, "jpg")
@@ -138,6 +157,13 @@ defmodule MinhaCasaAi.ListingImages.Storage do
   def listing_image_key(listing_id, index, content_type) do
     ext = Map.get(@content_type_ext, content_type, "jpg")
     "listings/#{listing_id}/#{index}.#{ext}"
+  end
+
+  defp image_extension(key) do
+    case key |> Path.extname() |> String.downcase() do
+      extension when extension in [".jpg", ".jpeg", ".png", ".webp", ".gif"] -> extension
+      _ -> ".jpg"
+    end
   end
 
   @doc false
