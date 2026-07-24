@@ -115,20 +115,30 @@
         }
       };
 
-      marker.bindPopup(() => {
-        const container = document.createElement("div");
-        popupMount = mount(MapMarkerInfoContent, {
-          target: container,
-          props: {
-            listing: gl.listing,
-            location: gl.location,
-            pricePerM2,
-            customLoc,
-            onResetLocation: customLoc ? handleResetLocation : undefined
-          }
-        });
-        return container;
-      });
+      marker.bindPopup(
+        () => {
+          const container = document.createElement("div");
+          popupMount = mount(MapMarkerInfoContent, {
+            target: container,
+            props: {
+              listing: gl.listing,
+              location: gl.location,
+              pricePerM2,
+              customLoc,
+              displayTitle: ctx.getPropertyListDisplayTitle(gl.listing),
+              collectionId: ctx.activeCollection?.id ?? null,
+              onResetLocation: customLoc ? handleResetLocation : undefined
+            }
+          });
+          return container;
+        },
+        {
+          className: "listing-map-popup",
+          minWidth: 288,
+          maxWidth: 340,
+          autoPanPadding: [16, 16]
+        }
+      );
 
       marker.on("popupclose", () => {
         if (popupMount) {

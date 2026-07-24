@@ -2,6 +2,7 @@
   import { Info, Minus, Plus, RotateCcw, X } from "@lucide/svelte";
   import type { Property } from "$lib/listings/types";
   import { formatCurrency, type GeocodedListing } from "$lib/listings/map-shared";
+  import { computeMarkerCardPlacement } from "$lib/listings/marker-card-placement";
   import NeighborhoodScene from "$lib/neighborhood/NeighborhoodScene.svelte";
   import {
     deriveCollectionGeography,
@@ -10,7 +11,7 @@
     type LocatedCollectionListing
   } from "$lib/neighborhood/collection-world";
   import { quantizeCoordinate } from "$lib/neighborhood/geo";
-  import type { PropertyMarker } from "$lib/neighborhood/scene-data";
+  import type { ProjectedMarker, PropertyMarker } from "$lib/neighborhood/scene-data";
   import type { GeoCoordinate, NeighborhoodPayload } from "$lib/neighborhood/types";
 
   type SceneHandle = {
@@ -35,6 +36,11 @@
   let contextStatus = $state<"idle" | "loading" | "ready" | "unavailable">("idle");
   let contextRetryKey = $state(0);
   let scene = $state<SceneHandle | null>(null);
+  let projectedMarkers = $state<ProjectedMarker[]>([]);
+  let stageWidth = $state(0);
+  let stageHeight = $state(0);
+  let cardWidth = $state(0);
+  let cardHeight = $state(0);
 
   const locatedListings: LocatedCollectionListing[] = $derived(
     geocodedListings.map((item: GeocodedListing): LocatedCollectionListing => ({
@@ -62,6 +68,18 @@
     selectedId
       ? locatedListings.find((item: LocatedCollectionListing) => item.listing.id === selectedId)?.listing ?? null
       : null
+  );
+  const selectedProjection = $derived(
+    selectedId
+      ? projectedMarkers.find((marker: ProjectedMarker) => marker.id === selectedId) ?? null
+      : null
+  );
+  const selectedCardPlacement = $derived.by(() =>
+    computeMarkerCardPlacement({
+      marker: selectedProjection,
+      container: { width: stageWidth, height: stageHeight },
+      card: { width: cardWidth, height: cardHeight }
+    })
   );
   const markers = $derived.by((): PropertyMarker[] =>
     visibleListings.map((item: LocatedCollectionListing, index: number) => ({
@@ -150,7 +168,11 @@
   }
 </script>
 
-<div class="relative h-[400px] overflow-hidden bg-[#050b22] text-white">
+<div
+  class="relative h-[400px] overflow-hidden bg-[#050b22] text-white"
+  bind:clientWidth={stageWidth}
+  bind:clientHeight={stageHeight}
+>
   {#if payload}
     <NeighborhoodScene
       bind:this={scene}
@@ -161,6 +183,7 @@
       maxMarkerLabels={24}
       selectedMarkerId={selectedId}
       onMarkerSelect={(marker) => (selectedId = marker.id)}
+      onMarkerPositions={(positions) => (projectedMarkers = positions)}
     />
   {/if}
 
@@ -207,8 +230,19 @@
     </div>
   </div>
 
-  {#if selectedListing}
-    <article class="absolute bottom-4 left-3 z-30 w-[min(22rem,calc(100%-1.5rem))] rounded-2xl border border-white/12 bg-[#09142f]/94 p-4 shadow-2xl backdrop-blur-2xl sm:left-4">
+  {#if selectedListing && selectedProjection?.visible}
+    <article
+      class="selected-listing-card absolute z-30 w-[min(22rem,calc(100%-1.5rem))] rounded-2xl border border-white/12 bg-[#09142f]/94 p-4 shadow-2xl backdrop-blur-2xl"
+      class:card-below={selectedCardPlacement.side === "bottom"}
+      bind:clientWidth={cardWidth}
+      bind:clientHeight={cardHeight}
+      style={`left:${selectedCardPlacement.left}px;top:${selectedCardPlacement.top}px;visibility:${selectedCardPlacement.visible ? "visible" : "hidden"}`}
+    >
+      <span
+        class="selected-listing-arrow"
+        aria-hidden="true"
+        style={`left:${selectedCardPlacement.arrowLeft}px`}
+      ></span>
       <button class="absolute right-3 top-3 rounded-md p-1 text-slate-400 hover:bg-white/10 hover:text-white" type="button" aria-label="Fechar imóvel selecionado" onclick={() => (selectedId = null)}><X class="size-4" /></button>
       <span class="text-[9px] font-bold uppercase tracking-[.15em] text-[#ffd63a]">Imóvel selecionado</span>
       <h3 class="mt-1 pr-8 text-sm font-semibold">{getTitle(selectedListing)}</h3>
@@ -229,4 +263,7 @@
 <style>
   .map-control { display: grid; width: 2rem; height: 2rem; place-items: center; border-radius: .55rem; color: #8594b4; transition: color 160ms ease, background 160ms ease; }
   .map-control:hover, .map-control:focus-visible { color: white; background: rgb(255 255 255 / 7%); outline: none; }
+  .selected-listing-card { will-change: left, top; }
+  .selected-listing-arrow { position: absolute; bottom: -.375rem; width: .75rem; height: .75rem; transform: translateX(-50%) rotate(45deg); border-right: 1px solid rgb(255 255 255 / 12%); border-bottom: 1px solid rgb(255 255 255 / 12%); background: rgb(9 20 47 / 94%); }
+  .selected-listing-card.card-below .selected-listing-arrow { top: -.375rem; bottom: auto; border: 0; border-top: 1px solid rgb(255 255 255 / 12%); border-left: 1px solid rgb(255 255 255 / 12%); }
 </style>

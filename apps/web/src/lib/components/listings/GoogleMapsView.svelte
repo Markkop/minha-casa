@@ -107,7 +107,7 @@
         return;
       }
 
-      const gmaps = (window as { google?: { maps?: { Map?: new (...args: unknown[]) => unknown; InfoWindow?: new () => unknown; marker?: { AdvancedMarkerElement?: new (...args: unknown[]) => unknown } } } }).google;
+      const gmaps = (window as { google?: { maps?: { Map?: new (...args: unknown[]) => unknown; InfoWindow?: new (options?: Record<string, unknown>) => any; marker?: { AdvancedMarkerElement?: new (...args: unknown[]) => unknown } } } }).google;
       const MapCtor = gmaps?.maps?.Map;
       const InfoWindowCtor = gmaps?.maps?.InfoWindow;
       if (disposed || !mapElement || !MapCtor || !InfoWindowCtor) return;
@@ -120,7 +120,8 @@
         streetViewControl: true,
         fullscreenControl: true
       });
-      infoWindow = new InfoWindowCtor();
+      infoWindow = new InfoWindowCtor({ maxWidth: 360 });
+      infoWindow.addListener?.("closeclick", releaseInfoMount);
       ready = true;
       renderMarkers();
     };
@@ -150,12 +151,16 @@
     renderMarkers();
   });
 
-  function closeInfoWindow() {
-    infoWindow?.close();
+  function releaseInfoMount() {
     if (infoMount) {
       unmount(infoMount);
       infoMount = null;
     }
+  }
+
+  function closeInfoWindow() {
+    infoWindow?.close();
+    releaseInfoMount();
   }
 
   function renderMarkers() {
@@ -177,7 +182,8 @@
         map,
         position: { lat: gl.location.lat, lng: gl.location.lng },
         content,
-        gmpDraggable: true
+        gmpDraggable: true,
+        gmpClickable: true
       });
 
       marker.addListener("dragend", async () => {
@@ -212,6 +218,8 @@
             location: gl.location,
             pricePerM2,
             customLoc,
+            displayTitle: ctx.getPropertyListDisplayTitle(gl.listing),
+            collectionId: ctx.activeCollection?.id ?? null,
             onResetLocation: customLoc ? handleResetLocation : undefined
           }
         });

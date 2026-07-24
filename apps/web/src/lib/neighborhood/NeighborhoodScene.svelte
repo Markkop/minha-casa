@@ -20,6 +20,7 @@
     allowDemoMarkers = true,
     maxMarkerLabels = 18,
     onMarkerSelect,
+    onMarkerPositions,
     onReady
   } = $props<{
     data?: NeighborhoodPayload | null;
@@ -29,6 +30,7 @@
     allowDemoMarkers?: boolean;
     maxMarkerLabels?: number;
     onMarkerSelect?: (marker: PropertyMarker) => void;
+    onMarkerPositions?: (markers: ProjectedMarker[]) => void;
     onReady?: () => void;
   }>();
 
@@ -74,6 +76,11 @@
     return projectedMarkers.find((marker) => marker.id === id);
   }
 
+  function updateMarkerPositions(positions: ProjectedMarker[]) {
+    projectedMarkers = positions;
+    onMarkerPositions?.(positions);
+  }
+
   onMount(() => {
     if (!host) return;
     const media = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -83,7 +90,7 @@
         markers: effectiveMarkers,
         mode,
         reducedMotion: media.matches,
-        onMarkerPositions: (positions) => (projectedMarkers = positions)
+        onMarkerPositions: updateMarkerPositions
       });
       onReady?.();
     } catch {
