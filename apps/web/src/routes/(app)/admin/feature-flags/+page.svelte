@@ -3,21 +3,15 @@
   import { Flag } from "@lucide/svelte";
   import {
     adminFeatureFlagMeta,
+    defaultAdminFeatureFlags,
     readAdminFeatureFlags,
     writeAdminFeatureFlags,
     type AdminFeatureFlagName,
     type AdminFeatureFlags
-  } from "$lib/admin/client";
+  } from "$lib/admin/feature-flags";
   import PageScaffold from "$lib/components/layout/PageScaffold.svelte";
 
-  let flags = $state<AdminFeatureFlags>({
-    visaoGeral: false,
-    contatos: false,
-    regioes: false,
-    condominios: false,
-    explorar: false,
-    deepAnalysis: false
-  });
+  let flags = $state<AdminFeatureFlags>({ ...defaultAdminFeatureFlags });
 
   onMount(() => {
     flags = readAdminFeatureFlags(true);

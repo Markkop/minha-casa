@@ -6,7 +6,11 @@
   import ExplorarRunPanel from "$lib/explorar/ExplorarRunPanel.svelte";
   import ExplorarSearchesPanel from "$lib/explorar/ExplorarSearchesPanel.svelte";
   import ExplorarStatsPanel from "$lib/explorar/ExplorarStatsPanel.svelte";
-  import { getAdminFeatureFlag, readAdminFeatureFlags } from "$lib/admin/client";
+  import {
+    ADMIN_FEATURE_FLAGS_CHANGE_EVENT,
+    getAdminFeatureFlag,
+    readAdminFeatureFlags
+  } from "$lib/admin/feature-flags";
   import { createExplorarState } from "$lib/explorar/use-explorar-state.svelte";
 
   let { data } = $props<{ data: { user?: { isAdmin?: boolean | null } | null } }>();
@@ -28,7 +32,11 @@
       storedFlagsSyncTick += 1;
     };
     window.addEventListener("storage", syncFlags);
-    return () => window.removeEventListener("storage", syncFlags);
+    window.addEventListener(ADMIN_FEATURE_FLAGS_CHANGE_EVENT, syncFlags);
+    return () => {
+      window.removeEventListener("storage", syncFlags);
+      window.removeEventListener(ADMIN_FEATURE_FLAGS_CHANGE_EVENT, syncFlags);
+    };
   });
 
   onDestroy(() => {

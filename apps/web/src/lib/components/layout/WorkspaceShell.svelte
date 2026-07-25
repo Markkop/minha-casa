@@ -17,11 +17,12 @@
   import { page } from "$app/state";
   import { logoutToHome } from "$lib/auth/logout";
   import {
+    ADMIN_FEATURE_FLAGS_CHANGE_EVENT,
     getAdminFeatureFlag,
     readAdminFeatureFlags,
     type AdminFeatureFlagName,
     type AdminFeatureFlags
-  } from "$lib/admin/client";
+  } from "$lib/admin/feature-flags";
   import CollectionsProvider from "$lib/components/listings/CollectionsProvider.svelte";
   import WorkspaceNav from "$lib/components/layout/WorkspaceNav.svelte";
   import WorkspaceRightSidebar from "$lib/components/layout/WorkspaceRightSidebar.svelte";
@@ -87,7 +88,6 @@
   const coreLinks: NavLink[] = [
     { href: "/lista", label: "Lista", icon: Home },
     { href: "/comparacao", label: "Comparação", icon: BarChart3 },
-    { href: "/relatorios", label: "Relatórios", icon: FileText },
     { href: "/financeiro", label: "Financeiro", icon: CircleDollarSign },
     { href: "/ferramentas", label: "Ferramentas", icon: Puzzle },
     { href: "/links", label: "Links", icon: Link2 }
@@ -95,6 +95,7 @@
 
   const flagLinks: NavLink[] = [
     { href: "/visao-geral", label: "Visão geral", icon: LayoutDashboard, adminFlag: "visaoGeral" },
+    { href: "/relatorios", label: "Relatórios", icon: FileText, adminFlag: "relatorios" },
     { href: "/contatos", label: "Contatos", icon: Contact, adminFlag: "contatos" },
     { href: "/regioes", label: "Regiões", icon: MapPinned, adminFlag: "regioes" },
     { href: "/condominios", label: "Condomínios", icon: Building2, adminFlag: "condominios" }
@@ -247,7 +248,11 @@
 
   $effect(() => {
     window.addEventListener("minha-casa:ai-usage-alert", handleAiUsageAlert);
-    return () => window.removeEventListener("minha-casa:ai-usage-alert", handleAiUsageAlert);
+    window.addEventListener(ADMIN_FEATURE_FLAGS_CHANGE_EVENT, handleStorageSync);
+    return () => {
+      window.removeEventListener("minha-casa:ai-usage-alert", handleAiUsageAlert);
+      window.removeEventListener(ADMIN_FEATURE_FLAGS_CHANGE_EVENT, handleStorageSync);
+    };
   });
 </script>
 
