@@ -521,11 +521,13 @@ export const workspaceApi = {
   acceptOrganizationInvite: (token: string) =>
     api.post<OrganizationInviteAcceptResult>(`/organization-invites/${encodeURIComponent(token)}/accept`, {}),
 
-  fetchCollections: (options?: { organizationId?: string | null }) =>
-    api.get<{ collections: Collection[] }>(
-      "/collections",
-      options && "organizationId" in options ? { organizationId: options.organizationId } : undefined
-    ),
+  fetchCollections: (options?: {
+    organizationId?: string | null;
+    workspaceId?: string | null;
+  }) =>
+    options
+      ? api.get<{ collections: Collection[] }>("/collections", options)
+      : api.get<{ collections: Collection[] }>("/collections"),
   createCollection: (input: { name: string; isDefault?: boolean }) =>
     api.post<{ collection: Collection }>("/collections", input),
   updateCollection: (id: string, input: { name?: string; isDefault?: boolean; isPublic?: boolean }) =>

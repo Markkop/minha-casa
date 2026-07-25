@@ -207,17 +207,21 @@ describe("simulator scenario snapshots API storage", () => {
     );
   });
 
-  it("sends an explicit organization context when provided", async () => {
+  it("sends explicit workspace and organization contexts when provided", async () => {
     apiMock.get.mockResolvedValueOnce({ scenarios: [envelope(1)] });
-    await loadScenarioSnapshots("collection-1", { organizationId: null });
+    await loadScenarioSnapshots("collection-1", {
+      workspaceId: "workspace-personal",
+      organizationId: null
+    });
     expect(apiMock.get).toHaveBeenLastCalledWith(
       "/collections/collection-1/financeiro-scenarios",
-      { organizationId: null }
+      { workspaceId: "workspace-personal", organizationId: null }
     );
 
     apiMock.post.mockResolvedValueOnce({ scenario: envelope(1) });
     await createScenarioSnapshot({
       collectionId: "collection-1",
+      workspaceId: "workspace-org",
       organizationId: "org-1",
       name: "Cenário org",
       params: createInitialSimulatorParams(),
@@ -226,7 +230,46 @@ describe("simulator scenario snapshots API storage", () => {
     expect(apiMock.post).toHaveBeenLastCalledWith(
       "/collections/collection-1/financeiro-scenarios",
       expect.objectContaining({ name: "Cenário org" }),
-      { organizationId: "org-1" }
+      { workspaceId: "workspace-org", organizationId: "org-1" }
+    );
+
+    apiMock.patch.mockResolvedValueOnce({ scenario: envelope(1, { name: "Renomeado" }) });
+    await renameScenarioSnapshot({
+      collectionId: "collection-1",
+      id: "scenario-1",
+      name: "Renomeado",
+      workspaceId: "workspace-org",
+      organizationId: "org-1"
+    });
+    expect(apiMock.patch).toHaveBeenLastCalledWith(
+      "/collections/collection-1/financeiro-scenarios/scenario-1",
+      { name: "Renomeado" },
+      { workspaceId: "workspace-org", organizationId: "org-1" }
+    );
+
+    apiMock.delete.mockResolvedValueOnce({ success: true });
+    await deleteScenarioSnapshot({
+      collectionId: "collection-1",
+      id: "scenario-1",
+      workspaceId: "workspace-org",
+      organizationId: "org-1"
+    });
+    expect(apiMock.delete).toHaveBeenLastCalledWith(
+      "/collections/collection-1/financeiro-scenarios/scenario-1",
+      { workspaceId: "workspace-org", organizationId: "org-1" }
+    );
+
+    apiMock.post.mockResolvedValueOnce({ scenario: envelope(2) });
+    await importSharedScenarioSnapshot({
+      collectionId: "collection-1",
+      token: "share-token",
+      workspaceId: "workspace-org",
+      organizationId: "org-1"
+    });
+    expect(apiMock.post).toHaveBeenLastCalledWith(
+      "/collections/collection-1/financeiro-scenarios/import-shared",
+      { token: "share-token" },
+      { workspaceId: "workspace-org", organizationId: "org-1" }
     );
   });
 

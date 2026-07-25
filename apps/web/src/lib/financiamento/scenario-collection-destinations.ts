@@ -1,8 +1,9 @@
 import { toCollection, type Collection } from "$lib/listings/types";
-import { workspaceApi, type Organization } from "$lib/workspace/client";
+import { workspaceApi, type WorkspaceProfile } from "$lib/workspace/client";
 
 export type ScenarioCollectionDestination = {
   collection: Collection;
+  workspaceId: string;
   organizationId: string | null;
   profileLabel: string;
   label: string;
@@ -10,11 +11,13 @@ export type ScenarioCollectionDestination = {
 
 function destination(
   collection: Collection,
+  workspaceId: string,
   organizationId: string | null,
   profileLabel: string
 ): ScenarioCollectionDestination {
   return {
     collection,
+    workspaceId,
     organizationId,
     profileLabel,
     label: `${collection.name} - ${profileLabel}`
@@ -22,30 +25,38 @@ function destination(
 }
 
 async function loadProfileCollections(
-  organizationId: string | null,
-  profileLabel: string
+  profile: WorkspaceProfile
 ): Promise<ScenarioCollectionDestination[]> {
-  const { collections } = await workspaceApi.fetchCollections({ organizationId });
+  const organizationId = profile.organizationId ?? null;
+  const { collections } = await workspaceApi.fetchCollections({
+    workspaceId: profile.workspaceId,
+    organizationId
+  });
   return collections
     .map(toCollection)
-    .map((collection) => destination(collection, organizationId, profileLabel));
+    .map((collection) =>
+      destination(collection, profile.workspaceId, organizationId, profile.label)
+    );
 }
 
 export async function loadScenarioCollectionDestinations(): Promise<
   ScenarioCollectionDestination[]
 > {
-  const [{ organizations }, personalCollections] = await Promise.all([
-    workspaceApi.fetchOrganizations(),
-    loadProfileCollections(null, "Pessoal")
-  ]);
-
-  const organizationCollections = await Promise.all(
-    organizations.map((organization: Organization) =>
-      loadProfileCollections(organization.id, organization.name)
-    )
+  const { profiles } = await workspaceApi.fetchProfiles();
+  const writableProfiles = profiles.filter(
+    (profile) =>
+      profile.status === "active" && profile.type !== "external" && profile.access !== "viewer"
   );
+  const destinations = (await Promise.all(writableProfiles.map(loadProfileCollections))).flat();
+  const uniqueDestinations = new Map<string, ScenarioCollectionDestination>();
 
-  return [...personalCollections, ...organizationCollections.flat()];
+  for (const item of destinations) {
+    if (!uniqueDestinations.has(item.collection.id)) {
+      uniqueDestinations.set(item.collection.id, item);
+    }
+  }
+
+  return [...uniqueDestinations.values()];
 }
 
 export function findScenarioCollectionDestination(

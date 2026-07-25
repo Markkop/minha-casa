@@ -20,6 +20,7 @@
     propertyType = null,
     activeVariant = null,
     emphasizeWhenSorted = false,
+    overlayOnMedia = false,
     showArea = true,
     showValue = true,
     class: className = "",
@@ -29,6 +30,7 @@
     propertyType?: Property["propertyType"];
     activeVariant?: MetricVariant | null;
     emphasizeWhenSorted?: boolean;
+    overlayOnMedia?: boolean;
     showArea?: boolean;
     showValue?: boolean;
     class?: string;
@@ -44,7 +46,8 @@
     {@const dimmed = isDimmedVariant(segment.variant, activeVariant, emphasizeWhenSorted)}
     <span
       class={cn(
-        "truncate whitespace-nowrap font-mono text-xs tabular-nums text-app-fg transition-opacity",
+        "truncate whitespace-nowrap font-mono text-xs tabular-nums transition-opacity",
+        overlayOnMedia ? "text-white/90" : "text-app-fg",
         dimmed && "opacity-35"
       )}
     >
@@ -55,9 +58,9 @@
         {" "}
       {/if}
       {#if showValue}
-        <span class="text-app-muted">({formatPricePerM2Value(segment.pricePerM2)})</span>
+        <span class={overlayOnMedia ? "text-white/75" : "text-app-muted"}>({formatPricePerM2Value(segment.pricePerM2)})</span>
       {/if}
-      <span class="text-app-muted/80">{` ${formatMetricVariantLabel(segment.variant, propertyType)}`}</span>
+      <span class={overlayOnMedia ? "text-white/65" : "text-app-muted/80"}>{` ${formatMetricVariantLabel(segment.variant, propertyType)}`}</span>
     </span>
   {/each}
 </div>

@@ -5,7 +5,7 @@
   import ToolbarAnchoredPopover from "$lib/components/listings/ToolbarAnchoredPopover.svelte";
   import Input from "$lib/components/ui/Input.svelte";
   import { formatApiError } from "$lib/api/error-message";
-  import { setActiveOrganizationId } from "$lib/api/client";
+  import { setActiveOrganizationId, setActiveWorkspaceId } from "$lib/api/client";
   import { getCollectionsContext } from "$lib/collections-context.svelte";
   import {
     findScenarioCollectionDestination,
@@ -32,6 +32,7 @@
   let status = $state<"idle" | "importing" | "success" | "error">("idle");
   let error = $state("");
   let importedCollectionId = $state<string | null>(null);
+  let importedWorkspaceId = $state<string | null>(null);
   let importedOrganizationId = $state<string | null>(null);
 
   const busy = $derived(status === "importing");
@@ -46,6 +47,7 @@
     status = "idle";
     error = "";
     importedCollectionId = null;
+    importedWorkspaceId = null;
     importedOrganizationId = null;
     loadingDestinations = true;
     void loadScenarioCollectionDestinations()
@@ -60,6 +62,7 @@
       .catch(() => {
         destinations = ctx.collections.map((collection) => ({
           collection,
+          workspaceId: collection.workspaceId,
           organizationId: collection.orgId ?? null,
           profileLabel: collection.orgId ? "Família ou imobiliária" : "Pessoal",
           label: collection.name
@@ -79,11 +82,13 @@
     try {
       const imported = await importSharedScenarioSnapshot({
         collectionId: selectedCollectionId,
+        workspaceId: selectedDestination?.workspaceId,
         organizationId: selectedDestination?.organizationId ?? null,
         token,
         name
       });
       importedCollectionId = imported?.collectionId ?? selectedCollectionId;
+      importedWorkspaceId = selectedDestination?.workspaceId ?? null;
       importedOrganizationId = selectedDestination?.organizationId ?? null;
       status = "success";
     } catch (err) {
@@ -95,6 +100,7 @@
   async function openFinanceiro() {
     if (!importedCollectionId) return;
     await setActiveOrganizationId(importedOrganizationId);
+    setActiveWorkspaceId(importedWorkspaceId);
     void goto(`/financeiro?collection=${encodeURIComponent(importedCollectionId)}`);
   }
 </script>

@@ -27,4 +27,19 @@ describe("workspace profile client", () => {
       organizationId: null
     });
   });
+
+  it("fetches collections with an explicit workspace and organization context", async () => {
+    getMock.mockResolvedValue({ collections: [] });
+    const { workspaceApi } = await import("$lib/workspace/client");
+
+    await workspaceApi.fetchCollections({
+      workspaceId: "workspace-2",
+      organizationId: "org-2"
+    });
+
+    expect(getMock).toHaveBeenCalledWith("/collections", {
+      workspaceId: "workspace-2",
+      organizationId: "org-2"
+    });
+  });
 });

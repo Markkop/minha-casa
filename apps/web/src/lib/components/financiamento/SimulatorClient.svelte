@@ -171,6 +171,7 @@
 
   const selectedListingId = $derived(page.url.searchParams.get("listing"));
   const activeCollectionId = $derived(ctx.activeCollection?.id ?? null);
+  const activeCollectionWorkspaceId = $derived(ctx.activeCollection?.workspaceId ?? null);
   const activeCollectionOrganizationId = $derived(ctx.activeCollection?.orgId ?? null);
 
   const sortedListings = $derived(
@@ -208,6 +209,7 @@
         console.error("Failed to load financeiro scenario destinations", error);
         scenarioDestinations = ctx.collections.map((collection) => ({
           collection,
+          workspaceId: collection.workspaceId,
           organizationId: collection.orgId ?? null,
           profileLabel: collection.orgId ? "Família ou imobiliária" : "Pessoal",
           label: collection.name
@@ -451,6 +453,7 @@
     try {
       const destination = findScenarioCollectionDestination(scenarioDestinations, collectionId);
       const loaded = await loadScenarioSnapshots(collectionId, {
+        workspaceId: destination?.workspaceId ?? activeCollectionWorkspaceId,
         organizationId: destination?.organizationId ?? activeCollectionOrganizationId
       });
       if (requestId !== scenarioRequestId) return;
@@ -478,6 +481,7 @@
       params: firstSource?.params ?? params,
       settings: firstSource?.settings ?? settingsContext.settings,
       comparisonGroup,
+      workspaceId: destination.workspaceId,
       organizationId: destination.organizationId
     });
     if (!created) return;
@@ -502,6 +506,7 @@
     await deleteScenarioSnapshot({
       collectionId,
       id,
+      workspaceId: destination?.workspaceId ?? activeCollectionWorkspaceId,
       organizationId: destination?.organizationId ?? activeCollectionOrganizationId
     });
     if (activeScenarioId === id) {
@@ -519,6 +524,7 @@
       collectionId,
       id,
       name,
+      workspaceId: destination?.workspaceId ?? activeCollectionWorkspaceId,
       organizationId: destination?.organizationId ?? activeCollectionOrganizationId
     });
     await refreshScenarios(collectionId);
