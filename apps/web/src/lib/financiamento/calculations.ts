@@ -1076,7 +1076,10 @@ export const gerarCenarioCompleto = ({
   const reformaEm = custoTotalReformas > 0 ? (mesReforma ?? 1) : undefined
   const aporteEm = aporteExtra > 0 ? aporteDelayMeses : undefined
   const custosId = custosAdicionais
-    .map((custo) => `${custo.id}:${custo.valorTotal}:${custo.mesInicio}:${custo.duracaoMeses}`)
+    .map(
+      (custo) =>
+        `${custo.id}:${custo.incluirNoCalculo}:${custo.cobrancaMensal}:${custo.valorTotal}:${custo.mesInicio}:${custo.duracaoMeses}`
+    )
     .join("|")
 
   return {

@@ -367,7 +367,9 @@ export function resolveScenarioVariations(params: SimulatorParams): ScenarioVari
   for (const custo of params.custosAdicionais) {
     combinationCount = multiplyCount(
       combinationCount,
-      costVariantValues(params, custo, v.custosAdicionais[custo.id]).length
+      custo.incluirNoCalculo
+        ? costVariantValues(params, custo, v.custosAdicionais[custo.id]).length
+        : 1
     );
   }
 
@@ -399,7 +401,9 @@ export function buildScenarioCombinations(params: SimulatorParams): ScenarioComb
       : withBaselineNumber(params, key, params[key] as number, selectedNumbersForKey(params, key, v))
   );
   const costGroups = params.custosAdicionais.map((custo) =>
-    costVariantValues(params, custo, v.custosAdicionais[custo.id])
+    custo.incluirNoCalculo
+      ? costVariantValues(params, custo, v.custosAdicionais[custo.id])
+      : [custo]
   );
   const aporteTimings = withBaselineTiming(
     params,

@@ -463,6 +463,8 @@
     return {
       id: crypto.randomUUID(),
       nome: "Novo custo",
+      incluirNoCalculo: true,
+      cobrancaMensal: false,
       valorTotal: 0,
       mesInicio: 1,
       duracaoMeses: 1
@@ -1658,6 +1660,17 @@
         {#each params.custosAdicionais as custo (custo.id)}
           <div class="border-b border-app-border/40 py-2 last:border-b-0">
             <div class="mb-1 flex items-center gap-1.5">
+              <input
+                type="checkbox"
+                checked={custo.incluirNoCalculo}
+                aria-label={`Incluir ${custo.nome} no cálculo`}
+                title="Incluir no cálculo"
+                class="size-4 shrink-0 accent-app-action"
+                onchange={(event) =>
+                  updateCustoAdicional(custo.id, {
+                    incluirNoCalculo: event.currentTarget.checked
+                  })}
+              />
               {#if editingCustoNomeId === custo.id}
                 <Input
                   value={editingCustoNomeDraft}
@@ -1721,9 +1734,25 @@
             </div>
             {#if custoAdicionalExpanded(custo)}
               <div>
+                <div class="pt-1">
+                  {@render sectionCheckbox(
+                    `custo-${custo.id}-cobranca-mensal`,
+                    "Cobrança mensal",
+                    custo.cobrancaMensal,
+                    (checked) => updateCustoAdicional(custo.id, { cobrancaMensal: checked })
+                  )}
+                  <p class="mb-1 pl-6 text-xs leading-snug text-app-subtle">
+                    {custo.cobrancaMensal
+                      ? "O valor será cobrado integralmente em cada mês da duração."
+                      : "O valor total será dividido entre os meses da duração."}
+                  </p>
+                </div>
                 <ParameterRow
                   compact={rowCompact}
-                  label="Valor"
+                  label={custo.cobrancaMensal ? "Valor mensal" : "Valor total"}
+                  tooltip={custo.cobrancaMensal
+                    ? "Valor cobrado em cada mês do período."
+                    : "Valor total dividido igualmente ao longo da duração."}
                   valueDisplay={formatCurrency(custo.valorTotal)}
                   slider={{
                     value: custo.valorTotal,

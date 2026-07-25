@@ -1,6 +1,8 @@
 export interface CustoAdicional {
   id: string;
   nome: string;
+  incluirNoCalculo: boolean;
+  cobrancaMensal: boolean;
   valorTotal: number;
   mesInicio: number;
   duracaoMeses: number;
@@ -14,6 +16,10 @@ function finiteNumber(value: unknown, fallback: number): number {
 
 function normalizePositiveInteger(value: unknown, fallback: number): number {
   return Math.max(1, Math.round(finiteNumber(value, fallback)));
+}
+
+function booleanValue(value: unknown, fallback: boolean): boolean {
+  return typeof value === "boolean" ? value : fallback;
 }
 
 export function normalizeCustoAdicional(value: unknown, index = 0): CustoAdicional | null {
@@ -33,6 +39,8 @@ export function normalizeCustoAdicional(value: unknown, index = 0): CustoAdicion
       typeof parsed.nome === "string" && parsed.nome.trim().length > 0
         ? parsed.nome.trim()
         : DEFAULT_CUSTO_ADICIONAL_NOME,
+    incluirNoCalculo: booleanValue(parsed.incluirNoCalculo, true),
+    cobrancaMensal: booleanValue(parsed.cobrancaMensal, false),
     valorTotal,
     mesInicio: normalizePositiveInteger(parsed.mesInicio, 1),
     duracaoMeses: normalizePositiveInteger(parsed.duracaoMeses, 1)
@@ -50,7 +58,7 @@ export function normalizeCustosAdicionais(value: unknown): CustoAdicional[] {
 }
 
 export function custoAdicionalNoMes(custo: CustoAdicional, mes: number): number {
-  if (custo.valorTotal <= 0 || mes < custo.mesInicio) {
+  if (!custo.incluirNoCalculo || custo.valorTotal <= 0 || mes < custo.mesInicio) {
     return 0;
   }
 
@@ -59,7 +67,7 @@ export function custoAdicionalNoMes(custo: CustoAdicional, mes: number): number 
     return 0;
   }
 
-  return custo.valorTotal / custo.duracaoMeses;
+  return custo.cobrancaMensal ? custo.valorTotal : custo.valorTotal / custo.duracaoMeses;
 }
 
 export function custosAdicionaisNoMes(custos: readonly CustoAdicional[], mes: number): number {

@@ -225,6 +225,8 @@ describe("normalizeSimulatorParams", () => {
       {
         id: "arquitetura",
         nome: "Arquitetura",
+        incluirNoCalculo: true,
+        cobrancaMensal: false,
         valorTotal: 43_500,
         mesInicio: 1,
         duracaoMeses: 5
@@ -232,11 +234,34 @@ describe("normalizeSimulatorParams", () => {
       {
         id: "custo-2",
         nome: "Novo custo",
+        incluirNoCalculo: true,
+        cobrancaMensal: false,
         valorTotal: 0,
         mesInicio: 1,
         duracaoMeses: 1
       }
     ]);
+  });
+
+  it("normalizes additional cost calculation and monthly billing flags", () => {
+    const result = normalizeSimulatorParams({
+      custosAdicionais: [
+        {
+          id: "condominio-extra",
+          nome: "Condomínio extra",
+          incluirNoCalculo: false,
+          cobrancaMensal: true,
+          valorTotal: 900,
+          mesInicio: 2,
+          duracaoMeses: 6
+        }
+      ]
+    });
+
+    expect(result.custosAdicionais[0]).toMatchObject({
+      incluirNoCalculo: false,
+      cobrancaMensal: true
+    });
   });
 
   it("defaults linkedListingId to null", () => {

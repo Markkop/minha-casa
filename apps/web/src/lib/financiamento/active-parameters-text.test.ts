@@ -46,6 +46,8 @@ describe("parseActiveParametersYaml", () => {
         {
           id: "arquitetura",
           nome: "Arquitetura",
+          incluirNoCalculo: true,
+          cobrancaMensal: true,
           valorTotal: 43_500,
           mesInicio: 1,
           duracaoMeses: 5
@@ -72,6 +74,8 @@ describe("parseActiveParametersYaml", () => {
         {
           id: "arquitetura",
           nome: "Arquitetura",
+          incluirNoCalculo: true,
+          cobrancaMensal: true,
           valorTotal: 43_500,
           mesInicio: 1,
           duracaoMeses: 5
@@ -141,6 +145,8 @@ minha_casa_financeiro:
       {
         id: "custo-1",
         nome: "Laudo estrutural",
+        incluirNoCalculo: true,
+        cobrancaMensal: false,
         valorTotal: 12_200,
         mesInicio: 1,
         duracaoMeses: 1

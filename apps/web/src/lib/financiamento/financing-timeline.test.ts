@@ -395,6 +395,8 @@ describe("simularTimelineMensal", () => {
         {
           id: "arquitetura",
           nome: "Arquitetura",
+          incluirNoCalculo: true,
+          cobrancaMensal: false,
           valorTotal: 12_000,
           mesInicio: 2,
           duracaoMeses: 3
@@ -402,6 +404,8 @@ describe("simularTimelineMensal", () => {
         {
           id: "laudo",
           nome: "Laudo",
+          incluirNoCalculo: true,
+          cobrancaMensal: false,
           valorTotal: 5_000,
           mesInicio: 1,
           duracaoMeses: 1
@@ -414,6 +418,40 @@ describe("simularTimelineMensal", () => {
     expect(result.meses[1]?.custosAdicionais).toBe(4_000);
     expect(result.meses[2]?.custosAdicionais).toBe(4_000);
     expect(result.meses[3]?.custosAdicionais).toBe(4_000);
+    expect(result.meses[4]?.custosAdicionais).toBe(0);
+  });
+
+  it("charges monthly additional costs in full and ignores unchecked costs", () => {
+    const result = simularTimelineMensal({
+      ...baseTimeline,
+      estrategia: "financiamento",
+      custosAdicionais: [
+        {
+          id: "assinatura",
+          nome: "Assinatura",
+          incluirNoCalculo: true,
+          cobrancaMensal: true,
+          valorTotal: 1_500,
+          mesInicio: 2,
+          duracaoMeses: 3
+        },
+        {
+          id: "desativado",
+          nome: "Custo desativado",
+          incluirNoCalculo: false,
+          cobrancaMensal: true,
+          valorTotal: 9_000,
+          mesInicio: 1,
+          duracaoMeses: 12
+        }
+      ]
+    });
+
+    expect(result.totalCustosAdicionais).toBe(4_500);
+    expect(result.meses[0]?.custosAdicionais).toBe(0);
+    expect(result.meses[1]?.custosAdicionais).toBe(1_500);
+    expect(result.meses[2]?.custosAdicionais).toBe(1_500);
+    expect(result.meses[3]?.custosAdicionais).toBe(1_500);
     expect(result.meses[4]?.custosAdicionais).toBe(0);
   });
 });

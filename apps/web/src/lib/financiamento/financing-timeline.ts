@@ -231,7 +231,7 @@ function scheduledMonthWithinTerm(month: number | null | undefined, prazoMeses: 
 
 function lastCustoAdicionalMonth(custos: readonly CustoAdicional[], prazoMeses: number): number {
   return custos.reduce((latest, custo) => {
-    if (custo.valorTotal <= 0) return latest;
+    if (!custo.incluirNoCalculo || custo.valorTotal <= 0) return latest;
     const start = scheduledMonthWithinTerm(custo.mesInicio, prazoMeses);
     if (start === 0) return latest;
     const end = Math.min(prazoMeses, start + normalizeDurationMonths(custo.duracaoMeses) - 1);
