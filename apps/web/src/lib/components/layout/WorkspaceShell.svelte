@@ -7,6 +7,7 @@
     FileText,
     Home,
     LayoutDashboard,
+    List,
     Link2,
     Loader2,
     MapPinned,
@@ -24,6 +25,7 @@
     type AdminFeatureFlags
   } from "$lib/admin/feature-flags";
   import CollectionsProvider from "$lib/components/listings/CollectionsProvider.svelte";
+  import CurrentImovelStorageSync from "$lib/components/workspace/CurrentImovelStorageSync.svelte";
   import WorkspaceNav from "$lib/components/layout/WorkspaceNav.svelte";
   import WorkspaceRightSidebar from "$lib/components/layout/WorkspaceRightSidebar.svelte";
   import WorkspaceTopBar from "$lib/components/layout/WorkspaceTopBar.svelte";
@@ -86,7 +88,8 @@
   const showSubscriptionPendingChrome = false;
 
   const coreLinks: NavLink[] = [
-    { href: "/lista", label: "Lista", icon: Home },
+    { href: "/lista", label: "Lista", icon: List },
+    { href: "/imoveis", label: "Imóvel", icon: Home },
     { href: "/comparacao", label: "Comparação", icon: BarChart3 },
     { href: "/financeiro", label: "Financeiro", icon: CircleDollarSign },
     { href: "/ferramentas", label: "Ferramentas", icon: Puzzle },
@@ -282,6 +285,7 @@
       onLogout={logout}
       {isActive}
     />
+    <CurrentImovelStorageSync />
 
     <div
       data-slot="sidebar-inset"

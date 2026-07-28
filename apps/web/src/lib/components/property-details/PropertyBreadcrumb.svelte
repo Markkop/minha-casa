@@ -5,6 +5,7 @@
   import { getCollectionsContext } from "$lib/collections-context.svelte";
   import ListingSelectorPanel from "$lib/components/listings/ListingSelectorPanel.svelte";
   import AnchoredPopover from "$lib/components/ui/AnchoredPopover.svelte";
+  import { getCurrentImovelId } from "$lib/listings/current-imovel";
   import {
     getListingThumbUrl,
     LISTING_SELECTOR_POPOVER_CLASS,
@@ -23,10 +24,16 @@
   let panel: ListingSelectorPanel | undefined = $state();
 
   const isImovelRoute = $derived(page.url.pathname.startsWith("/imoveis/"));
-  const selectedId = $derived(
-    isImovelRoute ? (page.params.id ?? null) : page.url.searchParams.get("listing")
-  );
   const sortedListings = $derived(sortSelectableListings(ctx.listings));
+  const selectedId = $derived(
+    getCurrentImovelId({
+      pathname: page.url.pathname,
+      params: page.params,
+      searchParams: page.url.searchParams,
+      listings: ctx.listings,
+      collectionId: ctx.activeCollection?.id
+    })
+  );
   const selected = $derived(
     sortedListings.find((listing) => listing.id === selectedId) ?? sortedListings[0] ?? null
   );

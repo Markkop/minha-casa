@@ -1,10 +1,15 @@
 <script lang="ts">
   import type { Snippet } from "svelte";
   import { Home } from "@lucide/svelte";
-  import { cn } from "$lib/utils";
-  import { workspaceChromeRowClass } from "$lib/workspace-chrome";
+  import { page } from "$app/state";
+  import { getCollectionsContext } from "$lib/collections-context.svelte";
   import AccountMenu from "$lib/components/layout/AccountMenu.svelte";
   import BrandLink from "$lib/components/layout/BrandLink.svelte";
+  import { getCurrentImovelId } from "$lib/listings/current-imovel";
+  import { LIST_ROUTE } from "$lib/navigation/list-route";
+  import { buildPropertyHref } from "$lib/property-details-url";
+  import { cn } from "$lib/utils";
+  import { workspaceChromeRowClass } from "$lib/workspace-chrome";
 
   type ShellUser = {
     name?: string | null;
@@ -46,15 +51,29 @@
     onLogout: () => void | Promise<void>;
     isActive: (href: string, currentPath: string) => boolean;
   } = $props();
+
+  const ctx = getCollectionsContext();
+
+  const imovelHref = $derived.by(() => {
+    const selectedId = getCurrentImovelId({
+      pathname: page.url.pathname,
+      params: page.params,
+      searchParams: page.url.searchParams,
+      listings: ctx.listings,
+      collectionId: ctx.activeCollection?.id
+    });
+
+    return selectedId ? buildPropertyHref(selectedId) : LIST_ROUTE;
+  });
 </script>
 
 {#snippet NavMenu()}
   <ul class="flex w-full min-w-0 flex-col gap-1">
-    {#each visibleLinks as link}
+    {#each visibleLinks as link (link.href)}
       {@const Icon = link.icon}
       <li class="relative">
         <a
-          href={link.href}
+          href={link.href === "/imoveis" ? imovelHref : link.href}
           data-active={isActive(link.href, pathname)}
           class={cn(
             "flex min-h-9 w-full min-w-0 items-center gap-2 rounded-md px-3 py-2 text-left text-sm font-medium transition-colors",
