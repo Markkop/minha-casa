@@ -8,6 +8,7 @@
   let {
     column,
     imageUrls,
+    compact = false,
     draggingImageIndex = null,
     draggingColumnId = null,
     columnDropBeforeId = null,
@@ -29,6 +30,7 @@
   }: {
     column: ImageEnvironmentColumn;
     imageUrls: string[];
+    compact?: boolean;
     draggingImageIndex?: number | null;
     draggingColumnId?: string | null;
     columnDropBeforeId?: string | null;
@@ -91,6 +93,7 @@
 <article
   class={cn(
     "ambientes-row",
+    compact && "ambientes-row--compact",
     dropTarget?.columnId === column.id && draggingImageIndex !== null && "ambientes-row--drop",
     isColumnDropTarget && "ambientes-row--reorder-drop",
     isColumnDragging && "ambientes-row--dragging"
@@ -187,6 +190,12 @@
     border: 1px solid var(--color-app-border, rgb(212 212 212));
     border-radius: 0.5rem;
     background: var(--color-app-surface, white);
+    transition: min-height 120ms ease, opacity 120ms ease;
+  }
+
+  .ambientes-row--compact {
+    min-height: 2.25rem;
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .ambientes-row--drop {
@@ -210,6 +219,12 @@
     gap: 0.25rem;
     border-right: 1px solid var(--color-app-border, rgb(212 212 212));
     padding: 0.5rem;
+  }
+
+  .ambientes-row--compact .ambientes-row-header {
+    min-height: 2.25rem;
+    border-right: 0;
+    padding-block: 0.25rem;
   }
 
   .ambientes-row-grip {
@@ -256,6 +271,10 @@
     align-content: flex-start;
     gap: 0.5rem;
     padding: 0.5rem;
+  }
+
+  .ambientes-row--compact .ambientes-row-body {
+    display: none;
   }
 
   .ambientes-row-slot {

@@ -359,11 +359,15 @@
         <AmbientesBoardAddColumn disabled={!updateListing} onAdd={handleAddColumn} />
       </div>
 
-      <div class="ambientes-rows">
+      <div
+        class="ambientes-rows"
+        class:ambientes-rows--reordering={draggingColumnId !== null}
+      >
         {#each columns as column (column.id)}
           <AmbientesBoardRow
             {column}
             {imageUrls}
+            compact={draggingColumnId !== null}
             {draggingImageIndex}
             {draggingColumnId}
             columnDropBeforeId={columnDropBeforeId}
@@ -405,5 +409,9 @@
     min-width: 0;
     flex-direction: column;
     gap: 0.75rem;
+  }
+
+  .ambientes-rows--reordering {
+    gap: 0.25rem;
   }
 </style>
