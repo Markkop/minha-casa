@@ -71,7 +71,7 @@
     }
   }
 
-  function handleArticleDragOver(event: DragEvent) {
+  function handleRowDragOver(event: DragEvent) {
     if (draggingColumnId) {
       onColumnReorderOver(event);
       return;
@@ -79,7 +79,7 @@
     onColumnDragOver(event);
   }
 
-  function handleArticleDrop(event: DragEvent) {
+  function handleRowDrop(event: DragEvent) {
     if (draggingColumnId) {
       onColumnReorderDrop(event);
       return;
@@ -90,20 +90,18 @@
 
 <article
   class={cn(
-    "ambientes-column",
-    dropTarget?.columnId === column.id &&
-      draggingImageIndex !== null &&
-      "ambientes-column--drop",
-    isColumnDropTarget && "ambientes-column--reorder-drop",
-    isColumnDragging && "ambientes-column--dragging"
+    "ambientes-row",
+    dropTarget?.columnId === column.id && draggingImageIndex !== null && "ambientes-row--drop",
+    isColumnDropTarget && "ambientes-row--reorder-drop",
+    isColumnDragging && "ambientes-row--dragging"
   )}
-  ondragover={handleArticleDragOver}
-  ondrop={handleArticleDrop}
+  ondragover={handleRowDragOver}
+  ondrop={handleRowDrop}
 >
-  <header class="ambientes-column-header">
+  <header class="ambientes-row-header">
     <button
       type="button"
-      class="ambientes-column-grip"
+      class="ambientes-row-grip"
       draggable="true"
       aria-label={`Reordenar ${column.label}`}
       ondragstart={(event) => {
@@ -119,12 +117,10 @@
       bind:value={labelDraft}
       onblur={commitLabel}
       onkeydown={(event) => {
-        if (event.key === "Enter") {
-          event.currentTarget.blur();
-        }
+        if (event.key === "Enter") event.currentTarget.blur();
       }}
       aria-label="Nome do cômodo"
-      class="ambientes-column-title"
+      class="ambientes-row-title"
     />
     <Button
       type="button"
@@ -139,21 +135,18 @@
     </Button>
   </header>
 
-  <div class="ambientes-column-body" role="list" aria-label={`Fotos de ${column.label}`}>
+  <div class="ambientes-row-body" role="list" aria-label={`Fotos de ${column.label}`}>
     {#each column.imageIndices as imageIndex, position (imageIndex)}
       {@const url = imageUrls[imageIndex]}
       {#if url}
         <div
-          role="listitem"
           class={cn(
-            "ambientes-column-slot",
+            "ambientes-row-slot",
             dropTarget?.columnId === column.id &&
               dropTarget.position === position &&
               draggingImageIndex !== null &&
-              "ambientes-column-slot--drop"
+              "ambientes-row-slot--drop"
           )}
-          ondragover={(event) => onDragOverPosition(position, event)}
-          ondrop={(event) => onDropPosition(position, event)}
         >
           <AmbientesBoardImageThumb
             {url}
@@ -161,6 +154,8 @@
             isDragging={draggingImageIndex === imageIndex}
             onPreview={() => onPreview(imageIndex)}
             onDragStart={(event) => onDragStart(imageIndex, event)}
+            onDragOver={(event) => onDragOverPosition(position, event)}
+            onDrop={(event) => onDropPosition(position, event)}
             onDragEnd={onDragEnd}
           />
         </div>
@@ -168,14 +163,14 @@
     {/each}
 
     {#if column.imageIndices.length === 0}
-      <div class="ambientes-column-empty" aria-hidden="true">
+      <div class="ambientes-row-empty" aria-hidden="true">
         <p>Solte fotos aqui</p>
       </div>
     {:else}
       <div
         role="listitem"
         aria-label={`Adicionar foto ao final de ${column.label}`}
-        class="ambientes-column-append"
+        class="ambientes-row-append"
         ondragover={(event) => onDragOverPosition(column.imageIndices.length, event)}
         ondrop={(event) => onDropPosition(column.imageIndices.length, event)}
       ></div>
@@ -184,41 +179,40 @@
 </article>
 
 <style>
-  .ambientes-column {
-    display: flex;
-    width: 7.5rem;
-    min-height: 14rem;
-    flex-shrink: 0;
-    flex-direction: column;
+  .ambientes-row {
+    display: grid;
+    min-width: 0;
+    min-height: 6.125rem;
+    grid-template-columns: minmax(7.5rem, 10rem) minmax(0, 1fr);
     border: 1px solid var(--color-app-border, rgb(212 212 212));
     border-radius: 0.5rem;
     background: var(--color-app-surface, white);
   }
 
-  .ambientes-column--drop {
+  .ambientes-row--drop {
     border-color: var(--color-app-fg, rgb(64 64 64));
     box-shadow: 0 0 0 1px var(--color-app-fg, rgb(64 64 64));
     background: var(--color-app-surface-muted, rgb(250 250 250));
   }
 
-  .ambientes-column--reorder-drop {
-    border-color: var(--color-app-fg, rgb(64 64 64));
-    box-shadow: 0 0 0 2px var(--color-app-fg, rgb(64 64 64));
+  .ambientes-row--reorder-drop {
+    box-shadow: inset 0 2px 0 var(--color-app-fg, rgb(64 64 64));
   }
 
-  .ambientes-column--dragging {
+  .ambientes-row--dragging {
     opacity: 0.55;
   }
 
-  .ambientes-column-header {
+  .ambientes-row-header {
     display: flex;
+    min-width: 0;
     align-items: center;
     gap: 0.25rem;
-    border-bottom: 1px solid var(--color-app-border, rgb(212 212 212));
-    padding: 0.375rem;
+    border-right: 1px solid var(--color-app-border, rgb(212 212 212));
+    padding: 0.5rem;
   }
 
-  .ambientes-column-grip {
+  .ambientes-row-grip {
     display: flex;
     flex-shrink: 0;
     cursor: grab;
@@ -230,15 +224,15 @@
     color: var(--color-app-muted, rgb(115 115 115));
   }
 
-  .ambientes-column-grip:active {
+  .ambientes-row-grip:active {
     cursor: grabbing;
   }
 
-  .ambientes-column-grip:hover {
+  .ambientes-row-grip:hover {
     color: var(--color-app-fg, rgb(23 23 23));
   }
 
-  .ambientes-column-title {
+  .ambientes-row-title {
     min-width: 0;
     flex: 1;
     border: none;
@@ -249,43 +243,49 @@
     outline: none;
   }
 
-  .ambientes-column-title:focus {
+  .ambientes-row-title:focus {
     border-radius: 0.25rem;
     box-shadow: 0 0 0 1px var(--color-app-border, rgb(212 212 212));
   }
 
-  .ambientes-column-body {
+  .ambientes-row-body {
     display: flex;
-    min-height: 0;
-    flex: 1;
-    flex-direction: column;
+    min-width: 0;
+    min-height: 6rem;
+    flex-wrap: wrap;
+    align-content: flex-start;
     gap: 0.5rem;
     padding: 0.5rem;
   }
 
-  .ambientes-column-slot--drop {
-    outline: 1px dashed var(--color-app-fg, rgb(64 64 64));
-    border-radius: 0.375rem;
+  .ambientes-row-slot {
+    flex: 0 0 auto;
   }
 
-  .ambientes-column-empty {
+  .ambientes-row-slot--drop {
+    border-radius: 0.375rem;
+    outline: 1px dashed var(--color-app-fg, rgb(64 64 64));
+  }
+
+  .ambientes-row-empty {
     display: flex;
-    flex: 1;
+    min-height: 5rem;
+    flex: 1 1 100%;
     align-items: center;
     justify-content: center;
-    padding: 0.5rem;
     pointer-events: none;
   }
 
-  .ambientes-column-empty p {
+  .ambientes-row-empty p {
     margin: 0;
     text-align: center;
     font-size: 0.75rem;
     color: var(--color-app-muted, rgb(115 115 115));
   }
 
-  .ambientes-column-append {
-    min-height: 2.5rem;
-    flex: 1;
+  .ambientes-row-append {
+    min-height: 5rem;
+    min-width: 3rem;
+    flex: 1 1 3rem;
   }
 </style>

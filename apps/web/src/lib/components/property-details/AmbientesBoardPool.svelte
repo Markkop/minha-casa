@@ -5,6 +5,7 @@
     items,
     draggingImageIndex = null,
     dropTarget = null,
+    emptyMessage = "Todas as fotos estão atribuídas a cômodos.",
     onPreview,
     onDragStart,
     onDragOver,
@@ -14,6 +15,7 @@
     items: { imageIndex: number; url: string }[];
     draggingImageIndex?: number | null;
     dropTarget?: "pool" | null;
+    emptyMessage?: string;
     onPreview: (imageIndex: number) => void;
     onDragStart: (imageIndex: number, event: DragEvent) => void;
     onDragOver: (event: DragEvent) => void;
@@ -31,7 +33,7 @@
   class:ambientes-pool--drop={dropTarget === "pool" && draggingImageIndex !== null}
 >
   {#if items.length === 0}
-    <p class="ambientes-pool-empty">Arraste fotos para os cômodos abaixo.</p>
+    <p class="ambientes-pool-empty">{emptyMessage}</p>
   {:else}
     {#each items as item (item.imageIndex)}
       <AmbientesBoardImageThumb

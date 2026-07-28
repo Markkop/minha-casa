@@ -1,11 +1,14 @@
 import { describe, expect, it } from "vitest";
 import {
+  assignImageToColumn,
   buildDefaultEnvironmentColumns,
   filterStaleImageIndices,
   getUnassignedImageIndices,
+  moveImageWithinColumn,
   reorderEnvironmentColumns,
   resolveEnvironmentColumns,
-  resolveGalleryImagesFromEnvironments
+  resolveGalleryImagesFromEnvironments,
+  unassignImage
 } from "$lib/listing-image-environments";
 
 describe("buildDefaultEnvironmentColumns", () => {
@@ -58,6 +61,41 @@ describe("reorderEnvironmentColumns", () => {
   it("no-ops when ids are the same or missing", () => {
     expect(reorderEnvironmentColumns(columns, "a", "a")).toEqual(columns);
     expect(reorderEnvironmentColumns(columns, "missing", "a")).toEqual(columns);
+  });
+});
+
+describe("image assignment", () => {
+  const columns = [
+    { id: "sala", kind: "livingRoom" as const, label: "Sala", imageIndices: [0, 1] },
+    { id: "cozinha", kind: "kitchen" as const, label: "Cozinha", imageIndices: [2] }
+  ];
+
+  it("assigns an unassigned image at the requested position", () => {
+    const assigned = assignImageToColumn(columns, 3, "cozinha", 0);
+
+    expect(assigned.find((column) => column.id === "cozinha")?.imageIndices).toEqual([3, 2]);
+    expect(getUnassignedImageIndices(assigned, 4)).toEqual([]);
+  });
+
+  it("moves an image between rooms without duplicating it", () => {
+    const assigned = assignImageToColumn(columns, 1, "cozinha", 1);
+
+    expect(assigned.find((column) => column.id === "sala")?.imageIndices).toEqual([0]);
+    expect(assigned.find((column) => column.id === "cozinha")?.imageIndices).toEqual([2, 1]);
+  });
+
+  it("reorders images inside a room", () => {
+    const reordered = moveImageWithinColumn(columns, "sala", 0, 1);
+
+    expect(reordered.find((column) => column.id === "sala")?.imageIndices).toEqual([1, 0]);
+    expect(reordered.find((column) => column.id === "cozinha")?.imageIndices).toEqual([2]);
+  });
+
+  it("returns an image to the unassigned pool", () => {
+    const unassigned = unassignImage(columns, 1);
+
+    expect(unassigned.find((column) => column.id === "sala")?.imageIndices).toEqual([0]);
+    expect(getUnassignedImageIndices(unassigned, 4)).toEqual([1, 3]);
   });
 });
 

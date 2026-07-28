@@ -1,8 +1,9 @@
 <script lang="ts">
   import type { Property } from "$lib/listings/types";
+  import WorkspaceRightSidebarContent from "$lib/components/layout/WorkspaceRightSidebarContent.svelte";
   import AmbientesBoardAddColumn from "$lib/components/property-details/AmbientesBoardAddColumn.svelte";
-  import AmbientesBoardColumn from "$lib/components/property-details/AmbientesBoardColumn.svelte";
   import AmbientesBoardPool from "$lib/components/property-details/AmbientesBoardPool.svelte";
+  import AmbientesBoardRow from "$lib/components/property-details/AmbientesBoardRow.svelte";
   import ImageLightboxOverlay from "$lib/components/property-details/ImageLightboxOverlay.svelte";
   import WorkspacePanel from "$lib/components/workspace/WorkspacePanel.svelte";
   import { floorPlansApi } from "$lib/components/planta/floor-plans-api";
@@ -315,6 +316,26 @@
   }
 </script>
 
+<WorkspaceRightSidebarContent title="Sem cômodo">
+  <div class="p-3">
+    <AmbientesBoardPool
+      items={poolItems}
+      {draggingImageIndex}
+      dropTarget={dropTarget === "pool" ? "pool" : null}
+      emptyMessage={
+        imageUrls.length === 0
+          ? "Sem imagens para este imóvel."
+          : "Todas as fotos estão atribuídas a cômodos."
+      }
+      onPreview={(index) => (previewImageIndex = index)}
+      onDragStart={handleDragStart}
+      onDragOver={handlePoolDragOver}
+      onDrop={handlePoolDrop}
+      onDragEnd={handleDragEnd}
+    />
+  </div>
+</WorkspaceRightSidebarContent>
+
 <WorkspacePanel class="space-y-4 p-4 {className}">
   <div class="flex items-start justify-between gap-3">
     <div>
@@ -332,29 +353,15 @@
   {#if imageUrls.length === 0}
     <p class="text-sm text-app-muted">Sem imagens para este imóvel.</p>
   {:else}
-    <section aria-label="Fotos sem cômodo">
-      <h4 class="mb-2 text-xs font-medium uppercase tracking-wide text-app-muted">Sem cômodo</h4>
-      <AmbientesBoardPool
-        items={poolItems}
-        {draggingImageIndex}
-        dropTarget={dropTarget === "pool" ? "pool" : null}
-        onPreview={(index) => (previewImageIndex = index)}
-        onDragStart={handleDragStart}
-        onDragOver={handlePoolDragOver}
-        onDrop={handlePoolDrop}
-        onDragEnd={handleDragEnd}
-      />
-    </section>
-
     <section aria-label="Cômodos">
       <div class="mb-2 flex items-center justify-between gap-2">
         <h4 class="text-xs font-medium uppercase tracking-wide text-app-muted">Cômodos</h4>
         <AmbientesBoardAddColumn disabled={!updateListing} onAdd={handleAddColumn} />
       </div>
 
-      <div class="ambientes-columns-scroll">
+      <div class="ambientes-rows">
         {#each columns as column (column.id)}
-          <AmbientesBoardColumn
+          <AmbientesBoardRow
             {column}
             {imageUrls}
             {draggingImageIndex}
@@ -393,10 +400,10 @@
 {/if}
 
 <style>
-  .ambientes-columns-scroll {
+  .ambientes-rows {
     display: flex;
+    min-width: 0;
+    flex-direction: column;
     gap: 0.75rem;
-    overflow-x: auto;
-    padding-bottom: 0.25rem;
   }
 </style>

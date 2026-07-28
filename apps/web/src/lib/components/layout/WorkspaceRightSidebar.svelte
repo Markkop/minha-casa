@@ -35,7 +35,7 @@
         <button
           type="button"
           class="inline-flex size-8 shrink-0 items-center justify-center rounded-md text-app-muted transition hover:bg-app-surface-muted hover:text-app-fg"
-          aria-label="Fechar painel de parâmetros"
+          aria-label={`Fechar painel ${sidebar.registration.title}`}
           onclick={sidebar.close}
         >
           <X class="size-4" />
@@ -49,7 +49,7 @@
     <button
       type="button"
       class="fixed inset-0 z-[70] bg-black/35 lg:hidden"
-      aria-label="Fechar painel de parâmetros"
+      aria-label={`Fechar painel ${sidebar.registration.title}`}
       onclick={sidebar.close}
     ></button>
   {/if}

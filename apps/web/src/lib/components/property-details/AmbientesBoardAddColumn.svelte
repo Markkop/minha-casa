@@ -40,7 +40,7 @@
 
   {#if menuOpen}
     <div
-      class="absolute bottom-full left-0 z-10 mb-1 min-w-44 rounded-md border border-app-border bg-app-surface py-1 shadow-lg"
+      class="absolute right-0 top-full z-10 mt-1 min-w-44 rounded-md border border-app-border bg-app-surface py-1 shadow-lg"
       role="menu"
     >
       {#each ADD_COLUMN_PRESETS as preset (preset.kind + preset.label)}

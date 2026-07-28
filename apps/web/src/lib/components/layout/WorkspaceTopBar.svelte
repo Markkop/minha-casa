@@ -14,6 +14,7 @@
     collectionBreadcrumbClass,
     onToggleSidebar,
     showRightSidebarToggle = false,
+    rightSidebarTitle,
     rightSidebarDesktopOnly = false,
     onToggleRightSidebar
   }: {
@@ -24,6 +25,7 @@
     collectionBreadcrumbClass: string;
     onToggleSidebar: () => void;
     showRightSidebarToggle?: boolean;
+    rightSidebarTitle?: string;
     rightSidebarDesktopOnly?: boolean;
     onToggleRightSidebar?: () => void;
   } = $props();
@@ -100,7 +102,7 @@
           "size-8 shrink-0 items-center justify-center rounded-md text-app-muted transition hover:bg-app-surface-muted hover:text-app-fg",
           rightSidebarDesktopOnly ? "hidden lg:inline-flex" : "inline-flex"
         )}
-        aria-label="Alternar parâmetros financeiros"
+        aria-label={`Alternar painel ${rightSidebarTitle ?? "lateral"}`}
         onclick={onToggleRightSidebar}
       >
         <PanelRight class="h-4 w-4" />

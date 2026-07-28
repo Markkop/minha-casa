@@ -305,6 +305,7 @@
         {collectionBreadcrumbClass}
         onToggleSidebar={toggleSidebar}
         showRightSidebarToggle={Boolean(rightSidebar.registration)}
+        rightSidebarTitle={rightSidebar.registration?.title}
         rightSidebarDesktopOnly={rightSidebar.registration?.desktopOnly ?? false}
         onToggleRightSidebar={rightSidebar.toggle}
       />
