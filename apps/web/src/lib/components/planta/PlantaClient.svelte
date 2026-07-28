@@ -12,20 +12,17 @@
     ImageUp,
     Layers,
     Lock,
-    Magnet,
     Maximize2,
     Minus,
     MousePointer2,
     PanelLeft,
     PanelRight,
     RotateCcw,
-    Ruler,
     Square,
     Trash2,
     Unlock
   } from "@lucide/svelte";
   import Button from "$lib/components/ui/Button.svelte";
-  import Input from "$lib/components/ui/Input.svelte";
   import Slider from "$lib/components/ui/Slider.svelte";
   import WorkspacePage from "$lib/components/workspace/WorkspacePage.svelte";
   import { formatApiError } from "$lib/api/error-message";
@@ -40,6 +37,7 @@
   } from "$lib/components/planta/history";
   import { snapShape } from "$lib/components/planta/snap";
   import PlantaCanvas from "$lib/components/planta/PlantaCanvas.svelte";
+  import PlantaCanvasSettings from "$lib/components/planta/PlantaCanvasSettings.svelte";
   import {
     createPlantaDocument,
     createShapeId,
@@ -321,54 +319,12 @@
     };
   }
 
-  function updateGridSize(nextSize: number) {
-    planner = {
-      ...planner,
-      grid: {
-        ...planner.grid,
-        size: Math.max(20, Math.min(200, nextSize))
-      }
-    };
-  }
-
   function toggleGrid() {
     planner = {
       ...planner,
       grid: {
         ...planner.grid,
         visible: !planner.grid.visible
-      }
-    };
-  }
-
-  function updateMetersPerCell(rawValue: string) {
-    const parsed = Number.parseFloat(rawValue.replace(",", "."));
-    if (!Number.isFinite(parsed)) return;
-    planner = {
-      ...planner,
-      grid: {
-        ...planner.grid,
-        metersPerCell: Math.max(0.01, Math.min(100, parsed))
-      }
-    };
-  }
-
-  function toggleMeasurements() {
-    planner = {
-      ...planner,
-      grid: {
-        ...planner.grid,
-        showMeasurements: !planner.grid.showMeasurements
-      }
-    };
-  }
-
-  function toggleSnapToGrid() {
-    planner = {
-      ...planner,
-      grid: {
-        ...planner.grid,
-        snapToGrid: !planner.grid.snapToGrid
       }
     };
   }
@@ -947,55 +903,7 @@
           </div>
         </section>
 
-        <section class="p-3">
-          <div class="mb-3 flex items-center justify-between">
-            <h2 class="text-xs font-semibold uppercase text-app-muted">Canvas</h2>
-            <div class="flex items-center gap-1">
-              <Button
-                variant={planner.grid.snapToGrid ? "primary" : "ghost"}
-                size="icon"
-                class="h-7 w-7"
-                title="Encaixar na grade"
-                ariaLabel="Encaixar na grade"
-                onclick={toggleSnapToGrid}
-              >
-                <Magnet class="h-3.5 w-3.5" />
-              </Button>
-              <Button
-                variant={planner.grid.showMeasurements ? "primary" : "ghost"}
-                size="icon"
-                class="h-7 w-7"
-                title="Mostrar medidas"
-                ariaLabel="Mostrar medidas"
-                onclick={toggleMeasurements}
-              >
-                <Ruler class="h-3.5 w-3.5" />
-              </Button>
-              <Button variant={planner.grid.visible ? "primary" : "ghost"} size="icon" class="h-7 w-7" title="Mostrar grade" ariaLabel="Mostrar grade" onclick={toggleGrid}>
-                <Grid3X3 class="h-3.5 w-3.5" />
-              </Button>
-            </div>
-          </div>
-          <label class="grid grid-cols-[4.5rem_minmax(0,1fr)_2.6rem] items-center gap-2 text-xs text-app-muted">
-            <span>Grid</span>
-            <Slider value={planner.grid.size} min={20} max={200} step={5} onValueChange={updateGridSize} ariaLabel="Tamanho da grade" />
-            <span class="text-right font-mono text-app-fg">{planner.grid.size}</span>
-          </label>
-          <label class="mt-2 grid grid-cols-[4.5rem_minmax(0,1fr)] items-center gap-2 text-xs text-app-muted">
-            <span>Lado (m)</span>
-            <Input
-              type="number"
-              min={0.01}
-              max={100}
-              step={0.01}
-              inputmode="decimal"
-              value={planner.grid.metersPerCell}
-              ariaLabel="Lado do quadrado em metros"
-              class="h-8 font-mono text-app-fg"
-              onchange={(event) => updateMetersPerCell(event.currentTarget.value)}
-            />
-          </label>
-        </section>
+        <PlantaCanvasSettings bind:planner {canvasWidth} {canvasHeight} />
         </div>
       </aside>
     {/if}

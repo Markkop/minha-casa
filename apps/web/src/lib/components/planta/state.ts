@@ -1,8 +1,16 @@
 import type {
   PlantaDocument,
+  PlantaScaleRuler,
   PlantaShape,
   PlantaViewport
 } from "$lib/components/planta/types";
+import {
+  getScaleRulerLength,
+  isValidScaleRuler,
+  MAX_METERS_PER_CELL,
+  MIN_METERS_PER_CELL,
+  metersPerCellFromScaleRulerLength
+} from "$lib/components/planta/scale-ruler";
 
 export const MIN_VIEWPORT_SCALE = 0.2;
 export const MAX_VIEWPORT_SCALE = 4;
@@ -26,6 +34,7 @@ export function createPlantaDocument(): PlantaDocument {
       showMeasurements: false,
       snapToGrid: false
     },
+    scaleRuler: null,
     shapes: []
   };
 }
@@ -208,6 +217,27 @@ export function parsePlantaDocument(raw: string | null): PlantaDocument {
     const parsed = JSON.parse(raw) as Partial<PlantaDocument>;
     if (parsed.version !== 1) return createPlantaDocument();
 
+    const gridSize = clampNumber(Number(parsed.grid?.size ?? 50), 20, 200);
+    const parsedScaleRuler = parseScaleRuler(parsed.scaleRuler);
+    const storedMetersPerCell = clampNumber(
+      Number(parsed.grid?.metersPerCell ?? 1),
+      MIN_METERS_PER_CELL,
+      MAX_METERS_PER_CELL
+    );
+    const calibratedMetersPerCell = parsedScaleRuler
+      ? metersPerCellFromScaleRulerLength(getScaleRulerLength(parsedScaleRuler), gridSize)
+      : null;
+    const scaleRuler =
+      calibratedMetersPerCell !== null &&
+      calibratedMetersPerCell >= MIN_METERS_PER_CELL &&
+      calibratedMetersPerCell <= MAX_METERS_PER_CELL
+        ? parsedScaleRuler
+        : null;
+    const metersPerCell =
+      scaleRuler && calibratedMetersPerCell !== null
+        ? calibratedMetersPerCell
+        : storedMetersPerCell;
+
     return {
       version: 1,
       blueprint: parsed.blueprint ?? null,
@@ -218,16 +248,23 @@ export function parsePlantaDocument(raw: string | null): PlantaDocument {
       },
       grid: {
         visible: parsed.grid?.visible !== false,
-        size: clampNumber(Number(parsed.grid?.size ?? 50), 20, 200),
-        metersPerCell: clampNumber(Number(parsed.grid?.metersPerCell ?? 1), 0.01, 100),
+        size: gridSize,
+        metersPerCell,
         showMeasurements: parsed.grid?.showMeasurements === true,
         snapToGrid: parsed.grid?.snapToGrid === true
       },
+      scaleRuler,
       shapes: Array.isArray(parsed.shapes) ? parsed.shapes.filter(isShape).map(normalizeShape) : []
     };
   } catch {
     return createPlantaDocument();
   }
+}
+
+function parseScaleRuler(value: unknown): PlantaScaleRuler | null {
+  if (!isValidScaleRuler(value)) return null;
+  const [x1, y1, x2, y2] = value.points;
+  return { points: [x1, y1, x2, y2] };
 }
 
 function normalizeShape(shape: PlantaShape): PlantaShape {

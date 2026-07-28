@@ -27,6 +27,10 @@ export type PlantaGrid = {
   snapToGrid: boolean;
 };
 
+export type PlantaScaleRuler = {
+  points: [number, number, number, number];
+};
+
 export type PlantaLineShape = {
   id: string;
   type: "line";
@@ -60,5 +64,6 @@ export type PlantaDocument = {
   blueprint: PlantaBlueprint | null;
   viewport: PlantaViewport;
   grid: PlantaGrid;
+  scaleRuler: PlantaScaleRuler | null;
   shapes: PlantaShape[];
 };

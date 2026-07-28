@@ -25,6 +25,7 @@
   import { buildGridLines } from "$lib/components/planta/grid-lines";
   import { buildAllMeasurementOverlays } from "$lib/components/planta/measurements";
   import { snapPointer, snapRectShape, snapShape, snapSquareRect } from "$lib/components/planta/snap";
+  import PlantaScaleRulerOverlay from "$lib/components/planta/PlantaScaleRulerOverlay.svelte";
   import type {
     PlantaDocument,
     PlantaShape,
@@ -883,6 +884,11 @@
             />
           {/each}
         {/each}
+
+        <PlantaScaleRulerOverlay
+          bind:planner
+          interactionDisabled={spacePressed || tool === "pan" || blueprintHandActive || isPanning}
+        />
 
         {#if marqueeRect && (marqueeRect.width >= MARQUEE_MIN_SIZE || marqueeRect.height >= MARQUEE_MIN_SIZE)}
           <Rect
