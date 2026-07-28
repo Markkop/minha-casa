@@ -125,34 +125,60 @@
       lineCap="round"
       hitStrokeWidth={16 / planner.viewport.scale}
     />
-    <Circle
+    <Group
       x={presentation.x1}
       y={presentation.y1}
-      radius={handleRadius}
-      fill="#ffffff"
-      stroke={STROKE}
-      strokeWidth={2}
-      strokeScaleEnabled={false}
       draggable={!interactionDisabled}
       onpointerdown={stopPropagation}
       ondragstart={stopPropagation}
       ondragmove={(event) => handleEndpointDrag(event, "start")}
       ondragend={(event) => handleEndpointDrag(event, "start")}
-    />
-    <Circle
+    >
+      <Circle radius={handleRadius} fill="transparent" />
+      <Line
+        points={[-handleRadius, -handleRadius, handleRadius, handleRadius]}
+        stroke={STROKE}
+        strokeWidth={2}
+        strokeScaleEnabled={false}
+        lineCap="round"
+        listening={false}
+      />
+      <Line
+        points={[-handleRadius, handleRadius, handleRadius, -handleRadius]}
+        stroke={STROKE}
+        strokeWidth={2}
+        strokeScaleEnabled={false}
+        lineCap="round"
+        listening={false}
+      />
+    </Group>
+    <Group
       x={presentation.x2}
       y={presentation.y2}
-      radius={handleRadius}
-      fill="#ffffff"
-      stroke={STROKE}
-      strokeWidth={2}
-      strokeScaleEnabled={false}
       draggable={!interactionDisabled}
       onpointerdown={stopPropagation}
       ondragstart={stopPropagation}
       ondragmove={(event) => handleEndpointDrag(event, "end")}
       ondragend={(event) => handleEndpointDrag(event, "end")}
-    />
+    >
+      <Circle radius={handleRadius} fill="transparent" />
+      <Line
+        points={[-handleRadius, -handleRadius, handleRadius, handleRadius]}
+        stroke={STROKE}
+        strokeWidth={2}
+        strokeScaleEnabled={false}
+        lineCap="round"
+        listening={false}
+      />
+      <Line
+        points={[-handleRadius, handleRadius, handleRadius, -handleRadius]}
+        stroke={STROKE}
+        strokeWidth={2}
+        strokeScaleEnabled={false}
+        lineCap="round"
+        listening={false}
+      />
+    </Group>
     <Text
       x={presentation.midX}
       y={presentation.midY}
