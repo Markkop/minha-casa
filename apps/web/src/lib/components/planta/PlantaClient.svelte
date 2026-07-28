@@ -3,8 +3,9 @@
   import { browser } from "$app/environment";
   import { goto } from "$app/navigation";
   import { page } from "$app/state";
-  import { Grid3X3, Layers, PanelLeft, PanelRight, Trash2 } from "@lucide/svelte";
+  import { Grid3X3, Layers, Trash2 } from "@lucide/svelte";
   import Button from "$lib/components/ui/Button.svelte";
+  import WorkspaceRightSidebarContent from "$lib/components/layout/WorkspaceRightSidebarContent.svelte";
   import WorkspacePage from "$lib/components/workspace/WorkspacePage.svelte";
   import { formatApiError } from "$lib/api/error-message";
   import { ApiError } from "$lib/api/client";
@@ -70,7 +71,6 @@
   let canvasWidth = $state(0);
   let canvasHeight = $state(0);
   let layersPanelOpen = $state(true);
-  let designPanelOpen = $state(true);
   let blueprintHandActive = $state(false);
   let undoStack = $state<PlantaCanvasSnapshot[]>([]);
   let isApplyingHistory = $state(false);
@@ -357,10 +357,6 @@
 
   function toggleLayersPanel() {
     layersPanelOpen = !layersPanelOpen;
-  }
-
-  function toggleDesignPanel() {
-    designPanelOpen = !designPanelOpen;
   }
 
   function toggleBlueprintHand() {
@@ -834,7 +830,35 @@
 
 <svelte:window onkeydown={handleWindowKeyDown} onkeyup={handleWindowKeyUp} />
 
-<WorkspacePage contentClassName="flex min-h-[calc(100vh-var(--nav-height,2.75rem))] max-w-none flex-col gap-0 p-0">
+<WorkspaceRightSidebarContent title="Design" desktopOnly>
+  <PlantaDesignPanel
+    bind:planner
+    {readOnly}
+    {selectedShapeIds}
+    {selectedShape}
+    {selectedBounds}
+    {selectedIndex}
+    selectedDisplayName={selectedShape ? displayShapeName(selectedShape, selectedIndex) : ""}
+    {environments}
+    {blueprintHandActive}
+    {canvasWidth}
+    {canvasHeight}
+    onMoveLayer={moveSelectedLayer}
+    onDuplicate={duplicateSelectedShape}
+    onDelete={deleteSelectedShape}
+    onUpdateShape={updateShape}
+    onUpdateBounds={updateSelectedBounds}
+    onToggleBlueprintHand={toggleBlueprintHand}
+    onRemoveBlueprint={() => void removeBlueprint()}
+    onUpdateBlueprintScale={updateBlueprintScale}
+    onUpdateBlueprintOpacity={updateBlueprintOpacity}
+  />
+</WorkspaceRightSidebarContent>
+
+<WorkspacePage
+  class="h-[calc(100svh-var(--nav-height,2.75rem))] min-h-0 overflow-hidden"
+  contentClassName="mx-0 flex h-full min-h-0 w-full max-w-none flex-col gap-0 p-0 sm:p-0"
+>
   <input
     bind:this={fileInput}
     class="hidden"
@@ -850,7 +874,6 @@
     {readOnly}
     hasActiveListing={Boolean(activeListing)}
     {layersPanelOpen}
-    {designPanelOpen}
     hasBlueprint={Boolean(planner.blueprint)}
     {zoomPercent}
     {selectedEnvironment}
@@ -860,7 +883,6 @@
     onCreateFloorPlan={() => void createFloorPlan()}
     onDeleteFloorPlan={() => void deleteFloorPlan()}
     onToggleLayers={toggleLayersPanel}
-    onToggleDesign={toggleDesignPanel}
     onUpload={() => fileInput?.click()}
     onFitBlueprint={fitBlueprint}
     onResetViewport={resetViewport}
@@ -877,13 +899,9 @@
   <div
     class={cn(
       "grid min-h-0 flex-1",
-      layersPanelOpen && designPanelOpen
-        ? "grid-cols-[3rem_minmax(10rem,14rem)_minmax(0,1fr)] lg:grid-cols-[3rem_minmax(12rem,16rem)_minmax(0,1fr)_18rem]"
-        : layersPanelOpen
-          ? "grid-cols-[3rem_minmax(10rem,14rem)_minmax(0,1fr)] lg:grid-cols-[3rem_minmax(12rem,16rem)_minmax(0,1fr)]"
-          : designPanelOpen
-            ? "grid-cols-[3rem_minmax(0,1fr)] lg:grid-cols-[3rem_minmax(0,1fr)_18rem]"
-            : "grid-cols-[3rem_minmax(0,1fr)]"
+      layersPanelOpen
+        ? "grid-cols-[3rem_minmax(0,1fr)] md:grid-cols-[3rem_minmax(10rem,14rem)_minmax(0,1fr)] lg:grid-cols-[3rem_minmax(12rem,16rem)_minmax(0,1fr)]"
+        : "grid-cols-[3rem_minmax(0,1fr)]"
     )}
   >
     <nav class="flex min-h-0 flex-col items-center gap-1 border-r border-app-border bg-app-surface px-1.5 py-2">
@@ -916,16 +934,6 @@
         <Button variant={planner.grid.visible ? "primary" : "ghost"} size="icon" class="h-9 w-9" title="Grade" ariaLabel="Grade" disabled={readOnly} onclick={toggleGrid}>
           <Grid3X3 class="h-4 w-4" />
         </Button>
-        <Button
-          variant={designPanelOpen ? "primary" : "ghost"}
-          size="icon"
-          class="h-9 w-9"
-          title={designPanelOpen ? "Ocultar design" : "Mostrar design"}
-          ariaLabel={designPanelOpen ? "Ocultar design" : "Mostrar design"}
-          onclick={toggleDesignPanel}
-        >
-          <PanelRight class="h-4 w-4" />
-        </Button>
         <Button variant="ghost" size="icon" class="h-9 w-9" title="Resetar tudo" ariaLabel="Resetar tudo" disabled={readOnly} onclick={resetPlanner}>
           <Trash2 class="h-4 w-4" />
         </Button>
@@ -948,7 +956,7 @@
       />
     {/if}
 
-    <main class="min-h-0 bg-app-bg p-2">
+    <main class="min-h-0 overflow-hidden bg-app-bg">
       <PlantaCanvas
         bind:this={canvasRef}
         bind:planner
@@ -962,32 +970,6 @@
         recordUndo={recordUndo}
       />
     </main>
-
-    {#if designPanelOpen}
-      <PlantaDesignPanel
-        bind:planner
-        {readOnly}
-        {selectedShapeIds}
-        {selectedShape}
-        {selectedBounds}
-        {selectedIndex}
-        selectedDisplayName={selectedShape ? displayShapeName(selectedShape, selectedIndex) : ""}
-        {environments}
-        {blueprintHandActive}
-        {canvasWidth}
-        {canvasHeight}
-        onClose={toggleDesignPanel}
-        onMoveLayer={moveSelectedLayer}
-        onDuplicate={duplicateSelectedShape}
-        onDelete={deleteSelectedShape}
-        onUpdateShape={updateShape}
-        onUpdateBounds={updateSelectedBounds}
-        onToggleBlueprintHand={toggleBlueprintHand}
-        onRemoveBlueprint={() => void removeBlueprint()}
-        onUpdateBlueprintScale={updateBlueprintScale}
-        onUpdateBlueprintOpacity={updateBlueprintOpacity}
-      />
-    {/if}
   </div>
 </WorkspacePage>
 

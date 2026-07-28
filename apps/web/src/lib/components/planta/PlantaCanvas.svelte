@@ -767,7 +767,7 @@
   bind:this={host}
   onpointerdowncapture={handleHostPointerDown}
   class={cn(
-    "relative min-h-[560px] flex-1 overflow-hidden rounded-lg border border-app-border bg-[#f9fbff] shadow-sm",
+    "relative h-full min-h-0 overflow-hidden bg-[#f9fbff]",
     isPanning
       ? "cursor-grabbing"
       : isDraggingBlueprint

@@ -4,7 +4,6 @@
     ImageUp,
     Maximize2,
     PanelLeft,
-    PanelRight,
     Plus,
     RotateCcw,
     Trash2
@@ -24,7 +23,6 @@
     readOnly,
     hasActiveListing,
     layersPanelOpen,
-    designPanelOpen,
     hasBlueprint,
     zoomPercent,
     selectedEnvironment,
@@ -34,7 +32,6 @@
     onCreateFloorPlan,
     onDeleteFloorPlan,
     onToggleLayers,
-    onToggleDesign,
     onUpload,
     onFitBlueprint,
     onResetViewport,
@@ -47,7 +44,6 @@
     readOnly: boolean;
     hasActiveListing: boolean;
     layersPanelOpen: boolean;
-    designPanelOpen: boolean;
     hasBlueprint: boolean;
     zoomPercent: number;
     selectedEnvironment: ListingEnvironment | null;
@@ -57,7 +53,6 @@
     onCreateFloorPlan: () => void;
     onDeleteFloorPlan: () => void;
     onToggleLayers: () => void;
-    onToggleDesign: () => void;
     onUpload: () => void;
     onFitBlueprint: () => void;
     onResetViewport: () => void;
@@ -66,7 +61,7 @@
   } = $props();
 </script>
 
-<header class="flex h-11 shrink-0 items-center gap-2 border-b border-app-border bg-app-surface px-2">
+<header class="flex h-11 shrink-0 items-center gap-2 overflow-x-auto border-b border-app-border bg-app-surface px-2">
   <div class="flex min-w-0 items-center gap-2 pr-2">
     <div class="flex h-7 w-7 items-center justify-center rounded-md bg-app-action text-app-action-foreground">
       <Layers class="h-4 w-4" />
@@ -88,7 +83,6 @@
 
   <div class="flex items-center gap-1 border-l border-app-border pl-2">
     <Button size="icon" class="h-8 w-8" variant={layersPanelOpen ? "primary" : "secondary"} title={layersPanelOpen ? "Ocultar painel de layers" : "Mostrar painel de layers"} ariaLabel={layersPanelOpen ? "Ocultar painel de layers" : "Mostrar painel de layers"} onclick={onToggleLayers}><PanelLeft class="h-4 w-4" /></Button>
-    <Button size="icon" class="h-8 w-8" variant={designPanelOpen ? "primary" : "secondary"} title={designPanelOpen ? "Ocultar painel de design" : "Mostrar painel de design"} ariaLabel={designPanelOpen ? "Ocultar painel de design" : "Mostrar painel de design"} onclick={onToggleDesign}><PanelRight class="h-4 w-4" /></Button>
     <Button size="icon" class="h-8 w-8" variant="secondary" title="Enviar planta" ariaLabel="Enviar planta" disabled={readOnly || !activeFloorPlan} onclick={onUpload}><ImageUp class="h-4 w-4" /></Button>
     <Button size="icon" class="h-8 w-8" variant="secondary" title="Ajustar planta" ariaLabel="Ajustar planta" disabled={readOnly || !hasBlueprint} onclick={onFitBlueprint}><Maximize2 class="h-4 w-4" /></Button>
     <Button size="icon" class="h-8 w-8" variant="secondary" title="Ajustar vista (Shift+1)" ariaLabel="Ajustar vista" onclick={onResetViewport}><RotateCcw class="h-4 w-4" /></Button>

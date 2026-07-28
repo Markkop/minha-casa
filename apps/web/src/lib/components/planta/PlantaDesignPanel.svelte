@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { ArrowDown, ArrowUp, Copy, Hand, ImageOff, PanelRight, Trash2 } from "@lucide/svelte";
+  import { ArrowDown, ArrowUp, Copy, Hand, ImageOff, Trash2 } from "@lucide/svelte";
   import Button from "$lib/components/ui/Button.svelte";
   import Slider from "$lib/components/ui/Slider.svelte";
   import PlantaCanvasSettings from "$lib/components/planta/PlantaCanvasSettings.svelte";
@@ -9,13 +9,13 @@
   let {
     planner = $bindable(), readOnly, selectedShapeIds, selectedShape, selectedBounds, selectedIndex,
     selectedDisplayName, environments, blueprintHandActive, canvasWidth, canvasHeight,
-    onClose, onMoveLayer, onDuplicate, onDelete, onUpdateShape, onUpdateBounds,
+    onMoveLayer, onDuplicate, onDelete, onUpdateShape, onUpdateBounds,
     onToggleBlueprintHand, onRemoveBlueprint, onUpdateBlueprintScale, onUpdateBlueprintOpacity
   }: {
     planner: PlantaDocument; readOnly: boolean; selectedShapeIds: string[]; selectedShape: PlantaShape | null;
     selectedBounds: Bounds | null; selectedIndex: number; selectedDisplayName: string;
     environments: ListingEnvironment[]; blueprintHandActive: boolean; canvasWidth: number; canvasHeight: number;
-    onClose: () => void; onMoveLayer: (direction: "up" | "down") => void;
+    onMoveLayer: (direction: "up" | "down") => void;
     onDuplicate: () => void; onDelete: () => void;
     onUpdateShape: (id: string, patch: Partial<PlantaShape>) => void;
     onUpdateBounds: (patch: Partial<Bounds>) => void; onToggleBlueprintHand: () => void;
@@ -25,12 +25,7 @@
   const numberValue = (event: Event) => Number((event.currentTarget as HTMLInputElement).value);
 </script>
 
-<aside class="hidden min-h-0 flex-col border-l border-app-border bg-app-surface text-sm lg:flex">
-  <div class="flex h-10 shrink-0 items-center justify-between border-b border-app-border px-3">
-    <div class="flex items-center gap-2 font-semibold text-app-fg"><PanelRight class="h-4 w-4" />Design</div>
-    <Button variant="ghost" size="icon" class="h-7 w-7" title="Ocultar painel" ariaLabel="Ocultar painel" onclick={onClose}><PanelRight class="h-3.5 w-3.5" /></Button>
-  </div>
-  <fieldset class="min-h-0 flex-1 overflow-y-auto" disabled={readOnly}>
+<fieldset class="text-sm" disabled={readOnly}>
     <section class="border-b border-app-border p-3">
       <div class="mb-3 flex items-center justify-between gap-3">
         <h2 class="text-xs font-semibold uppercase text-app-muted">Selection</h2>
@@ -80,5 +75,4 @@
       </div>
     </section>
     <PlantaCanvasSettings bind:planner {canvasWidth} {canvasHeight} />
-  </fieldset>
-</aside>
+</fieldset>
