@@ -68,6 +68,7 @@ export interface CollectionsContextValue {
   loadListings: (collectionId?: string, options?: { silent?: boolean }) => Promise<void>;
   addListing: (listingData: ListingData) => Promise<Property>;
   updateListing: (listingId: string, updates: Partial<Property>) => Promise<Property>;
+  copyListingToCollection: (listingId: string, targetCollectionId: string) => Promise<Property>;
   removeListing: (listingId: string) => Promise<void>;
   refreshListing: (listingId: string) => Promise<Property | null>;
   parseListingInput: (input: ParseRequest) => Promise<ListingData[]>;
@@ -361,6 +362,18 @@ export function createCollectionsState() {
     return property;
   }
 
+  async function copyListingToCollection(listingId: string, targetCollectionId: string) {
+    const { listing } = await workspaceApi.copyListing(listingId, targetCollectionId);
+    const property = toProperty(listing);
+    const destination = collections.find((collection) => collection.id === targetCollectionId);
+
+    if (destination) {
+      syncCollectionListingCount(targetCollectionId, (destination.listingsCount ?? 0) + 1);
+    }
+
+    return property;
+  }
+
   async function removeListing(listingId: string) {
     if (!activeCollection?.id) throw new Error("Nenhuma coleção ativa");
     const collectionId = activeCollection.id;
@@ -439,6 +452,7 @@ export function createCollectionsState() {
     loadListings,
     addListing,
     updateListing,
+    copyListingToCollection,
     removeListing,
     refreshListing,
     parseListingInput,

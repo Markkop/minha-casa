@@ -562,6 +562,10 @@ export const workspaceApi = {
     }),
   updateListing: (collectionId: string, listingId: string, data: Partial<ListingData>) =>
     api.put<{ listing: Listing }>(`/collections/${collectionId}/listings/${listingId}`, { data }),
+  copyListing: (listingId: string, targetCollectionId: string) =>
+    api.post<{ listing: Listing }>(`/listings/${encodeURIComponent(listingId)}/copy`, {
+      targetCollectionId
+    }),
   deleteListing: (collectionId: string, listingId: string) =>
     api.delete<{ success: true }>(`/collections/${collectionId}/listings/${listingId}`),
   parseListings: (input: (

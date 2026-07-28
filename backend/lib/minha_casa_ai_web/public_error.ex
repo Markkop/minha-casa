@@ -268,6 +268,14 @@ defmodule MinhaCasaAiWeb.PublicError do
 
   defp atom_message(:listing_not_found, _default, _), do: "Imóvel não encontrado."
   defp atom_message(:collection_not_found, _default, _), do: "Coleção não encontrada."
+  defp atom_message(:target_collection_not_found, _default, _),
+    do: "Coleção de destino não encontrada."
+
+  defp atom_message(:target_collection_inactive, _default, _),
+    do: "A coleção de destino está arquivada."
+
+  defp atom_message(:same_collection, _default, _),
+    do: "Escolha outra coleção para copiar o imóvel."
   defp atom_message(:unauthorized, _default, _), do: "Sessão expirada. Faça login novamente."
   defp atom_message(:forbidden, _default, _), do: "Você não tem permissão para esta ação."
   defp atom_message(:invalid, _default, _), do: "Verifique os dados informados e tente novamente."

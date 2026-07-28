@@ -1,6 +1,8 @@
 <script lang="ts">
-  import { Pencil, Save } from "@lucide/svelte";
+  import { untrack } from "svelte";
+  import { CheckCircle2, Copy, Pencil, Save } from "@lucide/svelte";
   import PropertyEditForm from "$lib/components/property-details/PropertyEditForm.svelte";
+  import ListingCopyPanel from "$lib/components/listings/ListingCopyPanel.svelte";
   import ModalCloseButton from "$lib/components/listings/ModalCloseButton.svelte";
   import {
     defaultFeatureCatalog,
@@ -9,6 +11,10 @@
   } from "$lib/listings/listing-features";
   import { extractUniqueContacts } from "$lib/listings/listings-contact";
   import { isValidConstructionYear } from "$lib/listings/listing-construction-year";
+  import {
+    hasUnsavedListingEdits,
+    listingEditSnapshot
+  } from "$lib/listings/listing-edit-dirty";
   import type { Property } from "$lib/listings/types";
   import { formatApiError } from "$lib/api/error-message";
   import { buildBaseListingTitle } from "$lib/listing-display-title";
@@ -35,6 +41,9 @@
   let error = $state<string | null>(null);
   let regions = $state<Region[]>([]);
   let condominiums = $state<Condominium[]>([]);
+  let initialFormSnapshot = $state("");
+  let showCopyMode = $state(false);
+  let copySuccess = $state<string | null>(null);
 
   $effect(() => {
     if (isOpen && listing) {
@@ -69,7 +78,10 @@
         strikethrough: listing.strikethrough,
         visited: listing.visited
       };
+      initialFormSnapshot = untrack(() => listingEditSnapshot(formData));
       error = null;
+      showCopyMode = false;
+      copySuccess = null;
     }
   });
 
@@ -126,6 +138,17 @@
     }
   }
 
+  function handleOpenCopy() {
+    if (!listing || !ctx.activeCollection?.id) return;
+    if (hasUnsavedListingEdits(formData, initialFormSnapshot)) {
+      error = "Salve ou descarte as alterações antes de copiar.";
+      return;
+    }
+    error = null;
+    copySuccess = null;
+    showCopyMode = true;
+  }
+
   function handleKeyDown(event: KeyboardEvent) {
     if (event.key !== "Escape") return;
     event.preventDefault();
@@ -158,14 +181,33 @@
     >
       <div class="flex shrink-0 flex-row items-center justify-between border-b border-app-border px-6 py-4">
         <h2 id="analise-edit-dialog-title" class="flex items-center gap-2 text-lg font-semibold leading-none">
-          <Pencil class="h-5 w-5 shrink-0" />
-          <span>Editar imóvel</span>
+          {#if showCopyMode}<Copy class="h-5 w-5 shrink-0" />{:else}<Pencil class="h-5 w-5 shrink-0" />{/if}
+          <span>{showCopyMode ? "Copiar imóvel" : "Editar imóvel"}</span>
         </h2>
         <ModalCloseButton onclick={onClose} />
       </div>
 
+      {#if showCopyMode && ctx.activeCollection}
+        <ListingCopyPanel
+          listingId={listing.id}
+          listingTitle={ctx.getListingDisplayTitle(listing)}
+          sourceCollectionId={ctx.activeCollection.id}
+          onBack={() => (showCopyMode = false)}
+          onCopied={(destination) => {
+            showCopyMode = false;
+            copySuccess = `Imóvel copiado para “${destination.collection.name} — ${destination.profileLabel}”.`;
+          }}
+        />
+      {:else}
+      {#if copySuccess}
+        <div role="status" class="flex shrink-0 items-center gap-2 border-b border-app-success/20 bg-app-success/10 px-6 py-3 text-sm text-app-success">
+          <CheckCircle2 class="h-4 w-4 shrink-0" />
+          <p>{copySuccess}</p>
+        </div>
+      {/if}
+
       {#if error}
-        <div class="shrink-0 border-b border-destructive/20 bg-destructive/10 px-6 py-3">
+        <div role="alert" class="shrink-0 border-b border-destructive/20 bg-destructive/10 px-6 py-3">
           <p class="text-sm text-destructive">{error}</p>
         </div>
       {/if}
@@ -190,6 +232,19 @@
       <div class="flex shrink-0 gap-3 border-t border-app-border px-6 py-4">
         <button
           type="button"
+          onclick={handleOpenCopy}
+          disabled={!ctx.activeCollection}
+          class={cn(
+            "flex items-center justify-center gap-2 rounded-lg border border-app-border px-4 py-2.5 font-medium transition-all",
+            "bg-app-surface-muted text-app-fg hover:border-app-action hover:text-app-accent",
+            "disabled:cursor-not-allowed disabled:opacity-60"
+          )}
+        >
+          <Copy class="h-4 w-4" />
+          Copiar
+        </button>
+        <button
+          type="button"
           onclick={onClose}
           class={cn(
             "flex flex-1 items-center justify-center rounded-lg px-4 py-2.5 font-medium transition-all",
@@ -211,6 +266,7 @@
           Salvar
         </button>
       </div>
+      {/if}
     </div>
   </div>
 {/if}

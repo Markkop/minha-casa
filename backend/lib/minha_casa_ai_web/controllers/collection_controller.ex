@@ -8,7 +8,7 @@ defmodule MinhaCasaAiWeb.CollectionController do
   alias MinhaCasaAi.Financeiro.Scenario
   alias MinhaCasaAi.Listings.MergeSessions
   alias MinhaCasaAi.Listings.DisplayTitle
-  alias MinhaCasaAi.ListingImages.{Copy, StorageCleanup}
+  alias MinhaCasaAi.Listings.Copy, as: ListingCopy
 
   alias MinhaCasaAi.Listings.{
     Collection,
@@ -23,7 +23,6 @@ defmodule MinhaCasaAiWeb.CollectionController do
   alias MinhaCasaAi.Config
   alias MinhaCasaAi.Organizations
   alias MinhaCasaAi.Repo
-  alias MinhaCasaAi.Workspace.ListingComparisonNote
   alias MinhaCasaAi.Workspaces
   alias MinhaCasaAi.Workspaces.Workspace
   alias MinhaCasaAiWeb.{ListingJSON, PublicError}
@@ -646,7 +645,7 @@ defmodule MinhaCasaAiWeb.CollectionController do
        ) do
     with :ok <- Entitlements.ensure_collection_capacity(entitlement),
          :ok <- ensure_copy_listing_capacity(entitlement, source_listings, include_listings),
-         {:ok, prepared_listings, copied_image_keys} <- Copy.prepare(source_listings) do
+         {:ok, prepared_listings, copied_image_keys} <- ListingCopy.prepare(source_listings) do
       result =
         try do
           Collections.with_workspace_lock(target_workspace.id, fn ->
@@ -667,9 +666,12 @@ defmodule MinhaCasaAiWeb.CollectionController do
 
               case %Collection{} |> Collection.changeset(collection_attrs) |> Repo.insert() do
                 {:ok, collection} ->
-                  listing_map = insert_copied_listings(prepared_listings, collection.id)
+                  copied_listings = ListingCopy.insert_prepared!(prepared_listings, collection.id)
 
-                  copy_comparison_notes(listing_map)
+                  listing_map =
+                    Map.new(copied_listings, fn {source_id, copied} -> {source_id, copied.id} end)
+
+                  ListingCopy.copy_comparison_notes!(listing_map)
                   copy_scenarios(source.id, collection.id)
 
                   %{collection: collection, copied_count: length(prepared_listings)}
@@ -683,61 +685,20 @@ defmodule MinhaCasaAiWeb.CollectionController do
           end)
         rescue
           exception ->
-            enqueue_failed_copy_cleanup(copied_image_keys)
+            ListingCopy.enqueue_failed_cleanup(copied_image_keys)
             reraise exception, __STACKTRACE__
         end
 
-      if match?({:error, _}, result), do: enqueue_failed_copy_cleanup(copied_image_keys)
+      if match?({:error, _}, result), do: ListingCopy.enqueue_failed_cleanup(copied_image_keys)
       result
     else
       {:error, reason, copied_image_keys} ->
-        enqueue_failed_copy_cleanup(copied_image_keys)
+        ListingCopy.enqueue_failed_cleanup(copied_image_keys)
         {:error, {:image_copy_failed, reason}}
 
       {:error, reason} ->
         {:error, reason}
     end
-  end
-
-  defp insert_copied_listings(prepared_listings, target_collection_id) do
-    prepared_listings
-    |> Enum.map(fn listing ->
-      copied =
-        %Listing{id: listing.target_id}
-        |> Listing.changeset(%{
-          collection_id: target_collection_id,
-          data: listing.data |> ListingData.normalize() |> public_copy_data()
-        })
-        |> Repo.insert!()
-
-      {listing.source_id, copied.id}
-    end)
-    |> Map.new()
-  end
-
-  defp enqueue_failed_copy_cleanup([]), do: :ok
-
-  defp enqueue_failed_copy_cleanup(keys) do
-    case StorageCleanup.enqueue(keys: keys) do
-      {:ok, _job} -> :ok
-      {:error, _reason} -> :error
-    end
-  end
-
-  defp copy_comparison_notes(listing_map) do
-    source_ids = Map.keys(listing_map)
-
-    Repo.all(from(n in ListingComparisonNote, where: n.listing_id in ^source_ids))
-    |> Enum.each(fn note ->
-      %ListingComparisonNote{}
-      |> ListingComparisonNote.changeset(%{
-        listing_id: listing_map[note.listing_id],
-        pros: note.pros,
-        cons: note.cons,
-        notes: note.notes
-      })
-      |> Repo.insert!()
-    end)
   end
 
   defp copy_scenarios(source_id, target_id) do
@@ -752,9 +713,6 @@ defmodule MinhaCasaAiWeb.CollectionController do
       |> Repo.insert!()
     end)
   end
-
-  defp public_copy_data(data),
-    do: Map.drop(data, ["internalNotes", "internalObservations", "aiResult", "aiMetadata"])
 
   defp validate_listing_data(data) do
     if string(data["title"]) != "" and string(data["address"]) != "" do

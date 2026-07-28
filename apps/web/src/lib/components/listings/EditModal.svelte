@@ -1,6 +1,8 @@
 <script lang="ts">
-  import { Pencil, Save, Trash2 } from "@lucide/svelte";
+  import { untrack } from "svelte";
+  import { CheckCircle2, Copy, Pencil, Save, Trash2 } from "@lucide/svelte";
   import EditModalCard from "$lib/components/listings/edit-modal/EditModalCard.svelte";
+  import ListingCopyPanel from "$lib/components/listings/ListingCopyPanel.svelte";
   import type { EditModalTabId } from "$lib/components/listings/edit-modal/edit-modal-tabs";
   import ModalCloseButton from "$lib/components/listings/ModalCloseButton.svelte";
   import {
@@ -9,6 +11,10 @@
     type ListingFeatureOption
   } from "$lib/listings/listing-features";
   import { isValidConstructionYear } from "$lib/listings/listing-construction-year";
+  import {
+    hasUnsavedListingEdits,
+    listingEditSnapshot
+  } from "$lib/listings/listing-edit-dirty";
   import type { Property } from "$lib/listings/types";
   import { formatApiError } from "$lib/api/error-message";
   import { buildBaseListingTitle } from "$lib/listing-display-title";
@@ -42,6 +48,9 @@
   let condominiums = $state<Condominium[]>([]);
   let activeTab = $state<EditModalTabId>("basic");
   let isDeleting = $state(false);
+  let initialFormSnapshot = $state("");
+  let showCopyMode = $state(false);
+  let copySuccess = $state<string | null>(null);
 
   $effect(() => {
     if (isOpen && listing) {
@@ -78,9 +87,12 @@
         strikethrough: listing.strikethrough,
         visited: listing.visited
       };
+      initialFormSnapshot = untrack(() => listingEditSnapshot(formData));
       error = null;
       activeTab = "basic";
       isDeleting = false;
+      showCopyMode = false;
+      copySuccess = null;
 
       if (focusImageUrl) {
         setTimeout(() => document.getElementById("imageUrl")?.focus(), 100);
@@ -158,6 +170,17 @@
     }
   }
 
+  function handleOpenCopy() {
+    if (!listing || !ctx.activeCollection?.id) return;
+    if (hasUnsavedListingEdits(formData, initialFormSnapshot)) {
+      error = "Salve ou descarte as alterações antes de copiar.";
+      return;
+    }
+    error = null;
+    copySuccess = null;
+    showCopyMode = true;
+  }
+
   function handleKeyDown(event: KeyboardEvent) {
     if (event.key !== "Escape") return;
     event.preventDefault();
@@ -190,15 +213,33 @@
     >
       <div class="flex shrink-0 flex-row items-center justify-between px-6 pb-2">
         <h2 id="edit-modal-title" class="flex items-center gap-2 text-lg font-semibold leading-none text-app-fg">
-          <Pencil class="h-5 w-5 shrink-0" />
-          <span>Editar Imóvel</span>
+          {#if showCopyMode}<Copy class="h-5 w-5 shrink-0" />{:else}<Pencil class="h-5 w-5 shrink-0" />{/if}
+          <span>{showCopyMode ? "Copiar imóvel" : "Editar Imóvel"}</span>
         </h2>
         <ModalCloseButton onclick={onClose} />
       </div>
 
+      {#if showCopyMode && ctx.activeCollection}
+        <ListingCopyPanel
+          listingId={listing.id}
+          listingTitle={ctx.getListingDisplayTitle(listing)}
+          sourceCollectionId={ctx.activeCollection.id}
+          onBack={() => (showCopyMode = false)}
+          onCopied={(destination) => {
+            showCopyMode = false;
+            copySuccess = `Imóvel copiado para “${destination.collection.name} — ${destination.profileLabel}”.`;
+          }}
+        />
+      {:else}
       <div class="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden px-6">
+        {#if copySuccess}
+          <div role="status" class="flex shrink-0 items-center gap-2 rounded-lg border border-app-success/30 bg-app-success/10 p-3 text-sm text-app-success">
+            <CheckCircle2 class="h-4 w-4 shrink-0" />
+            <p>{copySuccess}</p>
+          </div>
+        {/if}
         {#if error}
-          <div class="shrink-0 rounded-lg border border-destructive/30 bg-destructive/10 p-3">
+          <div role="alert" class="shrink-0 rounded-lg border border-destructive/30 bg-destructive/10 p-3">
             <p class="text-sm text-destructive">{error}</p>
           </div>
         {/if}
@@ -217,7 +258,7 @@
           />
         {/key}
 
-        <div class="flex shrink-0 gap-3 border-t border-app-border pt-4">
+        <div class="flex shrink-0 flex-wrap gap-3 border-t border-app-border pt-4">
           <button
             type="button"
             onclick={() => void handleDelete()}
@@ -231,6 +272,19 @@
           >
             <Trash2 class="h-4 w-4" />
             {isDeleting ? "Excluindo..." : "Excluir"}
+          </button>
+          <button
+            type="button"
+            onclick={handleOpenCopy}
+            disabled={!ctx.activeCollection}
+            class={cn(
+              "flex items-center justify-center gap-2 rounded-lg border border-app-border px-4 py-2.5 font-medium transition-all",
+              "bg-app-surface-muted text-app-fg hover:border-app-action hover:text-app-accent",
+              "disabled:cursor-not-allowed disabled:opacity-60"
+            )}
+          >
+            <Copy class="h-4 w-4" />
+            Copiar
           </button>
           <button
             type="button"
@@ -256,6 +310,7 @@
           </button>
         </div>
       </div>
+      {/if}
     </div>
   </div>
 

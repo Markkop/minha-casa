@@ -117,6 +117,7 @@ defmodule MinhaCasaAiWeb.Router do
     get "/listings/:listing_id/analyses/latest", PropertyAnalysisController, :latest
     post "/workspace/parse", ParseController, :create
     get "/workspace/listings/:id", ListingController, :show
+    post "/listings/:id/copy", ListingController, :copy
     post "/workspace/listings/check-duplicate", ListingsDuplicateController, :check
     post "/workspace/listing-merge-sessions", ListingMergeSessionController, :create
     get "/workspace/listing-merge-sessions/:id", ListingMergeSessionController, :show

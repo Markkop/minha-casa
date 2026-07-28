@@ -1,6 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Collection, WorkspaceProfile } from "$lib/workspace/client";
-import { loadScenarioCollectionDestinations } from "$lib/financiamento/scenario-collection-destinations";
+import {
+  findCollectionDestination,
+  loadWritableCollectionDestinations
+} from "$lib/workspace/collection-destinations";
 
 const workspaceApiMock = vi.hoisted(() => ({
   fetchProfiles: vi.fn(),
@@ -41,12 +44,12 @@ function collection(id: string, workspaceId: string, name: string): Collection {
   };
 }
 
-describe("scenario collection destinations", () => {
+describe("writable collection destinations", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it("loads active personal, professional, and organization profiles with explicit routing", async () => {
+  it("loads active personal, professional, family, and agency profiles with explicit routing", async () => {
     workspaceApiMock.fetchProfiles.mockResolvedValue({
       activeWorkspaceId: "workspace-personal",
       profiles: [
@@ -55,6 +58,10 @@ describe("scenario collection destinations", () => {
         profile("workspace-family", "Família Kopmann", "family", {
           organizationId: "organization-family",
           access: "admin"
+        }),
+        profile("workspace-agency", "Imobiliária Central", "agency", {
+          organizationId: "organization-agency",
+          access: "broker"
         })
       ]
     });
@@ -65,17 +72,20 @@ describe("scenario collection destinations", () => {
             ? [collection("collection-personal", workspaceId, "Favoritos")]
             : workspaceId === "workspace-professional"
               ? [collection("collection-professional", workspaceId, "Clientes")]
-              : [collection("collection-family", workspaceId, "Mudança")]
+              : workspaceId === "workspace-family"
+                ? [collection("collection-family", workspaceId, "Mudança")]
+                : [collection("collection-agency", workspaceId, "Carteira")]
       })
     );
 
-    const destinations = await loadScenarioCollectionDestinations();
+    const destinations = await loadWritableCollectionDestinations();
 
     expect(workspaceApiMock.fetchProfiles).toHaveBeenCalledOnce();
     expect(workspaceApiMock.fetchCollections.mock.calls).toEqual([
       [{ workspaceId: "workspace-personal", organizationId: null }],
       [{ workspaceId: "workspace-professional", organizationId: null }],
-      [{ workspaceId: "workspace-family", organizationId: "organization-family" }]
+      [{ workspaceId: "workspace-family", organizationId: "organization-family" }],
+      [{ workspaceId: "workspace-agency", organizationId: "organization-agency" }]
     ]);
     expect(destinations).toEqual([
       expect.objectContaining({
@@ -98,6 +108,13 @@ describe("scenario collection destinations", () => {
         profileLabel: "Família Kopmann",
         label: "Mudança - Família Kopmann",
         collection: expect.objectContaining({ id: "collection-family" })
+      }),
+      expect.objectContaining({
+        workspaceId: "workspace-agency",
+        organizationId: "organization-agency",
+        profileLabel: "Imobiliária Central",
+        label: "Carteira - Imobiliária Central",
+        collection: expect.objectContaining({ id: "collection-agency" })
       })
     ]);
   });
@@ -114,6 +131,10 @@ describe("scenario collection destinations", () => {
           organizationId: "organization-archived"
         }),
         profile("workspace-external", "Compartilhado", "external", { access: "external" }),
+        profile("workspace-external-access", "Acesso externo", "family", {
+          organizationId: "organization-external",
+          access: "external"
+        }),
         profile("workspace-viewer", "Somente leitura", "family", {
           organizationId: "organization-viewer",
           access: "viewer"
@@ -132,7 +153,7 @@ describe("scenario collection destinations", () => {
       })
     );
 
-    const destinations = await loadScenarioCollectionDestinations();
+    const destinations = await loadWritableCollectionDestinations();
 
     expect(workspaceApiMock.fetchCollections.mock.calls).toEqual([
       [{ workspaceId: "workspace-personal", organizationId: null }],
@@ -150,5 +171,28 @@ describe("scenario collection destinations", () => {
     expect(new Set(destinations.map(({ collection: item }) => item.id)).size).toBe(
       destinations.length
     );
+  });
+
+  it("excludes archived collections and an explicitly excluded source collection", async () => {
+    workspaceApiMock.fetchProfiles.mockResolvedValue({
+      activeWorkspaceId: "workspace-personal",
+      profiles: [profile("workspace-personal", "Pessoal", "personal")]
+    });
+    workspaceApiMock.fetchCollections.mockResolvedValue({
+      collections: [
+        collection("collection-source", "workspace-personal", "Origem"),
+        { ...collection("collection-archived", "workspace-personal", "Arquivada"), status: "archived" },
+        collection("collection-target", "workspace-personal", "Destino")
+      ]
+    });
+
+    const destinations = await loadWritableCollectionDestinations({
+      excludeCollectionId: "collection-source"
+    });
+
+    expect(destinations.map(({ collection: item }) => item.id)).toEqual(["collection-target"]);
+    expect(findCollectionDestination(destinations, "collection-target")).toBe(destinations[0]);
+    expect(findCollectionDestination(destinations, "collection-source")).toBeNull();
+    expect(findCollectionDestination(destinations, null)).toBeNull();
   });
 });
