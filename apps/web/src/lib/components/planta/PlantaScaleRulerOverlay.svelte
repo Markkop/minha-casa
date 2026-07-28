@@ -136,7 +136,7 @@
     >
       <Circle radius={handleRadius} fill="transparent" />
       <Line
-        points={[-handleRadius, -handleRadius, handleRadius, handleRadius]}
+        points={[-handleRadius, 0, handleRadius, 0]}
         stroke={STROKE}
         strokeWidth={2}
         strokeScaleEnabled={false}
@@ -144,7 +144,7 @@
         listening={false}
       />
       <Line
-        points={[-handleRadius, handleRadius, handleRadius, -handleRadius]}
+        points={[0, -handleRadius, 0, handleRadius]}
         stroke={STROKE}
         strokeWidth={2}
         strokeScaleEnabled={false}
@@ -163,7 +163,7 @@
     >
       <Circle radius={handleRadius} fill="transparent" />
       <Line
-        points={[-handleRadius, -handleRadius, handleRadius, handleRadius]}
+        points={[-handleRadius, 0, handleRadius, 0]}
         stroke={STROKE}
         strokeWidth={2}
         strokeScaleEnabled={false}
@@ -171,7 +171,7 @@
         listening={false}
       />
       <Line
-        points={[-handleRadius, handleRadius, handleRadius, -handleRadius]}
+        points={[0, -handleRadius, 0, handleRadius]}
         stroke={STROKE}
         strokeWidth={2}
         strokeScaleEnabled={false}
