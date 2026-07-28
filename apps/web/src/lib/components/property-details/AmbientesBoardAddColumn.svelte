@@ -29,7 +29,10 @@
     size="sm"
     class="h-8 gap-1.5 text-xs"
     {disabled}
-    onclick={() => (menuOpen = !menuOpen)}
+    onclick={(event: MouseEvent) => {
+      event.stopPropagation();
+      menuOpen = !menuOpen;
+    }}
   >
     <Plus class="size-3.5" />
     Adicionar cômodo
