@@ -11,7 +11,7 @@
 
   const ctx = getCollectionsContext();
 
-  const WORKSPACE_LISTING_ROUTES = ["/financeiro", "/floodrisk", "/relatorios"] as const;
+  const WORKSPACE_LISTING_ROUTES = ["/financeiro", "/floodrisk", "/relatorios", "/planta"] as const;
 
   const isWorkspaceListingRoute = $derived(
     WORKSPACE_LISTING_ROUTES.some(
@@ -20,8 +20,16 @@
   );
 
   const listingId = $derived(page.url.searchParams.get("listing"));
+  const requestedCollectionId = $derived(page.url.searchParams.get("collection"));
   const collectionId = $derived(ctx.activeCollection?.id ?? null);
   const selectableListings = $derived(sortSelectableListings(ctx.listings));
+
+  $effect(() => {
+    if (!browser || !isWorkspaceListingRoute || !requestedCollectionId) return;
+    if (ctx.activeCollection?.id === requestedCollectionId || ctx.collections.length === 0) return;
+    const match = ctx.collections.find((collection) => collection.id === requestedCollectionId);
+    if (match) ctx.setActiveCollection(match);
+  });
 
   $effect(() => {
     if (!browser || !isWorkspaceListingRoute) return;
@@ -48,7 +56,8 @@
       return;
     }
 
-    const storedListingId = readStoredWorkspaceListingId(collectionId, ctx.listings);
+    const storedListingId =
+      readStoredWorkspaceListingId(collectionId, ctx.listings) ?? selectableListings[0]?.id ?? null;
     if (!storedListingId) return;
 
     const params = new URLSearchParams(page.url.searchParams);

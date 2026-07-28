@@ -3,7 +3,7 @@ import { createPlantaDocument, parsePlantaDocument } from "./state";
 
 function storedDocument(overrides: Record<string, unknown> = {}) {
   return JSON.stringify({
-    version: 1,
+    version: 2,
     blueprint: null,
     viewport: { x: 80, y: 70, scale: 1 },
     grid: {

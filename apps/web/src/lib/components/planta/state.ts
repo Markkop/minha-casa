@@ -24,7 +24,7 @@ export type Bounds = {
 
 export function createPlantaDocument(): PlantaDocument {
   return {
-    version: 1,
+    version: 2,
     blueprint: null,
     viewport: { x: 80, y: 70, scale: 1 },
     grid: {
@@ -47,7 +47,11 @@ export function createShapeId() {
 }
 
 export function getShapeName(shape: PlantaShape, index: number) {
-  return shape.name || `${shape.type === "rect" ? "Retangulo" : "Linha"} ${index + 1}`;
+  return (
+    (shape.type === "rect" ? shape.customName?.trim() : null) ||
+    shape.name ||
+    `${shape.type === "rect" ? "Retangulo" : "Linha"} ${index + 1}`
+  );
 }
 
 export function clampScale(value: number) {
@@ -210,12 +214,12 @@ export function getShapesUnionBounds(shapes: PlantaShape[]): Bounds | null {
   return unionBounds(visible.map(getShapeBounds));
 }
 
-export function parsePlantaDocument(raw: string | null): PlantaDocument {
+export function parsePlantaDocument(raw: unknown): PlantaDocument {
   if (!raw) return createPlantaDocument();
 
   try {
-    const parsed = JSON.parse(raw) as Partial<PlantaDocument>;
-    if (parsed.version !== 1) return createPlantaDocument();
+    const parsed = (typeof raw === "string" ? JSON.parse(raw) : raw) as Partial<PlantaDocument>;
+    if (parsed.version !== 2) return createPlantaDocument();
 
     const gridSize = clampNumber(Number(parsed.grid?.size ?? 50), 20, 200);
     const parsedScaleRuler = parseScaleRuler(parsed.scaleRuler);
@@ -239,8 +243,8 @@ export function parsePlantaDocument(raw: string | null): PlantaDocument {
         : storedMetersPerCell;
 
     return {
-      version: 1,
-      blueprint: parsed.blueprint ?? null,
+      version: 2,
+      blueprint: parseBlueprint(parsed.blueprint),
       viewport: {
         x: Number(parsed.viewport?.x ?? 80),
         y: Number(parsed.viewport?.y ?? 70),
@@ -261,6 +265,26 @@ export function parsePlantaDocument(raw: string | null): PlantaDocument {
   }
 }
 
+function parseBlueprint(value: unknown): PlantaDocument["blueprint"] {
+  if (!value || typeof value !== "object") return null;
+  const blueprint = value as Partial<NonNullable<PlantaDocument["blueprint"]>>;
+  if (
+    typeof blueprint.x !== "number" ||
+    typeof blueprint.y !== "number" ||
+    typeof blueprint.scale !== "number" ||
+    typeof blueprint.opacity !== "number"
+  ) return null;
+  return {
+    url: typeof blueprint.url === "string" ? blueprint.url : "",
+    naturalWidth: Math.max(1, Number(blueprint.naturalWidth ?? 1)),
+    naturalHeight: Math.max(1, Number(blueprint.naturalHeight ?? 1)),
+    x: Number(blueprint.x ?? 0),
+    y: Number(blueprint.y ?? 0),
+    scale: clampNumber(Number(blueprint.scale ?? 1), 0.05, 3),
+    opacity: clampNumber(Number(blueprint.opacity ?? 0.72), 0.1, 1)
+  };
+}
+
 function parseScaleRuler(value: unknown): PlantaScaleRuler | null {
   if (!isValidScaleRuler(value)) return null;
   const [x1, y1, x2, y2] = value.points;
@@ -268,10 +292,16 @@ function parseScaleRuler(value: unknown): PlantaScaleRuler | null {
 }
 
 function normalizeShape(shape: PlantaShape): PlantaShape {
-  return {
+  const normalized = {
     ...shape,
     visible: shape.visible !== false,
     locked: shape.locked === true
+  };
+  if (normalized.type !== "rect") return normalized;
+  return {
+    ...normalized,
+    environmentId: normalized.environmentId?.trim() || null,
+    customName: normalized.customName?.trim() || null
   };
 }
 

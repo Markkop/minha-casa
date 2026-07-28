@@ -191,6 +191,62 @@ defmodule MinhaCasaAiWeb.Router do
     get "/collections/:id/listings/:listing_id", CollectionController, :show_listing
     put "/collections/:id/listings/:listing_id", CollectionController, :update_listing
     delete "/collections/:id/listings/:listing_id", CollectionController, :delete_listing
+
+    get "/collections/:id/listings/:listing_id/environments",
+        ListingEnvironmentController,
+        :index
+
+    post "/collections/:id/listings/:listing_id/environments",
+         ListingEnvironmentController,
+         :create
+
+    put "/collections/:id/listings/:listing_id/environments",
+        ListingEnvironmentController,
+        :replace
+
+    patch "/collections/:id/listings/:listing_id/environments/:environment_id",
+          ListingEnvironmentController,
+          :update
+
+    delete "/collections/:id/listings/:listing_id/environments/:environment_id",
+           ListingEnvironmentController,
+           :delete
+
+    get "/collections/:collection_id/listings/:listing_id/floor-plans",
+        FloorPlanController,
+        :index
+
+    post "/collections/:collection_id/listings/:listing_id/floor-plans",
+         FloorPlanController,
+         :create
+
+    get "/collections/:collection_id/listings/:listing_id/floor-plans/:plan_id",
+        FloorPlanController,
+        :show
+
+    patch "/collections/:collection_id/listings/:listing_id/floor-plans/:plan_id",
+          FloorPlanController,
+          :update
+
+    delete "/collections/:collection_id/listings/:listing_id/floor-plans/:plan_id",
+           FloorPlanController,
+           :delete
+
+    put "/collections/:collection_id/listings/:listing_id/floor-plans/:plan_id/document",
+        FloorPlanController,
+        :save_document
+
+    post "/collections/:collection_id/listings/:listing_id/floor-plans/:plan_id/blueprint",
+         FloorPlanController,
+         :upload_blueprint
+
+    get "/collections/:collection_id/listings/:listing_id/floor-plans/:plan_id/blueprint",
+        FloorPlanController,
+        :show_blueprint
+
+    delete "/collections/:collection_id/listings/:listing_id/floor-plans/:plan_id/blueprint",
+           FloorPlanController,
+           :delete_blueprint
   end
 
   scope "/api", MinhaCasaAiWeb do

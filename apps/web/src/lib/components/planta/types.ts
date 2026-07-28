@@ -1,10 +1,7 @@
-export const PLANTA_STORAGE_KEY = "minha-casa:planta:v1";
-export const LEGACY_REFORMA_STORAGE_KEY = "minha-casa:reforma:v1";
-
 export type PlantaTool = "select" | "pan" | "line" | "rect" | "square";
 
 export type PlantaBlueprint = {
-  dataUrl: string;
+  url: string;
   naturalWidth: number;
   naturalHeight: number;
   x: number;
@@ -55,15 +52,69 @@ export type PlantaRectShape = {
   stroke: string;
   strokeWidth: number;
   fill: string;
+  environmentId?: string | null;
+  customName?: string | null;
 };
 
 export type PlantaShape = PlantaLineShape | PlantaRectShape;
 
 export type PlantaDocument = {
-  version: 1;
+  version: 2;
   blueprint: PlantaBlueprint | null;
   viewport: PlantaViewport;
   grid: PlantaGrid;
   scaleRuler: PlantaScaleRuler | null;
   shapes: PlantaShape[];
+};
+
+export type FloorPlanAreaLink = {
+  shapeId: string;
+  environmentId: string | null;
+  customName: string | null;
+  inheritedName?: string | null;
+};
+
+export type FloorPlanBlueprintMetadata = {
+  contentType: string;
+  byteSize: number;
+  width: number | null;
+  height: number | null;
+  url: string;
+};
+
+export type FloorPlan = {
+  id: string;
+  workspaceId: string;
+  listingId: string;
+  createdByUserId: string | null;
+  name: string;
+  document: PlantaDocument;
+  revision: number;
+  areaLinks: FloorPlanAreaLink[];
+  blueprint: FloorPlanBlueprintMetadata | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type ListingImage = {
+  id: string;
+  listingId?: string;
+  url: string;
+  position: number;
+  isCover: boolean;
+  sourceUrl?: string | null;
+  storageKey?: string | null;
+  fingerprint?: Record<string, unknown> | null;
+};
+
+export type ListingEnvironment = {
+  id: string;
+  listingId?: string;
+  kind: string;
+  name: string;
+  ordinal?: number | null;
+  position: number;
+  imageIds?: string[];
+  imageIndices?: number[];
+  images: ListingImage[];
 };

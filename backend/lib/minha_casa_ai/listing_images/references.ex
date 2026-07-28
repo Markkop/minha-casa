@@ -23,7 +23,7 @@ defmodule MinhaCasaAi.ListingImages.References do
     result =
       Repo.query!(
         """
-        WITH image_keys AS (
+        WITH legacy_image_keys AS (
           SELECT image_key.value AS value
           FROM listings AS listing
           CROSS JOIN LATERAL jsonb_array_elements_text(
@@ -33,14 +33,20 @@ defmodule MinhaCasaAi.ListingImages.References do
               ELSE '[]'::jsonb
             END
           ) AS image_key(value)
+        ), referenced_storage_keys AS (
+          SELECT value FROM legacy_image_keys
+          UNION
+          SELECT storage_key FROM listing_images WHERE storage_key IS NOT NULL
+          UNION
+          SELECT blueprint_storage_key FROM floor_plans WHERE blueprint_storage_key IS NOT NULL
         )
-        SELECT DISTINCT image_keys.value
-        FROM image_keys
-        WHERE image_keys.value = ANY($1::text[])
+        SELECT DISTINCT referenced_storage_keys.value
+        FROM referenced_storage_keys
+        WHERE referenced_storage_keys.value = ANY($1::text[])
            OR EXISTS (
              SELECT 1
              FROM unnest($2::text[]) AS candidate(prefix)
-             WHERE left(image_keys.value, length(candidate.prefix)) = candidate.prefix
+             WHERE left(referenced_storage_keys.value, length(candidate.prefix)) = candidate.prefix
            )
         """,
         [keys, prefixes]

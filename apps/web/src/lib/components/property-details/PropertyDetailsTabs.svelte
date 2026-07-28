@@ -160,7 +160,7 @@
       </TabsContent>
 
       <TabsContent value="ambientes" class="min-w-0">
-        <AmbientesBoard {listing} updateListing={readOnly ? undefined : updateListing} />
+        <AmbientesBoard {listing} {collectionId} updateListing={readOnly ? undefined : updateListing} />
       </TabsContent>
 
       <TabsContent value="analise" class="min-w-0">

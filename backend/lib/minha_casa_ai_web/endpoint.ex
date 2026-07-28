@@ -7,6 +7,7 @@ defmodule MinhaCasaAiWeb.Endpoint do
   plug Plug.Parsers,
     parsers: [:urlencoded, :multipart, :json],
     pass: ["*/*"],
+    length: 12_000_000,
     json_decoder: Phoenix.json_library(),
     body_reader: {MinhaCasaAiWeb.Plugs.RawBodyReader, :read_body, []}
 

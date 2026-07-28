@@ -127,7 +127,8 @@
     pathname.startsWith("/imoveis/") ||
       pathname.startsWith("/floodrisk") ||
       pathname.startsWith("/financeiro") ||
-      pathname.startsWith("/relatorios")
+      pathname.startsWith("/relatorios") ||
+      pathname.startsWith("/planta")
   );
   const showOrgBreadcrumb = $derived(Boolean(user));
   let aiUsageAlert = $state<"near_limit" | "limit_reached" | null>(null);

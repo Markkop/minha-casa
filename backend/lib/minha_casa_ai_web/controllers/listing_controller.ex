@@ -30,7 +30,7 @@ defmodule MinhaCasaAiWeb.ListingController do
         |> put_status(:created)
         |> json(%{listing: ListingJSON.listing(listing)})
 
-      {:error, reason} when reason in [:workspace_frozen, :listing_limit] ->
+      {:error, reason} when reason in [:workspace_frozen, :listing_limit, :floor_plan_limit] ->
         status = if reason == :workspace_frozen, do: :locked, else: :unprocessable_entity
         PublicError.json_error(conn, status, reason)
 

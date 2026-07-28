@@ -5,6 +5,8 @@
   import AmbientesBoardPool from "$lib/components/property-details/AmbientesBoardPool.svelte";
   import ImageLightboxOverlay from "$lib/components/property-details/ImageLightboxOverlay.svelte";
   import WorkspacePanel from "$lib/components/workspace/WorkspacePanel.svelte";
+  import { floorPlansApi } from "$lib/components/planta/floor-plans-api";
+  import type { ListingImage } from "$lib/components/planta/types";
   import { resolveListingImages } from "$lib/listing-images";
   import {
     addEnvironmentColumn,
@@ -26,10 +28,12 @@
 
   let {
     listing,
+    collectionId,
     updateListing,
     class: className = ""
   }: {
     listing: Property;
+    collectionId?: string | null;
     updateListing?: (listingId: string, updates: Partial<Property>) => Promise<Property>;
     class?: string;
   } = $props();
@@ -54,6 +58,9 @@
   let hasLocalEdits = $state(false);
   let saveTimer: ReturnType<typeof setTimeout> | null = null;
   let syncedListingId = $state<string | null>(null);
+  let normalizedImages = $state<ListingImage[]>([]);
+  let normalizedMediaListingId = $state<string | null>(null);
+  let mediaRequestVersion = 0;
 
   const unassignedIndices = $derived(getUnassignedImageIndices(columns, imageUrls.length));
   const poolItems = $derived(
@@ -73,17 +80,39 @@
       syncedListingId = listing.id;
       hasLocalEdits = false;
       columns = resolveEnvironmentColumns(listing, imageCount);
+      normalizedImages = [];
+      normalizedMediaListingId = null;
+      const listingId = listing.id;
+      const version = ++mediaRequestVersion;
+      if (!collectionId) return;
+      void floorPlansApi
+        .listEnvironments(collectionId, listingId)
+        .then((media) => {
+          if (version !== mediaRequestVersion) return;
+          normalizedImages = media.images;
+          normalizedMediaListingId = listingId;
+          if (hasLocalEdits) return;
+          columns = media.environments.map((environment) => ({
+            id: environment.id,
+            kind: environment.kind as ImageEnvironmentKind,
+            label: environment.name,
+            ordinal: environment.ordinal ?? undefined,
+            imageIndices:
+              environment.imageIndices ?? environment.images.map((image) => image.position)
+          }));
+        })
+        .catch(() => undefined);
       return;
     }
 
-    if (hasLocalEdits) return;
+    if (hasLocalEdits || normalizedMediaListingId === listing.id) return;
 
     void listing.imageEnvironments;
     columns = resolveEnvironmentColumns(listing, imageCount);
   });
 
   function scheduleSave(nextColumns: ImageEnvironmentColumn[]) {
-    if (!updateListing) return;
+    if (!updateListing || !collectionId) return;
     if (saveTimer) clearTimeout(saveTimer);
     saveTimer = setTimeout(() => {
       void persistColumns(nextColumns);
@@ -91,12 +120,37 @@
   }
 
   async function persistColumns(nextColumns: ImageEnvironmentColumn[]) {
-    if (!updateListing) return;
+    if (!updateListing || !collectionId) return;
     isSaving = true;
     try {
-      await updateListing(listing.id, {
-        imageEnvironments: nextColumns,
-      });
+      if (normalizedImages.length !== imageUrls.length) {
+        normalizedImages = (
+          await floorPlansApi.listEnvironments(collectionId, listing.id)
+        ).images;
+      }
+      const media = await floorPlansApi.replaceEnvironments(
+        collectionId,
+        listing.id,
+        nextColumns.map((column) => ({
+          id: column.id,
+          kind: column.kind,
+          name: column.label,
+          ordinal: column.ordinal,
+          imageIds: column.imageIndices
+            .map((position) => normalizedImages.find((image) => image.position === position)?.id)
+            .filter((id): id is string => Boolean(id))
+        }))
+      );
+      normalizedImages = media.images;
+      normalizedMediaListingId = listing.id;
+      columns = media.environments.map((environment) => ({
+        id: environment.id,
+        kind: environment.kind as ImageEnvironmentKind,
+        label: environment.name,
+        ordinal: environment.ordinal ?? undefined,
+        imageIndices:
+          environment.imageIndices ?? environment.images.map((image) => image.position)
+      }));
       hasLocalEdits = false;
     } finally {
       isSaving = false;

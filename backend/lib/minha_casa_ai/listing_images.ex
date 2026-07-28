@@ -2,7 +2,7 @@ defmodule MinhaCasaAi.ListingImages do
   alias MinhaCasaAi.ListingImages.Storage
   alias MinhaCasaAi.Listings
   alias MinhaCasaAi.Repo
-  alias MinhaCasaAi.Listings.Listing
+  alias MinhaCasaAi.Listings.{Listing, ListingImage}
   alias MinhaCasaAi.Workers.ListingImageIngestionWorker
 
   def enqueue_ingestion(listing_id, collection_id, opts \\ []) when is_binary(listing_id) do
@@ -28,14 +28,23 @@ defmodule MinhaCasaAi.ListingImages do
 
   def serve_image(listing_id, index)
       when is_binary(listing_id) and is_integer(index) and index >= 0 do
-    with %Listing{data: data} <- Repo.get(Listing, listing_id),
-         keys when is_list(keys) <- Map.get(data || %{}, "imageStorageKeys", []),
-         key when is_binary(key) <- Enum.at(keys, index),
-         {:ok, body, content_type} <- Storage.get_object(key) do
-      {:ok, body, content_type}
-    else
-      nil -> {:error, :listing_not_found}
-      _ -> {:error, :image_not_found}
+    case Repo.get(Listing, listing_id) do
+      nil ->
+        {:error, :listing_not_found}
+
+      %Listing{} = listing ->
+        key =
+          Repo.get_by(ListingImage, listing_id: listing_id, position: index)
+          |> case do
+            %ListingImage{storage_key: value} when is_binary(value) and value != "" -> value
+            _ -> Enum.at(List.wrap((listing.data || %{})["imageStorageKeys"]), index)
+          end
+
+        if is_binary(key) and key != "" do
+          Storage.get_object(key)
+        else
+          {:error, :image_not_found}
+        end
     end
   end
 

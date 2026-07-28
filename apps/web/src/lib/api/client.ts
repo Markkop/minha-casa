@@ -30,7 +30,10 @@ export { getActiveOrganizationId, setActiveOrganizationId, getActiveWorkspaceId,
 async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const { method = "GET", body, headers = {}, auth = true } = options;
   const base = config.apiUrl;
-  const requestParts = buildJsonRequestParts(body, headers);
+  const requestParts =
+    typeof FormData !== "undefined" && body instanceof FormData
+      ? { headers: new Headers(headers), body }
+      : buildJsonRequestParts(body, headers);
 
   if (auth && base) {
     const token = await getApiToken();

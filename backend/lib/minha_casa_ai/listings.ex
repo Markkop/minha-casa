@@ -8,10 +8,13 @@ defmodule MinhaCasaAi.Listings do
     Deletion,
     Duplicates,
     Listing,
-    ListingData
+    ListingData,
+    ListingMedia
   }
 
   alias MinhaCasaAi.Repo
+
+  @listing_media_fields ~w(imageUrl imageUrls imageStorageKeys imageFingerprints coverImageIndex)
 
   defdelegate get_default_collection_id(user_id, org_id \\ nil),
     to: Collections
@@ -25,20 +28,34 @@ defmodule MinhaCasaAi.Listings do
 
     with {:ok, _collection} <- authorize_collection(collection_id, user_id, org_id, :add_listing),
          {:ok, data} <- ListingData.validate(data) do
-      %Listing{}
-      |> Listing.changeset(%{
-        collection_id: collection_id,
-        data:
-          data
-          |> Map.put_new("addedAt", Date.utc_today() |> Date.to_iso8601())
-      })
-      |> Repo.insert()
-      |> case do
+      result =
+        Repo.transaction(fn ->
+          listing =
+            %Listing{}
+            |> Listing.changeset(%{
+              collection_id: collection_id,
+              data:
+                data
+                |> Map.put_new("addedAt", Date.utc_today() |> Date.to_iso8601())
+            })
+            |> Repo.insert()
+            |> case do
+              {:ok, listing} -> listing
+              {:error, changeset} -> Repo.rollback(changeset)
+            end
+
+          case ListingMedia.sync_from_legacy(listing) do
+            {:ok, _media} -> Repo.get!(Listing, listing.id)
+            {:error, reason} -> Repo.rollback(reason)
+          end
+        end)
+
+      case result do
         {:ok, listing} ->
           maybe_enqueue_image_ingestion(listing, opts)
           {:ok, Repo.get!(Listing, listing.id)}
 
-        error ->
+        {:error, _} = error ->
           error
       end
     end
@@ -176,9 +193,25 @@ defmodule MinhaCasaAi.Listings do
       merged = ListingData.merge(listing.data || %{}, data_updates)
 
       with {:ok, merged} <- ListingData.validate(merged) do
-        listing
-        |> Listing.changeset(%{data: merged})
-        |> Repo.update()
+        Repo.transaction(fn ->
+          updated =
+            listing
+            |> Listing.changeset(%{data: merged})
+            |> Repo.update()
+            |> case do
+              {:ok, updated} -> updated
+              {:error, changeset} -> Repo.rollback(changeset)
+            end
+
+          if media_patch?(data_updates) do
+            case ListingMedia.sync_images_from_legacy(updated) do
+              {:ok, _media} -> Repo.get!(Listing, updated.id)
+              {:error, reason} -> Repo.rollback(reason)
+            end
+          else
+            updated
+          end
+        end)
       end
     else
       nil -> {:error, :listing_not_found}
@@ -224,4 +257,7 @@ defmodule MinhaCasaAi.Listings do
 
   defp authorize_collection(collection_id, _user_id, _org_id, action),
     do: authorize_collection(collection_id, nil, nil, action)
+
+  defp media_patch?(updates) when is_map(updates),
+    do: Enum.any?(@listing_media_fields, &Map.has_key?(updates, &1))
 end

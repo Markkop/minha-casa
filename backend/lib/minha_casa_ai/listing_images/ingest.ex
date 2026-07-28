@@ -209,7 +209,6 @@ defmodule MinhaCasaAi.ListingImages.Ingest do
       "imageUrl" => List.first(paths),
       "coverImageIndex" => 0,
       "imageFingerprints" => fingerprints,
-      "imageEnvironments" => nil,
       "imageIngestionStatus" => "ready",
       "imageIngestionError" => nil
     }

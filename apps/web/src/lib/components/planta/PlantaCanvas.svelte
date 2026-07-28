@@ -44,6 +44,7 @@
   let {
     planner = $bindable<PlantaDocument>(),
     tool,
+    readOnly = false,
     spacePressed = false,
     blueprintHandActive = false,
     selectedShapeIds = $bindable<string[]>([]),
@@ -53,6 +54,7 @@
   }: {
     planner: PlantaDocument;
     tool: PlantaTool;
+    readOnly?: boolean;
     spacePressed?: boolean;
     blueprintHandActive?: boolean;
     selectedShapeIds?: string[];
@@ -128,7 +130,8 @@
   const isDrawTool = $derived(tool === "line" || tool === "rect" || tool === "square");
   const isSingleSelection = $derived(selectedShapeIds.length === 1);
   const shapeDraggable = $derived(
-    (tool === "select" || isDrawTool) &&
+    !readOnly &&
+      (tool === "select" || isDrawTool) &&
       isSingleSelection &&
       !spacePressed &&
       !blueprintHandActive &&
@@ -159,7 +162,7 @@
   });
 
   $effect(() => {
-    const source = planner.blueprint?.dataUrl;
+    const source = planner.blueprint?.url;
     if (!source) {
       blueprintImage = null;
       return;
@@ -178,6 +181,7 @@
   });
 
   $effect(() => {
+    void readOnly;
     void attachTransformer(
       selectedShapeIds,
       tool,
@@ -211,7 +215,8 @@
       !spaceHeld &&
       !panning &&
       !drawing &&
-      !marqueeSelecting;
+      !marqueeSelecting &&
+      !readOnly;
     if (!canTransform || !transformerRef || !stageRef || shapeIds.length === 0) {
       transformerRef?.node.nodes([]);
       return;
@@ -303,6 +308,7 @@
   }
 
   function shouldStartBlueprintDrag(event: PointerEvent) {
+    if (readOnly) return false;
     if (!blueprintHandActive || !planner.blueprint) return false;
     if (isDrawing || isMarqueeSelecting || isPanning || isDraggingBlueprint) return false;
     if (spacePressed || tool === "pan" || event.button !== 0) return false;
@@ -431,6 +437,8 @@
       startMarquee(event, pointer);
       return;
     }
+
+    if (readOnly) return;
 
     if (tool === "pan") return;
 
@@ -887,7 +895,7 @@
 
         <PlantaScaleRulerOverlay
           bind:planner
-          interactionDisabled={spacePressed || tool === "pan" || blueprintHandActive || isPanning}
+          interactionDisabled={readOnly || spacePressed || tool === "pan" || blueprintHandActive || isPanning}
         />
 
         {#if marqueeRect && (marqueeRect.width >= MARQUEE_MIN_SIZE || marqueeRect.height >= MARQUEE_MIN_SIZE)}

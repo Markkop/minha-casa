@@ -77,7 +77,7 @@ defmodule MinhaCasaAi.ListingImages.IngestTest do
   end
 
   describe "success_updates/2" do
-    test "persists cover and clears manual categories without visual analysis metadata" do
+    test "persists cover without clearing stable environment assignments" do
       updates =
         Ingest.success_updates(
           ["listings/id/0.jpg", "listings/id/1.jpg"],
@@ -86,7 +86,7 @@ defmodule MinhaCasaAi.ListingImages.IngestTest do
 
       assert updates["coverImageIndex"] == 0
       refute Map.has_key?(updates, "imageCategories")
-      assert updates["imageEnvironments"] == nil
+      refute Map.has_key?(updates, "imageEnvironments")
       refute Map.has_key?(updates, "imageVisualAnalysis")
       assert updates["imageIngestionStatus"] == "ready"
     end

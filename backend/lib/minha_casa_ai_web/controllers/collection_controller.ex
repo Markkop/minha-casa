@@ -6,6 +6,7 @@ defmodule MinhaCasaAiWeb.CollectionController do
   alias MinhaCasaAi.Listings
   alias MinhaCasaAi.Entitlements
   alias MinhaCasaAi.Financeiro.Scenario
+  alias MinhaCasaAi.FloorPlans
   alias MinhaCasaAi.Listings.MergeSessions
   alias MinhaCasaAi.Listings.DisplayTitle
   alias MinhaCasaAi.Listings.Copy, as: ListingCopy
@@ -87,7 +88,11 @@ defmodule MinhaCasaAiWeb.CollectionController do
     entitlement = Entitlements.for_workspace(conn.assigns.current_workspace)
 
     if profile.access == "external" do
-      PublicError.json_error(conn, :forbidden, "external access is limited to granted collections")
+      PublicError.json_error(
+        conn,
+        :forbidden,
+        "external access is limited to granted collections"
+      )
     else
       if name == "" do
         PublicError.json_error(conn, :bad_request, "Informe o nome da coleção.")
@@ -422,7 +427,11 @@ defmodule MinhaCasaAiWeb.CollectionController do
         })
 
       {:error, :sharing_not_allowed} ->
-        PublicError.json_error(conn, :forbidden, "editable sharing is not available for this plan")
+        PublicError.json_error(
+          conn,
+          :forbidden,
+          "editable sharing is not available for this plan"
+        )
 
       {:error, :forbidden} ->
         not_found(conn, "Collection")
@@ -490,7 +499,7 @@ defmodule MinhaCasaAiWeb.CollectionController do
           })
 
         {:error, reason}
-        when reason in [:workspace_frozen, :collection_limit, :listing_limit] ->
+        when reason in [:workspace_frozen, :collection_limit, :listing_limit, :floor_plan_limit] ->
           quota_error(conn, reason)
 
         {:error, {:changeset, changeset}} ->
@@ -645,13 +654,27 @@ defmodule MinhaCasaAiWeb.CollectionController do
        ) do
     with :ok <- Entitlements.ensure_collection_capacity(entitlement),
          :ok <- ensure_copy_listing_capacity(entitlement, source_listings, include_listings),
+         :ok <-
+           ensure_copy_floor_plan_capacity(target_workspace.id, source_listings, include_listings),
          {:ok, prepared_listings, copied_image_keys} <- ListingCopy.prepare(source_listings) do
+      copied_floor_plan_prefixes =
+        Enum.map(
+          prepared_listings,
+          &"floor-plans/#{target_workspace.id}/#{&1.target_id}/"
+        )
+
       result =
         try do
           Collections.with_workspace_lock(target_workspace.id, fn ->
             with :ok <- Entitlements.ensure_collection_capacity(entitlement),
                  :ok <-
-                   ensure_copy_listing_capacity(entitlement, source_listings, include_listings) do
+                   ensure_copy_listing_capacity(entitlement, source_listings, include_listings),
+                 :ok <-
+                   ensure_copy_floor_plan_capacity(
+                     target_workspace.id,
+                     source_listings,
+                     include_listings
+                   ) do
               collection_attrs =
                 Map.merge(profile_values(target_profile), %{
                   name: collection_name,
@@ -671,6 +694,22 @@ defmodule MinhaCasaAiWeb.CollectionController do
                   listing_map =
                     Map.new(copied_listings, fn {source_id, copied} -> {source_id, copied.id} end)
 
+                  Enum.each(copied_listings, fn {source_listing_id, copied} ->
+                    environment_map =
+                      ListingCopy.copy_media!(source_listing_id, copied.id)
+
+                    case FloorPlans.copy_for_listing(
+                           source_listing_id,
+                           copied.id,
+                           target_workspace.id,
+                           target_profile.user_id,
+                           environment_map
+                         ) do
+                      {:ok, _floor_plans} -> :ok
+                      {:error, reason} -> Repo.rollback(reason)
+                    end
+                  end)
+
                   ListingCopy.copy_comparison_notes!(listing_map)
                   copy_scenarios(source.id, collection.id)
 
@@ -686,10 +725,15 @@ defmodule MinhaCasaAiWeb.CollectionController do
         rescue
           exception ->
             ListingCopy.enqueue_failed_cleanup(copied_image_keys)
+            ListingCopy.enqueue_floor_plan_cleanup(copied_floor_plan_prefixes)
             reraise exception, __STACKTRACE__
         end
 
-      if match?({:error, _}, result), do: ListingCopy.enqueue_failed_cleanup(copied_image_keys)
+      if match?({:error, _}, result) do
+        ListingCopy.enqueue_failed_cleanup(copied_image_keys)
+        ListingCopy.enqueue_floor_plan_cleanup(copied_floor_plan_prefixes)
+      end
+
       result
     else
       {:error, reason, copied_image_keys} ->
@@ -699,6 +743,12 @@ defmodule MinhaCasaAiWeb.CollectionController do
       {:error, reason} ->
         {:error, reason}
     end
+  end
+
+  defp ensure_copy_floor_plan_capacity(_workspace_id, _source_listings, false), do: :ok
+
+  defp ensure_copy_floor_plan_capacity(workspace_id, source_listings, true) do
+    ListingCopy.ensure_floor_plan_capacity(workspace_id, Enum.map(source_listings, & &1.id))
   end
 
   defp copy_scenarios(source_id, target_id) do
@@ -766,6 +816,7 @@ defmodule MinhaCasaAiWeb.CollectionController do
         :workspace_frozen -> :locked
         :collection_limit -> :unprocessable_entity
         :listing_limit -> :unprocessable_entity
+        :floor_plan_limit -> :conflict
         _ -> :bad_request
       end
 

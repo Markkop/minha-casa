@@ -36,7 +36,16 @@
     const previousId = ctx.activeCollection?.id;
     ctx.setActiveCollection(collection);
     open = false;
-    if (page.url.pathname !== "/lista" && previousId !== collection.id) {
+    if (page.url.pathname === "/planta" && previousId !== collection.id) {
+      const params = new URLSearchParams(page.url.searchParams);
+      params.set("collection", collection.id);
+      params.delete("listing");
+      params.delete("plan");
+      void goto(`/planta?${params.toString()}`, {
+        noScroll: true,
+        keepFocus: true
+      });
+    } else if (page.url.pathname !== "/lista" && previousId !== collection.id) {
       void goto("/lista");
     }
   }

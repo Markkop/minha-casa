@@ -4,8 +4,19 @@ defmodule MinhaCasaAi.Listings.Copy do
   import Ecto.Query
 
   alias MinhaCasaAi.Entitlements
+  alias MinhaCasaAi.FloorPlans
+  alias MinhaCasaAi.FloorPlans.FloorPlan
   alias MinhaCasaAi.ListingImages.{Copy, StorageCleanup}
-  alias MinhaCasaAi.Listings.{Collection, CollectionPolicy, Collections, Listing, ListingData}
+
+  alias MinhaCasaAi.Listings.{
+    Collection,
+    CollectionPolicy,
+    Collections,
+    Listing,
+    ListingData,
+    ListingMedia
+  }
+
   alias MinhaCasaAi.Repo
   alias MinhaCasaAi.Workspace.ListingComparisonNote
   alias MinhaCasaAi.Workspaces.Workspace
@@ -17,14 +28,31 @@ defmodule MinhaCasaAi.Listings.Copy do
          {:ok, target} <- authorized_target(user_id, target_collection_id),
          :ok <- ensure_distinct_collection(source, target),
          :ok <- ensure_destination_capacity(target, 1),
+         :ok <- ensure_floor_plan_capacity(target.workspace_id, [source.id]),
          {:ok, [prepared], copied_keys} <- prepare([source], opts) do
+      floor_plan_prefix = "floor-plans/#{target.workspace_id}/#{prepared.target_id}/"
+
       result =
         try do
           Collections.with_workspace_lock(target.workspace_id, fn ->
             with {:ok, locked_target} <- authorized_target(user_id, target.id),
                  :ok <- ensure_distinct_collection(source, locked_target),
-                 :ok <- ensure_destination_capacity(locked_target, 1) do
+                 :ok <- ensure_destination_capacity(locked_target, 1),
+                 :ok <- ensure_floor_plan_capacity(locked_target.workspace_id, [source.id]) do
               [{_source_id, copied}] = insert_prepared!([prepared], locked_target.id)
+              environment_map = copy_media!(source.id, copied.id)
+
+              case FloorPlans.copy_for_listing(
+                     source.id,
+                     copied.id,
+                     locked_target.workspace_id,
+                     user_id,
+                     environment_map
+                   ) do
+                {:ok, _floor_plans} -> :ok
+                {:error, reason} -> Repo.rollback(reason)
+              end
+
               copy_comparison_notes!(%{source.id => copied.id})
               copied
             else
@@ -36,7 +64,11 @@ defmodule MinhaCasaAi.Listings.Copy do
             {:error, {:copy_failed, exception}}
         end
 
-      if match?({:error, _}, result), do: enqueue_failed_cleanup(copied_keys)
+      if match?({:error, _}, result) do
+        enqueue_failed_cleanup(copied_keys)
+        enqueue_floor_plan_cleanup([floor_plan_prefix])
+      end
+
       result
     else
       {:error, reason, copied_keys} ->
@@ -81,6 +113,33 @@ defmodule MinhaCasaAi.Listings.Copy do
       })
       |> Repo.insert!()
     end)
+  end
+
+  def copy_media!(source_listing_id, target_listing_id) do
+    case ListingMedia.copy_for_listing(source_listing_id, target_listing_id) do
+      {:ok, environment_map} -> environment_map
+      {:error, reason} -> Repo.rollback(reason)
+    end
+  end
+
+  def ensure_floor_plan_capacity(workspace_id, source_listing_ids)
+      when is_binary(workspace_id) and is_list(source_listing_ids) do
+    amount =
+      Repo.aggregate(
+        from(plan in FloorPlan, where: plan.listing_id in ^source_listing_ids),
+        :count
+      )
+
+    FloorPlans.ensure_workspace_capacity(workspace_id, amount)
+  end
+
+  def enqueue_floor_plan_cleanup([]), do: :ok
+
+  def enqueue_floor_plan_cleanup(prefixes) do
+    case StorageCleanup.enqueue(prefixes: prefixes) do
+      {:ok, _job} -> :ok
+      {:error, _reason} -> :error
+    end
   end
 
   def enqueue_failed_cleanup([]), do: :ok

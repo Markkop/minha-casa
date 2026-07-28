@@ -2,7 +2,7 @@ const MAX_BLUEPRINT_DIMENSION = 2000;
 const BLUEPRINT_MIME_TYPES = new Set(["image/png", "image/jpeg", "image/webp"]);
 
 export type ResizedPlantaImage = {
-  dataUrl: string;
+  blob: Blob;
   naturalWidth: number;
   naturalHeight: number;
 };
@@ -29,17 +29,27 @@ export async function resizePlantaFile(file: File): Promise<ResizedPlantaImage> 
     if (!context) throw new Error("Nao foi possivel preparar a imagem.");
 
     context.drawImage(image, 0, 0, width, height);
-    const mimeType = file.type === "image/png" ? "image/png" : "image/jpeg";
-    const dataUrl = canvas.toDataURL(mimeType, 0.86);
+    const mimeType = file.type === "image/png" ? "image/png" : file.type === "image/webp" ? "image/webp" : "image/jpeg";
+    const blob = await canvasToBlob(canvas, mimeType);
 
     return {
-      dataUrl,
+      blob,
       naturalWidth: width,
       naturalHeight: height
     };
   } finally {
     URL.revokeObjectURL(objectUrl);
   }
+}
+
+function canvasToBlob(canvas: HTMLCanvasElement, mimeType: string): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    canvas.toBlob(
+      (blob) => (blob ? resolve(blob) : reject(new Error("Nao foi possivel preparar a imagem."))),
+      mimeType,
+      0.86
+    );
+  });
 }
 
 function loadImage(src: string): Promise<HTMLImageElement> {
@@ -50,4 +60,3 @@ function loadImage(src: string): Promise<HTMLImageElement> {
     image.src = src;
   });
 }
-

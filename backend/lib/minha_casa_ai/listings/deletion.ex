@@ -3,9 +3,10 @@ defmodule MinhaCasaAi.Listings.Deletion do
 
   import Ecto.Query
 
+  alias MinhaCasaAi.FloorPlans.FloorPlan
   alias MinhaCasaAi.ListingImages.StorageCleanup
 
-  alias MinhaCasaAi.Listings.{Collection, Listing, ListingMergeSession}
+  alias MinhaCasaAi.Listings.{Collection, Listing, ListingImage, ListingMergeSession}
   alias MinhaCasaAi.Repo
 
   def delete_listing(%Listing{id: listing_id, collection_id: collection_id}) do
@@ -54,14 +55,52 @@ defmodule MinhaCasaAi.Listings.Deletion do
   def cleanup_targets(listings, session_ids) when is_list(listings) and is_list(session_ids) do
     listing_ids = listings |> Enum.map(& &1.id) |> Enum.filter(&is_binary/1) |> Enum.uniq()
 
-    keys =
+    legacy_image_keys =
       listings
       |> Enum.flat_map(fn listing -> List.wrap((listing.data || %{})["imageStorageKeys"]) end)
+      |> Enum.filter(&is_binary/1)
+
+    normalized_image_keys =
+      if listing_ids == [] do
+        []
+      else
+        Repo.all(
+          from(image in ListingImage,
+            where: image.listing_id in ^listing_ids and not is_nil(image.storage_key),
+            select: image.storage_key
+          )
+        )
+      end
+
+    floor_plans =
+      if listing_ids == [] do
+        []
+      else
+        Repo.all(
+          from(plan in FloorPlan,
+            where: plan.listing_id in ^listing_ids,
+            select: %{
+              listing_id: plan.listing_id,
+              workspace_id: plan.workspace_id,
+              blueprint_storage_key: plan.blueprint_storage_key
+            }
+          )
+        )
+      end
+
+    keys =
+      (legacy_image_keys ++
+         normalized_image_keys ++
+         Enum.map(floor_plans, & &1.blueprint_storage_key))
       |> Enum.filter(&is_binary/1)
       |> Enum.uniq()
 
     prefixes =
       Enum.map(listing_ids, &"listings/#{&1}/") ++
+        Enum.map(
+          floor_plans,
+          &"floor-plans/#{&1.workspace_id}/#{&1.listing_id}/"
+        ) ++
         (session_ids
          |> Enum.filter(&is_binary/1)
          |> Enum.uniq()

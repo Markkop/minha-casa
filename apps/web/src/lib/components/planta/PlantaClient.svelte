@@ -1,31 +1,16 @@
 <script lang="ts">
-  import { onMount } from "svelte";
-  import {
-    ArrowDown,
-    ArrowUp,
-    Copy,
-    Eye,
-    EyeOff,
-    Grid3X3,
-    Hand,
-    ImageOff,
-    ImageUp,
-    Layers,
-    Lock,
-    Maximize2,
-    Minus,
-    MousePointer2,
-    PanelLeft,
-    PanelRight,
-    RotateCcw,
-    Square,
-    Trash2,
-    Unlock
-  } from "@lucide/svelte";
+  import { onDestroy } from "svelte";
+  import { browser } from "$app/environment";
+  import { goto } from "$app/navigation";
+  import { page } from "$app/state";
+  import { Grid3X3, Layers, PanelLeft, PanelRight, Trash2 } from "@lucide/svelte";
   import Button from "$lib/components/ui/Button.svelte";
-  import Slider from "$lib/components/ui/Slider.svelte";
   import WorkspacePage from "$lib/components/workspace/WorkspacePage.svelte";
   import { formatApiError } from "$lib/api/error-message";
+  import { ApiError } from "$lib/api/client";
+  import { getCollectionsContext } from "$lib/collections-context.svelte";
+  import { workspaceApi } from "$lib/workspace/client";
+  import { getWorkspaceProfilesContext } from "$lib/workspace/workspace-profiles-context.svelte";
   import { cn } from "$lib/utils";
   import { resizePlantaFile } from "$lib/components/planta/planta-image";
   import {
@@ -37,7 +22,18 @@
   } from "$lib/components/planta/history";
   import { snapShape } from "$lib/components/planta/snap";
   import PlantaCanvas from "$lib/components/planta/PlantaCanvas.svelte";
-  import PlantaCanvasSettings from "$lib/components/planta/PlantaCanvasSettings.svelte";
+  import PlantaToolbar from "$lib/components/planta/PlantaToolbar.svelte";
+  import PlantaImageDialog from "$lib/components/planta/PlantaImageDialog.svelte";
+  import PlantaDesignPanel from "$lib/components/planta/PlantaDesignPanel.svelte";
+  import PlantaLayersPanel from "$lib/components/planta/PlantaLayersPanel.svelte";
+  import { floorPlansApi } from "$lib/components/planta/floor-plans-api";
+  import { PLANTA_TOOLS } from "$lib/components/planta/planta-tools";
+  import {
+    areaLinksFromDocument,
+    hydrateFloorPlanDocument,
+    legacyListingEnvironments,
+    persistentFloorPlanDocument
+  } from "$lib/components/planta/floor-plan-document";
   import {
     createPlantaDocument,
     createShapeId,
@@ -46,34 +42,28 @@
     getShapesUnionBounds,
     getShapeBounds,
     getShapeName,
-    parsePlantaDocument,
     zoomAtCenter
   } from "$lib/components/planta/state";
-  import {
-    LEGACY_REFORMA_STORAGE_KEY,
-    PLANTA_STORAGE_KEY,
-    type PlantaDocument,
-    type PlantaShape,
-    type PlantaTool
-  } from "$lib/components/planta/types";
+  import type { FloorPlan, ListingEnvironment, PlantaDocument, PlantaShape, PlantaTool } from "$lib/components/planta/types";
 
-  const tools: Array<{
-    id: PlantaTool;
-    label: string;
-    icon: typeof MousePointer2;
-  }> = [
-    { id: "select", label: "Selecionar", icon: MousePointer2 },
-    { id: "pan", label: "Mover tela", icon: Hand },
-    { id: "line", label: "Linha", icon: Minus },
-    { id: "rect", label: "Retangulo", icon: Square },
-    { id: "square", label: "Quadrado", icon: Grid3X3 }
-  ];
-
+  const ctx = getCollectionsContext();
+  const profiles = getWorkspaceProfilesContext();
   let planner = $state<PlantaDocument>(createPlantaDocument());
   let tool = $state<PlantaTool>("select");
   let selectedShapeIds = $state<string[]>([]);
   let spacePressed = $state(false);
-  let hydrated = $state(false);
+  let floorPlans = $state<FloorPlan[]>([]);
+  let activeFloorPlan = $state<FloorPlan | null>(null);
+  let activeFloorPlanCollectionId = $state<string | null>(null);
+  let environments = $state<ListingEnvironment[]>([]);
+  let listingAccess = $state<string | null>(null);
+  let loadingPlans = $state(false);
+  let activeContextKey = $state<string | null>(null);
+  let loadVersion = 0;
+  let saveTimer: ReturnType<typeof setTimeout> | null = null;
+  let saveChain: Promise<void> = Promise.resolve();
+  let lastSavedDocument = $state("");
+  let previewImageUrl = $state<string | null>(null);
   let uploadError = $state<string | null>(null);
   let fileInput: HTMLInputElement | null = $state(null);
   let canvasRef = $state<{ cancelDraft: () => void }>();
@@ -97,27 +87,125 @@
     selectedShapeIds.length === 1 && selectedShape ? getShapeBounds(selectedShape) : null
   );
   const selectionUnionBounds = $derived(getShapesUnionBounds(selectedShapes));
-  const layerRows = $derived(
-    planner.shapes.map((shape, index) => ({ shape, index })).toReversed()
+  const layerRows = $derived(planner.shapes.map((shape, index) => ({ shape, index })).toReversed());
+  const activeCollectionId = $derived(ctx.activeCollection?.id ?? null);
+  const requestedListingId = $derived(page.url.searchParams.get("listing"));
+  const activeListing = $derived(
+    ctx.listings.find((listing) => listing.id === requestedListingId) ?? null
   );
+  const selectedEnvironment = $derived(
+    selectedShapeIds.length === 1 && selectedShape?.type === "rect" && selectedShape.environmentId
+      ? environments.find((environment) => environment.id === selectedShape.environmentId) ?? null
+      : null
+  );
+  const selectedEnvironmentImages = $derived(selectedEnvironment?.images ?? []);
+  const readOnly = $derived(listingAccess === "viewer" || profiles.activeProfile?.status === "frozen");
 
-  function loadStoredPlantaDocument(): PlantaDocument {
-    const current = localStorage.getItem(PLANTA_STORAGE_KEY);
-    if (current) return parsePlantaDocument(current);
-
-    const legacy = localStorage.getItem(LEGACY_REFORMA_STORAGE_KEY);
-    if (legacy) {
-      localStorage.setItem(PLANTA_STORAGE_KEY, legacy);
-      return parsePlantaDocument(legacy);
-    }
-
-    return parsePlantaDocument(null);
+  function replaceFloorPlan(next: FloorPlan) {
+    floorPlans = floorPlans.map((plan) => (plan.id === next.id ? next : plan));
+    if (activeFloorPlan?.id === next.id) activeFloorPlan = next;
   }
 
-  onMount(() => {
-    planner = loadStoredPlantaDocument();
+  function setPlanQuery(planId: string | null, replaceState = true) {
+    if (!browser) return;
+    const params = new URLSearchParams(page.url.searchParams);
+    if (planId) params.set("plan", planId);
+    else params.delete("plan");
+    const query = params.toString();
+    void goto(`${page.url.pathname}${query ? `?${query}` : ""}`, {
+      replaceState,
+      noScroll: true,
+      keepFocus: true
+    });
+  }
+
+  function activateFloorPlan(floorPlan: FloorPlan | null, collectionId?: string | null) {
+    activeFloorPlan = floorPlan;
+    activeFloorPlanCollectionId = floorPlan ? (collectionId ?? activeCollectionId) : null;
+    planner = floorPlan ? hydrateFloorPlanDocument(floorPlan) : createPlantaDocument();
+    lastSavedDocument = floorPlan ? JSON.stringify(planner) : "";
+    selectedShapeIds = [];
     undoStack = [];
-    hydrated = true;
+    uploadError = null;
+  }
+
+  async function loadContext(collectionId: string, listingId: string) {
+    const version = ++loadVersion;
+    await flushAutosave();
+    if (version !== loadVersion) return;
+    loadingPlans = true;
+    activateFloorPlan(null);
+    try {
+      const listing = ctx.listings.find((item) => item.id === listingId) ?? null;
+      const [plansResult, environmentsResult, listingResult] = await Promise.all([
+        floorPlansApi.list(collectionId, listingId),
+        floorPlansApi.listEnvironments(collectionId, listingId).catch(() => ({
+          images: [],
+          environments: listing ? legacyListingEnvironments(listing) : []
+        })),
+        workspaceApi.fetchListing(listingId)
+      ]);
+      if (version !== loadVersion) return;
+      floorPlans = plansResult.floorPlans;
+      environments = environmentsResult.environments;
+      listingAccess = listingResult.access;
+      const requestedPlanId = page.url.searchParams.get("plan");
+      const listedPlan =
+        floorPlans.find((plan) => plan.id === requestedPlanId) ?? floorPlans[0] ?? null;
+      if (!listedPlan) {
+        setPlanQuery(null);
+        return;
+      }
+      const { floorPlan } = await floorPlansApi.get(collectionId, listingId, listedPlan.id);
+      if (version !== loadVersion) return;
+      replaceFloorPlan(floorPlan);
+      activateFloorPlan(floorPlan, collectionId);
+      if (requestedPlanId !== floorPlan.id) setPlanQuery(floorPlan.id);
+    } catch (error) {
+      if (version !== loadVersion) return;
+      uploadError = formatApiError(error);
+      floorPlans = [];
+      environments = [];
+      listingAccess = null;
+    } finally {
+      if (version === loadVersion) loadingPlans = false;
+    }
+  }
+
+  $effect(() => {
+    const collectionId = activeCollectionId;
+    const listingId = activeListing?.id ?? null;
+    const key = collectionId && listingId ? `${collectionId}:${listingId}` : null;
+    if (key === activeContextKey) return;
+    activeContextKey = key;
+    if (!collectionId || !listingId) {
+      loadVersion += 1;
+      floorPlans = [];
+      environments = [];
+      listingAccess = null;
+      activateFloorPlan(null);
+      return;
+    }
+    void loadContext(collectionId, listingId);
+  });
+
+  $effect(() => {
+    if (!activeFloorPlan || loadingPlans || readOnly) return;
+    const serialized = JSON.stringify(planner);
+    if (serialized === lastSavedDocument) return;
+    scheduleAutosave();
+  });
+
+  $effect(() => {
+    const requestedPlanId = page.url.searchParams.get("plan");
+    if (!requestedPlanId || requestedPlanId === activeFloorPlan?.id || loadingPlans) return;
+    const target = floorPlans.find((plan) => plan.id === requestedPlanId);
+    if (target) void selectFloorPlan(target.id);
+  });
+
+  onDestroy(() => {
+    if (saveTimer) clearTimeout(saveTimer);
+    void flushAutosave();
   });
 
   function recordUndo() {
@@ -149,10 +237,119 @@
     isApplyingHistory = false;
   }
 
-  $effect(() => {
-    if (!hydrated) return;
-    localStorage.setItem(PLANTA_STORAGE_KEY, JSON.stringify(planner));
-  });
+  function scheduleAutosave() {
+    if (readOnly) return;
+    if (saveTimer) clearTimeout(saveTimer);
+    saveTimer = setTimeout(() => void flushAutosave(), 500);
+  }
+
+  function flushAutosave(): Promise<void> {
+    if (saveTimer) {
+      clearTimeout(saveTimer);
+      saveTimer = null;
+    }
+    const floorPlan = activeFloorPlan;
+    const collectionId = activeFloorPlanCollectionId;
+    const snapshot = planner;
+    const serialized = JSON.stringify(snapshot);
+    if (readOnly || !floorPlan || !collectionId || serialized === lastSavedDocument) return saveChain;
+    lastSavedDocument = serialized;
+    saveChain = saveChain.then(async () => {
+      const current = floorPlans.find((plan) => plan.id === floorPlan.id) ?? floorPlan;
+      try {
+        const { floorPlan: saved } = await floorPlansApi.saveDocument(
+          collectionId,
+          current.listingId,
+          current.id,
+          persistentFloorPlanDocument(snapshot),
+          areaLinksFromDocument(snapshot),
+          current.revision
+        );
+        replaceFloorPlan(saved);
+      } catch (error) {
+        if (error instanceof ApiError && error.status === 409) {
+          const { floorPlan: latest } = await floorPlansApi.get(
+            collectionId,
+            current.listingId,
+            current.id
+          );
+          replaceFloorPlan(latest);
+          if (activeFloorPlan?.id === latest.id) activateFloorPlan(latest, collectionId);
+          uploadError = formatApiError(error);
+          return;
+        }
+        lastSavedDocument = "";
+        uploadError = formatApiError(error);
+      }
+    });
+    return saveChain;
+  }
+
+  async function selectFloorPlan(floorPlanId: string) {
+    if (!activeCollectionId || !activeListing || floorPlanId === activeFloorPlan?.id) return;
+    await flushAutosave();
+    loadingPlans = true;
+    try {
+      const { floorPlan } = await floorPlansApi.get(
+        activeCollectionId,
+        activeListing.id,
+        floorPlanId
+      );
+      replaceFloorPlan(floorPlan);
+      activateFloorPlan(floorPlan, activeCollectionId);
+      setPlanQuery(floorPlan.id, false);
+    } catch (error) {
+      uploadError = formatApiError(error);
+    } finally {
+      loadingPlans = false;
+    }
+  }
+
+  async function createFloorPlan() {
+    if (readOnly || !activeCollectionId || !activeListing || loadingPlans) return;
+    await flushAutosave();
+    uploadError = null;
+    try {
+      const { floorPlan } = await floorPlansApi.create(activeCollectionId, activeListing.id);
+      floorPlans = [...floorPlans, floorPlan];
+      activateFloorPlan(floorPlan, activeCollectionId);
+      setPlanQuery(floorPlan.id, false);
+    } catch (error) {
+      uploadError = formatApiError(error);
+    }
+  }
+
+  async function renameFloorPlan(name: string) {
+    const trimmed = name.trim();
+    if (readOnly || !activeCollectionId || !activeFloorPlan || !trimmed || trimmed === activeFloorPlan.name) return;
+    try {
+      const { floorPlan } = await floorPlansApi.rename(
+        activeCollectionId,
+        activeFloorPlan.listingId,
+        activeFloorPlan.id,
+        trimmed
+      );
+      replaceFloorPlan(floorPlan);
+    } catch (error) {
+      uploadError = formatApiError(error);
+    }
+  }
+
+  async function deleteFloorPlan() {
+    if (readOnly || !activeCollectionId || !activeFloorPlan) return;
+    if (!window.confirm(`Excluir ${activeFloorPlan.name}?`)) return;
+    await flushAutosave();
+    const removedId = activeFloorPlan.id;
+    try {
+      await floorPlansApi.remove(activeCollectionId, activeFloorPlan.listingId, removedId);
+      floorPlans = floorPlans.filter((plan) => plan.id !== removedId);
+      const fallback = floorPlans[0] ?? null;
+      activateFloorPlan(fallback, activeCollectionId);
+      setPlanQuery(fallback?.id ?? null);
+    } catch (error) {
+      uploadError = formatApiError(error);
+    }
+  }
 
   function setTool(next: PlantaTool) {
     tool = next;
@@ -167,28 +364,59 @@
   }
 
   function toggleBlueprintHand() {
+    if (readOnly) return;
     blueprintHandActive = !blueprintHandActive;
   }
 
-  function removeBlueprint() {
+  async function removeBlueprint() {
+    if (readOnly || !activeFloorPlan || !activeFloorPlanCollectionId) return;
     blueprintHandActive = false;
-    recordUndo();
-    planner = { ...planner, blueprint: null };
+    await flushAutosave();
+    try {
+      const { floorPlan } = await floorPlansApi.removeBlueprint(
+        activeFloorPlanCollectionId,
+        activeFloorPlan.listingId,
+        activeFloorPlan.id
+      );
+      recordUndo();
+      replaceFloorPlan(floorPlan);
+      planner = { ...planner, blueprint: null };
+    } catch (error) {
+      uploadError = formatApiError(error);
+    }
   }
 
   async function handleBlueprintUpload(event: Event) {
     const input = event.currentTarget as HTMLInputElement;
     const file = input.files?.[0];
     if (!file) return;
+    if (readOnly || !activeFloorPlan || !activeFloorPlanCollectionId) {
+      input.value = "";
+      return;
+    }
 
     uploadError = null;
     try {
+      if (file.size > 10 * 1024 * 1024) throw new Error("A imagem deve ter no máximo 10 MiB.");
       const image = await resizePlantaFile(file);
+      await flushAutosave();
+      const { floorPlan } = await floorPlansApi.uploadBlueprint(
+        activeFloorPlanCollectionId,
+        activeFloorPlan.listingId,
+        activeFloorPlan.id,
+        image.blob,
+        image.naturalWidth,
+        image.naturalHeight
+      );
+      if (!floorPlan.blueprint) throw new Error("Nao foi possivel usar essa imagem.");
+      replaceFloorPlan(floorPlan);
       recordUndo();
       planner = {
         ...planner,
         blueprint: {
-          ...image,
+          url: floorPlan.blueprint.url,
+          naturalWidth: floorPlan.blueprint.width ?? image.naturalWidth,
+          naturalHeight: floorPlan.blueprint.height ?? image.naturalHeight,
           x: 0,
           y: 0,
           scale: getInitialBlueprintScale(image.naturalWidth, image.naturalHeight),
@@ -210,7 +438,7 @@
   }
 
   function fitBlueprint() {
-    if (!planner.blueprint || canvasWidth <= 0 || canvasHeight <= 0) return;
+    if (readOnly || !planner.blueprint || canvasWidth <= 0 || canvasHeight <= 0) return;
 
     const visibleWidth = canvasWidth / planner.viewport.scale;
     const visibleHeight = canvasHeight / planner.viewport.scale;
@@ -298,7 +526,7 @@
   }
 
   function updateBlueprintScale(nextPercent: number) {
-    if (!planner.blueprint) return;
+    if (readOnly || !planner.blueprint) return;
     planner = {
       ...planner,
       blueprint: {
@@ -309,7 +537,7 @@
   }
 
   function updateBlueprintOpacity(nextPercent: number) {
-    if (!planner.blueprint) return;
+    if (readOnly || !planner.blueprint) return;
     planner = {
       ...planner,
       blueprint: {
@@ -320,6 +548,7 @@
   }
 
   function toggleGrid() {
+    if (readOnly) return;
     planner = {
       ...planner,
       grid: {
@@ -330,6 +559,7 @@
   }
 
   function updateShape(shapeId: string, patch: Partial<PlantaShape>) {
+    if (readOnly) return;
     recordUndo();
     planner = {
       ...planner,
@@ -337,6 +567,18 @@
         shape.id === shapeId ? ({ ...shape, ...patch } as PlantaShape) : shape
       )
     };
+  }
+
+  function displayShapeName(shape: PlantaShape, index: number) {
+    if (shape.type === "rect") {
+      const customName = shape.customName?.trim();
+      if (customName) return customName;
+      const environmentName = environments.find(
+        (environment) => environment.id === shape.environmentId
+      )?.name;
+      if (environmentName) return environmentName;
+    }
+    return getShapeName(shape, index);
   }
 
   function updateSelectedBounds(patch: Partial<{ x: number; y: number; width: number; height: number }>) {
@@ -408,7 +650,7 @@
   }
 
   function deleteSelectedShape() {
-    if (selectedShapeIds.length === 0) return;
+    if (readOnly || selectedShapeIds.length === 0) return;
     recordUndo();
     planner = {
       ...planner,
@@ -418,7 +660,7 @@
   }
 
   function duplicateSelectedShape() {
-    if (!selectedShape || selectedIndex < 0) return;
+    if (readOnly || !selectedShape || selectedIndex < 0) return;
     recordUndo();
     const offset = 24;
     const copy: PlantaShape =
@@ -426,7 +668,6 @@
         ? {
             ...selectedShape,
             id: createShapeId(),
-            name: `${selectedShape.name || getShapeName(selectedShape, selectedIndex)} copia`,
             x: selectedShape.x + offset,
             y: selectedShape.y + offset,
             locked: false,
@@ -453,7 +694,7 @@
   }
 
   function moveSelectedLayer(direction: "up" | "down") {
-    if (selectedIndex < 0) return;
+    if (readOnly || selectedIndex < 0) return;
     const nextIndex = direction === "up" ? selectedIndex + 1 : selectedIndex - 1;
     if (nextIndex < 0 || nextIndex >= planner.shapes.length) return;
     recordUndo();
@@ -463,21 +704,22 @@
   }
 
   function clearShapes() {
+    if (readOnly) return;
     recordUndo();
     planner = { ...planner, shapes: [] };
     selectedShapeIds = [];
   }
 
   function resetPlanner() {
+    if (readOnly) return;
     recordUndo();
-    planner = createPlantaDocument();
+    planner = {
+      ...createPlantaDocument(),
+      blueprint: planner.blueprint
+    };
     selectedShapeIds = [];
     tool = "select";
     uploadError = null;
-  }
-
-  function numberValue(event: Event) {
-    return Number((event.currentTarget as HTMLInputElement).value);
   }
 
   function shouldIgnoreShortcut(event: KeyboardEvent) {
@@ -504,6 +746,10 @@
 
     const key = event.key.toLowerCase();
     const mod = event.metaKey || event.ctrlKey;
+
+    if (readOnly && (key === "delete" || key === "backspace" || (mod && key === "z"))) {
+      return;
+    }
 
     if (key === "escape") {
       canvasRef?.cancelDraft();
@@ -553,7 +799,7 @@
       return;
     }
 
-    if (event.altKey || mod || event.shiftKey) return;
+    if (event.altKey || mod || event.shiftKey || readOnly) return;
 
     if (key === "v") {
       event.preventDefault();
@@ -597,59 +843,30 @@
     onchange={handleBlueprintUpload}
   />
 
-  <header class="flex h-11 shrink-0 items-center gap-2 border-b border-app-border bg-app-surface px-2">
-    <div class="flex min-w-0 items-center gap-2 pr-2">
-      <div class="flex h-7 w-7 items-center justify-center rounded-md bg-app-action text-app-action-foreground">
-        <Layers class="h-4 w-4" />
-      </div>
-      <div class="hidden min-w-0 sm:block">
-        <div class="truncate text-sm font-semibold leading-tight text-app-fg">Planta</div>
-        <div class="truncate text-[11px] leading-tight text-app-muted">Local draft</div>
-      </div>
-    </div>
-
-    <div class="flex items-center gap-1 border-l border-app-border pl-2">
-      <Button
-        size="icon"
-        class="h-8 w-8"
-        variant={layersPanelOpen ? "primary" : "secondary"}
-        title={layersPanelOpen ? "Ocultar painel de layers" : "Mostrar painel de layers"}
-        ariaLabel={layersPanelOpen ? "Ocultar painel de layers" : "Mostrar painel de layers"}
-        onclick={toggleLayersPanel}
-      >
-        <PanelLeft class="h-4 w-4" />
-      </Button>
-      <Button
-        size="icon"
-        class="h-8 w-8"
-        variant={designPanelOpen ? "primary" : "secondary"}
-        title={designPanelOpen ? "Ocultar painel de design" : "Mostrar painel de design"}
-        ariaLabel={designPanelOpen ? "Ocultar painel de design" : "Mostrar painel de design"}
-        onclick={toggleDesignPanel}
-      >
-        <PanelRight class="h-4 w-4" />
-      </Button>
-      <Button size="icon" class="h-8 w-8" variant="secondary" title="Enviar planta" ariaLabel="Enviar planta" onclick={() => fileInput?.click()}>
-        <ImageUp class="h-4 w-4" />
-      </Button>
-      <Button size="icon" class="h-8 w-8" variant="secondary" title="Ajustar planta" ariaLabel="Ajustar planta" disabled={!planner.blueprint} onclick={fitBlueprint}>
-        <Maximize2 class="h-4 w-4" />
-      </Button>
-      <Button size="icon" class="h-8 w-8" variant="secondary" title="Ajustar vista (Shift+1)" ariaLabel="Ajustar vista" onclick={resetViewport}>
-        <RotateCcw class="h-4 w-4" />
-      </Button>
-    </div>
-
-    <div class="ml-auto flex min-w-[12rem] max-w-[18rem] flex-1 items-center gap-2 px-2 text-xs text-app-muted">
-      <span class="w-9 text-right font-mono text-app-fg">{zoomPercent}%</span>
-      <Slider value={zoomPercent} min={20} max={400} step={5} onValueChange={updateZoom} ariaLabel="Zoom da tela" />
-    </div>
-
-    <div class="hidden items-center gap-2 border-l border-app-border pl-2 text-xs text-app-muted sm:flex">
-      <span>{planner.shapes.length} objetos</span>
-      <span>{planner.blueprint ? "Planta ativa" : "Sem planta"}</span>
-    </div>
-  </header>
+  <PlantaToolbar
+    {floorPlans}
+    {activeFloorPlan}
+    {loadingPlans}
+    {readOnly}
+    hasActiveListing={Boolean(activeListing)}
+    {layersPanelOpen}
+    {designPanelOpen}
+    hasBlueprint={Boolean(planner.blueprint)}
+    {zoomPercent}
+    {selectedEnvironment}
+    {selectedEnvironmentImages}
+    onSelectFloorPlan={(id) => void selectFloorPlan(id)}
+    onRenameFloorPlan={(name) => void renameFloorPlan(name)}
+    onCreateFloorPlan={() => void createFloorPlan()}
+    onDeleteFloorPlan={() => void deleteFloorPlan()}
+    onToggleLayers={toggleLayersPanel}
+    onToggleDesign={toggleDesignPanel}
+    onUpload={() => fileInput?.click()}
+    onFitBlueprint={fitBlueprint}
+    onResetViewport={resetViewport}
+    onPreviewImage={(url) => (previewImageUrl = url)}
+    onUpdateZoom={updateZoom}
+  />
 
   {#if uploadError}
     <div class="border-b border-app-warning/40 bg-app-warning/10 px-3 py-2 text-sm text-app-warning">
@@ -670,7 +887,7 @@
     )}
   >
     <nav class="flex min-h-0 flex-col items-center gap-1 border-r border-app-border bg-app-surface px-1.5 py-2">
-      {#each tools as item}
+      {#each PLANTA_TOOLS as item}
         {@const Icon = item.icon}
         <Button
           variant={tool === item.id ? "primary" : "ghost"}
@@ -678,6 +895,7 @@
           class="h-9 w-9"
           title={item.label}
           ariaLabel={item.label}
+          disabled={readOnly || !activeFloorPlan}
           onclick={() => setTool(item.id)}
         >
           <Icon class="h-4 w-4" />
@@ -695,7 +913,7 @@
         >
           <Layers class="h-4 w-4" />
         </Button>
-        <Button variant={planner.grid.visible ? "primary" : "ghost"} size="icon" class="h-9 w-9" title="Grade" ariaLabel="Grade" onclick={toggleGrid}>
+        <Button variant={planner.grid.visible ? "primary" : "ghost"} size="icon" class="h-9 w-9" title="Grade" ariaLabel="Grade" disabled={readOnly} onclick={toggleGrid}>
           <Grid3X3 class="h-4 w-4" />
         </Button>
         <Button
@@ -708,89 +926,26 @@
         >
           <PanelRight class="h-4 w-4" />
         </Button>
-        <Button variant="ghost" size="icon" class="h-9 w-9" title="Resetar tudo" ariaLabel="Resetar tudo" onclick={resetPlanner}>
+        <Button variant="ghost" size="icon" class="h-9 w-9" title="Resetar tudo" ariaLabel="Resetar tudo" disabled={readOnly} onclick={resetPlanner}>
           <Trash2 class="h-4 w-4" />
         </Button>
       </div>
     </nav>
 
     {#if layersPanelOpen}
-      <aside class="hidden min-h-0 flex-col border-r border-app-border bg-app-surface text-sm md:flex">
-        <div class="flex h-10 shrink-0 items-center justify-between border-b border-app-border px-3">
-          <div class="flex items-center gap-2 font-semibold text-app-fg">
-            <Layers class="h-4 w-4" />
-            Layers
-          </div>
-          <div class="flex items-center gap-0.5">
-            <Button variant="ghost" size="icon" class="h-7 w-7" title="Ocultar painel" ariaLabel="Ocultar painel" onclick={toggleLayersPanel}>
-              <PanelLeft class="h-3.5 w-3.5" />
-            </Button>
-            <Button variant="ghost" size="icon" class="h-7 w-7" title="Limpar objetos" ariaLabel="Limpar objetos" disabled={planner.shapes.length === 0} onclick={clearShapes}>
-              <Trash2 class="h-3.5 w-3.5" />
-            </Button>
-          </div>
-        </div>
-
-      <div class="min-h-0 flex-1 overflow-y-auto p-2">
-        {#if planner.blueprint}
-          <div class="mb-2 flex h-8 items-center gap-2 rounded-md px-2 text-xs text-app-muted">
-            <ImageUp class="h-3.5 w-3.5" />
-            <span class="min-w-0 flex-1 truncate">Planta</span>
-            <Button variant="ghost" size="icon" class="h-6 w-6" title="Remover planta" ariaLabel="Remover planta" onclick={removeBlueprint}>
-              <ImageOff class="h-3.5 w-3.5" />
-            </Button>
-          </div>
-        {/if}
-
-        {#if layerRows.length === 0}
-          <div class="rounded-md border border-dashed border-app-border px-3 py-5 text-center text-xs leading-relaxed text-app-muted">
-            Desenhe linhas, retangulos ou quadrados para criar layers.
-          </div>
-        {:else}
-          <div class="space-y-1">
-            {#each layerRows as row (row.shape.id)}
-              {@const shape = row.shape}
-              {@const isActive = selectedShapeIds.includes(shape.id)}
-              <div
-                class={cn(
-                  "group flex h-8 min-w-0 items-center gap-1 rounded-md px-1 text-xs",
-                  isActive ? "bg-app-action text-app-action-foreground" : "text-app-fg hover:bg-app-bg",
-                  shape.visible === false && "opacity-50"
-                )}
-              >
-                <button
-                  class="flex min-w-0 flex-1 items-center gap-2 rounded px-1 text-left"
-                  onclick={() => selectShape(shape)}
-                  disabled={shape.visible === false || shape.locked}
-                  title={getShapeName(shape, row.index)}
-                >
-                  {#if shape.type === "rect"}
-                    <Square class="h-3.5 w-3.5 shrink-0" />
-                  {:else}
-                    <Minus class="h-3.5 w-3.5 shrink-0" />
-                  {/if}
-                  <span class="truncate">{getShapeName(shape, row.index)}</span>
-                </button>
-                <button class="flex h-6 w-6 items-center justify-center rounded hover:bg-app-surface-muted/70" onclick={() => toggleShapeVisibility(shape)} title={shape.visible === false ? "Mostrar" : "Ocultar"}>
-                  {#if shape.visible === false}
-                    <EyeOff class="h-3.5 w-3.5" />
-                  {:else}
-                    <Eye class="h-3.5 w-3.5" />
-                  {/if}
-                </button>
-                <button class="flex h-6 w-6 items-center justify-center rounded hover:bg-app-surface-muted/70" onclick={() => toggleShapeLock(shape)} title={shape.locked ? "Destravar" : "Travar"}>
-                  {#if shape.locked}
-                    <Lock class="h-3.5 w-3.5" />
-                  {:else}
-                    <Unlock class="h-3.5 w-3.5" />
-                  {/if}
-                </button>
-              </div>
-            {/each}
-          </div>
-        {/if}
-      </div>
-      </aside>
+      <PlantaLayersPanel
+        rows={layerRows}
+        {selectedShapeIds}
+        hasBlueprint={Boolean(planner.blueprint)}
+        {readOnly}
+        getName={displayShapeName}
+        onClose={toggleLayersPanel}
+        onClear={clearShapes}
+        onRemoveBlueprint={() => void removeBlueprint()}
+        onSelect={selectShape}
+        onToggleVisibility={toggleShapeVisibility}
+        onToggleLock={toggleShapeLock}
+      />
     {/if}
 
     <main class="min-h-0 bg-app-bg p-2">
@@ -803,109 +958,39 @@
         {tool}
         {spacePressed}
         {blueprintHandActive}
+        {readOnly}
         recordUndo={recordUndo}
       />
     </main>
 
     {#if designPanelOpen}
-      <aside class="hidden min-h-0 flex-col border-l border-app-border bg-app-surface text-sm lg:flex">
-        <div class="flex h-10 shrink-0 items-center justify-between border-b border-app-border px-3">
-          <div class="flex items-center gap-2 font-semibold text-app-fg">
-            <PanelRight class="h-4 w-4" />
-            Design
-          </div>
-          <Button variant="ghost" size="icon" class="h-7 w-7" title="Ocultar painel" ariaLabel="Ocultar painel" onclick={toggleDesignPanel}>
-            <PanelRight class="h-3.5 w-3.5" />
-          </Button>
-        </div>
-
-        <div class="min-h-0 flex-1 overflow-y-auto">
-        <section class="border-b border-app-border p-3">
-          <div class="mb-3 flex items-center justify-between gap-3">
-            <h2 class="text-xs font-semibold uppercase text-app-muted">Selection</h2>
-            <div class="flex items-center gap-1">
-              <Button variant="ghost" size="icon" class="h-7 w-7" title="Mover layer para cima" ariaLabel="Mover layer para cima" disabled={selectedIndex < 0 || selectedIndex >= planner.shapes.length - 1} onclick={() => moveSelectedLayer("up")}>
-                <ArrowUp class="h-3.5 w-3.5" />
-              </Button>
-              <Button variant="ghost" size="icon" class="h-7 w-7" title="Mover layer para baixo" ariaLabel="Mover layer para baixo" disabled={selectedIndex <= 0} onclick={() => moveSelectedLayer("down")}>
-                <ArrowDown class="h-3.5 w-3.5" />
-              </Button>
-              <Button variant="ghost" size="icon" class="h-7 w-7" title="Duplicar" ariaLabel="Duplicar" disabled={selectedShapeIds.length !== 1} onclick={duplicateSelectedShape}>
-                <Copy class="h-3.5 w-3.5" />
-              </Button>
-              <Button variant="ghost" size="icon" class="h-7 w-7" title="Apagar" ariaLabel="Apagar" disabled={selectedShapeIds.length === 0} onclick={deleteSelectedShape}>
-                <Trash2 class="h-3.5 w-3.5" />
-              </Button>
-            </div>
-          </div>
-
-          {#if selectedShapeIds.length > 1}
-            <p class="text-xs leading-relaxed text-app-muted">
-              {selectedShapeIds.length} objetos selecionados. Use Shift+clique ou arraste uma area para selecionar varios. Delete apaga todos.
-            </p>
-          {:else if selectedShape && selectedBounds}
-            <label class="mb-3 block text-xs text-app-muted">
-              Nome
-              <input
-                class="mt-1 h-8 w-full rounded-md border border-app-border bg-app-bg px-2 text-sm text-app-fg outline-none focus:border-app-accent"
-                value={getShapeName(selectedShape, selectedIndex)}
-                oninput={(event) => updateShape(selectedShape.id, { name: (event.currentTarget as HTMLInputElement).value })}
-              />
-            </label>
-
-            <div class="grid grid-cols-2 gap-2">
-              <label class="text-xs text-app-muted">X<input class="mt-1 h-8 w-full rounded-md border border-app-border bg-app-bg px-2 font-mono text-xs text-app-fg outline-none focus:border-app-accent" type="number" value={Math.round(selectedBounds.x)} oninput={(event) => updateSelectedBounds({ x: numberValue(event) })} /></label>
-              <label class="text-xs text-app-muted">Y<input class="mt-1 h-8 w-full rounded-md border border-app-border bg-app-bg px-2 font-mono text-xs text-app-fg outline-none focus:border-app-accent" type="number" value={Math.round(selectedBounds.y)} oninput={(event) => updateSelectedBounds({ y: numberValue(event) })} /></label>
-              <label class="text-xs text-app-muted">W<input class="mt-1 h-8 w-full rounded-md border border-app-border bg-app-bg px-2 font-mono text-xs text-app-fg outline-none focus:border-app-accent" type="number" min="4" value={Math.round(selectedBounds.width)} oninput={(event) => updateSelectedBounds({ width: numberValue(event) })} /></label>
-              <label class="text-xs text-app-muted">H<input class="mt-1 h-8 w-full rounded-md border border-app-border bg-app-bg px-2 font-mono text-xs text-app-fg outline-none focus:border-app-accent" type="number" min="4" value={Math.round(selectedBounds.height)} oninput={(event) => updateSelectedBounds({ height: numberValue(event) })} /></label>
-            </div>
-
-            <div class="mt-3 grid grid-cols-[1fr_4rem] gap-2">
-              <label class="text-xs text-app-muted">Stroke<input class="mt-1 h-8 w-full rounded-md border border-app-border bg-app-bg px-2 text-app-fg outline-none focus:border-app-accent" type="color" value={selectedShape.stroke} oninput={(event) => updateShape(selectedShape.id, { stroke: (event.currentTarget as HTMLInputElement).value })} /></label>
-              <label class="text-xs text-app-muted">Width<input class="mt-1 h-8 w-full rounded-md border border-app-border bg-app-bg px-2 font-mono text-xs text-app-fg outline-none focus:border-app-accent" type="number" min="1" max="16" value={selectedShape.strokeWidth} oninput={(event) => updateShape(selectedShape.id, { strokeWidth: numberValue(event) })} /></label>
-            </div>
-          {:else}
-            <p class="text-xs leading-relaxed text-app-muted">Selecione um layer no canvas ou no painel esquerdo para editar as propriedades do node.</p>
-          {/if}
-        </section>
-
-        <section class="border-b border-app-border p-3">
-          <div class="mb-3 flex items-center justify-between">
-            <h2 class="text-xs font-semibold uppercase text-app-muted">Planta</h2>
-            <div class="flex items-center gap-0.5">
-              <Button
-                variant={blueprintHandActive ? "primary" : "ghost"}
-                size="icon"
-                class="h-7 w-7"
-                title="Mover planta"
-                ariaLabel="Mover planta"
-                disabled={!planner.blueprint}
-                onclick={toggleBlueprintHand}
-              >
-                <Hand class="h-3.5 w-3.5" />
-              </Button>
-              <Button variant="ghost" size="icon" class="h-7 w-7" title="Remover planta" ariaLabel="Remover planta" disabled={!planner.blueprint} onclick={removeBlueprint}>
-                <ImageOff class="h-3.5 w-3.5" />
-              </Button>
-            </div>
-          </div>
-          <div class="space-y-3">
-            <label class="grid grid-cols-[4.5rem_minmax(0,1fr)_2.6rem] items-center gap-2 text-xs text-app-muted">
-              <span>Scale</span>
-              <Slider value={planner.blueprint ? Math.round(planner.blueprint.scale * 100) : 100} min={5} max={300} step={5} disabled={!planner.blueprint} onValueChange={updateBlueprintScale} ariaLabel="Tamanho da planta" />
-              <span class="text-right font-mono text-app-fg">{planner.blueprint ? Math.round(planner.blueprint.scale * 100) : 100}%</span>
-            </label>
-            <label class="grid grid-cols-[4.5rem_minmax(0,1fr)_2.6rem] items-center gap-2 text-xs text-app-muted">
-              <span>Opacity</span>
-              <Slider value={planner.blueprint ? Math.round(planner.blueprint.opacity * 100) : 72} min={10} max={100} step={5} disabled={!planner.blueprint} onValueChange={updateBlueprintOpacity} ariaLabel="Opacidade da planta" />
-              <span class="text-right font-mono text-app-fg">{planner.blueprint ? Math.round(planner.blueprint.opacity * 100) : 72}%</span>
-            </label>
-          </div>
-        </section>
-
-        <PlantaCanvasSettings bind:planner {canvasWidth} {canvasHeight} />
-        </div>
-      </aside>
+      <PlantaDesignPanel
+        bind:planner
+        {readOnly}
+        {selectedShapeIds}
+        {selectedShape}
+        {selectedBounds}
+        {selectedIndex}
+        selectedDisplayName={selectedShape ? displayShapeName(selectedShape, selectedIndex) : ""}
+        {environments}
+        {blueprintHandActive}
+        {canvasWidth}
+        {canvasHeight}
+        onClose={toggleDesignPanel}
+        onMoveLayer={moveSelectedLayer}
+        onDuplicate={duplicateSelectedShape}
+        onDelete={deleteSelectedShape}
+        onUpdateShape={updateShape}
+        onUpdateBounds={updateSelectedBounds}
+        onToggleBlueprintHand={toggleBlueprintHand}
+        onRemoveBlueprint={() => void removeBlueprint()}
+        onUpdateBlueprintScale={updateBlueprintScale}
+        onUpdateBlueprintOpacity={updateBlueprintOpacity}
+      />
     {/if}
   </div>
 </WorkspacePage>
+
+{#if previewImageUrl}
+  <PlantaImageDialog url={previewImageUrl} onClose={() => (previewImageUrl = null)} />
+{/if}

@@ -16,6 +16,7 @@ defmodule MinhaCasaAi.Listings.MergeSessions do
     Listing,
     ListingData,
     ListingMergeSession,
+    ListingMedia,
     MergeAdvisor
   }
 
@@ -173,6 +174,16 @@ defmodule MinhaCasaAi.Listings.MergeSessions do
             listing
             |> Listing.changeset(%{data: updates})
             |> Repo.update!()
+
+          updated =
+            if map_size(image_updates) > 0 do
+              case ListingMedia.sync_images_from_legacy(updated) do
+                {:ok, _media} -> Repo.get!(Listing, updated.id)
+                {:error, reason} -> Repo.rollback(reason)
+              end
+            else
+              updated
+            end
 
           session
           |> ListingMergeSession.changeset(%{
