@@ -6,7 +6,10 @@ import {
   gerarMatrizCenarios,
   type CenarioCompleto
 } from "$lib/financiamento/calculations";
-import { buildAporteProgressivoConfig } from "$lib/financiamento/aporte-progressivo";
+import {
+  buildAporteProgressivoConfig,
+  resolveAporteMensalConfig
+} from "$lib/financiamento/aporte-progressivo";
 import { resolveEffectiveParams } from "$lib/financiamento/financing-effective-params";
 import {
   buildScenarioCombinations,
@@ -70,13 +73,20 @@ function scenarioMatrixForCombination({
     taxaAnual: combination.taxaAnual,
     trMensal: combination.trMensal,
     aporteExtra: combination.aporteExtra,
-    aporteProgressivo: buildAporteProgressivoConfig({
+    modoAporte: params.modoAporte,
+    tetoGastoMensal: combination.tetoGastoMensal,
+    configAporte: resolveAporteMensalConfig({
+      modoAporte: params.modoAporte,
       aporteExtra: combination.aporteExtra,
-      aporteProgressivo: params.aporteProgressivo,
-      aporteProgressivoDecrescente: params.aporteProgressivoDecrescente,
-      aporteInicial: combination.aporteInicial,
-      aporteProgressao: combination.aporteProgressao,
-      aporteIntervaloMeses: combination.aporteIntervaloMeses
+      tetoGastoMensal: combination.tetoGastoMensal,
+      aporteProgressivo: buildAporteProgressivoConfig({
+        aporteExtra: combination.aporteExtra,
+        aporteProgressivo: params.modoAporte === "progressivo",
+        aporteProgressivoDecrescente: params.aporteProgressivoDecrescente,
+        aporteInicial: combination.aporteInicial,
+        aporteProgressao: combination.aporteProgressao,
+        aporteIntervaloMeses: combination.aporteIntervaloMeses
+      })
     }),
     rendaMensal: combination.rendaMensal,
     custoManutencaoImovelMensal: effective.temImovelParaNegociar

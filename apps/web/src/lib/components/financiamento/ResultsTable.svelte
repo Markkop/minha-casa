@@ -30,6 +30,7 @@
     formatPercent,
     type CenarioCompleto
   } from "$lib/financiamento/calculations";
+  import { formatModoAporte } from "$lib/financiamento/calculations-tooltips";
   import { cn } from "$lib/utils";
 
   let {
@@ -241,6 +242,10 @@
         {#if showEstrategiaAmortizacaoColumn}
           {@render categoryHeader("Amort.", "Efeito escolhido para as amortizações extras")}
         {/if}
+        {@render categoryHeader(
+          "Modo aporte",
+          "Forma de definir o aporte extra: fixo, progressivo ou pela folga até um teto mensal"
+        )}
         {#if showTipoTaxaAnualColumn}
           {@render categoryHeader("Taxa", "Forma de conversão da taxa anual para mensal")}
         {/if}
@@ -252,7 +257,7 @@
         {@render sortableHeader(
           "Total/mês",
           "totalMensal",
-          "Prestação + aporte + reforma + manutenção no 1º mês do cenário otimizado"
+          "Prestação + custo de vida + aporte + reforma + manutenção + outros custos no 1º mês do cenário otimizado"
         )}
         {@render sortableHeader(
           "Compr.",
@@ -370,6 +375,30 @@
               {formatEstrategiaAmortizacao(cenario.estrategiaAmortizacao)}
             </td>
           {/if}
+          <td class={cn(tdClass, compact ? "text-[10px]" : "text-xs")}>
+            <div class="flex flex-col">
+              <span class="font-medium text-app-fg">
+                {formatModoAporte(cenario.modoAporte)}
+                {#if cenario.modoAporte === "fixo"}
+                  · {formatCurrencyCompact(cenario.aporteExtra)}
+                {:else if cenario.modoAporte === "teto_mensal"}
+                  · {formatCurrencyCompact(cenario.tetoGastoMensal)}
+                {/if}
+              </span>
+              {#if cenario.modoAporte !== "fixo"}
+                <span class="text-app-muted">
+                  Mês 1: +{formatCurrencyCompact(cenario.timeline[0]?.aporteExtra ?? 0)}
+                </span>
+              {/if}
+              {#if cenario.modoAporte === "teto_mensal" && cenario.mesesAcimaTeto > 0}
+                <span class="text-salmon">
+                  {cenario.mesesAcimaTeto} {cenario.mesesAcimaTeto === 1
+                    ? "mês acima"
+                    : "meses acima"}
+                </span>
+              {/if}
+            </div>
+          </td>
           {#if showTipoTaxaAnualColumn}
             <td class={cn(tdClass, "text-xs text-app-fg")}>
               {formatTipoTaxaAnual(cenario.tipoTaxaAnual)}

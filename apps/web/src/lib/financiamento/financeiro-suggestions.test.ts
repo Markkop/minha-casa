@@ -75,6 +75,30 @@ describe("financeiro suggestions", () => {
     }
   });
 
+  it("varies the ceiling without switching aporte mode", () => {
+    const results = buildFinanceiroSuggestions(
+      {
+        ...createInitialSimulatorParams(),
+        modoAporte: "teto_mensal",
+        tetoGastoMensal: 35_000
+      },
+      DEFAULT_SETTINGS
+    );
+    const candidates = results.flatMap((result) =>
+      result.candidate ? [result.candidate.params] : []
+    );
+
+    expect(candidates.length).toBeGreaterThan(0);
+    expect(candidates.every((candidate) => candidate.modoAporte === "teto_mensal")).toBe(true);
+    expect(
+      candidates.every(
+        (candidate) =>
+          candidate.tetoGastoMensal >= DEFAULT_SETTINGS.sliders.tetoGastoMensal.min &&
+          candidate.tetoGastoMensal <= DEFAULT_SETTINGS.sliders.tetoGastoMensal.max
+      )
+    ).toBe(true);
+  });
+
   it("only returns viable candidates whose total balance never goes below zero", () => {
     for (const candidate of viableCandidateBalances()) {
       expect(candidate.isViable).toBe(true);

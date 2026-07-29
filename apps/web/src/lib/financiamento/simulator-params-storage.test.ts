@@ -176,7 +176,7 @@ describe("normalizeSimulatorParams", () => {
     expect(normalizeSimulatorParams({ valorApartamento: 0 }).temImovelParaNegociar).toBe(false);
   });
 
-  it("normalizes progressive aporte fields", () => {
+  it("normalizes progressive aporte fields and migrates the legacy toggle", () => {
     const result = normalizeSimulatorParams({
       aporteExtra: 5_000,
       aporteProgressivo: true,
@@ -186,7 +186,7 @@ describe("normalizeSimulatorParams", () => {
       aporteIntervaloMeses: 20
     });
 
-    expect(result.aporteProgressivo).toBe(true);
+    expect(result.modoAporte).toBe("progressivo");
     expect(result.aporteProgressivoDecrescente).toBe(true);
     expect(result.aporteInicial).toBe(5_000);
     expect(result.aporteProgressao).toBe(1_000);
@@ -197,10 +197,27 @@ describe("normalizeSimulatorParams", () => {
     expect(normalizeSimulatorParams({}).aporteProgressivoDecrescente).toBe(false);
     expect(
       normalizeSimulatorParams({
-        aporteProgressivo: false,
+        modoAporte: "fixo",
         aporteProgressivoDecrescente: true
       }).aporteProgressivoDecrescente
     ).toBe(false);
+  });
+
+  it("keeps valid aporte modes and defaults invalid modes to fixed", () => {
+    expect(
+      normalizeSimulatorParams({ modoAporte: "teto_mensal", tetoGastoMensal: 48_000 })
+    ).toMatchObject({ modoAporte: "teto_mensal", tetoGastoMensal: 48_000 });
+    expect(normalizeSimulatorParams({ modoAporte: "invalido" as never }).modoAporte).toBe("fixo");
+  });
+
+  it("migrates old aporteProgressivo values and defaults the monthly ceiling", () => {
+    expect(normalizeSimulatorParams({ aporteProgressivo: true }).modoAporte).toBe("progressivo");
+    expect(normalizeSimulatorParams({ aporteProgressivo: false }).modoAporte).toBe("fixo");
+    expect(
+      normalizeSimulatorParams({ modoAporte: "fixo", aporteProgressivo: true }).modoAporte
+    ).toBe("fixo");
+    expect(normalizeSimulatorParams({}).tetoGastoMensal).toBe(35_000);
+    expect(normalizeSimulatorParams({ tetoGastoMensal: -1 }).tetoGastoMensal).toBe(0);
   });
 
   it("validates timing month filters", () => {
@@ -378,7 +395,9 @@ describe("simulator params storage", () => {
     saveSimulatorParams(params);
 
     expect(loadSimulatorParams()).toEqual(params);
-    expect(window.localStorage.getItem(SIMULATOR_PARAMS_STORAGE_KEY)).toBe(JSON.stringify(params));
+    expect(
+      JSON.parse(window.localStorage.getItem(SIMULATOR_PARAMS_STORAGE_KEY) ?? "{}")
+    ).toEqual(params);
   });
 
   it("prefers the primary key when both keys exist", () => {
@@ -392,6 +411,23 @@ describe("simulator params storage", () => {
     );
 
     expect(loadSimulatorParams()?.custoMensal).toBe(8_000);
+  });
+
+  it("rewrites legacy aporte fields from the primary key to the canonical shape", () => {
+    window.localStorage.setItem(
+      SIMULATOR_PARAMS_STORAGE_KEY,
+      JSON.stringify({ aporteProgressivo: true })
+    );
+
+    const loaded = loadSimulatorParams();
+    const stored = JSON.parse(
+      window.localStorage.getItem(SIMULATOR_PARAMS_STORAGE_KEY) ?? "{}"
+    ) as Record<string, unknown>;
+
+    expect(loaded?.modoAporte).toBe("progressivo");
+    expect(stored.modoAporte).toBe("progressivo");
+    expect(stored.tetoGastoMensal).toBe(35_000);
+    expect(stored).not.toHaveProperty("aporteProgressivo");
   });
 
   it("migrates legacy parameters to the primary key without deleting legacy data", () => {

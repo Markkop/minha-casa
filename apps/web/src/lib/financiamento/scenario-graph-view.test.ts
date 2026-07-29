@@ -224,6 +224,43 @@ describe("scenario graph views", () => {
     expect(view.cenarios).toEqual([]);
   });
 
+  it("generates ceiling variations and ignores inactive fixed-aporte variations", () => {
+    const params = {
+      ...createInitialSimulatorParams(),
+      modoAporte: "teto_mensal" as const,
+      tetoGastoMensal: 35_000,
+      scenarioVariations: {
+        ...emptyScenarioVariations(),
+        tetoGastoMensal: [30_000, 40_000],
+        aporteExtra: [5_000, 15_000]
+      }
+    };
+
+    const view = buildScenarioGraphViewFromParams(params);
+
+    expect(view.cenarios).toHaveLength(3);
+    expect(view.cenarios.map((cenario) => cenario.tetoGastoMensal).sort((a, b) => a - b)).toEqual([
+      30_000,
+      35_000,
+      40_000
+    ]);
+    expect(new Set(view.cenarios.map((cenario) => cenario.id)).size).toBe(3);
+    expect(view.cenarios.every((cenario) => cenario.modoAporte === "teto_mensal")).toBe(true);
+  });
+
+  it("uses distinct ids for fixed and progressive aporte profiles", () => {
+    const base = createInitialSimulatorParams();
+    const fixed = buildScenarioGraphViewFromParams({ ...base, modoAporte: "fixo" }).cenarios[0];
+    const progressive = buildScenarioGraphViewFromParams({
+      ...base,
+      modoAporte: "progressivo",
+      aporteInicial: 0,
+      aporteProgressao: 1_000
+    }).cenarios[0];
+
+    expect(fixed?.id).not.toBe(progressive?.id);
+  });
+
   it("builds comparison graph data from saved visible scenario lines", () => {
     const paramsA = createInitialSimulatorParams();
     const allA = buildFilteredCenariosFromParams(paramsA);

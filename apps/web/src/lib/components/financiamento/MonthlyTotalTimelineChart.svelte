@@ -404,6 +404,10 @@
             <dt>Custo mensal</dt>
             <dd class="font-mono">{formatCurrency(gastos.custoMensal)}</dd>
           {/if}
+          {#if (month.excessoTetoMensal ?? 0) > 0}
+            <dt class="text-salmon">Excesso do teto</dt>
+            <dd class="font-mono text-salmon">{formatCurrency(month.excessoTetoMensal ?? 0)}</dd>
+          {/if}
           <dt class="font-bold text-app-accent">Gasto mensal</dt>
           <dd class="font-mono font-bold text-app-accent">
             {formatCurrency(renderedMonthlyTotal(month, scenarioCustoMensal))}

@@ -1,5 +1,7 @@
 import {
-  calcularAporteExtraProgramado,
+  calcularAporteMensalProgramado,
+  resolveAporteMensalConfig,
+  type AporteMensalConfig,
   type AporteProgressivoConfig
 } from "$lib/financiamento/aporte-progressivo";
 import {
@@ -21,6 +23,10 @@ export interface TimelineMonth {
   saldoDevedorFim: number;
   prestacao: number;
   aporteExtra: number;
+  /** Recurring living cost included in the month's cash flow. */
+  custoMensal?: number;
+  /** Mandatory outflow above the monthly ceiling, excluding the voluntary aporte. */
+  excessoTetoMensal?: number;
   reformaMensal: number;
   custosAdicionais?: number;
   custosAdicionaisRecorrentes?: number;
@@ -50,6 +56,8 @@ export interface TimelineResult {
   totalCustosAdicionais: number;
   totalManutencao: number;
   saldoLivreMinimo: number;
+  mesesAcimaTeto: number;
+  maiorExcessoTeto: number;
   mesReformaConcluida: number | null;
   /** First-month total cash outflow: prestação + aporte + reforma + manutenção */
   totalMensalMes1: number;
@@ -62,8 +70,13 @@ export interface SimularTimelineInput {
   prazoMeses: number;
   taxaMensalEfetiva: number;
   aporteExtra: number;
+  /** Canonical aporte policy. Legacy aporte fields below remain readable. */
+  configAporte?: AporteMensalConfig;
+  modoAporte?: AporteMensalConfig["modo"];
+  tetoGastoMensal?: number;
   aporteProgressivo?: AporteProgressivoConfig;
   rendaMensal: number;
+  custoMensal?: number;
   seguros?: number;
   estrategia: "permuta" | "venda_posterior" | "financiamento";
   valorApartamento?: number;
@@ -74,7 +87,7 @@ export interface SimularTimelineInput {
   custoTotalReformas?: number;
   custoInicialReformas?: number;
   tempoObraMeses?: number;
-  custosAdicionais?: CustoAdicional[];
+  custosAdicionais?: readonly CustoAdicional[];
   mesReforma?: number;
   /** First month when aporte extra applies (default 1). */
   mesInicioAporte?: number;
@@ -214,8 +227,12 @@ export function simularTimelineMensal(input: SimularTimelineInput): TimelineResu
     prazoMeses,
     taxaMensalEfetiva,
     aporteExtra,
+    configAporte,
+    modoAporte,
+    tetoGastoMensal = 0,
     aporteProgressivo,
     rendaMensal,
+    custoMensal = 0,
     seguros = 0,
     estrategia,
     valorApartamento = 0,
@@ -250,6 +267,8 @@ export function simularTimelineMensal(input: SimularTimelineInput): TimelineResu
   let totalCustosAdicionais = 0;
   let totalManutencao = 0;
   let saldoLivreMinimo = Infinity;
+  let mesesAcimaTeto = 0;
+  let maiorExcessoTeto = 0;
   let mesReformaConcluida: number | null = null;
   let mes = 0;
   const resolvedMesReformaConcluida = resolveMesReformaConcluida({
@@ -258,6 +277,13 @@ export function simularTimelineMensal(input: SimularTimelineInput): TimelineResu
     custoInicialReformas,
     tempoObraMeses,
     mesReforma
+  });
+  const resolvedAporteConfig = resolveAporteMensalConfig({
+    configAporte,
+    modoAporte,
+    aporteExtra,
+    tetoGastoMensal,
+    aporteProgressivo
   });
   const scheduledTimelineEndMonth = Math.max(
     resolvedMesReformaConcluida ?? 0,
@@ -272,49 +298,6 @@ export function simularTimelineMensal(input: SimularTimelineInput): TimelineResu
     mes++;
     const saldoInicio = saldoDevedor;
     const financiamentoAtivo = saldoDevedor > 0;
-    let prestacao = 0;
-    let aporteAplicado = 0;
-
-    if (financiamentoAtivo) {
-      const mesesRestantes = prazoMeses - mes + 1;
-      const juros = saldoDevedor * taxaMensalEfetiva;
-      const amortizacaoProgramada =
-        sistemaAmortizacao === "sac"
-          ? estrategiaAmortizacao === "reduzir_prestacao"
-            ? saldoDevedor / mesesRestantes
-            : amortizacaoMensal
-          : (estrategiaAmortizacao === "reduzir_prestacao"
-              ? calcularPrestacaoPrice(
-                  saldoDevedor,
-                  taxaMensalEfetiva,
-                  mesesRestantes
-                )
-              : prestacaoPriceOriginal) - juros;
-      const amortizacaoContrato = Math.min(
-        saldoDevedor,
-        Math.max(0, amortizacaoProgramada)
-      );
-      const aporteConfig: AporteProgressivoConfig = aporteProgressivo ?? {
-        enabled: false,
-        max: aporteExtra,
-        inicial: 0,
-        progressao: 0,
-        intervaloMeses: 1,
-        decrescente: false
-      };
-      const aporteMes =
-        mes < mesInicioAporte
-          ? 0
-          : calcularAporteExtraProgramado(mes - mesInicioAporte + 1, aporteConfig);
-      aporteAplicado = Math.min(aporteMes, Math.max(0, saldoDevedor - amortizacaoContrato));
-      const amortizacaoTotal = amortizacaoContrato + aporteAplicado;
-      /** Parcela contratual, sem aporte extra voluntário. */
-      prestacao = amortizacaoContrato + juros + seguros;
-      saldoDevedor = Math.max(0, saldoDevedor - amortizacaoTotal);
-      totalJuros += juros;
-      totalPago += prestacao + aporteAplicado;
-    }
-
     const { reformaInicial, reformaMensal } = reformaOutflowForMonth({
       mes,
       custoTotalReformas,
@@ -346,6 +329,72 @@ export function simularTimelineMensal(input: SimularTimelineInput): TimelineResu
       totalManutencao += manutencaoMensal;
     }
 
+    let prestacao = 0;
+    let aporteAplicado = 0;
+    let amortizacaoContrato = 0;
+    let juros = 0;
+
+    if (financiamentoAtivo) {
+      const mesesRestantes = prazoMeses - mes + 1;
+      juros = saldoDevedor * taxaMensalEfetiva;
+      const amortizacaoProgramada =
+        sistemaAmortizacao === "sac"
+          ? estrategiaAmortizacao === "reduzir_prestacao"
+            ? saldoDevedor / mesesRestantes
+            : amortizacaoMensal
+          : (estrategiaAmortizacao === "reduzir_prestacao"
+              ? calcularPrestacaoPrice(
+                  saldoDevedor,
+                  taxaMensalEfetiva,
+                  mesesRestantes
+                )
+              : prestacaoPriceOriginal) - juros;
+      amortizacaoContrato = Math.min(
+        saldoDevedor,
+        Math.max(0, amortizacaoProgramada)
+      );
+      /** Parcela contratual, sem aporte extra voluntário. */
+      prestacao = amortizacaoContrato + juros + seguros;
+    }
+
+    const gastosSemAporte =
+      prestacao +
+      custoMensal +
+      reformaInicial +
+      reformaMensal +
+      custosAdicionaisMensal +
+      manutencaoMensal;
+    const excessoTetoMensal =
+      resolvedAporteConfig.modo === "teto_mensal"
+        ? Math.max(0, gastosSemAporte - resolvedAporteConfig.teto)
+        : 0;
+
+    if (excessoTetoMensal > 0) {
+      mesesAcimaTeto++;
+      maiorExcessoTeto = Math.max(maiorExcessoTeto, excessoTetoMensal);
+    }
+
+    if (financiamentoAtivo) {
+      const aporteMes =
+        mes < mesInicioAporte
+          ? 0
+          : calcularAporteMensalProgramado(
+              mes - mesInicioAporte + 1,
+              resolvedAporteConfig,
+              gastosSemAporte
+            );
+      aporteAplicado = Math.min(
+        aporteMes,
+        Math.max(0, saldoDevedor - amortizacaoContrato)
+      );
+      saldoDevedor = Math.max(
+        0,
+        saldoDevedor - amortizacaoContrato - aporteAplicado
+      );
+      totalJuros += juros;
+      totalPago += prestacao + aporteAplicado;
+    }
+
     let amortizacaoVenda = 0;
     let amortizacaoQuantiaExtra = 0;
     let eventoVenda = false;
@@ -372,6 +421,7 @@ export function simularTimelineMensal(input: SimularTimelineInput): TimelineResu
       rendaMensal -
       prestacao -
       aporteAplicado -
+      custoMensal -
       reformaInicial -
       reformaMensal -
       custosAdicionaisMensal -
@@ -384,6 +434,8 @@ export function simularTimelineMensal(input: SimularTimelineInput): TimelineResu
       saldoDevedorFim: saldoDevedor,
       prestacao,
       aporteExtra: aporteAplicado,
+      custoMensal,
+      excessoTetoMensal,
       reformaMensal,
       custosAdicionais: custosAdicionaisMensal,
       custosAdicionaisRecorrentes: custosAdicionaisBreakdown.recorrente,
@@ -411,10 +463,13 @@ export function simularTimelineMensal(input: SimularTimelineInput): TimelineResu
     totalCustosAdicionais,
     totalManutencao,
     saldoLivreMinimo: meses.length > 0 ? saldoLivreMinimo : 0,
+    mesesAcimaTeto,
+    maiorExcessoTeto,
     mesReformaConcluida,
     totalMensalMes1: first
       ? first.prestacao +
         first.aporteExtra +
+        (first.custoMensal ?? 0) +
         first.reformaInicial +
         first.reformaMensal +
         (first.custosAdicionais ?? 0) +
@@ -433,6 +488,8 @@ function emptyTimelineResult(): TimelineResult {
     totalCustosAdicionais: 0,
     totalManutencao: 0,
     saldoLivreMinimo: 0,
+    mesesAcimaTeto: 0,
+    maiorExcessoTeto: 0,
     mesReformaConcluida: null,
     totalMensalMes1: 0
   };

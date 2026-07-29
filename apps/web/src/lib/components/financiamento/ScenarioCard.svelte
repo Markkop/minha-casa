@@ -18,6 +18,7 @@
     generateTooltips,
     type CenarioCompleto
   } from "$lib/financiamento/calculations";
+  import { formatModoAporte } from "$lib/financiamento/calculations-tooltips";
   import { cn } from "$lib/utils";
 
   let {
@@ -31,6 +32,8 @@
   const tooltips = $derived(
     generateTooltips({
       aporteExtra: cenario.aporteExtra,
+      modoAporte: cenario.modoAporte,
+      tetoGastoMensal: cenario.tetoGastoMensal,
       economiaJuros: cenario.economiaJuros,
       sistemaAmortizacao: cenario.sistemaAmortizacao,
       estrategiaAmortizacao: cenario.estrategiaAmortizacao,
@@ -38,10 +41,16 @@
       seguros: cenario.seguros
     })
   );
+
+  const aportePrimeiroMes = $derived(cenario.timeline[0]?.aporteExtra ?? 0);
+  const mesesAcimaTeto = $derived(cenario.mesesAcimaTeto);
+  const maiorExcessoTeto = $derived(cenario.maiorExcessoTeto);
 </script>
 
 {#snippet aporteSnippet()}
-  <span class="font-bold text-app-accent">+{formatCurrency(cenario.aporteExtra)}</span>
+  <span class="font-bold text-app-accent">
+    +{formatCurrency(cenario.modoAporte === "fixo" ? cenario.aporteExtra : aportePrimeiroMes)}
+  </span>
 {/snippet}
 
 {#snippet economiaSnippet()}
@@ -151,23 +160,44 @@
         Com Amortização Extra · {formatEstrategiaAmortizacao(cenario.estrategiaAmortizacao)}
       </h4>
       <ScenarioDataRow
-        label="📈 Aporte Extra/mês"
-        tooltip={tooltips.aporteExtra}
+        label="Modo do aporte"
+        value={formatModoAporte(cenario.modoAporte)}
+        tooltip={tooltips.modoAporte}
+      />
+      {#if cenario.modoAporte === "teto_mensal"}
+        <ScenarioDataRow
+          label="Teto de gasto mensal"
+          value={formatCurrency(cenario.tetoGastoMensal)}
+          tooltip={tooltips.tetoGastoMensal}
+          highlight
+        />
+      {/if}
+      <ScenarioDataRow
+        label={cenario.modoAporte === "fixo" ? "📈 Aporte Extra/mês" : "📈 Aporte no 1º mês"}
+        tooltip={cenario.modoAporte === "fixo"
+          ? tooltips.aporteExtra
+          : "Aporte efetivamente aplicado no primeiro mês, após considerar o início configurado e os gastos desse período."}
         highlight
         valueContent={aporteSnippet}
       />
       <ScenarioDataRow
-        label="1ª Parcela + Amort. Extra"
-        value={formatCurrency(
-          cenario.tabelaPadrao.primeiraParcelar + cenario.aporteExtra
-        )}
-        tooltip={`Total da primeira parcela incluindo amortização extra: ${formatCurrency(cenario.tabelaPadrao.primeiraParcelar)} (parcela) + ${formatCurrency(cenario.aporteExtra)} (extra) = ${formatCurrency(cenario.tabelaPadrao.primeiraParcelar + cenario.aporteExtra)}.`}
+        label="Total no 1º mês"
+        value={formatCurrency(cenario.totalMensal)}
+        tooltip="Desembolso completo no primeiro mês: prestação, custo de vida, aporte, reformas, manutenção e outros custos aplicáveis."
         highlight
       />
+      {#if cenario.modoAporte === "teto_mensal" && mesesAcimaTeto > 0}
+        <ScenarioDataRow
+          label="Meses acima do teto"
+          value={`${mesesAcimaTeto} · máx. ${formatCurrency(maiorExcessoTeto)}`}
+          tooltip="Gastos obrigatórios podem ultrapassar o teto. Nesses meses o aporte é zerado; o excesso não é transferido para outro mês."
+          class="text-salmon"
+        />
+      {/if}
       <ScenarioDataRow
         label="Prazo Real"
         value={formatMonthDurationLong(cenario.cenarioOtimizado.prazoReal)}
-        tooltip={`Tempo real para quitar com aportes de ${formatCurrency(cenario.aporteExtra)}/mês.`}
+        tooltip={`Tempo real para quitar usando o modo de aporte ${formatModoAporte(cenario.modoAporte).toLocaleLowerCase("pt-BR")}.`}
       />
       <ScenarioDataRow
         label="Economia de Tempo"

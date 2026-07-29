@@ -110,7 +110,8 @@ function currentReformaTiming(params: SimulatorParams): ReformaInicioTiming | un
 }
 
 function currentAporteTiming(params: SimulatorParams): AporteInicioTiming | undefined {
-  if (params.aporteExtra <= 0) return undefined;
+  const hasAporte = hasConfiguredAporte(params);
+  if (!hasAporte) return undefined;
   const selected = params.scenarioVariations.inicioAporteExtraMeses[0];
   if (
     params.scenarioVariations.excludedBaselines.includes("inicioAporteExtraMeses") &&
@@ -119,6 +120,12 @@ function currentAporteTiming(params: SimulatorParams): AporteInicioTiming | unde
     return selected;
   }
   return Math.max(0, Math.round(params.inicioAporteExtraMeses));
+}
+
+function hasConfiguredAporte(params: SimulatorParams): boolean {
+  return params.modoAporte === "teto_mensal"
+    ? params.tetoGastoMensal > 0
+    : params.aporteExtra > 0;
 }
 
 function oneLineParams(
@@ -204,6 +211,19 @@ function entryCandidates(params: SimulatorParams): number[] {
 }
 
 function aporteFieldCandidates(params: SimulatorParams, settings: SimulatorSettings) {
+  if (params.modoAporte === "teto_mensal") {
+    const range = settings.sliders.tetoGastoMensal;
+    const maxTeto = roundTo(clamp(params.rendaMensal, range.min, range.max), range.step);
+    return uniqueNumbers([
+      roundTo(params.tetoGastoMensal, range.step),
+      roundTo(maxTeto * 0.6, range.step),
+      roundTo(maxTeto * 0.8, range.step),
+      maxTeto
+    ])
+      .filter((value) => value >= range.min && value <= range.max)
+      .map((tetoGastoMensal) => ({ modoAporte: "teto_mensal" as const, tetoGastoMensal }));
+  }
+
   const monthlyCapacity = Math.max(0, params.rendaMensal - params.custoMensal);
   const maxAporte = roundTo(
     clamp(
@@ -224,26 +244,22 @@ function aporteFieldCandidates(params: SimulatorParams, settings: SimulatorSetti
   );
 
   return values.flatMap((aporteExtra) => {
-    const fixed = clampAporteProgressivoFields({
+    const clamped = clampAporteProgressivoFields({
       aporteExtra,
-      aporteProgressivo: false,
-      aporteProgressivoDecrescente: false,
-      aporteInicial: 0,
+      aporteProgressivo: params.modoAporte === "progressivo",
+      aporteProgressivoDecrescente: params.aporteProgressivoDecrescente,
+      aporteInicial: params.modoAporte === "progressivo" ? params.aporteInicial : 0,
       aporteProgressao: APORTE_PROGRESSIVO_STEP,
       aporteIntervaloMeses: 1
     });
-    if (aporteExtra <= APORTE_PROGRESSIVO_STEP * 2) return [fixed];
-    return [
-      fixed,
-      clampAporteProgressivoFields({
-        aporteExtra,
-        aporteProgressivo: true,
-        aporteProgressivoDecrescente: false,
-        aporteInicial: 0,
-        aporteProgressao: APORTE_PROGRESSIVO_STEP,
-        aporteIntervaloMeses: 1
-      })
-    ];
+    return [{
+      modoAporte: params.modoAporte,
+      aporteExtra: clamped.aporteExtra,
+      aporteProgressivoDecrescente: clamped.aporteProgressivoDecrescente,
+      aporteInicial: clamped.aporteInicial,
+      aporteProgressao: clamped.aporteProgressao,
+      aporteIntervaloMeses: clamped.aporteIntervaloMeses
+    }];
   });
 }
 
@@ -288,8 +304,9 @@ function buildGrid(
 function changeCount(original: SimulatorParams, candidate: SimulatorParams): number {
   const keys: (keyof SimulatorParams)[] = [
     "entradaDisponivel",
+    "modoAporte",
     "aporteExtra",
-    "aporteProgressivo",
+    "tetoGastoMensal",
     "aporteProgressivoDecrescente",
     "aporteInicial",
     "aporteProgressao",
@@ -325,7 +342,11 @@ function orderLabel(params: SimulatorParams): string {
   }
 
   const aporteTiming = params.scenarioVariations.inicioAporteExtraMeses[0];
-  if (params.aporteExtra > 0) {
+  if (
+    params.modoAporte === "teto_mensal"
+      ? params.tetoGastoMensal > 0
+      : params.aporteExtra > 0
+  ) {
     parts.push(
       aporteTiming === APORTE_APOS_REFORMA_VALUE
         ? "aporte depois da reforma"
@@ -367,7 +388,7 @@ function evaluateCandidate(
     isViable: overflowAmount === 0,
     custoTotalOtimizado: cenario.custoTotalOtimizado,
     entradaDisponivel: candidateParams.entradaDisponivel,
-    aporteExtra: candidateParams.aporteExtra,
+    aporteExtra: cenario.timeline[0]?.aporteExtra ?? 0,
     orderLabel: orderLabel(candidateParams),
     changeCount: changeCount(original, candidateParams)
   };
@@ -412,7 +433,7 @@ const PRESETS: PresetDefinition[] = [
     buildCandidates: (params, settings) =>
       buildGrid(params, settings, {
         reformaTimings: [1, 3, 6],
-        aporteTimings: params.aporteExtra > 0 ? [0, 3, 6] : [0]
+        aporteTimings: hasConfiguredAporte(params) ? [0, 3, 6] : [0]
       })
   },
   {
@@ -424,7 +445,7 @@ const PRESETS: PresetDefinition[] = [
     buildCandidates: (params, settings) =>
       buildGrid(params, settings, {
         reformaTimings: [REFORMA_APOS_QUITACAO_VALUE],
-        aporteTimings: params.aporteExtra > 0 ? [0, 3, 6] : [0]
+        aporteTimings: hasConfiguredAporte(params) ? [0, 3, 6] : [0]
       })
   },
   {
@@ -450,7 +471,7 @@ const PRESETS: PresetDefinition[] = [
         ...(params.incluirReformas
           ? { reformaTimings: [extraMonth + 1, extraMonth + 3] }
           : {}),
-        aporteTimings: params.aporteExtra > 0 ? [extraMonth, extraMonth + 1] : [0]
+        aporteTimings: hasConfiguredAporte(params) ? [extraMonth, extraMonth + 1] : [0]
       });
     }
   }

@@ -6,7 +6,9 @@
 import {
   APORTE_APOS_REFORMA_VALUE,
   resolveAporteStartMonth,
+  resolveAporteMensalConfig,
   type AporteInicioTiming,
+  type AporteMensalConfig,
   type AporteProgressivoConfig
 } from "$lib/financiamento/aporte-progressivo";
 import { SIMULATION_ASSUMPTIONS, UI_DEFAULTS } from "$lib/financiamento/calculations-defaults";
@@ -14,6 +16,7 @@ import type { CustoAdicional } from "$lib/financiamento/custos-adicionais";
 import { calcularPrestacaoPrice } from "$lib/financiamento/financing-amortization";
 import type {
   EstrategiaAmortizacao,
+  ModoAporte,
   SistemaAmortizacao,
   TipoTaxaAnual
 } from "$lib/components/financiamento/financiamento-parameter-types";
@@ -200,6 +203,10 @@ export interface CenarioCompletoParams {
   trMensal: number
   prazoMeses: number
   aporteExtra: number
+  modoAporte?: ModoAporte
+  tetoGastoMensal?: number
+  configAporte?: AporteMensalConfig
+  /** @deprecated Use configAporte. */
   aporteProgressivo?: AporteProgressivoConfig
   rendaMensal: number
   custoMensal?: number
@@ -234,6 +241,8 @@ export interface CenarioCompleto {
   taxaMensalEfetiva: number
   cetEstimado: number
   aporteExtra: number
+  modoAporte: ModoAporte
+  tetoGastoMensal: number
   seguros: number
   rendaMensal: number
   custoMensal?: number
@@ -259,6 +268,8 @@ export interface CenarioCompleto {
   totalCustosAdicionais: number
   totalManutencao: number
   totalMensal: number
+  mesesAcimaTeto: number
+  maiorExcessoTeto: number
 }
 
 export interface MatrizCenariosParams {
@@ -273,6 +284,10 @@ export interface MatrizCenariosParams {
   taxaAnual: number
   trMensal: number
   aporteExtra: number
+  modoAporte?: ModoAporte
+  tetoGastoMensal?: number
+  configAporte?: AporteMensalConfig
+  /** @deprecated Use configAporte. */
   aporteProgressivo?: AporteProgressivoConfig
   rendaMensal: number
   custoManutencaoImovelMensal?: number
@@ -835,6 +850,9 @@ export const gerarCenarioCompleto = ({
   trMensal,
   prazoMeses,
   aporteExtra,
+  modoAporte,
+  tetoGastoMensal = 0,
+  configAporte,
   aporteProgressivo,
   rendaMensal,
   custoMensal = 0,
@@ -851,6 +869,13 @@ export const gerarCenarioCompleto = ({
   mesReforma,
   aporteDelayMeses = 0
 }: CenarioCompletoParams): CenarioCompleto => {
+  const aporteConfig = resolveAporteMensalConfig({
+    configAporte,
+    modoAporte,
+    aporteExtra,
+    tetoGastoMensal,
+    aporteProgressivo
+  })
   const aporteInicioMes = resolveAporteInicioMes({
     aporteDelayMeses,
     prazoMeses,
@@ -899,8 +924,9 @@ export const gerarCenarioCompleto = ({
     prazoMeses,
     taxaMensalEfetiva,
     aporteExtra,
-    aporteProgressivo,
+    configAporte: aporteConfig,
     rendaMensal,
+    custoMensal,
     seguros,
     estrategia: timelineEstrategia,
     valorApartamento,
@@ -946,7 +972,9 @@ export const gerarCenarioCompleto = ({
   const vendaEm = estrategia === "venda_posterior" ? mesVenda : undefined
   const extraEm = mesExtra ?? undefined
   const reformaEm = custoTotalReformas > 0 ? (mesReforma ?? 1) : undefined
-  const aporteEm = aporteExtra > 0 ? aporteDelayMeses : undefined
+  const aporteHabilitado =
+    aporteConfig.modo === "teto_mensal" ? aporteConfig.teto > 0 : aporteExtra > 0
+  const aporteEm = aporteHabilitado ? aporteDelayMeses : undefined
   const custosId = custosAdicionais
     .map(
       (custo) =>
@@ -974,7 +1002,10 @@ export const gerarCenarioCompleto = ({
       `cap${capitalDisponivel}`,
       `ren${rendaMensal}`,
       `cus${custoMensal}`,
+      `ma${aporteConfig.modo}`,
       `ap${aporteExtra}`,
+      `tg${aporteConfig.modo === "teto_mensal" ? aporteConfig.teto : tetoGastoMensal}`,
+      `apcfg${JSON.stringify(aporteConfig)}`,
       `p${prazoMeses}`,
       `tx${taxaAnual}`,
       `tr${trMensal}`,
@@ -996,6 +1027,9 @@ export const gerarCenarioCompleto = ({
     taxaMensalEfetiva,
     cetEstimado: taxaAnual + trMensal * 12 + 0.02,
     aporteExtra,
+    modoAporte: aporteConfig.modo,
+    tetoGastoMensal:
+      aporteConfig.modo === "teto_mensal" ? aporteConfig.teto : Math.max(0, tetoGastoMensal),
     seguros,
     rendaMensal,
     custoMensal,
@@ -1013,13 +1047,15 @@ export const gerarCenarioCompleto = ({
     extraEm,
     reformaEm,
     aporteEm,
-    aporteInicioMes: aporteExtra > 0 ? aporteInicioMes : undefined,
+    aporteInicioMes: aporteHabilitado ? aporteInicioMes : undefined,
     timeline: timeline.meses,
     saldoLivreMinimo: timeline.saldoLivreMinimo,
     totalReformas: timeline.totalReformas,
     totalCustosAdicionais: timeline.totalCustosAdicionais,
     totalManutencao: timeline.totalManutencao,
-    totalMensal: timeline.totalMensalMes1
+    totalMensal: timeline.totalMensalMes1,
+    mesesAcimaTeto: timeline.mesesAcimaTeto,
+    maiorExcessoTeto: timeline.maiorExcessoTeto
   }
 }
 
@@ -1044,11 +1080,11 @@ function reformMonthVariants(
 }
 
 function aporteDelayVariants(
-  aporteExtra: number,
+  hasAporte: boolean,
   temposInicioAporteExtraMeses: readonly AporteInicioTiming[],
   hasReforma: boolean
 ): AporteInicioTiming[] {
-  if (aporteExtra <= 0) {
+  if (!hasAporte) {
     return [0]
   }
   const variants = temposInicioAporteExtraMeses.filter(
@@ -1072,6 +1108,9 @@ export const gerarMatrizCenarios = ({
   taxaAnual,
   trMensal,
   aporteExtra,
+  modoAporte,
+  tetoGastoMensal = 0,
+  configAporte,
   aporteProgressivo,
   rendaMensal,
   custoManutencaoImovelMensal,
@@ -1097,8 +1136,19 @@ export const gerarMatrizCenarios = ({
     temImovelParaNegociar ?? valoresApartamento.some((v) => v > 0)
   const extraMonths = extraMonthVariants(esperaQuantiaExtra, temposRecebimentoExtraMeses)
   const hasReforma = custoTotalReformas > 0
-  const aporteDelays = aporteDelayVariants(
+  const resolvedAporteConfig = resolveAporteMensalConfig({
+    configAporte,
+    modoAporte,
     aporteExtra,
+    tetoGastoMensal,
+    aporteProgressivo
+  })
+  const hasAporte =
+    resolvedAporteConfig.modo === "teto_mensal"
+      ? resolvedAporteConfig.teto > 0
+      : aporteExtra > 0
+  const aporteDelays = aporteDelayVariants(
+    hasAporte,
     temposInicioAporteExtraMeses,
     hasReforma
   )
@@ -1117,7 +1167,9 @@ export const gerarMatrizCenarios = ({
     trMensal,
     prazoMeses,
     aporteExtra,
-    aporteProgressivo,
+    modoAporte: resolvedAporteConfig.modo,
+    tetoGastoMensal,
+    configAporte: resolvedAporteConfig,
     rendaMensal,
     custoManutencaoImovelMensal: manutencao,
     seguros,

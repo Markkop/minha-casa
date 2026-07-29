@@ -6,7 +6,8 @@ import type {
 } from "$lib/components/financiamento/financiamento-parameter-types";
 import {
   buildAporteProgressivoConfig,
-  type AporteProgressivoConfig
+  resolveAporteMensalConfig,
+  type AporteMensalConfig
 } from "$lib/financiamento/aporte-progressivo";
 import type { CustoAdicional } from "$lib/financiamento/custos-adicionais";
 
@@ -19,8 +20,10 @@ export interface EffectiveSimulationParams {
   entradaDisponivel: number;
   valorApartamento: number;
   rendaMensal: number;
+  custoMensal: number;
   aporteExtra: number;
-  aporteProgressivo: AporteProgressivoConfig;
+  tetoGastoMensal: number;
+  configAporte: AporteMensalConfig;
   valorImovel: number;
   taxaAnual: number;
   trMensal: number;
@@ -47,14 +50,21 @@ export function resolveEffectiveParams(params: SimulatorParams): EffectiveSimula
     entradaDisponivel: params.entradaDisponivel,
     valorApartamento: temImovel ? params.valorApartamento : 0,
     rendaMensal: params.rendaMensal,
+    custoMensal: params.custoMensal,
     aporteExtra: params.aporteExtra,
-    aporteProgressivo: buildAporteProgressivoConfig({
+    tetoGastoMensal: params.tetoGastoMensal,
+    configAporte: resolveAporteMensalConfig({
+      modoAporte: params.modoAporte,
       aporteExtra: params.aporteExtra,
-      aporteProgressivo: params.aporteProgressivo,
-      aporteProgressivoDecrescente: params.aporteProgressivoDecrescente,
-      aporteInicial: params.aporteInicial,
-      aporteProgressao: params.aporteProgressao,
-      aporteIntervaloMeses: params.aporteIntervaloMeses
+      tetoGastoMensal: params.tetoGastoMensal,
+      aporteProgressivo: buildAporteProgressivoConfig({
+        aporteExtra: params.aporteExtra,
+        aporteProgressivo: params.modoAporte === "progressivo",
+        aporteProgressivoDecrescente: params.aporteProgressivoDecrescente,
+        aporteInicial: params.aporteInicial,
+        aporteProgressao: params.aporteProgressao,
+        aporteIntervaloMeses: params.aporteIntervaloMeses
+      })
     }),
     valorImovel: params.valorImovel,
     taxaAnual: params.taxaAnual,

@@ -115,6 +115,11 @@
               { key: "taxaAnual" as const, label: "Taxa de Juros Anual", isPercent: true },
               { key: "trMensal" as const, label: "TR Mensal", isPercent: true },
               { key: "aporteExtra" as const, label: "Aporte Extra Mensal", isCurrency: true },
+              {
+                key: "tetoGastoMensal" as const,
+                label: "Teto de Gasto Mensal",
+                isCurrency: true
+              },
               { key: "rendaMensal" as const, label: "Renda Mensal", isCurrency: true }
             ] as row (row.key)}
               {@const range = localSettings.sliders[row.key]}

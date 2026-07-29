@@ -1,6 +1,7 @@
 import { UI_DEFAULTS } from "$lib/financiamento/calculations-defaults";
 import type {
   EstrategiaAmortizacao,
+  ModoAporte,
   SistemaAmortizacao,
   TipoTaxaAnual
 } from "$lib/components/financiamento/financiamento-parameter-types";
@@ -19,12 +20,20 @@ const formatCurrencyCompact = (value: number): string => {
   return formatCurrency(value);
 };
 
+export function formatModoAporte(value: ModoAporte): string {
+  if (value === "progressivo") return "Progressivo";
+  if (value === "teto_mensal") return "Teto mensal";
+  return "Fixo";
+}
+
 export interface TooltipParams {
   taxaAnualRange?: { min: number; max: number };
   trMensalRange?: { min: number; max: number };
   aporteExtra?: number;
   economiaJuros?: number;
   aporteExtraRange?: { min: number; max: number };
+  modoAporte?: ModoAporte;
+  tetoGastoMensal?: number;
   rendaMensalRange?: { min: number; max: number };
   sistemaAmortizacao?: SistemaAmortizacao;
   estrategiaAmortizacao?: EstrategiaAmortizacao;
@@ -37,6 +46,8 @@ export function generateTooltips(params: TooltipParams = {}) {
     taxaAnualRange = { min: 9, max: 15 },
     trMensalRange = { min: 0, max: 0.5 },
     aporteExtra = UI_DEFAULTS.aporteExtra,
+    modoAporte = UI_DEFAULTS.modoAporte,
+    tetoGastoMensal = UI_DEFAULTS.tetoGastoMensal,
     economiaJuros,
     sistemaAmortizacao = UI_DEFAULTS.sistemaAmortizacao,
     estrategiaAmortizacao = UI_DEFAULTS.estrategiaAmortizacao,
@@ -47,9 +58,15 @@ export function generateTooltips(params: TooltipParams = {}) {
   const trAnualMin = (trMensalRange.min * 12).toFixed(1);
   const trAnualMax = (trMensalRange.max * 12).toFixed(1);
 
+  const aporteDescription =
+    modoAporte === "teto_mensal"
+      ? `Com teto mensal de ${formatCurrency(tetoGastoMensal)}, o aporte usa a folga que restar após os gastos do mês.`
+      : modoAporte === "progressivo"
+        ? `Com aportes progressivos de até ${formatCurrency(aporteExtra)} por mês.`
+        : `Com aporte de ${formatCurrency(aporteExtra)} por mês.`;
   const economiaText = economiaJuros
-    ? `Com seu aporte de ${formatCurrency(aporteExtra)}/mês, você pode economizar ${formatCurrencyCompact(economiaJuros)} em juros.`
-    : `Com aportes de ${formatCurrency(aporteExtra)}/mês, você pode economizar significativamente em juros.`;
+    ? `${aporteDescription} A economia estimada é de ${formatCurrencyCompact(economiaJuros)} em juros.`
+    : `${aporteDescription} Isso pode reduzir significativamente os juros.`;
   const sistemaLabel = sistemaAmortizacao === "price" ? "PRICE" : "SAC";
   const estrategiaLabel =
     estrategiaAmortizacao === "reduzir_prestacao" ? "reduzir prestação" : "reduzir prazo";
@@ -73,7 +90,14 @@ export function generateTooltips(params: TooltipParams = {}) {
     tipoTaxaAnual: taxaAnualText,
     taxaAnual: taxaAnualText,
     trMensal: `Taxa Referencial mensal. A TR oscila entre ${trMensalRange.min.toFixed(2)}% e ${trMensalRange.max.toFixed(2)}% ao mês, adicionando ${trAnualMin}% a ${trAnualMax}% ao ano ao custo real.`,
-    aporteExtra: "Valor extra mensal para amortização.",
+    modoAporte:
+      "Fixo mantém o mesmo aporte; progressivo varia por intervalos; teto mensal usa a folga entre os gastos do mês e o orçamento definido.",
+    aporteExtra:
+      modoAporte === "progressivo"
+        ? "Limite do aporte progressivo. O valor efetivo varia ao longo do financiamento."
+        : "Valor fixo destinado mensalmente à amortização extra.",
+    tetoGastoMensal:
+      "Orçamento mensal para prestação, custo de vida, reformas, manutenção e outros custos. A folga restante vira aporte extra, sem acumular para outro mês.",
     rendaMensal:
       "Renda mensal comprovável.",
     comprometimento:

@@ -13,6 +13,7 @@
     formatCurrencyCompact,
     type CenarioCompleto
   } from "$lib/financiamento/calculations";
+  import { formatModoAporte } from "$lib/financiamento/calculations-tooltips";
   import { cn } from "$lib/utils";
 
   let {
@@ -22,6 +23,9 @@
     cenario: CenarioCompleto;
     onclick?: () => void;
   } = $props();
+
+  const aportePrimeiroMes = $derived(cenario.timeline[0]?.aporteExtra ?? 0);
+  const mesesAcimaTeto = $derived(cenario.mesesAcimaTeto);
 </script>
 
 <Card
@@ -61,6 +65,9 @@
         <span class="rounded bg-app-surface px-1.5 py-0.5">
           Taxa {formatTipoTaxaAnual(cenario.tipoTaxaAnual).toLocaleLowerCase("pt-BR")}
         </span>
+        <span class="rounded bg-app-action/10 px-1.5 py-0.5 text-app-accent">
+          Aporte {formatModoAporte(cenario.modoAporte).toLocaleLowerCase("pt-BR")}
+        </span>
       </div>
 
       <div class="grid grid-cols-2 gap-2 text-xs">
@@ -93,11 +100,35 @@
       <div
         class="flex items-center justify-between rounded-md bg-app-action/10 px-2 py-1 text-xs"
       >
-        <span class="text-app-accent">📈 Aporte Extra/mês</span>
+        <span class="text-app-accent">
+          {cenario.modoAporte === "teto_mensal"
+            ? "🎯 Teto mensal"
+            : cenario.modoAporte === "progressivo"
+              ? "📈 Aporte no 1º mês"
+              : "📈 Aporte extra/mês"}
+        </span>
         <span class="font-mono font-bold text-app-accent">
-          +{formatCurrencyCompact(cenario.aporteExtra)}
+          {#if cenario.modoAporte === "teto_mensal"}
+            {formatCurrencyCompact(cenario.tetoGastoMensal)}
+          {:else}
+            +{formatCurrencyCompact(
+              cenario.modoAporte === "fixo" ? cenario.aporteExtra : aportePrimeiroMes
+            )}
+          {/if}
         </span>
       </div>
+
+      {#if cenario.modoAporte === "teto_mensal"}
+        <div class="flex items-center justify-between px-2 text-[10px]">
+          <span class="text-app-muted">Aporte no 1º mês</span>
+          <span class="font-mono text-app-accent">+{formatCurrencyCompact(aportePrimeiroMes)}</span>
+        </div>
+        {#if mesesAcimaTeto > 0}
+          <div class="rounded-md bg-salmon/10 px-2 py-1 text-[10px] text-salmon">
+            {mesesAcimaTeto} {mesesAcimaTeto === 1 ? "mês acima" : "meses acima"} do teto
+          </div>
+        {/if}
+      {/if}
 
       <div class="space-y-1 rounded-md bg-app-surface p-2">
         <div class="flex items-center justify-between">

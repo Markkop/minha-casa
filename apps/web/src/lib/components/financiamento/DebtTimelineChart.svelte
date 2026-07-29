@@ -377,6 +377,10 @@
             <dt>Custo mensal</dt>
             <dd class="font-mono">{formatCurrency(gastos.custoMensal)}</dd>
           {/if}
+          {#if (month.excessoTetoMensal ?? 0) > 0}
+            <dt class="text-salmon">Excesso do teto</dt>
+            <dd class="font-mono text-salmon">{formatCurrency(month.excessoTetoMensal ?? 0)}</dd>
+          {/if}
           {#if month.amortizacaoVenda > 0}
             <dt>Venda</dt>
             <dd class="font-mono text-green">{formatCurrency(month.amortizacaoVenda)}</dd>

@@ -28,6 +28,7 @@ export type AporteInicioDelay = (typeof APORTE_INICIO_DELAY_OPTIONS)[number];
 
 export type SistemaAmortizacao = "sac" | "price";
 export type EstrategiaAmortizacao = "reduzir_prazo" | "reduzir_prestacao";
+export type ModoAporte = "fixo" | "progressivo" | "teto_mensal";
 export type TipoTaxaAnual = "efetiva" | "nominal";
 
 export type EstrategiaFiltro = "permuta" | "venda_posterior";
@@ -59,6 +60,7 @@ export interface ScenarioVariations {
   inicioReformaMeses: ReformaInicioTiming[];
   tempoObraMeses: number[];
   aporteExtra: number[];
+  tetoGastoMensal: number[];
   aporteInicial: number[];
   aporteProgressao: number[];
   aporteIntervaloMeses: number[];
@@ -79,7 +81,8 @@ export type SliderField =
   | "custoInicialReformas"
   | "tempoObraMeses"
   | "prazoMeses"
-  | "quantiaExtra";
+  | "quantiaExtra"
+  | "tetoGastoMensal";
 
 export interface SimulatorParams {
   sistemaAmortizacao: SistemaAmortizacao;
@@ -92,7 +95,8 @@ export interface SimulatorParams {
   rendaMensal: number;
   custoMensal: number;
   aporteExtra: number;
-  aporteProgressivo: boolean;
+  modoAporte: ModoAporte;
+  tetoGastoMensal: number;
   /** When progressive: start at teto and step down toward aporteInicial. */
   aporteProgressivoDecrescente: boolean;
   aporteInicial: number;

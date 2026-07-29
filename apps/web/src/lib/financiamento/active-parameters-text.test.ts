@@ -13,11 +13,14 @@ describe("buildActiveParametersYaml", () => {
     const yaml = buildActiveParametersYaml(createInitialSimulatorParams());
 
     expect(yaml).toContain("minha_casa_financeiro:");
-    expect(yaml).toContain("version: 3");
+    expect(yaml).toContain("version: 4");
     expect(yaml).toContain("sistemaAmortizacao: sac");
     expect(yaml).toContain("estrategiaAmortizacao: reduzir_prazo");
     expect(yaml).toContain("tipoTaxaAnual: efetiva");
     expect(yaml).toContain("prazoMeses: 420");
+    expect(yaml).toContain("modoAporte: fixo");
+    expect(yaml).toContain("tetoGastoMensal: 35000");
+    expect(yaml).not.toContain("aporteProgressivo:");
     expect(yaml).toContain("valorImovel: 2000000");
     expect(yaml).toContain("taxaAnual: 0.115");
     expect(yaml).not.toContain("R$");
@@ -40,7 +43,7 @@ describe("parseActiveParametersYaml", () => {
       ...createInitialSimulatorParams(),
       temImovelParaNegociar: true,
       incluirReformas: true,
-      aporteProgressivo: true,
+      modoAporte: "progressivo" as const,
       esperaQuantiaExtra: true,
       temposVendaPosteriorMeses: [1, 3, 24],
       temposReformaMeses: [0],
@@ -64,7 +67,7 @@ describe("parseActiveParametersYaml", () => {
     expect(parsed).toMatchObject({
       temImovelParaNegociar: true,
       incluirReformas: true,
-      aporteProgressivo: true,
+      modoAporte: "progressivo",
       esperaQuantiaExtra: true,
       valoresImovelFiltroMultipliers: params.valoresImovelFiltroMultipliers,
       valoresAptoFiltroMultipliers: params.valoresAptoFiltroMultipliers,
@@ -161,11 +164,13 @@ minha_casa_financeiro:
 
   it("accepts v1 YAML and migrates its financing defaults and missing term", () => {
     const v1Yaml = buildActiveParametersYaml(createInitialSimulatorParams())
-      .replace("version: 3", "version: 1")
+      .replace("version: 4", "version: 1")
       .replace(/^ {4}sistemaAmortizacao:.*\n/m, "")
       .replace(/^ {4}estrategiaAmortizacao:.*\n/m, "")
       .replace(/^ {4}tipoTaxaAnual:.*\n/m, "")
-      .replace(/^ {4}prazoMeses:.*\n/m, "");
+      .replace(/^ {4}prazoMeses:.*\n/m, "")
+      .replace(/^ {4}modoAporte:.*\n/m, "    aporteProgressivo: true\n")
+      .replace(/^ {4}tetoGastoMensal:.*\n/m, "");
 
     const normalized = normalizeSimulatorParams(parseActiveParametersYaml(v1Yaml) ?? {});
 
@@ -173,7 +178,9 @@ minha_casa_financeiro:
       sistemaAmortizacao: "sac",
       estrategiaAmortizacao: "reduzir_prazo",
       tipoTaxaAnual: "nominal",
-      prazoMeses: 420
+      prazoMeses: 420,
+      modoAporte: "progressivo",
+      tetoGastoMensal: 35_000
     });
   });
 
@@ -182,8 +189,10 @@ minha_casa_financeiro:
       ...createInitialSimulatorParams(),
       prazoMeses: 360
     })
-      .replace("version: 3", "version: 2")
-      .replace(/^ {4}prazoMeses:.*\n/m, "");
+      .replace("version: 4", "version: 2")
+      .replace(/^ {4}prazoMeses:.*\n/m, "")
+      .replace(/^ {4}modoAporte:.*\n/m, "    aporteProgressivo: false\n")
+      .replace(/^ {4}tetoGastoMensal:.*\n/m, "");
 
     const parsed = parseActiveParametersYaml(v2Yaml);
 
@@ -191,11 +200,26 @@ minha_casa_financeiro:
     expect(normalizeSimulatorParams(parsed ?? {}).prazoMeses).toBe(420);
   });
 
+  it("accepts v3 YAML and migrates its legacy aporte toggle", () => {
+    const v3Yaml = buildActiveParametersYaml(createInitialSimulatorParams())
+      .replace("version: 4", "version: 3")
+      .replace(/^ {4}modoAporte:.*\n/m, "    aporteProgressivo: true\n")
+      .replace(/^ {4}tetoGastoMensal:.*\n/m, "");
+
+    const normalized = normalizeSimulatorParams(parseActiveParametersYaml(v3Yaml) ?? {});
+
+    expect(normalized).toMatchObject({
+      modoAporte: "progressivo",
+      tetoGastoMensal: 35_000,
+      prazoMeses: 420
+    });
+  });
+
   it("rejects unrelated text, invalid roots, invalid versions, incomplete params, and malformed YAML", () => {
     expect(parseActiveParametersYaml("not copied parameters")).toBeNull();
     expect(parseActiveParametersYaml("outra_raiz:\n  version: 1\n  params: {}")).toBeNull();
     expect(
-      parseActiveParametersYaml("minha_casa_financeiro:\n  version: 4\n  params: {}")
+      parseActiveParametersYaml("minha_casa_financeiro:\n  version: 5\n  params: {}")
     ).toBeNull();
     expect(
       parseActiveParametersYaml("minha_casa_financeiro:\n  version: 1\n  params:\n    valorImovel: 1")
@@ -213,6 +237,12 @@ minha_casa_financeiro:
       ""
     );
     expect(parseActiveParametersYaml(v3WithoutTerm)).toBeNull();
+
+    const v4WithoutMode = buildActiveParametersYaml(createInitialSimulatorParams()).replace(
+      /^ {4}modoAporte:.*\n/m,
+      ""
+    );
+    expect(parseActiveParametersYaml(v4WithoutMode)).toBeNull();
   });
 });
 

@@ -328,6 +328,200 @@ describe("simularTimelineMensal", () => {
     expect(result.meses[8]?.aporteExtra).toBe(4_000);
   });
 
+  it("fills the monthly ceiling after all mandatory expenses", () => {
+    const result = simularTimelineMensal({
+      valorFinanciado: 100_000,
+      prazoMeses: 10,
+      taxaMensalEfetiva: 0,
+      aporteExtra: 0,
+      configAporte: { modo: "teto_mensal", teto: 25_000 },
+      rendaMensal: 40_000,
+      custoMensal: 2_000,
+      estrategia: "venda_posterior",
+      mesVenda: 10,
+      custoManutencaoImovelMensal: 2_000,
+      custoTotalReformas: 7_000,
+      custoInicialReformas: 3_000,
+      tempoObraMeses: 2,
+      custosAdicionais: [
+        {
+          id: "laudo",
+          nome: "Laudo",
+          incluirNoCalculo: true,
+          cobrancaMensal: false,
+          valorTotal: 1_000,
+          mesInicio: 1,
+          duracaoMeses: 1
+        }
+      ]
+    });
+
+    expect(result.meses[0]).toMatchObject({
+      prestacao: 10_000,
+      custoMensal: 2_000,
+      reformaInicial: 3_000,
+      reformaMensal: 2_000,
+      custosAdicionais: 1_000,
+      manutencaoMensal: 2_000,
+      aporteExtra: 5_000,
+      excessoTetoMensal: 0,
+      saldoLivre: 15_000
+    });
+    expect(result.totalMensalMes1).toBe(25_000);
+  });
+
+  it.each([
+    ["living cost", { custoMensal: 1_000 }],
+    [
+      "initial reform",
+      { custoTotalReformas: 1_000, custoInicialReformas: 1_000, tempoObraMeses: 1 }
+    ],
+    [
+      "monthly reform",
+      { custoTotalReformas: 1_000, custoInicialReformas: 0, tempoObraMeses: 1 }
+    ],
+    [
+      "additional cost",
+      {
+        custosAdicionais: [
+          {
+            id: "custo",
+            nome: "Custo",
+            incluirNoCalculo: true,
+            cobrancaMensal: false,
+            valorTotal: 1_000,
+            mesInicio: 1,
+            duracaoMeses: 1
+          }
+        ]
+      }
+    ],
+    [
+      "maintenance",
+      {
+        estrategia: "venda_posterior" as const,
+        mesVenda: 10,
+        custoManutencaoImovelMensal: 1_000
+      }
+    ]
+  ] as const)("subtracts each %s independently from ceiling headroom", (_name, overrides) => {
+    const result = simularTimelineMensal({
+      valorFinanciado: 100_000,
+      prazoMeses: 10,
+      taxaMensalEfetiva: 0,
+      aporteExtra: 0,
+      configAporte: { modo: "teto_mensal", teto: 30_000 },
+      rendaMensal: 40_000,
+      estrategia: "financiamento",
+      ...overrides
+    });
+
+    expect(result.meses[0]?.prestacao).toBe(10_000);
+    expect(result.meses[0]?.aporteExtra).toBe(19_000);
+  });
+
+  it("applies zero aporte and summarizes mandatory spending above the ceiling", () => {
+    const result = simularTimelineMensal({
+      valorFinanciado: 100_000,
+      prazoMeses: 10,
+      taxaMensalEfetiva: 0,
+      aporteExtra: 0,
+      configAporte: { modo: "teto_mensal", teto: 15_000 },
+      rendaMensal: 40_000,
+      custoMensal: 2_000,
+      estrategia: "financiamento",
+      custoTotalReformas: 8_000,
+      custoInicialReformas: 3_000,
+      tempoObraMeses: 1
+    });
+
+    expect(result.meses[0]).toMatchObject({ aporteExtra: 0, excessoTetoMensal: 5_000 });
+    expect(result.mesesAcimaTeto).toBe(1);
+    expect(result.maiorExcessoTeto).toBe(5_000);
+  });
+
+  it("caps ceiling aporte at debt remaining after contractual amortization", () => {
+    const result = simularTimelineMensal({
+      valorFinanciado: 100_000,
+      prazoMeses: 10,
+      taxaMensalEfetiva: 0,
+      aporteExtra: 0,
+      configAporte: { modo: "teto_mensal", teto: 1_000_000 },
+      rendaMensal: 1_000_000,
+      estrategia: "financiamento"
+    });
+
+    expect(result.meses[0]).toMatchObject({ prestacao: 10_000, aporteExtra: 90_000 });
+    expect(result.prazoReal).toBe(1);
+  });
+
+  it("does not carry a ceiling deficit and still respects the aporte start month", () => {
+    const result = simularTimelineMensal({
+      valorFinanciado: 100_000,
+      prazoMeses: 10,
+      taxaMensalEfetiva: 0,
+      aporteExtra: 0,
+      configAporte: { modo: "teto_mensal", teto: 20_000 },
+      rendaMensal: 40_000,
+      estrategia: "financiamento",
+      custoTotalReformas: 20_000,
+      custoInicialReformas: 20_000,
+      tempoObraMeses: 1,
+      mesInicioAporte: 2
+    });
+
+    expect(result.meses[0]).toMatchObject({ aporteExtra: 0, excessoTetoMensal: 10_000 });
+    expect(result.meses[1]).toMatchObject({ aporteExtra: 10_000, excessoTetoMensal: 0 });
+  });
+
+  it("excludes sale and extraordinary-receipt amortizations from the ceiling", () => {
+    const result = simularTimelineMensal({
+      valorFinanciado: 100_000,
+      prazoMeses: 10,
+      taxaMensalEfetiva: 0,
+      aporteExtra: 0,
+      configAporte: { modo: "teto_mensal", teto: 15_000 },
+      rendaMensal: 40_000,
+      estrategia: "venda_posterior",
+      valorApartamento: 20_000,
+      mesVenda: 2,
+      quantiaExtra: 20_000,
+      mesExtra: 2
+    });
+
+    expect(result.meses[1]).toMatchObject({
+      aporteExtra: 5_000,
+      amortizacaoVenda: 20_000,
+      amortizacaoQuantiaExtra: 20_000,
+      excessoTetoMensal: 0
+    });
+  });
+
+  it.each([
+    ["sac", "reduzir_prazo"],
+    ["sac", "reduzir_prestacao"],
+    ["price", "reduzir_prazo"],
+    ["price", "reduzir_prestacao"]
+  ] as const)("keeps %s/%s spending at the ceiling while debt remains", (sistema, estrategia) => {
+    const result = simularTimelineMensal({
+      valorFinanciado: 100_000,
+      prazoMeses: 10,
+      taxaMensalEfetiva: 0,
+      aporteExtra: 0,
+      configAporte: { modo: "teto_mensal", teto: 15_000 },
+      rendaMensal: 40_000,
+      estrategia: "financiamento",
+      sistemaAmortizacao: sistema,
+      estrategiaAmortizacao: estrategia
+    });
+
+    expect(result.meses[0]!.prestacao + result.meses[0]!.aporteExtra).toBeCloseTo(15_000, 8);
+    expect(result.meses[1]!.prestacao + result.meses[1]!.aporteExtra).toBeCloseTo(15_000, 8);
+    if (estrategia === "reduzir_prestacao") {
+      expect(result.meses[1]!.aporteExtra).toBeGreaterThan(result.meses[0]!.aporteExtra);
+    }
+  });
+
   it("applies aporte from month 1 when delay is zero", () => {
     const result = simularTimelineMensal({
       ...baseTimeline,

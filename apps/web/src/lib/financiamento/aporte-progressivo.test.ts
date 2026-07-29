@@ -1,10 +1,37 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildAporteMensalConfig,
+  calcularAporteMensalProgramado,
   calcularAporteExtraProgramado,
   resolveAporteStartMonth,
   clampAporteProgressivoFields,
   formatIntervaloMeses
 } from "$lib/financiamento/aporte-progressivo";
+
+describe("AporteMensalConfig", () => {
+  it("builds a monthly-ceiling policy from simulator fields", () => {
+    expect(
+      buildAporteMensalConfig({
+        modoAporte: "teto_mensal",
+        tetoGastoMensal: 35_000,
+        aporteExtra: 5_000,
+        aporteProgressivoDecrescente: false,
+        aporteInicial: 0,
+        aporteProgressao: 1_000,
+        aporteIntervaloMeses: 1
+      })
+    ).toEqual({ modo: "teto_mensal", teto: 35_000 });
+  });
+
+  it("uses only the current month's headroom without carrying prior surplus or deficit", () => {
+    const config = { modo: "teto_mensal", teto: 20_000 } as const;
+
+    expect(calcularAporteMensalProgramado(1, config, 25_000)).toBe(0);
+    expect(calcularAporteMensalProgramado(2, config, 12_000)).toBe(8_000);
+    expect(calcularAporteMensalProgramado(3, config, 5_000)).toBe(15_000);
+    expect(calcularAporteMensalProgramado(1, { modo: "teto_mensal", teto: 0 }, 0)).toBe(0);
+  });
+});
 
 describe("calcularAporteExtraProgramado", () => {
   const progressive = {

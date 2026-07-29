@@ -5,6 +5,7 @@ import {
   type AporteInicioTiming,
   type EstrategiaAmortizacao,
   type EstrategiaFiltro,
+  type ModoAporte,
   type SistemaAmortizacao,
   type SimulatorParams,
   type TipoTaxaAnual
@@ -39,6 +40,7 @@ const VALID_ESTRATEGIAS_AMORTIZACAO = new Set<EstrategiaAmortizacao>([
   "reduzir_prazo",
   "reduzir_prestacao"
 ]);
+const VALID_MODOS_APORTE = new Set<ModoAporte>(["fixo", "progressivo", "teto_mensal"]);
 const VALID_TIPOS_TAXA_ANUAL = new Set<TipoTaxaAnual>(["efetiva", "nominal"]);
 const VALID_TIMING_MONTHS = new Set<number>(TIMING_MONTH_OPTIONS);
 const VALID_APORTE_INICIO_DELAYS = new Set<number>(APORTE_INICIO_DELAY_OPTIONS);
@@ -54,6 +56,8 @@ interface StoredSimulatorParams
   > {
   custoCondominioMensal?: number;
   custoMensalMaximoReformas?: number;
+  /** Legacy field, replaced by modoAporte. */
+  aporteProgressivo?: boolean;
   linkedListingId?: unknown;
   temposInicioAporteExtraMeses?: unknown;
   custosAdicionais?: unknown;
@@ -221,9 +225,14 @@ export function normalizeSimulatorParams(parsed: StoredSimulatorParams): Simulat
         : defaults.temImovelParaNegociar;
 
   const aporteExtra = finiteNumber(parsed.aporteExtra, defaults.aporteExtra);
+  const modoAporte = validEnumValue(
+    parsed.modoAporte,
+    VALID_MODOS_APORTE,
+    parsed.aporteProgressivo === true ? "progressivo" : defaults.modoAporte
+  );
   const aporteProgressivoFields = clampAporteProgressivoFields({
     aporteExtra,
-    aporteProgressivo: finiteBoolean(parsed.aporteProgressivo, defaults.aporteProgressivo),
+    aporteProgressivo: modoAporte === "progressivo",
     aporteProgressivoDecrescente: finiteBoolean(
       parsed.aporteProgressivoDecrescente,
       defaults.aporteProgressivoDecrescente
@@ -312,7 +321,11 @@ export function normalizeSimulatorParams(parsed: StoredSimulatorParams): Simulat
     rendaMensal: finiteNumber(parsed.rendaMensal, defaults.rendaMensal),
     custoMensal: finiteNumber(parsed.custoMensal, defaults.custoMensal),
     aporteExtra: aporteProgressivoFields.aporteExtra,
-    aporteProgressivo: aporteProgressivoFields.aporteProgressivo,
+    modoAporte,
+    tetoGastoMensal: Math.max(
+      0,
+      finiteNumber(parsed.tetoGastoMensal, defaults.tetoGastoMensal)
+    ),
     aporteProgressivoDecrescente: aporteProgressivoFields.aporteProgressivoDecrescente,
     aporteInicial: aporteProgressivoFields.aporteInicial,
     aporteProgressao: aporteProgressivoFields.aporteProgressao,
@@ -385,7 +398,11 @@ export function loadSimulatorParams(): SimulatorParams | null {
   try {
     const currentStored = window.localStorage.getItem(SIMULATOR_PARAMS_STORAGE_KEY);
     if (currentStored) {
-      return normalizeSimulatorParams(JSON.parse(currentStored) as StoredSimulatorParams);
+      const normalized = normalizeSimulatorParams(
+        JSON.parse(currentStored) as StoredSimulatorParams
+      );
+      window.localStorage.setItem(SIMULATOR_PARAMS_STORAGE_KEY, JSON.stringify(normalized));
+      return normalized;
     }
 
     const legacyStored = window.localStorage.getItem(LEGACY_SIMULATOR_PARAMS_STORAGE_KEY);

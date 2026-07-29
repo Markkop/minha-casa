@@ -5,6 +5,7 @@
   import type {
     CustoAdicional,
     EstrategiaAmortizacao,
+    ModoAporte,
     ParameterCardProps,
     ReformaInicioTiming,
     ScenarioVariations,
@@ -46,7 +47,6 @@
   import {
     APORTE_APOS_REFORMA_VALUE,
     APORTE_PROGRESSIVO_STEP,
-    clampAporteProgressivoFields,
     formatIntervaloMeses
   } from "$lib/financiamento/aporte-progressivo";
   import {
@@ -64,6 +64,7 @@
   } from "$lib/financiamento/financeiro-section-state";
   import { getSettingsContext } from "$lib/financiamento/settings-context.svelte";
   import { createInitialSimulatorParams } from "$lib/financiamento/simulator-recursos";
+  import { cn } from "$lib/utils";
 
   let {
     params,
@@ -89,6 +90,11 @@
     { value: "reduzir_prazo", label: "Reduz prazo" },
     { value: "reduzir_prestacao", label: "Reduz prestação" }
   ];
+  const modoAporteOptions: { value: ModoAporte; label: string; description: string }[] = [
+    { value: "fixo", label: "Fixo", description: "Mesmo valor todos os meses" },
+    { value: "progressivo", label: "Progressivo", description: "Valor varia por intervalos" },
+    { value: "teto_mensal", label: "Teto mensal", description: "Completa o orçamento do mês" }
+  ];
   const tipoTaxaAnualOptions: { value: TipoTaxaAnual; label: string }[] = [
     { value: "efetiva", label: "Efetiva" },
     { value: "nominal", label: "Nominal" }
@@ -112,6 +118,7 @@
   const taxaAnualRange = $derived(settingsContext.settings.sliders.taxaAnual);
   const trMensalRange = $derived(settingsContext.settings.sliders.trMensal);
   const aporteExtraRange = $derived(settingsContext.settings.sliders.aporteExtra);
+  const tetoGastoMensalRange = $derived(settingsContext.settings.sliders.tetoGastoMensal);
   const rendaMensalRange = $derived(settingsContext.settings.sliders.rendaMensal);
 
   const tooltips = $derived(
@@ -120,6 +127,8 @@
       trMensalRange,
       aporteExtra: params.aporteExtra,
       aporteExtraRange,
+      modoAporte: params.modoAporte,
+      tetoGastoMensal: params.tetoGastoMensal,
       rendaMensalRange,
       sistemaAmortizacao: params.sistemaAmortizacao,
       estrategiaAmortizacao: params.estrategiaAmortizacao,
@@ -238,7 +247,6 @@
       Pick<
         typeof params,
         | "aporteExtra"
-        | "aporteProgressivo"
         | "aporteProgressivoDecrescente"
         | "aporteInicial"
         | "aporteProgressao"
@@ -246,16 +254,36 @@
       >
     >
   ) {
-    const clamped = clampAporteProgressivoFields({
-      aporteExtra: partial.aporteExtra ?? params.aporteExtra,
-      aporteProgressivo: partial.aporteProgressivo ?? params.aporteProgressivo,
+    const aporteExtra = Math.max(0, partial.aporteExtra ?? params.aporteExtra);
+    const aporteInicial = Math.max(
+      0,
+      Math.min(
+        Math.round((partial.aporteInicial ?? params.aporteInicial) / APORTE_PROGRESSIVO_STEP) *
+          APORTE_PROGRESSIVO_STEP,
+        aporteExtra
+      )
+    );
+    const progressaoMax = Math.max(APORTE_PROGRESSIVO_STEP, aporteExtra - aporteInicial);
+    const aporteProgressao = Math.max(
+      APORTE_PROGRESSIVO_STEP,
+      Math.min(
+        Math.round(
+          (partial.aporteProgressao ?? params.aporteProgressao) / APORTE_PROGRESSIVO_STEP
+        ) * APORTE_PROGRESSIVO_STEP,
+        progressaoMax
+      )
+    );
+    patch({
+      aporteExtra,
       aporteProgressivoDecrescente:
         partial.aporteProgressivoDecrescente ?? params.aporteProgressivoDecrescente,
-      aporteInicial: partial.aporteInicial ?? params.aporteInicial,
-      aporteProgressao: partial.aporteProgressao ?? params.aporteProgressao,
-      aporteIntervaloMeses: partial.aporteIntervaloMeses ?? params.aporteIntervaloMeses
+      aporteInicial,
+      aporteProgressao,
+      aporteIntervaloMeses: Math.max(
+        1,
+        Math.min(12, Math.round(partial.aporteIntervaloMeses ?? params.aporteIntervaloMeses))
+      )
     });
-    patch(clamped);
   }
 
   const aporteProgressaoMax = $derived(
@@ -452,7 +480,8 @@
       prazoMeses: UI_DEFAULTS.prazoMeses,
       entradaDisponivel: UI_DEFAULTS.entradaDisponivel,
       aporteExtra: UI_DEFAULTS.aporteExtra,
-      aporteProgressivo: UI_DEFAULTS.aporteProgressivo,
+      modoAporte: UI_DEFAULTS.modoAporte,
+      tetoGastoMensal: UI_DEFAULTS.tetoGastoMensal,
       aporteProgressivoDecrescente: UI_DEFAULTS.aporteProgressivoDecrescente,
       aporteInicial: UI_DEFAULTS.aporteInicial,
       aporteProgressao: UI_DEFAULTS.aporteProgressao,
@@ -473,6 +502,7 @@
           "tipoTaxaAnual",
           "entradaDisponivel",
           "aporteExtra",
+          "tetoGastoMensal",
           "inicioAporteExtraMeses",
           "aporteInicial",
           "aporteProgressao",
@@ -487,6 +517,7 @@
         tipoTaxaAnual: filterDefaults.scenarioVariations.tipoTaxaAnual,
         entradaDisponivel: filterDefaults.scenarioVariations.entradaDisponivel,
         aporteExtra: filterDefaults.scenarioVariations.aporteExtra,
+        tetoGastoMensal: filterDefaults.scenarioVariations.tetoGastoMensal,
         aporteInicial: filterDefaults.scenarioVariations.aporteInicial,
         aporteProgressao: filterDefaults.scenarioVariations.aporteProgressao,
         aporteIntervaloMeses: filterDefaults.scenarioVariations.aporteIntervaloMeses,
@@ -1337,54 +1368,128 @@
             />
           {/snippet}
         </ParameterRow>
-        <ParameterRow
-          compact={rowCompact}
-          label="Aporte extra mensal"
-          tooltip={tooltips.aporteExtra}
-          hint={params.aporteProgressivo
-            ? params.aporteProgressivoDecrescente
-              ? "Teto inicial do aporte progressivo"
-              : "Teto do aporte progressivo"
-            : undefined}
-          valueDisplay={formatCurrency(params.aporteExtra)}
-          slider={{
-            value: params.aporteExtra,
-            min: aporteExtraRange.min,
-            max: aporteExtraRange.max,
-            step: aporteExtraRange.step,
-            onValueChange: (value) => patchAporteProgressivo({ aporteExtra: value })
-          }}
-          edit={{
-            type: "currency",
-            value: params.aporteExtra,
-            onChange: (value) => patchAporteProgressivo({ aporteExtra: value })
-          }}
-          forceExtrasExpanded={rowExtrasLocked(
-            params.scenarioVariations.aporteExtra,
-            params.aporteExtra,
-            changed("aporteExtra")
-          )}
-          lockExtrasExpanded={rowExtrasLocked(
-            params.scenarioVariations.aporteExtra,
-            params.aporteExtra,
-            changed("aporteExtra")
-          )}
-          extrasAriaLabel="aporte-extra-variacoes"
-        >
-          {#snippet extras()}
-            <ScenarioFilterPills
-              options={buildCurrencyVariationPills(params.aporteExtra, aporteExtraRange)}
-              selected={params.scenarioVariations.aporteExtra}
-              baseline={baseline(
-                "aporteExtra",
-                params.aporteExtra,
-                formatCurrencyCompact(params.aporteExtra)
-              )}
-              ariaLabel="Variações de aporte extra mensal"
-              onToggle={(value) => toggleScenarioVariation("aporteExtra", value)}
-            />
-          {/snippet}
-        </ParameterRow>
+        <div class="border-b border-app-border py-2">
+          <div class="mb-1.5 flex items-center justify-between gap-2">
+            <span class="text-xs font-medium text-app-fg">Modo do aporte</span>
+            <span class="text-[10px] text-app-muted">Como o valor varia</span>
+          </div>
+          <div class="grid grid-cols-3 gap-1" role="radiogroup" aria-label="Modo do aporte">
+            {#each modoAporteOptions as option (option.value)}
+              <button
+                type="button"
+                role="radio"
+                aria-checked={params.modoAporte === option.value}
+                title={option.description}
+                class={cn(
+                  "rounded-md border px-1.5 py-1.5 text-center text-[11px] leading-tight transition-colors",
+                  params.modoAporte === option.value
+                    ? "border-app-action bg-app-action/15 font-semibold text-app-accent"
+                    : "border-app-border bg-app-surface text-app-muted hover:border-app-action/50 hover:text-app-fg"
+                )}
+                onclick={() => patch({ modoAporte: option.value })}
+              >
+                {option.label}
+              </button>
+            {/each}
+          </div>
+        </div>
+        {#if params.modoAporte === "fixo" || params.modoAporte === "progressivo"}
+          <ParameterRow
+            compact={rowCompact}
+            label={params.modoAporte === "progressivo" ? "Teto do aporte" : "Aporte extra mensal"}
+            tooltip={tooltips.aporteExtra}
+            hint={params.modoAporte === "progressivo"
+              ? params.aporteProgressivoDecrescente
+                ? "Valor inicial máximo; o aporte diminui até o piso"
+                : "Valor máximo atingido ao longo da progressão"
+              : undefined}
+            valueDisplay={formatCurrency(params.aporteExtra)}
+            slider={{
+              value: params.aporteExtra,
+              min: aporteExtraRange.min,
+              max: aporteExtraRange.max,
+              step: aporteExtraRange.step,
+              onValueChange: (value) => patchAporteProgressivo({ aporteExtra: value })
+            }}
+            edit={{
+              type: "currency",
+              value: params.aporteExtra,
+              onChange: (value) => patchAporteProgressivo({ aporteExtra: value })
+            }}
+            forceExtrasExpanded={rowExtrasLocked(
+              params.scenarioVariations.aporteExtra,
+              params.aporteExtra,
+              changed("aporteExtra")
+            )}
+            lockExtrasExpanded={rowExtrasLocked(
+              params.scenarioVariations.aporteExtra,
+              params.aporteExtra,
+              changed("aporteExtra")
+            )}
+            extrasAriaLabel="aporte-extra-variacoes"
+          >
+            {#snippet extras()}
+              <ScenarioFilterPills
+                options={buildCurrencyVariationPills(params.aporteExtra, aporteExtraRange)}
+                selected={params.scenarioVariations.aporteExtra}
+                baseline={baseline(
+                  "aporteExtra",
+                  params.aporteExtra,
+                  formatCurrencyCompact(params.aporteExtra)
+                )}
+                ariaLabel={params.modoAporte === "progressivo"
+                  ? "Variações de teto do aporte progressivo"
+                  : "Variações de aporte extra mensal"}
+                onToggle={(value) => toggleScenarioVariation("aporteExtra", value)}
+              />
+            {/snippet}
+          </ParameterRow>
+        {:else}
+          <ParameterRow
+            compact={rowCompact}
+            label="Teto de gasto mensal"
+            tooltip={tooltips.tetoGastoMensal}
+            hint="Prestação e demais gastos do mês consomem este teto antes do aporte"
+            valueDisplay={formatCurrency(params.tetoGastoMensal)}
+            slider={{
+              value: params.tetoGastoMensal,
+              min: tetoGastoMensalRange.min,
+              max: tetoGastoMensalRange.max,
+              step: tetoGastoMensalRange.step,
+              onValueChange: (value) => patch({ tetoGastoMensal: Math.max(0, value) })
+            }}
+            edit={{
+              type: "currency",
+              value: params.tetoGastoMensal,
+              onChange: (value) => patch({ tetoGastoMensal: Math.max(0, value) })
+            }}
+            forceExtrasExpanded={rowExtrasLocked(
+              params.scenarioVariations.tetoGastoMensal,
+              params.tetoGastoMensal,
+              changed("tetoGastoMensal")
+            )}
+            lockExtrasExpanded={rowExtrasLocked(
+              params.scenarioVariations.tetoGastoMensal,
+              params.tetoGastoMensal,
+              changed("tetoGastoMensal")
+            )}
+            extrasAriaLabel="teto-gasto-mensal-variacoes"
+          >
+            {#snippet extras()}
+              <ScenarioFilterPills
+                options={buildCurrencyVariationPills(params.tetoGastoMensal, tetoGastoMensalRange)}
+                selected={params.scenarioVariations.tetoGastoMensal}
+                baseline={baseline(
+                  "tetoGastoMensal",
+                  params.tetoGastoMensal,
+                  formatCurrencyCompact(params.tetoGastoMensal)
+                )}
+                ariaLabel="Variações de teto de gasto mensal"
+                onToggle={(value) => toggleScenarioVariation("tetoGastoMensal", value)}
+              />
+            {/snippet}
+          </ParameterRow>
+        {/if}
         <ParameterRow
           compact={rowCompact}
           label="Início do aporte extra"
@@ -1431,15 +1536,7 @@
             />
           {/snippet}
         </ParameterRow>
-        <div class="pt-2">
-          {@render sectionCheckbox(
-            "aporte-progressivo",
-            "Aporte progressivo",
-            params.aporteProgressivo,
-            (checked) => patchAporteProgressivo({ aporteProgressivo: checked })
-          )}
-        </div>
-        {#if params.aporteProgressivo}
+        {#if params.modoAporte === "progressivo"}
           <div class="pt-1">
             {@render sectionCheckbox(
               "aporte-progressivo-decrescente",

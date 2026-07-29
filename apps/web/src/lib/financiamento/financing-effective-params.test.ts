@@ -14,15 +14,11 @@ describe("resolveEffectiveParams", () => {
     expect(resolveEffectiveParams(params).entradaDisponivel).toBe(params.entradaDisponivel);
   });
 
-  it("keeps living costs out of financing scenario parameters", () => {
+  it("propagates living costs into financing scenario parameters", () => {
     const params = createInitialSimulatorParams();
+    const custoMensal = params.custoMensal + 25_000;
 
-    expect(
-      resolveEffectiveParams({
-        ...params,
-        custoMensal: params.custoMensal + 25_000
-      })
-    ).toEqual(resolveEffectiveParams(params));
+    expect(resolveEffectiveParams({ ...params, custoMensal }).custoMensal).toBe(custoMensal);
   });
 
   it("zeros all reform costs when reforms are disabled", () => {

@@ -95,6 +95,7 @@ export function debtGraphBreakdownText(
           ...optionalCurrencyRow("Outros", gastos.outros),
           ...optionalCurrencyRow("Manutenção", gastos.manutencao),
           ...optionalCurrencyRow("Custo mensal", gastos.custoMensal),
+          ...optionalCurrencyRow("Excesso do teto", month.excessoTetoMensal ?? 0),
           ...optionalCurrencyRow("Venda", month.amortizacaoVenda),
           ...optionalCurrencyRow("Quantia extra", month.amortizacaoQuantiaExtra),
           { label: "Gasto mensal", value: formatCurrency(gastos.total) },
@@ -143,6 +144,7 @@ export function monthlyTotalGraphBreakdownText(
           ...optionalCurrencyRow("Outros", gastos.outros),
           ...optionalCurrencyRow("Manutenção", gastos.manutencao),
           ...optionalCurrencyRow("Custo mensal", gastos.custoMensal),
+          ...optionalCurrencyRow("Excesso do teto", month.excessoTetoMensal ?? 0),
           { label: "Gasto mensal", value: formatCurrency(renderedMonthlyTotal(month, custoMensal)) },
           { label: "Saldo livre", value: formatCurrency(saldoLivre) }
         ];
@@ -170,6 +172,7 @@ export function freeBalanceGraphBreakdownText(
           ...optionalCurrencyRow("Outros", gastos.outros),
           ...optionalCurrencyRow("Manutenção", gastos.manutencao),
           ...optionalCurrencyRow("Custo mensal", gastos.custoMensal),
+          ...optionalCurrencyRow("Excesso do teto", month.excessoTetoMensal ?? 0),
           { label: "Gasto recorrente", value: formatCurrency(gastos.total) },
           { label: "Saldo livre recorrente", value: formatCurrency(saldoLivre) },
           ...eventosCaixa.events.map((event) => ({

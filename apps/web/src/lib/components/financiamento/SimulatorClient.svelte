@@ -756,7 +756,8 @@
       | "custoInicialReformas"
       | "tempoObraMeses"
       | "prazoMeses"
-      | "quantiaExtra",
+      | "quantiaExtra"
+      | "tetoGastoMensal",
     newValue: number
   ) {
     clearActiveGraphView();
@@ -808,6 +809,10 @@
     }
     if (field === "quantiaExtra") {
       params = { ...params, quantiaExtra: newValue };
+      return;
+    }
+    if (field === "tetoGastoMensal") {
+      params = { ...params, tetoGastoMensal: Math.max(0, newValue) };
     }
   }
 

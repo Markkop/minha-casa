@@ -28,6 +28,7 @@ const NUMERIC_VARIATION_KEYS = [
   "inicioReformaMeses",
   "tempoObraMeses",
   "aporteExtra",
+  "tetoGastoMensal",
   "aporteInicial",
   "aporteProgressao",
   "aporteIntervaloMeses",
@@ -62,6 +63,7 @@ export type ScenarioCombination = {
   inicioReformaMeses: ReformaInicioTiming;
   tempoObraMeses: number;
   aporteExtra: number;
+  tetoGastoMensal: number;
   aporteInicial: number;
   aporteProgressao: number;
   aporteIntervaloMeses: number;
@@ -143,6 +145,7 @@ export function emptyScenarioVariations(): ScenarioVariations {
     inicioReformaMeses: [],
     tempoObraMeses: [],
     aporteExtra: [],
+    tetoGastoMensal: [],
     aporteInicial: [],
     aporteProgressao: [],
     aporteIntervaloMeses: [],
@@ -317,9 +320,15 @@ function selectedNumbersForKey(
     return [];
   }
   if (
-    !params.aporteProgressivo &&
+    params.modoAporte !== "progressivo" &&
     (key === "aporteInicial" || key === "aporteProgressao" || key === "aporteIntervaloMeses")
   ) {
+    return [];
+  }
+  if (params.modoAporte !== "teto_mensal" && key === "tetoGastoMensal") {
+    return [];
+  }
+  if (params.modoAporte === "teto_mensal" && key === "aporteExtra") {
     return [];
   }
   if (
@@ -336,7 +345,10 @@ function selectedReformaTimings(params: SimulatorParams, variations: ScenarioVar
 }
 
 function selectedAporteTimings(params: SimulatorParams, variations: ScenarioVariations) {
-  const hasAporte = params.aporteExtra > 0 || variations.aporteExtra.some((value) => value > 0);
+  const hasAporte =
+    params.modoAporte === "teto_mensal"
+      ? params.tetoGastoMensal > 0 || variations.tetoGastoMensal.some((value) => value > 0)
+      : params.aporteExtra > 0 || variations.aporteExtra.some((value) => value > 0);
   if (!hasAporte) return [];
   return variations.inicioAporteExtraMeses.filter(
     (value) => params.incluirReformas || value !== APORTE_APOS_REFORMA_VALUE
