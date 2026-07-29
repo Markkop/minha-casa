@@ -1,4 +1,9 @@
-import type { SimulatorParams } from "$lib/components/financiamento/financiamento-parameter-types";
+import type {
+  EstrategiaAmortizacao,
+  SistemaAmortizacao,
+  SimulatorParams,
+  TipoTaxaAnual
+} from "$lib/components/financiamento/financiamento-parameter-types";
 import {
   buildAporteProgressivoConfig,
   type AporteProgressivoConfig
@@ -7,6 +12,10 @@ import type { CustoAdicional } from "$lib/financiamento/custos-adicionais";
 
 /** Simulation inputs with checkbox-off sections zeroed out. */
 export interface EffectiveSimulationParams {
+  sistemaAmortizacao: SistemaAmortizacao;
+  estrategiaAmortizacao: EstrategiaAmortizacao;
+  tipoTaxaAnual: TipoTaxaAnual;
+  prazoMeses: number;
   entradaDisponivel: number;
   valorApartamento: number;
   rendaMensal: number;
@@ -31,6 +40,10 @@ export function resolveEffectiveParams(params: SimulatorParams): EffectiveSimula
   const esperaExtra = params.esperaQuantiaExtra;
 
   return {
+    sistemaAmortizacao: params.sistemaAmortizacao,
+    estrategiaAmortizacao: params.estrategiaAmortizacao,
+    tipoTaxaAnual: params.tipoTaxaAnual,
+    prazoMeses: params.prazoMeses,
     entradaDisponivel: params.entradaDisponivel,
     valorApartamento: temImovel ? params.valorApartamento : 0,
     rendaMensal: params.rendaMensal,

@@ -42,7 +42,6 @@ function cenario(timeline: TimelineMonth[]): CenarioCompleto {
     rendaMensal: 20_000,
     entrada: 100_000,
     valorApartamento: 300_000,
-    custoCarregoApto: 20_000,
     custosFechamento: { total: 30_000 },
     financiamento: { valorFinanciado: 500_000 },
     timeline
@@ -126,7 +125,7 @@ describe("graph breakdown copy text", () => {
     const balance = totalBalanceGraphBreakdownText([scenario], 250_000, 25_000);
     const expenses = totalExpenseGraphBreakdownText([scenario], 250_000, 25_000);
 
-    expect(balance).toContain(`Receita da venda: ${formatCurrency(280_000)}`);
+    expect(balance).toContain(`Receita da venda: ${formatCurrency(300_000)}`);
     expect(balance).toContain(`Quantia recebida: ${formatCurrency(25_000)}`);
     expect(balance).toContain(`Amortização da venda: ${formatCurrency(50_000)}`);
     expect(balance).toContain(`Amortização extra: ${formatCurrency(25_000)}`);

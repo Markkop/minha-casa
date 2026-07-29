@@ -19,7 +19,7 @@ describe("Financeiro shared snapshot payloads", () => {
 
     const payload = buildSharedSnapshotPayload(params, DEFAULT_SETTINGS);
 
-    expect(payload.version).toBe(1);
+    expect(payload.version).toBe(2);
     expect(payload.params.linkedListingId).toBeNull();
     expect(payload.params.cenariosOcultosGraficos).toEqual(["cenario-a"]);
     expect(payload.params.valoresImovelFiltroMultipliers).toEqual(defaults.valoresImovelFiltroMultipliers);
@@ -41,7 +41,7 @@ describe("Financeiro shared snapshot payloads", () => {
             createdAt: "2026-01-01T00:00:00.000Z",
             updatedAt: "2026-01-01T00:00:00.000Z",
             payload: {
-              version: 1,
+              version: 2,
               params: { ...defaults, linkedListingId: "listing-1" },
               settings: DEFAULT_SETTINGS
             }
@@ -81,7 +81,7 @@ describe("Financeiro shared snapshot payloads", () => {
       }
     });
 
-    expect(payload.version).toBe(1);
+    expect(payload.version).toBe(2);
     expect(payload.params.valorImovel).toBe(createInitialSimulatorParams().valorImovel);
     expect(payload.params.linkedListingId).toBeNull();
     expect(payload.params.cenariosOcultosGraficos).toEqual(["visible-a"]);
@@ -95,7 +95,7 @@ describe("Financeiro shared snapshot payloads", () => {
 
   it("drops invalid or duplicate comparison sources during normalization", () => {
     const payload = normalizeSharedSnapshotPayload({
-      version: 1,
+      version: 2,
       params: {},
       settings: {},
       comparisonGroup: {
@@ -107,13 +107,13 @@ describe("Financeiro shared snapshot payloads", () => {
             id: "scenario-1",
             collectionId: "collection-1",
             name: "Um",
-            payload: { version: 1, params: {}, settings: {} }
+            payload: { version: 2, params: {}, settings: {} }
           },
           {
             id: "scenario-1",
             collectionId: "collection-1",
             name: "Duplicado",
-            payload: { version: 1, params: {}, settings: {} }
+            payload: { version: 2, params: {}, settings: {} }
           }
         ]
       }
@@ -135,6 +135,34 @@ describe("Financeiro shared snapshot payloads", () => {
 
     expect(snapshot?.token).toBe("abc");
     expect(snapshot?.title).toBe("Simulação");
-    expect(snapshot?.payload.version).toBe(1);
+    expect(snapshot?.payload.version).toBe(2);
+  });
+
+  it("accepts v1 payloads and migrates their financing defaults", () => {
+    const defaults = createInitialSimulatorParams();
+    const {
+      sistemaAmortizacao: _sistemaAmortizacao,
+      estrategiaAmortizacao: _estrategiaAmortizacao,
+      tipoTaxaAnual: _tipoTaxaAnual,
+      ...legacyParams
+    } = defaults;
+
+    const payload = normalizeSharedSnapshotPayload({
+      version: 1,
+      params: legacyParams,
+      settings: DEFAULT_SETTINGS
+    });
+
+    expect(payload.version).toBe(2);
+    expect(payload.params).toMatchObject({
+      sistemaAmortizacao: "sac",
+      estrategiaAmortizacao: "reduzir_prazo",
+      tipoTaxaAnual: "nominal"
+    });
+    expect(payload.params.scenarioVariations).toMatchObject({
+      sistemaAmortizacao: [],
+      estrategiaAmortizacao: [],
+      tipoTaxaAnual: []
+    });
   });
 });

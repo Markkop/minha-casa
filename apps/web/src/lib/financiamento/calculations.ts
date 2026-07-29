@@ -1,5 +1,5 @@
 /**
- * Simulador de Financiamento Imobiliário - Sistema SAC
+ * Simulador de Financiamento Imobiliário - Sistemas SAC e PRICE
  * Todas as fórmulas e cálculos para financiamento habitacional
  */
 
@@ -9,8 +9,14 @@ import {
   type AporteInicioTiming,
   type AporteProgressivoConfig
 } from "$lib/financiamento/aporte-progressivo";
-import { SIMULATION_ASSUMPTIONS } from "$lib/financiamento/calculations-defaults";
+import { SIMULATION_ASSUMPTIONS, UI_DEFAULTS } from "$lib/financiamento/calculations-defaults";
 import type { CustoAdicional } from "$lib/financiamento/custos-adicionais";
+import { calcularPrestacaoPrice } from "$lib/financiamento/financing-amortization";
+import type {
+  EstrategiaAmortizacao,
+  SistemaAmortizacao,
+  TipoTaxaAnual
+} from "$lib/components/financiamento/financiamento-parameter-types";
 import {
   calcularCustoTotalEventAware,
   resolveMesReformaConcluida,
@@ -25,6 +31,7 @@ import {
 export interface TaxaMensalParams {
   taxaAnual: number
   trMensal: number
+  tipoTaxaAnual?: TipoTaxaAnual
 }
 
 export interface EntradaParams {
@@ -35,22 +42,6 @@ export interface EntradaParams {
 export interface PermutaParams {
   valorApartamento: number
   haircut: number
-}
-
-export interface VendaPosteriorParams {
-  valorApartamento: number
-  valorFinanciadoExtra: number
-  taxaMensalEfetiva: number
-  mesesCarrego?: number
-  custoCondominioMensal?: number
-}
-
-export interface VendaPosteriorResult {
-  valorBruto: number
-  jurosCarrego: number
-  custosManutencao: number
-  custoTotalCarrego: number
-  valorLiquido: number
 }
 
 export interface FinanciamentoParams {
@@ -91,6 +82,7 @@ export interface TabelaSACParams {
   prazoMeses: number
   taxaMensalEfetiva: number
   seguros?: number
+  sistemaAmortizacao?: SistemaAmortizacao
 }
 
 export interface ParcelaDetalhe extends ParcelaSACResult {
@@ -98,6 +90,7 @@ export interface ParcelaDetalhe extends ParcelaSACResult {
 }
 
 export interface TabelaSACResumo {
+  sistemaAmortizacao: SistemaAmortizacao
   valorFinanciado: number
   prazoMeses: number
   amortizacaoMensal: number
@@ -112,6 +105,14 @@ export interface TabelaSACResult {
   parcelas: ParcelaDetalhe[]
   resumo: TabelaSACResumo
 }
+
+/** Canonical system-neutral financing table types. SAC names remain as compatibility aliases. */
+export type ParcelaFinanciamentoParams = ParcelaSACParams
+export type ParcelaFinanciamentoResult = ParcelaSACResult
+export type TabelaFinanciamentoParams = TabelaSACParams
+export type ParcelaFinanciamentoDetalhe = ParcelaDetalhe
+export type TabelaFinanciamentoResumo = TabelaSACResumo
+export type TabelaFinanciamentoResult = TabelaSACResult
 
 export interface AmortizacaoExtraParams {
   valorFinanciado: number
@@ -139,44 +140,6 @@ export interface AmortizacaoExtraResumo {
 export interface AmortizacaoExtraResult {
   parcelas: ParcelaAmortizacaoExtra[]
   resumo: AmortizacaoExtraResumo
-}
-
-export interface VendaPosteriorCenarioParams {
-  valorFinanciado: number
-  prazoMeses: number
-  taxaMensalEfetiva: number
-  aporteExtra: number
-  valorApartamento: number
-  mesesAteVenda?: number
-  custoCondominioMensal?: number
-  seguros?: number
-}
-
-export interface ParcelaFase {
-  mes: number
-  fase: number
-  saldoDevedor: number
-  amortizacao: number
-  juros: number
-  prestacao: number
-}
-
-export interface VendaPosteriorCenarioResumo {
-  prazoOriginal: number
-  prazoReal: number
-  mesesEconomizados: number
-  anosEconomizados: string
-  totalJuros: number
-  totalPago: number
-  custoCarregoApto: number
-}
-
-export interface VendaPosteriorCenarioResult {
-  fase1: ParcelaFase[]
-  fase2: ParcelaFase[]
-  vendaApartamento: VendaPosteriorResult
-  amortizacaoExtraordinaria: number
-  resumo: VendaPosteriorCenarioResumo
 }
 
 export interface CustosFechamentoParams {
@@ -223,6 +186,9 @@ export interface ComprometimentoRendaResult {
 }
 
 export interface CenarioCompletoParams {
+  sistemaAmortizacao?: SistemaAmortizacao
+  estrategiaAmortizacao?: EstrategiaAmortizacao
+  tipoTaxaAnual?: TipoTaxaAnual
   valorImovel: number
   capitalDisponivel: number
   capitalTotalDisponivel?: number
@@ -253,6 +219,9 @@ export interface CenarioCompletoParams {
 }
 
 export interface CenarioCompleto {
+  sistemaAmortizacao: SistemaAmortizacao
+  estrategiaAmortizacao: EstrategiaAmortizacao
+  tipoTaxaAnual: TipoTaxaAnual
   id: string
   valorImovel: number
   valorApartamento: number
@@ -265,11 +234,12 @@ export interface CenarioCompleto {
   taxaMensalEfetiva: number
   cetEstimado: number
   aporteExtra: number
+  seguros: number
   rendaMensal: number
   custoMensal?: number
-  tabelaPadrao: TabelaSACResumo
-  parcelasAmostra: ParcelaDetalhe[]
-  cenarioOtimizado: AmortizacaoExtraResumo | VendaPosteriorCenarioResumo
+  tabelaPadrao: TabelaFinanciamentoResumo
+  parcelasAmostra: ParcelaFinanciamentoDetalhe[]
+  cenarioOtimizado: AmortizacaoExtraResumo
   custosFechamento: CustosFechamentoResult
   comprometimento: ComprometimentoRendaResult
   economiaJuros: number
@@ -289,10 +259,12 @@ export interface CenarioCompleto {
   totalCustosAdicionais: number
   totalManutencao: number
   totalMensal: number
-  custoCarregoApto: number
 }
 
 export interface MatrizCenariosParams {
+  sistemaAmortizacao?: SistemaAmortizacao
+  estrategiaAmortizacao?: EstrategiaAmortizacao
+  tipoTaxaAnual?: TipoTaxaAnual
   valoresImovel: readonly number[]
   valoresApartamento: readonly number[]
   capitalDisponivel: number
@@ -324,6 +296,7 @@ export interface MatrizCenariosParams {
 }
 
 export type { TimelineMonth } from "$lib/financiamento/financing-timeline";
+export { calcularPrestacaoPrice } from "$lib/financiamento/financing-amortization";
 
 // ============================================================================
 // FORMATTING FUNCTIONS
@@ -379,8 +352,10 @@ export const formatPercent = (value: number): string => {
 export const calcularTaxaMensalEfetiva = ({
   taxaAnual,
   trMensal,
+  tipoTaxaAnual = "nominal",
 }: TaxaMensalParams): number => {
-  const taxaMensalJuros = taxaAnual / 12
+  const taxaMensalJuros =
+    tipoTaxaAnual === "efetiva" ? Math.pow(1 + taxaAnual, 1 / 12) - 1 : taxaAnual / 12
   return taxaMensalJuros + trMensal
 }
 
@@ -558,30 +533,6 @@ export const calcularValorPermuta = ({
 }
 
 /**
- * Calcula o valor líquido da venda posterior do apartamento
- */
-export const calcularValorVendaPosterior = ({
-  valorApartamento,
-  valorFinanciadoExtra,
-  taxaMensalEfetiva,
-  mesesCarrego = 6,
-  custoCondominioMensal = 1000,
-}: VendaPosteriorParams): VendaPosteriorResult => {
-  const jurosCarrego = valorFinanciadoExtra * taxaMensalEfetiva * mesesCarrego
-  const custosManutencao = custoCondominioMensal * mesesCarrego
-  const custoTotalCarrego = jurosCarrego + custosManutencao
-  const valorLiquido = valorApartamento - custoTotalCarrego
-
-  return {
-    valorBruto: valorApartamento,
-    jurosCarrego,
-    custosManutencao,
-    custoTotalCarrego,
-    valorLiquido,
-  }
-}
-
-/**
  * Calcula o valor a ser financiado em cada cenário
  */
 export const calcularValorFinanciado = ({
@@ -638,28 +589,35 @@ export const calcularParcelaSAC = ({
   }
 }
 
-/**
- * Gera a tabela completa de amortização SAC
- */
-export const gerarTabelaSAC = ({
+/** Gera a tabela contratual completa de SAC ou PRICE, sem amortizações extras. */
+export const gerarTabelaFinanciamento = ({
   valorFinanciado,
   prazoMeses,
   taxaMensalEfetiva,
   seguros = 175,
-}: TabelaSACParams): TabelaSACResult => {
-  const amortizacaoMensal = valorFinanciado / prazoMeses
+  sistemaAmortizacao = "sac",
+}: TabelaFinanciamentoParams): TabelaFinanciamentoResult => {
+  const amortizacaoMensalSAC = prazoMeses > 0 ? valorFinanciado / prazoMeses : 0
+  const prestacaoPrice = calcularPrestacaoPrice(valorFinanciado, taxaMensalEfetiva, prazoMeses)
   const parcelas: ParcelaDetalhe[] = []
   let saldoDevedor = valorFinanciado
   let totalJuros = 0
   let totalPago = 0
 
   for (let mes = 1; mes <= prazoMeses; mes++) {
-    const parcela = calcularParcelaSAC({
+    const juros = saldoDevedor * taxaMensalEfetiva
+    const amortizacaoProgramada =
+      sistemaAmortizacao === "sac" ? amortizacaoMensalSAC : prestacaoPrice - juros
+    const amortizacao = Math.min(saldoDevedor, Math.max(0, amortizacaoProgramada))
+    const prestacao = amortizacao + juros + seguros
+    const parcela: ParcelaSACResult = {
       saldoDevedor,
-      amortizacaoMensal,
-      taxaMensalEfetiva,
+      amortizacao,
+      juros,
       seguros,
-    })
+      prestacao,
+      novoSaldo: Math.max(0, saldoDevedor - amortizacao)
+    }
 
     parcelas.push({
       mes,
@@ -674,9 +632,10 @@ export const gerarTabelaSAC = ({
   return {
     parcelas,
     resumo: {
+      sistemaAmortizacao,
       valorFinanciado,
       prazoMeses,
-      amortizacaoMensal,
+      amortizacaoMensal: parcelas[0]?.amortizacao ?? 0,
       primeiraParcelar: parcelas[0]?.prestacao || 0,
       ultimaParcela: parcelas[parcelas.length - 1]?.prestacao || 0,
       totalJuros,
@@ -685,6 +644,10 @@ export const gerarTabelaSAC = ({
     },
   }
 }
+
+/** Compatibilidade para consumidores que ainda pedem explicitamente uma tabela SAC. */
+export const gerarTabelaSAC = (params: TabelaSACParams): TabelaSACResult =>
+  gerarTabelaFinanciamento({ ...params, sistemaAmortizacao: "sac" })
 
 /**
  * Calcula o financiamento com amortizações extras mensais
@@ -739,101 +702,6 @@ export const calcularComAmortizacaoExtra = ({
       anosEconomizados: ((prazoMeses - mes) / 12).toFixed(1),
       totalJuros,
       totalPago,
-    },
-  }
-}
-
-/**
- * Calcula o cenário com venda do apartamento e amortização extraordinária
- */
-export const calcularCenarioVendaPosterior = ({
-  valorFinanciado,
-  prazoMeses,
-  taxaMensalEfetiva,
-  aporteExtra,
-  valorApartamento,
-  mesesAteVenda = 6,
-  custoCondominioMensal = 1000,
-  seguros = 175,
-}: VendaPosteriorCenarioParams): VendaPosteriorCenarioResult => {
-  const fase1: ParcelaFase[] = []
-  let saldoDevedor = valorFinanciado
-  let totalJuros = 0
-  let totalPago = 0
-  const amortizacaoMensal = valorFinanciado / prazoMeses
-
-  for (let mes = 1; mes <= mesesAteVenda && saldoDevedor > 0; mes++) {
-    const juros = saldoDevedor * taxaMensalEfetiva
-    const amortizacaoTotal = Math.min(
-      amortizacaoMensal + aporteExtra,
-      saldoDevedor
-    )
-    const prestacao = amortizacaoTotal + juros + seguros
-
-    fase1.push({
-      mes,
-      fase: 1,
-      saldoDevedor,
-      amortizacao: amortizacaoTotal,
-      juros,
-      prestacao,
-    })
-
-    totalJuros += juros
-    totalPago += prestacao
-    saldoDevedor = Math.max(0, saldoDevedor - amortizacaoTotal)
-  }
-
-  const vendaApto = calcularValorVendaPosterior({
-    valorApartamento,
-    valorFinanciadoExtra: valorApartamento,
-    taxaMensalEfetiva,
-    mesesCarrego: mesesAteVenda,
-    custoCondominioMensal,
-  })
-
-  const amortizacaoExtraordinaria = Math.min(vendaApto.valorLiquido, saldoDevedor)
-  saldoDevedor = Math.max(0, saldoDevedor - amortizacaoExtraordinaria)
-
-  const fase2: ParcelaFase[] = []
-  let mesAtual = mesesAteVenda
-
-  while (saldoDevedor > 0 && mesAtual < prazoMeses) {
-    mesAtual++
-    const juros = saldoDevedor * taxaMensalEfetiva
-    const amortizacaoTotal = Math.min(
-      amortizacaoMensal + aporteExtra,
-      saldoDevedor
-    )
-    const prestacao = amortizacaoTotal + juros + seguros
-
-    fase2.push({
-      mes: mesAtual,
-      fase: 2,
-      saldoDevedor,
-      amortizacao: amortizacaoTotal,
-      juros,
-      prestacao,
-    })
-
-    totalJuros += juros
-    totalPago += prestacao
-    saldoDevedor = Math.max(0, saldoDevedor - amortizacaoTotal)
-  }
-
-  return {
-    fase1,
-    fase2,
-    vendaApartamento: vendaApto,
-    amortizacaoExtraordinaria,
-    resumo: {
-      prazoOriginal: prazoMeses,
-      prazoReal: mesAtual,
-      mesesEconomizados: prazoMeses - mesAtual,
-      anosEconomizados: ((prazoMeses - mesAtual) / 12).toFixed(1),
-      totalJuros,
-      totalPago,
-      custoCarregoApto: vendaApto.custoTotalCarrego,
     },
   }
 }
@@ -906,10 +774,9 @@ export const calcularComprometimentoRenda = ({
 function buildCenarioOtimizadoResumo(
   valorFinanciado: number,
   prazoMeses: number,
-  timeline: ReturnType<typeof simularTimelineMensal>,
-  custoCarregoApto: number
-): AmortizacaoExtraResumo | VendaPosteriorCenarioResumo {
-  const base: AmortizacaoExtraResumo = {
+  timeline: ReturnType<typeof simularTimelineMensal>
+): AmortizacaoExtraResumo {
+  return {
     valorFinanciado,
     prazoOriginal: prazoMeses,
     prazoReal: timeline.prazoReal,
@@ -918,10 +785,6 @@ function buildCenarioOtimizadoResumo(
     totalJuros: timeline.totalJuros,
     totalPago: timeline.totalPago
   }
-  if (custoCarregoApto > 0) {
-    return { ...base, custoCarregoApto }
-  }
-  return base
 }
 
 function resolveAporteInicioMes({
@@ -958,6 +821,9 @@ function resolveAporteInicioMes({
  * Gera um cenário completo de financiamento
  */
 export const gerarCenarioCompleto = ({
+  sistemaAmortizacao = "sac",
+  estrategiaAmortizacao = "reduzir_prazo",
+  tipoTaxaAnual = "nominal",
   valorImovel,
   capitalDisponivel,
   capitalTotalDisponivel,
@@ -1005,13 +871,18 @@ export const gerarCenarioCompleto = ({
     haircut
   })
 
-  const taxaMensalEfetiva = calcularTaxaMensalEfetiva({ taxaAnual, trMensal })
+  const taxaMensalEfetiva = calcularTaxaMensalEfetiva({
+    taxaAnual,
+    trMensal,
+    tipoTaxaAnual
+  })
 
-  const tabelaPadrao = gerarTabelaSAC({
+  const tabelaPadrao = gerarTabelaFinanciamento({
     valorFinanciado: financiamento.valorFinanciado,
     prazoMeses,
     taxaMensalEfetiva,
-    seguros
+    seguros,
+    sistemaAmortizacao
   })
 
   const timelineEstrategia =
@@ -1022,6 +893,8 @@ export const gerarCenarioCompleto = ({
         : "financiamento"
 
   const timeline = simularTimelineMensal({
+    sistemaAmortizacao,
+    estrategiaAmortizacao,
     valorFinanciado: financiamento.valorFinanciado,
     prazoMeses,
     taxaMensalEfetiva,
@@ -1046,8 +919,7 @@ export const gerarCenarioCompleto = ({
   const cenarioOtimizado = buildCenarioOtimizadoResumo(
     financiamento.valorFinanciado,
     prazoMeses,
-    timeline,
-    timeline.custoCarregoApto
+    timeline
   )
 
   const custosFechamento = calcularCustosFechamento({
@@ -1068,7 +940,7 @@ export const gerarCenarioCompleto = ({
     custosFechamento.total,
     timeline.totalReformas,
     timeline.totalCustosAdicionais,
-    timeline.custoCarregoApto
+    timeline.totalManutencao
   )
 
   const vendaEm = estrategia === "venda_posterior" ? mesVenda : undefined
@@ -1081,9 +953,17 @@ export const gerarCenarioCompleto = ({
         `${custo.id}:${custo.incluirNoCalculo}:${custo.cobrancaMensal}:${custo.valorTotal}:${custo.mesInicio}:${custo.duracaoMeses}`
     )
     .join("|")
+  const mesesAmostra = new Set(
+    [1, 12, 24, 60, 120, 180, 240, 300, 360, prazoMeses].filter(
+      (mes) => mes <= prazoMeses
+    )
+  )
 
   return {
     id: [
+      sistemaAmortizacao,
+      estrategiaAmortizacao,
+      tipoTaxaAnual,
       valorImovel,
       valorApartamento,
       estrategia,
@@ -1095,12 +975,16 @@ export const gerarCenarioCompleto = ({
       `ren${rendaMensal}`,
       `cus${custoMensal}`,
       `ap${aporteExtra}`,
+      `p${prazoMeses}`,
       `tx${taxaAnual}`,
       `tr${trMensal}`,
       `ref${custoTotalReformas}:${custoInicialReformas}:${tempoObraMeses}`,
       `q${quantiaExtra}`,
       `ca${custosId}`
     ].join("-"),
+    sistemaAmortizacao,
+    estrategiaAmortizacao,
+    tipoTaxaAnual,
     valorImovel,
     valorApartamento,
     estrategia,
@@ -1112,12 +996,11 @@ export const gerarCenarioCompleto = ({
     taxaMensalEfetiva,
     cetEstimado: taxaAnual + trMensal * 12 + 0.02,
     aporteExtra,
+    seguros,
     rendaMensal,
     custoMensal,
     tabelaPadrao: tabelaPadrao.resumo,
-    parcelasAmostra: tabelaPadrao.parcelas.filter((p) =>
-      [1, 12, 24, 60, 120, 180, 240, 300, 360].includes(p.mes)
-    ),
+    parcelasAmostra: tabelaPadrao.parcelas.filter((p) => mesesAmostra.has(p.mes)),
     cenarioOtimizado,
     custosFechamento,
     comprometimento,
@@ -1136,8 +1019,7 @@ export const gerarCenarioCompleto = ({
     totalReformas: timeline.totalReformas,
     totalCustosAdicionais: timeline.totalCustosAdicionais,
     totalManutencao: timeline.totalManutencao,
-    totalMensal: timeline.totalMensalMes1,
-    custoCarregoApto: timeline.custoCarregoApto
+    totalMensal: timeline.totalMensalMes1
   }
 }
 
@@ -1179,6 +1061,9 @@ function aporteDelayVariants(
  * Gera a matriz completa de cenários
  */
 export const gerarMatrizCenarios = ({
+  sistemaAmortizacao = "sac",
+  estrategiaAmortizacao = "reduzir_prazo",
+  tipoTaxaAnual = "nominal",
   valoresImovel,
   valoresApartamento,
   capitalDisponivel,
@@ -1204,7 +1089,7 @@ export const gerarMatrizCenarios = ({
   temposInicioAporteExtraMeses = [0],
   reservaEmergencia = SIMULATION_ASSUMPTIONS.reservaEmergencia,
   haircut = SIMULATION_ASSUMPTIONS.haircut,
-  prazoMeses = SIMULATION_ASSUMPTIONS.prazoMeses,
+  prazoMeses = UI_DEFAULTS.prazoMeses,
   seguros = SIMULATION_ASSUMPTIONS.seguros
 }: MatrizCenariosParams): CenarioCompleto[] => {
   const manutencao = custoManutencaoImovelMensal ?? custoCondominioMensal ?? 0
@@ -1220,6 +1105,9 @@ export const gerarMatrizCenarios = ({
   const cenarios: CenarioCompleto[] = []
 
   const baseCenario = {
+    sistemaAmortizacao,
+    estrategiaAmortizacao,
+    tipoTaxaAnual,
     capitalDisponivel,
     capitalTotalDisponivel,
     custoMensal,

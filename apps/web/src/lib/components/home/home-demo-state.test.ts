@@ -37,6 +37,8 @@ describe("home demo state", () => {
     };
     const original = buildHomeFinancingScenario(base);
 
+    expect(original.tabelaPadrao.prazoMeses).toBe(420);
+    expect(original.id).toContain("-p420-");
     expect(buildHomeFinancingScenario({ ...base, propertyValue: 2_500_000 }).id).not.toBe(original.id);
     expect(buildHomeFinancingScenario({ ...base, entryValue: 800_000 }).id).not.toBe(original.id);
     expect(buildHomeFinancingScenario({ ...base, monthlyExtra: 15_000 }).id).not.toBe(original.id);

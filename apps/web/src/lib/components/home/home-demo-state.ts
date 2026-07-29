@@ -85,7 +85,7 @@ export function buildHomeFinancingScenario(inputs: HomeFinancingInputs): Cenario
     custoManutencaoImovelMensal: 0,
     temImovelParaNegociar: false,
     temposInicioAporteExtraMeses: [extraStartDelay],
-    prazoMeses: SIMULATION_ASSUMPTIONS.prazoMeses,
+    prazoMeses: UI_DEFAULTS.prazoMeses,
     seguros: SIMULATION_ASSUMPTIONS.seguros,
     reservaEmergencia: SIMULATION_ASSUMPTIONS.reservaEmergencia,
     haircut: SIMULATION_ASSUMPTIONS.haircut

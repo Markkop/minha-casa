@@ -6,7 +6,6 @@ import {
   gerarMatrizCenarios,
   type CenarioCompleto
 } from "$lib/financiamento/calculations";
-import { SIMULATION_ASSUMPTIONS } from "$lib/financiamento/calculations-defaults";
 import { buildAporteProgressivoConfig } from "$lib/financiamento/aporte-progressivo";
 import { resolveEffectiveParams } from "$lib/financiamento/financing-effective-params";
 import {
@@ -57,6 +56,10 @@ function scenarioMatrixForCombination({
   const temposVendaPosteriorMeses = isPermuta ? [] : [saleTiming];
 
   return gerarMatrizCenarios({
+    sistemaAmortizacao: combination.sistemaAmortizacao,
+    estrategiaAmortizacao: combination.estrategiaAmortizacao,
+    tipoTaxaAnual: combination.tipoTaxaAnual,
+    prazoMeses: effective.prazoMeses,
     valoresImovel: uniqueNumbers([combination.valorImovel]),
     valoresApartamento: effective.temImovelParaNegociar
       ? uniqueNumbers([combination.valorApartamento])
@@ -122,10 +125,10 @@ export function buildScenarioGraphViewFromParams(params: SimulatorParams): Scena
         params,
         combination,
         effective,
-        reformaMes: SIMULATION_ASSUMPTIONS.prazoMeses + 1
+        reformaMes: effective.prazoMeses + 1
       });
       const payoffMonth =
-        preview[0]?.cenarioOtimizado.prazoReal ?? SIMULATION_ASSUMPTIONS.prazoMeses;
+        preview[0]?.cenarioOtimizado.prazoReal ?? effective.prazoMeses;
       return scenarioMatrixForCombination({
         params,
         combination,

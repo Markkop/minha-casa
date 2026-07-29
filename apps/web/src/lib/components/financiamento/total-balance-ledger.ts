@@ -96,7 +96,7 @@ export function buildBalanceLedger(
     }
   ];
 
-  const receitaVendaTotal = Math.max(0, cenario.valorApartamento - cenario.custoCarregoApto);
+  const receitaVendaTotal = Math.max(0, cenario.valorApartamento);
 
   for (const month of cenario.timeline) {
     const receitaVenda = month.eventoVenda ? receitaVendaTotal : 0;

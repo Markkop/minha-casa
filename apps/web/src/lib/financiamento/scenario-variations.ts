@@ -2,10 +2,13 @@ import type {
   AporteInicioTiming,
   CustoAdicional,
   CustoAdicionalScenarioVariations,
+  EstrategiaAmortizacao,
   ReformaInicioTiming,
   SaleTimingVariation,
   ScenarioVariations,
-  SimulatorParams
+  SistemaAmortizacao,
+  SimulatorParams,
+  TipoTaxaAnual
 } from "$lib/components/financiamento/financiamento-parameter-types";
 import { REFORMA_APOS_QUITACAO_VALUE } from "$lib/components/financiamento/financiamento-parameter-types";
 import { APORTE_APOS_REFORMA_VALUE } from "$lib/financiamento/aporte-progressivo";
@@ -44,6 +47,9 @@ export type ScenarioVariationResolved = {
 };
 
 export type ScenarioCombination = {
+  sistemaAmortizacao: SistemaAmortizacao;
+  estrategiaAmortizacao: EstrategiaAmortizacao;
+  tipoTaxaAnual: TipoTaxaAnual;
   capitalDisponivel: number;
   entradaDisponivel: number;
   rendaMensal: number;
@@ -113,9 +119,18 @@ function normalizeSaleTimingList(value: unknown): SaleTimingVariation[] {
   );
 }
 
+function normalizeEnumList<T extends string>(value: unknown, valid: readonly T[]): T[] {
+  if (!Array.isArray(value)) return [];
+  const allowed = new Set<string>(valid);
+  return [...new Set(value.filter((item): item is T => typeof item === "string" && allowed.has(item)))];
+}
+
 export function emptyScenarioVariations(): ScenarioVariations {
   return {
     excludedBaselines: [],
+    sistemaAmortizacao: [],
+    estrategiaAmortizacao: [],
+    tipoTaxaAnual: [],
     capitalDisponivel: [],
     entradaDisponivel: [],
     rendaMensal: [],
@@ -190,6 +205,12 @@ export function normalizeScenarioVariations(
   normalized.inicioReformaMeses = normalizeReformaTimingList(parsed.inicioReformaMeses);
   normalized.inicioAporteExtraMeses = normalizeAporteTimingList(parsed.inicioAporteExtraMeses);
   normalized.vendaTiming = normalizeSaleTimingList(parsed.vendaTiming);
+  normalized.sistemaAmortizacao = normalizeEnumList(parsed.sistemaAmortizacao, ["sac", "price"]);
+  normalized.estrategiaAmortizacao = normalizeEnumList(parsed.estrategiaAmortizacao, [
+    "reduzir_prazo",
+    "reduzir_prestacao"
+  ]);
+  normalized.tipoTaxaAnual = normalizeEnumList(parsed.tipoTaxaAnual, ["efetiva", "nominal"]);
 
   if (parsed.custosAdicionais && typeof parsed.custosAdicionais === "object") {
     for (const [id, variations] of Object.entries(parsed.custosAdicionais)) {
@@ -330,6 +351,29 @@ export function resolveScenarioVariations(params: SimulatorParams): ScenarioVari
   const v = params.scenarioVariations;
   let combinationCount = 1;
 
+  combinationCount = multiplyCount(
+    combinationCount,
+    withBaselineTiming(
+      params,
+      "sistemaAmortizacao",
+      params.sistemaAmortizacao,
+      v.sistemaAmortizacao
+    ).length
+  );
+  combinationCount = multiplyCount(
+    combinationCount,
+    withBaselineTiming(
+      params,
+      "estrategiaAmortizacao",
+      params.estrategiaAmortizacao,
+      v.estrategiaAmortizacao
+    ).length
+  );
+  combinationCount = multiplyCount(
+    combinationCount,
+    withBaselineTiming(params, "tipoTaxaAnual", params.tipoTaxaAnual, v.tipoTaxaAnual).length
+  );
+
   for (const key of NUMERIC_VARIATION_KEYS) {
     combinationCount = multiplyCount(
       combinationCount,
@@ -417,22 +461,57 @@ export function buildScenarioCombinations(params: SimulatorParams): ScenarioComb
     params.tempoVendaPosteriorMeses,
     selectedSaleTimings(params, v)
   );
+  const sistemasAmortizacao = withBaselineTiming(
+    params,
+    "sistemaAmortizacao",
+    params.sistemaAmortizacao,
+    v.sistemaAmortizacao
+  );
+  const estrategiasAmortizacao = withBaselineTiming(
+    params,
+    "estrategiaAmortizacao",
+    params.estrategiaAmortizacao,
+    v.estrategiaAmortizacao
+  );
+  const tiposTaxaAnual = withBaselineTiming(
+    params,
+    "tipoTaxaAnual",
+    params.tipoTaxaAnual,
+    v.tipoTaxaAnual
+  );
 
   const combinations: ScenarioCombination[] = [];
   for (const scalars of cartesian(scalarGroups)) {
     const scalarRecord = Object.fromEntries(
       NUMERIC_VARIATION_KEYS.map((key, index) => [key, scalars[index] ?? (params[key] as number)])
-    ) as Omit<ScenarioCombination, "inicioAporteExtraMeses" | "vendaTiming" | "custosAdicionais">;
+    ) as Omit<
+      ScenarioCombination,
+      | "sistemaAmortizacao"
+      | "estrategiaAmortizacao"
+      | "tipoTaxaAnual"
+      | "inicioAporteExtraMeses"
+      | "vendaTiming"
+      | "custosAdicionais"
+    >;
 
-    for (const inicioAporteExtraMeses of aporteTimings) {
-      for (const vendaTiming of saleTimings) {
-        for (const custosAdicionais of cartesian(costGroups)) {
-          combinations.push({
-            ...scalarRecord,
-            inicioAporteExtraMeses,
-            vendaTiming,
-            custosAdicionais
-          });
+    for (const sistemaAmortizacao of sistemasAmortizacao) {
+      for (const estrategiaAmortizacao of estrategiasAmortizacao) {
+        for (const tipoTaxaAnual of tiposTaxaAnual) {
+          for (const inicioAporteExtraMeses of aporteTimings) {
+            for (const vendaTiming of saleTimings) {
+              for (const custosAdicionais of cartesian(costGroups)) {
+                combinations.push({
+                  ...scalarRecord,
+                  sistemaAmortizacao,
+                  estrategiaAmortizacao,
+                  tipoTaxaAnual,
+                  inicioAporteExtraMeses,
+                  vendaTiming,
+                  custosAdicionais
+                });
+              }
+            }
+          }
         }
       }
     }

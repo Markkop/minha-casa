@@ -54,7 +54,7 @@ function envelope(index: number, overrides: Record<string, unknown> = {}) {
     createdAt: "2026-01-01T00:00:00.000Z",
     updatedAt: "2026-01-01T00:00:00.000Z",
     payload: {
-      version: 1,
+      version: 2,
       params: createInitialSimulatorParams(),
       settings: DEFAULT_SETTINGS
     },
@@ -142,7 +142,7 @@ describe("simulator scenario snapshots API storage", () => {
     ).toMatchObject({ id: "scenario-1" });
     expect(apiMock.post).toHaveBeenLastCalledWith(
       "/collections/collection-1/financeiro-scenarios",
-      expect.objectContaining({ name: "Cenário novo", payload: expect.objectContaining({ version: 1 }) })
+      expect.objectContaining({ name: "Cenário novo", payload: expect.objectContaining({ version: 2 }) })
     );
 
     apiMock.post.mockResolvedValueOnce({ scenario: envelope(3) });
@@ -163,7 +163,7 @@ describe("simulator scenario snapshots API storage", () => {
             createdAt: "2026-01-01T00:00:00.000Z",
             updatedAt: "2026-01-01T00:00:00.000Z",
             payload: {
-              version: 1,
+              version: 2,
               params: createInitialSimulatorParams(),
               settings: DEFAULT_SETTINGS
             }

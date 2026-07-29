@@ -25,6 +25,10 @@ export function buildFormulaSections(cenario: CenarioCompleto) {
     taxaAnual,
     trMensal,
     taxaMensalEfetiva,
+    tipoTaxaAnual,
+    sistemaAmortizacao,
+    estrategiaAmortizacao,
+    seguros,
     tabelaPadrao,
     cenarioOtimizado,
     comprometimento,
@@ -71,17 +75,31 @@ export function buildFormulaSections(cenario: CenarioCompleto) {
           ]
         };
 
+  const taxaBaseMensal =
+    tipoTaxaAnual === "efetiva" ? (1 + taxaAnual) ** (1 / 12) - 1 : taxaAnual / 12;
   const taxaFormula = {
-    latex: "i_{mensal} = \\frac{i_{anual}}{12} + TR_{mensal}",
-    withValues: `i_{mensal} = \\frac{${pct(taxaAnual)}}{12} + ${pct(trMensal)}`,
+    latex:
+      tipoTaxaAnual === "efetiva"
+        ? "i_{mensal} = (1 + i_{anual})^{\\frac{1}{12}} - 1 + TR_{mensal}"
+        : "i_{mensal} = \\frac{i_{anual}}{12} + TR_{mensal}",
+    withValues:
+      tipoTaxaAnual === "efetiva"
+        ? `i_{mensal} = (1 + ${pct(taxaAnual)})^{\\frac{1}{12}} - 1 + ${pct(trMensal)}`
+        : `i_{mensal} = \\frac{${pct(taxaAnual)}}{12} + ${pct(trMensal)}`,
     result: formatPercent(taxaMensalEfetiva),
     steps: [
       {
-        formula: `\\frac{${pct(taxaAnual)}}{12} = ${pct(taxaAnual / 12)}`,
-        description: "Taxa de juros mensal"
+        formula:
+          tipoTaxaAnual === "efetiva"
+            ? `(1 + ${pct(taxaAnual)})^{\\frac{1}{12}} - 1 = ${pct(taxaBaseMensal)}`
+            : `\\frac{${pct(taxaAnual)}}{12} = ${pct(taxaBaseMensal)}`,
+        description:
+          tipoTaxaAnual === "efetiva"
+            ? "Conversão da taxa efetiva anual por juros compostos"
+            : "Conversão da taxa nominal anual por divisão"
       },
       {
-        formula: `${pct(taxaAnual / 12)} + ${pct(trMensal)} = ${pct(taxaMensalEfetiva)}`,
+        formula: `${pct(taxaBaseMensal)} + ${pct(trMensal)} = ${pct(taxaMensalEfetiva)}`,
         description: "Taxa efetiva mensal (juros + TR)"
       }
     ]
@@ -89,27 +107,68 @@ export function buildFormulaSections(cenario: CenarioCompleto) {
 
   const amortizacaoMensal = tabelaPadrao.amortizacaoMensal;
   const juros1 = financiamento.valorFinanciado * taxaMensalEfetiva;
-  const seguros = 175;
+  const seguroMensal = seguros ?? 0;
+  const seguroLatex = seguroMensal > 0 ? " + seg" : "";
+  const seguroValor = seguroMensal > 0 ? ` + ${compact(seguroMensal)}` : "";
+  const prazoMeses = tabelaPadrao.prazoMeses;
+  const priceFactor =
+    taxaMensalEfetiva === 0
+      ? 1 / prazoMeses
+      : (taxaMensalEfetiva * (1 + taxaMensalEfetiva) ** prazoMeses) /
+        ((1 + taxaMensalEfetiva) ** prazoMeses - 1);
 
-  const parcelaSACFormula = {
-    latex: "P_1 = A + (S_0 \\times i) + seg",
-    withValues: `P_1 = ${compact(amortizacaoMensal)} + (${compact(financiamento.valorFinanciado)} \\times ${pct(taxaMensalEfetiva)}) + ${seguros}`,
-    result: formatCurrency(tabelaPadrao.primeiraParcelar),
-    steps: [
-      {
-        formula: `A = \\frac{V_f}{n} = \\frac{${compact(financiamento.valorFinanciado)}}{360} = ${compact(amortizacaoMensal)}`,
-        description: "Amortização mensal constante (SAC)"
-      },
-      {
-        formula: `J_1 = S_0 \\times i = ${compact(financiamento.valorFinanciado)} \\times ${pct(taxaMensalEfetiva)} = ${compact(juros1)}`,
-        description: "Juros do primeiro mês"
-      },
-      {
-        formula: `P_1 = ${compact(amortizacaoMensal)} + ${compact(juros1)} + ${seguros} = ${compact(tabelaPadrao.primeiraParcelar)}`,
-        description: "Primeira parcela total"
-      }
-    ]
-  };
+  const parcelaFormula =
+    sistemaAmortizacao === "price"
+      ? {
+          latex:
+            taxaMensalEfetiva === 0
+              ? `P = \\frac{S_0}{n}${seguroLatex}`
+              : `P = S_0 \\times \\frac{i(1+i)^n}{(1+i)^n-1}${seguroLatex}`,
+          withValues:
+            taxaMensalEfetiva === 0
+              ? `P = \\frac{${compact(financiamento.valorFinanciado)}}{${prazoMeses}}${seguroValor}`
+              : `P = ${compact(financiamento.valorFinanciado)} \\times \\frac{${pct(taxaMensalEfetiva)}(1+${pct(taxaMensalEfetiva)})^{${prazoMeses}}}{(1+${pct(taxaMensalEfetiva)})^{${prazoMeses}}-1}${seguroValor}`,
+          result: formatCurrency(tabelaPadrao.primeiraParcelar),
+          steps: [
+            {
+              formula:
+                taxaMensalEfetiva === 0
+                  ? `f = \\frac{1}{${prazoMeses}} = ${priceFactor.toFixed(6)}`
+                  : `f = \\frac{i(1+i)^n}{(1+i)^n-1} = ${priceFactor.toFixed(6)}`,
+              description:
+                taxaMensalEfetiva === 0
+                  ? "Fator de divisão para taxa zero"
+                  : "Fator de recuperação de capital da tabela PRICE"
+            },
+            {
+              formula: `P = ${compact(financiamento.valorFinanciado)} \\times ${priceFactor.toFixed(6)}${seguroValor} = ${compact(tabelaPadrao.primeiraParcelar)}`,
+              description: seguroMensal > 0 ? "Prestação fixa inicial, incluindo seguro" : "Prestação fixa inicial"
+            },
+            {
+              formula: `A_1 = P - J_1${seguroMensal > 0 ? " - seg" : ""} = ${compact(amortizacaoMensal)}`,
+              description: "Amortização contida na primeira prestação"
+            }
+          ]
+        }
+      : {
+          latex: `P_1 = A + (S_0 \\times i)${seguroLatex}`,
+          withValues: `P_1 = ${compact(amortizacaoMensal)} + (${compact(financiamento.valorFinanciado)} \\times ${pct(taxaMensalEfetiva)})${seguroValor}`,
+          result: formatCurrency(tabelaPadrao.primeiraParcelar),
+          steps: [
+            {
+              formula: `A = \\frac{V_f}{n} = \\frac{${compact(financiamento.valorFinanciado)}}{${prazoMeses}} = ${compact(amortizacaoMensal)}`,
+              description: "Amortização mensal constante (SAC)"
+            },
+            {
+              formula: `J_1 = S_0 \\times i = ${compact(financiamento.valorFinanciado)} \\times ${pct(taxaMensalEfetiva)} = ${compact(juros1)}`,
+              description: "Juros do primeiro mês"
+            },
+            {
+              formula: `P_1 = ${compact(amortizacaoMensal)} + ${compact(juros1)}${seguroValor} = ${compact(tabelaPadrao.primeiraParcelar)}`,
+              description: seguroMensal > 0 ? "Primeira prestação, incluindo seguro" : "Primeira prestação"
+            }
+          ]
+        };
 
   const comprometimentoFormula = {
     latex: "\\%_{renda} = \\frac{P_1}{Renda} \\times 100",
@@ -140,7 +199,7 @@ export function buildFormulaSections(cenario: CenarioCompleto) {
       },
       {
         formula: `J_{otimizado} = ${formatCurrencyCompact(cenarioOtimizado.totalJuros)}`,
-        description: "Total de juros com amortização acelerada"
+        description: `Total de juros ao ${estrategiaAmortizacao === "reduzir_prestacao" ? "reduzir prestação" : "reduzir prazo"}`
       },
       {
         formula: `E = ${formatCurrencyCompact(economiaJuros)}`,
@@ -152,7 +211,7 @@ export function buildFormulaSections(cenario: CenarioCompleto) {
   return {
     valorFinanciadoFormula,
     taxaFormula,
-    parcelaSACFormula,
+    parcelaFormula,
     comprometimentoFormula,
     economiaFormula
   };

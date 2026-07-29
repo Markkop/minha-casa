@@ -26,6 +26,10 @@ export const APORTE_INICIO_DELAY_OPTIONS = [0, 1, 3, 6, 12, 24] as const;
 
 export type AporteInicioDelay = (typeof APORTE_INICIO_DELAY_OPTIONS)[number];
 
+export type SistemaAmortizacao = "sac" | "price";
+export type EstrategiaAmortizacao = "reduzir_prazo" | "reduzir_prestacao";
+export type TipoTaxaAnual = "efetiva" | "nominal";
+
 export type EstrategiaFiltro = "permuta" | "venda_posterior";
 export type SaleTimingVariation = "permuta" | number;
 export const REFORMA_APOS_QUITACAO_VALUE = "apos_quitacao" as const;
@@ -40,6 +44,9 @@ export interface CustoAdicionalScenarioVariations {
 
 export interface ScenarioVariations {
   excludedBaselines: string[];
+  sistemaAmortizacao: SistemaAmortizacao[];
+  estrategiaAmortizacao: EstrategiaAmortizacao[];
+  tipoTaxaAnual: TipoTaxaAnual[];
   capitalDisponivel: number[];
   entradaDisponivel: number[];
   rendaMensal: number[];
@@ -71,9 +78,14 @@ export type SliderField =
   | "custoTotalReformas"
   | "custoInicialReformas"
   | "tempoObraMeses"
+  | "prazoMeses"
   | "quantiaExtra";
 
 export interface SimulatorParams {
+  sistemaAmortizacao: SistemaAmortizacao;
+  estrategiaAmortizacao: EstrategiaAmortizacao;
+  tipoTaxaAnual: TipoTaxaAnual;
+  prazoMeses: number;
   capitalDisponivel: number;
   entradaDisponivel: number;
   valorApartamento: number;

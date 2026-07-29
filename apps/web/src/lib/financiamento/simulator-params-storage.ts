@@ -3,8 +3,11 @@ import {
   APORTE_APOS_REFORMA_VALUE,
   TIMING_MONTH_OPTIONS,
   type AporteInicioTiming,
+  type EstrategiaAmortizacao,
   type EstrategiaFiltro,
-  type SimulatorParams
+  type SistemaAmortizacao,
+  type SimulatorParams,
+  type TipoTaxaAnual
 } from "$lib/components/financiamento/financiamento-parameter-types";
 import {
   buildApproximatePriceValues,
@@ -15,7 +18,10 @@ import {
   migrateMultiplierPriceFilter,
   migrateMultiplierTargetPriceFilter
 } from "$lib/components/financiamento/price-filter-approx";
-import { REFORMA_INICIO_RANGE } from "$lib/components/financiamento/parameter-row-helpers";
+import {
+  PRAZO_FINANCIAMENTO_RANGE,
+  REFORMA_INICIO_RANGE
+} from "$lib/components/financiamento/parameter-row-helpers";
 import { clampAporteProgressivoFields } from "$lib/financiamento/aporte-progressivo";
 import { normalizeCustosAdicionais } from "$lib/financiamento/custos-adicionais";
 import {
@@ -28,6 +34,12 @@ export const SIMULATOR_PARAMS_STORAGE_KEY = "minha-casa-financeiro-params";
 export const LEGACY_SIMULATOR_PARAMS_STORAGE_KEY = "minha-casa-financiamento-params";
 
 const VALID_ESTRATEGIAS = new Set<EstrategiaFiltro>(["permuta", "venda_posterior"]);
+const VALID_SISTEMAS_AMORTIZACAO = new Set<SistemaAmortizacao>(["sac", "price"]);
+const VALID_ESTRATEGIAS_AMORTIZACAO = new Set<EstrategiaAmortizacao>([
+  "reduzir_prazo",
+  "reduzir_prestacao"
+]);
+const VALID_TIPOS_TAXA_ANUAL = new Set<TipoTaxaAnual>(["efetiva", "nominal"]);
 const VALID_TIMING_MONTHS = new Set<number>(TIMING_MONTH_OPTIONS);
 const VALID_APORTE_INICIO_DELAYS = new Set<number>(APORTE_INICIO_DELAY_OPTIONS);
 const MAX_PRICE_FILTER_VALUE = 50_000_000;
@@ -54,6 +66,10 @@ function finiteNumber(value: unknown, fallback: number): number {
 
 function finiteBoolean(value: unknown, fallback: boolean): boolean {
   return typeof value === "boolean" ? value : fallback;
+}
+
+function validEnumValue<T extends string>(value: unknown, valid: ReadonlySet<T>, fallback: T): T {
+  return typeof value === "string" && valid.has(value as T) ? (value as T) : fallback;
 }
 
 function validPriceFilterList(value: unknown, fallback: number[], baseValue: number): number[] {
@@ -188,6 +204,12 @@ function resolveManutencaoMensal(parsed: StoredSimulatorParams, defaults: Simula
 
 export function normalizeSimulatorParams(parsed: StoredSimulatorParams): SimulatorParams {
   const defaults = createInitialSimulatorParams();
+  const isLegacyPayload =
+    Object.keys(parsed).length > 0 &&
+    !Object.prototype.hasOwnProperty.call(parsed, "sistemaAmortizacao") &&
+    !Object.prototype.hasOwnProperty.call(parsed, "estrategiaAmortizacao") &&
+    !Object.prototype.hasOwnProperty.call(parsed, "tipoTaxaAnual");
+  const legacyTipoTaxaAnual: TipoTaxaAnual = isLegacyPayload ? "nominal" : defaults.tipoTaxaAnual;
   const hasEntradaDisponivel = Object.prototype.hasOwnProperty.call(parsed, "entradaDisponivel");
   const valorImovel = finiteNumber(parsed.valorImovel, defaults.valorImovel);
   const valorApartamento = finiteNumber(parsed.valorApartamento, defaults.valorApartamento);
@@ -254,6 +276,28 @@ export function normalizeSimulatorParams(parsed: StoredSimulatorParams): Simulat
   );
 
   return {
+    sistemaAmortizacao: validEnumValue(
+      parsed.sistemaAmortizacao,
+      VALID_SISTEMAS_AMORTIZACAO,
+      defaults.sistemaAmortizacao
+    ),
+    estrategiaAmortizacao: validEnumValue(
+      parsed.estrategiaAmortizacao,
+      VALID_ESTRATEGIAS_AMORTIZACAO,
+      defaults.estrategiaAmortizacao
+    ),
+    tipoTaxaAnual: validEnumValue(
+      parsed.tipoTaxaAnual,
+      VALID_TIPOS_TAXA_ANUAL,
+      legacyTipoTaxaAnual
+    ),
+    prazoMeses: Math.min(
+      PRAZO_FINANCIAMENTO_RANGE.max,
+      Math.max(
+        PRAZO_FINANCIAMENTO_RANGE.min,
+        Math.round(finiteNumber(parsed.prazoMeses, defaults.prazoMeses))
+      )
+    ),
     capitalDisponivel: hasEntradaDisponivel
       ? finiteNumber(parsed.capitalDisponivel, defaults.capitalDisponivel)
       : defaults.capitalDisponivel,

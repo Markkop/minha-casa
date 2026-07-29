@@ -13,7 +13,11 @@ describe("buildActiveParametersYaml", () => {
     const yaml = buildActiveParametersYaml(createInitialSimulatorParams());
 
     expect(yaml).toContain("minha_casa_financeiro:");
-    expect(yaml).toContain("version: 1");
+    expect(yaml).toContain("version: 3");
+    expect(yaml).toContain("sistemaAmortizacao: sac");
+    expect(yaml).toContain("estrategiaAmortizacao: reduzir_prazo");
+    expect(yaml).toContain("tipoTaxaAnual: efetiva");
+    expect(yaml).toContain("prazoMeses: 420");
     expect(yaml).toContain("valorImovel: 2000000");
     expect(yaml).toContain("taxaAnual: 0.115");
     expect(yaml).not.toContain("R$");
@@ -152,18 +156,63 @@ minha_casa_financeiro:
         duracaoMeses: 1
       }
     ]);
+    expect(normalized.tipoTaxaAnual).toBe("nominal");
+  });
+
+  it("accepts v1 YAML and migrates its financing defaults and missing term", () => {
+    const v1Yaml = buildActiveParametersYaml(createInitialSimulatorParams())
+      .replace("version: 3", "version: 1")
+      .replace(/^ {4}sistemaAmortizacao:.*\n/m, "")
+      .replace(/^ {4}estrategiaAmortizacao:.*\n/m, "")
+      .replace(/^ {4}tipoTaxaAnual:.*\n/m, "")
+      .replace(/^ {4}prazoMeses:.*\n/m, "");
+
+    const normalized = normalizeSimulatorParams(parseActiveParametersYaml(v1Yaml) ?? {});
+
+    expect(normalized).toMatchObject({
+      sistemaAmortizacao: "sac",
+      estrategiaAmortizacao: "reduzir_prazo",
+      tipoTaxaAnual: "nominal",
+      prazoMeses: 420
+    });
+  });
+
+  it("accepts v2 YAML and migrates a missing financing term to 420 months", () => {
+    const v2Yaml = buildActiveParametersYaml({
+      ...createInitialSimulatorParams(),
+      prazoMeses: 360
+    })
+      .replace("version: 3", "version: 2")
+      .replace(/^ {4}prazoMeses:.*\n/m, "");
+
+    const parsed = parseActiveParametersYaml(v2Yaml);
+
+    expect(parsed).not.toBeNull();
+    expect(normalizeSimulatorParams(parsed ?? {}).prazoMeses).toBe(420);
   });
 
   it("rejects unrelated text, invalid roots, invalid versions, incomplete params, and malformed YAML", () => {
     expect(parseActiveParametersYaml("not copied parameters")).toBeNull();
     expect(parseActiveParametersYaml("outra_raiz:\n  version: 1\n  params: {}")).toBeNull();
     expect(
-      parseActiveParametersYaml("minha_casa_financeiro:\n  version: 2\n  params: {}")
+      parseActiveParametersYaml("minha_casa_financeiro:\n  version: 4\n  params: {}")
     ).toBeNull();
     expect(
       parseActiveParametersYaml("minha_casa_financeiro:\n  version: 1\n  params:\n    valorImovel: 1")
     ).toBeNull();
     expect(parseActiveParametersYaml("minha_casa_financeiro:\n  version: [")).toBeNull();
+
+    const incompleteV3 = buildActiveParametersYaml(createInitialSimulatorParams()).replace(
+      /^ {4}tipoTaxaAnual:.*\n/m,
+      ""
+    );
+    expect(parseActiveParametersYaml(incompleteV3)).toBeNull();
+
+    const v3WithoutTerm = buildActiveParametersYaml(createInitialSimulatorParams()).replace(
+      /^ {4}prazoMeses:.*\n/m,
+      ""
+    );
+    expect(parseActiveParametersYaml(v3WithoutTerm)).toBeNull();
   });
 });
 

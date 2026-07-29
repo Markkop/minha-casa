@@ -2,10 +2,10 @@ import type { SimulatorParams } from "$lib/components/financiamento/financiament
 import { normalizeSimulatorParams } from "$lib/financiamento/simulator-params-storage";
 import { normalizeSettings, type SimulatorSettings } from "$lib/financiamento/settings";
 
-export const FINANCEIRO_SHARED_SNAPSHOT_VERSION = 1;
+export const FINANCEIRO_SHARED_SNAPSHOT_VERSION = 2;
 
 export interface FinanceiroComparisonSourcePayload {
-  version: typeof FINANCEIRO_SHARED_SNAPSHOT_VERSION;
+  version: 1 | typeof FINANCEIRO_SHARED_SNAPSHOT_VERSION;
   params: SimulatorParams;
   settings: SimulatorSettings;
 }
@@ -27,7 +27,7 @@ export interface FinanceiroComparisonGroupPayload {
 }
 
 export interface FinanceiroSharedSnapshotPayload {
-  version: typeof FINANCEIRO_SHARED_SNAPSHOT_VERSION;
+  version: 1 | typeof FINANCEIRO_SHARED_SNAPSHOT_VERSION;
   params: SimulatorParams;
   settings: SimulatorSettings;
   comparisonGroup?: FinanceiroComparisonGroupPayload;

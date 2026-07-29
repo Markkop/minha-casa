@@ -4,16 +4,20 @@
   import ColumnHeader from "$lib/components/financiamento/column-header.svelte";
   import type {
     CustoAdicional,
+    EstrategiaAmortizacao,
     ParameterCardProps,
     ReformaInicioTiming,
     ScenarioVariations,
-    SimulatorParams
+    SistemaAmortizacao,
+    SimulatorParams,
+    TipoTaxaAnual
   } from "$lib/components/financiamento/financiamento-parameter-types";
   import { REFORMA_APOS_QUITACAO_VALUE } from "$lib/components/financiamento/financiamento-parameter-types";
   import {
     CUSTO_ADICIONAL_TOTAL_RANGE,
     CUSTO_MANUTENCAO_RANGE,
     CUSTO_MENSAL_RANGE,
+    PRAZO_FINANCIAMENTO_RANGE,
     QUANTIA_EXTRA_RANGE,
     REFORMA_INICIAL_RANGE,
     REFORMA_INICIO_RANGE,
@@ -77,6 +81,18 @@
 
   const settingsContext = getSettingsContext();
   const rowCompact = true;
+  const sistemaAmortizacaoOptions: { value: SistemaAmortizacao; label: string }[] = [
+    { value: "sac", label: "SAC" },
+    { value: "price", label: "PRICE" }
+  ];
+  const estrategiaAmortizacaoOptions: { value: EstrategiaAmortizacao; label: string }[] = [
+    { value: "reduzir_prazo", label: "Reduz prazo" },
+    { value: "reduzir_prestacao", label: "Reduz prestação" }
+  ];
+  const tipoTaxaAnualOptions: { value: TipoTaxaAnual; label: string }[] = [
+    { value: "efetiva", label: "Efetiva" },
+    { value: "nominal", label: "Nominal" }
+  ];
   let sectionState = $state({ ...DEFAULT_FINANCEIRO_SECTION_STATE });
   let sectionStateLoaded = $state(false);
   let editingCustoNomeId = $state<string | null>(null);
@@ -104,7 +120,10 @@
       trMensalRange,
       aporteExtra: params.aporteExtra,
       aporteExtraRange,
-      rendaMensalRange
+      rendaMensalRange,
+      sistemaAmortizacao: params.sistemaAmortizacao,
+      estrategiaAmortizacao: params.estrategiaAmortizacao,
+      tipoTaxaAnual: params.tipoTaxaAnual
     })
   );
 
@@ -124,6 +143,18 @@
 
   function patch(partial: Partial<typeof params>) {
     onChange({ ...params, ...partial });
+  }
+
+  function updatePrazoMeses(value: number) {
+    const prazoMeses = Math.min(
+      PRAZO_FINANCIAMENTO_RANGE.max,
+      Math.max(PRAZO_FINANCIAMENTO_RANGE.min, Math.round(value))
+    );
+    if (onValueChange) {
+      onValueChange("prazoMeses", prazoMeses);
+    } else {
+      patch({ prazoMeses });
+    }
   }
 
   function patchScenarioVariations(partial: Partial<ScenarioVariations>) {
@@ -340,6 +371,13 @@
     return hasActiveVariant(selected, baselineValue) || suggestionChanged;
   }
 
+  function categoricalLabel<T extends string>(
+    options: { value: T; label: string }[],
+    value: T
+  ): string {
+    return options.find((option) => option.value === value)?.label ?? value;
+  }
+
   const filterDefaults = createInitialSimulatorParams();
 
   function resetVoceSection() {
@@ -405,6 +443,10 @@
 
   function resetFinanciamentoSection() {
     patch({
+      sistemaAmortizacao: UI_DEFAULTS.sistemaAmortizacao,
+      estrategiaAmortizacao: UI_DEFAULTS.estrategiaAmortizacao,
+      tipoTaxaAnual: UI_DEFAULTS.tipoTaxaAnual,
+      prazoMeses: UI_DEFAULTS.prazoMeses,
       entradaDisponivel: UI_DEFAULTS.entradaDisponivel,
       aporteExtra: UI_DEFAULTS.aporteExtra,
       aporteProgressivo: UI_DEFAULTS.aporteProgressivo,
@@ -422,6 +464,9 @@
       scenarioVariations: {
         ...params.scenarioVariations,
         excludedBaselines: withoutExcludedBaselines([
+          "sistemaAmortizacao",
+          "estrategiaAmortizacao",
+          "tipoTaxaAnual",
           "entradaDisponivel",
           "aporteExtra",
           "inicioAporteExtraMeses",
@@ -433,6 +478,9 @@
           "quantiaExtra",
           "tempoRecebimentoExtraMeses"
         ]),
+        sistemaAmortizacao: filterDefaults.scenarioVariations.sistemaAmortizacao,
+        estrategiaAmortizacao: filterDefaults.scenarioVariations.estrategiaAmortizacao,
+        tipoTaxaAnual: filterDefaults.scenarioVariations.tipoTaxaAnual,
         entradaDisponivel: filterDefaults.scenarioVariations.entradaDisponivel,
         aporteExtra: filterDefaults.scenarioVariations.aporteExtra,
         aporteInicial: filterDefaults.scenarioVariations.aporteInicial,
@@ -1151,6 +1199,96 @@
     />
     {#if sectionState.financiamento}
       <div class="pt-1">
+        <ParameterRow
+          compact={rowCompact}
+          label="Sistema"
+          tooltip={tooltips.sistemaAmortizacao}
+          valueDisplay={categoricalLabel(sistemaAmortizacaoOptions, params.sistemaAmortizacao)}
+          forceExtrasExpanded={true}
+          lockExtrasExpanded={true}
+          extrasAriaLabel="sistema-amortizacao-variacoes"
+        >
+          {#snippet extras()}
+            <ScenarioFilterPills
+              options={sistemaAmortizacaoOptions}
+              selected={params.scenarioVariations.sistemaAmortizacao}
+              baseline={baseline(
+                "sistemaAmortizacao",
+                params.sistemaAmortizacao,
+                categoricalLabel(sistemaAmortizacaoOptions, params.sistemaAmortizacao)
+              )}
+              ariaLabel="Variações de sistema de amortização"
+              onToggle={(value) => toggleScenarioVariation("sistemaAmortizacao", value)}
+            />
+          {/snippet}
+        </ParameterRow>
+        <ParameterRow
+          compact={rowCompact}
+          label="Amortização extra"
+          tooltip={tooltips.estrategiaAmortizacao}
+          valueDisplay={categoricalLabel(
+            estrategiaAmortizacaoOptions,
+            params.estrategiaAmortizacao
+          )}
+          forceExtrasExpanded={true}
+          lockExtrasExpanded={true}
+          extrasAriaLabel="estrategia-amortizacao-variacoes"
+        >
+          {#snippet extras()}
+            <ScenarioFilterPills
+              options={estrategiaAmortizacaoOptions}
+              selected={params.scenarioVariations.estrategiaAmortizacao}
+              baseline={baseline(
+                "estrategiaAmortizacao",
+                params.estrategiaAmortizacao,
+                categoricalLabel(estrategiaAmortizacaoOptions, params.estrategiaAmortizacao)
+              )}
+              ariaLabel="Variações de amortização extra"
+              onToggle={(value) => toggleScenarioVariation("estrategiaAmortizacao", value)}
+            />
+          {/snippet}
+        </ParameterRow>
+        <ParameterRow
+          compact={rowCompact}
+          label="Tipo da taxa anual"
+          tooltip={tooltips.tipoTaxaAnual}
+          valueDisplay={categoricalLabel(tipoTaxaAnualOptions, params.tipoTaxaAnual)}
+          forceExtrasExpanded={true}
+          lockExtrasExpanded={true}
+          extrasAriaLabel="tipo-taxa-anual-variacoes"
+        >
+          {#snippet extras()}
+            <ScenarioFilterPills
+              options={tipoTaxaAnualOptions}
+              selected={params.scenarioVariations.tipoTaxaAnual}
+              baseline={baseline(
+                "tipoTaxaAnual",
+                params.tipoTaxaAnual,
+                categoricalLabel(tipoTaxaAnualOptions, params.tipoTaxaAnual)
+              )}
+              ariaLabel="Variações de tipo da taxa anual"
+              onToggle={(value) => toggleScenarioVariation("tipoTaxaAnual", value)}
+            />
+          {/snippet}
+        </ParameterRow>
+        <ParameterRow
+          compact={rowCompact}
+          label="Prazo do financiamento"
+          tooltip="Prazo contratual usado para calcular a prestação e a amortização mensal."
+          valueDisplay={formatMonthDurationLong(params.prazoMeses)}
+          slider={{
+            value: params.prazoMeses,
+            min: PRAZO_FINANCIAMENTO_RANGE.min,
+            max: PRAZO_FINANCIAMENTO_RANGE.max,
+            step: PRAZO_FINANCIAMENTO_RANGE.step,
+            onValueChange: updatePrazoMeses
+          }}
+          edit={{
+            type: "number",
+            value: params.prazoMeses,
+            onChange: updatePrazoMeses
+          }}
+        />
         <ParameterRow
           compact={rowCompact}
           label="Entrada"

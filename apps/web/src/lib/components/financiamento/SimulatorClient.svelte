@@ -30,7 +30,10 @@
     pruneSelectedPriceFilters,
     pruneSelectedTargetPriceFilters
   } from "$lib/components/financiamento/price-filter-approx";
-  import { snapToPropertyStep } from "$lib/components/financiamento/parameter-row-helpers";
+  import {
+    PRAZO_FINANCIAMENTO_RANGE,
+    snapToPropertyStep
+  } from "$lib/components/financiamento/parameter-row-helpers";
   import { LISTINGS_SECTION_CLASS } from "$lib/listings/listings-panel-layout";
   import { getCollectionsContext } from "$lib/collections-context.svelte";
   import WorkspaceLoadingState from "$lib/components/workspace/WorkspaceLoadingState.svelte";
@@ -752,6 +755,7 @@
       | "custoTotalReformas"
       | "custoInicialReformas"
       | "tempoObraMeses"
+      | "prazoMeses"
       | "quantiaExtra",
     newValue: number
   ) {
@@ -790,6 +794,16 @@
     }
     if (field === "tempoObraMeses") {
       params = { ...params, tempoObraMeses: Math.max(1, Math.round(newValue)) };
+      return;
+    }
+    if (field === "prazoMeses") {
+      params = {
+        ...params,
+        prazoMeses: Math.min(
+          PRAZO_FINANCIAMENTO_RANGE.max,
+          Math.max(PRAZO_FINANCIAMENTO_RANGE.min, Math.round(newValue))
+        )
+      };
       return;
     }
     if (field === "quantiaExtra") {

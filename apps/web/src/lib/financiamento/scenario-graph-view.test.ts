@@ -56,6 +56,24 @@ describe("scenario graph views", () => {
     });
   });
 
+  it("uses a custom financing term in the scenario and its stable id", () => {
+    const params = {
+      ...createInitialSimulatorParams(),
+      prazoMeses: 360,
+      temImovelParaNegociar: false,
+      incluirReformas: false,
+      esperaQuantiaExtra: false,
+      scenarioVariations: emptyScenarioVariations()
+    };
+
+    const view = buildScenarioGraphViewFromParams(params);
+    const cenario = view.cenarios[0];
+
+    expect(cenario?.tabelaPadrao.prazoMeses).toBe(360);
+    expect(cenario?.cenarioOtimizado.prazoOriginal).toBe(360);
+    expect(cenario?.id).toContain("-p360-");
+  });
+
   it("combines selected slider chip variations across parameters", () => {
     const params = {
       ...createInitialSimulatorParams(),
@@ -79,6 +97,47 @@ describe("scenario graph views", () => {
     expect(new Set(view.cenarios.map((cenario) => cenario.entrada))).toEqual(
       new Set([600_000, 700_000])
     );
+  });
+
+  it("combines SAC/PRICE, reduction strategy and annual rate type", () => {
+    const params = {
+      ...createInitialSimulatorParams(),
+      temImovelParaNegociar: false,
+      incluirReformas: false,
+      esperaQuantiaExtra: false,
+      scenarioVariations: {
+        ...emptyScenarioVariations(),
+        sistemaAmortizacao: ["price" as const],
+        estrategiaAmortizacao: ["reduzir_prestacao" as const],
+        tipoTaxaAnual: ["nominal" as const]
+      }
+    };
+
+    const view = buildScenarioGraphViewFromParams(params);
+
+    expect(view.limitExceeded).toBe(false);
+    expect(view.combinationCount).toBe(8);
+    expect(view.cenarios).toHaveLength(8);
+    expect(
+      new Set(
+        view.cenarios.map(
+          (cenario) =>
+            `${cenario.sistemaAmortizacao}:${cenario.estrategiaAmortizacao}:${cenario.tipoTaxaAnual}`
+        )
+      )
+    ).toEqual(
+      new Set([
+        "sac:reduzir_prazo:efetiva",
+        "sac:reduzir_prazo:nominal",
+        "sac:reduzir_prestacao:efetiva",
+        "sac:reduzir_prestacao:nominal",
+        "price:reduzir_prazo:efetiva",
+        "price:reduzir_prazo:nominal",
+        "price:reduzir_prestacao:efetiva",
+        "price:reduzir_prestacao:nominal"
+      ])
+    );
+    expect(new Set(view.cenarios.map((cenario) => cenario.id)).size).toBe(8);
   });
 
   it("can exclude the slider baseline when another chip is selected", () => {

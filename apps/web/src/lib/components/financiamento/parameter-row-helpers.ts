@@ -31,6 +31,12 @@ export const CUSTO_MENSAL_RANGE: SliderRange = {
   step: 500
 };
 
+export const PRAZO_FINANCIAMENTO_RANGE: SliderRange = {
+  min: 12,
+  max: 420,
+  step: 12
+};
+
 /** @deprecated Use CUSTO_MANUTENCAO_RANGE */
 export const CUSTO_CONDOMINIO_RANGE = CUSTO_MANUTENCAO_RANGE;
 

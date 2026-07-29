@@ -2,6 +2,10 @@
 const INITIAL_VALOR_IMOVEL = 2_000_000;
 
 export const UI_DEFAULTS = {
+  sistemaAmortizacao: "sac" as const,
+  estrategiaAmortizacao: "reduzir_prazo" as const,
+  tipoTaxaAnual: "efetiva" as const,
+  prazoMeses: 420,
   valorImovel: INITIAL_VALOR_IMOVEL,
   valorApartamento: 550_000,
   capitalDisponivel: INITIAL_VALOR_IMOVEL * 0.5,
@@ -47,7 +51,6 @@ export const DEFAULT_APORTE_INICIO_DELAY_MONTHS = [0] as const;
 
 /** Fixed assumptions for scenario generation (not exposed in the adjustment UI). */
 export const SIMULATION_ASSUMPTIONS = {
-  prazoMeses: 360,
   seguros: 0,
   haircut: 0,
   reservaEmergencia: 0

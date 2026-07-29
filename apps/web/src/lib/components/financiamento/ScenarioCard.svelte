@@ -4,6 +4,11 @@
   import ComprometimentoIndicator from "$lib/components/financiamento/ComprometimentoIndicator.svelte";
   import EstrategiaBadge from "$lib/components/financiamento/EstrategiaBadge.svelte";
   import ScenarioDataRow from "$lib/components/financiamento/ScenarioDataRow.svelte";
+  import {
+    formatEstrategiaAmortizacao,
+    formatSistemaAmortizacao,
+    formatTipoTaxaAnual
+  } from "$lib/components/financiamento/charts/chart-shared";
   import Tooltip from "$lib/components/ui/Tooltip.svelte";
   import { formatMonthDurationLong } from "$lib/components/financiamento/parameter-row-helpers";
   import {
@@ -26,7 +31,11 @@
   const tooltips = $derived(
     generateTooltips({
       aporteExtra: cenario.aporteExtra,
-      economiaJuros: cenario.economiaJuros
+      economiaJuros: cenario.economiaJuros,
+      sistemaAmortizacao: cenario.sistemaAmortizacao,
+      estrategiaAmortizacao: cenario.estrategiaAmortizacao,
+      tipoTaxaAnual: cenario.tipoTaxaAnual,
+      seguros: cenario.seguros
     })
   );
 </script>
@@ -101,20 +110,35 @@
         value={formatCurrency(cenario.financiamento.entradaTotal)}
         tooltip="Soma de dinheiro + valor do apartamento (se permuta)."
       />
+      <ScenarioDataRow
+        label="Sistema"
+        value={formatSistemaAmortizacao(cenario.sistemaAmortizacao)}
+      />
+      <ScenarioDataRow
+        label="Amortização extra"
+        value={formatEstrategiaAmortizacao(cenario.estrategiaAmortizacao)}
+      />
+      <ScenarioDataRow
+        label="Taxa anual"
+        value={formatTipoTaxaAnual(cenario.tipoTaxaAnual)}
+        tooltip={tooltips.taxaAnual}
+      />
     </div>
 
     <div class="space-y-1 border-t border-app-border pt-2">
-      <h4 class="text-xs font-semibold uppercase tracking-wider text-app-muted">Parcelas (SAC)</h4>
+      <h4 class="text-xs font-semibold uppercase tracking-wider text-app-muted">
+        Parcelas ({formatSistemaAmortizacao(cenario.sistemaAmortizacao)})
+      </h4>
       <ScenarioDataRow
         label="Primeira Parcela"
         value={formatCurrency(cenario.tabelaPadrao.primeiraParcelar)}
-        tooltip={`Parcela mais alta do financiamento (início do SAC): ${formatCurrency(cenario.tabelaPadrao.primeiraParcelar)}.`}
+        tooltip={`Primeira prestação do financiamento no sistema ${formatSistemaAmortizacao(cenario.sistemaAmortizacao)}: ${formatCurrency(cenario.tabelaPadrao.primeiraParcelar)}.`}
         highlight
       />
       <ScenarioDataRow
         label="Última Parcela"
         value={formatCurrency(cenario.tabelaPadrao.ultimaParcela)}
-        tooltip={`Parcela mais baixa (fim do SAC): ${formatCurrency(cenario.tabelaPadrao.ultimaParcela)}.`}
+        tooltip={`Última prestação prevista no sistema ${formatSistemaAmortizacao(cenario.sistemaAmortizacao)}: ${formatCurrency(cenario.tabelaPadrao.ultimaParcela)}.`}
       />
       <div class="pt-1">
         <span class="text-xs text-app-muted">Comprometimento Renda</span>
@@ -124,7 +148,7 @@
 
     <div class="space-y-1 border-t border-app-border pt-2">
       <h4 class="text-xs font-semibold uppercase tracking-wider text-app-accent">
-        Com Amortização Extra
+        Com Amortização Extra · {formatEstrategiaAmortizacao(cenario.estrategiaAmortizacao)}
       </h4>
       <ScenarioDataRow
         label="📈 Aporte Extra/mês"

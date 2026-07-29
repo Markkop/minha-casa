@@ -1,6 +1,11 @@
 <script lang="ts">
   import { ArrowDown, ArrowUp, Info } from "@lucide/svelte";
-  import { scenarioChartColor } from "$lib/components/financiamento/charts/chart-shared";
+  import {
+    formatEstrategiaAmortizacao,
+    formatSistemaAmortizacao,
+    formatTipoTaxaAnual,
+    scenarioChartColor
+  } from "$lib/components/financiamento/charts/chart-shared";
   import CustoTotalHoverBreakdown from "$lib/components/financiamento/CustoTotalHoverBreakdown.svelte";
   import TotalMensalHoverBreakdown from "$lib/components/financiamento/TotalMensalHoverBreakdown.svelte";
   import {
@@ -72,6 +77,15 @@
   const showExtraColumn = $derived(cenarios.some((c) => c.extraEm !== undefined));
   const showReformaTimingColumn = $derived(cenarios.some((c) => c.reformaEm !== undefined));
   const showAporteTimingColumn = $derived(cenarios.some((c) => c.aporteEm !== undefined));
+  const showSistemaAmortizacaoColumn = $derived(
+    new Set(cenarios.map((c) => c.sistemaAmortizacao)).size > 1
+  );
+  const showEstrategiaAmortizacaoColumn = $derived(
+    new Set(cenarios.map((c) => c.estrategiaAmortizacao)).size > 1
+  );
+  const showTipoTaxaAnualColumn = $derived(
+    new Set(cenarios.map((c) => c.tipoTaxaAnual)).size > 1
+  );
 
   function handleSort(key: ResultsSortKey) {
     sort = toggleSort(sort, key);
@@ -143,6 +157,23 @@
   </th>
 {/snippet}
 
+{#snippet categoryHeader(label: string, tooltip: string)}
+  <th class={thClass}>
+    <div class={cn("flex items-center whitespace-nowrap", compact ? "gap-0.5" : "gap-1")}>
+      <span>{label}</span>
+      <FloatingTooltip label={tooltip} side="bottom" align="center">
+        <button
+          type="button"
+          class="inline-flex text-app-subtle hover:text-app-accent"
+          aria-label="Mais informações sobre {label}"
+        >
+          <Info class={compact ? "size-2.5" : "size-3"} />
+        </button>
+      </FloatingTooltip>
+    </div>
+  </th>
+{/snippet}
+
 {#snippet aprovacaoIndicator(dentroDoLimite: boolean)}
   <Tooltip side="top">
     {#snippet trigger()}
@@ -189,7 +220,7 @@
         {/if}
         {#if permutaDisponivel}
           {@render sortableHeader("Seu imóvel", "valorApartamento", TOOLTIPS.valorApartamento)}
-          {@render sortableHeader("Venda em", "vendaEm", "Permuta ou mês da venda do imóvel")}
+          {@render sortableHeader("Venda em", "vendaEm", TOOLTIPS.vendaEm)}
         {/if}
         {#if showExtraColumn}
           {@render sortableHeader("Extra em", "extraEm", "Mês do recebimento da quantia extra")}
@@ -204,6 +235,15 @@
             "Meses de espera antes do primeiro aporte extra"
           )}
         {/if}
+        {#if showSistemaAmortizacaoColumn}
+          {@render categoryHeader("Sistema", "Sistema de amortização do financiamento")}
+        {/if}
+        {#if showEstrategiaAmortizacaoColumn}
+          {@render categoryHeader("Amort.", "Efeito escolhido para as amortizações extras")}
+        {/if}
+        {#if showTipoTaxaAnualColumn}
+          {@render categoryHeader("Taxa", "Forma de conversão da taxa anual para mensal")}
+        {/if}
         {@render sortableHeader(
           "Financiado",
           "valorFinanciado",
@@ -214,7 +254,11 @@
           "totalMensal",
           "Prestação + aporte + reforma + manutenção no 1º mês do cenário otimizado"
         )}
-        {@render sortableHeader("Compr.", "comprometimento", TOOLTIPS.comprometimento)}
+        {@render sortableHeader(
+          "Compr.",
+          "comprometimento",
+          "Percentual da renda comprometido com a primeira prestação do sistema e da taxa de cada cenário"
+        )}
         {@render sortableHeader("Prazo", "prazoReal", "Prazo real com amortização extra")}
         {@render sortableHeader(
           "Juros",
@@ -231,7 +275,7 @@
           {@render sortableHeader(
             "Custo total",
             "custoTotal",
-            "Custo total event-aware (imóvel + juros + fechamento + reformas + outros + manutenção + carrego)"
+            "Imóvel + juros pagos + fechamento + reformas + outros custos + manutenção"
           )}
         {/if}
       </tr>
@@ -314,6 +358,21 @@
           {#if showAporteTimingColumn}
             <td class={cn(tdClass, monoCellClass)}>
               {formatAporteDelayCell(cenario.aporteEm)}
+            </td>
+          {/if}
+          {#if showSistemaAmortizacaoColumn}
+            <td class={cn(tdClass, "text-xs font-medium text-app-fg")}>
+              {formatSistemaAmortizacao(cenario.sistemaAmortizacao)}
+            </td>
+          {/if}
+          {#if showEstrategiaAmortizacaoColumn}
+            <td class={cn(tdClass, "text-xs text-app-fg")}>
+              {formatEstrategiaAmortizacao(cenario.estrategiaAmortizacao)}
+            </td>
+          {/if}
+          {#if showTipoTaxaAnualColumn}
+            <td class={cn(tdClass, "text-xs text-app-fg")}>
+              {formatTipoTaxaAnual(cenario.tipoTaxaAnual)}
             </td>
           {/if}
           <td class={cn(tdClass, monoCellClass)}>

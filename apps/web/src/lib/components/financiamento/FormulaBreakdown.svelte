@@ -1,6 +1,11 @@
 <script lang="ts">
   import { ChevronDown, ChevronUp } from "@lucide/svelte";
   import FormulaSection from "$lib/components/financiamento/FormulaSection.svelte";
+  import {
+    formatEstrategiaAmortizacao,
+    formatSistemaAmortizacao,
+    formatTipoTaxaAnual
+  } from "$lib/components/financiamento/charts/chart-shared";
   import KatexMath from "$lib/components/financiamento/KatexMath.svelte";
   import { buildFormulaSections } from "$lib/components/financiamento/formula-breakdown-data";
   import Card from "$lib/components/ui/Card.svelte";
@@ -52,14 +57,26 @@
 
     <CardContent class="space-y-4">
       <FormulaSection title="Valor Financiado" {...sections.valorFinanciadoFormula} initialExpanded />
-      <FormulaSection title="Taxa Mensal Efetiva" {...sections.taxaFormula} initialExpanded={false} />
-      <FormulaSection title="Parcela SAC (1ª Parcela)" {...sections.parcelaSACFormula} initialExpanded={false} />
+      <FormulaSection
+        title={`Taxa Mensal · Anual ${formatTipoTaxaAnual(cenario.tipoTaxaAnual)}`}
+        {...sections.taxaFormula}
+        initialExpanded={false}
+      />
+      <FormulaSection
+        title={`Prestação ${formatSistemaAmortizacao(cenario.sistemaAmortizacao)} (1ª prestação)`}
+        {...sections.parcelaFormula}
+        initialExpanded={false}
+      />
       <FormulaSection
         title="Comprometimento de Renda"
         {...sections.comprometimentoFormula}
         initialExpanded={false}
       />
-      <FormulaSection title="Economia de Juros" {...sections.economiaFormula} initialExpanded={false} />
+      <FormulaSection
+        title={`Economia de Juros · ${formatEstrategiaAmortizacao(cenario.estrategiaAmortizacao)}`}
+        {...sections.economiaFormula}
+        initialExpanded={false}
+      />
 
       <div class="space-y-1 border-t border-app-border pt-4 text-xs text-app-subtle">
         <p class="font-semibold text-app-muted">Legenda:</p>

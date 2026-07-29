@@ -3,7 +3,8 @@ import type { SimulatorParams } from "$lib/components/financiamento/financiament
 import { APORTE_APOS_REFORMA_VALUE } from "$lib/financiamento/aporte-progressivo";
 
 const ROOT_KEY = "minha_casa_financeiro";
-const YAML_VERSION = 1;
+const YAML_VERSION = 3;
+const SUPPORTED_YAML_VERSIONS = new Set([1, 2, YAML_VERSION]);
 
 const REQUIRED_PARAM_KEYS = [
   "capitalDisponivel",
@@ -38,8 +39,18 @@ const REQUIRED_PARAM_KEYS = [
   "cenariosOcultosGraficos"
 ] as const satisfies readonly (keyof SimulatorParams)[];
 
+const REQUIRED_V2_PARAM_KEYS = [
+  "sistemaAmortizacao",
+  "estrategiaAmortizacao",
+  "tipoTaxaAnual"
+] as const satisfies readonly (keyof SimulatorParams)[];
+
+const REQUIRED_V3_PARAM_KEYS = ["prazoMeses"] as const satisfies readonly (keyof SimulatorParams)[];
+
 type YamlParamKey =
   | (typeof REQUIRED_PARAM_KEYS)[number]
+  | (typeof REQUIRED_V2_PARAM_KEYS)[number]
+  | (typeof REQUIRED_V3_PARAM_KEYS)[number]
   | "scenarioVariations"
   | "inicioReformaMeses"
   | "inicioAporteExtraMeses"
@@ -53,6 +64,10 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function pickYamlParams(params: SimulatorParams): FinanceiroYamlParams {
   return {
+    sistemaAmortizacao: params.sistemaAmortizacao,
+    estrategiaAmortizacao: params.estrategiaAmortizacao,
+    tipoTaxaAnual: params.tipoTaxaAnual,
+    prazoMeses: params.prazoMeses,
     capitalDisponivel: params.capitalDisponivel,
     entradaDisponivel: params.entradaDisponivel,
     rendaMensal: params.rendaMensal,
@@ -106,8 +121,14 @@ function extractYamlCandidate(text: string): string | null {
   return trimmed.includes(`${ROOT_KEY}:`) ? trimmed : null;
 }
 
-function hasRequiredParams(value: Record<string, unknown>): boolean {
-  return REQUIRED_PARAM_KEYS.every((key) => Object.prototype.hasOwnProperty.call(value, key));
+function hasRequiredParams(value: Record<string, unknown>, version: number): boolean {
+  return (
+    REQUIRED_PARAM_KEYS.every((key) => Object.prototype.hasOwnProperty.call(value, key)) &&
+    (version === 1 ||
+      REQUIRED_V2_PARAM_KEYS.every((key) => Object.prototype.hasOwnProperty.call(value, key))) &&
+    (version < 3 ||
+      REQUIRED_V3_PARAM_KEYS.every((key) => Object.prototype.hasOwnProperty.call(value, key)))
+  );
 }
 
 export function buildActiveParametersYaml(params: SimulatorParams): string {
@@ -136,11 +157,16 @@ export function parseActiveParametersYaml(text: string): Partial<SimulatorParams
   if (!isRecord(parsed)) return null;
 
   const root = parsed[ROOT_KEY];
-  if (!isRecord(root) || root.version !== YAML_VERSION || !isRecord(root.params)) {
+  if (
+    !isRecord(root) ||
+    typeof root.version !== "number" ||
+    !SUPPORTED_YAML_VERSIONS.has(root.version) ||
+    !isRecord(root.params)
+  ) {
     return null;
   }
 
-  if (!hasRequiredParams(root.params)) {
+  if (!hasRequiredParams(root.params, root.version)) {
     return null;
   }
 
@@ -149,12 +175,19 @@ export function parseActiveParametersYaml(text: string): Partial<SimulatorParams
 
 export function buildActiveParametersPrompt(): string {
   const example = buildActiveParametersYaml({
+    sistemaAmortizacao: "sac",
+    estrategiaAmortizacao: "reduzir_prazo",
+    tipoTaxaAnual: "efetiva",
+    prazoMeses: 420,
     capitalDisponivel: 1_000_000,
     entradaDisponivel: 600_000,
     rendaMensal: 45_000,
     custoMensal: 5_000,
     scenarioVariations: {
       excludedBaselines: [],
+      sistemaAmortizacao: [],
+      estrategiaAmortizacao: [],
+      tipoTaxaAnual: [],
       capitalDisponivel: [],
       entradaDisponivel: [],
       rendaMensal: [],
@@ -221,6 +254,9 @@ export function buildActiveParametersPrompt(): string {
     "- Valores monetarios devem ser numeros puros em BRL, sem R$, pontos ou virgulas.",
     "- Prazos e inicios devem ser numeros inteiros em meses.",
     "- Percentuais devem ser decimais do modelo: 0.115 representa 11.5%, 0.0015 representa 0.15%.",
+    '- sistemaAmortizacao aceita apenas "sac" e "price".',
+    '- estrategiaAmortizacao aceita apenas "reduzir_prazo" e "reduzir_prestacao".',
+    '- tipoTaxaAnual aceita apenas "efetiva" e "nominal".',
     '- estrategiasFiltro aceita apenas "permuta" e "venda_posterior".',
     `- temposInicioAporteExtraMeses aceita numeros ou "${APORTE_APOS_REFORMA_VALUE}".`,
     "- custosAdicionais deve ser uma lista de objetos com nome, incluirNoCalculo, cobrancaMensal, valorTotal, mesInicio e duracaoMeses; id e opcional.",

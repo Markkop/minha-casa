@@ -250,7 +250,6 @@ describe("event-aware polyline paths", () => {
         custosFechamento: { total: 20_000 },
         rendaMensal: 30_000,
         valorApartamento: 400_000,
-        custoCarregoApto: 10_000,
         timeline: [
           timelineMonth({
             mes: 6,

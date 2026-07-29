@@ -25,9 +25,7 @@
     if ((c.totalCustosAdicionais ?? 0) > 0) {
       breakdown.push({ label: "Outros", value: c.totalCustosAdicionais ?? 0 });
     }
-    if (c.custoCarregoApto > 0) {
-      breakdown.push({ label: "Carrego apto", value: c.custoCarregoApto });
-    } else if (c.totalManutencao > 0) {
+    if (c.totalManutencao > 0) {
       breakdown.push({ label: "Manutenção", value: c.totalManutencao });
     }
     return breakdown;

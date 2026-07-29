@@ -17,6 +17,9 @@ function scenario(
     id,
     valorImovel: 2_000_000,
     estrategia: "venda_posterior",
+    sistemaAmortizacao: "sac",
+    estrategiaAmortizacao: "reduzir_prazo",
+    tipoTaxaAnual: "efetiva",
     ...overrides
   } as CenarioCompleto;
 }
@@ -75,7 +78,7 @@ describe("scenario chart colors", () => {
     expect(scenarioLegendEntries([item], colorIndex)).toEqual([
       {
         id: item.id,
-        label: "R$ 2.00M · venda 1a",
+        label: "R$ 2.00M · SAC · Reduz prazo · taxa efetiva · venda 1a",
         color: CHART_COLORS[3]
       }
     ]);
@@ -87,7 +90,7 @@ describe("scenario chart colors", () => {
     });
 
     expect(scenarioLegendEntries([item])[0]?.label).toBe(
-      "R$ 2.00M · aporte depois"
+      "R$ 2.00M · SAC · Reduz prazo · taxa efetiva · aporte depois"
     );
   });
 
@@ -102,8 +105,20 @@ describe("scenario chart colors", () => {
 
     expect(scenarioLegendEntries([item])[0]).toMatchObject({
       id: item.id,
-      label: "Compra base · R$ 2.00M"
+      label: "Compra base · R$ 2.00M · SAC · Reduz prazo · taxa efetiva"
     });
+  });
+
+  it("includes financing system, extra-amortization strategy and annual-rate type", () => {
+    const item = scenario("price-recalculate", {
+      sistemaAmortizacao: "price",
+      estrategiaAmortizacao: "reduzir_prestacao",
+      tipoTaxaAnual: "nominal"
+    });
+
+    expect(scenarioLegendEntries([item])[0]?.label).toBe(
+      "R$ 2.00M · PRICE · Reduz prestação · taxa nominal"
+    );
   });
 
   it("keeps comparison line colors aligned with their original scenario ids", () => {

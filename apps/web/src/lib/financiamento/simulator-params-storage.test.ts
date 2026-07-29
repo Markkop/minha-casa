@@ -29,7 +29,61 @@ function createLocalStorageMock() {
 
 describe("normalizeSimulatorParams", () => {
   it("returns defaults for empty input", () => {
-    expect(normalizeSimulatorParams({})).toEqual(createInitialSimulatorParams());
+    const result = normalizeSimulatorParams({});
+
+    expect(result).toEqual(createInitialSimulatorParams());
+    expect(result.prazoMeses).toBe(420);
+  });
+
+  it("preserves a valid 360-month financing term", () => {
+    expect(normalizeSimulatorParams({ prazoMeses: 360 }).prazoMeses).toBe(360);
+  });
+
+  it("rounds the financing term to whole months and clamps it between 12 and 420", () => {
+    expect(normalizeSimulatorParams({ prazoMeses: 359.6 }).prazoMeses).toBe(360);
+    expect(normalizeSimulatorParams({ prazoMeses: 1 }).prazoMeses).toBe(12);
+    expect(normalizeSimulatorParams({ prazoMeses: 600 }).prazoMeses).toBe(420);
+  });
+
+  it("migrates non-empty legacy params to SAC, reduced term, and nominal annual rate", () => {
+    const result = normalizeSimulatorParams({ valorImovel: 1_500_000 });
+
+    expect(result).toMatchObject({
+      sistemaAmortizacao: "sac",
+      estrategiaAmortizacao: "reduzir_prazo",
+      tipoTaxaAnual: "nominal"
+    });
+    expect(result.scenarioVariations).toMatchObject({
+      sistemaAmortizacao: [],
+      estrategiaAmortizacao: [],
+      tipoTaxaAnual: []
+    });
+  });
+
+  it("keeps valid financing options and falls back from invalid values", () => {
+    expect(
+      normalizeSimulatorParams({
+        sistemaAmortizacao: "price",
+        estrategiaAmortizacao: "reduzir_prestacao",
+        tipoTaxaAnual: "efetiva"
+      })
+    ).toMatchObject({
+      sistemaAmortizacao: "price",
+      estrategiaAmortizacao: "reduzir_prestacao",
+      tipoTaxaAnual: "efetiva"
+    });
+
+    expect(
+      normalizeSimulatorParams({
+        sistemaAmortizacao: "invalido" as never,
+        estrategiaAmortizacao: "invalida" as never,
+        tipoTaxaAnual: "invalida" as never
+      })
+    ).toMatchObject({
+      sistemaAmortizacao: "sac",
+      estrategiaAmortizacao: "reduzir_prazo",
+      tipoTaxaAnual: "efetiva"
+    });
   });
 
   it("keeps valid numeric fields", () => {

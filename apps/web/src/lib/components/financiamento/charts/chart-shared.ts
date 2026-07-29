@@ -26,6 +26,22 @@ export type ChartLegendEntry = {
   color: string;
 };
 
+export function formatSistemaAmortizacao(
+  sistema: CenarioCompleto["sistemaAmortizacao"]
+): string {
+  return sistema === "price" ? "PRICE" : "SAC";
+}
+
+export function formatEstrategiaAmortizacao(
+  estrategia: CenarioCompleto["estrategiaAmortizacao"]
+): string {
+  return estrategia === "reduzir_prestacao" ? "Reduz prestação" : "Reduz prazo";
+}
+
+export function formatTipoTaxaAnual(tipo: CenarioCompleto["tipoTaxaAnual"]): string {
+  return tipo === "nominal" ? "Nominal" : "Efetiva";
+}
+
 export type ChartEventLegendKind = "sale" | "extra" | "reform" | "cash" | "payoff";
 
 export type ChartEventLegendEntry = {
@@ -115,7 +131,12 @@ export function scenarioLabel(cenario: CenarioCompleto): string {
     cenario.valorImovel >= 1_000_000
       ? `R$ ${(cenario.valorImovel / 1_000_000).toFixed(2)}M`
       : formatCurrencyCompact(cenario.valorImovel);
-  const parts = [valueLabel];
+  const parts = [
+    valueLabel,
+    formatSistemaAmortizacao(cenario.sistemaAmortizacao),
+    formatEstrategiaAmortizacao(cenario.estrategiaAmortizacao),
+    `taxa ${formatTipoTaxaAnual(cenario.tipoTaxaAnual).toLocaleLowerCase("pt-BR")}`
+  ];
   if (cenario.estrategia === "permuta") {
     parts.push("permuta");
   } else if (cenario.vendaEm !== undefined) {

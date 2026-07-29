@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { APORTE_APOS_REFORMA_VALUE } from "$lib/financiamento/aporte-progressivo";
-import { gerarCenarioCompleto, gerarMatrizCenarios } from "$lib/financiamento/calculations";
+import {
+  calcularTaxaMensalEfetiva,
+  gerarCenarioCompleto,
+  gerarMatrizCenarios
+} from "$lib/financiamento/calculations";
 import { SIMULATION_ASSUMPTIONS } from "$lib/financiamento/calculations-defaults";
 import { simularTimelineMensal } from "$lib/financiamento/financing-timeline";
 
@@ -163,6 +167,57 @@ describe("simularTimelineMensal", () => {
     expect(afterSale.every((m) => m.manutencaoMensal === 0)).toBe(true);
   });
 
+  it("uses the full apartment value for sales in months 6 and 12", () => {
+    const baseSale = {
+      valorFinanciado: 1_400_000,
+      prazoMeses: 360,
+      taxaMensalEfetiva: Math.pow(1.115, 1 / 12) - 1 + 0.0015,
+      aporteExtra: 20_000,
+      rendaMensal: 100_000,
+      seguros: 0,
+      estrategia: "venda_posterior" as const,
+      valorApartamento: 500_000,
+      custoManutencaoImovelMensal: 1_000,
+      sistemaAmortizacao: "sac" as const,
+      estrategiaAmortizacao: "reduzir_prazo" as const
+    };
+
+    const vendaMes6 = simularTimelineMensal({ ...baseSale, mesVenda: 6 });
+    const vendaMes12 = simularTimelineMensal({ ...baseSale, mesVenda: 12 });
+
+    expect(vendaMes6.meses.find((month) => month.mes === 6)?.amortizacaoVenda).toBe(500_000);
+    expect(vendaMes12.meses.find((month) => month.mes === 12)?.amortizacaoVenda).toBe(500_000);
+    expect(vendaMes6.prazoReal).toBe(38);
+    expect(vendaMes12.prazoReal).toBe(38);
+    expect(vendaMes12.totalJuros).toBeGreaterThan(vendaMes6.totalJuros);
+    expect(vendaMes6.totalManutencao).toBe(6_000);
+    expect(vendaMes12.totalManutencao).toBe(12_000);
+  });
+
+  it("caps sale amortization at debt remaining after the installment and aporte", () => {
+    const result = simularTimelineMensal({
+      valorFinanciado: 100_000,
+      prazoMeses: 10,
+      taxaMensalEfetiva: 0,
+      aporteExtra: 5_000,
+      rendaMensal: 40_000,
+      seguros: 0,
+      estrategia: "venda_posterior",
+      valorApartamento: 500_000,
+      mesVenda: 1,
+      sistemaAmortizacao: "sac",
+      estrategiaAmortizacao: "reduzir_prazo"
+    });
+
+    expect(result.meses[0]).toMatchObject({
+      prestacao: 10_000,
+      aporteExtra: 5_000,
+      amortizacaoVenda: 85_000,
+      saldoDevedorFim: 0
+    });
+    expect(result.prazoReal).toBe(1);
+  });
+
   it("stores end-of-month debt after extraordinary amortization", () => {
     const result = simularTimelineMensal({
       ...baseTimeline,
@@ -180,7 +235,7 @@ describe("simularTimelineMensal", () => {
     );
   });
 
-  it("counts property maintenance once in optimized total via carrego apto", () => {
+  it("counts property maintenance once in the optimized total", () => {
     const cenario = gerarCenarioCompleto({
       valorImovel: 2_000_000,
       capitalDisponivel: 400_000,
@@ -195,16 +250,15 @@ describe("simularTimelineMensal", () => {
       mesVenda: 6,
       custoManutencaoImovelMensal: 2_000
     });
-    const maintenanceInCarrego = cenario.custoCarregoApto > 0;
-    expect(maintenanceInCarrego).toBe(true);
-    expect(cenario.custoTotalOtimizado).toBeGreaterThan(cenario.valorImovel);
-    expect(cenario.custoTotalOtimizado).toBeLessThan(
+    expect(cenario.totalManutencao).toBe(12_000);
+    expect(cenario.custoTotalOtimizado).toBeCloseTo(
       cenario.valorImovel +
         cenario.cenarioOtimizado.totalJuros +
         cenario.custosFechamento.total +
         cenario.totalReformas +
         cenario.totalManutencao +
-        cenario.custoCarregoApto
+        cenario.totalCustosAdicionais,
+      8
     );
   });
 
@@ -626,6 +680,120 @@ describe("gerarCenarioCompleto comprometimento", () => {
       semAporte.tabelaPadrao.primeiraParcelar / base.rendaMensal,
       6
     );
+  });
+});
+
+describe("sistemas e estratégias de amortização", () => {
+  const analysisBase = {
+    valorImovel: 2_140_000,
+    capitalDisponivel: 700_000,
+    reservaEmergencia: 0,
+    valorApartamento: 0,
+    estrategia: "venda_posterior" as const,
+    tipoTaxaAnual: "efetiva" as const,
+    taxaAnual: 0.115,
+    trMensal: 0,
+    prazoMeses: 360,
+    aporteExtra: 20_000,
+    rendaMensal: 100_000,
+    seguros: 0
+  };
+
+  it("converte taxa anual nominal ou efetiva antes de somar a TR", () => {
+    expect(
+      calcularTaxaMensalEfetiva({
+        taxaAnual: 0.115,
+        trMensal: 0.001,
+        tipoTaxaAnual: "nominal"
+      })
+    ).toBeCloseTo(0.115 / 12 + 0.001, 12);
+    expect(
+      calcularTaxaMensalEfetiva({
+        taxaAnual: 0.115,
+        trMensal: 0.001,
+        tipoTaxaAnual: "efetiva"
+      })
+    ).toBeCloseTo(Math.pow(1.115, 1 / 12) - 1 + 0.001, 12);
+  });
+
+  it("reproduz os quatro cenários da análise", () => {
+    const casos = [
+      {
+        sistemaAmortizacao: "price" as const,
+        estrategiaAmortizacao: "reduzir_prazo" as const,
+        prazoReal: 55,
+        totalJuros: 393_488.04,
+        prestacoes: { 1: 13_642.74, 12: 13_642.74, 48: 13_642.74 }
+      },
+      {
+        sistemaAmortizacao: "price" as const,
+        estrategiaAmortizacao: "reduzir_prestacao" as const,
+        prazoReal: 71,
+        totalJuros: 469_338.93,
+        prestacoes: { 1: 13_642.74, 12: 11_553.75, 60: 2_314.83 }
+      },
+      {
+        sistemaAmortizacao: "sac" as const,
+        estrategiaAmortizacao: "reduzir_prazo" as const,
+        prazoReal: 60,
+        totalJuros: 400_219.61,
+        prestacoes: { 1: 17_121.95, 12: 14_716.26, 60: 4_218.7 }
+      },
+      {
+        sistemaAmortizacao: "sac" as const,
+        estrategiaAmortizacao: "reduzir_prestacao" as const,
+        prazoReal: 66,
+        totalJuros: 421_269.32,
+        prestacoes: { 1: 17_121.95, 12: 14_122.9, 60: 1_552.07 }
+      }
+    ];
+
+    for (const caso of casos) {
+      const cenario = gerarCenarioCompleto({ ...analysisBase, ...caso });
+      expect(cenario.cenarioOtimizado.prazoReal).toBe(caso.prazoReal);
+      expect(cenario.cenarioOtimizado.totalJuros).toBeCloseTo(caso.totalJuros, 2);
+      for (const [mes, prestacao] of Object.entries(caso.prestacoes)) {
+        expect(cenario.timeline[Number(mes) - 1]?.prestacao).toBeCloseTo(prestacao, 2);
+      }
+    }
+  });
+
+  it("gera as tabelas padrão SAC e PRICE sem aporte", () => {
+    const price = gerarCenarioCompleto({
+      ...analysisBase,
+      sistemaAmortizacao: "price",
+      estrategiaAmortizacao: "reduzir_prazo",
+      aporteExtra: 0
+    });
+    const sac = gerarCenarioCompleto({
+      ...analysisBase,
+      sistemaAmortizacao: "sac",
+      estrategiaAmortizacao: "reduzir_prazo",
+      aporteExtra: 0
+    });
+
+    expect(price.tabelaPadrao.primeiraParcelar).toBeCloseTo(13_642.74, 2);
+    expect(price.tabelaPadrao.totalJuros).toBeCloseTo(3_471_384.94, 2);
+    expect(sac.tabelaPadrao.primeiraParcelar).toBeCloseTo(17_121.95, 2);
+    expect(sac.tabelaPadrao.totalJuros).toBeCloseTo(2_368_512.8, 2);
+  });
+
+  it("trata PRICE com taxa zero e aporte maior que o saldo", () => {
+    const timeline = simularTimelineMensal({
+      valorFinanciado: 10_000,
+      prazoMeses: 10,
+      taxaMensalEfetiva: 0,
+      aporteExtra: 20_000,
+      rendaMensal: 30_000,
+      estrategia: "financiamento",
+      sistemaAmortizacao: "price",
+      estrategiaAmortizacao: "reduzir_prestacao",
+      seguros: 0
+    });
+
+    expect(timeline.prazoReal).toBe(1);
+    expect(timeline.meses[0]).toMatchObject({ prestacao: 1_000, aporteExtra: 9_000 });
+    expect(timeline.totalJuros).toBe(0);
   });
 });
 

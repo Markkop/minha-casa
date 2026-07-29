@@ -3,6 +3,11 @@
   import Card from "$lib/components/ui/Card.svelte";
   import ComprometimentoIndicator from "$lib/components/financiamento/ComprometimentoIndicator.svelte";
   import EstrategiaBadge from "$lib/components/financiamento/EstrategiaBadge.svelte";
+  import {
+    formatEstrategiaAmortizacao,
+    formatSistemaAmortizacao,
+    formatTipoTaxaAnual
+  } from "$lib/components/financiamento/charts/chart-shared";
   import { formatMonthDurationLong } from "$lib/components/financiamento/parameter-row-helpers";
   import {
     formatCurrencyCompact,
@@ -43,6 +48,18 @@
         Seu imóvel:
         <span class="font-mono text-salmon">
           {formatCurrencyCompact(cenario.valorApartamento)}
+        </span>
+      </div>
+
+      <div class="flex flex-wrap gap-1 text-[10px] text-app-muted">
+        <span class="rounded bg-app-surface px-1.5 py-0.5 font-medium text-app-fg">
+          {formatSistemaAmortizacao(cenario.sistemaAmortizacao)}
+        </span>
+        <span class="rounded bg-app-surface px-1.5 py-0.5">
+          {formatEstrategiaAmortizacao(cenario.estrategiaAmortizacao)}
+        </span>
+        <span class="rounded bg-app-surface px-1.5 py-0.5">
+          Taxa {formatTipoTaxaAnual(cenario.tipoTaxaAnual).toLocaleLowerCase("pt-BR")}
         </span>
       </div>
 

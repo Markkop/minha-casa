@@ -7,44 +7,11 @@ import {
   custosAdicionaisNoMes,
   type CustoAdicional
 } from "$lib/financiamento/custos-adicionais";
-
-export interface VendaPosteriorResult {
-  valorBruto: number;
-  jurosCarrego: number;
-  custosManutencao: number;
-  custoTotalCarrego: number;
-  valorLiquido: number;
-}
-
-function calcularParcelaSACLocal(
-  saldoDevedor: number,
-  amortizacaoMensal: number,
-  taxaMensalEfetiva: number,
-  seguros: number
-) {
-  const juros = saldoDevedor * taxaMensalEfetiva;
-  const prestacao = amortizacaoMensal + juros + seguros;
-  return { juros, prestacao };
-}
-
-function calcularValorVendaPosteriorLocal(
-  valorApartamento: number,
-  taxaMensalEfetiva: number,
-  mesesCarrego: number,
-  custoManutencaoMensal: number
-): VendaPosteriorResult {
-  const jurosCarrego = valorApartamento * taxaMensalEfetiva * mesesCarrego;
-  const custosManutencao = custoManutencaoMensal * mesesCarrego;
-  const custoTotalCarrego = jurosCarrego + custosManutencao;
-  const valorLiquido = valorApartamento - custoTotalCarrego;
-  return {
-    valorBruto: valorApartamento,
-    jurosCarrego,
-    custosManutencao,
-    custoTotalCarrego,
-    valorLiquido
-  };
-}
+import { calcularPrestacaoPrice } from "$lib/financiamento/financing-amortization";
+import type {
+  EstrategiaAmortizacao,
+  SistemaAmortizacao
+} from "$lib/components/financiamento/financiamento-parameter-types";
 
 export interface TimelineMonth {
   mes: number;
@@ -84,13 +51,13 @@ export interface TimelineResult {
   totalManutencao: number;
   saldoLivreMinimo: number;
   mesReformaConcluida: number | null;
-  vendaApartamento: VendaPosteriorResult | null;
-  custoCarregoApto: number;
   /** First-month total cash outflow: prestação + aporte + reforma + manutenção */
   totalMensalMes1: number;
 }
 
 export interface SimularTimelineInput {
+  sistemaAmortizacao?: SistemaAmortizacao;
+  estrategiaAmortizacao?: EstrategiaAmortizacao;
   valorFinanciado: number;
   prazoMeses: number;
   taxaMensalEfetiva: number;
@@ -127,7 +94,7 @@ export function calcularCustoTotalEventAware(
   custosFechamentoTotal: number,
   totalReformas: number,
   totalCustosAdicionais: number,
-  custoCarregoApto: number
+  totalManutencao: number
 ): number {
   return (
     valorImovel +
@@ -135,7 +102,7 @@ export function calcularCustoTotalEventAware(
     custosFechamentoTotal +
     totalReformas +
     totalCustosAdicionais +
-    custoCarregoApto
+    totalManutencao
   );
 }
 
@@ -242,6 +209,8 @@ function lastCustoAdicionalMonth(custos: readonly CustoAdicional[], prazoMeses: 
 export function simularTimelineMensal(input: SimularTimelineInput): TimelineResult {
   const {
     valorFinanciado,
+    sistemaAmortizacao = "sac",
+    estrategiaAmortizacao = "reduzir_prazo",
     prazoMeses,
     taxaMensalEfetiva,
     aporteExtra,
@@ -267,6 +236,11 @@ export function simularTimelineMensal(input: SimularTimelineInput): TimelineResu
   }
 
   const amortizacaoMensal = valorFinanciado / prazoMeses;
+  const prestacaoPriceOriginal = calcularPrestacaoPrice(
+    valorFinanciado,
+    taxaMensalEfetiva,
+    prazoMeses
+  );
   const meses: TimelineMonth[] = [];
   let saldoDevedor = valorFinanciado;
   let prazoReal: number | null = null;
@@ -277,7 +251,6 @@ export function simularTimelineMensal(input: SimularTimelineInput): TimelineResu
   let totalManutencao = 0;
   let saldoLivreMinimo = Infinity;
   let mesReformaConcluida: number | null = null;
-  let vendaApartamento: VendaPosteriorResult | null = null;
   let mes = 0;
   const resolvedMesReformaConcluida = resolveMesReformaConcluida({
     prazoMeses,
@@ -303,14 +276,24 @@ export function simularTimelineMensal(input: SimularTimelineInput): TimelineResu
     let aporteAplicado = 0;
 
     if (financiamentoAtivo) {
-      const parcelaSAC = calcularParcelaSACLocal(
+      const mesesRestantes = prazoMeses - mes + 1;
+      const juros = saldoDevedor * taxaMensalEfetiva;
+      const amortizacaoProgramada =
+        sistemaAmortizacao === "sac"
+          ? estrategiaAmortizacao === "reduzir_prestacao"
+            ? saldoDevedor / mesesRestantes
+            : amortizacaoMensal
+          : (estrategiaAmortizacao === "reduzir_prestacao"
+              ? calcularPrestacaoPrice(
+                  saldoDevedor,
+                  taxaMensalEfetiva,
+                  mesesRestantes
+                )
+              : prestacaoPriceOriginal) - juros;
+      const amortizacaoContrato = Math.min(
         saldoDevedor,
-        amortizacaoMensal,
-        taxaMensalEfetiva,
-        seguros
+        Math.max(0, amortizacaoProgramada)
       );
-
-      const amortizacaoContrato = Math.min(amortizacaoMensal, saldoDevedor);
       const aporteConfig: AporteProgressivoConfig = aporteProgressivo ?? {
         enabled: false,
         max: aporteExtra,
@@ -324,10 +307,10 @@ export function simularTimelineMensal(input: SimularTimelineInput): TimelineResu
           : calcularAporteExtraProgramado(mes - mesInicioAporte + 1, aporteConfig);
       aporteAplicado = Math.min(aporteMes, Math.max(0, saldoDevedor - amortizacaoContrato));
       const amortizacaoTotal = amortizacaoContrato + aporteAplicado;
-      /** Parcela do financiamento (SAC + juros + seguros), sem aporte extra voluntário. */
-      prestacao = amortizacaoContrato + parcelaSAC.juros + seguros;
+      /** Parcela contratual, sem aporte extra voluntário. */
+      prestacao = amortizacaoContrato + juros + seguros;
       saldoDevedor = Math.max(0, saldoDevedor - amortizacaoTotal);
-      totalJuros += parcelaSAC.juros;
+      totalJuros += juros;
       totalPago += prestacao + aporteAplicado;
     }
 
@@ -368,13 +351,7 @@ export function simularTimelineMensal(input: SimularTimelineInput): TimelineResu
     let eventoExtra = false;
 
     if (estrategia === "venda_posterior" && mesVenda !== undefined && mes === mesVenda && valorApartamento > 0) {
-      vendaApartamento = calcularValorVendaPosteriorLocal(
-        valorApartamento,
-        taxaMensalEfetiva,
-        mesVenda,
-        custoManutencaoImovelMensal
-      );
-      amortizacaoVenda = Math.min(vendaApartamento.valorLiquido, saldoDevedor);
+      amortizacaoVenda = Math.min(valorApartamento, saldoDevedor);
       saldoDevedor = Math.max(0, saldoDevedor - amortizacaoVenda);
       eventoVenda = true;
     }
@@ -422,7 +399,6 @@ export function simularTimelineMensal(input: SimularTimelineInput): TimelineResu
     });
   }
 
-  const custoCarregoApto = vendaApartamento?.custoTotalCarrego ?? 0;
   const first = meses[0];
 
   return {
@@ -435,8 +411,6 @@ export function simularTimelineMensal(input: SimularTimelineInput): TimelineResu
     totalManutencao,
     saldoLivreMinimo: meses.length > 0 ? saldoLivreMinimo : 0,
     mesReformaConcluida,
-    vendaApartamento,
-    custoCarregoApto,
     totalMensalMes1: first
       ? first.prestacao +
         first.aporteExtra +
@@ -459,8 +433,6 @@ function emptyTimelineResult(): TimelineResult {
     totalManutencao: 0,
     saldoLivreMinimo: 0,
     mesReformaConcluida: null,
-    vendaApartamento: null,
-    custoCarregoApto: 0,
     totalMensalMes1: 0
   };
 }

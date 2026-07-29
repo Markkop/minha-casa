@@ -22,7 +22,6 @@ function mockCenario(partial: Partial<CenarioCompleto> & Pick<CenarioCompleto, "
     timeline: [],
     totalReformas: 0,
     totalManutencao: 0,
-    custoCarregoApto: 0,
     ...partial
   } as CenarioCompleto;
 }

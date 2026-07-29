@@ -40,7 +40,6 @@ function scenario(id: string, timeline: TimelineMonth[]): CenarioCompleto {
     custosFechamento: { total: 50_000 },
     rendaMensal: 40_000,
     valorApartamento: 500_000,
-    custoCarregoApto: 20_000,
     timeline
   } as CenarioCompleto;
 }
@@ -81,7 +80,7 @@ describe("buildBalanceLedger", () => {
     expect(ledger.points[1]?.totalDespesas).toBe(16_000);
   });
 
-  it("records full sale proceeds and the matching capped debt payment", () => {
+  it("records full sale proceeds and preserves cash above the capped debt payment", () => {
     const ledger = buildBalanceLedger(
       scenario("sale", [
         month({
@@ -96,10 +95,10 @@ describe("buildBalanceLedger", () => {
     );
 
     expect(ledger.points[1]).toMatchObject({
-      receitaVenda: 480_000,
+      receitaVenda: 500_000,
       amortizacaoVenda: 300_000,
-      fluxoLiquido: 220_000,
-      saldo: 270_000
+      fluxoLiquido: 240_000,
+      saldo: 290_000
     });
   });
 
