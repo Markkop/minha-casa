@@ -220,6 +220,40 @@ describe("normalizeSimulatorParams", () => {
     expect(normalizeSimulatorParams({ tetoGastoMensal: -1 }).tetoGastoMensal).toBe(0);
   });
 
+  it("normalizes accumulated-balance aporte settings and defaults legacy data", () => {
+    expect(normalizeSimulatorParams({})).toMatchObject({
+      usarSaldoAcumuladoNoAporte: false,
+      saldoMinimoPreservado: 0,
+      mesesDiluicaoSaldo: 12
+    });
+    expect(
+      normalizeSimulatorParams({
+        usarSaldoAcumuladoNoAporte: true,
+        saldoMinimoPreservado: 75_000,
+        mesesDiluicaoSaldo: 18.6
+      })
+    ).toMatchObject({
+      usarSaldoAcumuladoNoAporte: true,
+      saldoMinimoPreservado: 75_000,
+      mesesDiluicaoSaldo: 19
+    });
+    expect(
+      normalizeSimulatorParams({
+        usarSaldoAcumuladoNoAporte: "sim" as unknown as boolean,
+        saldoMinimoPreservado: -1,
+        mesesDiluicaoSaldo: 0
+      })
+    ).toMatchObject({
+      usarSaldoAcumuladoNoAporte: false,
+      saldoMinimoPreservado: 0,
+      mesesDiluicaoSaldo: 1
+    });
+    expect(normalizeSimulatorParams({ mesesDiluicaoSaldo: 99 }).mesesDiluicaoSaldo).toBe(60);
+    expect(
+      normalizeSimulatorParams({ mesesDiluicaoSaldo: Number.NaN }).mesesDiluicaoSaldo
+    ).toBe(12);
+  });
+
   it("validates timing month filters", () => {
     const defaults = createInitialSimulatorParams();
     const result = normalizeSimulatorParams({
@@ -427,6 +461,9 @@ describe("simulator params storage", () => {
     expect(loaded?.modoAporte).toBe("progressivo");
     expect(stored.modoAporte).toBe("progressivo");
     expect(stored.tetoGastoMensal).toBe(35_000);
+    expect(stored.usarSaldoAcumuladoNoAporte).toBe(false);
+    expect(stored.saldoMinimoPreservado).toBe(0);
+    expect(stored.mesesDiluicaoSaldo).toBe(12);
     expect(stored).not.toHaveProperty("aporteProgressivo");
   });
 

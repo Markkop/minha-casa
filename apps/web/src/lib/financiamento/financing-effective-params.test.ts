@@ -21,6 +21,26 @@ describe("resolveEffectiveParams", () => {
     expect(resolveEffectiveParams({ ...params, custoMensal }).custoMensal).toBe(custoMensal);
   });
 
+  it("only enables accumulated-balance aporte in monthly-ceiling mode", () => {
+    const base = {
+      ...createInitialSimulatorParams(),
+      usarSaldoAcumuladoNoAporte: true,
+      saldoMinimoPreservado: 25_000,
+      mesesDiluicaoSaldo: 18
+    };
+
+    expect(resolveEffectiveParams({ ...base, modoAporte: "fixo" })).toMatchObject({
+      usarSaldoAcumuladoNoAporte: false,
+      saldoMinimoPreservado: 25_000,
+      mesesDiluicaoSaldo: 18
+    });
+    expect(resolveEffectiveParams({ ...base, modoAporte: "teto_mensal" })).toMatchObject({
+      usarSaldoAcumuladoNoAporte: true,
+      saldoMinimoPreservado: 25_000,
+      mesesDiluicaoSaldo: 18
+    });
+  });
+
   it("zeros all reform costs when reforms are disabled", () => {
     const params = {
       ...createInitialSimulatorParams(),

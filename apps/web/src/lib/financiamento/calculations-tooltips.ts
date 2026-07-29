@@ -34,6 +34,9 @@ export interface TooltipParams {
   aporteExtraRange?: { min: number; max: number };
   modoAporte?: ModoAporte;
   tetoGastoMensal?: number;
+  usarSaldoAcumuladoNoAporte?: boolean;
+  saldoMinimoPreservado?: number;
+  mesesDiluicaoSaldo?: number;
   rendaMensalRange?: { min: number; max: number };
   sistemaAmortizacao?: SistemaAmortizacao;
   estrategiaAmortizacao?: EstrategiaAmortizacao;
@@ -48,6 +51,9 @@ export function generateTooltips(params: TooltipParams = {}) {
     aporteExtra = UI_DEFAULTS.aporteExtra,
     modoAporte = UI_DEFAULTS.modoAporte,
     tetoGastoMensal = UI_DEFAULTS.tetoGastoMensal,
+    usarSaldoAcumuladoNoAporte = UI_DEFAULTS.usarSaldoAcumuladoNoAporte,
+    saldoMinimoPreservado = UI_DEFAULTS.saldoMinimoPreservado,
+    mesesDiluicaoSaldo = UI_DEFAULTS.mesesDiluicaoSaldo,
     economiaJuros,
     sistemaAmortizacao = UI_DEFAULTS.sistemaAmortizacao,
     estrategiaAmortizacao = UI_DEFAULTS.estrategiaAmortizacao,
@@ -60,7 +66,11 @@ export function generateTooltips(params: TooltipParams = {}) {
 
   const aporteDescription =
     modoAporte === "teto_mensal"
-      ? `Com teto mensal de ${formatCurrency(tetoGastoMensal)}, o aporte usa a folga que restar após os gastos do mês.`
+      ? `Com teto mensal de ${formatCurrency(tetoGastoMensal)}, o aporte usa a folga que restar após os gastos do mês.${
+          usarSaldoAcumuladoNoAporte
+            ? ` O caixa acima da reserva de ${formatCurrency(saldoMinimoPreservado)} também é amortizado de forma diluída em ${mesesDiluicaoSaldo} ${mesesDiluicaoSaldo === 1 ? "mês" : "meses"}.`
+            : ""
+        }`
       : modoAporte === "progressivo"
         ? `Com aportes progressivos de até ${formatCurrency(aporteExtra)} por mês.`
         : `Com aporte de ${formatCurrency(aporteExtra)} por mês.`;
@@ -97,7 +107,12 @@ export function generateTooltips(params: TooltipParams = {}) {
         ? "Limite do aporte progressivo. O valor efetivo varia ao longo do financiamento."
         : "Valor fixo destinado mensalmente à amortização extra.",
     tetoGastoMensal:
-      "Orçamento mensal para prestação, custo de vida, reformas, manutenção e outros custos. A folga restante vira aporte extra, sem acumular para outro mês.",
+      "Prestação, custo de vida, reformas, manutenção e outros gastos do mês consomem este teto primeiro. A folga restante vira aporte extra, sem acumular para outro mês.",
+    usarSaldoAcumuladoNoAporte:
+      "Aplica o caixa acima da reserva mínima como aporte adicional diluído para antecipar a quitação, mesmo quando o gasto total ultrapassa o teto mensal.",
+    saldoMinimoPreservado:
+      "Saldo protegido antes de usar o caixa na amortização. Somente o valor acumulado acima desta reserva pode antecipar a quitação.",
+    mesesDiluicaoSaldo: `Distribui o saldo disponível acima da reserva pelas próximas ${mesesDiluicaoSaldo} ${mesesDiluicaoSaldo === 1 ? "amortização" : "amortizações"}. A parcela é recalculada conforme o saldo disponível muda, e o último mês da janela consome todo o excedente.`,
     rendaMensal:
       "Renda mensal comprovável.",
     comprometimento:

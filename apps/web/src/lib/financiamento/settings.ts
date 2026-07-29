@@ -16,6 +16,7 @@ export interface SimulatorSettings {
     trMensal: SliderRange;
     aporteExtra: SliderRange;
     tetoGastoMensal: SliderRange;
+    saldoMinimoPreservado: SliderRange;
     rendaMensal: SliderRange;
   };
 }
@@ -31,6 +32,7 @@ export const DEFAULT_SETTINGS: SimulatorSettings = {
     trMensal: { min: 0, max: 0.5, step: 0.01 },
     aporteExtra: { min: 0, max: 30000, step: 1000 },
     tetoGastoMensal: { min: 0, max: 80000, step: 1000 },
+    saldoMinimoPreservado: { min: 0, max: 500000, step: 5000 },
     rendaMensal: { min: 30000, max: 80000, step: 1000 }
   }
 };
@@ -73,6 +75,10 @@ export function normalizeSettings(value: unknown): SimulatorSettings {
       tetoGastoMensal: normalizeSliderRange(
         sliders.tetoGastoMensal,
         DEFAULT_SETTINGS.sliders.tetoGastoMensal
+      ),
+      saldoMinimoPreservado: normalizeSliderRange(
+        sliders.saldoMinimoPreservado,
+        DEFAULT_SETTINGS.sliders.saldoMinimoPreservado
       ),
       rendaMensal: normalizeSliderRange(sliders.rendaMensal, DEFAULT_SETTINGS.sliders.rendaMensal)
     }

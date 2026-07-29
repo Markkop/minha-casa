@@ -25,6 +25,8 @@ export type BalanceLedgerPoint = {
   receitaExtra: number;
   prestacao: number;
   aporteExtra: number;
+  aporteTetoMensal: number;
+  aporteSaldoAcumulado: number;
   reforma: number;
   outros: number;
   manutencao: number;
@@ -70,7 +72,8 @@ export function buildBalanceLedger(
   const scenarioCapital = cenario.capitalDisponivel ?? capitalDisponivel;
   const scenarioCustoMensal = cenario.custoMensal ?? custoMensal;
   const openingExpenses = cenario.entrada + cenario.custosFechamento.total;
-  let saldo = scenarioCapital - openingExpenses;
+  const canonicalOpeningBalance = cenario.timeline[0]?.saldoAcumuladoInicio;
+  let saldo = canonicalOpeningBalance ?? scenarioCapital - openingExpenses;
   const points: BalanceLedgerPoint[] = [
     {
       mes: 0,
@@ -82,6 +85,8 @@ export function buildBalanceLedger(
       receitaExtra: 0,
       prestacao: 0,
       aporteExtra: 0,
+      aporteTetoMensal: 0,
+      aporteSaldoAcumulado: 0,
       reforma: 0,
       outros: 0,
       manutencao: 0,
@@ -102,6 +107,7 @@ export function buildBalanceLedger(
     const receitaVenda = month.eventoVenda ? receitaVendaTotal : 0;
     const receitaExtra = month.eventoExtra ? Math.max(0, quantiaExtra) : 0;
     const totalReceitas = cenario.rendaMensal + receitaVenda + receitaExtra;
+    const custoMensalNoMes = month.custoMensal ?? scenarioCustoMensal;
     const totalDespesas =
       month.prestacao +
       month.aporteExtra +
@@ -109,13 +115,14 @@ export function buildBalanceLedger(
       month.reformaMensal +
       (month.custosAdicionais ?? 0) +
       month.manutencaoMensal +
-      scenarioCustoMensal +
+      custoMensalNoMes +
       month.amortizacaoVenda +
       month.amortizacaoQuantiaExtra;
     const fluxoLiquido = totalReceitas - totalDespesas;
+    const saldoInicioCanonico = month.saldoAcumuladoInicio ?? saldo;
     const saldoPreEvento =
-      month.eventoVenda || month.eventoExtra ? saldo : undefined;
-    saldo += fluxoLiquido;
+      month.eventoVenda || month.eventoExtra ? saldoInicioCanonico : undefined;
+    saldo = month.saldoAcumuladoFim ?? saldoInicioCanonico + fluxoLiquido;
 
     points.push({
       mes: month.mes,
@@ -127,10 +134,12 @@ export function buildBalanceLedger(
       receitaExtra,
       prestacao: month.prestacao,
       aporteExtra: month.aporteExtra,
+      aporteTetoMensal: month.aporteTetoMensal ?? 0,
+      aporteSaldoAcumulado: month.aporteSaldoAcumulado ?? 0,
       reforma: month.reformaInicial + month.reformaMensal,
       outros: month.custosAdicionais ?? 0,
       manutencao: month.manutencaoMensal,
-      custoMensal: scenarioCustoMensal,
+      custoMensal: custoMensalNoMes,
       amortizacaoVenda: month.amortizacaoVenda,
       amortizacaoExtra: month.amortizacaoQuantiaExtra,
       totalReceitas,

@@ -20,4 +20,20 @@ describe("normalizeSettings", () => {
       }).sliders.tetoGastoMensal
     ).toEqual({ min: 10_000, max: 120_000, step: 5_000 });
   });
+
+  it("provides and preserves the minimum cash reserve slider", () => {
+    expect(DEFAULT_SETTINGS.sliders.saldoMinimoPreservado).toEqual({
+      min: 0,
+      max: 500_000,
+      step: 5_000
+    });
+    expect(normalizeSettings({}).sliders.saldoMinimoPreservado).toEqual(
+      DEFAULT_SETTINGS.sliders.saldoMinimoPreservado
+    );
+    expect(
+      normalizeSettings({
+        sliders: { saldoMinimoPreservado: { min: 5_000, max: 300_000, step: 2_500 } }
+      }).sliders.saldoMinimoPreservado
+    ).toEqual({ min: 5_000, max: 300_000, step: 2_500 });
+  });
 });

@@ -3,8 +3,8 @@ import type { SimulatorParams } from "$lib/components/financiamento/financiament
 import { APORTE_APOS_REFORMA_VALUE } from "$lib/financiamento/aporte-progressivo";
 
 const ROOT_KEY = "minha_casa_financeiro";
-const YAML_VERSION = 4;
-const SUPPORTED_YAML_VERSIONS = new Set([1, 2, 3, YAML_VERSION]);
+const YAML_VERSION = 6;
+const SUPPORTED_YAML_VERSIONS = new Set([1, 2, 3, 4, 5, YAML_VERSION]);
 
 const REQUIRED_PARAM_KEYS = [
   "capitalDisponivel",
@@ -51,11 +51,22 @@ const REQUIRED_V4_PARAM_KEYS = [
   "tetoGastoMensal"
 ] as const satisfies readonly (keyof SimulatorParams)[];
 
+const REQUIRED_V5_PARAM_KEYS = [
+  "usarSaldoAcumuladoNoAporte",
+  "saldoMinimoPreservado"
+] as const satisfies readonly (keyof SimulatorParams)[];
+
+const REQUIRED_V6_PARAM_KEYS = ["mesesDiluicaoSaldo"] as const satisfies readonly (
+  keyof SimulatorParams
+)[];
+
 type YamlParamKey =
   | (typeof REQUIRED_PARAM_KEYS)[number]
   | (typeof REQUIRED_V2_PARAM_KEYS)[number]
   | (typeof REQUIRED_V3_PARAM_KEYS)[number]
   | (typeof REQUIRED_V4_PARAM_KEYS)[number]
+  | (typeof REQUIRED_V5_PARAM_KEYS)[number]
+  | (typeof REQUIRED_V6_PARAM_KEYS)[number]
   | "scenarioVariations"
   | "inicioReformaMeses"
   | "inicioAporteExtraMeses"
@@ -98,6 +109,9 @@ function pickYamlParams(params: SimulatorParams): FinanceiroYamlParams {
     temposInicioAporteExtraMeses: params.temposInicioAporteExtraMeses,
     modoAporte: params.modoAporte,
     tetoGastoMensal: params.tetoGastoMensal,
+    usarSaldoAcumuladoNoAporte: params.usarSaldoAcumuladoNoAporte,
+    saldoMinimoPreservado: params.saldoMinimoPreservado,
+    mesesDiluicaoSaldo: params.mesesDiluicaoSaldo,
     aporteProgressivoDecrescente: params.aporteProgressivoDecrescente,
     aporteInicial: params.aporteInicial,
     aporteProgressao: params.aporteProgressao,
@@ -138,7 +152,11 @@ function hasRequiredParams(value: Record<string, unknown>, version: number): boo
     (version < 3 ||
       REQUIRED_V3_PARAM_KEYS.every((key) => Object.prototype.hasOwnProperty.call(value, key))) &&
     (version < 4 ||
-      REQUIRED_V4_PARAM_KEYS.every((key) => Object.prototype.hasOwnProperty.call(value, key)))
+      REQUIRED_V4_PARAM_KEYS.every((key) => Object.prototype.hasOwnProperty.call(value, key))) &&
+    (version < 5 ||
+      REQUIRED_V5_PARAM_KEYS.every((key) => Object.prototype.hasOwnProperty.call(value, key))) &&
+    (version < 6 ||
+      REQUIRED_V6_PARAM_KEYS.every((key) => Object.prototype.hasOwnProperty.call(value, key)))
   );
 }
 
@@ -212,6 +230,8 @@ export function buildActiveParametersPrompt(): string {
       tempoObraMeses: [],
       aporteExtra: [],
       tetoGastoMensal: [],
+      saldoMinimoPreservado: [],
+      mesesDiluicaoSaldo: [],
       aporteInicial: [],
       aporteProgressao: [],
       aporteIntervaloMeses: [],
@@ -242,6 +262,9 @@ export function buildActiveParametersPrompt(): string {
     temposInicioAporteExtraMeses: [0],
     modoAporte: "fixo",
     tetoGastoMensal: 35_000,
+    usarSaldoAcumuladoNoAporte: false,
+    saldoMinimoPreservado: 0,
+    mesesDiluicaoSaldo: 12,
     aporteProgressivoDecrescente: false,
     aporteInicial: 0,
     aporteProgressao: 1_000,
@@ -271,6 +294,8 @@ export function buildActiveParametersPrompt(): string {
     '- sistemaAmortizacao aceita apenas "sac" e "price".',
     '- estrategiaAmortizacao aceita apenas "reduzir_prazo" e "reduzir_prestacao".',
     '- modoAporte aceita apenas "fixo", "progressivo" e "teto_mensal".',
+    "- usarSaldoAcumuladoNoAporte deve ser booleano; saldoMinimoPreservado deve ser um valor monetario maior ou igual a zero.",
+    "- mesesDiluicaoSaldo deve ser um numero inteiro de 1 a 60 e define em quantos meses o saldo acumulado sera diluido nos aportes.",
     '- tipoTaxaAnual aceita apenas "efetiva" e "nominal".',
     '- estrategiasFiltro aceita apenas "permuta" e "venda_posterior".',
     `- temposInicioAporteExtraMeses aceita numeros ou "${APORTE_APOS_REFORMA_VALUE}".`,

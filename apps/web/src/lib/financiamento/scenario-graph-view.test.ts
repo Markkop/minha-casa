@@ -261,6 +261,57 @@ describe("scenario graph views", () => {
     expect(fixed?.id).not.toBe(progressive?.id);
   });
 
+  it("varies the preserved cash reserve only when accumulated-balance aporte is active", () => {
+    const base = createInitialSimulatorParams();
+    const active = buildScenarioGraphViewFromParams({
+      ...base,
+      modoAporte: "teto_mensal",
+      usarSaldoAcumuladoNoAporte: true,
+      saldoMinimoPreservado: 0,
+      scenarioVariations: {
+        ...emptyScenarioVariations(),
+        saldoMinimoPreservado: [50_000, 100_000]
+      }
+    });
+
+    expect(active.cenarios).toHaveLength(3);
+    expect(
+      active.cenarios.map((cenario) => cenario.saldoMinimoPreservado).sort((a, b) => a - b)
+    ).toEqual([0, 50_000, 100_000]);
+    expect(new Set(active.cenarios.map((cenario) => cenario.id)).size).toBe(3);
+
+    const inactive = buildScenarioGraphViewFromParams({
+      ...base,
+      modoAporte: "teto_mensal",
+      usarSaldoAcumuladoNoAporte: false,
+      scenarioVariations: {
+        ...emptyScenarioVariations(),
+        saldoMinimoPreservado: [50_000, 100_000]
+      }
+    });
+    expect(inactive.cenarios).toHaveLength(1);
+  });
+
+  it("varies the accumulated-balance dilution window", () => {
+    const base = createInitialSimulatorParams();
+    const view = buildScenarioGraphViewFromParams({
+      ...base,
+      modoAporte: "teto_mensal",
+      usarSaldoAcumuladoNoAporte: true,
+      mesesDiluicaoSaldo: 12,
+      scenarioVariations: {
+        ...emptyScenarioVariations(),
+        mesesDiluicaoSaldo: [6, 24]
+      }
+    });
+
+    expect(view.cenarios).toHaveLength(3);
+    expect(
+      view.cenarios.map((cenario) => cenario.mesesDiluicaoSaldo).sort((a, b) => a - b)
+    ).toEqual([6, 12, 24]);
+    expect(new Set(view.cenarios.map((cenario) => cenario.id)).size).toBe(3);
+  });
+
   it("builds comparison graph data from saved visible scenario lines", () => {
     const paramsA = createInitialSimulatorParams();
     const allA = buildFilteredCenariosFromParams(paramsA);

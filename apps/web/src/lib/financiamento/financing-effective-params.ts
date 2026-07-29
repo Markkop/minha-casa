@@ -23,6 +23,9 @@ export interface EffectiveSimulationParams {
   custoMensal: number;
   aporteExtra: number;
   tetoGastoMensal: number;
+  usarSaldoAcumuladoNoAporte: boolean;
+  saldoMinimoPreservado: number;
+  mesesDiluicaoSaldo: number;
   configAporte: AporteMensalConfig;
   valorImovel: number;
   taxaAnual: number;
@@ -53,6 +56,10 @@ export function resolveEffectiveParams(params: SimulatorParams): EffectiveSimula
     custoMensal: params.custoMensal,
     aporteExtra: params.aporteExtra,
     tetoGastoMensal: params.tetoGastoMensal,
+    usarSaldoAcumuladoNoAporte:
+      params.modoAporte === "teto_mensal" && params.usarSaldoAcumuladoNoAporte,
+    saldoMinimoPreservado: Math.max(0, params.saldoMinimoPreservado),
+    mesesDiluicaoSaldo: Math.min(60, Math.max(1, Math.round(params.mesesDiluicaoSaldo))),
     configAporte: resolveAporteMensalConfig({
       modoAporte: params.modoAporte,
       aporteExtra: params.aporteExtra,

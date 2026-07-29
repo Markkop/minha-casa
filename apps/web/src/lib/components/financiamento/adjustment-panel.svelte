@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Check, ChevronDown, ChevronRight, Pencil, Plus, Trash2 } from "@lucide/svelte";
+  import { Check, ChevronDown, ChevronRight, Info, Pencil, Plus, Trash2 } from "@lucide/svelte";
   import { onMount } from "svelte";
   import ColumnHeader from "$lib/components/financiamento/column-header.svelte";
   import type {
@@ -31,6 +31,7 @@
   } from "$lib/components/financiamento/parameter-row-helpers";
   import ParameterRow from "$lib/components/financiamento/parameter-row.svelte";
   import ScenarioFilterPills from "$lib/components/financiamento/ScenarioFilterPills.svelte";
+  import FloatingTooltip from "$lib/components/ui/FloatingTooltip.svelte";
   import Input from "$lib/components/ui/Input.svelte";
   import {
     buildApproximatePricePills,
@@ -119,6 +120,10 @@
   const trMensalRange = $derived(settingsContext.settings.sliders.trMensal);
   const aporteExtraRange = $derived(settingsContext.settings.sliders.aporteExtra);
   const tetoGastoMensalRange = $derived(settingsContext.settings.sliders.tetoGastoMensal);
+  const saldoMinimoPreservadoRange = $derived(
+    settingsContext.settings.sliders.saldoMinimoPreservado
+  );
+  const mesesDiluicaoSaldoRange = { min: 1, max: 60, step: 1 } as const;
   const rendaMensalRange = $derived(settingsContext.settings.sliders.rendaMensal);
 
   const tooltips = $derived(
@@ -129,6 +134,9 @@
       aporteExtraRange,
       modoAporte: params.modoAporte,
       tetoGastoMensal: params.tetoGastoMensal,
+      usarSaldoAcumuladoNoAporte: params.usarSaldoAcumuladoNoAporte,
+      saldoMinimoPreservado: params.saldoMinimoPreservado,
+      mesesDiluicaoSaldo: params.mesesDiluicaoSaldo,
       rendaMensalRange,
       sistemaAmortizacao: params.sistemaAmortizacao,
       estrategiaAmortizacao: params.estrategiaAmortizacao,
@@ -482,6 +490,9 @@
       aporteExtra: UI_DEFAULTS.aporteExtra,
       modoAporte: UI_DEFAULTS.modoAporte,
       tetoGastoMensal: UI_DEFAULTS.tetoGastoMensal,
+      usarSaldoAcumuladoNoAporte: UI_DEFAULTS.usarSaldoAcumuladoNoAporte,
+      saldoMinimoPreservado: UI_DEFAULTS.saldoMinimoPreservado,
+      mesesDiluicaoSaldo: UI_DEFAULTS.mesesDiluicaoSaldo,
       aporteProgressivoDecrescente: UI_DEFAULTS.aporteProgressivoDecrescente,
       aporteInicial: UI_DEFAULTS.aporteInicial,
       aporteProgressao: UI_DEFAULTS.aporteProgressao,
@@ -503,6 +514,8 @@
           "entradaDisponivel",
           "aporteExtra",
           "tetoGastoMensal",
+          "saldoMinimoPreservado",
+          "mesesDiluicaoSaldo",
           "inicioAporteExtraMeses",
           "aporteInicial",
           "aporteProgressao",
@@ -518,6 +531,8 @@
         entradaDisponivel: filterDefaults.scenarioVariations.entradaDisponivel,
         aporteExtra: filterDefaults.scenarioVariations.aporteExtra,
         tetoGastoMensal: filterDefaults.scenarioVariations.tetoGastoMensal,
+        saldoMinimoPreservado: filterDefaults.scenarioVariations.saldoMinimoPreservado,
+        mesesDiluicaoSaldo: filterDefaults.scenarioVariations.mesesDiluicaoSaldo,
         aporteInicial: filterDefaults.scenarioVariations.aporteInicial,
         aporteProgressao: filterDefaults.scenarioVariations.aporteProgressao,
         aporteIntervaloMeses: filterDefaults.scenarioVariations.aporteIntervaloMeses,
@@ -635,18 +650,32 @@
   id: string,
   label: string,
   checked: boolean,
-  onchange: (checked: boolean) => void
+  onchange: (checked: boolean) => void,
+  tooltip?: string
 )}
-  <label class="mb-1 flex cursor-pointer items-center gap-2 text-sm text-app-fg">
-    <input
-      type="checkbox"
-      {id}
-      {checked}
-      onchange={(event) => onchange(event.currentTarget.checked)}
-      class="h-4 w-4 accent-app-action"
-    />
-    <span>{label}</span>
-  </label>
+  <div class="mb-1 flex items-center gap-1.5">
+    <label class="flex cursor-pointer items-center gap-2 text-sm text-app-fg">
+      <input
+        type="checkbox"
+        {id}
+        {checked}
+        onchange={(event) => onchange(event.currentTarget.checked)}
+        class="h-4 w-4 accent-app-action"
+      />
+      <span>{label}</span>
+    </label>
+    {#if tooltip}
+      <FloatingTooltip label={tooltip} side="top" align="center" class="max-w-xs">
+        <button
+          type="button"
+          class="inline-flex shrink-0 cursor-help text-app-subtle transition-colors hover:text-app-accent"
+          aria-label={`Informação: ${label}`}
+        >
+          <Info class="h-3.5 w-3.5" />
+        </button>
+      </FloatingTooltip>
+    {/if}
+  </div>
 {/snippet}
 
 <div class="flex min-w-0 flex-col px-3 py-3">
@@ -1369,10 +1398,7 @@
           {/snippet}
         </ParameterRow>
         <div class="border-b border-app-border py-2">
-          <div class="mb-1.5 flex items-center justify-between gap-2">
-            <span class="text-xs font-medium text-app-fg">Modo do aporte</span>
-            <span class="text-[10px] text-app-muted">Como o valor varia</span>
-          </div>
+          <div class="mb-1.5 text-xs font-medium text-app-fg">Modo do aporte</div>
           <div class="grid grid-cols-3 gap-1" role="radiogroup" aria-label="Modo do aporte">
             {#each modoAporteOptions as option (option.value)}
               <button
@@ -1397,12 +1423,11 @@
           <ParameterRow
             compact={rowCompact}
             label={params.modoAporte === "progressivo" ? "Teto do aporte" : "Aporte extra mensal"}
-            tooltip={tooltips.aporteExtra}
-            hint={params.modoAporte === "progressivo"
+            tooltip={params.modoAporte === "progressivo"
               ? params.aporteProgressivoDecrescente
-                ? "Valor inicial máximo; o aporte diminui até o piso"
-                : "Valor máximo atingido ao longo da progressão"
-              : undefined}
+                ? `${tooltips.aporteExtra} É o valor inicial máximo; o aporte diminui até o piso.`
+                : `${tooltips.aporteExtra} É o valor máximo atingido ao longo da progressão.`
+              : tooltips.aporteExtra}
             valueDisplay={formatCurrency(params.aporteExtra)}
             slider={{
               value: params.aporteExtra,
@@ -1449,7 +1474,6 @@
             compact={rowCompact}
             label="Teto de gasto mensal"
             tooltip={tooltips.tetoGastoMensal}
-            hint="Prestação e demais gastos do mês consomem este teto antes do aporte"
             valueDisplay={formatCurrency(params.tetoGastoMensal)}
             slider={{
               value: params.tetoGastoMensal,
@@ -1489,6 +1513,123 @@
               />
             {/snippet}
           </ParameterRow>
+          <div class="border-b border-app-border py-2">
+            {@render sectionCheckbox(
+              "usar-saldo-acumulado-no-aporte",
+              "Usar saldo acumulado na amortização",
+              params.usarSaldoAcumuladoNoAporte,
+              (checked) => patch({ usarSaldoAcumuladoNoAporte: checked }),
+              tooltips.usarSaldoAcumuladoNoAporte
+            )}
+          </div>
+          {#if params.usarSaldoAcumuladoNoAporte}
+            <ParameterRow
+              compact={rowCompact}
+              label="Reserva mínima de caixa"
+              tooltip={tooltips.saldoMinimoPreservado}
+              valueDisplay={formatCurrency(params.saldoMinimoPreservado)}
+              slider={{
+                value: params.saldoMinimoPreservado,
+                min: saldoMinimoPreservadoRange.min,
+                max: saldoMinimoPreservadoRange.max,
+                step: saldoMinimoPreservadoRange.step,
+                onValueChange: (value) =>
+                  patch({ saldoMinimoPreservado: Math.max(0, value) })
+              }}
+              edit={{
+                type: "currency",
+                value: params.saldoMinimoPreservado,
+                onChange: (value) => patch({ saldoMinimoPreservado: Math.max(0, value) })
+              }}
+              forceExtrasExpanded={rowExtrasLocked(
+                params.scenarioVariations.saldoMinimoPreservado,
+                params.saldoMinimoPreservado,
+                changed("saldoMinimoPreservado")
+              )}
+              lockExtrasExpanded={rowExtrasLocked(
+                params.scenarioVariations.saldoMinimoPreservado,
+                params.saldoMinimoPreservado,
+                changed("saldoMinimoPreservado")
+              )}
+              extrasAriaLabel="reserva-minima-caixa-variacoes"
+            >
+              {#snippet extras()}
+                <ScenarioFilterPills
+                  options={buildCurrencyVariationPills(
+                    params.saldoMinimoPreservado,
+                    saldoMinimoPreservadoRange
+                  )}
+                  selected={params.scenarioVariations.saldoMinimoPreservado}
+                  baseline={baseline(
+                    "saldoMinimoPreservado",
+                    params.saldoMinimoPreservado,
+                    formatCurrencyCompact(params.saldoMinimoPreservado)
+                  )}
+                  ariaLabel="Variações de reserva mínima de caixa"
+                  onToggle={(value) => toggleScenarioVariation("saldoMinimoPreservado", value)}
+                />
+              {/snippet}
+            </ParameterRow>
+            <ParameterRow
+              compact={rowCompact}
+              label="Diluir saldo em"
+              tooltip={tooltips.mesesDiluicaoSaldo}
+              valueDisplay={`${params.mesesDiluicaoSaldo} ${params.mesesDiluicaoSaldo === 1 ? "mês" : "meses"}`}
+              slider={{
+                value: params.mesesDiluicaoSaldo,
+                min: mesesDiluicaoSaldoRange.min,
+                max: mesesDiluicaoSaldoRange.max,
+                step: mesesDiluicaoSaldoRange.step,
+                onValueChange: (value) =>
+                  patch({
+                    mesesDiluicaoSaldo: Math.min(
+                      mesesDiluicaoSaldoRange.max,
+                      Math.max(mesesDiluicaoSaldoRange.min, Math.round(value))
+                    )
+                  })
+              }}
+              edit={{
+                type: "number",
+                value: params.mesesDiluicaoSaldo,
+                onChange: (value) =>
+                  patch({
+                    mesesDiluicaoSaldo: Math.min(
+                      mesesDiluicaoSaldoRange.max,
+                      Math.max(mesesDiluicaoSaldoRange.min, Math.round(value))
+                    )
+                  })
+              }}
+              forceExtrasExpanded={rowExtrasLocked(
+                params.scenarioVariations.mesesDiluicaoSaldo,
+                params.mesesDiluicaoSaldo,
+                changed("mesesDiluicaoSaldo")
+              )}
+              lockExtrasExpanded={rowExtrasLocked(
+                params.scenarioVariations.mesesDiluicaoSaldo,
+                params.mesesDiluicaoSaldo,
+                changed("mesesDiluicaoSaldo")
+              )}
+              extrasAriaLabel="diluicao-saldo-variacoes"
+            >
+              {#snippet extras()}
+                <ScenarioFilterPills
+                  options={buildNumberVariationPills(
+                    params.mesesDiluicaoSaldo,
+                    mesesDiluicaoSaldoRange,
+                    (value) => `${value} ${value === 1 ? "mês" : "meses"}`
+                  )}
+                  selected={params.scenarioVariations.mesesDiluicaoSaldo}
+                  baseline={baseline(
+                    "mesesDiluicaoSaldo",
+                    params.mesesDiluicaoSaldo,
+                    `${params.mesesDiluicaoSaldo} ${params.mesesDiluicaoSaldo === 1 ? "mês" : "meses"}`
+                  )}
+                  ariaLabel="Variações de meses para diluir o saldo"
+                  onToggle={(value) => toggleScenarioVariation("mesesDiluicaoSaldo", value)}
+                />
+              {/snippet}
+            </ParameterRow>
+          {/if}
         {/if}
         <ParameterRow
           compact={rowCompact}
@@ -1996,13 +2137,11 @@
                     `custo-${custo.id}-cobranca-mensal`,
                     "Cobrança mensal",
                     custo.cobrancaMensal,
-                    (checked) => updateCustoAdicional(custo.id, { cobrancaMensal: checked })
-                  )}
-                  <p class="mb-1 pl-6 text-xs leading-snug text-app-subtle">
-                    {custo.cobrancaMensal
+                    (checked) => updateCustoAdicional(custo.id, { cobrancaMensal: checked }),
+                    custo.cobrancaMensal
                       ? "O valor será cobrado integralmente em cada mês da duração."
-                      : "O valor total será dividido entre os meses da duração."}
-                  </p>
+                      : "O valor total será dividido entre os meses da duração."
+                  )}
                 </div>
                 <ParameterRow
                   compact={rowCompact}

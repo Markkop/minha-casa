@@ -347,8 +347,17 @@
               {/if}
               <dt>Prestação</dt>
               <dd class="font-mono">{formatCurrency(point.prestacao)}</dd>
-              {#if point.aporteExtra > 0}
-                <dt>Aporte</dt>
+              {#if point.aporteTetoMensal > 0 || point.aporteSaldoAcumulado > 0}
+                {#if point.aporteTetoMensal > 0}
+                  <dt>Aporte pelo teto</dt>
+                  <dd class="font-mono">{formatCurrency(point.aporteTetoMensal)}</dd>
+                {/if}
+                {#if point.aporteSaldoAcumulado > 0}
+                  <dt>Aporte do saldo</dt>
+                  <dd class="font-mono">{formatCurrency(point.aporteSaldoAcumulado)}</dd>
+                {/if}
+              {:else if point.aporteExtra > 0}
+                <dt>Aporte extra</dt>
                 <dd class="font-mono">{formatCurrency(point.aporteExtra)}</dd>
               {/if}
               {#if point.reforma > 0}

@@ -22,7 +22,18 @@ export interface TimelineMonth {
   /** Debt at the end of the month, after regular and extraordinary amortization. */
   saldoDevedorFim: number;
   prestacao: number;
+  /** Voluntary aporte funded by the monthly spending ceiling. */
+  aporteTetoMensal?: number;
+  /** Voluntary aporte funded by cash accumulated above the configured reserve. */
+  aporteSaldoAcumulado?: number;
+  /** Number of installments still pending after this month's diluted cash aporte. */
+  mesesRestantesDiluicaoSaldo?: number;
+  /** Total voluntary aporte (ceiling + accumulated cash). */
   aporteExtra: number;
+  /** Canonical cash balance before the month's flows. */
+  saldoAcumuladoInicio?: number;
+  /** Canonical cash balance after all of the month's flows. */
+  saldoAcumuladoFim?: number;
   /** Recurring living cost included in the month's cash flow. */
   custoMensal?: number;
   /** Mandatory outflow above the monthly ceiling, excluding the voluntary aporte. */
@@ -91,6 +102,13 @@ export interface SimularTimelineInput {
   mesReforma?: number;
   /** First month when aporte extra applies (default 1). */
   mesInicioAporte?: number;
+  /** Enables accumulated-cash aportes. Effective only for teto_mensal. */
+  usarSaldoAcumuladoNoAporte?: boolean;
+  saldoMinimoPreservado?: number;
+  /** Number of months over which accumulated cash is applied (default 12). */
+  mesesDiluicaoSaldo?: number;
+  /** Cash remaining after entrada and closing costs. */
+  saldoAcumuladoInicial?: number;
 }
 
 export interface ResolveMesReformaConcluidaInput {
@@ -125,6 +143,10 @@ function normalizeDurationMonths(value: number | undefined): number {
 
 function normalizeStartMonth(value: number | undefined): number {
   return Math.max(1, Math.round(value ?? 1));
+}
+
+export function normalizeMesesDiluicaoSaldo(value: number | undefined): number {
+  return Number.isFinite(value) ? Math.min(60, Math.max(1, Math.round(value as number))) : 12;
 }
 
 function reformaOutflowForMonth({
@@ -245,7 +267,11 @@ export function simularTimelineMensal(input: SimularTimelineInput): TimelineResu
     tempoObraMeses = 1,
     custosAdicionais = [],
     mesReforma = 1,
-    mesInicioAporte = 1
+    mesInicioAporte = 1,
+    usarSaldoAcumuladoNoAporte = false,
+    saldoMinimoPreservado = 0,
+    mesesDiluicaoSaldo = 12,
+    saldoAcumuladoInicial = 0
   } = input;
 
   if (valorFinanciado <= 0) {
@@ -269,6 +295,8 @@ export function simularTimelineMensal(input: SimularTimelineInput): TimelineResu
   let saldoLivreMinimo = Infinity;
   let mesesAcimaTeto = 0;
   let maiorExcessoTeto = 0;
+  let saldoAcumulado = saldoAcumuladoInicial;
+  let mesesRestantesDiluicaoSaldo = 0;
   let mesReformaConcluida: number | null = null;
   let mes = 0;
   const resolvedMesReformaConcluida = resolveMesReformaConcluida({
@@ -297,6 +325,7 @@ export function simularTimelineMensal(input: SimularTimelineInput): TimelineResu
   while ((saldoDevedor > 0 || mes < scheduledTimelineEndMonth) && mes < prazoMeses) {
     mes++;
     const saldoInicio = saldoDevedor;
+    const saldoAcumuladoInicio = saldoAcumulado;
     const financiamentoAtivo = saldoDevedor > 0;
     const { reformaInicial, reformaMensal } = reformaOutflowForMonth({
       mes,
@@ -330,7 +359,8 @@ export function simularTimelineMensal(input: SimularTimelineInput): TimelineResu
     }
 
     let prestacao = 0;
-    let aporteAplicado = 0;
+    let aporteProgramadoAplicado = 0;
+    let aporteSaldoAcumulado = 0;
     let amortizacaoContrato = 0;
     let juros = 0;
 
@@ -374,58 +404,134 @@ export function simularTimelineMensal(input: SimularTimelineInput): TimelineResu
       maiorExcessoTeto = Math.max(maiorExcessoTeto, excessoTetoMensal);
     }
 
-    if (financiamentoAtivo) {
-      const aporteMes =
-        mes < mesInicioAporte
+    const usarSaldoAcumulado =
+      usarSaldoAcumuladoNoAporte && resolvedAporteConfig.modo === "teto_mensal";
+    const aporteProgramado =
+      financiamentoAtivo
+        ? mes < mesInicioAporte
           ? 0
           : calcularAporteMensalProgramado(
               mes - mesInicioAporte + 1,
               resolvedAporteConfig,
               gastosSemAporte
-            );
-      aporteAplicado = Math.min(
-        aporteMes,
-        Math.max(0, saldoDevedor - amortizacaoContrato)
-      );
-      saldoDevedor = Math.max(
-        0,
-        saldoDevedor - amortizacaoContrato - aporteAplicado
-      );
-      totalJuros += juros;
-      totalPago += prestacao + aporteAplicado;
-    }
+            )
+        : 0;
 
     let amortizacaoVenda = 0;
     let amortizacaoQuantiaExtra = 0;
-    let eventoVenda = false;
-    let eventoExtra = false;
+    const eventoVendaNoMes =
+      estrategia === "venda_posterior" &&
+      mesVenda !== undefined &&
+      mes === mesVenda &&
+      valorApartamento > 0;
+    const eventoExtraNoMes =
+      mesExtra !== null && mesExtra !== undefined && mes === mesExtra && quantiaExtra > 0;
+    const eventoVenda = eventoVendaNoMes;
+    const eventoExtra = eventoExtraNoMes;
 
-    if (estrategia === "venda_posterior" && mesVenda !== undefined && mes === mesVenda && valorApartamento > 0) {
-      amortizacaoVenda = Math.min(valorApartamento, saldoDevedor);
-      saldoDevedor = Math.max(0, saldoDevedor - amortizacaoVenda);
-      eventoVenda = true;
+    const receitaVenda = eventoVendaNoMes ? valorApartamento : 0;
+    const receitaExtra = eventoExtraNoMes ? quantiaExtra : 0;
+    const saldoAposAmortizacaoContrato = Math.max(0, saldoDevedor - amortizacaoContrato);
+    const despesasObrigatorias = gastosSemAporte;
+    const aplicarEventos = (divida: number) => {
+      const venda = eventoVendaNoMes ? Math.min(valorApartamento, divida) : 0;
+      const aposVenda = Math.max(0, divida - venda);
+      const extra = eventoExtraNoMes ? Math.min(quantiaExtra, aposVenda) : 0;
+      return {
+        amortizacaoVenda: venda,
+        amortizacaoQuantiaExtra: extra,
+        saldoDevedorFim: Math.max(0, aposVenda - extra)
+      };
+    };
+
+    const saldoBaseCaixa =
+      saldoAcumuladoInicio + rendaMensal + receitaVenda + receitaExtra - despesasObrigatorias;
+
+    if (financiamentoAtivo) {
+      aporteProgramadoAplicado = Math.min(aporteProgramado, saldoAposAmortizacaoContrato);
+
+      if (usarSaldoAcumulado) {
+        const semAporte = aplicarEventos(saldoAposAmortizacaoContrato);
+        const saldoSemAporte =
+          saldoBaseCaixa - semAporte.amortizacaoVenda - semAporte.amortizacaoQuantiaExtra;
+        let comAporte = aplicarEventos(saldoAposAmortizacaoContrato - aporteProgramadoAplicado);
+        let saldoDepoisAporteProgramado =
+          saldoBaseCaixa -
+          aporteProgramadoAplicado -
+          comAporte.amortizacaoVenda -
+          comAporte.amortizacaoQuantiaExtra;
+        const saldoProtegido = Math.min(Math.max(0, saldoMinimoPreservado), saldoSemAporte);
+
+        if (saldoDepoisAporteProgramado < saldoProtegido) {
+          aporteProgramadoAplicado = Math.max(
+            0,
+            aporteProgramadoAplicado - (saldoProtegido - saldoDepoisAporteProgramado)
+          );
+          comAporte = aplicarEventos(saldoAposAmortizacaoContrato - aporteProgramadoAplicado);
+          saldoDepoisAporteProgramado =
+            saldoBaseCaixa -
+            aporteProgramadoAplicado -
+            comAporte.amortizacaoVenda -
+            comAporte.amortizacaoQuantiaExtra;
+        }
+
+        amortizacaoVenda = comAporte.amortizacaoVenda;
+        amortizacaoQuantiaExtra = comAporte.amortizacaoQuantiaExtra;
+        aporteSaldoAcumulado = 0;
+        const excessoCaixaDisponivel = Math.max(
+          0,
+          saldoDepoisAporteProgramado - Math.max(0, saldoMinimoPreservado)
+        );
+
+        if (
+          mes >= mesInicioAporte &&
+          excessoCaixaDisponivel > 0 &&
+          comAporte.saldoDevedorFim > 0
+        ) {
+          if (mesesRestantesDiluicaoSaldo === 0) {
+            mesesRestantesDiluicaoSaldo = normalizeMesesDiluicaoSaldo(mesesDiluicaoSaldo);
+          }
+
+          aporteSaldoAcumulado = Math.min(
+            excessoCaixaDisponivel / mesesRestantesDiluicaoSaldo,
+            comAporte.saldoDevedorFim
+          );
+        }
+
+        if (mes >= mesInicioAporte && mesesRestantesDiluicaoSaldo > 0) {
+          mesesRestantesDiluicaoSaldo--;
+        }
+        saldoDevedor = Math.max(0, comAporte.saldoDevedorFim - aporteSaldoAcumulado);
+        if (saldoDevedor === 0) {
+          mesesRestantesDiluicaoSaldo = 0;
+        }
+      } else {
+        const eventos = aplicarEventos(saldoAposAmortizacaoContrato - aporteProgramadoAplicado);
+        amortizacaoVenda = eventos.amortizacaoVenda;
+        amortizacaoQuantiaExtra = eventos.amortizacaoQuantiaExtra;
+        saldoDevedor = eventos.saldoDevedorFim;
+      }
+
+      const aporteAplicado = aporteProgramadoAplicado + aporteSaldoAcumulado;
+      totalJuros += juros;
+      totalPago += prestacao + aporteAplicado;
+    } else {
+      saldoDevedor = 0;
+      mesesRestantesDiluicaoSaldo = 0;
     }
 
-    if (mesExtra !== null && mesExtra !== undefined && mes === mesExtra && quantiaExtra > 0) {
-      amortizacaoQuantiaExtra = Math.min(quantiaExtra, saldoDevedor);
-      saldoDevedor = Math.max(0, saldoDevedor - amortizacaoQuantiaExtra);
-      eventoExtra = true;
-    }
+    const aporteAplicado = aporteProgramadoAplicado + aporteSaldoAcumulado;
+    const aporteTetoMensal =
+      resolvedAporteConfig.modo === "teto_mensal" ? aporteProgramadoAplicado : 0;
+    saldoAcumulado =
+      saldoBaseCaixa - aporteAplicado - amortizacaoVenda - amortizacaoQuantiaExtra;
 
     if (saldoDevedor === 0 && prazoReal === null) {
       prazoReal = mes;
     }
 
     const amortizacaoExtraordinaria = amortizacaoVenda + amortizacaoQuantiaExtra;
-    const saldoLivre =
-      rendaMensal -
-      prestacao -
-      aporteAplicado -
-      custoMensal -
-      reformaInicial -
-      reformaMensal -
-      custosAdicionaisMensal -
-      manutencaoMensal;
+    const saldoLivre = saldoAcumulado - saldoAcumuladoInicio;
     saldoLivreMinimo = Math.min(saldoLivreMinimo, saldoLivre);
 
     meses.push({
@@ -433,7 +539,12 @@ export function simularTimelineMensal(input: SimularTimelineInput): TimelineResu
       saldoDevedor: saldoInicio,
       saldoDevedorFim: saldoDevedor,
       prestacao,
+      aporteTetoMensal,
+      aporteSaldoAcumulado,
+      mesesRestantesDiluicaoSaldo,
       aporteExtra: aporteAplicado,
+      saldoAcumuladoInicio,
+      saldoAcumuladoFim: saldoAcumulado,
       custoMensal,
       excessoTetoMensal,
       reformaMensal,

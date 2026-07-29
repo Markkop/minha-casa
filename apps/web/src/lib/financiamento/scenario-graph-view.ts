@@ -75,6 +75,10 @@ function scenarioMatrixForCombination({
     aporteExtra: combination.aporteExtra,
     modoAporte: params.modoAporte,
     tetoGastoMensal: combination.tetoGastoMensal,
+    usarSaldoAcumuladoNoAporte:
+      params.modoAporte === "teto_mensal" && params.usarSaldoAcumuladoNoAporte,
+    saldoMinimoPreservado: combination.saldoMinimoPreservado,
+    mesesDiluicaoSaldo: combination.mesesDiluicaoSaldo,
     configAporte: resolveAporteMensalConfig({
       modoAporte: params.modoAporte,
       aporteExtra: combination.aporteExtra,

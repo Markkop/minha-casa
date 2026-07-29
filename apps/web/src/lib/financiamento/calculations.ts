@@ -22,6 +22,7 @@ import type {
 } from "$lib/components/financiamento/financiamento-parameter-types";
 import {
   calcularCustoTotalEventAware,
+  normalizeMesesDiluicaoSaldo,
   resolveMesReformaConcluida,
   simularTimelineMensal,
   type TimelineMonth
@@ -205,6 +206,9 @@ export interface CenarioCompletoParams {
   aporteExtra: number
   modoAporte?: ModoAporte
   tetoGastoMensal?: number
+  usarSaldoAcumuladoNoAporte?: boolean
+  saldoMinimoPreservado?: number
+  mesesDiluicaoSaldo?: number
   configAporte?: AporteMensalConfig
   /** @deprecated Use configAporte. */
   aporteProgressivo?: AporteProgressivoConfig
@@ -243,6 +247,9 @@ export interface CenarioCompleto {
   aporteExtra: number
   modoAporte: ModoAporte
   tetoGastoMensal: number
+  usarSaldoAcumuladoNoAporte: boolean
+  saldoMinimoPreservado: number
+  mesesDiluicaoSaldo: number
   seguros: number
   rendaMensal: number
   custoMensal?: number
@@ -286,6 +293,9 @@ export interface MatrizCenariosParams {
   aporteExtra: number
   modoAporte?: ModoAporte
   tetoGastoMensal?: number
+  usarSaldoAcumuladoNoAporte?: boolean
+  saldoMinimoPreservado?: number
+  mesesDiluicaoSaldo?: number
   configAporte?: AporteMensalConfig
   /** @deprecated Use configAporte. */
   aporteProgressivo?: AporteProgressivoConfig
@@ -852,6 +862,9 @@ export const gerarCenarioCompleto = ({
   aporteExtra,
   modoAporte,
   tetoGastoMensal = 0,
+  usarSaldoAcumuladoNoAporte = false,
+  saldoMinimoPreservado = 0,
+  mesesDiluicaoSaldo = 12,
   configAporte,
   aporteProgressivo,
   rendaMensal,
@@ -917,6 +930,13 @@ export const gerarCenarioCompleto = ({
         ? "venda_posterior"
         : "financiamento"
 
+  const custosFechamento = calcularCustosFechamento({
+    valorImovel,
+    valorFinanciado: financiamento.valorFinanciado
+  })
+  const capitalTotalCenario = capitalTotalDisponivel ?? capitalDisponivel
+  const saldoAcumuladoInicial = capitalTotalCenario - entrada - custosFechamento.total
+
   const timeline = simularTimelineMensal({
     sistemaAmortizacao,
     estrategiaAmortizacao,
@@ -939,7 +959,11 @@ export const gerarCenarioCompleto = ({
     tempoObraMeses,
     custosAdicionais,
     mesReforma,
-    mesInicioAporte
+    mesInicioAporte,
+    usarSaldoAcumuladoNoAporte,
+    saldoMinimoPreservado,
+    mesesDiluicaoSaldo,
+    saldoAcumuladoInicial
   })
 
   const cenarioOtimizado = buildCenarioOtimizadoResumo(
@@ -947,11 +971,6 @@ export const gerarCenarioCompleto = ({
     prazoMeses,
     timeline
   )
-
-  const custosFechamento = calcularCustosFechamento({
-    valorImovel,
-    valorFinanciado: financiamento.valorFinanciado
-  })
 
   const comprometimento = calcularComprometimentoRenda({
     parcela: tabelaPadrao.resumo.primeiraParcelar,
@@ -973,7 +992,9 @@ export const gerarCenarioCompleto = ({
   const extraEm = mesExtra ?? undefined
   const reformaEm = custoTotalReformas > 0 ? (mesReforma ?? 1) : undefined
   const aporteHabilitado =
-    aporteConfig.modo === "teto_mensal" ? aporteConfig.teto > 0 : aporteExtra > 0
+    aporteConfig.modo === "teto_mensal"
+      ? aporteConfig.teto > 0 || usarSaldoAcumuladoNoAporte
+      : aporteExtra > 0
   const aporteEm = aporteHabilitado ? aporteDelayMeses : undefined
   const custosId = custosAdicionais
     .map(
@@ -1005,6 +1026,9 @@ export const gerarCenarioCompleto = ({
       `ma${aporteConfig.modo}`,
       `ap${aporteExtra}`,
       `tg${aporteConfig.modo === "teto_mensal" ? aporteConfig.teto : tetoGastoMensal}`,
+      `sa${usarSaldoAcumuladoNoAporte ? 1 : 0}`,
+      `sm${Math.max(0, saldoMinimoPreservado)}`,
+      `md${normalizeMesesDiluicaoSaldo(mesesDiluicaoSaldo)}`,
       `apcfg${JSON.stringify(aporteConfig)}`,
       `p${prazoMeses}`,
       `tx${taxaAnual}`,
@@ -1020,7 +1044,7 @@ export const gerarCenarioCompleto = ({
     valorApartamento,
     estrategia,
     entrada,
-    capitalDisponivel: capitalTotalDisponivel ?? capitalDisponivel,
+    capitalDisponivel: capitalTotalCenario,
     financiamento,
     taxaAnual,
     trMensal,
@@ -1030,6 +1054,10 @@ export const gerarCenarioCompleto = ({
     modoAporte: aporteConfig.modo,
     tetoGastoMensal:
       aporteConfig.modo === "teto_mensal" ? aporteConfig.teto : Math.max(0, tetoGastoMensal),
+    usarSaldoAcumuladoNoAporte:
+      aporteConfig.modo === "teto_mensal" && usarSaldoAcumuladoNoAporte,
+    saldoMinimoPreservado: Math.max(0, saldoMinimoPreservado),
+    mesesDiluicaoSaldo: normalizeMesesDiluicaoSaldo(mesesDiluicaoSaldo),
     seguros,
     rendaMensal,
     custoMensal,
@@ -1110,6 +1138,9 @@ export const gerarMatrizCenarios = ({
   aporteExtra,
   modoAporte,
   tetoGastoMensal = 0,
+  usarSaldoAcumuladoNoAporte = false,
+  saldoMinimoPreservado = 0,
+  mesesDiluicaoSaldo = 12,
   configAporte,
   aporteProgressivo,
   rendaMensal,
@@ -1145,7 +1176,7 @@ export const gerarMatrizCenarios = ({
   })
   const hasAporte =
     resolvedAporteConfig.modo === "teto_mensal"
-      ? resolvedAporteConfig.teto > 0
+      ? resolvedAporteConfig.teto > 0 || usarSaldoAcumuladoNoAporte
       : aporteExtra > 0
   const aporteDelays = aporteDelayVariants(
     hasAporte,
@@ -1169,6 +1200,9 @@ export const gerarMatrizCenarios = ({
     aporteExtra,
     modoAporte: resolvedAporteConfig.modo,
     tetoGastoMensal,
+    usarSaldoAcumuladoNoAporte,
+    saldoMinimoPreservado,
+    mesesDiluicaoSaldo,
     configAporte: resolvedAporteConfig,
     rendaMensal,
     custoManutencaoImovelMensal: manutencao,

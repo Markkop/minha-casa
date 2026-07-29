@@ -660,6 +660,272 @@ describe("simularTimelineMensal", () => {
     expect(result.saldoLivreMinimo).toBeCloseTo(manualMin, 2);
   });
 
+  describe("accumulated balance aporte", () => {
+    const saldoBase = {
+      valorFinanciado: 2_000_000,
+      prazoMeses: 200,
+      taxaMensalEfetiva: 0,
+      aporteExtra: 0,
+      configAporte: { modo: "teto_mensal", teto: 50_000 } as const,
+      rendaMensal: 50_000,
+      estrategia: "financiamento" as const,
+      saldoAcumuladoInicial: 107_000
+    };
+
+    it("dilutes the 107k opening balance into 12 equal installments by default", () => {
+      const result = simularTimelineMensal({
+        ...saldoBase,
+        usarSaldoAcumuladoNoAporte: true
+      });
+
+      expect(result.meses[0]).toMatchObject({
+        aporteTetoMensal: 40_000,
+        saldoAcumuladoInicio: 107_000,
+        mesesRestantesDiluicaoSaldo: 11
+      });
+      result.meses.slice(0, 12).forEach((month) => {
+        expect(month.aporteSaldoAcumulado).toBeCloseTo(107_000 / 12, 8);
+      });
+      expect(result.meses[11]?.saldoAcumuladoFim).toBeCloseTo(0, 8);
+    });
+
+    it("supports a configurable dilution window", () => {
+      const result = simularTimelineMensal({
+        ...saldoBase,
+        usarSaldoAcumuladoNoAporte: true,
+        mesesDiluicaoSaldo: 4
+      });
+
+      expect(result.meses.slice(0, 4).map((month) => month.aporteSaldoAcumulado)).toEqual([
+        26_750, 26_750, 26_750, 26_750
+      ]);
+      expect(result.meses[3]?.saldoAcumuladoFim).toBeCloseTo(0, 8);
+
+      const clamped = simularTimelineMensal({
+        ...saldoBase,
+        usarSaldoAcumuladoNoAporte: true,
+        mesesDiluicaoSaldo: 100
+      });
+      expect(clamped.meses[0]?.aporteSaldoAcumulado).toBeCloseTo(107_000 / 60, 8);
+    });
+
+    it("rebalances the remaining installments when monthly cash changes", () => {
+      const result = simularTimelineMensal({
+        valorFinanciado: 1_000_000,
+        prazoMeses: 100,
+        taxaMensalEfetiva: 0,
+        aporteExtra: 0,
+        configAporte: { modo: "teto_mensal", teto: 0 },
+        rendaMensal: 20_000,
+        estrategia: "financiamento",
+        saldoAcumuladoInicial: 120_000,
+        usarSaldoAcumuladoNoAporte: true,
+        mesesDiluicaoSaldo: 3,
+        custosAdicionais: [
+          {
+            id: "gasto-mes-2",
+            nome: "Gasto no segundo mês",
+            incluirNoCalculo: true,
+            cobrancaMensal: false,
+            valorTotal: 30_000,
+            mesInicio: 2,
+            duracaoMeses: 1
+          }
+        ]
+      });
+
+      expect(result.meses[0]?.aporteSaldoAcumulado).toBeCloseTo(130_000 / 3, 8);
+      expect(result.meses[1]?.aporteSaldoAcumulado).toBeCloseTo((130_000 * 2 / 3 - 20_000) / 2, 8);
+      expect(result.meses[2]?.saldoAcumuladoFim).toBeCloseTo(0, 8);
+    });
+
+    it("starts a new window only in a later month when fresh excess appears", () => {
+      const result = simularTimelineMensal({
+        valorFinanciado: 1_000_000,
+        prazoMeses: 100,
+        taxaMensalEfetiva: 0,
+        aporteExtra: 0,
+        configAporte: { modo: "teto_mensal", teto: 0 },
+        rendaMensal: 20_000,
+        estrategia: "financiamento",
+        usarSaldoAcumuladoNoAporte: true,
+        mesesDiluicaoSaldo: 2,
+        saldoAcumuladoInicial: 0
+      });
+
+      expect(result.meses.slice(0, 3).map((month) => month.aporteSaldoAcumulado)).toEqual([
+        5_000, 15_000, 5_000
+      ]);
+      expect(result.meses.slice(0, 3).map((month) => month.mesesRestantesDiluicaoSaldo)).toEqual([
+        1, 0, 1
+      ]);
+    });
+
+    it("preserves the configured reserve and stays compatible when disabled", () => {
+      const preserving = simularTimelineMensal({
+        ...saldoBase,
+        usarSaldoAcumuladoNoAporte: true,
+        saldoMinimoPreservado: 30_000
+      });
+      const disabled = simularTimelineMensal({
+        ...saldoBase,
+        usarSaldoAcumuladoNoAporte: false,
+        saldoMinimoPreservado: 30_000
+      });
+
+      expect(preserving.meses[0]).toMatchObject({
+        aporteTetoMensal: 40_000,
+        aporteSaldoAcumulado: 77_000 / 12
+      });
+      expect(preserving.meses[11]?.saldoAcumuladoFim).toBeCloseTo(30_000, 8);
+      expect(disabled.meses[0]).toMatchObject({
+        aporteExtra: 40_000,
+        aporteSaldoAcumulado: 0,
+        saldoAcumuladoFim: 107_000
+      });
+    });
+
+    it("respects aporte timing and caps both components at remaining debt", () => {
+      const delayed = simularTimelineMensal({
+        ...saldoBase,
+        usarSaldoAcumuladoNoAporte: true,
+        mesInicioAporte: 2
+      });
+      const capped = simularTimelineMensal({
+        ...saldoBase,
+        valorFinanciado: 100_000,
+        prazoMeses: 10,
+        usarSaldoAcumuladoNoAporte: true
+      });
+
+      expect(delayed.meses[0]).toMatchObject({
+        aporteExtra: 0,
+        saldoAcumuladoInicio: 107_000,
+        saldoAcumuladoFim: 147_000
+      });
+      expect(delayed.meses[1]?.aporteSaldoAcumulado).toBe(147_000 / 12);
+      expect(capped.meses[0]).toMatchObject({
+        aporteTetoMensal: 40_000,
+        aporteSaldoAcumulado: 107_000 / 12,
+        aporteExtra: 40_000 + 107_000 / 12,
+        saldoDevedorFim: 50_000 - 107_000 / 12
+      });
+      expect(capped.meses[0]?.saldoAcumuladoFim).toBeCloseTo(107_000 - 107_000 / 12, 8);
+
+      const oneMonthWindow = simularTimelineMensal({
+        ...saldoBase,
+        valorFinanciado: 100_000,
+        prazoMeses: 10,
+        usarSaldoAcumuladoNoAporte: true,
+        mesesDiluicaoSaldo: 1
+      });
+      expect(oneMonthWindow.meses[0]).toMatchObject({
+        aporteSaldoAcumulado: 50_000,
+        saldoDevedorFim: 0,
+        saldoAcumuladoFim: 57_000
+      });
+    });
+
+    it("pairs sale and extraordinary receipts without treating them as balance twice", () => {
+      const result = simularTimelineMensal({
+        valorFinanciado: 500_000,
+        prazoMeses: 50,
+        taxaMensalEfetiva: 0,
+        aporteExtra: 0,
+        configAporte: { modo: "teto_mensal", teto: 10_000 },
+        rendaMensal: 10_000,
+        estrategia: "venda_posterior",
+        valorApartamento: 100_000,
+        mesVenda: 1,
+        quantiaExtra: 50_000,
+        mesExtra: 1,
+        usarSaldoAcumuladoNoAporte: true,
+        saldoAcumuladoInicial: 0
+      });
+
+      expect(result.meses[0]).toMatchObject({
+        amortizacaoVenda: 100_000,
+        amortizacaoQuantiaExtra: 50_000,
+        aporteSaldoAcumulado: 0,
+        saldoAcumuladoFim: 0
+      });
+    });
+
+    it.each([
+      ["sac", "reduzir_prazo"],
+      ["sac", "reduzir_prestacao"],
+      ["price", "reduzir_prazo"],
+      ["price", "reduzir_prestacao"]
+    ] as const)("supports accumulated balance with %s/%s", (sistema, estrategia) => {
+      const result = simularTimelineMensal({
+        ...saldoBase,
+        sistemaAmortizacao: sistema,
+        estrategiaAmortizacao: estrategia,
+        usarSaldoAcumuladoNoAporte: true
+      });
+
+      expect(result.meses[0]?.aporteSaldoAcumulado).toBeCloseTo(107_000 / 12, 8);
+      expect(result.meses[11]?.saldoAcumuladoFim).toBeCloseTo(0, 8);
+    });
+
+    it("starts from capital after entrada and closing costs and identifies cash-policy variants", () => {
+      const params = {
+        valorImovel: 500_000,
+        capitalDisponivel: 200_000,
+        capitalTotalDisponivel: 300_000,
+        reservaEmergencia: 0,
+        valorApartamento: 0,
+        estrategia: "venda_posterior" as const,
+        taxaAnual: 0,
+        trMensal: 0,
+        prazoMeses: 10,
+        aporteExtra: 0,
+        modoAporte: "teto_mensal" as const,
+        tetoGastoMensal: 50_000,
+        rendaMensal: 50_000,
+        seguros: 0
+      };
+      const enabled = gerarCenarioCompleto({
+        ...params,
+        usarSaldoAcumuladoNoAporte: true,
+        saldoMinimoPreservado: 20_000
+      });
+      const disabled = gerarCenarioCompleto({
+        ...params,
+        usarSaldoAcumuladoNoAporte: false,
+        saldoMinimoPreservado: 20_000
+      });
+      const anotherReserve = gerarCenarioCompleto({
+        ...params,
+        usarSaldoAcumuladoNoAporte: true,
+        saldoMinimoPreservado: 30_000
+      });
+      const anotherWindow = gerarCenarioCompleto({
+        ...params,
+        usarSaldoAcumuladoNoAporte: true,
+        saldoMinimoPreservado: 20_000,
+        mesesDiluicaoSaldo: 6
+      });
+      const maxWindow = gerarCenarioCompleto({
+        ...params,
+        usarSaldoAcumuladoNoAporte: true,
+        saldoMinimoPreservado: 20_000,
+        mesesDiluicaoSaldo: 100
+      });
+
+      expect(enabled.timeline[0]?.saldoAcumuladoInicio).toBeCloseTo(
+        300_000 - enabled.entrada - enabled.custosFechamento.total,
+        8
+      );
+      expect(enabled.id).not.toBe(disabled.id);
+      expect(enabled.id).not.toBe(anotherReserve.id);
+      expect(enabled.id).not.toBe(anotherWindow.id);
+      expect(enabled.mesesDiluicaoSaldo).toBe(12);
+      expect(anotherWindow.mesesDiluicaoSaldo).toBe(6);
+      expect(maxWindow.mesesDiluicaoSaldo).toBe(60);
+    });
+  });
+
   it("distributes additional costs across their configured months", () => {
     const result = simularTimelineMensal({
       ...baseTimeline,

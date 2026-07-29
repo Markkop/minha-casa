@@ -181,6 +181,33 @@ describe("buildBalanceLedger", () => {
     expect(ledger.points[1]?.saldoPreEvento).toBe(50_000);
     expect(ledger.points[1]?.saldo).not.toBe(ledger.points[1]?.saldoPreEvento);
   });
+
+  it("uses canonical timeline balances when accumulated cash affects debt", () => {
+    const ledger = buildBalanceLedger(
+      {
+        ...scenario("canonical", [
+          month({
+            mes: 1,
+            prestacao: 10_000,
+            aporteExtra: 147_000,
+            aporteTetoMensal: 40_000,
+            aporteSaldoAcumulado: 107_000,
+            saldoAcumuladoInicio: 107_000,
+            saldoAcumuladoFim: 0
+          })
+        ]),
+        rendaMensal: 50_000
+      },
+      600_000,
+      0
+    );
+
+    expect(ledger.points[0]?.saldo).toBe(107_000);
+    expect(ledger.points[1]?.saldo).toBe(0);
+    expect(ledger.points[1]?.saldo).toBe(
+      ledger.points[0]!.saldo + ledger.points[1]!.fluxoLiquido
+    );
+  });
 });
 
 describe("signed ledger chart helpers", () => {

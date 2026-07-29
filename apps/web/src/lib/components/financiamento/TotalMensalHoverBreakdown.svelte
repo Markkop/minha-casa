@@ -18,7 +18,19 @@
   function buildBreakdown(m: TimelineMonth | undefined): BreakdownRow[] {
     if (!m) return [];
     const breakdown: BreakdownRow[] = [{ label: "Prestação", value: m.prestacao }];
-    if (m.aporteExtra > 0) breakdown.push({ label: "Aporte extra", value: m.aporteExtra });
+    if ((m.aporteTetoMensal ?? 0) > 0) {
+      breakdown.push({ label: "Aporte pelo teto", value: m.aporteTetoMensal ?? 0 });
+    }
+    if ((m.aporteSaldoAcumulado ?? 0) > 0) {
+      breakdown.push({ label: "Aporte do saldo", value: m.aporteSaldoAcumulado ?? 0 });
+    }
+    if (
+      m.aporteExtra > 0 &&
+      (m.aporteTetoMensal ?? 0) === 0 &&
+      (m.aporteSaldoAcumulado ?? 0) === 0
+    ) {
+      breakdown.push({ label: "Aporte extra", value: m.aporteExtra });
+    }
     if (m.reformaInicial + m.reformaMensal > 0) {
       breakdown.push({ label: "Reformas", value: m.reformaInicial + m.reformaMensal });
     }

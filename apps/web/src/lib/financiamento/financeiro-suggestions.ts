@@ -124,7 +124,7 @@ function currentAporteTiming(params: SimulatorParams): AporteInicioTiming | unde
 
 function hasConfiguredAporte(params: SimulatorParams): boolean {
   return params.modoAporte === "teto_mensal"
-    ? params.tetoGastoMensal > 0
+    ? params.tetoGastoMensal > 0 || params.usarSaldoAcumuladoNoAporte
     : params.aporteExtra > 0;
 }
 
@@ -307,6 +307,9 @@ function changeCount(original: SimulatorParams, candidate: SimulatorParams): num
     "modoAporte",
     "aporteExtra",
     "tetoGastoMensal",
+    "usarSaldoAcumuladoNoAporte",
+    "saldoMinimoPreservado",
+    "mesesDiluicaoSaldo",
     "aporteProgressivoDecrescente",
     "aporteInicial",
     "aporteProgressao",

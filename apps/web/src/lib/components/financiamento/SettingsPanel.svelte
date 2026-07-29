@@ -120,6 +120,11 @@
                 label: "Teto de Gasto Mensal",
                 isCurrency: true
               },
+              {
+                key: "saldoMinimoPreservado" as const,
+                label: "Reserva Mínima de Caixa",
+                isCurrency: true
+              },
               { key: "rendaMensal" as const, label: "Renda Mensal", isCurrency: true }
             ] as row (row.key)}
               {@const range = localSettings.sliders[row.key]}

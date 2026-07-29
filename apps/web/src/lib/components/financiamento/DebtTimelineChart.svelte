@@ -357,8 +357,17 @@
           </dd>
           <dt>Prestação</dt>
           <dd class="font-mono">{formatCurrency(gastos.prestacao)}</dd>
-          {#if gastos.aporteExtra > 0}
-            <dt>Aporte</dt>
+          {#if (month.aporteTetoMensal ?? 0) > 0 || (month.aporteSaldoAcumulado ?? 0) > 0}
+            {#if (month.aporteTetoMensal ?? 0) > 0}
+              <dt>Aporte pelo teto</dt>
+              <dd class="font-mono">{formatCurrency(month.aporteTetoMensal ?? 0)}</dd>
+            {/if}
+            {#if (month.aporteSaldoAcumulado ?? 0) > 0}
+              <dt>Aporte do saldo</dt>
+              <dd class="font-mono">{formatCurrency(month.aporteSaldoAcumulado ?? 0)}</dd>
+            {/if}
+          {:else if gastos.aporteExtra > 0}
+            <dt>Aporte extra</dt>
             <dd class="font-mono">{formatCurrency(gastos.aporteExtra)}</dd>
           {/if}
           {#if gastos.reforma > 0}

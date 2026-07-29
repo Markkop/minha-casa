@@ -104,6 +104,39 @@
     return `Após ${formatMonthDurationLong(timing)}`;
   }
 
+  function aporteModeValue(cenario: CenarioCompleto): number {
+    return cenario.modoAporte === "teto_mensal"
+      ? cenario.tetoGastoMensal
+      : cenario.aporteExtra;
+  }
+
+  function aporteModeTooltip(cenario: CenarioCompleto): string {
+    const primeiroMes = cenario.timeline[0];
+    const parts = [
+      cenario.modoAporte === "teto_mensal"
+        ? `Teto mensal: ${formatCurrencyCompact(cenario.tetoGastoMensal)}.`
+        : cenario.modoAporte === "progressivo"
+          ? `Limite do aporte progressivo: ${formatCurrencyCompact(cenario.aporteExtra)}.`
+          : `Aporte mensal fixo: ${formatCurrencyCompact(cenario.aporteExtra)}.`,
+      `Aporte efetivo no mês 1: ${formatCurrencyCompact(primeiroMes?.aporteExtra ?? 0)}.`
+    ];
+
+    if (cenario.modoAporte === "teto_mensal" && cenario.usarSaldoAcumuladoNoAporte) {
+      parts.push(
+        `Saldo diluído em ${cenario.mesesDiluicaoSaldo} ${cenario.mesesDiluicaoSaldo === 1 ? "mês" : "meses"}, preservando ${formatCurrencyCompact(cenario.saldoMinimoPreservado)} de reserva.`,
+        `No mês 1: ${formatCurrencyCompact(primeiroMes?.aporteTetoMensal ?? 0)} pelo teto e ${formatCurrencyCompact(primeiroMes?.aporteSaldoAcumulado ?? 0)} pelo saldo acumulado.`
+      );
+    }
+
+    if (cenario.modoAporte === "teto_mensal" && cenario.mesesAcimaTeto > 0) {
+      parts.push(
+        `${cenario.mesesAcimaTeto} ${cenario.mesesAcimaTeto === 1 ? "mês ficou" : "meses ficaram"} acima do teto; maior excesso: ${formatCurrencyCompact(cenario.maiorExcessoTeto)}.`
+      );
+    }
+
+    return parts.join(" ");
+  }
+
   const thClass = $derived(
     cn(
       "sticky top-0 z-20 whitespace-nowrap border-b border-app-border bg-app-surface text-left font-medium text-app-muted",
@@ -376,28 +409,22 @@
             </td>
           {/if}
           <td class={cn(tdClass, compact ? "text-[10px]" : "text-xs")}>
-            <div class="flex flex-col">
-              <span class="font-medium text-app-fg">
+            <FloatingTooltip
+              label={aporteModeTooltip(cenario)}
+              side="top"
+              align="center"
+              class="max-w-sm"
+            >
+              <button
+                type="button"
+                class="inline-flex items-center font-medium text-app-fg hover:text-app-accent"
+                aria-label={`Detalhes do modo de aporte: ${formatModoAporte(cenario.modoAporte)}`}
+                onclick={(event) => event.stopPropagation()}
+              >
                 {formatModoAporte(cenario.modoAporte)}
-                {#if cenario.modoAporte === "fixo"}
-                  · {formatCurrencyCompact(cenario.aporteExtra)}
-                {:else if cenario.modoAporte === "teto_mensal"}
-                  · {formatCurrencyCompact(cenario.tetoGastoMensal)}
-                {/if}
-              </span>
-              {#if cenario.modoAporte !== "fixo"}
-                <span class="text-app-muted">
-                  Mês 1: +{formatCurrencyCompact(cenario.timeline[0]?.aporteExtra ?? 0)}
-                </span>
-              {/if}
-              {#if cenario.modoAporte === "teto_mensal" && cenario.mesesAcimaTeto > 0}
-                <span class="text-salmon">
-                  {cenario.mesesAcimaTeto} {cenario.mesesAcimaTeto === 1
-                    ? "mês acima"
-                    : "meses acima"}
-                </span>
-              {/if}
-            </div>
+                · {formatCurrencyCompact(aporteModeValue(cenario))}
+              </button>
+            </FloatingTooltip>
           </td>
           {#if showTipoTaxaAnualColumn}
             <td class={cn(tdClass, "text-xs text-app-fg")}>

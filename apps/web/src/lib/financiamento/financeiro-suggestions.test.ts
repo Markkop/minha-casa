@@ -80,7 +80,10 @@ describe("financeiro suggestions", () => {
       {
         ...createInitialSimulatorParams(),
         modoAporte: "teto_mensal",
-        tetoGastoMensal: 35_000
+        tetoGastoMensal: 35_000,
+        usarSaldoAcumuladoNoAporte: true,
+        saldoMinimoPreservado: 25_000,
+        mesesDiluicaoSaldo: 18
       },
       DEFAULT_SETTINGS
     );
@@ -90,6 +93,9 @@ describe("financeiro suggestions", () => {
 
     expect(candidates.length).toBeGreaterThan(0);
     expect(candidates.every((candidate) => candidate.modoAporte === "teto_mensal")).toBe(true);
+    expect(candidates.every((candidate) => candidate.usarSaldoAcumuladoNoAporte)).toBe(true);
+    expect(candidates.every((candidate) => candidate.saldoMinimoPreservado === 25_000)).toBe(true);
+    expect(candidates.every((candidate) => candidate.mesesDiluicaoSaldo === 18)).toBe(true);
     expect(
       candidates.every(
         (candidate) =>

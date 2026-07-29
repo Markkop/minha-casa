@@ -36,6 +36,18 @@ function optionalCurrencyRow(label: string, value: number): BreakdownRow[] {
   return value > 0 ? [{ label, value: formatCurrency(value) }] : [];
 }
 
+function aporteRows(month: TimelineMonth): BreakdownRow[] {
+  const aporteTeto = month.aporteTetoMensal ?? 0;
+  const aporteSaldo = month.aporteSaldoAcumulado ?? 0;
+  if (aporteTeto > 0 || aporteSaldo > 0) {
+    return [
+      ...optionalCurrencyRow("Aporte pelo teto", aporteTeto),
+      ...optionalCurrencyRow("Aporte do saldo acumulado", aporteSaldo)
+    ];
+  }
+  return optionalCurrencyRow("Aporte", month.aporteExtra);
+}
+
 function monthLabel(mes: number): string {
   return mes === 0 ? "Compra" : `${mes} (${formatTimingMonthLabelLong(mes)})`;
 }
@@ -90,7 +102,7 @@ export function debtGraphBreakdownText(
             )
           },
           { label: "Prestação", value: formatCurrency(gastos.prestacao) },
-          ...optionalCurrencyRow("Aporte", gastos.aporteExtra),
+          ...aporteRows(month),
           ...optionalCurrencyRow("Reforma", gastos.reforma),
           ...optionalCurrencyRow("Outros", gastos.outros),
           ...optionalCurrencyRow("Manutenção", gastos.manutencao),
@@ -139,7 +151,7 @@ export function monthlyTotalGraphBreakdownText(
         const saldoLivre = renderedFreeBalance(month, cenario.rendaMensal, custoMensal);
         return [
           { label: "Prestação", value: formatCurrency(gastos.prestacao) },
-          ...optionalCurrencyRow("Aporte", gastos.aporteExtra),
+          ...aporteRows(month),
           ...optionalCurrencyRow("Reforma", gastos.reforma),
           ...optionalCurrencyRow("Outros", gastos.outros),
           ...optionalCurrencyRow("Manutenção", gastos.manutencao),
@@ -167,7 +179,7 @@ export function freeBalanceGraphBreakdownText(
         return [
           { label: "Renda", value: formatCurrency(cenario.rendaMensal) },
           { label: "Prestação", value: formatCurrency(gastos.prestacao) },
-          ...optionalCurrencyRow("Aporte", gastos.aporteExtra),
+          ...aporteRows(month),
           ...optionalCurrencyRow("Reforma", gastos.reforma),
           ...optionalCurrencyRow("Outros", gastos.outros),
           ...optionalCurrencyRow("Manutenção", gastos.manutencao),
@@ -201,7 +213,12 @@ function balanceLedgerRows(point: BalanceLedgerPoint): BreakdownRow[] {
     ...optionalCurrencyRow("Receita da venda", point.receitaVenda),
     ...optionalCurrencyRow("Quantia recebida", point.receitaExtra),
     { label: "Prestação", value: formatCurrency(point.prestacao) },
-    ...optionalCurrencyRow("Aporte", point.aporteExtra),
+    ...(point.aporteTetoMensal > 0 || point.aporteSaldoAcumulado > 0
+      ? [
+          ...optionalCurrencyRow("Aporte pelo teto", point.aporteTetoMensal),
+          ...optionalCurrencyRow("Aporte do saldo acumulado", point.aporteSaldoAcumulado)
+        ]
+      : optionalCurrencyRow("Aporte", point.aporteExtra)),
     ...optionalCurrencyRow("Reforma", point.reforma),
     ...optionalCurrencyRow("Outros", point.outros),
     ...optionalCurrencyRow("Manutenção", point.manutencao),
@@ -246,7 +263,12 @@ function expenseLedgerRows(point: ExpenseLedgerPoint): BreakdownRow[] {
 
   return [
     { label: "Prestação", value: formatCurrency(point.prestacao) },
-    ...optionalCurrencyRow("Aporte", point.aporteExtra),
+    ...(point.aporteTetoMensal > 0 || point.aporteSaldoAcumulado > 0
+      ? [
+          ...optionalCurrencyRow("Aporte pelo teto", point.aporteTetoMensal),
+          ...optionalCurrencyRow("Aporte do saldo acumulado", point.aporteSaldoAcumulado)
+        ]
+      : optionalCurrencyRow("Aporte", point.aporteExtra)),
     ...optionalCurrencyRow("Reforma", point.reforma),
     ...optionalCurrencyRow("Outros", point.outros),
     ...optionalCurrencyRow("Manutenção", point.manutencao),

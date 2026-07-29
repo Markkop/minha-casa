@@ -61,6 +61,8 @@ export interface ScenarioVariations {
   tempoObraMeses: number[];
   aporteExtra: number[];
   tetoGastoMensal: number[];
+  saldoMinimoPreservado: number[];
+  mesesDiluicaoSaldo: number[];
   aporteInicial: number[];
   aporteProgressao: number[];
   aporteIntervaloMeses: number[];
@@ -82,7 +84,8 @@ export type SliderField =
   | "tempoObraMeses"
   | "prazoMeses"
   | "quantiaExtra"
-  | "tetoGastoMensal";
+  | "tetoGastoMensal"
+  | "saldoMinimoPreservado";
 
 export interface SimulatorParams {
   sistemaAmortizacao: SistemaAmortizacao;
@@ -97,6 +100,9 @@ export interface SimulatorParams {
   aporteExtra: number;
   modoAporte: ModoAporte;
   tetoGastoMensal: number;
+  usarSaldoAcumuladoNoAporte: boolean;
+  saldoMinimoPreservado: number;
+  mesesDiluicaoSaldo: number;
   /** When progressive: start at teto and step down toward aporteInicial. */
   aporteProgressivoDecrescente: boolean;
   aporteInicial: number;

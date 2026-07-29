@@ -757,7 +757,8 @@
       | "tempoObraMeses"
       | "prazoMeses"
       | "quantiaExtra"
-      | "tetoGastoMensal",
+      | "tetoGastoMensal"
+      | "saldoMinimoPreservado",
     newValue: number
   ) {
     clearActiveGraphView();
@@ -813,6 +814,10 @@
     }
     if (field === "tetoGastoMensal") {
       params = { ...params, tetoGastoMensal: Math.max(0, newValue) };
+      return;
+    }
+    if (field === "saldoMinimoPreservado") {
+      params = { ...params, saldoMinimoPreservado: Math.max(0, newValue) };
     }
   }
 

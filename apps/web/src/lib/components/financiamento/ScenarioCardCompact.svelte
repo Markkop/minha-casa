@@ -25,6 +25,8 @@
   } = $props();
 
   const aportePrimeiroMes = $derived(cenario.timeline[0]?.aporteExtra ?? 0);
+  const aporteTetoPrimeiroMes = $derived(cenario.timeline[0]?.aporteTetoMensal ?? 0);
+  const aporteSaldoPrimeiroMes = $derived(cenario.timeline[0]?.aporteSaldoAcumulado ?? 0);
   const mesesAcimaTeto = $derived(cenario.mesesAcimaTeto);
 </script>
 
@@ -120,9 +122,36 @@
 
       {#if cenario.modoAporte === "teto_mensal"}
         <div class="flex items-center justify-between px-2 text-[10px]">
-          <span class="text-app-muted">Aporte no 1º mês</span>
+          <span class="text-app-muted">Aporte total no 1º mês</span>
           <span class="font-mono text-app-accent">+{formatCurrencyCompact(aportePrimeiroMes)}</span>
         </div>
+        {#if aporteTetoPrimeiroMes > 0 || aporteSaldoPrimeiroMes > 0}
+          <div class="flex items-center justify-between gap-2 px-2 text-[10px] text-app-muted">
+            <span>
+              Teto +{formatCurrencyCompact(aporteTetoPrimeiroMes)}
+            </span>
+            {#if aporteSaldoPrimeiroMes > 0}
+              <span>Saldo +{formatCurrencyCompact(aporteSaldoPrimeiroMes)}</span>
+            {/if}
+          </div>
+        {/if}
+        {#if cenario.usarSaldoAcumuladoNoAporte}
+          <div class="space-y-0.5 rounded-md bg-app-surface px-2 py-1 text-[10px]">
+            <div class="flex items-center justify-between">
+              <span class={cenario.saldoMinimoPreservado === 0 ? "text-salmon" : "text-app-muted"}>
+                Reserva de caixa
+              </span>
+              <span class="font-mono text-app-fg">
+                {formatCurrencyCompact(cenario.saldoMinimoPreservado)}
+              </span>
+            </div>
+            <div class="text-app-muted">
+              Saldo diluído em {cenario.mesesDiluicaoSaldo} {cenario.mesesDiluicaoSaldo === 1
+                ? "mês"
+                : "meses"}
+            </div>
+          </div>
+        {/if}
         {#if mesesAcimaTeto > 0}
           <div class="rounded-md bg-salmon/10 px-2 py-1 text-[10px] text-salmon">
             {mesesAcimaTeto} {mesesAcimaTeto === 1 ? "mês acima" : "meses acima"} do teto

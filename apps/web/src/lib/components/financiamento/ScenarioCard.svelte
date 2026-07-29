@@ -34,6 +34,9 @@
       aporteExtra: cenario.aporteExtra,
       modoAporte: cenario.modoAporte,
       tetoGastoMensal: cenario.tetoGastoMensal,
+      usarSaldoAcumuladoNoAporte: cenario.usarSaldoAcumuladoNoAporte,
+      saldoMinimoPreservado: cenario.saldoMinimoPreservado,
+      mesesDiluicaoSaldo: cenario.mesesDiluicaoSaldo,
       economiaJuros: cenario.economiaJuros,
       sistemaAmortizacao: cenario.sistemaAmortizacao,
       estrategiaAmortizacao: cenario.estrategiaAmortizacao,
@@ -43,6 +46,8 @@
   );
 
   const aportePrimeiroMes = $derived(cenario.timeline[0]?.aporteExtra ?? 0);
+  const aporteTetoPrimeiroMes = $derived(cenario.timeline[0]?.aporteTetoMensal ?? 0);
+  const aporteSaldoPrimeiroMes = $derived(cenario.timeline[0]?.aporteSaldoAcumulado ?? 0);
   const mesesAcimaTeto = $derived(cenario.mesesAcimaTeto);
   const maiorExcessoTeto = $derived(cenario.maiorExcessoTeto);
 </script>
@@ -171,6 +176,24 @@
           tooltip={tooltips.tetoGastoMensal}
           highlight
         />
+        {#if cenario.usarSaldoAcumuladoNoAporte}
+          <ScenarioDataRow
+            label="Uso do saldo acumulado"
+            value="Ativo"
+            tooltip={tooltips.usarSaldoAcumuladoNoAporte}
+          />
+          <ScenarioDataRow
+            label="Reserva mínima de caixa"
+            value={formatCurrency(cenario.saldoMinimoPreservado)}
+            tooltip={tooltips.saldoMinimoPreservado}
+            class={cenario.saldoMinimoPreservado === 0 ? "text-salmon" : undefined}
+          />
+          <ScenarioDataRow
+            label="Diluição do saldo"
+            value={`Saldo diluído em ${cenario.mesesDiluicaoSaldo} ${cenario.mesesDiluicaoSaldo === 1 ? "mês" : "meses"}`}
+            tooltip={tooltips.mesesDiluicaoSaldo}
+          />
+        {/if}
       {/if}
       <ScenarioDataRow
         label={cenario.modoAporte === "fixo" ? "📈 Aporte Extra/mês" : "📈 Aporte no 1º mês"}
@@ -180,6 +203,20 @@
         highlight
         valueContent={aporteSnippet}
       />
+      {#if cenario.modoAporte === "teto_mensal" && aportePrimeiroMes > 0}
+        <ScenarioDataRow
+          label="↳ Pelo teto no 1º mês"
+          value={formatCurrency(aporteTetoPrimeiroMes)}
+          tooltip="Parte do aporte formada pela folga entre o teto e os gastos do mês."
+        />
+        {#if aporteSaldoPrimeiroMes > 0}
+          <ScenarioDataRow
+            label="↳ Do saldo no 1º mês"
+            value={formatCurrency(aporteSaldoPrimeiroMes)}
+            tooltip="Parcela adaptativa da diluição do saldo acumulado acima da reserva mínima."
+          />
+        {/if}
+      {/if}
       <ScenarioDataRow
         label="Total no 1º mês"
         value={formatCurrency(cenario.totalMensal)}

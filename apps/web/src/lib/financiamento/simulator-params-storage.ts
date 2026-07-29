@@ -326,6 +326,18 @@ export function normalizeSimulatorParams(parsed: StoredSimulatorParams): Simulat
       0,
       finiteNumber(parsed.tetoGastoMensal, defaults.tetoGastoMensal)
     ),
+    usarSaldoAcumuladoNoAporte: finiteBoolean(
+      parsed.usarSaldoAcumuladoNoAporte,
+      defaults.usarSaldoAcumuladoNoAporte
+    ),
+    saldoMinimoPreservado: Math.max(
+      0,
+      finiteNumber(parsed.saldoMinimoPreservado, defaults.saldoMinimoPreservado)
+    ),
+    mesesDiluicaoSaldo: Math.min(
+      60,
+      Math.max(1, Math.round(finiteNumber(parsed.mesesDiluicaoSaldo, defaults.mesesDiluicaoSaldo)))
+    ),
     aporteProgressivoDecrescente: aporteProgressivoFields.aporteProgressivoDecrescente,
     aporteInicial: aporteProgressivoFields.aporteInicial,
     aporteProgressao: aporteProgressivoFields.aporteProgressao,
