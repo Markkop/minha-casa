@@ -227,6 +227,7 @@ function aporteFieldCandidates(params: SimulatorParams, settings: SimulatorSetti
     const fixed = clampAporteProgressivoFields({
       aporteExtra,
       aporteProgressivo: false,
+      aporteProgressivoDecrescente: false,
       aporteInicial: 0,
       aporteProgressao: APORTE_PROGRESSIVO_STEP,
       aporteIntervaloMeses: 1
@@ -237,6 +238,7 @@ function aporteFieldCandidates(params: SimulatorParams, settings: SimulatorSetti
       clampAporteProgressivoFields({
         aporteExtra,
         aporteProgressivo: true,
+        aporteProgressivoDecrescente: false,
         aporteInicial: 0,
         aporteProgressao: APORTE_PROGRESSIVO_STEP,
         aporteIntervaloMeses: 1
@@ -288,6 +290,7 @@ function changeCount(original: SimulatorParams, candidate: SimulatorParams): num
     "entradaDisponivel",
     "aporteExtra",
     "aporteProgressivo",
+    "aporteProgressivoDecrescente",
     "aporteInicial",
     "aporteProgressao",
     "aporteIntervaloMeses",

@@ -12,11 +12,14 @@ export interface AporteProgressivoConfig {
   inicial: number;
   progressao: number;
   intervaloMeses: number;
+  /** When true, schedule starts at max and steps down toward inicial. */
+  decrescente: boolean;
 }
 
 export interface AporteProgressivoFields {
   aporteExtra: number;
   aporteProgressivo: boolean;
+  aporteProgressivoDecrescente: boolean;
   aporteInicial: number;
   aporteProgressao: number;
   aporteIntervaloMeses: number;
@@ -54,6 +57,7 @@ export function clampAporteProgressivoFields(
   return {
     aporteExtra: max,
     aporteProgressivo: fields.aporteProgressivo,
+    aporteProgressivoDecrescente: fields.aporteProgressivo && fields.aporteProgressivoDecrescente,
     aporteInicial: inicial,
     aporteProgressao: progressao,
     aporteIntervaloMeses: clampIntervaloMeses(fields.aporteIntervaloMeses)
@@ -69,7 +73,8 @@ export function buildAporteProgressivoConfig(
     max: clamped.aporteExtra,
     inicial: clamped.aporteInicial,
     progressao: clamped.aporteProgressao,
-    intervaloMeses: clamped.aporteIntervaloMeses
+    intervaloMeses: clamped.aporteIntervaloMeses,
+    decrescente: clamped.aporteProgressivoDecrescente
   };
 }
 
@@ -84,6 +89,12 @@ export function calcularAporteExtraProgramado(
 
   const intervalo = Math.max(APORTE_INTERVALO_MIN, Math.round(config.intervaloMeses));
   const stepIndex = Math.floor((mes - 1) / intervalo);
+
+  if (config.decrescente) {
+    const scheduled = config.max - stepIndex * config.progressao;
+    return Math.max(scheduled, config.inicial);
+  }
+
   const scheduled = config.inicial + stepIndex * config.progressao;
   return Math.min(scheduled, config.max);
 }

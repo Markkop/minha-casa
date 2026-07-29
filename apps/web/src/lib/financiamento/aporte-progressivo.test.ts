@@ -12,7 +12,8 @@ describe("calcularAporteExtraProgramado", () => {
     max: 10_000,
     inicial: 0,
     progressao: 1_000,
-    intervaloMeses: 1
+    intervaloMeses: 1,
+    decrescente: false
   };
 
   it("returns flat max when progressive is disabled", () => {
@@ -44,6 +45,27 @@ describe("calcularAporteExtraProgramado", () => {
     expect(calcularAporteExtraProgramado(1, withStart)).toBe(2_000);
     expect(calcularAporteExtraProgramado(3, withStart)).toBe(3_000);
   });
+
+  it("starts at max and steps down when decrescente", () => {
+    const decreasing = { ...progressive, inicial: 2_000, decrescente: true };
+    expect(calcularAporteExtraProgramado(1, decreasing)).toBe(10_000);
+    expect(calcularAporteExtraProgramado(2, decreasing)).toBe(9_000);
+    expect(calcularAporteExtraProgramado(9, decreasing)).toBe(2_000);
+    expect(calcularAporteExtraProgramado(15, decreasing)).toBe(2_000);
+  });
+
+  it("steps down every interval months when decrescente", () => {
+    const decreasing = {
+      ...progressive,
+      inicial: 4_000,
+      intervaloMeses: 3,
+      decrescente: true
+    };
+    expect(calcularAporteExtraProgramado(1, decreasing)).toBe(10_000);
+    expect(calcularAporteExtraProgramado(3, decreasing)).toBe(10_000);
+    expect(calcularAporteExtraProgramado(4, decreasing)).toBe(9_000);
+    expect(calcularAporteExtraProgramado(7, decreasing)).toBe(8_000);
+  });
 });
 
 describe("clampAporteProgressivoFields", () => {
@@ -51,6 +73,7 @@ describe("clampAporteProgressivoFields", () => {
     const result = clampAporteProgressivoFields({
       aporteExtra: 5_000,
       aporteProgressivo: true,
+      aporteProgressivoDecrescente: false,
       aporteInicial: 7_000,
       aporteProgressao: 9_000,
       aporteIntervaloMeses: 20
@@ -65,6 +88,7 @@ describe("clampAporteProgressivoFields", () => {
     const result = clampAporteProgressivoFields({
       aporteExtra: 10_500,
       aporteProgressivo: true,
+      aporteProgressivoDecrescente: true,
       aporteInicial: 1_500,
       aporteProgressao: 2_500,
       aporteIntervaloMeses: 1.7
@@ -73,6 +97,20 @@ describe("clampAporteProgressivoFields", () => {
     expect(result.aporteInicial).toBe(2_000);
     expect(result.aporteProgressao).toBe(3_000);
     expect(result.aporteIntervaloMeses).toBe(2);
+    expect(result.aporteProgressivoDecrescente).toBe(true);
+  });
+
+  it("clears decrescente when progressive is off", () => {
+    const result = clampAporteProgressivoFields({
+      aporteExtra: 10_000,
+      aporteProgressivo: false,
+      aporteProgressivoDecrescente: true,
+      aporteInicial: 0,
+      aporteProgressao: 1_000,
+      aporteIntervaloMeses: 1
+    });
+
+    expect(result.aporteProgressivoDecrescente).toBe(false);
   });
 });
 

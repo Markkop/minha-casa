@@ -224,6 +224,10 @@ export function normalizeSimulatorParams(parsed: StoredSimulatorParams): Simulat
   const aporteProgressivoFields = clampAporteProgressivoFields({
     aporteExtra,
     aporteProgressivo: finiteBoolean(parsed.aporteProgressivo, defaults.aporteProgressivo),
+    aporteProgressivoDecrescente: finiteBoolean(
+      parsed.aporteProgressivoDecrescente,
+      defaults.aporteProgressivoDecrescente
+    ),
     aporteInicial: finiteNumber(parsed.aporteInicial, defaults.aporteInicial),
     aporteProgressao: finiteNumber(parsed.aporteProgressao, defaults.aporteProgressao),
     aporteIntervaloMeses: finiteNumber(
@@ -309,6 +313,7 @@ export function normalizeSimulatorParams(parsed: StoredSimulatorParams): Simulat
     custoMensal: finiteNumber(parsed.custoMensal, defaults.custoMensal),
     aporteExtra: aporteProgressivoFields.aporteExtra,
     aporteProgressivo: aporteProgressivoFields.aporteProgressivo,
+    aporteProgressivoDecrescente: aporteProgressivoFields.aporteProgressivoDecrescente,
     aporteInicial: aporteProgressivoFields.aporteInicial,
     aporteProgressao: aporteProgressivoFields.aporteProgressao,
     aporteIntervaloMeses: aporteProgressivoFields.aporteIntervaloMeses,

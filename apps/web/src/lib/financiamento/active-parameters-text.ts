@@ -55,7 +55,8 @@ type YamlParamKey =
   | "inicioReformaMeses"
   | "inicioAporteExtraMeses"
   | "tempoRecebimentoExtraMeses"
-  | "tempoVendaPosteriorMeses";
+  | "tempoVendaPosteriorMeses"
+  | "aporteProgressivoDecrescente";
 type FinanceiroYamlParams = Pick<SimulatorParams, YamlParamKey>;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -91,6 +92,7 @@ function pickYamlParams(params: SimulatorParams): FinanceiroYamlParams {
     aporteExtra: params.aporteExtra,
     temposInicioAporteExtraMeses: params.temposInicioAporteExtraMeses,
     aporteProgressivo: params.aporteProgressivo,
+    aporteProgressivoDecrescente: params.aporteProgressivoDecrescente,
     aporteInicial: params.aporteInicial,
     aporteProgressao: params.aporteProgressao,
     aporteIntervaloMeses: params.aporteIntervaloMeses,
@@ -229,6 +231,7 @@ export function buildActiveParametersPrompt(): string {
     aporteExtra: 10_000,
     temposInicioAporteExtraMeses: [0],
     aporteProgressivo: false,
+    aporteProgressivoDecrescente: false,
     aporteInicial: 0,
     aporteProgressao: 1_000,
     aporteIntervaloMeses: 1,

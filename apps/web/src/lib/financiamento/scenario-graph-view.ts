@@ -73,6 +73,7 @@ function scenarioMatrixForCombination({
     aporteProgressivo: buildAporteProgressivoConfig({
       aporteExtra: combination.aporteExtra,
       aporteProgressivo: params.aporteProgressivo,
+      aporteProgressivoDecrescente: params.aporteProgressivoDecrescente,
       aporteInicial: combination.aporteInicial,
       aporteProgressao: combination.aporteProgressao,
       aporteIntervaloMeses: combination.aporteIntervaloMeses

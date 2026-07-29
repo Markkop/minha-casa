@@ -93,6 +93,8 @@ export interface SimulatorParams {
   custoMensal: number;
   aporteExtra: number;
   aporteProgressivo: boolean;
+  /** When progressive: start at teto and step down toward aporteInicial. */
+  aporteProgressivoDecrescente: boolean;
   aporteInicial: number;
   aporteProgressao: number;
   aporteIntervaloMeses: number;

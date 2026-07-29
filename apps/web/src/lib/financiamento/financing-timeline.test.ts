@@ -272,7 +272,8 @@ describe("simularTimelineMensal", () => {
         max: 10_000,
         inicial: 0,
         progressao: 1_000,
-        intervaloMeses: 1
+        intervaloMeses: 1,
+        decrescente: false
       }
     });
 
@@ -293,7 +294,8 @@ describe("simularTimelineMensal", () => {
         max: 10_000,
         inicial: 0,
         progressao: 1_000,
-        intervaloMeses: 3
+        intervaloMeses: 3,
+        decrescente: false
       }
     });
 
@@ -302,6 +304,28 @@ describe("simularTimelineMensal", () => {
     expect(result.meses[3]?.aporteExtra).toBe(1_000);
     expect(result.meses[5]?.aporteExtra).toBe(1_000);
     expect(result.meses[6]?.aporteExtra).toBe(2_000);
+  });
+
+  it("steps aporte down from max when progressive decreasing is enabled", () => {
+    const result = simularTimelineMensal({
+      ...baseTimeline,
+      estrategia: "financiamento",
+      aporteExtra: 10_000,
+      aporteProgressivo: {
+        enabled: true,
+        max: 10_000,
+        inicial: 4_000,
+        progressao: 2_000,
+        intervaloMeses: 1,
+        decrescente: true
+      }
+    });
+
+    expect(result.meses[0]?.aporteExtra).toBe(10_000);
+    expect(result.meses[1]?.aporteExtra).toBe(8_000);
+    expect(result.meses[2]?.aporteExtra).toBe(6_000);
+    expect(result.meses[3]?.aporteExtra).toBe(4_000);
+    expect(result.meses[8]?.aporteExtra).toBe(4_000);
   });
 
   it("applies aporte from month 1 when delay is zero", () => {
@@ -339,7 +363,8 @@ describe("simularTimelineMensal", () => {
         max: 10_000,
         inicial: 0,
         progressao: 1_000,
-        intervaloMeses: 1
+        intervaloMeses: 1,
+        decrescente: false
       }
     });
 

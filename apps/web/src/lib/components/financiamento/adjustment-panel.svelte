@@ -239,6 +239,7 @@
         typeof params,
         | "aporteExtra"
         | "aporteProgressivo"
+        | "aporteProgressivoDecrescente"
         | "aporteInicial"
         | "aporteProgressao"
         | "aporteIntervaloMeses"
@@ -248,6 +249,8 @@
     const clamped = clampAporteProgressivoFields({
       aporteExtra: partial.aporteExtra ?? params.aporteExtra,
       aporteProgressivo: partial.aporteProgressivo ?? params.aporteProgressivo,
+      aporteProgressivoDecrescente:
+        partial.aporteProgressivoDecrescente ?? params.aporteProgressivoDecrescente,
       aporteInicial: partial.aporteInicial ?? params.aporteInicial,
       aporteProgressao: partial.aporteProgressao ?? params.aporteProgressao,
       aporteIntervaloMeses: partial.aporteIntervaloMeses ?? params.aporteIntervaloMeses
@@ -450,6 +453,7 @@
       entradaDisponivel: UI_DEFAULTS.entradaDisponivel,
       aporteExtra: UI_DEFAULTS.aporteExtra,
       aporteProgressivo: UI_DEFAULTS.aporteProgressivo,
+      aporteProgressivoDecrescente: UI_DEFAULTS.aporteProgressivoDecrescente,
       aporteInicial: UI_DEFAULTS.aporteInicial,
       aporteProgressao: UI_DEFAULTS.aporteProgressao,
       aporteIntervaloMeses: UI_DEFAULTS.aporteIntervaloMeses,
@@ -1337,7 +1341,11 @@
           compact={rowCompact}
           label="Aporte extra mensal"
           tooltip={tooltips.aporteExtra}
-          hint={params.aporteProgressivo ? "Teto do aporte progressivo" : undefined}
+          hint={params.aporteProgressivo
+            ? params.aporteProgressivoDecrescente
+              ? "Teto inicial do aporte progressivo"
+              : "Teto do aporte progressivo"
+            : undefined}
           valueDisplay={formatCurrency(params.aporteExtra)}
           slider={{
             value: params.aporteExtra,
@@ -1432,10 +1440,20 @@
           )}
         </div>
         {#if params.aporteProgressivo}
+          <div class="pt-1">
+            {@render sectionCheckbox(
+              "aporte-progressivo-decrescente",
+              "Começar alto e reduzir",
+              params.aporteProgressivoDecrescente,
+              (checked) => patchAporteProgressivo({ aporteProgressivoDecrescente: checked })
+            )}
+          </div>
           <ParameterRow
             compact={rowCompact}
-            label="Aporte inicial"
-            tooltip="Valor do aporte extra no início da progressão."
+            label={params.aporteProgressivoDecrescente ? "Aporte mínimo" : "Aporte inicial"}
+            tooltip={params.aporteProgressivoDecrescente
+              ? "Piso do aporte extra ao final da progressão decrescente."
+              : "Valor do aporte extra no início da progressão."}
             valueDisplay={formatCurrency(params.aporteInicial)}
             slider={{
               value: params.aporteInicial,
@@ -1482,7 +1500,9 @@
           <ParameterRow
             compact={rowCompact}
             label="Progressão"
-            tooltip="Quanto o aporte aumenta a cada intervalo, até o teto."
+            tooltip={params.aporteProgressivoDecrescente
+              ? "Quanto o aporte diminui a cada intervalo, até o piso."
+              : "Quanto o aporte aumenta a cada intervalo, até o teto."}
             valueDisplay={formatCurrency(params.aporteProgressao)}
             slider={{
               value: params.aporteProgressao,
@@ -1529,7 +1549,9 @@
           <ParameterRow
             compact={rowCompact}
             label="Intervalo"
-            tooltip="A cada quantos meses o aporte aumenta pela progressão."
+            tooltip={params.aporteProgressivoDecrescente
+              ? "A cada quantos meses o aporte diminui pela progressão."
+              : "A cada quantos meses o aporte aumenta pela progressão."}
             valueDisplay={formatIntervaloMeses(params.aporteIntervaloMeses)}
             slider={{
               value: params.aporteIntervaloMeses,

@@ -14,6 +14,7 @@ export const UI_DEFAULTS = {
   trMensal: 0.0015,
   aporteExtra: 10_000,
   aporteProgressivo: false,
+  aporteProgressivoDecrescente: false,
   aporteInicial: 0,
   aporteProgressao: 1_000,
   aporteIntervaloMeses: 1,

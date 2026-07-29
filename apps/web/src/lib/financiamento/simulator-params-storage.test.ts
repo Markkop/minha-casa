@@ -180,15 +180,27 @@ describe("normalizeSimulatorParams", () => {
     const result = normalizeSimulatorParams({
       aporteExtra: 5_000,
       aporteProgressivo: true,
+      aporteProgressivoDecrescente: true,
       aporteInicial: 7_000,
       aporteProgressao: 9_000,
       aporteIntervaloMeses: 20
     });
 
     expect(result.aporteProgressivo).toBe(true);
+    expect(result.aporteProgressivoDecrescente).toBe(true);
     expect(result.aporteInicial).toBe(5_000);
     expect(result.aporteProgressao).toBe(1_000);
     expect(result.aporteIntervaloMeses).toBe(12);
+  });
+
+  it("defaults missing progressive-decreasing flag to false", () => {
+    expect(normalizeSimulatorParams({}).aporteProgressivoDecrescente).toBe(false);
+    expect(
+      normalizeSimulatorParams({
+        aporteProgressivo: false,
+        aporteProgressivoDecrescente: true
+      }).aporteProgressivoDecrescente
+    ).toBe(false);
   });
 
   it("validates timing month filters", () => {

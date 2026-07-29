@@ -299,7 +299,8 @@ export function simularTimelineMensal(input: SimularTimelineInput): TimelineResu
         max: aporteExtra,
         inicial: 0,
         progressao: 0,
-        intervaloMeses: 1
+        intervaloMeses: 1,
+        decrescente: false
       };
       const aporteMes =
         mes < mesInicioAporte

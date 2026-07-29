@@ -51,6 +51,7 @@ export function resolveEffectiveParams(params: SimulatorParams): EffectiveSimula
     aporteProgressivo: buildAporteProgressivoConfig({
       aporteExtra: params.aporteExtra,
       aporteProgressivo: params.aporteProgressivo,
+      aporteProgressivoDecrescente: params.aporteProgressivoDecrescente,
       aporteInicial: params.aporteInicial,
       aporteProgressao: params.aporteProgressao,
       aporteIntervaloMeses: params.aporteIntervaloMeses
