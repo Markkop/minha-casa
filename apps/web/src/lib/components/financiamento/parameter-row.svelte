@@ -26,11 +26,49 @@
 
   let isEditing = $state(false);
   let extrasExpanded = $state(false);
+  let numberDraft = $state("");
+  let ignorePencilToggle = $state(false);
   const resolvedExtrasExpanded = $derived(forceExtrasExpanded || extrasExpanded);
 
   function toggleExtras() {
     if (lockExtrasExpanded || disabled) return;
     extrasExpanded = !extrasExpanded;
+  }
+
+  function finishEditing() {
+    isEditing = false;
+    ignorePencilToggle = true;
+    queueMicrotask(() => {
+      ignorePencilToggle = false;
+    });
+  }
+
+  function toggleEditing() {
+    if (ignorePencilToggle) {
+      ignorePencilToggle = false;
+      return;
+    }
+    if (isEditing) {
+      isEditing = false;
+      return;
+    }
+    if (edit?.type === "number") {
+      numberDraft = String(edit.value);
+    }
+    isEditing = true;
+  }
+
+  function commitNumberDraft() {
+    if (!edit || edit.type !== "number") return;
+    const next = parseInt(numberDraft, 10) || 0;
+    if (next !== edit.value) {
+      edit.onChange(next);
+    }
+  }
+
+  function finishNumberEditing() {
+    commitNumberDraft();
+    finishEditing();
   }
 </script>
 
@@ -62,17 +100,33 @@
         {#if isEditing && edit}
           <div class="w-[8.5rem]">
             {#if edit.type === "currency"}
-              <CurrencyInput value={edit.value} onchange={edit.onChange} class="h-8 text-xs" />
+              <CurrencyInput
+                value={edit.value}
+                onchange={edit.onChange}
+                onfinish={finishEditing}
+                class="h-8 text-xs"
+              />
             {:else if edit.type === "percent"}
-              <PercentInput value={edit.value} onchange={edit.onChange} class="h-8 text-xs" />
+              <PercentInput
+                value={edit.value}
+                onchange={edit.onChange}
+                onfinish={finishEditing}
+                class="h-8 text-xs"
+              />
             {:else}
               <Input
                 type="number"
-                value={edit.value}
+                value={numberDraft}
                 class="h-8 font-mono text-xs"
-                onchange={(event) => {
-                  const target = event.currentTarget;
-                  edit.onChange(parseInt(target.value, 10) || 0);
+                oninput={(event) => {
+                  numberDraft = event.currentTarget.value;
+                }}
+                onblur={finishNumberEditing}
+                onkeydown={(event) => {
+                  if (event.key === "Enter") {
+                    event.preventDefault();
+                    event.currentTarget.blur();
+                  }
                 }}
               />
             {/if}
@@ -90,9 +144,7 @@
         {#if edit}
           <button
             type="button"
-            onclick={() => {
-              isEditing = !isEditing;
-            }}
+            onclick={toggleEditing}
             class={cn(
               "rounded-md p-1.5 text-app-subtle transition-colors hover:bg-app-bg hover:text-app-accent",
               isEditing && "bg-app-action/10 text-app-accent"

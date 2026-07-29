@@ -6,11 +6,14 @@
   let {
     value,
     class: className = "",
-    onchange
+    onchange,
+    onfinish
   }: {
     value: number;
     class?: string;
     onchange?: (value: number) => void;
+    /** Called after the value is committed (blur or Enter). */
+    onfinish?: () => void;
   } = $props();
 
   let isFocused = $state(false);
@@ -24,8 +27,15 @@
 
   function commit(raw: string) {
     const numericValue = parseInt(raw.replace(/\D/g, ""), 10) || 0;
-    onchange?.(numericValue);
     inputValue = numericValue.toString();
+    if (numericValue !== value) {
+      onchange?.(numericValue);
+    }
+  }
+
+  function finish() {
+    commit(inputValue);
+    onfinish?.();
   }
 
   function handleFocus() {
@@ -35,24 +45,25 @@
 
   function handleBlur() {
     isFocused = false;
-    commit(inputValue);
+    finish();
   }
 
   function handleInput(event: Event) {
     const target = event.currentTarget as HTMLInputElement;
-    const newValue = target.value.replace(/\D/g, "");
-    inputValue = newValue;
-    const numericValue = parseInt(newValue, 10) || 0;
-    onchange?.(numericValue);
+    inputValue = target.value.replace(/\D/g, "");
   }
 
-  function handleKeydown(event: KeyboardEvent) {
+  function handleKeydown(event: KeyboardEvent & { currentTarget: HTMLInputElement }) {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      event.currentTarget.blur();
+      return;
+    }
     if (
       event.key === "Backspace" ||
       event.key === "Delete" ||
       event.key === "Tab" ||
       event.key === "Escape" ||
-      event.key === "Enter" ||
       event.key === "ArrowLeft" ||
       event.key === "ArrowRight" ||
       event.key === "Home" ||

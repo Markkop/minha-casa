@@ -5,11 +5,14 @@
   let {
     value,
     class: className = "",
-    onchange
+    onchange,
+    onfinish
   }: {
     value: number;
     class?: string;
     onchange?: (value: number) => void;
+    /** Called after the value is committed (blur or Enter). */
+    onfinish?: () => void;
   } = $props();
 
   let isFocused = $state(false);
@@ -21,16 +24,18 @@
     }
   });
 
-  function parsePercent(raw: string): number {
-    const cleanValue = raw.replace(/[^\d.,]/g, "").replace(",", ".");
-    return (parseFloat(cleanValue) || 0) / 100;
-  }
-
   function commit(raw: string) {
     const numericValue = parseFloat(raw.replace(/[^\d.,]/g, "").replace(",", ".")) || 0;
     const next = numericValue / 100;
-    onchange?.(next);
     inputValue = numericValue.toFixed(2);
+    if (next !== value) {
+      onchange?.(next);
+    }
+  }
+
+  function finish() {
+    commit(inputValue);
+    onfinish?.();
   }
 
   function handleFocus() {
@@ -40,24 +45,25 @@
 
   function handleBlur() {
     isFocused = false;
-    commit(inputValue);
+    finish();
   }
 
   function handleInput(event: Event) {
     const target = event.currentTarget as HTMLInputElement;
-    const newValue = target.value.replace(/[^\d.,]/g, "");
-    inputValue = newValue;
-    const next = parsePercent(newValue);
-    onchange?.(next);
+    inputValue = target.value.replace(/[^\d.,]/g, "");
   }
 
-  function handleKeydown(event: KeyboardEvent) {
+  function handleKeydown(event: KeyboardEvent & { currentTarget: HTMLInputElement }) {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      event.currentTarget.blur();
+      return;
+    }
     if (
       event.key === "Backspace" ||
       event.key === "Delete" ||
       event.key === "Tab" ||
       event.key === "Escape" ||
-      event.key === "Enter" ||
       event.key === "ArrowLeft" ||
       event.key === "ArrowRight" ||
       event.key === "Home" ||
