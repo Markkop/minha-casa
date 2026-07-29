@@ -4,6 +4,8 @@ defmodule MinhaCasaAi.Financeiro.SharedSnapshot do
 
   @primary_key {:id, :binary_id, autogenerate: true}
   @foreign_key_type :binary_id
+  @allowed_payload_versions [1, 2]
+
   schema "financeiro_shared_snapshots" do
     field :token, :string
     field :user_id, :binary_id
@@ -47,11 +49,15 @@ defmodule MinhaCasaAi.Financeiro.SharedSnapshot do
       not is_map(payload) ->
         add_error(changeset, :payload, "must be an object")
 
-      Map.get(payload, "version") != 1 and Map.get(payload, :version) != 1 ->
-        add_error(changeset, :payload, "version must be 1")
+      payload_version(payload) not in @allowed_payload_versions ->
+        add_error(changeset, :payload, "version must be 1 or 2")
 
       true ->
         changeset
     end
+  end
+
+  defp payload_version(payload) do
+    Map.get(payload, "version", Map.get(payload, :version))
   end
 end

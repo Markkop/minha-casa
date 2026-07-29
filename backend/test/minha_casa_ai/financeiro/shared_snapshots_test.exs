@@ -109,14 +109,24 @@ defmodule MinhaCasaAi.Financeiro.SharedSnapshotsTest do
     assert SharedSnapshots.get_public_snapshot("missing-token") == nil
   end
 
-  test "rejects payloads without version 1", %{user_id: user_id} do
+  test "accepts payload version 2", %{user_id: user_id} do
+    assert {:ok, snapshot} =
+             SharedSnapshots.create_snapshot(%{user_id: user_id, org_id: nil}, %{
+               "title" => "SAC/PRICE",
+               "payload" => %{"version" => 2, "params" => %{}, "settings" => %{}}
+             })
+
+    assert snapshot.payload["version"] == 2
+  end
+
+  test "rejects payloads with unsupported version", %{user_id: user_id} do
     assert {:error, changeset} =
              SharedSnapshots.create_snapshot(%{user_id: user_id, org_id: nil}, %{
                "title" => "Inválido",
-               "payload" => %{"version" => 2}
+               "payload" => %{"version" => 3}
              })
 
-    assert "version must be 1" in errors_on(changeset).payload
+    assert "version must be 1 or 2" in errors_on(changeset).payload
   end
 
   defp errors_on(changeset) do

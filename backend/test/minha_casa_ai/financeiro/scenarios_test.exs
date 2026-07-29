@@ -192,7 +192,7 @@ defmodule MinhaCasaAi.Financeiro.ScenariosTest do
 
   defp payload(params \\ %{}) do
     %{
-      "version" => 1,
+      "version" => 2,
       "params" => Map.merge(%{"linkedListingId" => nil}, params),
       "settings" => %{"cetAdditionalCost" => 0.02}
     }
