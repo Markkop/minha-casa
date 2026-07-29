@@ -275,6 +275,7 @@ export interface CenarioCompleto {
   totalCustosAdicionais: number
   totalManutencao: number
   totalMensal: number
+  mesTotalMensal: number
   mesesAcimaTeto: number
   maiorExcessoTeto: number
 }
@@ -1081,7 +1082,8 @@ export const gerarCenarioCompleto = ({
     totalReformas: timeline.totalReformas,
     totalCustosAdicionais: timeline.totalCustosAdicionais,
     totalManutencao: timeline.totalManutencao,
-    totalMensal: timeline.totalMensalMes1,
+    totalMensal: timeline.totalMensalTipico,
+    mesTotalMensal: timeline.mesTotalMensalTipico,
     mesesAcimaTeto: timeline.mesesAcimaTeto,
     maiorExcessoTeto: timeline.maiorExcessoTeto
   }

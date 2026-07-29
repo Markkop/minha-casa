@@ -370,6 +370,85 @@ describe("simularTimelineMensal", () => {
     expect(result.totalMensalMes1).toBe(25_000);
   });
 
+  it("uses a real median month as the typical monthly outflow", () => {
+    const result = simularTimelineMensal({
+      valorFinanciado: 100_000,
+      prazoMeses: 4,
+      taxaMensalEfetiva: 0,
+      aporteExtra: 0,
+      rendaMensal: 0,
+      estrategia: "financiamento",
+      custosAdicionais: [
+        {
+          id: "initial",
+          nome: "Initial",
+          incluirNoCalculo: true,
+          cobrancaMensal: false,
+          valorTotal: 100_000,
+          mesInicio: 1,
+          duracaoMeses: 1
+        }
+      ]
+    });
+
+    expect(result.totalMensalMes1).toBe(125_000);
+    expect(result.totalMensalTipico).toBe(25_000);
+    expect(result.mesTotalMensalTipico).toBe(3);
+  });
+
+  it("reports the capped scenario monthly typical value without the initial 50k distortion", () => {
+    const cenario = gerarCenarioCompleto({
+      sistemaAmortizacao: "sac",
+      estrategiaAmortizacao: "reduzir_prazo",
+      tipoTaxaAnual: "efetiva",
+      valorImovel: 2_100_000,
+      capitalDisponivel: 700_000,
+      capitalTotalDisponivel: 900_000,
+      reservaEmergencia: 0,
+      valorApartamento: 500_000,
+      estrategia: "venda_posterior",
+      mesVenda: 12,
+      taxaAnual: 0.115,
+      trMensal: 0.0015,
+      prazoMeses: 420,
+      aporteExtra: 20_000,
+      modoAporte: "teto_mensal",
+      tetoGastoMensal: 50_000,
+      usarSaldoAcumuladoNoAporte: true,
+      saldoMinimoPreservado: 0,
+      mesesDiluicaoSaldo: 6,
+      rendaMensal: 50_000,
+      custoMensal: 20_000,
+      custoManutencaoImovelMensal: 1_000,
+      seguros: 0,
+      custosAdicionais: [
+        {
+          id: "initial-costs",
+          nome: "Iniciais",
+          incluirNoCalculo: true,
+          cobrancaMensal: false,
+          valorTotal: 50_000,
+          mesInicio: 1,
+          duracaoMeses: 1
+        }
+      ]
+    });
+    const first = cenario.timeline[0];
+    const firstMonthTotal = first
+      ? first.prestacao +
+        first.aporteExtra +
+        (first.custoMensal ?? 0) +
+        first.reformaInicial +
+        first.reformaMensal +
+        (first.custosAdicionais ?? 0) +
+        first.manutencaoMensal
+      : 0;
+
+    expect(firstMonthTotal).toBeCloseTo(107_557.32, 2);
+    expect(cenario.totalMensal).toBeCloseTo(50_000, 2);
+    expect(cenario.mesTotalMensal).toBeGreaterThan(1);
+  });
+
   it.each([
     ["living cost", { custoMensal: 1_000 }],
     [

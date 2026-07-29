@@ -218,9 +218,9 @@
         {/if}
       {/if}
       <ScenarioDataRow
-        label="Total no 1º mês"
+        label="Total/mês"
         value={formatCurrency(cenario.totalMensal)}
-        tooltip="Desembolso completo no primeiro mês: prestação, custo de vida, aporte, reformas, manutenção e outros custos aplicáveis."
+        tooltip={`Desembolso mensal típico, calculado pela mediana dos meses simulados. O mês ${cenario.mesTotalMensal} é o período real usado como referência, evitando distorções por custos pontuais.`}
         highlight
       />
       {#if cenario.modoAporte === "teto_mensal" && mesesAcimaTeto > 0}

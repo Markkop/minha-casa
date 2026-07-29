@@ -290,7 +290,7 @@
         {@render sortableHeader(
           "Total/mês",
           "totalMensal",
-          "Prestação + custo de vida + aporte + reforma + manutenção + outros custos no 1º mês do cenário otimizado"
+          "Desembolso mensal típico do cenário: a mediana dos meses simulados, sem distorção por custos pontuais"
         )}
         {@render sortableHeader(
           "Compr.",
@@ -324,6 +324,9 @@
         {@const chartColor = scenarioColorIndex
           ? scenarioChartColor(cenario.id, scenarioColorIndex)
           : undefined}
+        {@const totalMensalMonth =
+          cenario.timeline.find((month) => month.mes === cenario.mesTotalMensal) ??
+          cenario.timeline[0]}
         <tr
           class={cn(
             "border-app-border transition-colors",
@@ -435,7 +438,7 @@
             {formatCurrencyCompact(cenario.financiamento.valorFinanciado)}
           </td>
           <td class={cn(tdClass, monoCellClass, "font-bold text-app-accent")}>
-            <TotalMensalHoverBreakdown month={cenario.timeline[0]}>
+            <TotalMensalHoverBreakdown month={totalMensalMonth}>
               {formatCurrencyCompact(cenario.totalMensal)}
             </TotalMensalHoverBreakdown>
           </td>

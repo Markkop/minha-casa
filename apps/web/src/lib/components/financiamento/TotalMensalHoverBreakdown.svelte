@@ -31,6 +31,9 @@
     ) {
       breakdown.push({ label: "Aporte extra", value: m.aporteExtra });
     }
+    if ((m.custoMensal ?? 0) > 0) {
+      breakdown.push({ label: "Custo mensal", value: m.custoMensal ?? 0 });
+    }
     if (m.reformaInicial + m.reformaMensal > 0) {
       breakdown.push({ label: "Reformas", value: m.reformaInicial + m.reformaMensal });
     }

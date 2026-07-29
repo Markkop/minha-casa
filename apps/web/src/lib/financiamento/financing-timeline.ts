@@ -70,8 +70,12 @@ export interface TimelineResult {
   mesesAcimaTeto: number;
   maiorExcessoTeto: number;
   mesReformaConcluida: number | null;
-  /** First-month total cash outflow: prestação + aporte + reforma + manutenção */
+  /** First-month total cash outflow, kept for detailed first-month views. */
   totalMensalMes1: number;
+  /** Representative monthly outflow: the lower median of all simulated months. */
+  totalMensalTipico: number;
+  /** Actual timeline month whose composition produces totalMensalTipico. */
+  mesTotalMensalTipico: number;
 }
 
 export interface SimularTimelineInput {
@@ -147,6 +151,31 @@ function normalizeStartMonth(value: number | undefined): number {
 
 export function normalizeMesesDiluicaoSaldo(value: number | undefined): number {
   return Number.isFinite(value) ? Math.min(60, Math.max(1, Math.round(value as number))) : 12;
+}
+
+export function totalMensalDoMes(month: TimelineMonth): number {
+  return (
+    month.prestacao +
+    month.aporteExtra +
+    (month.custoMensal ?? 0) +
+    month.reformaInicial +
+    month.reformaMensal +
+    (month.custosAdicionais ?? 0) +
+    month.manutencaoMensal
+  );
+}
+
+function resolveTotalMensalTipico(meses: TimelineMonth[]): {
+  total: number;
+  mes: number;
+} {
+  if (meses.length === 0) return { total: 0, mes: 0 };
+
+  const ordered = meses
+    .map((month) => ({ total: totalMensalDoMes(month), mes: month.mes }))
+    .sort((a, b) => a.total - b.total || a.mes - b.mes);
+
+  return ordered[Math.floor((ordered.length - 1) / 2)] ?? { total: 0, mes: 0 };
 }
 
 function reformaOutflowForMonth({
@@ -564,6 +593,7 @@ export function simularTimelineMensal(input: SimularTimelineInput): TimelineResu
   }
 
   const first = meses[0];
+  const totalMensalTipico = resolveTotalMensalTipico(meses);
 
   return {
     meses,
@@ -577,15 +607,9 @@ export function simularTimelineMensal(input: SimularTimelineInput): TimelineResu
     mesesAcimaTeto,
     maiorExcessoTeto,
     mesReformaConcluida,
-    totalMensalMes1: first
-      ? first.prestacao +
-        first.aporteExtra +
-        (first.custoMensal ?? 0) +
-        first.reformaInicial +
-        first.reformaMensal +
-        (first.custosAdicionais ?? 0) +
-        first.manutencaoMensal
-      : 0
+    totalMensalMes1: first ? totalMensalDoMes(first) : 0,
+    totalMensalTipico: totalMensalTipico.total,
+    mesTotalMensalTipico: totalMensalTipico.mes
   };
 }
 
@@ -602,6 +626,8 @@ function emptyTimelineResult(): TimelineResult {
     mesesAcimaTeto: 0,
     maiorExcessoTeto: 0,
     mesReformaConcluida: null,
-    totalMensalMes1: 0
+    totalMensalMes1: 0,
+    totalMensalTipico: 0,
+    mesTotalMensalTipico: 0
   };
 }
