@@ -71,6 +71,80 @@
     const mobileQuery = window.matchMedia("(max-width: 720px)");
     let frame = 0;
     let stopped = false;
+    let geometryDirty = true;
+    let journeyTop = 0;
+    let journeyTravel = 1;
+    let cachedGeometry: {
+      stickyWidth: number;
+      stickyHeight: number;
+      stickyLeft: number;
+      titleBottomY: number;
+      receiverTargetY: number;
+      cardsBottomY: number | null;
+      beams: Array<{
+        baseLeftX: number;
+        baseLeftY: number;
+        baseRightX: number;
+        baseRightY: number;
+        baseCenterX: number;
+        baseCenterY: number;
+      }>;
+    } | null = null;
+
+    function invalidateGeometry() {
+      geometryDirty = true;
+      scheduleRender();
+    }
+
+    function refreshGeometry() {
+      const stickyRect = stickyElement.getBoundingClientRect();
+      const journeyRect = journeyElement.getBoundingClientRect();
+      const receiverRect = receiverElement.getBoundingClientRect();
+      const titleRect = title?.getBoundingClientRect();
+      const mobile = mobileQuery.matches;
+
+      journeyTop = window.scrollY + journeyRect.top;
+      journeyTravel = Math.max(1, journeyRect.height - window.innerHeight);
+      cachedGeometry = {
+        stickyWidth: Math.max(1, stickyRect.width),
+        stickyHeight: Math.max(1, stickyRect.height),
+        stickyLeft: stickyRect.left,
+        titleBottomY: titleRect
+          ? titleRect.bottom - stickyRect.top
+          : stickyRect.height * (mobile ? 0.42 : 0.5),
+        receiverTargetY: receiverRect.top + receiverRect.height / 2 - stickyRect.top,
+        cardsBottomY: stageCards
+          ? stageCards.getBoundingClientRect().bottom - stickyRect.top
+          : null,
+        beams: ports
+          .filter((port) => port.getBoundingClientRect().width > 0)
+          .map((port) => {
+            const card = port.closest<HTMLElement>("[data-home-card-id]") ?? port;
+            const portRect = port.getBoundingClientRect();
+            const cardStyle = getComputedStyle(card);
+            const cardTransform = new DOMMatrixReadOnly(cardStyle.transform);
+            const horizontalScale = Math.hypot(cardTransform.a, cardTransform.b) || 1;
+            const horizontalAxis = {
+              x: cardTransform.a / horizontalScale,
+              y: cardTransform.b / horizontalScale
+            };
+            const borderRadius = Number.parseFloat(cardStyle.borderBottomLeftRadius) || 0;
+            const halfCardWidth = Math.max(0, card.offsetWidth / 2 - borderRadius - 1);
+            const baseCenterX = portRect.left + portRect.width / 2 - stickyRect.left;
+            const baseCenterY = portRect.top + portRect.height / 2 - stickyRect.top;
+
+            return {
+              baseCenterX,
+              baseCenterY,
+              baseLeftX: baseCenterX - horizontalAxis.x * halfCardWidth,
+              baseLeftY: baseCenterY - horizontalAxis.y * halfCardWidth,
+              baseRightX: baseCenterX + horizontalAxis.x * halfCardWidth,
+              baseRightY: baseCenterY + horizontalAxis.y * halfCardWidth
+            };
+          })
+      };
+      geometryDirty = false;
+    }
 
     function scheduleRender() {
       if (stopped || frame) return;
@@ -81,44 +155,33 @@
       frame = 0;
       if (stopped) return;
 
-      const stickyRect = stickyElement.getBoundingClientRect();
-      const journeyRect = journeyElement.getBoundingClientRect();
-      const receiverRect = receiverElement.getBoundingClientRect();
-      const titleRect = title?.getBoundingClientRect();
+      if (geometryDirty || !cachedGeometry) refreshGeometry();
+      const geometry = cachedGeometry;
       const mobile = mobileQuery.matches;
       const reducedMotion = reducedMotionQuery.matches;
-      const travel = Math.max(1, journeyRect.height - window.innerHeight);
-      const rawProgress = reducedMotion ? 1 : -journeyRect.top / travel;
+      const rawProgress = reducedMotion ? 1 : (window.scrollY - journeyTop) / journeyTravel;
       const timeline = getHomePrismTimeline(rawProgress, { mobile, reducedMotion });
 
-      surfaceWidth = Math.max(1, stickyRect.width);
-      surfaceHeight = Math.max(1, stickyRect.height);
-      collisionX = stickyRect.width / 2;
-      const titleBottomY = titleRect
-        ? titleRect.bottom - stickyRect.top
-        : stickyRect.height * (mobile ? 0.42 : 0.5);
-      const receiverTopY = receiverRect.top - stickyRect.top;
+      surfaceWidth = geometry.stickyWidth;
+      surfaceHeight = geometry.stickyHeight;
+      collisionX = geometry.stickyWidth / 2;
       collisionPulse = timeline.collisionPulse;
       incomingProgress = timeline.incomingBeamProgress;
 
-      prismWidth = clamp(stickyRect.width * (mobile ? 0.48 : 0.2), mobile ? 164 : 224, mobile ? 208 : 304);
+      prismWidth = clamp(geometry.stickyWidth * (mobile ? 0.48 : 0.2), mobile ? 164 : 224, mobile ? 208 : 304);
       const prismHeight = prismWidth * (PRISM_VIEWBOX_HEIGHT / 160);
       // Collision target is the prism's wire convergence (not the CSS box center).
       // On mobile, clear the prism tip below the 2×2 card grid so bottom-row beams
       // have real length (tip sits ~0.42×prismHeight above the wire center).
-      const stageCardsRect = stageCards?.getBoundingClientRect();
-      const cardsBottomY = stageCardsRect
-        ? stageCardsRect.bottom - stickyRect.top
-        : null;
       const tipAboveWireCenter =
         prismHeight * ((PRISM_WIRE_CENTER_Y - 8) / PRISM_VIEWBOX_HEIGHT);
-      const mobileBeamClearance = Math.max(48, stickyRect.height * 0.08);
-      if (mobile && cardsBottomY !== null) {
+      const mobileBeamClearance = Math.max(48, geometry.stickyHeight * 0.08);
+      if (mobile && geometry.cardsBottomY !== null) {
         // Card→prism gap only — Lista proximity is handled in page layout CSS.
-        collisionY = cardsBottomY + tipAboveWireCenter + mobileBeamClearance;
+        collisionY = geometry.cardsBottomY + tipAboveWireCenter + mobileBeamClearance;
       } else {
         collisionY =
-          titleBottomY + Math.max(0, receiverTopY - titleBottomY) * 0.5;
+          geometry.titleBottomY + Math.max(0, geometry.receiverTargetY - geometry.titleBottomY) * 0.5;
       }
       const wireCenterFromCssCenter =
         prismHeight * (PRISM_WIRE_CENTER_Y / PRISM_VIEWBOX_HEIGHT - 0.5);
@@ -143,39 +206,17 @@
       const beamProgress = timeline.incomingBeamProgress;
       incomingBeams =
         beamProgress > 0
-          ? ports
-              .filter((port) => port.getBoundingClientRect().width > 0)
-              .map((port, index) => {
-                const card =
-                  port.closest<HTMLElement>("[data-home-card-id]") ?? port;
-                const portRect = port.getBoundingClientRect();
-                const cardStyle = getComputedStyle(card);
-                const cardTransform = new DOMMatrixReadOnly(cardStyle.transform);
-                const horizontalScale = Math.hypot(cardTransform.a, cardTransform.b) || 1;
-                const horizontalAxis = {
-                  x: cardTransform.a / horizontalScale,
-                  y: cardTransform.b / horizontalScale
-                };
-                const borderRadius =
-                  Number.parseFloat(cardStyle.borderBottomLeftRadius) || 0;
-                const halfCardWidth = Math.max(
-                  0,
-                  card.offsetWidth / 2 - borderRadius - 1
-                );
-                const baseCenterX =
-                  portRect.left + portRect.width / 2 - stickyRect.left;
-                const baseCenterY =
-                  portRect.top + portRect.height / 2 - stickyRect.top;
-                const baseLeftX = baseCenterX - horizontalAxis.x * halfCardWidth;
-                const baseLeftY = baseCenterY - horizontalAxis.y * halfCardWidth;
-                const baseRightX = baseCenterX + horizontalAxis.x * halfCardWidth;
-                const baseRightY = baseCenterY + horizontalAxis.y * halfCardWidth;
-
+          ? geometry.beams.map((beam, index) => {
+                const direction = index < 2 ? -1 : 1;
+                const depth = index === 0 || index === 3 ? 1 : 0.65;
+                const lift = index % 2 === 0 ? 10 : 6;
+                const translateX = direction * depth * timeline.photoParallaxProgress * 20;
+                const translateY = -lift * timeline.photoParallaxProgress;
                 return {
-                  path: `M ${baseLeftX} ${baseLeftY} L ${baseRightX} ${baseRightY} L ${collisionX} ${collisionY} Z`,
+                  path: `M ${beam.baseLeftX + translateX} ${beam.baseLeftY + translateY} L ${beam.baseRightX + translateX} ${beam.baseRightY + translateY} L ${collisionX} ${collisionY} Z`,
                   gradient: {
-                    x1: baseCenterX,
-                    y1: baseCenterY,
+                    x1: beam.baseCenterX + translateX,
+                    y1: beam.baseCenterY + translateY,
                     x2: collisionX,
                     y2: collisionY
                   },
@@ -185,13 +226,13 @@
           : [];
 
       const listRect = listPanelElement.getBoundingClientRect();
-      const listLeft = listRect.left - stickyRect.left;
-      const listRight = listRect.right - stickyRect.left;
+      const listLeft = listRect.left - geometry.stickyLeft;
+      const listRight = listRect.right - geometry.stickyLeft;
       const listCenterX = (listLeft + listRight) / 2;
       const halfBeamWidth = (listRight - listLeft) * (mobile ? 0.44 : 0.22);
       const beamLeft = listCenterX - halfBeamWidth;
       const beamRight = listCenterX + halfBeamWidth;
-      const targetY = receiverRect.top + receiverRect.height / 2 - stickyRect.top;
+      const targetY = geometry.receiverTargetY;
       const outgoingProgress = timeline.outgoingBeamProgress;
       const frontLeftX = collisionX + (beamLeft - collisionX) * outgoingProgress;
       const frontLeftY = collisionY + (targetY - collisionY) * outgoingProgress;
@@ -226,7 +267,7 @@
       listPanelElement.style.setProperty("--prism-received", String(timeline.listGlowProgress));
     }
 
-    const resizeObserver = new ResizeObserver(scheduleRender);
+    const resizeObserver = new ResizeObserver(invalidateGeometry);
     resizeObserver.observe(journeyElement);
     resizeObserver.observe(stickyElement);
     resizeObserver.observe(receiverElement);
@@ -234,7 +275,7 @@
     window.addEventListener("scroll", scheduleRender, { passive: true });
     window.addEventListener("resize", scheduleRender, { passive: true });
     reducedMotionQuery.addEventListener("change", scheduleRender);
-    mobileQuery.addEventListener("change", scheduleRender);
+    mobileQuery.addEventListener("change", invalidateGeometry);
     scheduleRender();
 
     return () => {
