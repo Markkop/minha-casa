@@ -279,7 +279,7 @@
       <p class="mx-auto mt-2 max-w-lg text-sm leading-6 text-app-muted">
         {kind === "agency"
           ? "A imobiliária é criada automaticamente quando o plano Imobiliária é ativado, ou aparece aqui quando você aceita um convite."
-          : "A família é criada automaticamente para o titular do plano Pro, ou aparece aqui quando você aceita um convite."}
+          : "A família é criada automaticamente para o titular do plano Plus, ou aparece aqui quando você aceita um convite."}
       </p>
       <a href="/planos" class="mt-5 inline-flex h-10 items-center rounded-md bg-app-action px-4 text-sm font-medium text-app-action-foreground hover:bg-app-action-hover">
         Ver planos

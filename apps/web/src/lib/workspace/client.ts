@@ -179,7 +179,7 @@ export interface WorkspaceProfile {
   label: string;
   status: "active" | "frozen" | "archived";
   access: string;
-  plan?: "free" | "pro" | "corretor" | "imobiliaria" | null;
+  plan?: "free" | "plus" | "corretor" | "imobiliaria" | null;
   collectionIds?: string[];
   capabilities?: {
     canParse?: boolean;

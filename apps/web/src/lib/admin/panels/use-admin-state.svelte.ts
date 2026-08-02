@@ -65,7 +65,7 @@ export function createAdminState() {
   });
 
   const paidPlans = $derived(
-    plans.filter((plan) => ["pro", "corretor", "imobiliaria"].includes(plan.slug))
+    plans.filter((plan) => ["plus", "corretor", "imobiliaria"].includes(plan.slug))
   );
   const agencyPlan = $derived(plans.find((plan) => plan.slug === "imobiliaria") ?? null);
   const selectedPlan = $derived(plans.find((plan) => plan.id === selectedPlanId) ?? null);

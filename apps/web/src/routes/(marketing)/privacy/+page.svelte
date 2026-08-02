@@ -45,7 +45,7 @@
     <h2 class="text-xl font-semibold">Retenção, exclusão e contato</h2>
     <p class="text-muted-foreground">
       Coleções, imóveis salvos, imagens e anexos são excluídos automaticamente após inatividade do workspace:
-      30 dias no Free, 360 dias no Pro e Corretor, e 720 dias no Imobiliária. Login de um membro ativo
+      30 dias no Free, 360 dias no Plus e Corretor, e 720 dias no Imobiliária. Login de um membro ativo
       renova o prazo dos workspaces da equipe; atividade vinculada pelo WhatsApp ou Telegram renova o
       workspace usado naquele canal. A exclusão automática é permanente e não apaga a conta, o workspace
       ou registros que precisem ser mantidos para obrigações legais, segurança e resolução de disputas.

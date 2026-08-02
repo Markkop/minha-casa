@@ -1,4 +1,4 @@
-export const PLAN_SLUGS = ["free", "pro", "corretor", "imobiliaria"] as const;
+export const PLAN_SLUGS = ["free", "plus", "corretor", "imobiliaria"] as const;
 
 export type PlanSlug = (typeof PLAN_SLUGS)[number];
 
@@ -44,8 +44,8 @@ export const PLAN_CATALOG = [
     highlighted: false
   },
   {
-    slug: "pro",
-    name: "Pro",
+    slug: "plus",
+    name: "Plus",
     audience: "Para compradores e famílias",
     description: "Avance no seu planejamento e tome decisões em conjunto.",
     monthlyPriceInCents: 2_900,

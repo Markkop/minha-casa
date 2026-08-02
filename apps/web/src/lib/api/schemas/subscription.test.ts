@@ -4,15 +4,15 @@ import { subscriptionPayloadSchema } from "./subscription";
 const activeSubscription = {
   id: "subscription-1",
   userId: "user-1",
-  planId: "plan-pro",
+  planId: "plan-plus",
   status: "active",
   expiresAt: "2026-08-01T12:00:00.000Z"
 };
 
-const proPlan = {
-  id: "plan-pro",
-  slug: "pro",
-  name: "Pro",
+const plusPlan = {
+  id: "plan-plus",
+  slug: "plus",
+  name: "Plus",
   isActive: true
 };
 
@@ -22,14 +22,14 @@ describe("subscriptionPayloadSchema", () => {
       accessStatus: "active",
       hasActiveSubscription: true,
       subscription: activeSubscription,
-      plan: proPlan
+      plan: plusPlan
     });
 
     expect(result).toMatchObject({
       accessStatus: "active",
       hasActiveSubscription: true,
       subscription: activeSubscription,
-      plan: proPlan
+      plan: plusPlan
     });
   });
 
@@ -52,7 +52,7 @@ describe("subscriptionPayloadSchema", () => {
   it("requires the explicit access status fields", () => {
     const result = subscriptionPayloadSchema.safeParse({
       subscription: activeSubscription,
-      plan: proPlan
+      plan: plusPlan
     });
 
     expect(result.success).toBe(false);

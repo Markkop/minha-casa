@@ -11,7 +11,7 @@ describe("PLAN_CATALOG", () => {
     expect(PLAN_CATALOG.map((plan) => plan.slug)).toEqual(PLAN_SLUGS);
     expect(PLAN_CATALOG.map((plan) => plan.name)).toEqual([
       "Free",
-      "Pro",
+      "Plus",
       "Corretor",
       "Imobiliária"
     ]);
@@ -54,9 +54,9 @@ describe("PLAN_CATALOG", () => {
     expect(PLAN_CATALOG.map((plan) => plan.platformCredits)).toEqual([100, 200, 300, 500]);
   });
 
-  it("explains family collaboration on the Pro plan", () => {
-    const pro = findPlanCatalogEntry("pro");
-    const familyFeature = pro?.features.find((feature) => feature.label === "Colabore com +3 familiares");
+  it("explains family collaboration on the Plus plan", () => {
+    const plus = findPlanCatalogEntry("plus");
+    const familyFeature = plus?.features.find((feature) => feature.label === "Colabore com +3 familiares");
 
     expect(familyFeature?.detail).toBe(
       "Convide parentes e amigos para gerenciar as suas coleções sem custos adicionais"
@@ -70,7 +70,7 @@ describe("PLAN_CATALOG", () => {
   });
 
   it("returns null for plans outside the public catalog", () => {
-    expect(findPlanCatalogEntry("plus")).toBeNull();
+    expect(findPlanCatalogEntry("pro")).toBeNull();
     expect(findPlanCatalogEntry(null)).toBeNull();
   });
 });

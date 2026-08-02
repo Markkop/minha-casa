@@ -25,11 +25,11 @@ describe("resolveSubscriptionAccess", () => {
     const subscription = {
       id: "subscription-1",
       userId: "user-1",
-      planId: "plan-pro",
+      planId: "plan-plus",
       status: "active",
       expiresAt: "2026-08-01T00:00:00.000Z"
     };
-    const plan = { id: "plan-pro", name: "Pro", slug: "pro", isActive: true };
+    const plan = { id: "plan-plus", name: "Plus", slug: "plus", isActive: true };
     phoenixResponse({
       accessStatus: "active",
       hasActiveSubscription: true,

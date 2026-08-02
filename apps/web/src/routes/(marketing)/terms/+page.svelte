@@ -42,7 +42,7 @@
     <h2 class="text-xl font-semibold">Retenção por inatividade</h2>
     <p class="text-muted-foreground">
       Coleções, imóveis salvos, imagens e anexos podem ser excluídos permanentemente após períodos contínuos
-      sem atividade: 30 dias no Free, 360 dias no Pro e Corretor, e 720 dias no Imobiliária. O prazo aplicável
+      sem atividade: 30 dias no Free, 360 dias no Plus e Corretor, e 720 dias no Imobiliária. O prazo aplicável
       é renovado por nova atividade da conta ou da equipe, conforme descrito na Política de Privacidade.
     </p>
   </section>

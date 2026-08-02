@@ -3,7 +3,7 @@ defmodule MinhaCasaAi.Retention.Policy do
 
   @retention_days %{
     "free" => 30,
-    "pro" => 360,
+    "plus" => 360,
     "corretor" => 360,
     "imobiliaria" => 720
   }

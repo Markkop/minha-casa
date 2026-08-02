@@ -36,7 +36,7 @@ defmodule MinhaCasaAiWeb.ListingCopyTest do
     {:ok, family} = Organizations.ensure_family_for_user(owner.id)
     family_workspace = Repo.get!(Workspace, family.workspace_id)
 
-    pro_plan = Repo.get_by!(Plan, slug: "pro")
+    pro_plan = Repo.get_by!(Plan, slug: "plus")
 
     subscription =
       Repo.insert!(%Subscription{

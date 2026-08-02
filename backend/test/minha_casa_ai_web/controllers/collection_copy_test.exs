@@ -38,7 +38,7 @@ defmodule MinhaCasaAiWeb.CollectionCopyTest do
     })
     |> Repo.insert!()
 
-    pro_plan = Repo.get_by!(Plan, slug: "pro")
+    pro_plan = Repo.get_by!(Plan, slug: "plus")
 
     Repo.insert!(%Subscription{
       user_id: owner.id,

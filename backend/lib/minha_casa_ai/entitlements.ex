@@ -23,7 +23,7 @@ defmodule MinhaCasaAi.Entitlements do
       "canShareReadOnly" => false,
       "canShareEditable" => false
     },
-    "pro" => %{
+    "plus" => %{
       "collectionsLimit" => 100,
       "listingsLimit" => 1_000,
       "aiParsesPerCycle" => 200,
@@ -64,7 +64,7 @@ defmodule MinhaCasaAi.Entitlements do
 
   def can_parse?(entitlement, access) do
     entitlement.workspace_status == "active" and access != "external" and
-      entitlement.plan_slug in ["free", "pro", "corretor", "imobiliaria"]
+      entitlement.plan_slug in ["free", "plus", "corretor", "imobiliaria"]
   end
 
   def can_share?(entitlement, "viewer"),
@@ -120,7 +120,7 @@ defmodule MinhaCasaAi.Entitlements do
   end
 
   defp personal_entitlement(workspace) do
-    source = active_subscription(workspace.owner_user_id, ["pro"], workspace.id)
+    source = active_subscription(workspace.owner_user_id, ["plus"], workspace.id)
     plan = if source, do: source.plan, else: plan_by_slug("free")
     build(workspace, plan, source && source.subscription, workspace.id, workspace.owner_user_id)
   end
@@ -165,8 +165,8 @@ defmodule MinhaCasaAi.Entitlements do
       _ ->
         sponsor_id = sponsor_user_id(org)
         personal = sponsor_id && Workspaces.personal_for(sponsor_id)
-        source = sponsor_id && active_subscription(sponsor_id, ["pro"], personal && personal.id)
-        plan = if source, do: source.plan, else: plan_by_slug("pro")
+        source = sponsor_id && active_subscription(sponsor_id, ["plus"], personal && personal.id)
+        plan = if source, do: source.plan, else: plan_by_slug("plus")
         status = if source, do: workspace.status, else: "frozen"
 
         build(
@@ -226,7 +226,7 @@ defmodule MinhaCasaAi.Entitlements do
 
   defp fallback_slug("personal"), do: "free"
   defp fallback_slug("professional"), do: "corretor"
-  defp fallback_slug("organization"), do: "pro"
+  defp fallback_slug("organization"), do: "plus"
 
   defp paid_cycle(subscription) do
     ends_at = subscription.current_period_end || subscription.expires_at

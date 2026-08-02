@@ -386,7 +386,7 @@ defmodule MinhaCasaAi.Billing do
   defp grant_target_workspace(user_id, %Plan{slug: "corretor"}, _attrs),
     do: Workspaces.ensure_professional_workspace(user_id)
 
-  defp grant_target_workspace(user_id, %Plan{slug: "pro"}, _attrs) do
+  defp grant_target_workspace(user_id, %Plan{slug: "plus"}, _attrs) do
     with {:ok, personal} <- Workspaces.ensure_personal_workspace(user_id),
          {:ok, _family} <- Organizations.ensure_family_for_user(user_id) do
       {:ok, personal}
@@ -441,8 +441,8 @@ defmodule MinhaCasaAi.Billing do
   defp grant_target_workspace(_, _, _), do: {:error, :invalid}
 
   defp ensure_personal_plan_compatibility(user_id, slug, attrs)
-       when slug in ["pro", "corretor"] do
-    other_slug = if slug == "pro", do: "corretor", else: "pro"
+       when slug in ["plus", "corretor"] do
+    other_slug = if slug == "plus", do: "corretor", else: "plus"
     now = DateTime.utc_now(:second)
 
     conflict =
