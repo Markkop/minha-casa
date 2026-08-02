@@ -339,34 +339,9 @@
       return `M ${start.x} ${start.y} C ${controlOne.x} ${controlOne.y}, ${controlTwo.x} ${controlTwo.y}, ${end.x} ${end.y}`;
     }
 
-    const landingFractions = [0.3, 0.14, 0.86, 0.7];
-
     async function buildChords() {
       await tick();
       if (stopped) return;
-      const listPanel = home.querySelector<HTMLElement>("[data-home-list-panel]");
-      const cardHost = home.querySelector<HTMLElement>("[data-home-chords]");
-      const cards = [...home.querySelectorAll<HTMLElement>("[data-home-card-id]")];
-      if (!listPanel || !cardHost) return;
-
-      cards.forEach((card, index) => {
-        const port = card.querySelector<HTMLElement>("[data-home-port]");
-        if (!port) return;
-        const chord = createChord(1, cardHost);
-        links.push({
-          ...chord,
-          source: port,
-          sourceCard: card,
-          mountParent: cardHost,
-          target: listPanel,
-          landFraction: landingFractions[index % landingFractions.length],
-          lastStartX: Number.NaN,
-          lastStartY: Number.NaN,
-          lastEndX: Number.NaN,
-          lastEndY: Number.NaN
-        });
-      });
-
       const main = home.querySelector<HTMLElement>(".home-main") ?? home;
       home.querySelectorAll<HTMLElement>("[data-home-flow-port]").forEach((port) => {
         const flowId = port.dataset.homeFlowPort;

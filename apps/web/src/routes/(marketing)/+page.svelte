@@ -6,6 +6,7 @@
   import HomeFinancingDemo from "$lib/components/home/HomeFinancingDemo.svelte";
   import HomeHero from "$lib/components/home/HomeHero.svelte";
   import HomeListingsDemo from "$lib/components/home/HomeListingsDemo.svelte";
+  import HomePrismJourney from "$lib/components/home/HomePrismJourney.svelte";
   import ImmersiveEffects from "$lib/components/home/ImmersiveEffects.svelte";
   import type { PageData } from "./$types";
 
@@ -26,11 +27,21 @@
   <ImmersiveEffects />
 
   <main class="home-main">
-    <HomeHero />
+    <div class="home-prism-story" data-home-prism-story>
+      <div class="home-prism-sticky" data-home-prism-sticky>
+        <HomeHero />
+        <HomePrismJourney />
+      </div>
+    </div>
 
-    <section class="list-section" aria-labelledby="list-title">
+    <section
+      class="list-section"
+      data-home-prism-content-start
+      aria-labelledby="list-title"
+    >
       <div class="section-label">Seus imóveis, organizados</div>
       <div class="home-panel list-panel" data-home-list-panel>
+        <span class="prism-receiver" data-home-prism-receiver aria-hidden="true"></span>
         <div class="panel-head">
           <div>
             <span>Lista</span>
@@ -152,7 +163,19 @@
     margin: 0 auto;
     padding: 0 clamp(1.25rem, 5vw, 5rem);
   }
-  .list-section { position: relative; padding: 2vh 0 14vh; }
+  .home-prism-story {
+    position: relative;
+    z-index: 2;
+    height: 185svh;
+    overflow: visible;
+  }
+  .home-prism-sticky {
+    position: sticky;
+    top: 0;
+    height: 100svh;
+    overflow: visible;
+  }
+  .list-section { position: relative; z-index: 4; padding: 2vh 0 14vh; }
   .section-label {
     position: relative;
     z-index: 5;
@@ -177,6 +200,39 @@
     box-shadow: 0 2.5rem 7.5rem -2.5rem rgb(0 0 0 / 90%), inset 0 1px 0 rgb(255 255 255 / 4%), 0 0 5rem -2.5rem rgb(34 211 238 / 50%);
   }
   .home-panel::before { position: absolute; inset: 0; border-radius: inherit; background: linear-gradient(120deg, rgb(34 211 238 / 6%), transparent 30%, transparent 70%, rgb(59 130 246 / 6%)); content: ""; pointer-events: none; }
+  .list-panel::after {
+    position: absolute;
+    inset: -1px;
+    border-radius: inherit;
+    box-shadow: 0 0 8rem -1.7rem rgb(34 211 238 / 72%);
+    content: "";
+    opacity: var(--prism-received, 0);
+    pointer-events: none;
+  }
+  .prism-receiver {
+    position: absolute;
+    top: 0;
+    left: 50%;
+    z-index: 7;
+    width: .9rem;
+    height: .9rem;
+    border: 1px solid rgb(224 252 255 / 78%);
+    border-radius: 50%;
+    background: #dffcff;
+    box-shadow:
+      0 0 1.3rem #67e8f9,
+      0 0 3.2rem rgb(34 211 238 / 82%);
+    opacity: calc(.32 + var(--prism-received, 0) * .68);
+    transform: translate(-50%, -50%) scale(calc(.8 + var(--prism-received, 0) * .32));
+  }
+  .prism-receiver::after {
+    position: absolute;
+    inset: -.65rem;
+    border: 1px solid rgb(103 232 249 / 66%);
+    border-radius: inherit;
+    content: "";
+    opacity: var(--prism-received, 0);
+  }
   .panel-head { position: relative; display: flex; align-items: flex-end; justify-content: space-between; gap: 1rem; padding: 1.25rem 1.5rem 1rem; border-bottom: 1px solid var(--home-line); }
   .panel-head > div { min-width: 0; }
   .panel-head span { display: block; margin-bottom: .35rem; color: var(--home-cyan-soft); font-family: var(--home-mono); font-size: .56rem; letter-spacing: .2em; text-transform: uppercase; }
@@ -217,6 +273,7 @@
 
   @media (max-width: 720px) {
     .home-main { padding: 0 1rem; }
+    .home-prism-story { height: 145svh; }
     .list-section { padding: 5vh 0 8vh; }
     .home-panel { border-radius: 1rem; }
     .panel-head { align-items: flex-start; flex-direction: column; padding: 1rem; }
@@ -230,6 +287,8 @@
 
   @media (prefers-reduced-motion: reduce) {
     .immersive-home { scroll-behavior: auto; }
+    .home-prism-story { height: 74vh; }
+    .home-prism-sticky { position: relative; height: 74vh; }
     .immersive-home *, .immersive-home *::before, .immersive-home *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; }
   }
 </style>

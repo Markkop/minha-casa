@@ -14,9 +14,6 @@
 </script>
 
 <section class="home-stage" aria-labelledby="home-title">
-  <!-- Chords mount here so every cable stays under every card face. -->
-  <div class="home-chords" data-home-chords aria-hidden="true"></div>
-
   {#each INITIAL_DEMO_LISTINGS as listing, index (listing.id)}
     <div
       class="card-stack stack-{index + 1}"
@@ -50,15 +47,16 @@
 </section>
 
 <style>
-  .home-stage { position: relative; display: flex; min-height: 74vh; align-items: center; justify-content: center; padding: 8rem 0 4rem; }
-  .home-chords {
-    position: absolute;
-    inset: 0;
-    z-index: 1;
-    overflow: visible;
+  .home-stage { position: relative; display: flex; height: 100%; min-height: 74vh; align-items: center; justify-content: center; padding: 8rem 0 4rem; }
+  .stage-title {
+    position: relative;
+    z-index: 2;
+    max-width: min(36vw, 31rem);
+    padding: 0 .6rem;
+    opacity: calc(.46 + var(--prism-title-atmosphere, 1) * .54);
+    text-align: center;
     pointer-events: none;
   }
-  .stage-title { position: relative; z-index: 5; max-width: min(36vw, 31rem); padding: 0 .6rem; text-align: center; pointer-events: none; }
   .stage-title p { margin: 0 0 1rem; color: var(--home-ink-faint); font-family: var(--home-mono); font-size: .65rem; letter-spacing: .28em; text-transform: uppercase; }
   .stage-title h1 { margin: 0; color: var(--home-ink); font-size: clamp(1.5rem, 5vw, 6.6rem); font-weight: 700; letter-spacing: .01em; line-height: .82; text-transform: uppercase; filter: drop-shadow(0 .5rem 2.1rem rgb(34 211 238 / 28%)); }
   .stage-title h1 b { font-weight: 700; background: linear-gradient(125deg, var(--home-cyan-soft) 5%, var(--home-blue-bright) 55%, var(--home-cyan) 100%); background-clip: text; color: transparent; }
@@ -67,6 +65,9 @@
   .card-stack {
     position: absolute;
     width: clamp(11.25rem, 20vw, 16.5rem);
+    opacity: var(--prism-card-opacity, 1);
+    transform: translate3d(var(--prism-parallax-x, 0), var(--prism-parallax-y, 0), 0);
+    will-change: transform, opacity;
     pointer-events: none;
   }
   .stack-1 { top: 37%; left: 11%; }
@@ -100,15 +101,15 @@
   @keyframes home-port-ring { 0% { opacity: .9; transform: scale(.6); } 100% { opacity: 0; transform: scale(2.2); } }
 
   @media (max-width: 720px) {
-    .home-stage { min-height: auto; padding: 6.5rem 0 3rem; }
+    .home-stage { min-height: 100%; padding: 6.5rem 0 3rem; }
     .stage-title { max-width: 100%; }
     .stage-title h1 { font-size: clamp(1.5rem, 15vw, 3.5rem); }
     .stage-title p { font-size: .55rem; }
-    .home-chords,
     .card-stack { display: none; }
   }
 
   @media (prefers-reduced-motion: reduce) {
+    .card-stack { will-change: auto; }
     .port::after { animation: none; opacity: .4; }
     .frame, .frame img, .scan { transition: none; }
   }
