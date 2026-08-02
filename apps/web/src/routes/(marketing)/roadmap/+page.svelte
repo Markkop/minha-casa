@@ -34,15 +34,15 @@
 
   const accentStyles: Record<Milestone["accent"], { node: string; glow: string }> = {
     cyan: {
-      node: "border-[#22d3ee] bg-[#22d3ee] shadow-[0_0_24px_rgba(34,211,238,0.55)]",
+      node: "text-[#22d3ee] drop-shadow-[0_0_10px_rgba(34,211,238,0.75)]",
       glow: "from-[#22d3ee]/40 via-[#22d3ee]/10 to-transparent"
     },
     violet: {
-      node: "border-[#a78bfa] bg-[#a78bfa] shadow-[0_0_24px_rgba(167,139,250,0.5)]",
+      node: "text-[#a78bfa] drop-shadow-[0_0_10px_rgba(167,139,250,0.7)]",
       glow: "from-[#a78bfa]/40 via-[#a78bfa]/10 to-transparent"
     },
     emerald: {
-      node: "border-[#34d399] bg-[#34d399] shadow-[0_0_24px_rgba(52,211,153,0.45)]",
+      node: "text-[#34d399] drop-shadow-[0_0_10px_rgba(52,211,153,0.65)]",
       glow: "from-[#34d399]/40 via-[#34d399]/10 to-transparent"
     }
   };
@@ -80,7 +80,29 @@
             {#if index > 0}
               <span class="roadmap-line roadmap-line--top"></span>
             {/if}
-            <span class="roadmap-node {styles.node}"></span>
+            <span class="roadmap-node {styles.node}">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="24"
+                height="24"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <!-- Compact bi-pyramid: upright + mirrored, Lucide pyramid geometry scaled to fit -->
+                <path
+                  d="M12 3.2 6.5 11.6a.7.7 0 0 0-.05.78L12 15.1l5.55-2.72a.7.7 0 0 0-.05-.78Z"
+                />
+                <path
+                  d="M12 20.8 6.5 12.4a.7.7 0 0 1-.05-.78L12 8.9l5.55 2.72a.7.7 0 0 1-.05.78Z"
+                />
+                <path d="M12 3.2v17.6" />
+              </svg>
+            </span>
             {#if index < milestones.length - 1}
               <span class="roadmap-line roadmap-line--bottom"></span>
             {/if}
@@ -231,11 +253,18 @@
   .roadmap-node {
     position: relative;
     z-index: 1;
-    width: 0.875rem;
-    height: 0.875rem;
-    border-radius: 9999px;
-    border-width: 2px;
+    display: flex;
+    width: 1.25rem;
+    height: 1.25rem;
     flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .roadmap-node svg {
+    width: 100%;
+    height: 100%;
+    overflow: visible;
   }
 
   .roadmap-card {
