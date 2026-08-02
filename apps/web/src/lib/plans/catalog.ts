@@ -45,7 +45,7 @@ export const PLAN_CATALOG = [
     slug: "corretor",
     name: "Corretor",
     audience: "Para corretores autônomos",
-    description: "Organize, compartilhe e apresente imóveis com sua marca.",
+    description: "Organize e apresente imóveis com sua marca.",
     monthlyPriceInCents: 7_900,
     features: [
       "250 coleções e até 2.500 imóveis",
