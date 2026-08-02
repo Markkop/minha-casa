@@ -177,8 +177,10 @@
         prismHeight * ((PRISM_WIRE_CENTER_Y - 8) / PRISM_VIEWBOX_HEIGHT);
       const mobileBeamClearance = Math.max(48, geometry.stickyHeight * 0.08);
       if (mobile && geometry.cardsBottomY !== null) {
-        // Card→prism gap only — Lista proximity is handled in page layout CSS.
-        collisionY = geometry.cardsBottomY + tipAboveWireCenter + mobileBeamClearance;
+        // Keep the mobile card→prism gap at twice the desktop-like composition.
+        // Lista's matching vertical distance is set by the mobile story layout.
+        const mobileCardToPrismGap = tipAboveWireCenter + mobileBeamClearance;
+        collisionY = geometry.cardsBottomY + mobileCardToPrismGap * 2;
       } else {
         collisionY =
           geometry.titleBottomY + Math.max(0, geometry.receiverTargetY - geometry.titleBottomY) * 0.5;
