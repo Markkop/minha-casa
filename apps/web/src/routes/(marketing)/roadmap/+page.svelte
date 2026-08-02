@@ -18,7 +18,7 @@
     },
     {
       label: "// Chatbot",
-      title: "Chatbot",
+      title: "Conversas com IA",
       description:
         "Painel de conversa com um modelo de IA para tirar dúvidas, fazer análises e gerenciar as coleções de imóveis.",
       accent: "emerald"
