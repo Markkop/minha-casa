@@ -55,6 +55,7 @@
     const receiver = home?.querySelector<HTMLElement>("[data-home-prism-receiver]");
     const listPanel = home?.querySelector<HTMLElement>("[data-home-list-panel]");
     const title = journey?.querySelector<HTMLElement>(".stage-title");
+    const stageCards = journey?.querySelector<HTMLElement>("[data-home-stage-cards]");
     const cardStacks = journey
       ? [...journey.querySelectorAll<HTMLElement>("[data-home-card-stack]")]
       : [];
@@ -97,13 +98,28 @@
         ? titleRect.bottom - stickyRect.top
         : stickyRect.height * (mobile ? 0.42 : 0.5);
       const receiverTopY = receiverRect.top - stickyRect.top;
-      // Collision target is the prism's wire convergence (not the CSS box center).
-      collisionY = titleBottomY + Math.max(0, receiverTopY - titleBottomY) * 0.5;
       collisionPulse = timeline.collisionPulse;
       incomingProgress = timeline.incomingBeamProgress;
 
       prismWidth = clamp(stickyRect.width * (mobile ? 0.48 : 0.2), mobile ? 164 : 224, mobile ? 208 : 304);
       const prismHeight = prismWidth * (PRISM_VIEWBOX_HEIGHT / 160);
+      // Collision target is the prism's wire convergence (not the CSS box center).
+      // On mobile, clear the prism tip below the 2×2 card grid so bottom-row beams
+      // have real length (tip sits ~0.42×prismHeight above the wire center).
+      const stageCardsRect = stageCards?.getBoundingClientRect();
+      const cardsBottomY = stageCardsRect
+        ? stageCardsRect.bottom - stickyRect.top
+        : null;
+      const tipAboveWireCenter =
+        prismHeight * ((PRISM_WIRE_CENTER_Y - 8) / PRISM_VIEWBOX_HEIGHT);
+      const mobileBeamClearance = Math.max(48, stickyRect.height * 0.08);
+      if (mobile && cardsBottomY !== null) {
+        // Card→prism gap only — Lista proximity is handled in page layout CSS.
+        collisionY = cardsBottomY + tipAboveWireCenter + mobileBeamClearance;
+      } else {
+        collisionY =
+          titleBottomY + Math.max(0, receiverTopY - titleBottomY) * 0.5;
+      }
       const wireCenterFromCssCenter =
         prismHeight * (PRISM_WIRE_CENTER_Y / PRISM_VIEWBOX_HEIGHT - 0.5);
       const prismCssCenterTargetY = collisionY - wireCenterFromCssCenter;
@@ -124,13 +140,12 @@
         return `${index === 0 ? "M" : "L"} ${x} ${y}`;
       }).join(" ") + " Z";
 
-      if (mobile) {
-        incomingBeams = [];
-      } else {
-        const beamProgress = timeline.incomingBeamProgress;
-        incomingBeams =
-          beamProgress > 0
-            ? ports.map((port, index) => {
+      const beamProgress = timeline.incomingBeamProgress;
+      incomingBeams =
+        beamProgress > 0
+          ? ports
+              .filter((port) => port.getBoundingClientRect().width > 0)
+              .map((port, index) => {
                 const card =
                   port.closest<HTMLElement>("[data-home-card-id]") ?? port;
                 const portRect = port.getBoundingClientRect();
@@ -167,8 +182,7 @@
                   palette: beamPalettes[index % beamPalettes.length]
                 };
               })
-            : [];
-      }
+          : [];
 
       const listRect = listPanelElement.getBoundingClientRect();
       const listLeft = listRect.left - stickyRect.left;
@@ -488,7 +502,9 @@
   .prism-wire { fill: none; stroke: rgb(207 250 254 / 88%); stroke-width: 1.35; stroke-linecap: round; stroke-linejoin: round; }
 
   @media (max-width: 720px) {
-    .prism-effects { z-index: 6; }
+    /* Unwrap stacking so beams (1) < HomeHero stage (4) < prism (5). */
+    .prism-effects { z-index: auto; }
+    .prism-beam-surface { z-index: 1; }
     .outgoing-beam__cone { opacity: .7; }
   }
 

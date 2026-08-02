@@ -261,8 +261,10 @@
 
   @media (max-width: 720px) {
     .home-main { padding: 0 1rem; }
-    .home-prism-story { height: 145svh; }
-    .list-section { padding: 5vh 0 8vh; }
+    .home-prism-story { height: 145svh; margin-top: -4rem; }
+    /* Pull Lista toward the prism; card→prism gap stays in HomePrismJourney. */
+    .list-section { padding: 0 0 8vh; margin-top: -40vh; }
+    .list-section .home-panel { margin-top: .75rem; }
     .home-panel { border-radius: 1rem; }
     .panel-head { align-items: flex-start; flex-direction: column; padding: 1rem; }
     .exit-port, .dock { display: none; }

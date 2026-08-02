@@ -44,6 +44,27 @@
     <h1 id="home-title"><b>Prisma</b></h1>
     <span>Do anúncio à decisão, todos os dados conectados.</span>
   </div>
+
+  <div class="stage-cards" data-home-stage-cards aria-hidden="true">
+    {#each INITIAL_DEMO_LISTINGS as listing, index (listing.id)}
+      <article
+        class="property-thumb"
+        data-home-card-id={listing.id}
+        style={`--rotation: ${rotations[index]}deg`}
+      >
+        <div class="frame">
+          <img src={listing.imageUrl ?? ""} alt={listing.title} />
+          <div class="scan" aria-hidden="true"></div>
+          <span class="price">{compactCurrency.format(listing.price ?? 0)}</span>
+          <div class="tag">
+            <span class="id">IM-{String(index + 1).padStart(2, "0")}</span>
+            <span class="name">{listing.title}</span>
+          </div>
+        </div>
+        <span class="port" data-home-port aria-hidden="true"></span>
+      </article>
+    {/each}
+  </div>
 </section>
 
 <style>
@@ -109,12 +130,35 @@
     pointer-events: none;
   }
 
+  .stage-cards { display: none; }
+
   @media (max-width: 720px) {
-    .home-stage { min-height: 100%; padding: 6.5rem 0 3rem; }
+    /* beams (1) < stage (4) < prism shell (5) — see HomePrismJourney layers */
+    .home-stage { position: relative; z-index: 4; min-height: 100%; padding: 5rem 0 3rem; flex-direction: column; justify-content: flex-start; gap: 2rem; }
     .stage-title { max-width: 100%; }
     .stage-title h1 { font-size: clamp(1.5rem, 15vw, 3.5rem); }
     .stage-title p { font-size: .55rem; }
     .card-stack { display: none; }
+    .stage-cards {
+      position: relative;
+      z-index: 4;
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: .55rem;
+      width: 100%;
+      max-width: 22rem;
+      margin: 0 auto;
+      padding: 0 .25rem;
+    }
+    .stage-cards .property-thumb {
+      z-index: 4;
+      isolation: isolate;
+    }
+    .stage-cards .property-thumb { width: 100%; }
+    .stage-cards .scan,
+    .stage-cards .price,
+    .stage-cards .tag { display: none; }
+    .stage-cards .frame img { opacity: 1; }
   }
 
   @media (prefers-reduced-motion: reduce) {

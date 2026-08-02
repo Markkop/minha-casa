@@ -71,7 +71,7 @@ function finalState(mobile: boolean): HomePrismTimelineState {
   return {
     progress: 1,
     prismProgress: 1,
-    incomingBeamProgress: mobile ? 0 : 1,
+    incomingBeamProgress: 1,
     collisionPulse: 1,
     outgoingBeamProgress: 1,
     listRevealProgress: 1,
@@ -105,7 +105,7 @@ export function getHomePrismTimeline(
     return {
       progress,
       prismProgress,
-      incomingBeamProgress: 0,
+      incomingBeamProgress: prismProgress,
       collisionPulse: collisionPulse(progress, phases.collision, phases.pulseEnd),
       outgoingBeamProgress,
       listRevealProgress,
