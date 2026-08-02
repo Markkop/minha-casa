@@ -2,6 +2,7 @@
 export const PUBLIC_ROUTE_PATHS = [
   "/",
   "/intelligence-demo",
+  "/roadmap",
   "/login",
   "/signup",
   "/privacy",

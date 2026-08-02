@@ -24,7 +24,8 @@
     safeRedirectPath(page.url.searchParams.get("redirect"))
   );
   const logoHref = $derived(user ? "/lista" : "/");
-  const showMarketingHeader = $derived(page.url.pathname !== "/intelligence-demo");
+  const immersivePaths = new Set(["/intelligence-demo", "/roadmap"]);
+  const showMarketingHeader = $derived(!immersivePaths.has(page.url.pathname));
   const immersiveHeader = $derived(page.url.pathname === "/");
 
   const initials = $derived.by(() => {
