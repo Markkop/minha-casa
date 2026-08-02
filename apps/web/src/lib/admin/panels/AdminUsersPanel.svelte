@@ -15,7 +15,7 @@
       <p class="text-sm text-app-muted">Contas da plataforma e papel global de Super Admin.</p>
     </div>
     <input
-      class="h-10 rounded-md border border-app-border bg-white px-3 text-sm"
+      class="h-10 rounded-md border border-app-border bg-app-surface px-3 text-sm"
       placeholder="Buscar por nome, email ou ID"
       bind:value={admin.search}
     />

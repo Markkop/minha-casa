@@ -11,6 +11,6 @@
   } = $props();
 </script>
 
-<section class={cn("rounded-lg border border-app-border bg-app-surface shadow-sm", className)}>
+<section class={cn("app-panel-surface rounded-lg border border-app-border", className)}>
   {@render children()}
 </section>

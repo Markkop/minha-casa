@@ -17,7 +17,7 @@
           type="button"
           class={[
             "rounded-md border p-3 text-left text-sm transition",
-            search.id === state.searchId ? "border-app-fg bg-app-fg text-white" : "border-app-border bg-white hover:bg-app-surface-muted"
+            search.id === state.searchId ? "border-app-action bg-app-action text-app-action-foreground" : "border-app-border bg-app-surface hover:bg-app-surface-muted"
           ]}
           onclick={() => void state.selectSearch(search.id)}
         >

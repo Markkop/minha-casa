@@ -137,7 +137,7 @@
           </div>
           <p class="text-xs text-app-muted">
             Nada para atualizar.
-            <button type="button" class="cursor-pointer font-medium text-emerald-700 hover:underline" onclick={() => onConfirmDuplicate(row.id)}>
+            <button type="button" class="cursor-pointer font-medium text-app-success hover:underline" onclick={() => onConfirmDuplicate(row.id)}>
               Salvar mesmo assim
             </button>
             {" ou "}
@@ -156,7 +156,7 @@
             <p class="max-w-md text-xs text-app-muted">Motivo: {duplicateReasonLabel}</p>
           {/if}
           <p class="text-xs text-app-muted">
-            <button type="button" class="cursor-pointer font-medium text-emerald-700 hover:underline" onclick={() => onConfirmDuplicate(row.id)}>
+            <button type="button" class="cursor-pointer font-medium text-app-success hover:underline" onclick={() => onConfirmDuplicate(row.id)}>
               Salvar mesmo assim
             </button>
             {", "}

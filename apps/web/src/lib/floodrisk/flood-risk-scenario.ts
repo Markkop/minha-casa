@@ -55,7 +55,7 @@ export function scenarioKindBadge(kind: ScenarioKind): { label: string; classNam
     case "current":
       return { label: "Atual", className: "border-sky-500/30 bg-sky-500/10 text-sky-700" };
     case "historical":
-      return { label: "Historico", className: "border-amber-500/30 bg-amber-500/10 text-amber-800" };
+      return { label: "Historico", className: "border-app-warning/30 bg-app-warning/10 text-app-warning" };
     case "future":
       return { label: "Futuro", className: "border-violet-500/30 bg-violet-500/10 text-violet-700" };
   }

@@ -265,7 +265,7 @@
 
 <PageScaffold {title} {description}>
   {#if error}
-    <div class="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</div>
+    <div class="rounded-md border border-app-danger/30 bg-app-danger/10 p-3 text-sm text-app-danger">{error}</div>
   {/if}
 
   {#if organizations.length === 0}
@@ -326,7 +326,7 @@
                     }}
                   >
                     <input
-                      class="h-10 min-w-64 rounded-md border border-app-border bg-white px-3 text-lg font-semibold"
+                      class="h-10 min-w-64 rounded-md border border-app-border bg-app-surface px-3 text-lg font-semibold"
                       maxlength="100"
                       bind:value={agencyName}
                       aria-label="Nome da imobiliária"
@@ -382,8 +382,8 @@
               </div>
               {#if canManageMembers}
                 <form class="grid gap-2 md:grid-cols-[minmax(180px,1fr)_140px_auto]" onsubmit={(event) => { event.preventDefault(); void addMember(); }}>
-                  <input class="h-10 rounded-md border border-app-border bg-white px-3 text-sm" type="email" placeholder="email@exemplo.com" bind:value={memberEmail} />
-                  <select class="h-10 rounded-md border border-app-border bg-white px-3 text-sm" bind:value={memberRole}>
+                  <input class="h-10 rounded-md border border-app-border bg-app-surface px-3 text-sm" type="email" placeholder="email@exemplo.com" bind:value={memberEmail} />
+                  <select class="h-10 rounded-md border border-app-border bg-app-surface px-3 text-sm" bind:value={memberRole}>
                     <option value={defaultRole}>{defaultRoleLabel}</option>
                     <option value="admin">Admin</option>
                     {#if selected.role === "owner"}<option value="owner">Dono</option>{/if}
@@ -394,14 +394,14 @@
             </div>
 
             {#if canManageMembers}
-              <div class="mt-4 rounded-md border border-app-border bg-white p-3">
+              <div class="mt-4 rounded-md border border-app-border bg-app-surface-muted/50 p-3">
                 <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                   <div>
                     <h3 class="flex items-center gap-2 text-sm font-semibold"><Link2 class="h-4 w-4" /> Link de convite</h3>
                     <p class="mt-1 text-xs text-app-muted">O link expira em sete dias e pode ser revogado.</p>
                   </div>
                   <form class="flex gap-2" onsubmit={(event) => { event.preventDefault(); void createInvite(); }}>
-                    <select class="h-10 rounded-md border border-app-border bg-white px-3 text-sm" bind:value={inviteRole}>
+                    <select class="h-10 rounded-md border border-app-border bg-app-surface px-3 text-sm" bind:value={inviteRole}>
                       <option value={defaultRole}>{defaultRoleLabel}</option>
                       <option value="admin">Admin</option>
                       {#if selected.role === "owner"}<option value="owner">Dono</option>{/if}
@@ -451,7 +451,7 @@
                         <td class="px-3 py-3">
                           {#if canManageMembers && !(member.role === "owner" && selected.role !== "owner")}
                             <select
-                              class="h-9 rounded-md border border-app-border bg-white px-2 text-sm"
+                              class="h-9 rounded-md border border-app-border bg-app-surface px-2 text-sm"
                               value={member.role}
                               onchange={(event) => void updateMember(member, event.currentTarget.value as OrganizationRole)}
                               disabled={saving}

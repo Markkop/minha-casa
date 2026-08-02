@@ -20,7 +20,7 @@
           <tr class="border-t border-app-border">
             <td class="px-3 py-3">
               <div><span class="font-medium">{org.name}</span><span class="ml-2 font-mono text-xs text-app-muted">@{org.slug}</span></div>
-              {#if org.frozen}<span class="mt-1 inline-block rounded bg-amber-100 px-2 py-0.5 text-xs text-amber-800">Congelado</span>{/if}
+              {#if org.frozen}<span class="mt-1 inline-block rounded bg-app-warning/10 px-2 py-0.5 text-xs text-app-warning">Congelado</span>{/if}
             </td>
             <td class="px-3 py-3">{org.kind === "agency" ? "Imobiliária" : "Família"}</td>
             <td class="px-3 py-3">{org.owner?.email ?? "-"}</td>
@@ -81,7 +81,7 @@
                 Licenças disponíveis
                 <input
                   id="organization-license-limit"
-                  class="mt-1 h-10 w-full rounded-md border border-app-border bg-white px-3"
+                  class="mt-1 h-10 w-full rounded-md border border-app-border bg-app-surface px-3"
                   type="number"
                   min={admin.minimumLicenseLimit}
                   step="1"
@@ -112,7 +112,7 @@
               <label class="text-sm">
                 Duração em dias
                 <input
-                  class="mt-1 h-10 w-full rounded-md border border-app-border bg-white px-3"
+                  class="mt-1 h-10 w-full rounded-md border border-app-border bg-app-surface px-3"
                   type="number"
                   min="1"
                   bind:value={admin.subscriptionDays}
@@ -121,7 +121,7 @@
               <label class="text-sm">
                 Motivo
                 <select
-                  class="mt-1 h-10 w-full rounded-md border border-app-border bg-white px-3"
+                  class="mt-1 h-10 w-full rounded-md border border-app-border bg-app-surface px-3"
                   bind:value={admin.grantReason}
                 >
                   <option value="friend">Amigo</option>
@@ -134,7 +134,7 @@
               </label>
             </div>
             <textarea
-              class="min-h-20 w-full rounded-md border border-app-border bg-white p-3 text-sm"
+              class="min-h-20 w-full rounded-md border border-app-border bg-app-surface p-3 text-sm"
               placeholder="Nota interna"
               bind:value={admin.grantNotes}
             ></textarea>

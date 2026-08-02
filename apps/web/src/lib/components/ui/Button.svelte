@@ -27,8 +27,8 @@
   }>();
 
   const variants: Record<Variant, string> = {
-    default: "bg-primary text-primary-foreground hover:bg-[#7ec4f8]",
-    primary: "bg-primary text-primary-foreground hover:bg-[#7ec4f8]",
+    default: "bg-primary text-primary-foreground shadow-[0_0_24px_-14px_var(--app-action)] hover:bg-app-action-hover",
+    primary: "bg-primary text-primary-foreground shadow-[0_0_24px_-14px_var(--app-action)] hover:bg-app-action-hover",
     secondary: "border border-border bg-card text-foreground shadow-sm hover:bg-muted",
     outline: "border border-border bg-background text-foreground shadow-sm hover:bg-muted",
     ghost: "text-foreground hover:bg-muted",

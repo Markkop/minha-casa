@@ -190,8 +190,8 @@
         {/if}
 
         {#if listing.imageIngestionStatus === "failed" && listing.imageIngestionError}
-          <div class="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3">
-            <p class="text-sm text-amber-800 dark:text-amber-200">{listing.imageIngestionError}</p>
+          <div class="rounded-lg border border-app-warning/30 bg-app-warning/10 p-3">
+            <p class="text-sm text-app-warning">{listing.imageIngestionError}</p>
           </div>
         {/if}
 

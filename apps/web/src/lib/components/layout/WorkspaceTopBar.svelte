@@ -5,6 +5,7 @@
   import PropertyBreadcrumb from "$lib/components/property-details/PropertyBreadcrumb.svelte";
   import CollectionBreadcrumb from "$lib/components/workspace/CollectionBreadcrumb.svelte";
   import OrganizationSwitcher from "$lib/components/workspace/OrganizationSwitcher.svelte";
+  import ThemeToggle from "$lib/components/theme/ThemeToggle.svelte";
 
   let {
     showSubscriptionPendingChrome,
@@ -108,5 +109,7 @@
         <PanelRight class="h-4 w-4" />
       </button>
     {/if}
+
+    <ThemeToggle />
   </div>
 </header>

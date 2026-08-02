@@ -165,20 +165,20 @@
     {#if loading}
       <div class="rounded-md border border-app-border bg-app-surface p-8 text-center text-sm text-app-muted">Carregando...</div>
     {:else if error}
-      <div class="mx-auto max-w-lg rounded-md border border-red-200 bg-red-50 p-5 text-center text-sm text-red-700">
+      <div class="mx-auto max-w-lg rounded-md border border-app-danger/30 bg-app-danger/10 p-5 text-center text-sm text-app-danger">
         <AlertCircle class="mx-auto mb-2 h-5 w-5" />
         {error}
         <div class="mt-4"><Button variant="secondary" onclick={() => void loadBilling()}>Tentar novamente</Button></div>
       </div>
     {:else}
       {#if stripeTestMode}
-        <div class="mb-8 rounded-md border border-amber-200 bg-amber-50">
+        <div class="mb-8 rounded-md border border-app-warning/30 bg-app-warning/10">
           <div class="py-4">
             <div class="flex items-center justify-center gap-3">
-              <FlaskConical class="h-5 w-5 text-amber-700" />
+              <FlaskConical class="h-5 w-5 text-app-warning" />
               <div class="text-center">
-                <p class="font-semibold text-amber-900">MODO DE TESTE ATIVO</p>
-                <p class="text-sm text-amber-800">
+                <p class="font-semibold text-app-warning">MODO DE TESTE ATIVO</p>
+                <p class="text-sm text-app-warning">
                   Pagamentos nesta página estão em modo de teste do Stripe. Nenhuma cobrança real será processada.
                 </p>
               </div>
@@ -188,13 +188,13 @@
       {/if}
 
       {#if accountError}
-        <div class="mb-6 rounded-md border border-amber-200 bg-amber-50 p-4 text-center text-sm text-amber-900">
+        <div class="mb-6 rounded-md border border-app-warning/30 bg-app-warning/10 p-4 text-center text-sm text-app-warning">
           <AlertCircle class="mr-2 inline h-5 w-5" /> {accountError} Os planos continuam disponíveis abaixo.
         </div>
       {/if}
 
       {#if success}
-        <div class="mb-6 rounded-md border border-emerald-200 bg-emerald-50 p-4 text-center text-sm text-emerald-800">
+        <div class="mb-6 rounded-md border border-app-success/30 bg-app-success/10 p-4 text-center text-sm text-app-success">
           <CheckCircle class="mr-2 inline h-5 w-5" />
           {#if hasActiveSubscription}
             Pagamento confirmado e assinatura ativada.
@@ -207,7 +207,7 @@
       {/if}
 
       {#if cancelled}
-        <div class="mb-6 rounded-md border border-amber-200 bg-amber-50 p-4 text-center text-sm text-amber-800">
+        <div class="mb-6 rounded-md border border-app-warning/30 bg-app-warning/10 p-4 text-center text-sm text-app-warning">
           <AlertCircle class="mr-2 inline h-5 w-5" />
           {#if selectedPlan}
             Pagamento do plano {selectedPlan.name} cancelado. Nenhuma cobrança foi feita. Você pode tentar novamente quando quiser.
@@ -224,10 +224,10 @@
             <h2 class="text-lg font-semibold">Sua assinatura</h2>
           </div>
           <div class="grid gap-3 text-sm sm:grid-cols-2">
-            <div class="flex justify-between gap-3 rounded-md bg-white p-3"><span class="text-app-muted">Plano</span><strong>{currentPlan.name}</strong></div>
-            <div class="flex justify-between gap-3 rounded-md bg-white p-3"><span class="text-app-muted">Status</span><strong>{subscriptionStatusLabel(subscription.status)}</strong></div>
-            <div class="flex justify-between gap-3 rounded-md bg-white p-3"><span class="text-app-muted">Início</span><span><Calendar class="mr-1 inline h-4 w-4" />{formatDate(subscription.startsAt)}</span></div>
-            <div class={`flex justify-between gap-3 rounded-md bg-white p-3 ${isExpiringSoon(subscription.expiresAt) ? "text-amber-700" : ""}`}>
+            <div class="flex justify-between gap-3 rounded-md bg-app-surface-muted p-3"><span class="text-app-muted">Plano</span><strong>{currentPlan.name}</strong></div>
+            <div class="flex justify-between gap-3 rounded-md bg-app-surface-muted p-3"><span class="text-app-muted">Status</span><strong>{subscriptionStatusLabel(subscription.status)}</strong></div>
+            <div class="flex justify-between gap-3 rounded-md bg-app-surface-muted p-3"><span class="text-app-muted">Início</span><span><Calendar class="mr-1 inline h-4 w-4" />{formatDate(subscription.startsAt)}</span></div>
+            <div class={`flex justify-between gap-3 rounded-md bg-app-surface-muted p-3 ${isExpiringSoon(subscription.expiresAt) ? "text-app-warning" : ""}`}>
               <span class="text-app-muted">Expira</span><span><Calendar class="mr-1 inline h-4 w-4" />{formatDate(subscription.expiresAt)}</span>
             </div>
           </div>
@@ -268,13 +268,13 @@
                 {#if plan.slug === "free"}
                   <a
                     href="/lista"
-                    class={`flex h-11 items-center justify-center rounded-md font-medium ${current ? "bg-app-surface-muted text-app-muted" : "border border-app-border bg-white text-app-fg"}`}
+                    class={`flex h-11 items-center justify-center rounded-md font-medium ${current ? "bg-app-surface-muted text-app-muted" : "border border-app-border bg-app-surface text-app-fg"}`}
                   >
                     {current ? "Plano atual" : "Usar Free"}
                   </a>
                 {:else}
                   <button
-                    class={`h-11 rounded-md font-medium ${current ? "bg-app-surface-muted text-app-muted" : apiPlan?.stripePriceId ? "bg-app-fg text-white" : "border border-app-border bg-white text-app-muted"}`}
+                    class={`h-11 rounded-md font-medium ${current ? "bg-app-surface-muted text-app-muted" : apiPlan?.stripePriceId ? "bg-app-action text-app-action-foreground hover:bg-app-action-hover" : "border border-app-border bg-app-surface text-app-muted"}`}
                     disabled={current || !apiPlan?.stripePriceId || checkoutPlanId === apiPlan?.id}
                     onclick={() => void startCheckout(apiPlan)}
                   >

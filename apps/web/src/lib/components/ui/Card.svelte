@@ -10,6 +10,6 @@
   }>();
 </script>
 
-<section class={cn("rounded-md border border-app-border bg-app-surface text-app-fg shadow-sm", className)}>
+<section class={cn("app-panel-surface rounded-md border border-app-border text-app-fg", className)}>
   {@render children?.()}
 </section>

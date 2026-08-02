@@ -23,7 +23,7 @@
         type="button"
         class={cn(
           "rounded-full border px-3 py-1 text-xs transition",
-          state.filterSet.transacao === transacao ? "border-app-fg bg-app-fg text-white" : "border-app-border bg-white text-app-muted hover:text-app-fg"
+          state.filterSet.transacao === transacao ? "border-app-action bg-app-action text-app-action-foreground" : "border-app-border bg-app-surface text-app-muted hover:text-app-fg"
         )}
         onclick={() => (state.filterSet = { ...state.filterSet, transacao })}
       >
@@ -35,63 +35,63 @@
   <div class="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
     <label class="flex flex-col gap-2 text-sm font-medium xl:col-span-2">
       Nome
-      <input class="h-10 rounded-md border border-app-border bg-white px-3" bind:value={state.name} />
+      <input class="h-10 rounded-md border border-app-border bg-app-surface px-3" bind:value={state.name} />
     </label>
     <label class="flex flex-col gap-2 text-sm font-medium">
       Max paginas
-      <input class="h-10 rounded-md border border-app-border bg-white px-3" type="number" min="1" max="5" bind:value={state.maxPages} />
+      <input class="h-10 rounded-md border border-app-border bg-app-surface px-3" type="number" min="1" max="5" bind:value={state.maxPages} />
     </label>
     <label class="flex flex-col gap-2 text-sm font-medium">
       UF
-      <input class="h-10 rounded-md border border-app-border bg-white px-3" maxlength="2" bind:value={state.filterSet.uf} />
+      <input class="h-10 rounded-md border border-app-border bg-app-surface px-3" maxlength="2" bind:value={state.filterSet.uf} />
     </label>
     <label class="flex flex-col gap-2 text-sm font-medium">
       Cidade
-      <input class="h-10 rounded-md border border-app-border bg-white px-3" bind:value={state.filterSet.city} />
+      <input class="h-10 rounded-md border border-app-border bg-app-surface px-3" bind:value={state.filterSet.city} />
     </label>
     <label class="flex flex-col gap-2 text-sm font-medium">
       Bairros
-      <input class="h-10 rounded-md border border-app-border bg-white px-3" placeholder="centro, agronomica" bind:value={state.bairrosText} />
+      <input class="h-10 rounded-md border border-app-border bg-app-surface px-3" placeholder="centro, agronomica" bind:value={state.bairrosText} />
     </label>
     <label class="flex flex-col gap-2 text-sm font-medium">
       Tipos
-      <input class="h-10 rounded-md border border-app-border bg-white px-3" placeholder="apartamento, casa" bind:value={state.tiposText} />
+      <input class="h-10 rounded-md border border-app-border bg-app-surface px-3" placeholder="apartamento, casa" bind:value={state.tiposText} />
     </label>
     <label class="flex flex-col gap-2 text-sm font-medium">
       Quartos
-      <input class="h-10 rounded-md border border-app-border bg-white px-3" placeholder="2, 3" bind:value={state.quartosText} />
+      <input class="h-10 rounded-md border border-app-border bg-app-surface px-3" placeholder="2, 3" bind:value={state.quartosText} />
     </label>
     <label class="flex flex-col gap-2 text-sm font-medium">
       Banheiros
-      <input class="h-10 rounded-md border border-app-border bg-white px-3" placeholder="1, 2" bind:value={state.banheirosText} />
+      <input class="h-10 rounded-md border border-app-border bg-app-surface px-3" placeholder="1, 2" bind:value={state.banheirosText} />
     </label>
     <label class="flex flex-col gap-2 text-sm font-medium">
       Vagas
-      <input class="h-10 rounded-md border border-app-border bg-white px-3" placeholder="1, 2" bind:value={state.vagasText} />
+      <input class="h-10 rounded-md border border-app-border bg-app-surface px-3" placeholder="1, 2" bind:value={state.vagasText} />
     </label>
     <label class="flex flex-col gap-2 text-sm font-medium">
       Suites
-      <input class="h-10 rounded-md border border-app-border bg-white px-3" placeholder="1, 2" bind:value={state.suitesText} />
+      <input class="h-10 rounded-md border border-app-border bg-app-surface px-3" placeholder="1, 2" bind:value={state.suitesText} />
     </label>
     <label class="flex flex-col gap-2 text-sm font-medium">
       Preco min
-      <input class="h-10 rounded-md border border-app-border bg-white px-3" type="number" bind:value={state.filterSet.precoMin} />
+      <input class="h-10 rounded-md border border-app-border bg-app-surface px-3" type="number" bind:value={state.filterSet.precoMin} />
     </label>
     <label class="flex flex-col gap-2 text-sm font-medium">
       Preco max
-      <input class="h-10 rounded-md border border-app-border bg-white px-3" type="number" bind:value={state.filterSet.precoMax} />
+      <input class="h-10 rounded-md border border-app-border bg-app-surface px-3" type="number" bind:value={state.filterSet.precoMax} />
     </label>
     <label class="flex flex-col gap-2 text-sm font-medium">
       Area min
-      <input class="h-10 rounded-md border border-app-border bg-white px-3" type="number" bind:value={state.filterSet.areaMin} />
+      <input class="h-10 rounded-md border border-app-border bg-app-surface px-3" type="number" bind:value={state.filterSet.areaMin} />
     </label>
     <label class="flex flex-col gap-2 text-sm font-medium">
       Area max
-      <input class="h-10 rounded-md border border-app-border bg-white px-3" type="number" bind:value={state.filterSet.areaMax} />
+      <input class="h-10 rounded-md border border-app-border bg-app-surface px-3" type="number" bind:value={state.filterSet.areaMax} />
     </label>
     <label class="flex flex-col gap-2 text-sm font-medium">
       Condominio max
-      <input class="h-10 rounded-md border border-app-border bg-white px-3" type="number" bind:value={state.filterSet.condominioMax} />
+      <input class="h-10 rounded-md border border-app-border bg-app-surface px-3" type="number" bind:value={state.filterSet.condominioMax} />
     </label>
   </div>
 
@@ -104,7 +104,7 @@
             type="button"
             class={cn(
               "rounded-full border px-3 py-1 text-xs transition",
-              state.filterSet.tiposImovel.includes(tipo) ? "border-app-fg bg-app-fg text-white" : "border-app-border bg-white text-app-muted hover:text-app-fg"
+              state.filterSet.tiposImovel.includes(tipo) ? "border-app-action bg-app-action text-app-action-foreground" : "border-app-border bg-app-surface text-app-muted hover:text-app-fg"
             )}
             onclick={() => state.toggleStringList("tiposImovel", tipo)}
           >
@@ -122,7 +122,7 @@
             type="button"
             class={cn(
               "rounded-full border px-3 py-1 text-xs transition",
-              state.filterSet.bedrooms.includes(option) ? "border-app-fg bg-app-fg text-white" : "border-app-border bg-white text-app-muted hover:text-app-fg"
+              state.filterSet.bedrooms.includes(option) ? "border-app-action bg-app-action text-app-action-foreground" : "border-app-border bg-app-surface text-app-muted hover:text-app-fg"
             )}
             onclick={() => state.toggleNumberList("bedrooms", option)}
           >
@@ -140,7 +140,7 @@
             type="button"
             class={cn(
               "rounded-full border px-3 py-1 text-xs transition",
-              state.filterSet.amenidades.includes(amenidade) ? "border-app-fg bg-app-fg text-white" : "border-app-border bg-white text-app-muted hover:text-app-fg"
+              state.filterSet.amenidades.includes(amenidade) ? "border-app-action bg-app-action text-app-action-foreground" : "border-app-border bg-app-surface text-app-muted hover:text-app-fg"
             )}
             onclick={() => state.toggleStringList("amenidades", amenidade)}
           >
@@ -158,7 +158,7 @@
             type="button"
             class={cn(
               "rounded-full border px-3 py-1 text-xs transition",
-              state.filterSet.estagio.includes(estagio) ? "border-app-fg bg-app-fg text-white" : "border-app-border bg-white text-app-muted hover:text-app-fg"
+              state.filterSet.estagio.includes(estagio) ? "border-app-action bg-app-action text-app-action-foreground" : "border-app-border bg-app-surface text-app-muted hover:text-app-fg"
             )}
             onclick={() => state.toggleStringList("estagio", estagio)}
           >
@@ -179,8 +179,8 @@
             class={[
               "rounded-md border px-3 py-2 text-sm",
               state.enabledPortals.includes(portal)
-                ? "border-app-fg bg-app-fg text-white"
-                : "border-app-border bg-white text-app-muted hover:bg-app-surface-muted"
+                ? "border-app-action bg-app-action text-app-action-foreground"
+                : "border-app-border bg-app-surface text-app-muted hover:bg-app-surface-muted"
             ]}
             onclick={() => state.togglePortal(portal)}
           >
@@ -192,7 +192,7 @@
 
     <div>
       <div class="mb-2 text-sm font-medium">Preview de URLs ({state.previewUrls.length})</div>
-      <div class="max-h-36 space-y-1 overflow-auto rounded-md border border-app-border bg-white p-2 text-xs">
+      <div class="max-h-36 space-y-1 overflow-auto rounded-md border border-app-border bg-app-surface p-2 text-xs">
         {#each state.previewUrls as preview (`${preview.portal}-${preview.url}`)}
           <a class="block truncate text-app-muted underline decoration-dotted underline-offset-2 hover:text-app-fg" href={preview.url} target="_blank" rel="noreferrer" title={preview.url}>
             {portalLabels[preview.portal]}: {preview.url}

@@ -49,7 +49,7 @@
     <p class="text-sm text-app-muted">Explorar indisponível.</p>
   {:else}
     {#if explorar.error}
-      <div class="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">{explorar.error}</div>
+      <div class="rounded-md border border-app-danger/30 bg-app-danger/10 p-3 text-sm text-app-danger">{explorar.error}</div>
     {/if}
 
     <section class="grid gap-4 lg:grid-cols-[340px_1fr]">

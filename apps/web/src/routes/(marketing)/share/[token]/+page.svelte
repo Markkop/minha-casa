@@ -148,7 +148,7 @@
     {#if loading}
       <div class="rounded-md border border-app-border bg-app-surface p-6 text-sm text-app-muted">Carregando coleção...</div>
     {:else if error || !data}
-      <div class="rounded-md border border-red-200 bg-red-50 p-6 text-sm text-red-700">{error || LINK_UNAVAILABLE_MESSAGE}</div>
+      <div class="rounded-md border border-app-danger/30 bg-app-danger/10 p-6 text-sm text-app-danger">{error || LINK_UNAVAILABLE_MESSAGE}</div>
     {:else}
       <header class="rounded-md border border-app-border bg-app-surface p-5">
         <p class="text-xs font-medium uppercase tracking-wide text-app-muted">Coleção compartilhada</p>
@@ -159,18 +159,18 @@
           </div>
           <div class="flex flex-col gap-2 sm:flex-row">
             {#if isAuthenticated}
-              <button type="button" class="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-app-fg px-4 text-sm text-white" onclick={() => void copyToPersonal()} disabled={copying}>
+              <button type="button" class="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-app-action px-4 text-sm text-app-action-foreground hover:bg-app-action-hover" onclick={() => void copyToPersonal()} disabled={copying}>
                 <Copy class="h-4 w-4" /> {copying ? "Copiando..." : "Copiar para Pessoal"}
               </button>
             {:else}
-              <a class="inline-flex h-10 items-center justify-center rounded-md bg-app-fg px-4 text-sm text-white" href={`/login?callbackURL=${encodeURIComponent(page.url.pathname)}`}>
+              <a class="inline-flex h-10 items-center justify-center rounded-md bg-app-action px-4 text-sm text-app-action-foreground hover:bg-app-action-hover" href={`/login?callbackURL=${encodeURIComponent(page.url.pathname)}`}>
                 Entrar para salvar
               </a>
             {/if}
           <div class="relative md:w-80">
             <Search class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-app-muted" />
             <input
-              class="h-10 w-full rounded-md border border-app-border bg-white pl-9 pr-3 text-sm"
+              class="h-10 w-full rounded-md border border-app-border bg-app-surface pl-9 pr-3 text-sm"
               placeholder="Buscar na coleção"
               bind:value={query}
             />

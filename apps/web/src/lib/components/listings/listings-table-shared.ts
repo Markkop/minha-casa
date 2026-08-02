@@ -34,11 +34,11 @@ export type ListingStage =
 
 export const LISTING_STAGE_OPTIONS: { value: ListingStage; label: string; className: string }[] = [
   { value: "analyzing", label: "Analisando", className: "border-sky-500/30 bg-sky-500/10 text-sky-700" },
-  { value: "considering", label: "Considerando", className: "border-emerald-500/30 bg-emerald-500/10 text-emerald-700" },
-  { value: "scheduling_visit", label: "Marcando visita", className: "border-amber-500/30 bg-amber-500/10 text-amber-700" },
+  { value: "considering", label: "Considerando", className: "border-app-success/30 bg-app-success/10 text-app-success" },
+  { value: "scheduling_visit", label: "Marcando visita", className: "border-app-warning/30 bg-app-warning/10 text-app-warning" },
   { value: "visit_scheduled", label: "Visita marcada", className: "border-purple-500/30 bg-purple-500/10 text-purple-700" },
   { value: "visiting", label: "Visitando", className: "border-indigo-500/30 bg-indigo-500/10 text-indigo-700" },
-  { value: "visited", label: "Visitado", className: "border-yellow-500/30 bg-yellow-500/10 text-yellow-700" },
+  { value: "visited", label: "Visitado", className: "border-app-warning/30 bg-app-warning/10 text-app-warning" },
   { value: "negotiating", label: "Negociando", className: "border-cyan-500/30 bg-cyan-500/10 text-cyan-700" },
   { value: "offer_submitted", label: "Proposta enviada", className: "border-green-500/30 bg-green-500/10 text-green-700" },
   { value: "on_hold", label: "Em espera", className: "border-slate-500/30 bg-slate-500/10 text-slate-700" },

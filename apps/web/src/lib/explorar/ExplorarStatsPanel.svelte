@@ -13,7 +13,7 @@
     <h2 class="mb-3 text-sm font-semibold">Portais</h2>
     <div class="grid gap-2">
       {#each state.portalStats as stat (stat.portal)}
-        <div class="flex items-center justify-between rounded-md border border-app-border bg-white px-3 py-2 text-sm">
+        <div class="flex items-center justify-between rounded-md border border-app-border bg-app-surface-muted/50 px-3 py-2 text-sm">
           <span>{portalLabels[stat.portal] ?? stat.portal}</span>
           <span class="text-app-muted">{stat.count} cards · {formatNumber(stat.medianM2)} R$/m2</span>
         </div>
@@ -28,7 +28,7 @@
     {:else}
       <div class="grid gap-2">
         {#each state.bairroStats as stat (stat.neighborhood)}
-          <div class="flex items-center justify-between rounded-md border border-app-border bg-white px-3 py-2 text-sm">
+          <div class="flex items-center justify-between rounded-md border border-app-border bg-app-surface-muted/50 px-3 py-2 text-sm">
             <span>{stat.neighborhood}</span>
             <span class="text-app-muted">{stat.count} · {formatNumber(stat.medianM2)} R$/m2 · min {money(stat.minPrice)}</span>
           </div>

@@ -20,7 +20,7 @@
     <div class="grid gap-2 sm:grid-cols-4">
       <label class="text-xs text-app-muted">
         Linhas
-        <select class="mt-1 h-9 w-full rounded-md border border-app-border bg-white px-2 text-sm text-app-fg" bind:value={state.rowAxis}>
+        <select class="mt-1 h-9 w-full rounded-md border border-app-border bg-app-surface px-2 text-sm text-app-fg" bind:value={state.rowAxis}>
           {#each MATRIX_AXES as axis (axis.value)}
             <option value={axis.value}>{axis.label}</option>
           {/each}
@@ -28,7 +28,7 @@
       </label>
       <label class="text-xs text-app-muted">
         Colunas
-        <select class="mt-1 h-9 w-full rounded-md border border-app-border bg-white px-2 text-sm text-app-fg" bind:value={state.colAxis}>
+        <select class="mt-1 h-9 w-full rounded-md border border-app-border bg-app-surface px-2 text-sm text-app-fg" bind:value={state.colAxis}>
           {#each MATRIX_AXES as axis (axis.value)}
             <option value={axis.value}>{axis.label}</option>
           {/each}
@@ -36,7 +36,7 @@
       </label>
       <label class="text-xs text-app-muted">
         Metrica
-        <select class="mt-1 h-9 w-full rounded-md border border-app-border bg-white px-2 text-sm text-app-fg" bind:value={state.matrixMetric}>
+        <select class="mt-1 h-9 w-full rounded-md border border-app-border bg-app-surface px-2 text-sm text-app-fg" bind:value={state.matrixMetric}>
           {#each MATRIX_METRICS as metric (metric.value)}
             <option value={metric.value}>{metric.label}</option>
           {/each}
@@ -44,7 +44,7 @@
       </label>
       <label class="text-xs text-app-muted">
         Portal
-        <select class="mt-1 h-9 w-full rounded-md border border-app-border bg-white px-2 text-sm text-app-fg" bind:value={state.matrixPortalFilter}>
+        <select class="mt-1 h-9 w-full rounded-md border border-app-border bg-app-surface px-2 text-sm text-app-fg" bind:value={state.matrixPortalFilter}>
           <option value="all">Todos</option>
           {#each PORTALS as portal (portal)}
             <option value={portal}>{portalLabels[portal]}</option>
@@ -88,7 +88,7 @@
   {/if}
 
   {#if state.selectedMatrixCell}
-    <div class="mt-4 rounded-md border border-app-border bg-white p-3">
+    <div class="mt-4 rounded-md border border-app-border bg-app-surface-muted/50 p-3">
       <div class="mb-2 flex items-center justify-between gap-3">
         <p class="text-sm font-medium">{state.selectedMatrixCell.listings.length} anuncios em {state.selectedMatrixCell.row} x {state.selectedMatrixCell.col}</p>
         <button type="button" class="text-xs text-app-muted underline" onclick={() => (state.selectedMatrixCell = null)}>Fechar</button>

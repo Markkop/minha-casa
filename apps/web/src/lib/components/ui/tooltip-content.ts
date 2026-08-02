@@ -3,7 +3,7 @@ import { cn } from "$lib/utils";
 export const TOOLTIP_WRAP_AUTO_THRESHOLD = 48;
 
 export const TOOLTIP_SURFACE_CLASS =
-  "rounded-md border border-app-border bg-app-surface text-app-fg shadow-sm";
+  "app-floating-surface rounded-md border border-app-border text-app-fg";
 
 export const TOOLTIP_SURFACE_COMPACT_CLASS = cn(
   TOOLTIP_SURFACE_CLASS,

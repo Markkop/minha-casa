@@ -26,7 +26,7 @@
         </p>
       </div>
       {#if state.running}
-        <div class="inline-flex items-center gap-2 rounded-md border border-app-border bg-white px-3 py-2 text-sm text-app-muted">
+        <div class="inline-flex items-center gap-2 rounded-md border border-app-border bg-app-surface px-3 py-2 text-sm text-app-muted">
           <RefreshCw class="h-4 w-4 animate-spin" /> Coletando
         </div>
       {/if}
@@ -38,9 +38,9 @@
           <span class={[
             "rounded-full px-2 py-1",
             target.status === "failed"
-              ? "bg-red-50 text-red-700"
+              ? "bg-app-danger/10 text-app-danger"
               : target.status === "completed"
-                ? "bg-green-50 text-green-700"
+                ? "bg-app-success/10 text-app-success"
                 : "bg-app-surface-muted text-app-muted"
           ]}>
             {target.portal} p{target.page ?? "-"} · {explorarTargetStatusLabel(target.status)}{target.cardsCount ? ` · ${target.cardsCount} anúncios` : ""}

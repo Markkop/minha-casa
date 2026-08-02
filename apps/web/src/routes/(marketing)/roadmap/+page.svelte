@@ -41,16 +41,16 @@
 
   const accentStyles: Record<Milestone["accent"], { node: string; glow: string }> = {
     cyan: {
-      node: "text-[#22d3ee] drop-shadow-[0_0_10px_rgba(34,211,238,0.75)]",
-      glow: "from-[#22d3ee]/40 via-[#22d3ee]/10 to-transparent"
+      node: "roadmap-node--cyan",
+      glow: "roadmap-card__glow--cyan"
     },
     violet: {
-      node: "text-[#a78bfa] drop-shadow-[0_0_10px_rgba(167,139,250,0.7)]",
-      glow: "from-[#a78bfa]/40 via-[#a78bfa]/10 to-transparent"
+      node: "roadmap-node--violet",
+      glow: "roadmap-card__glow--violet"
     },
     emerald: {
-      node: "text-[#34d399] drop-shadow-[0_0_10px_rgba(52,211,153,0.65)]",
-      glow: "from-[#34d399]/40 via-[#34d399]/10 to-transparent"
+      node: "roadmap-node--emerald",
+      glow: "roadmap-card__glow--emerald"
     }
   };
 </script>
@@ -116,7 +116,7 @@
           </div>
 
           <article class="roadmap-card">
-            <div class="roadmap-card__glow bg-gradient-to-br {styles.glow}" aria-hidden="true"></div>
+            <div class="roadmap-card__glow {styles.glow}" aria-hidden="true"></div>
             <p class="roadmap-card__label">{milestone.label}</p>
             <h2 class="roadmap-card__title">{milestone.title}</h2>
             <p class="roadmap-card__description">{milestone.description}</p>
@@ -132,8 +132,8 @@
     position: relative;
     min-height: 100vh;
     overflow: hidden;
-    background: #030711;
-    color: #dbeafe;
+    background: var(--app-bg);
+    color: var(--app-fg);
     font-family: "Space Grotesk Variable", Inter, ui-sans-serif, system-ui, sans-serif;
   }
 
@@ -147,8 +147,8 @@
     position: absolute;
     inset: 0;
     background-image:
-      linear-gradient(rgba(103, 232, 249, 0.04) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(103, 232, 249, 0.04) 1px, transparent 1px);
+      linear-gradient(color-mix(in srgb, var(--app-cyan) 7%, transparent) 1px, transparent 1px),
+      linear-gradient(90deg, color-mix(in srgb, var(--app-cyan) 7%, transparent) 1px, transparent 1px);
     background-size: 48px 48px;
     mask-image: radial-gradient(circle at 50% 20%, black 10%, transparent 72%);
   }
@@ -165,7 +165,7 @@
     left: -8%;
     width: 28rem;
     height: 28rem;
-    background: rgba(34, 211, 238, 0.22);
+    background: color-mix(in srgb, var(--app-cyan) 22%, transparent);
   }
 
   .roadmap-glow--right {
@@ -173,7 +173,7 @@
     bottom: 10%;
     width: 32rem;
     height: 32rem;
-    background: rgba(167, 139, 250, 0.18);
+    background: color-mix(in srgb, var(--app-purple) 18%, transparent);
   }
 
   .roadmap-shell {
@@ -195,7 +195,7 @@
     font-weight: 600;
     letter-spacing: 0.18em;
     text-transform: uppercase;
-    color: #67e8f9;
+    color: var(--app-cyan);
   }
 
   .roadmap-title {
@@ -204,7 +204,7 @@
     font-weight: 700;
     line-height: 1.05;
     letter-spacing: -0.03em;
-    color: #f8fafc;
+    color: var(--app-fg);
   }
 
   .roadmap-subtitle {
@@ -212,7 +212,7 @@
     max-width: 34rem;
     font-size: clamp(1rem, 2vw, 1.125rem);
     line-height: 1.6;
-    color: #94a3b8;
+    color: var(--app-muted);
   }
 
   .roadmap-list {
@@ -243,9 +243,9 @@
     flex: 1;
     background: linear-gradient(
       180deg,
-      rgba(103, 232, 249, 0.05) 0%,
-      rgba(103, 232, 249, 0.55) 50%,
-      rgba(103, 232, 249, 0.05) 100%
+      color-mix(in srgb, var(--app-cyan) 5%, transparent) 0%,
+      color-mix(in srgb, var(--app-cyan) 55%, transparent) 50%,
+      color-mix(in srgb, var(--app-cyan) 5%, transparent) 100%
     );
   }
 
@@ -274,18 +274,33 @@
     overflow: visible;
   }
 
+  .roadmap-node--cyan {
+    color: var(--app-cyan);
+    filter: drop-shadow(0 0 10px color-mix(in srgb, var(--app-cyan) 75%, transparent));
+  }
+
+  .roadmap-node--violet {
+    color: var(--app-purple);
+    filter: drop-shadow(0 0 10px color-mix(in srgb, var(--app-purple) 70%, transparent));
+  }
+
+  .roadmap-node--emerald {
+    color: var(--app-green);
+    filter: drop-shadow(0 0 10px color-mix(in srgb, var(--app-green) 65%, transparent));
+  }
+
   .roadmap-card {
     position: relative;
     margin: 0 0 1.75rem;
     overflow: hidden;
-    border: 1px solid rgba(103, 232, 249, 0.14);
+    border: 1px solid color-mix(in srgb, var(--app-cyan) 20%, var(--app-border));
     border-radius: 1.25rem;
-    background: rgba(8, 18, 40, 0.72);
+    background: color-mix(in srgb, var(--app-surface) 86%, transparent);
     padding: clamp(1.25rem, 3vw, 1.75rem);
     backdrop-filter: blur(12px);
     box-shadow:
-      0 0 0 1px rgba(255, 255, 255, 0.02) inset,
-      0 24px 48px -24px rgba(2, 6, 23, 0.9);
+      0 0 0 1px color-mix(in srgb, var(--app-fg) 3%, transparent) inset,
+      0 24px 48px -24px color-mix(in srgb, var(--app-fg) 30%, transparent);
   }
 
   .roadmap-card__glow {
@@ -299,13 +314,40 @@
     pointer-events: none;
   }
 
+  .roadmap-card__glow--cyan {
+    background: linear-gradient(
+      to bottom right,
+      color-mix(in srgb, var(--app-cyan) 40%, transparent),
+      color-mix(in srgb, var(--app-cyan) 10%, transparent),
+      transparent
+    );
+  }
+
+  .roadmap-card__glow--violet {
+    background: linear-gradient(
+      to bottom right,
+      color-mix(in srgb, var(--app-purple) 40%, transparent),
+      color-mix(in srgb, var(--app-purple) 10%, transparent),
+      transparent
+    );
+  }
+
+  .roadmap-card__glow--emerald {
+    background: linear-gradient(
+      to bottom right,
+      color-mix(in srgb, var(--app-green) 40%, transparent),
+      color-mix(in srgb, var(--app-green) 10%, transparent),
+      transparent
+    );
+  }
+
   .roadmap-card__label {
     position: relative;
     margin: 0 0 0.5rem;
     font-size: 0.75rem;
     font-weight: 600;
     letter-spacing: 0.08em;
-    color: #67e8f9;
+    color: var(--app-cyan);
     font-family: "JetBrains Mono", ui-monospace, monospace;
   }
 
@@ -316,7 +358,7 @@
     font-weight: 700;
     line-height: 1.2;
     letter-spacing: -0.02em;
-    color: #f8fafc;
+    color: var(--app-fg);
   }
 
   .roadmap-card__description {
@@ -325,7 +367,7 @@
     max-width: 42rem;
     font-size: 1rem;
     line-height: 1.65;
-    color: #94a3b8;
+    color: var(--app-muted);
   }
 
   @media (max-width: 640px) {

@@ -95,7 +95,7 @@
             id="address-override"
             bind:value={addressOverride}
             placeholder="Rua, número, bairro, cidade"
-            class="mt-1 h-8 w-full rounded-md border border-app-border bg-white px-3 text-sm"
+            class="mt-1 h-8 w-full rounded-md border border-app-border bg-app-surface px-3 text-sm"
             disabled={skipAddress}
           />
         </div>
@@ -108,7 +108,7 @@
   {/if}
 
   {#if (staleResult || legacyResult) && !isRunning}
-    <p class="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950" role="status">
+    <p class="mt-3 rounded-lg border border-app-warning/30 bg-app-warning/10 px-3 py-2 text-sm text-app-warning" role="status">
       {#if legacyResult}
         Este resultado usa o formato antigo da análise.
       {:else}

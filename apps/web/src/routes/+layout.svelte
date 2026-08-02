@@ -1,4 +1,6 @@
 <script lang="ts">
+  import "@fontsource-variable/space-grotesk";
+  import "@fontsource-variable/jetbrains-mono";
   import "../app.css";
   import { onMount } from "svelte";
   import {

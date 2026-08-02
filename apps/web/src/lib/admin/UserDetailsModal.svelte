@@ -89,12 +89,12 @@
           <span class="text-sm text-app-muted">Status</span>
           <div class="mt-1 flex flex-wrap items-center gap-2">
             {#if isPlatformSuperAdmin(user)}
-              <span class="rounded px-2 py-0.5 text-xs bg-blue-100 text-blue-700">Super Admin</span>
+              <span class="rounded bg-app-accent/10 px-2 py-0.5 text-xs text-app-accent">Super Admin</span>
             {/if}
             {#if user.emailVerified}
-              <span class="rounded px-2 py-0.5 text-xs bg-emerald-100 text-emerald-800">Email Verificado</span>
+              <span class="rounded bg-app-success/10 px-2 py-0.5 text-xs text-app-success">Email Verificado</span>
             {:else}
-              <span class="rounded px-2 py-0.5 text-xs bg-yellow-100 text-yellow-700">Email Pendente</span>
+              <span class="rounded bg-app-warning/10 px-2 py-0.5 text-xs text-app-warning">Email Pendente</span>
             {/if}
           </div>
         </div>
@@ -123,8 +123,8 @@
               <span
                 class={`rounded px-2 py-0.5 text-xs ${
                   isExpired(user.subscription.expiresAt)
-                    ? "bg-red-100 text-red-700"
-                    : "bg-emerald-100 text-emerald-800"
+                    ? "bg-app-danger/10 text-app-danger"
+                    : "bg-app-success/10 text-app-success"
                 }`}
               >
                 {isExpired(user.subscription.expiresAt) ? "Expirada" : "Ativa"}

@@ -49,7 +49,7 @@
         >
           <label class="block text-sm">
             Nome
-            <input class="mt-1 h-10 w-full rounded-md border border-app-border bg-white px-3" bind:value={admin.editName} />
+            <input class="mt-1 h-10 w-full rounded-md border border-app-border bg-app-surface px-3" bind:value={admin.editName} />
           </label>
           <div class="flex justify-end gap-2"><Button type="submit" disabled={admin.saving}>Salvar</Button></div>
         </form>
@@ -61,13 +61,13 @@
             void admin.grantSubscription();
           }}
         >
-          <div class="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+          <div class="rounded-md border border-app-warning/30 bg-app-warning/10 p-3 text-sm text-app-warning">
             A concessão usa o contrato atual de assinatura manual e não altera uma assinatura Stripe diretamente.
           </div>
           <label class="block text-sm">
             Plano
             <select
-              class="mt-1 h-10 w-full rounded-md border border-app-border bg-white px-3"
+              class="mt-1 h-10 w-full rounded-md border border-app-border bg-app-surface px-3"
               value={admin.selectedPlanId}
               onchange={(event) => admin.selectGrantPlan(event.currentTarget.value)}
             >
@@ -77,18 +77,18 @@
             </select>
           </label>
           {#if admin.selectedPlan?.slug === "imobiliaria"}
-            <div class="rounded-md border border-blue-200 bg-blue-50 p-3 text-sm text-blue-900">
+            <div class="rounded-md border border-app-accent/30 bg-app-accent/10 p-3 text-sm text-app-accent">
               A Imobiliária e seu workspace serão criados automaticamente caso o usuário ainda não tenha um.
             </div>
           {/if}
           <div class="grid gap-4 sm:grid-cols-2">
             <label class="block text-sm">
               Duração em dias
-              <input class="mt-1 h-10 w-full rounded-md border border-app-border bg-white px-3" type="number" min="1" bind:value={admin.subscriptionDays} />
+              <input class="mt-1 h-10 w-full rounded-md border border-app-border bg-app-surface px-3" type="number" min="1" bind:value={admin.subscriptionDays} />
             </label>
             <label class="block text-sm">
               Motivo
-              <select class="mt-1 h-10 w-full rounded-md border border-app-border bg-white px-3" bind:value={admin.grantReason}>
+              <select class="mt-1 h-10 w-full rounded-md border border-app-border bg-app-surface px-3" bind:value={admin.grantReason}>
                 {#each grantReasons as reason}
                   <option value={reason.value}>{reason.label}</option>
                 {/each}
@@ -97,7 +97,7 @@
           </div>
           <label class="block text-sm">
             Nota interna
-            <textarea class="mt-1 min-h-20 w-full rounded-md border border-app-border bg-white p-3" placeholder="Contexto da concessão" bind:value={admin.grantNotes}></textarea>
+            <textarea class="mt-1 min-h-20 w-full rounded-md border border-app-border bg-app-surface p-3" placeholder="Contexto da concessão" bind:value={admin.grantNotes}></textarea>
           </label>
           <div class="flex justify-end gap-2"><Button type="submit" disabled={admin.saving}>Confirmar concessão</Button></div>
         </form>
@@ -107,7 +107,7 @@
             <p class="text-sm text-app-muted">Sem histórico de assinaturas ou concessões.</p>
           {/if}
           {#each admin.subscriptions as subscription (subscription.id)}
-            <div class="rounded-md border border-app-border bg-white p-3">
+            <div class="rounded-md border border-app-border bg-app-surface-muted/50 p-3">
               <div class="flex flex-wrap items-center justify-between gap-2">
                 <div>
                   <div class="font-medium">{subscription.plan?.name ?? subscription.planId}</div>
@@ -137,13 +137,13 @@
                     void admin.saveSubscription();
                   }}
                 >
-                  <select class="h-10 rounded-md border border-app-border bg-white px-3" bind:value={admin.editSubscriptionStatus}>
+                  <select class="h-10 rounded-md border border-app-border bg-app-surface px-3" bind:value={admin.editSubscriptionStatus}>
                     <option value="active">Ativa</option>
                     <option value="expired">Expirada</option>
                     <option value="cancelled">Cancelada</option>
                   </select>
-                  <input class="h-10 rounded-md border border-app-border bg-white px-3" type="date" bind:value={admin.editSubscriptionExpiresAt} />
-                  <input class="h-10 rounded-md border border-app-border bg-white px-3" placeholder="Notas" bind:value={admin.editSubscriptionNotes} />
+                  <input class="h-10 rounded-md border border-app-border bg-app-surface px-3" type="date" bind:value={admin.editSubscriptionExpiresAt} />
+                  <input class="h-10 rounded-md border border-app-border bg-app-surface px-3" placeholder="Notas" bind:value={admin.editSubscriptionNotes} />
                   <Button class="md:col-span-3" type="submit" disabled={admin.saving}>Salvar concessão</Button>
                 </form>
               {/if}

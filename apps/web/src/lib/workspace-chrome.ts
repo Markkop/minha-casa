@@ -43,11 +43,11 @@ export const WORKSPACE_RIGHT_SIDEBAR_WIDTH = "20rem";
 
 /** Primary chrome row: top bar + sidebar brand row (44px incl. border). */
 export const workspaceChromeRowClass =
-  "box-border flex h-11 shrink-0 items-center border-b border-app-border bg-app-surface px-3 shadow-xs";
+  "app-chrome-surface box-border flex h-11 shrink-0 items-center border-b border-app-border px-3";
 
 /** Page-level toolbar row below the chrome (same height rhythm). */
 export const workspacePageToolbarRowClass =
-  "box-border flex min-h-11 shrink-0 flex-wrap items-center gap-x-4 gap-y-1 border-b border-app-border bg-app-surface px-3";
+  "app-chrome-surface box-border flex min-h-11 shrink-0 flex-wrap items-center gap-x-4 gap-y-1 border-b border-app-border px-3";
 
 /** Compact controls inside the 44px chrome row. */
 export const workspaceTopBarControlClass =

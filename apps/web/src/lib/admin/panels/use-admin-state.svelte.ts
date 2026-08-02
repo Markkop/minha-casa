@@ -383,9 +383,9 @@ export function createAdminState() {
   }
 
   function statusClass(status: string, expiresAt?: string | null) {
-    if (status === "active" && (!expiresAt || new Date(expiresAt) >= new Date())) return "bg-emerald-100 text-emerald-800";
-    if (status === "cancelled") return "bg-slate-200 text-slate-700";
-    return "bg-red-100 text-red-700";
+    if (status === "active" && (!expiresAt || new Date(expiresAt) >= new Date())) return "bg-app-success/10 text-app-success";
+    if (status === "cancelled") return "bg-app-surface-muted text-app-muted";
+    return "bg-app-danger/10 text-app-danger";
   }
 
   function isUserMode() {

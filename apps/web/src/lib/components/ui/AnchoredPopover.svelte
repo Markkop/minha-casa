@@ -118,7 +118,7 @@
       extraRoots: () => [rootRef]
     }}
     class={cn(
-      "rounded-md border border-app-border bg-app-surface text-app-fg shadow-lg",
+      "app-floating-surface rounded-md border border-app-border text-app-fg",
       zIndexClass,
       offsetClass,
       panelClass

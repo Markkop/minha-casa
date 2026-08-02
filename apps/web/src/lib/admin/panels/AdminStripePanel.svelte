@@ -28,7 +28,7 @@
         ["Faltando local", admin.stripeReconciliation.summary.missingLocally],
         ["Status divergente", admin.stripeReconciliation.summary.staleStatus]
       ] as item}
-        <div class="rounded-md border border-app-border bg-white p-3">
+        <div class="rounded-md border border-app-border bg-app-surface-muted/50 p-3">
           <div class="text-xs text-app-muted">{item[0]}</div>
           <div class="mt-1 text-2xl font-semibold">{item[1]}</div>
         </div>
@@ -43,7 +43,7 @@
         {:else}
           <div class="space-y-2">
             {#each admin.stripeReconciliation.discrepancies.missingLocally as row}
-              <div class="rounded-md border border-app-border bg-white p-3 text-sm">
+              <div class="rounded-md border border-app-border bg-app-surface-muted/50 p-3 text-sm">
                 <div class="font-mono text-xs">{row.stripeSubscriptionId}</div>
                 <div class="mt-1 text-app-muted">{row.stripeStatus} · cliente {row.stripeCustomerId ?? "-"}</div>
                 <div class="text-app-muted">Periodo: {admin.formatDate(row.currentPeriodEnd)}</div>
@@ -60,7 +60,7 @@
         {:else}
           <div class="space-y-2">
             {#each admin.stripeReconciliation.discrepancies.staleStatus as row}
-              <div class="rounded-md border border-app-border bg-white p-3 text-sm">
+              <div class="rounded-md border border-app-border bg-app-surface-muted/50 p-3 text-sm">
                 <div class="font-medium">{row.userEmail}</div>
                 <div class="mt-1 font-mono text-xs">{row.stripeSubscriptionId}</div>
                 <div class="mt-1 text-app-muted">Local: {row.localStatus}</div>

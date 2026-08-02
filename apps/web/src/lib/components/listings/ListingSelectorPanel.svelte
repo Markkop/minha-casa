@@ -46,7 +46,7 @@
       type="search"
       bind:value={query}
       placeholder="Buscar..."
-      class="h-6 w-full rounded-md border border-app-border bg-white py-0 pl-6 pr-2 text-[11px] leading-none text-app-fg outline-none focus:border-app-border-strong"
+      class="h-6 w-full rounded-md border border-app-border bg-app-surface py-0 pl-6 pr-2 text-[11px] leading-none text-app-fg outline-none focus:border-app-border-strong"
     />
   </div>
   {#if onClear}

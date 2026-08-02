@@ -32,7 +32,7 @@ export const condominiumColumns: WorkspaceTableColumn[] = [
 ];
 
 export const condominiumSelectClass =
-  "h-8 w-full min-w-0 rounded-md border border-app-border bg-white px-2 text-sm text-app-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-accent disabled:opacity-60 dark:bg-white";
+  "h-8 w-full min-w-0 rounded-md border border-app-border bg-app-surface px-2 text-sm text-app-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-accent disabled:opacity-60";
 
 export function amenitiesToString(amenities: string[]) {
   return amenities.join(", ");

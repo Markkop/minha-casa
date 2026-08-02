@@ -153,7 +153,7 @@
     {:else if !validReference}
       <WorkspacePanel class="p-5">
         <div class="flex items-start gap-3">
-          <AlertTriangle class="mt-0.5 size-5 shrink-0 text-amber-600" />
+          <AlertTriangle class="mt-0.5 size-5 shrink-0 text-app-warning" />
           <div>
             <h2 class="text-sm font-semibold">Não é possível gerar este relatório</h2>
             <ul class="mt-2 space-y-1 text-sm text-app-muted">
@@ -216,9 +216,9 @@
               </WorkspacePanel>
             </div>
           {:else if currentResult && !currentResult.ok}
-            <WorkspacePanel class="border-amber-300 bg-amber-50 p-4 dark:border-amber-900 dark:bg-amber-950/30">
-              <p class="text-sm font-medium text-amber-950 dark:text-amber-100">Complete a configuração</p>
-              <ul class="mt-1 space-y-1 text-xs text-amber-900 dark:text-amber-200">
+            <WorkspacePanel class="border-app-warning/30 bg-app-warning/10 p-4">
+              <p class="text-sm font-medium text-app-warning">Complete a configuração</p>
+              <ul class="mt-1 space-y-1 text-xs text-app-warning">
                 {#each currentResult.errors as error (error)}<li>• {error}</li>{/each}
               </ul>
             </WorkspacePanel>

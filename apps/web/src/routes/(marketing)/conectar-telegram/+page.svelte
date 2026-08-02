@@ -93,7 +93,7 @@
       </p>
 
       {#if isAuthenticated && status?.linked}
-        <div class="mt-4 rounded-md border border-app-border bg-white p-3 text-sm text-app-muted">
+        <div class="mt-4 rounded-md border border-app-border bg-app-surface-muted p-3 text-sm text-app-muted">
           Telegram ja conectado ao chat {status.chatId}.
         </div>
       {/if}
@@ -102,12 +102,12 @@
         <label class="text-sm font-medium" for="tg-code">Codigo</label>
         <input
           id="tg-code"
-          class="h-10 rounded-md border border-app-border bg-white px-3"
+          class="h-10 rounded-md border border-app-border bg-app-surface px-3"
           bind:value={manualCode}
           placeholder="Codigo recebido no Telegram"
         />
         {#if error}
-          <p class="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>
+          <p class="rounded-md border border-app-danger/30 bg-app-danger/10 px-3 py-2 text-sm text-app-danger">{error}</p>
         {/if}
         <Button type="submit" disabled={!isAuthenticated || linkState === "linking"}>
           {linkState === "linking" ? "Conectando..." : "Conectar agora"}

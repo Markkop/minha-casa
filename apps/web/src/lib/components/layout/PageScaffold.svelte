@@ -24,7 +24,7 @@
   <div class={WORKSPACE_CONTENT_CLASS}>
     <div class={WORKSPACE_STACK_CLASS}>
       {#if title || description || status}
-        <div class="rounded-lg border border-app-border bg-app-surface px-4 py-3 shadow-sm">
+        <div class="app-panel-surface rounded-lg border border-app-border px-4 py-3">
           {#if status}
             <div class="text-xs font-medium uppercase tracking-wide text-app-muted">{status}</div>
           {/if}

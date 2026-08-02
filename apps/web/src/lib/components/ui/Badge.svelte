@@ -15,9 +15,9 @@
   const tones: Record<Tone, string> = {
     default: "border-app-border bg-app-surface text-app-fg",
     muted: "border-app-border bg-app-surface-muted text-app-muted",
-    success: "border-emerald-200 bg-emerald-50 text-emerald-700",
-    warning: "border-amber-200 bg-amber-50 text-amber-800",
-    danger: "border-red-200 bg-red-50 text-red-700"
+    success: "border-emerald-300/40 bg-emerald-500/12 text-emerald-700 dark:text-emerald-300",
+    warning: "border-amber-300/40 bg-amber-500/12 text-amber-800 dark:text-amber-200",
+    danger: "border-rose-300/40 bg-rose-500/12 text-rose-700 dark:text-rose-300"
   };
 </script>
 

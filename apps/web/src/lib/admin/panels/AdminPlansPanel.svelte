@@ -31,14 +31,14 @@
             <td class="px-3 py-3 font-mono text-xs">{plan.slug}</td>
             <td class="px-3 py-3">{admin.formatMoney(plan.priceInCents)}</td>
             <td class="px-3 py-3">
-              <span class={`rounded px-2 py-1 text-xs ${plan.isActive ? "bg-emerald-100 text-emerald-800" : "bg-slate-200 text-slate-700"}`}>
+              <span class={`rounded px-2 py-1 text-xs ${plan.isActive ? "bg-app-success/10 text-app-success" : "bg-app-surface-muted text-app-muted"}`}>
                 {plan.isActive ? "Disponível" : "Inativo"}
               </span>
             </td>
             <td class="max-w-sm px-3 py-3 text-xs text-app-muted">{formatLimits(plan.limits)}</td>
             <td class="px-3 py-3">
               <div class="flex gap-2">
-                <input class="h-9 min-w-0 flex-1 rounded-md border border-app-border bg-white px-3 font-mono text-xs" value={plan.stripePriceId ?? ""} id={`stripe-${plan.id}`} />
+                <input class="h-9 min-w-0 flex-1 rounded-md border border-app-border bg-app-surface px-3 font-mono text-xs" value={plan.stripePriceId ?? ""} id={`stripe-${plan.id}`} />
                 <Button
                   class="h-9 px-3"
                   variant="secondary"

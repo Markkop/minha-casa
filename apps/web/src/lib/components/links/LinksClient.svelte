@@ -202,7 +202,7 @@
         </PageToolbarIconButton>
         <Input
           type="text"
-          class="h-11 flex-1 bg-white text-base dark:bg-white"
+          class="h-11 flex-1 bg-app-surface text-base"
           placeholder="Cole aqui links, buscas com filtros, sites úteis e referências externas."
           bind:value={addDraft.url}
           disabled={saving || rowEdit.editingId !== null}
@@ -220,7 +220,7 @@
     </div>
 
     {#if error}
-      <p class="text-sm text-red-600">{error}</p>
+      <p class="text-sm text-app-danger">{error}</p>
     {/if}
 
     {#if loading}
@@ -265,7 +265,7 @@
                 {:else if link.enriching}
                   <span class="text-sm text-app-muted animate-pulse">Carregando…</span>
                 {:else if link.enrichError}
-                  <span class="block min-w-0 text-xs text-amber-700 whitespace-pre-wrap break-words">
+                  <span class="block min-w-0 text-xs text-app-warning whitespace-pre-wrap break-words">
                     {link.enrichError}
                   </span>
                 {:else}

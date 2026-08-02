@@ -46,7 +46,7 @@
 {:else if result && isLegacyAnalysisResult(result)}
   <p
     class={cn(
-      "rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950",
+      "rounded-lg border border-app-warning/30 bg-app-warning/10 px-3 py-2 text-sm text-app-warning",
       className
     )}
     role="status"

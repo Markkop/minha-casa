@@ -160,7 +160,7 @@
   </WorkspaceIntroCard>
 
   {#if error}
-    <p class="mb-3 text-sm text-red-600">{error}</p>
+    <p class="mb-3 text-sm text-app-danger">{error}</p>
   {/if}
 
   {#if loading}

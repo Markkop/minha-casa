@@ -46,7 +46,7 @@
       <p class="mt-2 text-sm text-app-muted">
         Você foi convidado para entrar como {organizationRoleLabel(data.invite.role)}.
       </p>
-      <dl class="mt-5 grid gap-3 rounded-md border border-app-border bg-white p-4 text-sm">
+      <dl class="mt-5 grid gap-3 rounded-md border border-app-border bg-app-surface-muted p-4 text-sm">
         <div class="flex items-center justify-between gap-3">
           <dt class="text-app-muted">{data.invite.organization.kind === "agency" ? "Imobiliária" : "Família"}</dt>
           <dd class="font-medium">@{data.invite.organization.slug}</dd>
@@ -62,7 +62,7 @@
       </dl>
 
       {#if !data.invite.available}
-        <p class="mt-4 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+        <p class="mt-4 rounded-md border border-app-warning/30 bg-app-warning/10 px-3 py-2 text-sm text-app-warning">
           {INVITE_UNAVAILABLE_MESSAGE}
         </p>
       {:else if data.user}
@@ -84,7 +84,7 @@
     {/if}
 
     {#if error}
-      <p class="mt-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>
+      <p class="mt-4 rounded-md border border-app-danger/30 bg-app-danger/10 px-3 py-2 text-sm text-app-danger">{error}</p>
     {/if}
   </section>
 </main>

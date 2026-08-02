@@ -151,7 +151,7 @@
           name="name"
           bind:this={nameInput}
           bind:value={name}
-          class="mt-2 h-10 w-full rounded-md border border-app-border bg-white px-3"
+          class="mt-2 h-10 w-full rounded-md border border-app-border bg-app-surface px-3"
           autocomplete="name"
           required={isSignup}
           disabled={!isSignup || busy}
@@ -170,7 +170,7 @@
       name="email"
       bind:this={emailInput}
       bind:value={email}
-      class="mt-2 h-10 w-full rounded-md border border-app-border bg-white px-3"
+      class="mt-2 h-10 w-full rounded-md border border-app-border bg-app-surface px-3"
       type="email"
       autocomplete="email"
       required
@@ -182,7 +182,7 @@
       id="auth-password"
       name="password"
       bind:value={password}
-      class="mt-2 h-10 w-full rounded-md border border-app-border bg-white px-3"
+      class="mt-2 h-10 w-full rounded-md border border-app-border bg-app-surface px-3"
       type="password"
       autocomplete={isSignup ? "new-password" : "current-password"}
       required
@@ -191,7 +191,7 @@
 
     {#if error}
       <p
-        class="mt-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700"
+        class="mt-4 rounded-md border border-app-danger/30 bg-app-danger/10 px-3 py-2 text-sm text-app-danger"
         role="alert"
       >{error}</p>
     {/if}

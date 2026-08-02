@@ -1,5 +1,5 @@
 <div
-  class="rounded-lg border border-amber-200/80 bg-amber-50 px-4 py-2.5 text-sm text-amber-950 dark:border-amber-500/30 dark:bg-amber-950/40 dark:text-amber-100"
+  class="rounded-lg border border-app-warning/30 bg-app-warning/10 px-4 py-2.5 text-sm text-app-warning"
   role="status"
 >
   Esta funcionalidade está em teste.

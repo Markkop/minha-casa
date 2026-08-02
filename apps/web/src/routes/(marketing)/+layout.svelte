@@ -6,6 +6,7 @@
   import GoogleIcon from "$lib/components/GoogleIcon.svelte";
   import AccountMenu from "$lib/components/layout/AccountMenu.svelte";
   import MarketingHeader from "$lib/components/layout/MarketingHeader.svelte";
+  import ThemeToggle from "$lib/components/theme/ThemeToggle.svelte";
   import Button from "$lib/components/ui/Button.svelte";
   import { safeRedirectPath } from "$lib/navigation/safe-redirect";
   import type { LayoutData } from "../$types";
@@ -24,9 +25,9 @@
     safeRedirectPath(page.url.searchParams.get("redirect"))
   );
   const logoHref = $derived(user ? "/lista" : "/");
-  const immersivePaths = new Set(["/intelligence-demo", "/roadmap"]);
-  const showMarketingHeader = $derived(!immersivePaths.has(page.url.pathname));
+  const showMarketingHeader = $derived(page.url.pathname !== "/intelligence-demo");
   const immersiveHeader = $derived(page.url.pathname === "/");
+  const showThemeToggle = $derived(page.url.pathname !== "/");
 
   const initials = $derived.by(() => {
     const source: string = user?.name || user?.email || "U";
@@ -68,6 +69,9 @@
 {#if showMarketingHeader}
   <MarketingHeader href={logoHref} variant={immersiveHeader ? "immersive" : "default"}>
     {#snippet actions()}
+      {#if showThemeToggle}
+        <ThemeToggle />
+      {/if}
       {#if user}
         <div
           class={immersiveHeader
@@ -114,7 +118,7 @@
 
           {#if googleError}
             <p
-              class="absolute top-full right-0 z-10 mt-2 w-max max-w-[min(20rem,calc(100vw-1.5rem))] rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 shadow-sm"
+              class="absolute top-full right-0 z-10 mt-2 w-max max-w-[min(20rem,calc(100vw-1.5rem))] rounded-md border border-app-danger/30 bg-app-danger/10 px-3 py-2 text-sm text-app-danger shadow-sm"
               role="alert"
             >{googleError}</p>
           {/if}

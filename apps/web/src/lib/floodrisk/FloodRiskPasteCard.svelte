@@ -20,7 +20,7 @@
       return { label: "Aguardando", className: "bg-app-surface-muted text-app-muted" };
     }
     if (parseResult?.ok) {
-      return { label: "Valido", className: "border-emerald-500/30 bg-emerald-500/10 text-emerald-700" };
+      return { label: "Valido", className: "border-app-success/30 bg-app-success/10 text-app-success" };
     }
     return { label: "Erro", className: "border-destructive/30 bg-destructive/10 text-destructive" };
   });
@@ -60,7 +60,7 @@
   {/if}
 
   {#if showFewScenariosWarning}
-    <p class="mt-2 rounded-md border border-amber-500/30 bg-amber-500/10 p-2 text-xs text-amber-800">
+    <p class="mt-2 rounded-md border border-app-warning/30 bg-app-warning/10 p-2 text-xs text-app-warning">
       Menos de {RECOMMENDED_SCENARIO_COUNT} cenarios recomendados. A visualizacao ainda funciona.
     </p>
   {/if}
@@ -85,7 +85,7 @@
         <p><span class="font-semibold text-app-fg">Hipoteses:</span> {appliedGlobals.assumptions}</p>
       {/if}
       {#if appliedGlobals.warnings}
-        <p><span class="font-semibold text-amber-800">Avisos:</span> {appliedGlobals.warnings}</p>
+        <p><span class="font-semibold text-app-warning">Avisos:</span> {appliedGlobals.warnings}</p>
       {/if}
     </div>
   {/if}

@@ -32,7 +32,7 @@
 
 <PageScaffold title="Visao geral" description="Resumo operacional do workspace.">
   {#if error}
-    <div class="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</div>
+    <div class="rounded-md border border-app-danger/30 bg-app-danger/10 p-3 text-sm text-app-danger">{error}</div>
   {/if}
   <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
     {#each [
