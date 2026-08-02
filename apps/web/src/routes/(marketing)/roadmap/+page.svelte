@@ -17,18 +17,25 @@
       accent: "cyan"
     },
     {
+      label: "// Aluguel",
+      title: "Imóveis para alugar",
+      description:
+        "Suporte para adicionar, comparar, analisar e planejar imóveis alugados.",
+      accent: "emerald"
+    },
+    {
       label: "// Chatbot",
       title: "Conversas com IA",
       description:
         "Painel de conversa com um modelo de IA para tirar dúvidas, fazer análises e gerenciar as coleções de imóveis.",
-      accent: "emerald"
+      accent: "violet"
     },
     {
       label: "// App",
       title: "Aplicativo para celular",
       description:
         "Notificações, compartilhamento direto de arquivos, widgets e interface nativa.",
-      accent: "violet"
+      accent: "cyan"
     }
   ];
 
@@ -52,7 +59,7 @@
   <title>Roadmap | Minha Casa</title>
   <meta
     name="description"
-    content="O que vem por aí no Minha Casa: e-mails, chatbot e app mobile."
+    content="O que vem por aí no Minha Casa: e-mails, chatbot, app mobile e imóveis para aluguel."
   />
 </svelte:head>
 
@@ -339,6 +346,10 @@
 
     .roadmap-item:nth-child(3) .roadmap-node {
       animation-delay: 0.8s;
+    }
+
+    .roadmap-item:nth-child(4) .roadmap-node {
+      animation-delay: 1.2s;
     }
   }
 
