@@ -130,7 +130,7 @@
     <div class="auth-copy-grid">
       <div class:auth-copy-active={!isSignup} class="auth-copy" aria-hidden={isSignup}>
         <h1 class="text-2xl font-semibold">Entrar</h1>
-        <p class="mt-2 text-sm text-app-muted">Acesse sua conta Minha Casa.</p>
+        <p class="mt-2 text-sm text-app-muted">Acesse sua conta Prisma.</p>
       </div>
       <div class:auth-copy-active={isSignup} class="auth-copy" aria-hidden={!isSignup}>
         <h1 class="text-2xl font-semibold">Criar conta</h1>

@@ -125,7 +125,7 @@
 </script>
 
 <svelte:head>
-  <title>Lista de Imóveis | Minha Casa</title>
+  <title>Lista de Imóveis | Prisma</title>
   <meta
     name="description"
     content="Organize sua lista de imóveis e extraia dados automaticamente com IA."

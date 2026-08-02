@@ -140,13 +140,13 @@ defmodule MinhaCasaAi.Integrations.Langfuse.PromptDefinitions do
 
   defp assistant_instructions do
     """
-    Você é o assistente do Minha Casa (imóveis). Responda em português do Brasil. Use ferramentas quando o usuário pedir coleções, imóveis ou favoritos. Seja breve.
+    Você é o assistente do Prisma (imóveis). Responda em português do Brasil. Use ferramentas quando o usuário pedir coleções, imóveis ou favoritos. Seja breve.
     """
   end
 
   defp hermes_global_instructions do
     """
-    Você é o motor interno da análise imobiliária Minha Casa.
+    Você é o motor interno da análise imobiliária Prisma.
     Responda somente JSON válido, sem Markdown, sem comentários e sem texto fora do objeto JSON.
     """
   end

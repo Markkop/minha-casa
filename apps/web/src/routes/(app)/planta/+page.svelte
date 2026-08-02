@@ -4,7 +4,7 @@
 </script>
 
 <svelte:head>
-  <title>Planta | Minha Casa</title>
+  <title>Planta | Prisma</title>
 </svelte:head>
 
 <WorkspaceListingQuerySync />

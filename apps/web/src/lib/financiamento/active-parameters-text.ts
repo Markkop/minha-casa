@@ -282,7 +282,7 @@ export function buildActiveParametersPrompt(): string {
   });
 
   return [
-    "Crie uma simulacao financeira para o Minha Casa e responda somente com um unico bloco YAML valido.",
+    "Crie uma simulacao financeira para o Prisma e responda somente com um unico bloco YAML valido.",
     "",
     "Contrato obrigatorio:",
     `- A raiz deve ser ${ROOT_KEY}.`,

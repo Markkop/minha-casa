@@ -28,7 +28,7 @@
     {onclick}
   >
     <span class="brand-dot size-[9px] shrink-0 rounded-full bg-[#22d3ee]"></span>
-    <span class="truncate text-xs sm:text-[13px]">Minha Casa</span>
+    <span class="truncate text-xs sm:text-[13px]">Prisma</span>
   </a>
 {:else}
   <a
@@ -45,7 +45,7 @@
     >
       <Home class="h-4 w-4" />
     </span>
-    <span class="truncate">Minha Casa</span>
+    <span class="truncate">Prisma</span>
   </a>
 {/if}
 

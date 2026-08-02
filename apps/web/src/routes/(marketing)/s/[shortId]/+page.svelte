@@ -24,7 +24,7 @@
   }
 </script>
 
-<svelte:head><title>Link curto | Minha Casa</title></svelte:head>
+<svelte:head><title>Link curto | Prisma</title></svelte:head>
 
 <main class="flex min-h-screen items-center justify-center bg-app-bg px-4 text-app-fg">
   <section class="max-w-md rounded-md border border-app-border bg-app-surface p-6 text-center">

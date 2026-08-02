@@ -5,7 +5,7 @@ defmodule MinhaCasaAi.WhatsApp.Templates do
     link = connect_url(code)
 
     """
-    Olá! Sou o assistente Minha Casa no WhatsApp.
+    Olá! Sou o assistente Prisma no WhatsApp.
 
     Para usar o bot (enviar anúncios, links e arquivos para análise), conecte sua conta:
 

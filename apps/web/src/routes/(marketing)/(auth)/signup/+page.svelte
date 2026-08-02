@@ -1,3 +1,3 @@
 <svelte:head>
-  <title>Criar conta | Minha Casa</title>
+  <title>Criar conta | Prisma</title>
 </svelte:head>

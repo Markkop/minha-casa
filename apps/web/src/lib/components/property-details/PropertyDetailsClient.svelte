@@ -70,7 +70,7 @@
 </script>
 
 <svelte:head>
-  <title>{listing?.title ? `${listing.title} | Minha Casa` : "Imóvel | Minha Casa"}</title>
+  <title>{listing?.title ? `${listing.title} | Prisma` : "Imóvel | Prisma"}</title>
 </svelte:head>
 
 <div class="min-h-[calc(100vh-var(--nav-height,2.75rem))] bg-app-bg text-app-fg">

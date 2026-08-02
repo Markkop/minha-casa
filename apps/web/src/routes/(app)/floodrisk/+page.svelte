@@ -6,7 +6,7 @@
 </script>
 
 <svelte:head>
-  <title>Floodrisk | Minha Casa</title>
+  <title>Floodrisk | Prisma</title>
 </svelte:head>
 
 <div class="flex min-h-[calc(100vh-var(--nav-height,2.75rem))] flex-col bg-app-bg text-app-fg">

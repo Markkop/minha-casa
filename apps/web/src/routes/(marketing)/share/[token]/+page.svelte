@@ -140,7 +140,7 @@
 </script>
 
 <svelte:head>
-  <title>{data?.collection.name ?? "Coleção compartilhada"} | Minha Casa</title>
+  <title>{data?.collection.name ?? "Coleção compartilhada"} | Prisma</title>
 </svelte:head>
 
 <main class="min-h-screen bg-app-bg px-4 py-8 text-app-fg">

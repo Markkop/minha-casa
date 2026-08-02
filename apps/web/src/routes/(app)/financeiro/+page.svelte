@@ -4,7 +4,7 @@
 </script>
 
 <svelte:head>
-  <title>Financeiro | Minha Casa</title>
+  <title>Financeiro | Prisma</title>
   <meta
     name="description"
     content="Planeje a compra do imóvel com cenários de financiamento, amortização e fluxo financeiro."

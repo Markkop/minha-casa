@@ -179,7 +179,7 @@
 </script>
 
 <svelte:head>
-  <title>Comparação | Minha Casa</title>
+  <title>Comparação | Prisma</title>
 </svelte:head>
 
 <WorkspacePage>

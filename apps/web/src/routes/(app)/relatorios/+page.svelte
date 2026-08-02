@@ -31,7 +31,7 @@
 </script>
 
 <svelte:head>
-  <title>Relatórios | Minha Casa</title>
+  <title>Relatórios | Prisma</title>
   <meta
     name="description"
     content="Crie uma primeira proposta objetiva a partir dos imóveis da sua coleção."

@@ -14,7 +14,7 @@
 </script>
 
 <svelte:head>
-  <title>Acesso temporariamente indisponível | Minha Casa</title>
+  <title>Acesso temporariamente indisponível | Prisma</title>
 </svelte:head>
 
 <main class="grid min-h-screen place-items-center bg-app-bg px-4">

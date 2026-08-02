@@ -5,7 +5,7 @@
 </script>
 
 <svelte:head>
-  <title>Ferramentas | Minha Casa</title>
+  <title>Ferramentas | Prisma</title>
 </svelte:head>
 
 <PageScaffold

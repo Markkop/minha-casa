@@ -4,7 +4,7 @@
 </script>
 
 <svelte:head>
-  <title>Imprimir imagens | Minha Casa</title>
+  <title>Imprimir imagens | Prisma</title>
 </svelte:head>
 
 <ListingImagesPrintClient listingId={page.params.id ?? ""} />

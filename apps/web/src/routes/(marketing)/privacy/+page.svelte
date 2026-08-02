@@ -3,7 +3,7 @@
     <p class="text-sm text-muted-foreground">Última atualização: julho de 2026</p>
     <h1 class="text-3xl font-bold tracking-tight">Política de Privacidade</h1>
     <p class="text-muted-foreground">
-      A Minha Casa ajuda usuários a organizar imóveis, simulações e análises relacionadas à decisão imobiliária.
+      O Prisma ajuda usuários a organizar imóveis, simulações e análises relacionadas à decisão imobiliária.
       Esta política resume quais dados coletamos e como eles são usados para operar o serviço.
     </p>
   </div>

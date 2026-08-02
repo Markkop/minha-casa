@@ -1,3 +1,3 @@
 <svelte:head>
-  <title>Entrar | Minha Casa</title>
+  <title>Entrar | Prisma</title>
 </svelte:head>

@@ -56,10 +56,10 @@
 </script>
 
 <svelte:head>
-  <title>Roadmap | Minha Casa</title>
+  <title>Roadmap | Prisma</title>
   <meta
     name="description"
-    content="O que vem por aí no Minha Casa: e-mails, chatbot, app mobile e imóveis para aluguel."
+    content="O que vem por aí no Prisma: e-mails, chatbot, app mobile e imóveis para aluguel."
   />
 </svelte:head>
 

@@ -168,7 +168,7 @@
 </script>
 
 <svelte:head>
-  <title>Inteligência Imobiliária | Minha Casa</title>
+  <title>Inteligência Imobiliária | Prisma</title>
   <meta
     name="description"
     content="Explore imóveis, serviços e inteligência de mercado em uma vizinhança 3D interativa."
@@ -181,7 +181,7 @@
   <div class="ambient ambient-two"></div>
 
   <aside class="navigation-rail" aria-label="Navegação principal">
-    <a class="brand-mark" href="/intelligence-demo" aria-label="Minha Casa">
+    <a class="brand-mark" href="/intelligence-demo" aria-label="Prisma">
       <span></span><span></span>
     </a>
     <nav>
@@ -205,7 +205,7 @@
   <main class="workspace" id="neighborhood">
     <header class="topbar">
       <div class="title-block">
-        <p>MINHA CASA · LABORATÓRIO DE MERCADO</p>
+        <p>PRISMA · LABORATÓRIO DE MERCADO</p>
         <h1>Inteligência Imobiliária</h1>
         <div class="live-line">
           <span class:live={sceneSource === "live"}></span>

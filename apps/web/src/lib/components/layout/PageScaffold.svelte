@@ -16,7 +16,7 @@
 
 <svelte:head>
   {#if title}
-    <title>{title} | Minha Casa</title>
+    <title>{title} | Prisma</title>
   {/if}
 </svelte:head>
 

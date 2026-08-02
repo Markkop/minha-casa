@@ -5,7 +5,7 @@
 </script>
 
 <svelte:head>
-  <title>Planos | Minha Casa</title>
+  <title>Planos | Prisma</title>
   <meta
     name="description"
     content="Planos para compradores, famílias, corretores autônomos e imobiliárias."
@@ -16,7 +16,7 @@
   <section class="mx-auto max-w-7xl px-4 py-16 sm:py-24">
     <header class="mx-auto mb-12 max-w-3xl text-center">
       <p class="mb-3 text-sm font-semibold uppercase tracking-[0.18em] text-app-accent">Planos</p>
-      <h1 class="text-4xl font-bold sm:text-5xl">Escolha como você quer usar o Minha Casa</h1>
+      <h1 class="text-4xl font-bold sm:text-5xl">Escolha como você quer usar o Prisma</h1>
       <p class="mt-4 text-lg text-app-muted sm:text-xl">
         Da busca individual à operação de uma imobiliária, comece com o perfil que faz sentido para você.
       </p>

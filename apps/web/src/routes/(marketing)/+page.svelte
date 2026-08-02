@@ -15,10 +15,10 @@
 </script>
 
 <svelte:head>
-  <title>Minha Casa — inteligência para comprar seu imóvel</title>
+  <title>Prisma - seu agente de inteligência imobiliária</title>
   <meta
     name="description"
-    content="Organize anúncios, compare imóveis e simule o financiamento em uma única jornada de decisão."
+    content="Seu agente de inteligência imobiliária. Organize anúncios, compare imóveis e simule o financiamento em uma única jornada de decisão."
   />
 </svelte:head>
 
@@ -94,7 +94,7 @@
     </section>
   </main>
 
-  <footer>MINHA CASA · INTELIGÊNCIA PARA SUA JORNADA IMOBILIÁRIA</footer>
+  <footer>PRISMA · SEU AGENTE DE INTELIGÊNCIA IMOBILIÁRIA</footer>
 </div>
 
 <style>

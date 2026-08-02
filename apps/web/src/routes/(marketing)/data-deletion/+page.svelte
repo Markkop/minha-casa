@@ -7,7 +7,7 @@
     <p class="text-sm text-muted-foreground">Última atualização: maio de 2026</p>
     <h1 class="text-3xl font-bold tracking-tight">Exclusão de dados</h1>
     <p class="text-muted-foreground">
-      Esta página explica como solicitar a exclusão dos seus dados no Minha Casa, incluindo dados
+      Esta página explica como solicitar a exclusão dos seus dados no Prisma, incluindo dados
       obtidos por meio do WhatsApp (Meta) e da sua conta no site.
     </p>
   </div>
@@ -15,7 +15,7 @@
   <section class="space-y-3">
     <h2 class="text-xl font-semibold">A quem se aplica</h2>
     <p class="text-muted-foreground">
-      Usuários do Minha Casa que acessam o serviço pelo site, conectam o assistente pelo WhatsApp
+      Usuários do Prisma que acessam o serviço pelo site, conectam o assistente pelo WhatsApp
       ou vinculam outros canais, como o Telegram.
     </p>
   </section>
@@ -24,7 +24,7 @@
     <h2 class="text-xl font-semibold">Quais dados podemos excluir</h2>
     <ul class="list-disc space-y-2 pl-6 text-muted-foreground">
       <li><strong>WhatsApp (Meta):</strong> identificador WhatsApp, número de telefone, códigos de vinculação, eventos de webhook e histórico de conversas do bot vinculado à sua conta.</li>
-      <li><strong>Conta Minha Casa:</strong> perfil, email, sessões, coleções, imóveis importados, organizações e demais conteúdo criado no aplicativo.</li>
+      <li><strong>Conta Prisma:</strong> perfil, email, sessões, coleções, imóveis importados, organizações e demais conteúdo criado no aplicativo.</li>
       <li><strong>Telegram (se conectado):</strong> identificador do chat, códigos de vinculação e dados associados ao bot no Telegram.</li>
     </ul>
   </section>
@@ -38,9 +38,9 @@
         com o assunto <em>Exclusão de dados WhatsApp</em> e informe o número usado com o bot.
       </li>
       <li>
-        <strong>Conta completa no Minha Casa</strong> — Envie um email para
-        <a class="text-app-accent hover:underline" href={`mailto:${supportEmail}?subject=${encodeURIComponent("Exclusão de conta Minha Casa")}`}>{supportEmail}</a>
-        com o assunto <em>Exclusão de conta Minha Casa</em> e o email de login da sua conta.
+        <strong>Conta completa no Prisma</strong> — Envie um email para
+        <a class="text-app-accent hover:underline" href={`mailto:${supportEmail}?subject=${encodeURIComponent("Exclusão de conta Prisma")}`}>{supportEmail}</a>
+        com o assunto <em>Exclusão de conta Prisma</em> e o email de login da sua conta.
       </li>
       <li>
         <strong>Pelo painel da Meta (Facebook)</strong> — Se você removeu o app nas configurações da Meta, acesse

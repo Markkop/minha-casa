@@ -2,7 +2,7 @@
   <div class="space-y-3">
     <p class="text-sm text-muted-foreground">Última atualização: julho de 2026</p>
     <h1 class="text-3xl font-bold tracking-tight">Termos de Uso</h1>
-    <p class="text-muted-foreground">Ao usar a Minha Casa, você concorda com estes termos. Se não concordar, não use o serviço.</p>
+    <p class="text-muted-foreground">Ao usar o Prisma, você concorda com estes termos. Se não concordar, não use o serviço.</p>
   </div>
 
   <section class="space-y-3">

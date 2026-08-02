@@ -5,7 +5,7 @@ defmodule MinhaCasaAi.Telegram.Templates do
     link = connect_url(code)
 
     """
-    Olá! Sou o assistente Minha Casa no Telegram.
+    Olá! Sou o assistente Prisma no Telegram.
 
     Para usar o bot (enviar anúncios, links e arquivos para análise), conecte sua conta:
 
