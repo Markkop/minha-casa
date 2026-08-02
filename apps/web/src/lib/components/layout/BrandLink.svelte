@@ -27,7 +27,9 @@
     )}
     {onclick}
   >
-    <span class="brand-dot size-[9px] shrink-0 rounded-full bg-[#22d3ee]"></span>
+    <span class="brand-mark-pulse inline-flex shrink-0 text-[#22d3ee]">
+      <PrismMark class="h-[18px] w-[18px]" />
+    </span>
     <span class="truncate text-xs sm:text-[13px]">Prisma</span>
   </a>
 {:else}
@@ -63,10 +65,8 @@
       0 0 16px -7px color-mix(in srgb, var(--app-cyan) 58%, transparent);
   }
 
-  .brand-dot {
-    box-shadow:
-      0 0 14px #22d3ee,
-      0 0 28px rgba(34, 211, 238, 0.6);
+  .brand-mark-pulse {
+    filter: drop-shadow(0 0 10px rgba(34, 211, 238, 0.75));
     animation: brand-pulse 2.6s ease-in-out infinite;
   }
 
@@ -79,12 +79,12 @@
 
     50% {
       opacity: 0.55;
-      transform: scale(0.78);
+      transform: scale(0.88);
     }
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .brand-dot {
+    .brand-mark-pulse {
       animation: none;
     }
   }

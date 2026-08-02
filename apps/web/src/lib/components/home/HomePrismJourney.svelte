@@ -21,12 +21,26 @@
   let prismWidth = $state(256);
   let prismScale = $state(0.82);
   let prismSpin = $state(-8);
+  let prismMaskPath = $state("");
 
   const beamPalettes = [
     { start: "#22d3ee", middle: "#67e8f9" },
     { start: "#3b82f6", middle: "#60a5fa" },
     { start: "#7dd3fc", middle: "#a5f3fc" },
     { start: "#2563eb", middle: "#38bdf8" }
+  ];
+
+  // Prism SVG viewBox is 160×220; wires meet at (80, 101).
+  const PRISM_VIEWBOX_WIDTH = 160;
+  const PRISM_VIEWBOX_HEIGHT = 220;
+  const PRISM_WIRE_CENTER_Y = 101;
+  // Prism silhouette outline (viewBox coords) expressed as fractions of the box,
+  // matching the wire path `M80 8 18 108 80 212 142 108Z`.
+  const PRISM_SILHOUETTE = [
+    { x: 80 / PRISM_VIEWBOX_WIDTH, y: 8 / PRISM_VIEWBOX_HEIGHT },
+    { x: 18 / PRISM_VIEWBOX_WIDTH, y: 108 / PRISM_VIEWBOX_HEIGHT },
+    { x: 80 / PRISM_VIEWBOX_WIDTH, y: 212 / PRISM_VIEWBOX_HEIGHT },
+    { x: 142 / PRISM_VIEWBOX_WIDTH, y: 108 / PRISM_VIEWBOX_HEIGHT }
   ];
 
   const clamp = (value: number, min: number, max: number) =>
@@ -40,7 +54,6 @@
     const home = effectsRoot.closest<HTMLElement>(".immersive-home");
     const receiver = home?.querySelector<HTMLElement>("[data-home-prism-receiver]");
     const listPanel = home?.querySelector<HTMLElement>("[data-home-list-panel]");
-    const tip = effectsRoot.querySelector<SVGCircleElement>("[data-home-prism-tip]");
     const title = journey?.querySelector<HTMLElement>(".stage-title");
     const cardStacks = journey
       ? [...journey.querySelectorAll<HTMLElement>("[data-home-card-stack]")]
@@ -52,7 +65,6 @@
     const stickyElement: HTMLElement = sticky;
     const receiverElement: HTMLElement = receiver;
     const listPanelElement: HTMLElement = listPanel;
-    const tipElement = tip;
 
     const reducedMotionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
     const mobileQuery = window.matchMedia("(max-width: 720px)");
@@ -85,24 +97,32 @@
         ? titleRect.bottom - stickyRect.top
         : stickyRect.height * (mobile ? 0.42 : 0.5);
       const receiverTopY = receiverRect.top - stickyRect.top;
+      // Collision target is the prism's wire convergence (not the CSS box center).
       collisionY = titleBottomY + Math.max(0, receiverTopY - titleBottomY) * 0.5;
       collisionPulse = timeline.collisionPulse;
       incomingProgress = timeline.incomingBeamProgress;
 
       prismWidth = clamp(stickyRect.width * (mobile ? 0.48 : 0.2), mobile ? 164 : 224, mobile ? 208 : 304);
-      const prismHeight = prismWidth * 1.375;
+      const prismHeight = prismWidth * (PRISM_VIEWBOX_HEIGHT / 160);
+      const wireCenterFromCssCenter =
+        prismHeight * (PRISM_WIRE_CENTER_Y / PRISM_VIEWBOX_HEIGHT - 0.5);
+      const prismCssCenterTargetY = collisionY - wireCenterFromCssCenter;
       const prismStartY = -prismHeight * 0.62;
-      prismY = prismStartY + (collisionY - prismStartY) * timeline.prismProgress;
+      prismY = prismStartY + (prismCssCenterTargetY - prismStartY) * timeline.prismProgress;
       prismScale = 0.82 + timeline.prismProgress * 0.18;
       prismSpin = -9 + timeline.prismProgress * 18;
 
-      const tipRect = tipElement?.getBoundingClientRect();
-      const tipX = tipRect
-        ? tipRect.left + tipRect.width / 2 - stickyRect.left
-        : collisionX;
-      const tipY = tipRect
-        ? tipRect.top + tipRect.height / 2 - stickyRect.top
-        : collisionY + prismHeight * (47.5 / 220);
+      // Silhouette mask matching the prism's rendered position/size, so incoming
+      // beams simply vanish behind the glass instead of shining through it.
+      const maskWidth = prismWidth * prismScale;
+      const maskHeight = prismHeight * prismScale;
+      const maskLeft = collisionX - maskWidth / 2;
+      const maskTop = prismY - maskHeight / 2;
+      prismMaskPath = PRISM_SILHOUETTE.map((point, index) => {
+        const x = maskLeft + point.x * maskWidth;
+        const y = maskTop + point.y * maskHeight;
+        return `${index === 0 ? "M" : "L"} ${x} ${y}`;
+      }).join(" ") + " Z";
 
       if (mobile) {
         incomingBeams = [];
@@ -159,14 +179,14 @@
       const beamRight = listCenterX + halfBeamWidth;
       const targetY = receiverRect.top + receiverRect.height / 2 - stickyRect.top;
       const outgoingProgress = timeline.outgoingBeamProgress;
-      const frontLeftX = tipX + (beamLeft - tipX) * outgoingProgress;
-      const frontLeftY = tipY + (targetY - tipY) * outgoingProgress;
-      const frontRightX = tipX + (beamRight - tipX) * outgoingProgress;
-      const frontRightY = tipY + (targetY - tipY) * outgoingProgress;
+      const frontLeftX = collisionX + (beamLeft - collisionX) * outgoingProgress;
+      const frontLeftY = collisionY + (targetY - collisionY) * outgoingProgress;
+      const frontRightX = collisionX + (beamRight - collisionX) * outgoingProgress;
+      const frontRightY = collisionY + (targetY - collisionY) * outgoingProgress;
 
       outgoingConePath =
         outgoingProgress > 0
-          ? `M ${tipX} ${tipY} L ${frontLeftX} ${frontLeftY} L ${frontRightX} ${frontRightY} Z`
+          ? `M ${collisionX} ${collisionY} L ${frontLeftX} ${frontLeftY} L ${frontRightX} ${frontRightY} Z`
           : "";
 
       const photoContrast = timeline.photoAtmosphere;
@@ -272,6 +292,25 @@
       <filter id="prism-beam-soft" x="-120%" y="-120%" width="340%" height="340%">
         <feGaussianBlur stdDeviation="12" />
       </filter>
+      <mask
+        id="prism-cutout-mask"
+        maskUnits="userSpaceOnUse"
+        x={-surfaceWidth}
+        y={-surfaceHeight}
+        width={surfaceWidth * 3}
+        height={surfaceHeight * 3}
+      >
+        <rect
+          x={-surfaceWidth}
+          y={-surfaceHeight}
+          width={surfaceWidth * 3}
+          height={surfaceHeight * 3}
+          fill="#fff"
+        />
+        {#if prismMaskPath}
+          <path d={prismMaskPath} fill="#000" />
+        {/if}
+      </mask>
       <radialGradient id="collision-bloom-fill" cx="50%" cy="50%" r="50%">
         <stop offset="0%" stop-color="#ffffff" stop-opacity="1" />
         <stop offset="28%" stop-color="#f0feff" stop-opacity="0.72" />
@@ -286,20 +325,22 @@
       </filter>
     </defs>
 
-    {#each incomingBeams as beam, index (index)}
-      <g class="incoming-beam" style:opacity={incomingProgress > 0 ? 1 : 0}>
-        <path
-          d={beam.path}
-          class="incoming-beam__halo"
-          fill={`url(#prism-beam-${index})`}
-        />
-        <path
-          d={beam.path}
-          class="incoming-beam__cone"
-          fill={`url(#prism-beam-${index})`}
-        />
-      </g>
-    {/each}
+    <g mask="url(#prism-cutout-mask)">
+      {#each incomingBeams as beam, index (index)}
+        <g class="incoming-beam" style:opacity={incomingProgress > 0 ? 1 : 0}>
+          <path
+            d={beam.path}
+            class="incoming-beam__halo"
+            fill={`url(#prism-beam-${index})`}
+          />
+          <path
+            d={beam.path}
+            class="incoming-beam__cone"
+            fill={`url(#prism-beam-${index})`}
+          />
+        </g>
+      {/each}
+    </g>
 
     {#if outgoingConePath}
       <path d={outgoingConePath} class="outgoing-beam__halo" />
@@ -372,9 +413,6 @@
           <path d="M18 108 80 101 142 108" />
           <path d="M80 8V212" />
         </g>
-        <path class="prism-highlight" d="M80 16 27 105 80 99" />
-        <circle class="prism-heart" cx="80" cy="103" r="4" />
-        <circle data-home-prism-tip cx="80" cy="157.5" r="1" fill="none" />
       </svg>
     </div>
   </div>
@@ -448,8 +486,6 @@
   .prism-object svg { display: block; width: 100%; height: 100%; overflow: visible; }
   .prism-faces { mix-blend-mode: screen; opacity: 0.78; }
   .prism-wire { fill: none; stroke: rgb(207 250 254 / 88%); stroke-width: 1.35; stroke-linecap: round; stroke-linejoin: round; }
-  .prism-highlight { fill: none; stroke: rgb(255 255 255 / 74%); stroke-width: 1.8; stroke-linecap: round; }
-  .prism-heart { fill: #f5feff; filter: drop-shadow(0 0 7px #67e8f9); }
 
   @media (max-width: 720px) {
     .prism-effects { z-index: 6; }

@@ -209,6 +209,7 @@
     opacity: var(--prism-received, 0);
     pointer-events: none;
   }
+  /* Invisible beam target; kept for geometry measurement. */
   .prism-receiver {
     position: absolute;
     top: 0;
@@ -216,22 +217,9 @@
     z-index: 7;
     width: .9rem;
     height: .9rem;
-    border: 1px solid rgb(224 252 255 / 78%);
-    border-radius: 50%;
-    background: #dffcff;
-    box-shadow:
-      0 0 1.3rem #67e8f9,
-      0 0 3.2rem rgb(34 211 238 / 82%);
-    opacity: calc(.32 + var(--prism-received, 0) * .68);
-    transform: translate(-50%, -50%) scale(calc(.8 + var(--prism-received, 0) * .32));
-  }
-  .prism-receiver::after {
-    position: absolute;
-    inset: -.65rem;
-    border: 1px solid rgb(103 232 249 / 66%);
-    border-radius: inherit;
-    content: "";
-    opacity: var(--prism-received, 0);
+    opacity: 0;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
   }
   .panel-head { position: relative; display: flex; align-items: flex-end; justify-content: space-between; gap: 1rem; padding: 1.25rem 1.5rem 1rem; border-bottom: 1px solid var(--home-line); }
   .panel-head > div { min-width: 0; }

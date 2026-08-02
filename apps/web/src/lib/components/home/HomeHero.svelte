@@ -96,9 +96,18 @@
   .tag .id { color: var(--home-cyan-soft); font-family: var(--home-mono); font-size: .55rem; letter-spacing: .2em; text-transform: uppercase; }
   .tag .name { overflow: hidden; color: #eaf2ff; font-size: .7rem; font-weight: 500; letter-spacing: .01em; text-overflow: ellipsis; white-space: nowrap; }
   .price { position: absolute; top: .65rem; right: .65rem; z-index: 3; border: 1px solid rgb(103 232 249 / 18%); border-radius: 999px; background: rgb(3 7 17 / 64%); padding: .25rem .5rem; color: #eaf2ff; font-family: var(--home-mono); font-size: .6rem; font-variant-numeric: tabular-nums; backdrop-filter: blur(.4rem); }
-  .port { position: absolute; bottom: -.45rem; left: 50%; z-index: 5; width: .85rem; height: .85rem; border-radius: 50%; background: var(--home-cyan); box-shadow: 0 0 .65rem var(--home-cyan), 0 0 1.5rem rgb(34 211 238 / 90%); transform: translateX(-50%); }
-  .port::after { position: absolute; inset: -.4rem; border: 1px solid rgb(34 211 238 / 55%); border-radius: 50%; animation: home-port-ring 2.4s ease-out infinite; content: ""; }
-  @keyframes home-port-ring { 0% { opacity: .9; transform: scale(.6); } 100% { opacity: 0; transform: scale(2.2); } }
+  /* Invisible beam origin; kept for geometry measurement. */
+  .port {
+    position: absolute;
+    bottom: -.45rem;
+    left: 50%;
+    z-index: 5;
+    width: .85rem;
+    height: .85rem;
+    opacity: 0;
+    transform: translateX(-50%);
+    pointer-events: none;
+  }
 
   @media (max-width: 720px) {
     .home-stage { min-height: 100%; padding: 6.5rem 0 3rem; }
@@ -110,7 +119,6 @@
 
   @media (prefers-reduced-motion: reduce) {
     .card-stack { will-change: auto; }
-    .port::after { animation: none; opacity: .4; }
     .frame, .frame img, .scan { transition: none; }
   }
 </style>
