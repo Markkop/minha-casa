@@ -21,6 +21,7 @@
   let prismWidth = $state(256);
   let prismScale = $state(0.82);
   let prismSpin = $state(-8);
+  let prismOpacity = $state(0);
   let prismMaskPath = $state("");
 
   const beamPalettes = [
@@ -192,6 +193,8 @@
       prismY = prismStartY + (prismCssCenterTargetY - prismStartY) * timeline.prismProgress;
       prismScale = 0.82 + timeline.prismProgress * 0.18;
       prismSpin = -9 + timeline.prismProgress * 18;
+      // Fade in over the prism's entire travel.
+      prismOpacity = timeline.prismProgress;
 
       // Silhouette mask matching the prism's rendered position/size, so incoming
       // beams simply vanish behind the glass instead of shining through it.
@@ -432,7 +435,7 @@
     data-home-prism
     class="prism-shell"
     style:width={`${prismWidth}px`}
-    style:opacity={prismY > -prismWidth ? 1 : 0.72}
+    style:opacity={prismOpacity}
     style:transform={`translate(-50%, -50%) translate3d(0, ${prismY}px, 0) scale(${prismScale})`}
   >
     <div
@@ -482,7 +485,8 @@
   .prism-effects {
     position: absolute;
     inset: 0;
-    z-index: 3;
+    /* Keep the entire prism treatment behind the hero copy and property cards. */
+    z-index: 1;
     overflow: visible;
     pointer-events: none;
   }
@@ -548,9 +552,8 @@
   .prism-wire { fill: none; stroke: rgb(207 250 254 / 88%); stroke-width: 1.35; stroke-linecap: round; stroke-linejoin: round; }
 
   @media (max-width: 720px) {
-    /* Unwrap stacking so beams (1) < HomeHero stage (4) < prism (5). */
-    .prism-effects { z-index: auto; }
-    .prism-beam-surface { z-index: 1; }
+    /* Beams and prism remain a backdrop beneath the mobile hero stage (4). */
+    .prism-effects { z-index: 1; }
     .outgoing-beam__cone { opacity: .7; }
   }
 

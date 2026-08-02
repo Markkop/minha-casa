@@ -133,7 +133,7 @@
   .stage-cards { display: none; }
 
   @media (max-width: 720px) {
-    /* beams (1) < stage (4) < prism shell (5) — see HomePrismJourney layers */
+    /* Prism effects (1) sit behind this hero stage (4). */
     .home-stage { position: relative; z-index: 4; min-height: 100%; padding: 5rem 0 3rem; flex-direction: column; justify-content: flex-start; gap: 2rem; }
     .stage-title { max-width: 100%; opacity: 1; }
     .stage-title h1 { font-size: clamp(1.5rem, 15vw, 3.5rem); }
