@@ -1,18 +1,17 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { page } from "$app/state";
-  import { AlertCircle, Calendar, Check, CheckCircle, Crown, FlaskConical } from "@lucide/svelte";
+  import { AlertCircle, Calendar, CheckCircle, Crown, FlaskConical } from "@lucide/svelte";
   import { ApiError } from "$lib/api/client";
   import { formatApiError } from "$lib/api/error-message";
   import { billingApi } from "$lib/billing/client";
   import { subscriptionStatusLabel } from "$lib/status-labels";
   import Button from "$lib/components/ui/Button.svelte";
-  import HelpHint from "$lib/components/ui/HelpHint.svelte";
+  import PlanCatalogCard from "$lib/components/plans/PlanCatalogCard.svelte";
   import type { AdminPlan, AdminSubscription } from "$lib/admin/client";
   import { isSafeRedirectPath } from "$lib/navigation/safe-redirect";
   import {
     findPlanCatalogEntry,
-    formatPlanMonthlyPrice,
     PLAN_CATALOG,
     type PlanSlug
   } from "$lib/plans/catalog";
@@ -258,80 +257,45 @@
             {@const apiPlan = planFor(plan.slug)}
             {@const current = plan.slug === "free" ? !hasActiveSubscription : currentPlan?.slug === plan.slug}
             {@const selected = selectedPlan?.slug === plan.slug}
-            <article class={`relative flex flex-col rounded-xl border bg-app-surface p-6 ${current || selected ? "border-app-action border-2 shadow-sm" : "border-app-border"}`}>
-              {#if current}
-                <span class="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-app-action px-3 py-1 text-xs font-bold text-app-action-foreground">Seu plano</span>
-              {:else if selected}
-                <span class="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-app-action px-3 py-1 text-xs font-bold text-app-action-foreground">Selecionado</span>
-              {/if}
-              <div>
-                <p class="text-sm font-medium text-app-muted">{plan.audience}</p>
-                <h3 class="mt-2 text-2xl font-bold">{plan.name}</h3>
-                <p class="mt-2 min-h-12 text-sm leading-6 text-app-muted">{plan.description}</p>
-                <div class="mt-5 flex items-end gap-1">
-                  <span class="text-4xl font-bold">{formatPlanMonthlyPrice(plan)}</span>
-                  {#if plan.monthlyPriceInCents > 0}
-                    <div class="flex flex-1 items-baseline justify-between gap-2 pb-1 text-app-muted">
-                      <span class="text-sm">/mês</span>
-                      {#if plan.priceNote}
-                        <span class="text-[8px] leading-none">{plan.priceNote}</span>
-                      {/if}
-                    </div>
-                  {/if}
-                </div>
-              </div>
-              <ul class="mt-6 flex-1 space-y-3">
-                <li class="flex items-start gap-2 text-sm text-app-muted">
-                  <Check class="mt-0.5 h-5 w-5 shrink-0 text-app-accent" />
-                  <span>{plan.platformCredits} créditos na plataforma</span>
-                </li>
-                <li class="flex items-start gap-2 text-sm text-app-muted">
-                  <Check class="mt-0.5 h-5 w-5 shrink-0 text-app-accent" />
-                  <span class="inline-flex items-center gap-1.5">
-                    {plan.retention.label}
-                    <HelpHint content={plan.retention.detail} />
-                  </span>
-                </li>
-                {#each plan.features as feature (feature.label)}
-                  <li class="flex items-start gap-2 text-sm text-app-muted">
-                    <Check class="mt-0.5 h-5 w-5 shrink-0 text-app-accent" />
-                    <span class={feature.detail ? "inline-flex items-center gap-1.5" : undefined}>
-                      {feature.label}
-                      {#if feature.detail}
-                        <HelpHint content={feature.detail} />
-                      {/if}
-                    </span>
-                  </li>
-                {/each}
-              </ul>
-              {#if plan.slug === "free"}
-                <a
-                  href="/lista"
-                  class={`mt-6 flex h-11 items-center justify-center rounded-md font-medium ${current ? "bg-app-surface-muted text-app-muted" : "border border-app-border bg-white text-app-fg"}`}
-                >
-                  {current ? "Plano atual" : "Usar Free"}
-                </a>
-              {:else}
-                <button
-                  class={`mt-6 h-11 rounded-md font-medium ${current ? "bg-app-surface-muted text-app-muted" : apiPlan?.stripePriceId ? "bg-app-fg text-white" : "border border-app-border bg-white text-app-muted"}`}
-                  disabled={current || !apiPlan?.stripePriceId || checkoutPlanId === apiPlan?.id}
-                  onclick={() => void startCheckout(apiPlan)}
-                >
-                  {#if current}
-                    Plano atual
-                  {:else if checkoutPlanId === apiPlan?.id}
-                    Abrindo checkout...
-                  {:else if apiPlan?.stripePriceId}
-                    {authenticated === false ? `Entrar para assinar ${plan.name}` : `Assinar ${plan.name}`}
-                  {:else}
-                    Checkout em breve
-                  {/if}
-                </button>
-              {/if}
-              {#if plan.slug !== "free" && apiPlan && !apiPlan.stripePriceId}
-                <p class="mt-3 text-center text-xs text-app-muted">Checkout ainda não configurado para este plano.</p>
-              {/if}
-            </article>
+            <PlanCatalogCard
+              {plan}
+              headingLevel="h3"
+              actionClass="mt-6"
+              emphasized={current || selected}
+              badge={current ? "Seu plano" : selected ? "Selecionado" : null}
+            >
+              {#snippet action()}
+                {#if plan.slug === "free"}
+                  <a
+                    href="/lista"
+                    class={`flex h-11 items-center justify-center rounded-md font-medium ${current ? "bg-app-surface-muted text-app-muted" : "border border-app-border bg-white text-app-fg"}`}
+                  >
+                    {current ? "Plano atual" : "Usar Free"}
+                  </a>
+                {:else}
+                  <button
+                    class={`h-11 rounded-md font-medium ${current ? "bg-app-surface-muted text-app-muted" : apiPlan?.stripePriceId ? "bg-app-fg text-white" : "border border-app-border bg-white text-app-muted"}`}
+                    disabled={current || !apiPlan?.stripePriceId || checkoutPlanId === apiPlan?.id}
+                    onclick={() => void startCheckout(apiPlan)}
+                  >
+                    {#if current}
+                      Plano atual
+                    {:else if checkoutPlanId === apiPlan?.id}
+                      Abrindo checkout...
+                    {:else if apiPlan?.stripePriceId}
+                      {authenticated === false ? `Entrar para assinar ${plan.name}` : `Assinar ${plan.name}`}
+                    {:else}
+                      Checkout em breve
+                    {/if}
+                  </button>
+                {/if}
+              {/snippet}
+              {#snippet footer()}
+                {#if plan.slug !== "free" && apiPlan && !apiPlan.stripePriceId}
+                  <p class="mt-3 text-center text-xs text-app-muted">Checkout ainda não configurado para este plano.</p>
+                {/if}
+              {/snippet}
+            </PlanCatalogCard>
           {/each}
         </div>
       </section>

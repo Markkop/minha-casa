@@ -1,7 +1,7 @@
 <script lang="ts">
-  import { ArrowRight, Check } from "@lucide/svelte";
-  import HelpHint from "$lib/components/ui/HelpHint.svelte";
-  import { formatPlanMonthlyPrice, PLAN_CATALOG } from "$lib/plans/catalog";
+  import { ArrowRight } from "@lucide/svelte";
+  import PlanCatalogCard from "$lib/components/plans/PlanCatalogCard.svelte";
+  import { PLAN_CATALOG } from "$lib/plans/catalog";
 </script>
 
 <svelte:head>
@@ -24,65 +24,21 @@
 
     <div class="grid gap-6 sm:grid-cols-2 xl:grid-cols-4">
       {#each PLAN_CATALOG as plan (plan.slug)}
-        <article
-          class={`relative flex flex-col rounded-xl border bg-app-surface p-6 ${plan.highlighted ? "border-2 border-app-action shadow-md" : "border-app-border"}`}
+        <PlanCatalogCard
+          {plan}
+          highlighted={plan.highlighted}
+          badge={plan.highlighted ? "Mais escolhido" : null}
         >
-          {#if plan.highlighted}
-            <span class="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-app-action px-3 py-1 text-xs font-bold text-app-action-foreground">
-              Mais escolhido
-            </span>
-          {/if}
-
-          <div>
-            <p class="text-sm font-medium text-app-muted">{plan.audience}</p>
-            <h2 class="mt-2 text-2xl font-bold">{plan.name}</h2>
-            <p class="mt-2 min-h-12 text-sm leading-6 text-app-muted">{plan.description}</p>
-            <div class="mt-5 flex items-end gap-1">
-              <span class="text-4xl font-bold">{formatPlanMonthlyPrice(plan)}</span>
-              {#if plan.monthlyPriceInCents > 0}
-                <div class="flex flex-1 items-baseline justify-between gap-2 pb-1 text-app-muted">
-                  <span class="text-sm">/mês</span>
-                  {#if plan.priceNote}
-                    <span class="text-[8px] leading-none">{plan.priceNote}</span>
-                  {/if}
-                </div>
-              {/if}
-            </div>
-          </div>
-
-          <ul class="mt-6 flex-1 space-y-3">
-            <li class="flex items-start gap-2 text-sm text-app-muted">
-              <Check class="mt-0.5 h-5 w-5 shrink-0 text-app-accent" />
-              <span>{plan.platformCredits} créditos na plataforma</span>
-            </li>
-            <li class="flex items-start gap-2 text-sm text-app-muted">
-              <Check class="mt-0.5 h-5 w-5 shrink-0 text-app-accent" />
-              <span class="inline-flex items-center gap-1.5">
-                {plan.retention.label}
-                <HelpHint content={plan.retention.detail} />
-              </span>
-            </li>
-            {#each plan.features as feature (feature.label)}
-              <li class="flex items-start gap-2 text-sm text-app-muted">
-                <Check class="mt-0.5 h-5 w-5 shrink-0 text-app-accent" />
-                <span class={feature.detail ? "inline-flex items-center gap-1.5" : undefined}>
-                  {feature.label}
-                  {#if feature.detail}
-                    <HelpHint content={feature.detail} />
-                  {/if}
-                </span>
-              </li>
-            {/each}
-          </ul>
-
-          <a
-            href={plan.slug === "free" ? "/signup" : `/subscribe?plan=${plan.slug}`}
-            class={`mt-8 flex h-11 items-center justify-center gap-2 rounded-md font-medium transition-colors ${plan.highlighted ? "bg-app-action text-app-action-foreground hover:bg-app-action-hover" : "border border-app-border bg-app-surface-muted text-app-fg hover:bg-app-bg"}`}
-          >
-            {plan.slug === "free" ? "Começar grátis" : `Escolher ${plan.name}`}
-            <ArrowRight class="h-4 w-4" />
-          </a>
-        </article>
+          {#snippet action()}
+            <a
+              href={plan.slug === "free" ? "/signup" : `/subscribe?plan=${plan.slug}`}
+              class={`flex h-11 items-center justify-center gap-2 rounded-md font-medium transition-colors ${plan.highlighted ? "bg-app-action text-app-action-foreground hover:bg-app-action-hover" : "border border-app-border bg-app-surface-muted text-app-fg hover:bg-app-bg"}`}
+            >
+              {plan.slug === "free" ? "Começar grátis" : `Escolher ${plan.name}`}
+              <ArrowRight class="h-4 w-4" />
+            </a>
+          {/snippet}
+        </PlanCatalogCard>
       {/each}
     </div>
   </section>
