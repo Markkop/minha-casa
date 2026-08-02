@@ -30,29 +30,37 @@ describe("PLAN_CATALOG", () => {
     const agency = findPlanCatalogEntry("imobiliaria");
 
     expect(agency?.priceNote).toBe("(até 10 corretores)");
-    expect(agency?.features).not.toContain("Até 10 licenças");
+    expect(agency?.features.map((feature) => feature.label)).not.toContain("Até 10 licenças");
     expect(JSON.stringify(agency)).not.toMatch(/seat|adicional por/i);
   });
 
   it("discloses inactivity retention for every tier", () => {
-    expect(
-      PLAN_CATALOG.map((plan) =>
-        plan.features.find((feature) => feature.startsWith("Retenção por"))
-      )
-    ).toEqual([
-      "Retenção por 30 dias sem atividade",
-      "Retenção por 360 dias sem atividade",
-      "Retenção por 360 dias sem atividade",
-      "Retenção por 720 dias sem atividade da equipe"
+    expect(PLAN_CATALOG.map((plan) => plan.retention.label)).toEqual([
+      "Retenção por 30 dias",
+      "Retenção por 12 meses",
+      "Retenção por 12 meses",
+      "Retenção por 2 anos"
+    ]);
+
+    expect(PLAN_CATALOG.map((plan) => plan.retention.detail)).toEqual([
+      "Dados dos imóveis e coleções salvos por 30 dias sem atividade poderão ser apagados",
+      "Dados dos imóveis e coleções salvos por 12 meses sem atividade poderão ser apagados",
+      "Dados dos imóveis e coleções salvos por 12 meses sem atividade poderão ser apagados",
+      "Dados dos imóveis e coleções salvos por 2 anos sem atividade da equipe poderão ser apagados"
     ]);
   });
 
-  it("does not expose internal AI credits", () => {
-    const visibleCopy = JSON.stringify(PLAN_CATALOG);
+  it("discloses platform credits for every tier", () => {
+    expect(PLAN_CATALOG.map((plan) => plan.platformCredits)).toEqual([100, 200, 300, 500]);
+  });
 
-    expect(visibleCopy).not.toMatch(/cr[eé]ditos?/i);
-    expect(visibleCopy).not.toMatch(/\bIA\b/i);
-    expect(visibleCopy).not.toMatch(/parsing/i);
+  it("explains family collaboration on the Pro plan", () => {
+    const pro = findPlanCatalogEntry("pro");
+    const familyFeature = pro?.features.find((feature) => feature.label === "Colabore com +3 familiares");
+
+    expect(familyFeature?.detail).toBe(
+      "Convide parentes e amigos para gerenciar as suas coleções sem custos adicionais"
+    );
   });
 
   it("formats catalog prices for pt-BR", () => {

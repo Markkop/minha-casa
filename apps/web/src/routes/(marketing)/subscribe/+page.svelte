@@ -280,10 +280,10 @@
                 </div>
               </div>
               <ul class="mt-6 flex-1 space-y-3">
-                {#each plan.features as feature}
+                {#each plan.features as feature (feature.label)}
                   <li class="flex items-start gap-2 text-sm text-app-muted">
                     <Check class="mt-0.5 h-5 w-5 shrink-0 text-app-accent" />
-                    <span>{feature}</span>
+                    <span>{feature.label}</span>
                   </li>
                 {/each}
               </ul>
