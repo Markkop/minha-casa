@@ -175,7 +175,9 @@
     height: 100svh;
     overflow: visible;
   }
-  .list-section { position: relative; z-index: 4; padding: 2vh 0 14vh; }
+  /* Let the desktop panel meet the outgoing beam before the sticky scene ends,
+     so its reveal remains visible instead of completing below the viewport. */
+  .list-section { position: relative; z-index: 4; margin-top: -32svh; padding: 2vh 0 14vh; }
   .section-label {
     position: relative;
     z-index: 5;
@@ -283,6 +285,7 @@
     .immersive-home { scroll-behavior: auto; }
     .home-prism-story { height: 74vh; }
     .home-prism-sticky { position: relative; height: 74vh; }
+    .list-section { margin-top: 0; }
     .list-panel { will-change: auto; }
     .immersive-home *, .immersive-home *::before, .immersive-home *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; }
   }
