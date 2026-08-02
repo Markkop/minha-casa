@@ -21,7 +21,7 @@ docker run --rm -v "$(pwd)/backend:/app" -w /app elixir:1.18-otp-27-alpine \
 
 - This project is being migrated/was migrated from a NextJs project, so feel free to fix and improve from left overs/bad migration.
 - Don't browser QA unless asked to
-- Use subagents to do small and contextual changes
+- Use subagents to do small and contextual changes, but only when breaking up things into subagents
 - Avoid updating/creating files longer than 1k LoC, break them down when needed
 
 ## Production VPS
