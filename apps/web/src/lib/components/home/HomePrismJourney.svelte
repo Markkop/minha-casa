@@ -174,7 +174,7 @@
       const listLeft = listRect.left - stickyRect.left;
       const listRight = listRect.right - stickyRect.left;
       const listCenterX = (listLeft + listRight) / 2;
-      const halfBeamWidth = (listRight - listLeft) * 0.22;
+      const halfBeamWidth = (listRight - listLeft) * (mobile ? 0.44 : 0.22);
       const beamLeft = listCenterX - halfBeamWidth;
       const beamRight = listCenterX + halfBeamWidth;
       const targetY = receiverRect.top + receiverRect.height / 2 - stickyRect.top;
