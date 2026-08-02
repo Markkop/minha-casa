@@ -135,21 +135,21 @@
 <PropertyListQuerySync />
 
 {#if ctx.isLoading}
-  <div class="flex min-h-[calc(100vh-var(--nav-height,2.75rem))] items-center justify-center bg-app-bg text-app-muted">
+  <div class="app-page-background flex min-h-[calc(100vh-var(--nav-height,2.75rem))] items-center justify-center text-app-muted">
     <Loader2 class="h-6 w-6 animate-spin" />
     <span class="ml-2 text-sm">Carregando...</span>
   </div>
 {:else if ctx.error}
-  <div class={cn("min-h-[calc(100vh-var(--nav-height,2.75rem))] bg-app-bg text-app-fg", WORKSPACE_CONTENT_CLASS)}>
+  <div class={cn("app-page-background min-h-[calc(100vh-var(--nav-height,2.75rem))] text-app-fg", WORKSPACE_CONTENT_CLASS)}>
     <div class="rounded-md border border-app-border bg-app-surface p-6 text-center">
       <p class="mb-2 font-medium">Erro ao carregar dados</p>
       <p class="text-sm text-app-muted">{ctx.error}</p>
     </div>
   </div>
 {:else if ctx.collections.length === 0}
-  <div class="min-h-[calc(100vh-var(--nav-height,2.75rem))] bg-app-bg text-app-fg">
+  <div class="app-page-background min-h-[calc(100vh-var(--nav-height,2.75rem))] text-app-fg">
     <main class={WORKSPACE_CONTENT_CLASS}>
-      <Card class="mx-auto max-w-lg border-app-border bg-app-surface">
+      <Card class="mx-auto max-w-lg border-app-border">
         <div class="space-y-6 py-12 text-center">
           <FolderOpen class="mx-auto h-16 w-16 text-muted-foreground" />
           <div class="space-y-2">
@@ -194,7 +194,7 @@
     </main>
   </div>
 {:else}
-  <div class="min-h-[calc(100vh-var(--nav-height,2.75rem))] bg-app-bg text-app-fg">
+  <div class="app-page-background min-h-[calc(100vh-var(--nav-height,2.75rem))] text-app-fg">
     {#if showShareConfirm && shareData}
       <div class="fixed inset-0 z-[1000] flex items-center justify-center">
         <button
@@ -203,7 +203,7 @@
           aria-label="Fechar"
           onclick={handleShareCancel}
         ></button>
-        <Card class="relative z-10 mx-4 w-full max-w-md border-app-border bg-app-surface">
+        <Card class="app-floating-surface relative z-10 mx-4 w-full max-w-md border-app-border">
           <div class="flex items-center justify-between border-b border-app-border px-4 py-3">
             <h2 class="flex items-center gap-2 text-lg font-semibold">
               <Link2 class="h-5 w-5 text-app-accent" />

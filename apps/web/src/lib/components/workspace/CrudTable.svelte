@@ -18,7 +18,7 @@
   }>();
 </script>
 
-<div class="overflow-hidden rounded-md border border-app-border bg-app-surface">
+<div class="app-panel-surface overflow-hidden rounded-lg border border-app-border">
   <table class="w-full border-collapse text-left text-sm">
     <thead class="bg-app-surface-muted text-xs uppercase text-app-muted">
       <tr>

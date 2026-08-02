@@ -10,6 +10,6 @@
   }>();
 </script>
 
-<div data-slot="card-title" class={cn("leading-none font-semibold", className)}>
+<div data-slot="card-title" class={cn("font-semibold leading-none tracking-[-0.015em]", className)}>
   {@render children?.()}
 </div>

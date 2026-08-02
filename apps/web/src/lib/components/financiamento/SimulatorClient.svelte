@@ -900,7 +900,7 @@
   <WorkspaceLoadingState />
 {:else}
   <div
-    class="flex h-[calc(100svh-var(--nav-height,2.75rem))] min-h-0 flex-col overflow-hidden bg-app-bg text-app-fg"
+    class="app-page-background flex h-[calc(100svh-var(--nav-height,2.75rem))] min-h-0 flex-col overflow-hidden text-app-fg"
   >
     {#if workspaceMode}
       <PropertyQuerySync />

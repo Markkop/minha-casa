@@ -142,7 +142,7 @@
     ></div>
 
     <aside
-      class="max-h-[48vh] w-full shrink-0 overflow-y-auto rounded-lg border border-app-border bg-app-surface p-4 shadow-sm lg:max-h-none lg:w-[380px]"
+      class="app-panel-surface max-h-[48vh] w-full shrink-0 overflow-y-auto rounded-lg border border-app-border p-4 lg:max-h-none lg:w-[380px]"
     >
       <div class="mb-4">
         <h1 class="text-lg font-semibold text-app-fg">Floodrisk</h1>

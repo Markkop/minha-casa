@@ -6,10 +6,10 @@
   let { entry }: { entry: ToolCatalogEntry } = $props();
 </script>
 
-<article class="flex flex-col overflow-hidden rounded-lg border border-app-border bg-app-surface shadow-sm">
+<article class="app-panel-surface app-interactive-surface flex flex-col overflow-hidden rounded-lg border border-app-border">
   <div class="flex items-start justify-between gap-3 border-b border-app-border p-4">
     <div class="min-w-0 flex-1">
-      <h2 class="text-base font-semibold text-app-fg">{entry.title}</h2>
+      <h2 class="text-base font-semibold tracking-[-0.015em] text-app-fg">{entry.title}</h2>
       <p class="mt-1 text-sm leading-6 text-app-muted">{entry.description}</p>
     </div>
     <a href={entry.href} class="shrink-0">

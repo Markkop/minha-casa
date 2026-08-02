@@ -149,7 +149,7 @@
     <button type="button" class="absolute inset-0 bg-app-fg/80 backdrop-blur-sm" aria-label="Fechar" onclick={onClose}></button>
 
     <div
-      class="relative z-10 mx-4 flex max-h-[90vh] w-full max-w-3xl flex-col overflow-hidden rounded-md border border-app-border bg-app-surface shadow-sm"
+      class="app-floating-surface relative z-10 mx-4 flex max-h-[90vh] w-full max-w-3xl flex-col overflow-hidden rounded-xl border border-app-border"
       role="dialog"
       aria-modal="true"
       tabindex="-1"
@@ -318,7 +318,7 @@
     {#if confirmPullOpen}
       <div class="fixed inset-0 z-[1010] flex items-center justify-center">
         <button type="button" class="absolute inset-0 bg-app-fg/60" aria-label="Fechar" onclick={() => (confirmPullOpen = false)}></button>
-        <Card class="relative z-10 mx-4 w-full max-w-md border-app-border bg-app-surface p-4">
+        <Card class="app-floating-surface relative z-10 mx-4 w-full max-w-md border-app-border p-4">
           <h3 class="mb-2 text-lg font-semibold text-app-fg">Substituir imagens?</h3>
           <p class="mb-4 text-sm text-muted-foreground">
             O sistema vai buscar as fotos no link do anúncio, baixá-las e substituir a galeria atual. Isso pode levar alguns minutos.

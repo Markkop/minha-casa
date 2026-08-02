@@ -77,7 +77,7 @@
 
     {#if clipboardMatch && previewOpen}
       <div
-        class="absolute left-0 top-full z-[1400] mt-2 w-72 rounded-lg border border-app-border bg-app-surface p-3 shadow-lg"
+        class="app-floating-surface absolute left-0 top-full z-[1400] mt-2 w-72 rounded-lg border border-app-border p-3"
         role="tooltip"
       >
         <div class="mb-1.5 flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-wide text-app-muted">

@@ -138,7 +138,7 @@
     ></button>
 
     <div
-      class="relative z-10 flex max-h-[96vh] min-h-0 w-full max-w-6xl flex-col overflow-hidden rounded-xl border border-app-border bg-app-surface text-app-fg shadow-xl sm:max-h-[92vh]"
+      class="app-floating-surface relative z-10 flex max-h-[96vh] min-h-0 w-full max-w-6xl flex-col overflow-hidden rounded-xl border border-app-border text-app-fg sm:max-h-[92vh]"
       role="dialog"
       aria-modal="true"
       aria-labelledby="merge-review-title"

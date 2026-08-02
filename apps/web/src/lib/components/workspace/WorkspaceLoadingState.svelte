@@ -7,7 +7,7 @@
 
 <div
   class={cn(
-    "flex min-h-[calc(100vh-var(--nav-height,2.75rem))] items-center justify-center bg-app-bg text-app-muted",
+    "app-page-background flex min-h-[calc(100vh-var(--nav-height,2.75rem))] items-center justify-center text-app-muted",
     className
   )}
   role="status"

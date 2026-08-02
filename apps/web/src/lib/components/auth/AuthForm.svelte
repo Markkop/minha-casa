@@ -121,19 +121,19 @@
   }
 </script>
 
-<main class="grid min-h-screen place-items-center bg-app-bg px-4">
+<main class="app-page-background grid min-h-screen place-items-center px-4">
   <form
-    class="w-full max-w-md rounded-md border border-app-border bg-app-surface p-6 shadow-sm"
+    class="app-panel-surface w-full max-w-md rounded-lg border border-app-border p-6"
     aria-busy={busy}
     onsubmit={handleSubmit}
   >
     <div class="auth-copy-grid">
       <div class:auth-copy-active={!isSignup} class="auth-copy" aria-hidden={isSignup}>
-        <h1 class="text-2xl font-semibold">Entrar</h1>
+        <h1 class="app-page-title text-2xl font-semibold">Entrar</h1>
         <p class="mt-2 text-sm text-app-muted">Acesse sua conta Prisma.</p>
       </div>
       <div class:auth-copy-active={isSignup} class="auth-copy" aria-hidden={!isSignup}>
-        <h1 class="text-2xl font-semibold">Criar conta</h1>
+        <h1 class="app-page-title text-2xl font-semibold">Criar conta</h1>
         <p class="mt-2 text-sm text-app-muted">Comece a organizar seus imóveis.</p>
       </div>
     </div>

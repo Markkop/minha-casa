@@ -46,7 +46,7 @@
   <div class="fixed inset-0 z-50 flex items-center justify-center p-4">
     <button type="button" class="absolute inset-0 bg-black/40" aria-label="Fechar modal" onclick={admin.closeModal}></button>
     <div
-      class="relative z-10 max-h-[88vh] w-full max-w-3xl overflow-y-auto rounded-md border border-app-border bg-app-surface p-5 shadow-xl"
+      class="app-floating-surface relative z-10 max-h-[88vh] w-full max-w-3xl overflow-y-auto rounded-lg border border-app-border p-5"
       role="dialog"
       aria-modal="true"
       aria-label="Plano e licenças da imobiliária"

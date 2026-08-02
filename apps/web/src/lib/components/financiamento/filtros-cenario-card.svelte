@@ -40,7 +40,7 @@
   }
 </script>
 
-<Card class="flex flex-col gap-6 rounded-xl border border-app-border bg-app-surface py-6 shadow-sm">
+<Card class="flex flex-col gap-6 rounded-xl border border-app-border py-6">
   <CardHeader class="pb-4">
     <CardTitle class="flex items-center gap-2 text-lg">
       <span class="text-2xl">🎯</span>

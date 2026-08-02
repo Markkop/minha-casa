@@ -13,7 +13,7 @@
 
 <div
   class={cn(
-    "mb-4 rounded-lg border border-app-border bg-app-surface px-4 py-3 text-sm text-app-muted",
+    "app-panel-surface mb-4 rounded-lg border border-app-border px-4 py-3 text-sm leading-6 text-app-muted",
     className
   )}
 >

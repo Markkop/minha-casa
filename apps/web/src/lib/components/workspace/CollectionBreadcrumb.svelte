@@ -100,7 +100,7 @@
   {#if open}
     <div
       role="menu"
-      class="absolute left-0 top-10 z-50 w-72 overflow-hidden rounded-md border border-app-border bg-app-surface py-1 text-sm text-app-fg shadow-lg"
+      class="app-floating-surface absolute left-0 top-10 z-50 w-72 overflow-hidden rounded-md border border-app-border py-1 text-sm text-app-fg"
     >
       <div class="px-3 py-1.5 text-xs font-medium text-app-muted">Coleções</div>
       {#if ctx.collections.length === 0}

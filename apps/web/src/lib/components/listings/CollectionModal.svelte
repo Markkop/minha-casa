@@ -152,7 +152,7 @@
 {#if isOpen}
   <div class="fixed inset-0 z-[1000] flex items-center justify-center">
     <button type="button" class="absolute inset-0 bg-app-fg/80 backdrop-blur-sm" aria-label="Fechar" onclick={onClose}></button>
-    <Card class="relative z-10 mx-4 max-h-[90vh] w-full max-w-md overflow-y-auto border-app-border bg-app-surface">
+    <Card class="app-floating-surface relative z-10 mx-4 max-h-[90vh] w-full max-w-md overflow-y-auto border-app-border">
       <div class="flex items-center justify-between border-b border-app-border px-4 py-3">
         <ModalHeaderTitle
           icon={showCopyMode ? ClipboardList : isEditing ? Pencil : Plus}

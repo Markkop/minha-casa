@@ -67,9 +67,9 @@
   }
 </script>
 
-<main class="grid min-h-screen place-items-center bg-app-bg px-4 text-app-fg">
-  <section class="w-full max-w-md rounded-md border border-app-border bg-app-surface p-6 shadow-sm">
-    <h1 class="text-2xl font-semibold">Conectar WhatsApp</h1>
+<main class="app-page-background grid min-h-screen place-items-center px-4 text-app-fg">
+  <section class="app-panel-surface w-full max-w-md rounded-lg border border-app-border p-6">
+    <h1 class="app-page-title text-2xl font-semibold">Conectar WhatsApp</h1>
 
     {#if !sessionChecked}
       <p class="mt-3 text-sm text-app-muted">Verificando sessao...</p>

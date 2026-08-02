@@ -45,7 +45,7 @@
 
   {#if clipboardAutoDetect.coachMarkVisible}
     <div
-      class="absolute right-0 top-full z-[1400] mt-2 w-64 rounded-lg border border-app-border bg-app-surface p-3 shadow-lg"
+      class="app-floating-surface absolute right-0 top-full z-[1400] mt-2 w-64 rounded-lg border border-app-border p-3"
       role="status"
     >
       <div class="flex items-start gap-2">

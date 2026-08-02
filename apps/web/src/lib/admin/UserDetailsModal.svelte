@@ -49,7 +49,7 @@
   ></button>
 
   <div
-    class="relative z-10 mx-4 flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-xl border border-app-border bg-app-surface shadow-xl"
+    class="app-floating-surface relative z-10 mx-4 flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-xl border border-app-border"
     role="dialog"
     aria-modal="true"
     aria-labelledby="user-details-title"

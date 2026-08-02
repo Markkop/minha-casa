@@ -32,7 +32,7 @@
   );
 </script>
 
-<article class={`relative flex flex-col rounded-xl border bg-app-surface p-6 ${borderClass}`}>
+<article class={`app-panel-surface app-interactive-surface relative flex flex-col rounded-xl border p-6 ${borderClass}`}>
   {#if badge}
     <span
       class="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-app-action px-3 py-1 text-xs font-bold text-app-action-foreground"
@@ -42,8 +42,8 @@
   {/if}
 
   <div>
-    <p class="text-sm font-medium text-app-muted">{plan.audience}</p>
-    <svelte:element this={headingLevel} class="mt-2 text-2xl font-bold">{plan.name}</svelte:element>
+    <p class="font-mono text-[0.6875rem] font-medium uppercase tracking-[0.14em] text-app-cyan">{plan.audience}</p>
+    <svelte:element this={headingLevel} class="mt-2 text-2xl font-bold tracking-[-0.025em]">{plan.name}</svelte:element>
     <p class="mt-2 min-h-12 text-sm leading-6 text-app-muted">{plan.description}</p>
     <div class="mt-5 flex items-end gap-1">
       <span class="text-4xl font-bold">{formatPlanMonthlyPrice(plan)}</span>

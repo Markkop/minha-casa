@@ -204,7 +204,7 @@
     ></button>
 
     <div
-      class="relative z-10 mx-4 flex max-h-[90vh] min-h-0 w-full max-w-2xl flex-col overflow-hidden rounded-xl border border-app-border bg-app-surface py-5 text-app-fg shadow-sm"
+      class="app-floating-surface relative z-10 mx-4 flex max-h-[90vh] min-h-0 w-full max-w-2xl flex-col overflow-hidden rounded-xl border border-app-border py-5 text-app-fg"
       role="dialog"
       aria-modal="true"
       aria-labelledby="edit-modal-title"

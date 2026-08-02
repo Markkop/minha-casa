@@ -35,14 +35,14 @@
   }
 </script>
 
-<main class="grid min-h-screen place-items-center bg-app-bg px-4 py-10">
-  <section class="w-full max-w-md rounded-md border border-app-border bg-app-surface p-6 shadow-sm">
-    <p class="text-xs font-medium uppercase text-app-muted">
+<main class="app-page-background grid min-h-screen place-items-center px-4 py-10">
+  <section class="app-panel-surface w-full max-w-md rounded-lg border border-app-border p-6">
+    <p class="font-mono text-[0.6875rem] font-medium uppercase tracking-[0.16em] text-app-cyan">
       Convite de {data.invite?.organization.kind === "agency" ? "imobiliária" : "família"}
     </p>
 
     {#if data.invite}
-      <h1 class="mt-2 text-2xl font-semibold">{data.invite.organization.name}</h1>
+      <h1 class="app-page-title mt-2 text-2xl font-semibold">{data.invite.organization.name}</h1>
       <p class="mt-2 text-sm text-app-muted">
         Você foi convidado para entrar como {organizationRoleLabel(data.invite.role)}.
       </p>
@@ -71,12 +71,12 @@
         </Button>
       {:else}
         <div class="mt-6 grid gap-2">
-          <a class="inline-flex h-10 w-full items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition hover:bg-[#7ec4f8]" href={signupHref}>Criar conta</a>
+          <a class="inline-flex h-10 w-full items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition hover:bg-app-action-hover" href={signupHref}>Criar conta</a>
           <a class="inline-flex h-10 w-full items-center justify-center rounded-md border border-border bg-card px-4 text-sm font-medium text-foreground shadow-sm transition hover:bg-muted" href={loginHref}>Entrar</a>
         </div>
       {/if}
     {:else}
-      <h1 class="mt-2 text-2xl font-semibold">Convite indisponível</h1>
+      <h1 class="app-page-title mt-2 text-2xl font-semibold">Convite indisponível</h1>
       <p class="mt-2 text-sm text-app-muted">
         {INVITE_UNAVAILABLE_MESSAGE}
       </p>

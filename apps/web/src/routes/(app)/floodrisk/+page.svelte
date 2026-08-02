@@ -9,7 +9,7 @@
   <title>Floodrisk | Prisma</title>
 </svelte:head>
 
-<div class="flex min-h-[calc(100vh-var(--nav-height,2.75rem))] flex-col bg-app-bg text-app-fg">
+<div class="app-page-background flex min-h-[calc(100vh-var(--nav-height,2.75rem))] flex-col text-app-fg">
   <FloodRiskQuerySync />
   <WorkspaceListingQuerySync />
   <div class="shrink-0 border-b border-app-border px-3 py-2">

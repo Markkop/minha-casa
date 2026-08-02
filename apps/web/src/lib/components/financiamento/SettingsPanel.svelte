@@ -70,7 +70,7 @@
       onclick={(e) => e.stopPropagation()}
       onkeydown={handleDialogKeydown}
     >
-      <Card class="border-app-border bg-app-surface">
+      <Card class="border-app-border">
         <CardHeader class="flex flex-row items-center justify-between space-y-0 pb-4">
           <CardTitle class="flex items-center gap-2 text-xl">⚙️ Configurações do Simulador</CardTitle>
           <button

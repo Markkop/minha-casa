@@ -269,7 +269,7 @@
 <CollectionsProvider enabled={shouldLoadCollections && workspaceProfiles.ready}>
   <div
     data-slot="sidebar-wrapper"
-    class="min-h-svh bg-app-bg text-app-fg"
+    class="app-page-background min-h-svh text-app-fg"
     style={`--sidebar-width: ${WORKSPACE_SIDEBAR_WIDTH}; --right-sidebar-width: ${WORKSPACE_RIGHT_SIDEBAR_WIDTH}; --nav-height: ${WORKSPACE_NAV_HEIGHT};`}
   >
     <WorkspaceNav
@@ -334,8 +334,8 @@
       {#if workspaceProfiles.ready}
         {@render children?.()}
       {:else if workspaceProfiles.error}
-        <main class="grid min-h-[calc(100vh-var(--nav-height,2.75rem))] place-items-center bg-app-bg px-4 text-app-fg">
-          <div class="w-full max-w-md rounded-md border border-app-border bg-app-surface p-6 text-center shadow-sm">
+        <main class="app-page-background grid min-h-[calc(100vh-var(--nav-height,2.75rem))] place-items-center px-4 text-app-fg">
+          <div class="app-panel-surface w-full max-w-md rounded-lg border border-app-border p-6 text-center">
             <p class="font-medium">Erro ao carregar perfil</p>
             <p class="mt-2 text-sm text-app-muted">{workspaceProfiles.error}</p>
             <button
@@ -349,7 +349,7 @@
           </div>
         </main>
       {:else}
-        <main class="flex min-h-[calc(100vh-var(--nav-height,2.75rem))] items-center justify-center bg-app-bg text-app-muted" aria-busy="true">
+        <main class="app-page-background flex min-h-[calc(100vh-var(--nav-height,2.75rem))] items-center justify-center text-app-muted" aria-busy="true">
           <Loader2 class="h-5 w-5 animate-spin" />
           <span class="ml-2 text-sm">Carregando perfil...</span>
         </main>

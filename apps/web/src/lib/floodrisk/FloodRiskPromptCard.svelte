@@ -27,7 +27,7 @@
   }
 </script>
 
-<section class="flex min-h-[220px] flex-col rounded-lg border border-app-border bg-app-surface p-4 shadow-sm">
+<section class="app-panel-surface flex min-h-[220px] flex-col rounded-lg border border-app-border p-4">
   <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
     <div>
       <h2 class="text-sm font-semibold text-app-fg">Prompt para IA externa</h2>

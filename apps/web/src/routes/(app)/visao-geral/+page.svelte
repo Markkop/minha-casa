@@ -41,7 +41,7 @@
       { label: "Regioes", value: counts.regions, href: "/regioes" },
       { label: "Condominios", value: counts.condominiums, href: "/condominios" }
     ] as item}
-      <a class="rounded-md border border-app-border bg-app-surface p-4 hover:bg-muted" href={item.href}>
+      <a class="app-panel-surface app-interactive-surface rounded-lg border border-app-border p-4" href={item.href}>
         <div class="text-sm text-app-muted">{item.label}</div>
         <div class="mt-2 text-2xl font-semibold">{loading ? "--" : item.value}</div>
       </a>
@@ -55,7 +55,7 @@
       { title: "Completar referencias de regiao", description: `${counts.regions} regiao(oes) cadastrada(s).`, href: "/regioes" },
       { title: "Organizar contatos e links", description: `${counts.contacts} contato(s), ${counts.links} link(s) e ${counts.condominiums} condominio(s).`, href: "/contatos" }
     ] as step}
-      <a class="rounded-md border border-app-border bg-app-surface p-4 hover:bg-muted" href={step.href}>
+      <a class="app-panel-surface app-interactive-surface rounded-lg border border-app-border p-4" href={step.href}>
         <h2 class="font-medium">{step.title}</h2>
         <p class="mt-1 text-sm text-app-muted">{step.description}</p>
       </a>

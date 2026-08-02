@@ -73,7 +73,7 @@
   <title>{listing?.title ? `${listing.title} | Prisma` : "Imóvel | Prisma"}</title>
 </svelte:head>
 
-<div class="min-h-[calc(100vh-var(--nav-height,2.75rem))] bg-app-bg text-app-fg">
+<div class="app-page-background min-h-[calc(100vh-var(--nav-height,2.75rem))] text-app-fg">
   <div class={cn(WORKSPACE_CONTENT_CLASS, WORKSPACE_STACK_CLASS, "min-w-0")}>
     {#if loadState === "loading"}
       <div class="flex items-center justify-center gap-2 py-16 text-sm text-app-muted">

@@ -21,7 +21,7 @@
 </script>
 
 <main
-  class={cn("min-h-[calc(100vh-var(--nav-height,2.75rem))] bg-app-bg text-app-fg", className)}
+  class={cn("app-page-background min-h-[calc(100vh-var(--nav-height,2.75rem))] text-app-fg", className)}
 >
   {#if toolbar}
     <header class="w-full">

@@ -40,7 +40,7 @@
 
 <details
   bind:open
-  class="shrink-0 rounded-lg border border-app-border bg-app-surface shadow-sm"
+  class="app-panel-surface shrink-0 rounded-lg border border-app-border"
 >
   <summary
     class="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 [&::-webkit-details-marker]:hidden"

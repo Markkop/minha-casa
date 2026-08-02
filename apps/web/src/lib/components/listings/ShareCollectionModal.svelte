@@ -82,7 +82,7 @@
 {#if isOpen && collection}
   <div class="fixed inset-0 z-[1000] flex items-center justify-center">
     <button type="button" class="absolute inset-0 bg-app-fg/80 backdrop-blur-sm" aria-label="Fechar" onclick={onClose}></button>
-    <Card class="relative z-10 mx-4 w-full max-w-md border-app-border bg-app-surface">
+    <Card class="app-floating-surface relative z-10 mx-4 w-full max-w-md border-app-border">
       <div class="flex items-center justify-between border-b border-app-border px-4 py-3">
         <ModalHeaderTitle icon={Link2} title="Compartilhar Coleção" />
         <ModalCloseButton onclick={onClose} />

@@ -26,8 +26,8 @@
 
 <svelte:head><title>Link curto | Prisma</title></svelte:head>
 
-<main class="flex min-h-screen items-center justify-center bg-app-bg px-4 text-app-fg">
-  <section class="max-w-md rounded-md border border-app-border bg-app-surface p-6 text-center">
+<main class="app-page-background flex min-h-screen items-center justify-center px-4 text-app-fg">
+  <section class="app-panel-surface max-w-md rounded-lg border border-app-border p-6 text-center">
     {#if error}
       <h1 class="text-xl font-semibold">Link indisponível</h1>
       <p class="mt-2 text-sm text-app-muted">{error}</p>

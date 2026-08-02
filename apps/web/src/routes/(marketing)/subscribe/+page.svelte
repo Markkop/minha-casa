@@ -153,17 +153,17 @@
 
 </script>
 
-<main class="min-h-screen bg-app-bg text-app-fg">
+<main class="app-page-background min-h-screen text-app-fg">
   <section class="mx-auto max-w-6xl px-4 py-12 sm:py-16">
     <header class="mb-10 text-center">
-      <h1 class="text-4xl font-bold sm:text-5xl">Assinatura</h1>
+      <h1 class="app-page-title text-4xl font-bold sm:text-5xl">Assinatura</h1>
       <p class="mx-auto mt-4 max-w-3xl text-lg text-app-muted">
         Escolha o plano certo para sua busca, sua atuação profissional ou sua equipe.
       </p>
     </header>
 
     {#if loading}
-      <div class="rounded-md border border-app-border bg-app-surface p-8 text-center text-sm text-app-muted">Carregando...</div>
+      <div class="app-panel-surface rounded-lg border border-app-border p-8 text-center text-sm text-app-muted">Carregando...</div>
     {:else if error}
       <div class="mx-auto max-w-lg rounded-md border border-app-danger/30 bg-app-danger/10 p-5 text-center text-sm text-app-danger">
         <AlertCircle class="mx-auto mb-2 h-5 w-5" />
@@ -218,7 +218,7 @@
       {/if}
 
       {#if hasActiveSubscription && subscription && currentPlan}
-        <section class="mb-8 rounded-md border border-app-border bg-app-surface p-5">
+        <section class="app-panel-surface mb-8 rounded-lg border border-app-border p-5">
           <div class="mb-4 flex items-center gap-2">
             <Crown class="h-5 w-5 text-app-muted" />
             <h2 class="text-lg font-semibold">Sua assinatura</h2>
@@ -243,7 +243,7 @@
           {/if}
         </section>
       {:else}
-        <section class="mb-8 rounded-md border border-app-border bg-app-surface p-5 text-center text-sm text-app-muted">
+        <section class="app-panel-surface mb-8 rounded-lg border border-app-border p-5 text-center text-sm text-app-muted">
           {authenticated === false
             ? "Veja todos os planos sem entrar. Ao escolher um plano pago, você poderá acessar ou criar sua conta antes do checkout."
             : "Você está no plano Free. Escolha um upgrade abaixo quando quiser ampliar seu uso."}
@@ -251,7 +251,7 @@
       {/if}
 
       <section>
-        <h2 class="mb-6 text-center text-2xl font-semibold">Planos disponíveis</h2>
+        <h2 class="mb-6 text-center text-2xl font-semibold tracking-[-0.025em]">Planos disponíveis</h2>
         <div class="grid gap-6 sm:grid-cols-2 xl:grid-cols-4">
           {#each PLAN_CATALOG as plan (plan.slug)}
             {@const apiPlan = planFor(plan.slug)}

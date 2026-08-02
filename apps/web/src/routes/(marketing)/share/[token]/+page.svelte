@@ -143,18 +143,18 @@
   <title>{data?.collection.name ?? "Coleção compartilhada"} | Prisma</title>
 </svelte:head>
 
-<main class="min-h-screen bg-app-bg px-4 py-8 text-app-fg">
+<main class="app-page-background min-h-screen px-4 py-8 text-app-fg">
   <section class="mx-auto flex max-w-6xl flex-col gap-5">
     {#if loading}
-      <div class="rounded-md border border-app-border bg-app-surface p-6 text-sm text-app-muted">Carregando coleção...</div>
+      <div class="app-panel-surface rounded-lg border border-app-border p-6 text-sm text-app-muted">Carregando coleção...</div>
     {:else if error || !data}
       <div class="rounded-md border border-app-danger/30 bg-app-danger/10 p-6 text-sm text-app-danger">{error || LINK_UNAVAILABLE_MESSAGE}</div>
     {:else}
-      <header class="rounded-md border border-app-border bg-app-surface p-5">
-        <p class="text-xs font-medium uppercase tracking-wide text-app-muted">Coleção compartilhada</p>
+      <header class="app-panel-surface rounded-lg border border-app-border p-5">
+        <p class="font-mono text-[0.6875rem] font-medium uppercase tracking-[0.16em] text-app-cyan">Coleção compartilhada</p>
         <div class="mt-2 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
           <div>
-            <h1 class="text-2xl font-semibold">{data.collection.name}</h1>
+            <h1 class="app-page-title text-2xl font-semibold">{data.collection.name}</h1>
             <p class="mt-1 text-sm text-app-muted">{data.metadata.totalListings} imóvel(is)</p>
           </div>
           <div class="flex flex-col gap-2 sm:flex-row">
@@ -179,7 +179,7 @@
         </div>
       </header>
 
-      <section class="rounded-md border border-app-border bg-app-surface">
+      <section class="app-panel-surface rounded-lg border border-app-border">
         <div class="overflow-x-auto">
           <table class="w-full min-w-[920px] border-collapse text-sm">
             <thead class="bg-app-surface-muted text-left text-xs uppercase text-app-muted">

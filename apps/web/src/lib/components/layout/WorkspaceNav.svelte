@@ -76,10 +76,10 @@
           href={link.href === "/imoveis" ? imovelHref : link.href}
           data-active={isActive(link.href, pathname)}
           class={cn(
-            "flex min-h-9 w-full min-w-0 items-center gap-2 rounded-md px-3 py-2 text-left text-sm font-medium transition-colors",
+            "flex min-h-9 w-full min-w-0 items-center gap-2 rounded-md border border-transparent px-3 py-2 text-left text-sm font-medium transition-[border-color,background-color,color,box-shadow] duration-200",
             isActive(link.href, pathname)
-              ? "bg-app-surface-muted text-app-fg"
-              : "text-app-muted hover:bg-app-surface-muted hover:text-app-fg"
+              ? "border-app-border-strong bg-app-surface-muted text-app-fg shadow-[0_0_1.5rem_-1rem_var(--app-cyan)]"
+              : "text-app-muted hover:border-app-border hover:bg-app-surface-muted hover:text-app-fg"
           )}
           onclick={onCloseChrome}
         >
@@ -110,7 +110,7 @@
 <aside
   data-slot="sidebar"
   class={cn(
-    "fixed inset-y-0 left-0 z-50 hidden w-[var(--sidebar-width)] flex-col border-r border-app-border bg-app-surface text-app-fg md:flex",
+    "app-panel-surface fixed inset-y-0 left-0 z-50 hidden w-[var(--sidebar-width)] flex-col border-r border-app-border text-app-fg md:flex",
     !sidebarOpen && "md:hidden"
   )}
 >
@@ -128,7 +128,7 @@
   ></div>
   <aside
     data-slot="sidebar-mobile"
-    class="fixed inset-y-0 left-0 z-50 flex w-[min(86vw,var(--sidebar-width))] flex-col border-r border-app-border bg-app-surface text-app-fg shadow-xl md:hidden"
+    class="app-panel-surface fixed inset-y-0 left-0 z-50 flex w-[min(86vw,var(--sidebar-width))] flex-col border-r border-app-border text-app-fg shadow-xl md:hidden"
   >
     <div class={workspaceChromeRowClass}>
       <BrandLink href={logoHref} onclick={onCloseChrome} />

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Home } from "@lucide/svelte";
+  import PrismMark from "$lib/components/layout/PrismMark.svelte";
   import { cn } from "$lib/utils";
   import { workspaceHeaderControlClass } from "$lib/workspace-chrome";
 
@@ -41,15 +41,28 @@
     {onclick}
   >
     <span
-      class="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-app-action text-app-action-foreground"
+      class="prism-brand-mark flex h-8 w-8 shrink-0 items-center justify-center rounded-md"
     >
-      <Home class="h-4 w-4" />
+      <PrismMark class="h-5 w-5" />
     </span>
     <span class="truncate">Prisma</span>
   </a>
 {/if}
 
 <style>
+  .prism-brand-mark {
+    color: var(--app-cyan);
+    border: 1px solid color-mix(in srgb, var(--app-cyan) 38%, var(--app-border));
+    background: linear-gradient(
+      145deg,
+      color-mix(in srgb, var(--app-cyan) 18%, var(--app-surface)),
+      color-mix(in srgb, var(--app-blue) 14%, var(--app-surface))
+    );
+    box-shadow:
+      inset 0 1px 0 color-mix(in srgb, var(--app-cyan) 18%, transparent),
+      0 0 16px -7px color-mix(in srgb, var(--app-cyan) 58%, transparent);
+  }
+
   .brand-dot {
     box-shadow:
       0 0 14px #22d3ee,
