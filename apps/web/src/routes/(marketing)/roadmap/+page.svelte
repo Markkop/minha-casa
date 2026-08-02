@@ -5,7 +5,7 @@
     label: string;
     title: string;
     description: string;
-    accent: "cyan" | "violet";
+    accent: "cyan" | "violet" | "emerald";
   };
 
   const milestones: Milestone[] = [
@@ -15,6 +15,13 @@
       description:
         "Recuperação de senha, e-mail de boas-vindas, notificações e avisos da plataforma.",
       accent: "cyan"
+    },
+    {
+      label: "// Chatbot",
+      title: "Chatbot",
+      description:
+        "Painel de conversa com um modelo de IA para tirar dúvidas, fazer análises e gerenciar as coleções de imóveis.",
+      accent: "emerald"
     },
     {
       label: "// App",
@@ -33,6 +40,10 @@
     violet: {
       node: "border-[#a78bfa] bg-[#a78bfa] shadow-[0_0_24px_rgba(167,139,250,0.5)]",
       glow: "from-[#a78bfa]/40 via-[#a78bfa]/10 to-transparent"
+    },
+    emerald: {
+      node: "border-[#34d399] bg-[#34d399] shadow-[0_0_24px_rgba(52,211,153,0.45)]",
+      glow: "from-[#34d399]/40 via-[#34d399]/10 to-transparent"
     }
   };
 </script>
@@ -41,7 +52,7 @@
   <title>Roadmap | Minha Casa</title>
   <meta
     name="description"
-    content="O que vem por aí no Minha Casa: e-mails e app mobile."
+    content="O que vem por aí no Minha Casa: e-mails, chatbot e app mobile."
   />
 </svelte:head>
 
@@ -295,6 +306,10 @@
 
     .roadmap-item:nth-child(2) .roadmap-node {
       animation-delay: 0.4s;
+    }
+
+    .roadmap-item:nth-child(3) .roadmap-node {
+      animation-delay: 0.8s;
     }
   }
 
