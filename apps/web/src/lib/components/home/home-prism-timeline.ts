@@ -10,6 +10,7 @@ export type HomePrismTimelineState = {
   collisionPulse: number;
   outgoingBeamProgress: number;
   listRevealProgress: number;
+  listGlowProgress: number;
   photoParallaxProgress: number;
   photoAtmosphere: number;
 };
@@ -19,24 +20,22 @@ type TimelinePhases = {
   collision: number;
   pulseEnd: number;
   outgoingEnd: number;
-  listStart: number;
 };
 
 const DESKTOP_PHASES: TimelinePhases = {
   prismStart: 0.15,
   collision: 0.6,
   pulseEnd: 0.62,
-  outgoingEnd: 0.88,
-  listStart: 0.88
+  // Keep the longer beam travel already tuned for the desktop composition.
+  outgoingEnd: 0.9
 };
 
-// Mobile has no photo cards, so it can omit the desktop introduction hold.
+// Mobile has no floating card stacks, so it can omit the desktop introduction hold.
 const MOBILE_PHASES: TimelinePhases = {
   prismStart: 0,
   collision: 0.44,
   pulseEnd: 0.48,
-  outgoingEnd: 0.78,
-  listStart: 0.72
+  outgoingEnd: 0.82
 };
 
 export function getHomePrismCollisionProgress(mobile = false): number {
@@ -75,6 +74,7 @@ function finalState(mobile: boolean): HomePrismTimelineState {
     collisionPulse: 1,
     outgoingBeamProgress: 1,
     listRevealProgress: 1,
+    listGlowProgress: 1,
     photoParallaxProgress: mobile ? 0 : 1,
     photoAtmosphere: mobile ? 0 : FINAL_PHOTO_ATMOSPHERE
   };
@@ -99,7 +99,10 @@ export function getHomePrismTimeline(
     phases.collision,
     phases.outgoingEnd
   );
-  const listRevealProgress = phaseProgress(progress, phases.listStart, 1);
+  // The list materializes with the travelling beam. Its glow is a distinct
+  // final beat and only starts once the beam has reached the receiver.
+  const listRevealProgress = outgoingBeamProgress;
+  const listGlowProgress = phaseProgress(progress, phases.outgoingEnd, 1);
 
   if (mobile) {
     return {
@@ -109,6 +112,7 @@ export function getHomePrismTimeline(
       collisionPulse: collisionPulse(progress, phases.collision, phases.pulseEnd),
       outgoingBeamProgress,
       listRevealProgress,
+      listGlowProgress,
       photoParallaxProgress: 0,
       photoAtmosphere: 0
     };
@@ -127,6 +131,7 @@ export function getHomePrismTimeline(
     collisionPulse: collisionPulse(progress, phases.collision, phases.pulseEnd),
     outgoingBeamProgress,
     listRevealProgress,
+    listGlowProgress,
     photoParallaxProgress: prismProgress,
     photoAtmosphere: 1 - photoAtmosphereProgress * (1 - FINAL_PHOTO_ATMOSPHERE)
   };

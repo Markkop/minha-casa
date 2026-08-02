@@ -219,8 +219,11 @@
         stack.style.setProperty("--prism-card-opacity", String(0.56 + photoContrast * 0.44));
       });
       title?.style.setProperty("--prism-title-atmosphere", String(photoContrast));
-      listPanelElement.style.setProperty("--prism-received", String(timeline.listRevealProgress));
-      receiverElement.style.setProperty("--prism-received", String(timeline.listRevealProgress));
+      listPanelElement.style.setProperty(
+        "--prism-list-reveal",
+        String(timeline.listRevealProgress)
+      );
+      listPanelElement.style.setProperty("--prism-received", String(timeline.listGlowProgress));
     }
 
     const resizeObserver = new ResizeObserver(scheduleRender);
@@ -248,8 +251,8 @@
         stack.style.removeProperty("--prism-card-opacity");
       }
       title?.style.removeProperty("--prism-title-atmosphere");
+      listPanelElement.style.removeProperty("--prism-list-reveal");
       listPanelElement.style.removeProperty("--prism-received");
-      receiverElement.style.removeProperty("--prism-received");
     };
   });
 </script>

@@ -16,14 +16,16 @@ describe("home prism timeline", () => {
       prismProgress: 0,
       incomingBeamProgress: 0,
       outgoingBeamProgress: 0,
-      listRevealProgress: 0
+      listRevealProgress: 0,
+      listGlowProgress: 0
     });
     expect(getHomePrismTimeline(2)).toMatchObject({
       progress: 1,
       prismProgress: 1,
       incomingBeamProgress: 1,
       outgoingBeamProgress: 1,
-      listRevealProgress: 1
+      listRevealProgress: 1,
+      listGlowProgress: 1
     });
   });
 
@@ -60,23 +62,33 @@ describe("home prism timeline", () => {
     expect(getHomePrismTimeline(0.59).outgoingBeamProgress).toBe(0);
     expect(getHomePrismTimeline(0.6).outgoingBeamProgress).toBe(0);
     expect(getHomePrismTimeline(0.7).outgoingBeamProgress).toBeGreaterThan(0);
-    expect(getHomePrismTimeline(0.88).outgoingBeamProgress).toBe(1);
+    expect(getHomePrismTimeline(0.9).outgoingBeamProgress).toBe(1);
   });
 
-  it("reveals the list in the final twelve percent", () => {
-    expect(getHomePrismTimeline(0.88).listRevealProgress).toBe(0);
-    expect(getHomePrismTimeline(0.94).listRevealProgress).toBeCloseTo(0.5);
-    expect(getHomePrismTimeline(1).listRevealProgress).toBe(1);
+  it("reveals the list with the beam, then applies its final glow", () => {
+    const travelling = getHomePrismTimeline(0.75);
+    expect(travelling.listRevealProgress).toBe(travelling.outgoingBeamProgress);
+    expect(travelling.listRevealProgress).toBeGreaterThan(0);
+    expect(travelling.listRevealProgress).toBeLessThan(1);
+    expect(travelling.listGlowProgress).toBe(0);
+
+    expect(getHomePrismTimeline(0.9)).toMatchObject({
+      outgoingBeamProgress: 1,
+      listRevealProgress: 1,
+      listGlowProgress: 0
+    });
+    expect(getHomePrismTimeline(0.95).listGlowProgress).toBeCloseTo(0.5);
+    expect(getHomePrismTimeline(1).listGlowProgress).toBe(1);
   });
 
   it("reduces the photo contrast only after collision", () => {
     expect(getHomePrismTimeline(0.6).photoAtmosphere).toBe(1);
     expect(getHomePrismTimeline(0.7).photoAtmosphere).toBeLessThan(1);
-    expect(getHomePrismTimeline(0.88).photoAtmosphere).toBeCloseTo(0.42);
+    expect(getHomePrismTimeline(0.9).photoAtmosphere).toBeCloseTo(0.42);
     expect(getHomePrismTimeline(1).photoAtmosphere).toBeCloseTo(0.42);
   });
 
-  it("uses a shorter mobile timeline without incoming photo beams", () => {
+  it("uses a shorter mobile timeline without photo parallax", () => {
     const initial = getHomePrismTimeline(0, { mobile: true });
     const arrived = getHomePrismTimeline(0.44, { mobile: true });
     const projecting = getHomePrismTimeline(0.6, { mobile: true });
@@ -86,11 +98,12 @@ describe("home prism timeline", () => {
     expect(projecting.outgoingBeamProgress).toBeGreaterThan(0);
 
     for (const progress of [0, 0.25, 0.5, 0.75, 1]) {
-      expect(getHomePrismTimeline(progress, { mobile: true })).toMatchObject({
-        incomingBeamProgress: 0,
+      const timeline = getHomePrismTimeline(progress, { mobile: true });
+      expect(timeline).toMatchObject({
         photoParallaxProgress: 0,
         photoAtmosphere: 0
       });
+      expect(timeline.incomingBeamProgress).toBe(timeline.prismProgress);
     }
   });
 
@@ -102,6 +115,7 @@ describe("home prism timeline", () => {
       collisionPulse: 1,
       outgoingBeamProgress: 1,
       listRevealProgress: 1,
+      listGlowProgress: 1,
       photoParallaxProgress: 1,
       photoAtmosphere: 0.42
     });
@@ -109,10 +123,11 @@ describe("home prism timeline", () => {
     expect(getHomePrismTimeline(0.3, { mobile: true, reducedMotion: true })).toMatchObject({
       progress: 1,
       prismProgress: 1,
-      incomingBeamProgress: 0,
+      incomingBeamProgress: 1,
       collisionPulse: 1,
       outgoingBeamProgress: 1,
       listRevealProgress: 1,
+      listGlowProgress: 1,
       photoParallaxProgress: 0,
       photoAtmosphere: 0
     });

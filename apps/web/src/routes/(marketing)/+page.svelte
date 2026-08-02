@@ -209,6 +209,10 @@
     opacity: var(--prism-received, 0);
     pointer-events: none;
   }
+  .list-panel {
+    opacity: var(--prism-list-reveal, 1);
+    will-change: opacity;
+  }
   /* Invisible beam target; kept for geometry measurement. */
   .prism-receiver {
     position: absolute;
@@ -279,6 +283,7 @@
     .immersive-home { scroll-behavior: auto; }
     .home-prism-story { height: 74vh; }
     .home-prism-sticky { position: relative; height: 74vh; }
+    .list-panel { will-change: auto; }
     .immersive-home *, .immersive-home *::before, .immersive-home *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; }
   }
 </style>
