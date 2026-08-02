@@ -267,9 +267,9 @@
 
   @media (max-width: 720px) {
     .home-main { padding: 0 1rem; }
-    /* 250 - 40 = 210svh: twice the previous 105svh prism→Lista separation.
-       The longer sticky travel also gives both mobile beam passes more scroll time. */
-    .home-prism-story { height: 250svh; margin-top: -4rem; }
+    /* Midpoint between the original 145svh and fully extended 250svh journey.
+       The longer sticky travel still gives both mobile beam passes more scroll time. */
+    .home-prism-story { height: 197.5svh; margin-top: -4rem; }
     /* Card→prism gap is set in HomePrismJourney. */
     .list-section { padding: 0 0 8vh; margin-top: -40vh; }
     .list-section .home-panel { margin-top: .75rem; }
