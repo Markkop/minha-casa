@@ -554,6 +554,12 @@
   @media (max-width: 720px) {
     /* Beams and prism remain a backdrop beneath the mobile hero stage (4). */
     .prism-effects { z-index: 1; }
+    /* Avoid Gaussian blur on SVG geometry that changes throughout the scroll journey. */
+    .incoming-beam__halo,
+    .outgoing-beam__halo { display: none; }
+    .collision-bloom__halo,
+    .collision-bloom__core,
+    .prism-wire { filter: none; }
     .outgoing-beam__cone { opacity: .7; }
   }
 
