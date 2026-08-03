@@ -1,12 +1,60 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   buildChartBreakdownAvoidZones,
   CHART_BREAKDOWN_OFFSET,
+  computeAnchoredPanelPlacement,
   computeChartBreakdownPlacement,
   panelBoundsAt,
   pointKeepOutZone,
   rectsOverlap
 } from "./floating-position";
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
+
+describe("computeAnchoredPanelPlacement", () => {
+  it("centers a panel on its trigger", () => {
+    vi.stubGlobal("window", { innerWidth: 800, innerHeight: 600 });
+    const triggerRect = {
+      left: 300,
+      right: 340,
+      top: 200,
+      bottom: 220,
+      width: 40,
+      height: 20
+    } as DOMRect;
+    const panelRect = { width: 200, height: 100 } as DOMRect;
+
+    const placement = computeAnchoredPanelPlacement(triggerRect, panelRect, {
+      preferredAlign: "center",
+      preferredSide: "bottom"
+    });
+
+    expect(placement.align).toBe("center");
+    expect(placement.left).toBe(220);
+  });
+
+  it("keeps a centered panel inside the viewport", () => {
+    vi.stubGlobal("window", { innerWidth: 320, innerHeight: 600 });
+    const triggerRect = {
+      left: 4,
+      right: 20,
+      top: 200,
+      bottom: 220,
+      width: 16,
+      height: 20
+    } as DOMRect;
+    const panelRect = { width: 200, height: 100 } as DOMRect;
+
+    const placement = computeAnchoredPanelPlacement(triggerRect, panelRect, {
+      preferredAlign: "center",
+      preferredSide: "bottom"
+    });
+
+    expect(placement.left).toBe(8);
+  });
+});
 
 const PANEL = { width: 200, height: 120 };
 const VIEWPORT = { viewportWidth: 800, viewportHeight: 600, padding: 8 };

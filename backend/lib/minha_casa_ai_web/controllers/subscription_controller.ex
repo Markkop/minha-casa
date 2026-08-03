@@ -100,7 +100,11 @@ defmodule MinhaCasaAiWeb.SubscriptionController do
       |> json(%{subscription: BillingJSON.subscription(subscription)})
     else
       false ->
-        PublicError.json_error(conn, :forbidden, "Somente administradores podem criar assinaturas.")
+        PublicError.json_error(
+          conn,
+          :forbidden,
+          "Somente administradores podem criar assinaturas."
+        )
 
       {:error, :invalid} ->
         PublicError.json_error(
@@ -113,7 +117,11 @@ defmodule MinhaCasaAiWeb.SubscriptionController do
         PublicError.json_error(conn, :bad_request, "A data de expiração deve ser válida.")
 
       {:error, :inactive_plan} ->
-        PublicError.json_error(conn, :bad_request, "Não é possível criar assinatura para plano inativo.")
+        PublicError.json_error(
+          conn,
+          :bad_request,
+          "Não é possível criar assinatura para plano inativo."
+        )
 
       {:error, :plan_conflict} ->
         PublicError.json_error(
@@ -124,7 +132,11 @@ defmodule MinhaCasaAiWeb.SubscriptionController do
         )
 
       {:error, :target_workspace_required} ->
-        PublicError.json_error(conn, :bad_request, "É necessário ter uma imobiliária vinculada para este plano.")
+        PublicError.json_error(
+          conn,
+          :bad_request,
+          "É necessário ter uma imobiliária vinculada para este plano."
+        )
 
       {:error, :not_found} ->
         PublicError.json_error(conn, :not_found, "Usuário ou plano não encontrado.")

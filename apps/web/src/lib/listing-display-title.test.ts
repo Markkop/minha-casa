@@ -10,6 +10,7 @@ import {
   prepareListingDataForCreate,
   resolveListingDisplayTitle
 } from "./listing-display-title";
+import type { ListingTitleInput } from "./listing-display-title";
 
 describe("listingTitleRegenFieldChanged", () => {
   it("detects title-relevant field updates", () => {
@@ -153,7 +154,7 @@ describe("buildPropertyListDisplayTitles", () => {
         address: "Rua Maria Luiza Agostinho, 102",
         createdAt: "2026-01-02T00:00:00.000Z"
       }
-    ];
+    ] satisfies ListingTitleInput[];
 
     const collectionTitles = buildListingDisplayTitles(listings);
     const listTitles = buildPropertyListDisplayTitles(listings);

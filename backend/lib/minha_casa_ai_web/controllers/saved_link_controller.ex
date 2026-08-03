@@ -43,8 +43,11 @@ defmodule MinhaCasaAiWeb.SavedLinkController do
     case profile(conn) do
       {:ok, profile} ->
         case SavedLinks.get_link!(id, profile) do
-          {:ok, link} -> json(conn, %{link: SavedLinkJSON.link(link)})
-          {:error, :not_found} -> PublicError.json_error(conn, :not_found, :not_found, context: :link)
+          {:ok, link} ->
+            json(conn, %{link: SavedLinkJSON.link(link)})
+
+          {:error, :not_found} ->
+            PublicError.json_error(conn, :not_found, :not_found, context: :link)
         end
 
       {:error, status, reason} ->
@@ -81,8 +84,11 @@ defmodule MinhaCasaAiWeb.SavedLinkController do
     case profile(conn) do
       {:ok, profile} ->
         case SavedLinks.delete_link(id, profile) do
-          {:ok, _link} -> json(conn, %{success: true})
-          {:error, :not_found} -> PublicError.json_error(conn, :not_found, :not_found, context: :link)
+          {:ok, _link} ->
+            json(conn, %{success: true})
+
+          {:error, :not_found} ->
+            PublicError.json_error(conn, :not_found, :not_found, context: :link)
         end
 
       {:error, status, reason} ->

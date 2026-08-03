@@ -2,7 +2,8 @@ export const VIEWPORT_PADDING = 8;
 
 export type TooltipSide = "top" | "bottom";
 export type TooltipAlign = "start" | "center" | "end";
-export type PanelAlign = "start" | "end" | "auto";
+export type PanelAlign = "start" | "center" | "end" | "auto";
+export type ResolvedPanelAlign = Exclude<PanelAlign, "auto">;
 export type PanelSide = "top" | "bottom" | "auto";
 
 export function clamp(value: number, min: number, max: number): number {
@@ -61,7 +62,7 @@ export function resolvePanelAlign(
   panelWidth: number,
   preferredAlign: PanelAlign,
   padding = VIEWPORT_PADDING
-): "start" | "end" {
+): ResolvedPanelAlign {
   if (preferredAlign !== "auto") return preferredAlign;
 
   const spaceRight = window.innerWidth - triggerRect.left - padding;
@@ -86,7 +87,13 @@ export function computeAnchoredPanelPlacement(
     padding?: number;
     minMaxHeight?: number;
   } = {}
-): { left: number; top: number; maxHeight: number; side: "top" | "bottom"; align: "start" | "end" } {
+): {
+  left: number;
+  top: number;
+  maxHeight: number;
+  side: "top" | "bottom";
+  align: ResolvedPanelAlign;
+} {
   const {
     offset = 8,
     preferredAlign = "auto",
@@ -124,7 +131,11 @@ export function computeAnchoredPanelPlacement(
   );
 
   const idealLeft =
-    align === "start" ? triggerRect.left : triggerRect.right - panelRect.width;
+    align === "start"
+      ? triggerRect.left
+      : align === "end"
+        ? triggerRect.right - panelRect.width
+        : triggerRect.left + triggerRect.width / 2 - panelRect.width / 2;
   const left = clamp(
     idealLeft,
     padding,

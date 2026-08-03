@@ -47,6 +47,23 @@
   const clamp = (value: number, min: number, max: number) =>
     Math.min(max, Math.max(min, value));
 
+  type PrismGeometry = {
+    stickyWidth: number;
+    stickyHeight: number;
+    stickyLeft: number;
+    titleBottomY: number;
+    receiverTargetY: number;
+    cardsBottomY: number | null;
+    beams: Array<{
+      baseLeftX: number;
+      baseLeftY: number;
+      baseRightX: number;
+      baseRightY: number;
+      baseCenterX: number;
+      baseCenterY: number;
+    }>;
+  };
+
   onMount(() => {
     if (!effectsRoot) return;
 
@@ -75,29 +92,14 @@
     let geometryDirty = true;
     let journeyTop = 0;
     let journeyTravel = 1;
-    let cachedGeometry: {
-      stickyWidth: number;
-      stickyHeight: number;
-      stickyLeft: number;
-      titleBottomY: number;
-      receiverTargetY: number;
-      cardsBottomY: number | null;
-      beams: Array<{
-        baseLeftX: number;
-        baseLeftY: number;
-        baseRightX: number;
-        baseRightY: number;
-        baseCenterX: number;
-        baseCenterY: number;
-      }>;
-    } | null = null;
+    let cachedGeometry: PrismGeometry | null = null;
 
     function invalidateGeometry() {
       geometryDirty = true;
       scheduleRender();
     }
 
-    function refreshGeometry() {
+    function refreshGeometry(): PrismGeometry {
       const stickyRect = stickyElement.getBoundingClientRect();
       const journeyRect = journeyElement.getBoundingClientRect();
       const receiverRect = receiverElement.getBoundingClientRect();
@@ -106,7 +108,7 @@
 
       journeyTop = window.scrollY + journeyRect.top;
       journeyTravel = Math.max(1, journeyRect.height - window.innerHeight);
-      cachedGeometry = {
+      const geometry: PrismGeometry = {
         stickyWidth: Math.max(1, stickyRect.width),
         stickyHeight: Math.max(1, stickyRect.height),
         stickyLeft: stickyRect.left,
@@ -144,7 +146,9 @@
             };
           })
       };
+      cachedGeometry = geometry;
       geometryDirty = false;
+      return geometry;
     }
 
     function scheduleRender() {
@@ -156,8 +160,8 @@
       frame = 0;
       if (stopped) return;
 
-      if (geometryDirty || !cachedGeometry) refreshGeometry();
-      const geometry = cachedGeometry;
+      const geometry =
+        geometryDirty || !cachedGeometry ? refreshGeometry() : cachedGeometry;
       const mobile = mobileQuery.matches;
       const reducedMotion = reducedMotionQuery.matches;
       const rawProgress = reducedMotion ? 1 : (window.scrollY - journeyTop) / journeyTravel;

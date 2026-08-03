@@ -115,6 +115,6 @@ defmodule MinhaCasaAi.Listings.WorkspaceListingLookupTest do
       |> ListingController.show(%{"id" => "not-a-uuid"})
 
     assert conn.status == 404
-    assert Jason.decode!(conn.resp_body) == %{"error" => "Listing not found"}
+    assert Jason.decode!(conn.resp_body) == %{"error" => "Imóvel não encontrado."}
   end
 end

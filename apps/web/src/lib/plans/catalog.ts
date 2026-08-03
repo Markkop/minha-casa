@@ -105,7 +105,9 @@ export const PLAN_CATALOG = [
   }
 ] as const satisfies readonly PlanCatalogEntry[];
 
-export function findPlanCatalogEntry(slug: string | null | undefined) {
+export function findPlanCatalogEntry(
+  slug: string | null | undefined
+): PlanCatalogEntry | null {
   return PLAN_CATALOG.find((plan) => plan.slug === slug) ?? null;
 }
 

@@ -1,6 +1,8 @@
 defmodule MinhaCasaAiWeb.PublicErrorTest do
   use ExUnit.Case, async: true
 
+  import ExUnit.CaptureLog
+
   alias MinhaCasaAiWeb.PublicError
 
   describe "message_for/2" do
@@ -11,11 +13,14 @@ defmodule MinhaCasaAiWeb.PublicErrorTest do
 
     test "maps atoms to Portuguese" do
       assert PublicError.message_for(:listing_not_found) == "Imóvel não encontrado."
-      assert PublicError.message_for(:workspace_frozen) == "Seu perfil está em modo somente leitura."
+
+      assert PublicError.message_for(:workspace_frozen) ==
+               "Seu perfil está em modo somente leitura."
     end
 
     test "rejects technical inspect output" do
       assert PublicError.message_for(":quota_exceeded") == PublicError.generic()
+
       assert PublicError.message_for("Failed to enqueue image ingestion: :oban_unavailable") ==
                PublicError.generic()
     end
@@ -76,9 +81,36 @@ defmodule MinhaCasaAiWeb.PublicErrorTest do
     end
 
     test "never includes inspect in payload" do
-      payload = PublicError.build_payload({:error, :quota_exceeded})
-      refute payload.error =~ "inspect"
-      refute payload.error =~ ":quota_exceeded"
+      log =
+        capture_log(fn ->
+          payload = PublicError.build_payload({:error, :quota_exceeded})
+          refute payload.error =~ "inspect"
+          refute payload.error =~ ":quota_exceeded"
+        end)
+
+      assert log =~ "[PublicError] Tuple reason leaked: {:error, :quota_exceeded}"
+    end
+  end
+
+  describe "json_error/4 logging" do
+    test "does not warn for known contextual atoms" do
+      contexts = [
+        listing: "Imóvel não encontrado.",
+        collection: "Coleção não encontrada."
+      ]
+
+      for {context, expected_message} <- contexts do
+        log =
+          capture_log(fn ->
+            conn =
+              Plug.Test.conn(:get, "/")
+              |> PublicError.json_error(404, :not_found, context: context)
+
+            assert Jason.decode!(conn.resp_body) == %{"error" => expected_message}
+          end)
+
+        assert log == ""
+      end
     end
   end
 end

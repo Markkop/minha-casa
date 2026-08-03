@@ -175,7 +175,11 @@ defmodule MinhaCasaAiWeb.OrganizationController do
         forbidden(conn, "Somente proprietários podem alterar papéis de proprietário.")
 
       {:error, :last_owner} ->
-        PublicError.json_error(conn, :bad_request, "Não é possível rebaixar o último proprietário.")
+        PublicError.json_error(
+          conn,
+          :bad_request,
+          "Não é possível rebaixar o último proprietário."
+        )
 
       false ->
         forbidden(conn, "only owners and admins can update member roles")
@@ -206,7 +210,11 @@ defmodule MinhaCasaAiWeb.OrganizationController do
         forbidden(conn, "Somente proprietários podem remover proprietários.")
 
       {:error, :last_owner} ->
-        PublicError.json_error(conn, :bad_request, "Não é possível remover o último proprietário.")
+        PublicError.json_error(
+          conn,
+          :bad_request,
+          "Não é possível remover o último proprietário."
+        )
 
       false ->
         forbidden(conn, "only owners and admins can remove members")
