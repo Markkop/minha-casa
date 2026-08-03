@@ -57,9 +57,19 @@
       }}
     >
       {#if user?.image}
-        <img src={user.image} alt="" class="h-8 w-8 shrink-0 rounded-full border border-app-border object-cover" />
+        <img
+          src={user.image}
+          alt=""
+          class={compact
+            ? "h-6 w-6 shrink-0 rounded-full border border-app-border object-cover"
+            : "h-8 w-8 shrink-0 rounded-full border border-app-border object-cover"}
+        />
       {:else}
-        <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-app-border bg-app-surface-muted text-xs font-semibold">
+        <span
+          class={compact
+            ? "flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-app-border bg-app-surface-muted text-xs font-semibold"
+            : "flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-app-border bg-app-surface-muted text-xs font-semibold"}
+        >
           {initials}
         </span>
       {/if}
