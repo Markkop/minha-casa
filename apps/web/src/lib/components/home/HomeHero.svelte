@@ -9,6 +9,7 @@
   });
 
   const rotations = [3, -5, 5, -3];
+  const heroActions = ["COMPRAR", "ALUGAR", "DECIDIR", "MORAR", "VIVER"];
   /** Front cards (1,4) above back cards (2,3) — chords inherit this stack. */
   const stackIndex = [4, 2, 2, 4];
 </script>
@@ -40,9 +41,19 @@
   {/each}
 
   <div class="stage-title">
-    <p>Inteligência para comprar melhor</p>
+    <p class="stage-kicker" aria-label="Inteligência para comprar melhor">
+      <span aria-hidden="true">Inteligência para</span>
+      <span class="stage-kicker-changing" aria-hidden="true">
+        <span class="stage-kicker-words">
+          {#each heroActions as action, index (action)}
+            <span style={`--phrase-index: ${index}`}>{action}</span>
+          {/each}
+        </span>
+        <span class="stage-kicker-suffix">MELHOR</span>
+      </span>
+    </p>
     <h1 id="home-title"><b>Prisma</b></h1>
-    <span>Do anúncio à decisão, todos os dados conectados.</span>
+    <span>Todos os ângulos para uma decisão mais clara.</span>
   </div>
 
   <div class="stage-cards" data-home-stage-cards aria-hidden="true">
@@ -78,7 +89,14 @@
     text-align: center;
     pointer-events: none;
   }
-  .stage-title p { margin: 0 0 1rem; color: var(--home-ink-faint); font-family: var(--home-mono); font-size: .65rem; letter-spacing: .28em; text-transform: uppercase; }
+  .stage-title p { margin: 0 0 1rem; color: var(--home-ink-dim); font-family: var(--home-mono); font-size: .65rem; letter-spacing: .28em; text-transform: uppercase; }
+  .stage-kicker { display: flex; align-items: center; justify-content: center; gap: .32em; white-space: nowrap; }
+  .stage-kicker-changing { display: inline-flex; align-items: center; gap: .32em; line-height: 1.35; }
+  /* Grid stacks every word in one cell, so the slot auto-sizes to the widest word (no per-word width guessing). padding-inline keeps even the longest word from touching MELHOR. */
+  .stage-kicker-words { position: relative; display: inline-grid; justify-items: center; align-items: center; height: 1.35em; padding-inline: .35em; overflow: hidden; color: #e6fbff; font-weight: 600; letter-spacing: .2em; text-shadow: 0 0 .35rem rgb(103 232 249 / 52%), 0 0 1.2rem rgb(34 211 238 / 32%); }
+  /* Negative margin cancels the trailing letter-spacing so each word sits on true optical center. */
+  .stage-kicker-words > span { grid-area: 1 / 1; margin-right: -.2em; opacity: 0; white-space: nowrap; animation: hero-kicker-cycle 15s cubic-bezier(.22, .75, .25, 1) infinite; animation-delay: calc(var(--phrase-index) * 3s); will-change: transform, opacity; }
+  .stage-kicker-suffix { color: var(--home-ink-dim); font-weight: 400; letter-spacing: .28em; text-shadow: none; }
   .stage-title h1 { margin: 0; color: var(--home-ink); font-size: clamp(1.5rem, 5vw, 6.6rem); font-weight: 700; letter-spacing: .01em; line-height: .82; text-transform: uppercase; filter: drop-shadow(0 .5rem 2.1rem rgb(34 211 238 / 28%)); }
   .stage-title h1 b { font-weight: 700; background: linear-gradient(125deg, var(--home-cyan-soft) 5%, var(--home-blue-bright) 55%, var(--home-cyan) 100%); background-clip: text; color: transparent; }
   .stage-title > span { display: block; max-width: 30rem; margin: 1.4rem auto 0; color: var(--home-ink-dim); font-family: var(--home-mono); font-size: clamp(.68rem, 1vw, .85rem); letter-spacing: .04em; line-height: 1.65; }
@@ -132,6 +150,20 @@
 
   .stage-cards { display: none; }
 
+  @keyframes hero-kicker-cycle {
+    0% { opacity: 0; transform: translateY(-110%); }
+    3%, 20% { opacity: 1; transform: translateY(0); }
+    23%, 100% { opacity: 0; transform: translateY(110%); }
+  }
+
+  @media (min-width: 721px) {
+    .stage-title {
+      position: absolute;
+      top: calc(28% + clamp(4.21875rem, 7.5vw, 6.1875rem));
+      transform: translateY(-50%);
+    }
+  }
+
   @media (max-width: 720px) {
     /* Prism effects (1) sit behind this hero stage (4). */
     .home-stage { position: relative; z-index: 4; min-height: 100%; padding: 5rem 0 3rem; flex-direction: column; justify-content: flex-start; gap: 2rem; }
@@ -164,5 +196,7 @@
   @media (prefers-reduced-motion: reduce) {
     .card-stack { will-change: auto; }
     .frame, .frame img, .scan { transition: none; }
+    .stage-kicker-words > span { animation: none; opacity: 0; transform: none; will-change: auto; }
+    .stage-kicker-words > span:first-child { opacity: 1; }
   }
 </style>

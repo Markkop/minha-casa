@@ -49,13 +49,16 @@
   <div
     class={cn(
       variant === "immersive"
-        ? "mx-auto flex h-16 w-full max-w-[1440px] items-center gap-2 px-[clamp(1.25rem,5vw,5rem)] sm:gap-3"
-        : cn(workspaceChromeRowClass, "mx-auto gap-3", WORKSPACE_MAX_WIDTH_CLASS)
+        ? "relative mx-auto flex h-16 w-full max-w-[1440px] items-center gap-2 px-[clamp(1.25rem,5vw,5rem)] sm:gap-3"
+        : cn(workspaceChromeRowClass, "relative mx-auto gap-3", WORKSPACE_MAX_WIDTH_CLASS)
     )}
   >
     <BrandLink {href} {variant} />
     {#if navLinks.length > 0}
-      <nav class="ml-auto hidden items-center gap-1 md:flex" aria-label="Navegação principal">
+      <nav
+        class="hidden items-center gap-1 md:ml-12 md:flex lg:ml-16"
+        aria-label="Navegação principal"
+      >
         {#each navLinks as link (link.href)}
           <a
             href={link.href}
@@ -128,7 +131,7 @@
       </AnchoredPopover>
     {/if}
     {#if actions}
-      <div class={cn("flex min-w-0 shrink-0 items-center", navLinks.length === 0 && "ml-auto", variant === "immersive" ? "gap-2 sm:gap-3" : "gap-3")}>
+      <div class={cn("flex min-w-0 shrink-0 items-center", navLinks.length === 0 ? "ml-auto" : "md:ml-auto", variant === "immersive" ? "gap-2 sm:gap-3" : "gap-3")}>
         {@render actions()}
       </div>
     {/if}
