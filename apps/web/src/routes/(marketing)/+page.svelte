@@ -104,8 +104,6 @@
       <a href={ctaHref}>{ctaLabel}<ArrowRight aria-hidden="true" /></a>
     </section>
   </main>
-
-  <footer>PRISMA · SEU AGENTE DE INTELIGÊNCIA IMOBILIÁRIA</footer>
 </div>
 
 <style>
@@ -121,7 +119,6 @@
     --home-blue-bright: #60a5fa;
     --home-ink: #dbeafe;
     --home-ink-dim: #7f9bce;
-    --home-ink-faint: #4a5f8a;
     --home-line: rgb(96 165 250 / 14%);
     --home-sans: "Space Grotesk Variable", "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
     --home-mono: "JetBrains Mono Variable", "JetBrains Mono", ui-monospace, monospace;
@@ -257,8 +254,6 @@
   .final-cta a { display: inline-flex; height: 2.8rem; align-items: center; gap: .5rem; margin-top: 1.6rem; border: 1px solid rgb(103 232 249 / 40%); border-radius: .7rem; background: linear-gradient(120deg, var(--home-cyan), var(--home-blue-bright)); padding: 0 1.25rem; color: #030711; font-size: .82rem; font-weight: 700; box-shadow: 0 0 1.8rem -.6rem rgb(34 211 238 / 85%); transition: transform .25s ease, box-shadow .25s ease; }
   .final-cta a:hover { box-shadow: 0 0 2.4rem -.5rem rgb(34 211 238 / 95%); transform: translateY(-2px); }
   .final-cta a :global(svg) { width: 1rem; height: 1rem; }
-  footer { position: relative; z-index: 5; padding: 2.5rem 1rem 3.75rem; color: var(--home-ink-faint); font-family: var(--home-mono); font-size: .58rem; letter-spacing: .24em; text-align: center; text-transform: uppercase; }
-
   @media (max-width: 920px) {
     .comparison-section, .finance-section { grid-template-columns: 1fr; }
     .comparison-section .section-prose { order: -1; }

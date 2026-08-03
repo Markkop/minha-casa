@@ -5,6 +5,7 @@
   import { signInWithGoogle } from "$lib/auth-client";
   import GoogleIcon from "$lib/components/GoogleIcon.svelte";
   import AccountMenu from "$lib/components/layout/AccountMenu.svelte";
+  import MarketingFooter from "$lib/components/layout/MarketingFooter.svelte";
   import MarketingHeader from "$lib/components/layout/MarketingHeader.svelte";
   import ThemeToggle from "$lib/components/theme/ThemeToggle.svelte";
   import Button from "$lib/components/ui/Button.svelte";
@@ -141,6 +142,10 @@
 {/if}
 
 {@render children?.()}
+
+{#if immersiveHeader}
+  <MarketingFooter />
+{/if}
 
 <style>
   :global(.immersive-account button[data-account-menu]) {

@@ -282,6 +282,13 @@
     text-rendering: optimizeLegibility;
   }
 
+  /* The immersive marketing header is translucent and sits outside the page
+     surface, so its backdrop must use the same dark base as the page. */
+  body:has(.marketing-immersive-page) {
+    background-color: #030711;
+    background-image: none;
+  }
+
   ::selection {
     background: color-mix(in srgb, var(--app-cyan) 38%, transparent);
     color: var(--app-fg);
