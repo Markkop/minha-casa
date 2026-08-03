@@ -116,13 +116,7 @@
         link.adminFlag !== "visaoGeral" &&
         getAdminFeatureFlag(featureFlags, link.adminFlag, isAdmin)
     );
-    const membershipLinks: NavLink[] = [
-      ...(hasFamily ? [{ href: "/familia", label: "Família", icon: Users }] : []),
-      ...(hasAgency
-        ? [{ href: "/imobiliaria", label: "Imobiliária", icon: Building2 }]
-        : [])
-    ];
-    return [...beforeCore, ...coreLinks, ...membershipLinks, ...afterCore];
+    return [...beforeCore, ...coreLinks, ...afterCore];
   });
 
   const pathname = $derived(page.url.pathname);
@@ -266,6 +260,31 @@
   <ImportExportMenuItems />
 {/snippet}
 
+{#snippet contextualAccountMenuItems()}
+  {#if hasFamily}
+    <a
+      href="/familia"
+      role="menuitem"
+      class="flex items-center gap-2 px-3 py-2 hover:bg-app-surface-muted"
+      onclick={closeChrome}
+    >
+      <Users class="h-4 w-4" />
+      <span>Família</span>
+    </a>
+  {/if}
+  {#if hasAgency}
+    <a
+      href="/imobiliaria"
+      role="menuitem"
+      class="flex items-center gap-2 px-3 py-2 hover:bg-app-surface-muted"
+      onclick={closeChrome}
+    >
+      <Building2 class="h-4 w-4" />
+      <span>Imobiliária</span>
+    </a>
+  {/if}
+{/snippet}
+
 <CollectionsProvider enabled={shouldLoadCollections && workspaceProfiles.ready}>
   <div
     data-slot="sidebar-wrapper"
@@ -279,6 +298,7 @@
       bind:mobileOpen
       {user}
       {initials}
+      {contextualAccountMenuItems}
       {accountMenuItems}
       bind:accountOpen
       onCloseChrome={closeChrome}

@@ -63,7 +63,7 @@
   />
 </svelte:head>
 
-<div class="roadmap-page">
+<div class="marketing-immersive-page roadmap-page">
   <div class="roadmap-bg" aria-hidden="true">
     <div class="roadmap-grid"></div>
     <div class="roadmap-glow roadmap-glow--left"></div>
@@ -130,9 +130,7 @@
 <style>
   .roadmap-page {
     position: relative;
-    min-height: 100vh;
     overflow: hidden;
-    background: var(--app-bg);
     color: var(--app-fg);
     font-family: "Space Grotesk Variable", Inter, ui-sans-serif, system-ui, sans-serif;
   }

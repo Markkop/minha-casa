@@ -26,8 +26,15 @@
   );
   const logoHref = $derived(user ? "/lista" : "/");
   const showMarketingHeader = $derived(page.url.pathname !== "/intelligence-demo");
-  const immersiveHeader = $derived(page.url.pathname === "/");
-  const showThemeToggle = $derived(page.url.pathname !== "/");
+  const immersiveMarketingPaths = ["/", "/planos", "/roadmap"];
+  const immersiveHeader = $derived(immersiveMarketingPaths.includes(page.url.pathname));
+  const showPrimaryMarketingNav = $derived(immersiveMarketingPaths.includes(page.url.pathname));
+  const showThemeToggle = $derived(!immersiveMarketingPaths.includes(page.url.pathname));
+  const marketingHeaderHref = $derived(immersiveHeader ? "/" : logoHref);
+  const marketingNavLinks = [
+    { href: "/planos", label: "Planos" },
+    { href: "/roadmap", label: "Roadmap" }
+  ] as const;
 
   const initials = $derived.by(() => {
     const source: string = user?.name || user?.email || "U";
@@ -67,7 +74,12 @@
 </script>
 
 {#if showMarketingHeader}
-  <MarketingHeader href={logoHref} variant={immersiveHeader ? "immersive" : "default"}>
+  <MarketingHeader
+    href={marketingHeaderHref}
+    variant={immersiveHeader ? "immersive" : "default"}
+    navLinks={showPrimaryMarketingNav ? marketingNavLinks : []}
+    pathname={page.url.pathname}
+  >
     {#snippet actions()}
       {#if showThemeToggle}
         <ThemeToggle />

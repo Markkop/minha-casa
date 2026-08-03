@@ -23,7 +23,7 @@
   />
 </svelte:head>
 
-<div class="immersive-home">
+<div class="immersive-home marketing-immersive-page">
   <ImmersiveEffects />
 
   <main class="home-main">

@@ -16,6 +16,7 @@
   let {
     user,
     initials,
+    contextualAccountMenuItems,
     accountMenuItems,
     accountOpen = $bindable(false),
     onCloseChrome,
@@ -24,6 +25,7 @@
   }: {
     user?: ShellUser | null;
     initials: string;
+    contextualAccountMenuItems?: Snippet;
     accountMenuItems?: Snippet;
     accountOpen?: boolean;
     compact?: boolean;
@@ -88,6 +90,9 @@
       <ClipboardList class="h-4 w-4" />
       <span>Assinatura</span>
     </a>
+    {#if contextualAccountMenuItems}
+      {@render contextualAccountMenuItems()}
+    {/if}
     {#if accountMenuItems}
       <div class="my-1 border-t border-app-border"></div>
       {@render accountMenuItems()}

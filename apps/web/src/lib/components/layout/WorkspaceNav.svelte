@@ -31,6 +31,7 @@
     mobileOpen = $bindable(false),
     user,
     initials,
+    contextualAccountMenuItems,
     accountMenuItems,
     accountOpen = $bindable(false),
     onCloseChrome,
@@ -45,6 +46,7 @@
     mobileOpen?: boolean;
     user?: ShellUser | null;
     initials: string;
+    contextualAccountMenuItems?: Snippet;
     accountMenuItems?: Snippet;
     accountOpen?: boolean;
     onCloseChrome: () => void;
@@ -99,6 +101,7 @@
     <AccountMenu
       {user}
       {initials}
+      {contextualAccountMenuItems}
       {accountMenuItems}
       bind:accountOpen
       {onCloseChrome}
