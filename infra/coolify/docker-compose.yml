@@ -63,6 +63,7 @@ services:
 
   minio-init:
     image: minio/mc@sha256:a7fe349ef4bd8521fb8497f55c6042871b2ae640607cf99d9bede5e9bdf11727
+    restart: "no"
     exclude_from_hc: true
     depends_on:
       minio:
@@ -207,6 +208,7 @@ services:
 
   langfuse-db-init:
     image: postgres@sha256:6f30057d31f5861b66f3545d4821f987aacf1dd920765f0acadea0c58ff975b1
+    restart: "no"
     exclude_from_hc: true
     depends_on:
       minha-casa-db:
