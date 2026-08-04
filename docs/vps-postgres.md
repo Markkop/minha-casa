@@ -1,14 +1,42 @@
 # VPS Stack for Minha Casa
 
-Minha Casa now runs the database plus the Elixir AI backend on the VPS. The stack keeps the same operational style: Docker Compose, `.env.prod`, health checks, and small debug scripts.
+Minha Casa is fully self-hosted on the VPS: Postgres, the Elixir AI backend, MinIO, Langfuse, and the SvelteKit frontend all run there as Docker Compose services, routed by [Dokploy](https://dokploy.com)'s Traefik instance via Docker labels. There is no external PaaS (Vercel) or reverse proxy (Caddy) in the loop anymore.
 
 ## Files
 
-- `infra/vps/docker-compose.db.yml` — Postgres 17, Phoenix AI backend, and MinIO.
+- `infra/vps/docker-compose.db.yml` — Postgres 17, Phoenix AI backend, MinIO, and the Hermes analysis agent.
+- `infra/vps/docker-compose.web.yml` — the SvelteKit frontend (`apps/web`, built with `@sveltejs/adapter-node`).
+- `infra/vps/docker-compose.langfuse.yml` — self-hosted Langfuse (see [infra/vps/LANGFUSE.md](../infra/vps/LANGFUSE.md)).
 - `infra/vps/.env.prod.example` — safe template for the VPS `.env.prod`.
 - `infra/vps/scripts/generate-postgres-tls.sh` — creates local cert/key for Postgres TLS.
 - `infra/vps/scripts/db-status.sh` — shows Compose status and recent DB logs.
 - `infra/vps/scripts/db-smoke-test.sh` — runs a read-only `select version(), now();` check.
+- `.forgejo/workflows/deploy.yml` — CI/CD: builds `phoenix-api` and `web` images, pushes them to the self-hosted Forgejo registry, then triggers the VPS deploy over SSH.
+
+## Routing and TLS
+
+All public routing and TLS termination is handled by **Dokploy's Traefik** (Docker Swarm, network `dokploy-network`), driven entirely by `traefik.*` labels already present on each service in the compose files above. There is nothing to configure manually per host — adding a new public route means adding labels to a service and attaching it to `dokploy-network`, not editing a shared proxy config file. Dokploy's own dashboard is at `https://dokploy.markkop.dev`.
+
+## CI/CD (Forgejo Actions)
+
+Git hosting, the container registry, and CI/CD are self-hosted on Forgejo at `https://git.markkop.dev`. The flow for both `minha-casa` and `todo-idle-quest`:
+
+1. Push to `main` on GitHub (still the primary remote for now).
+2. Forgejo mirrors the repo (`git.markkop.dev/markkop/minha-casa`, pull-mirror synced every ~10 minutes, or manually via `POST /api/v1/repos/markkop/minha-casa/mirror-sync`).
+3. The mirror sync triggers `.forgejo/workflows/deploy.yml` on the self-hosted Forgejo runner:
+   - `build-and-push`: builds `phoenix-api` (from `backend/Dockerfile`) and `web` (from `apps/web/Dockerfile.prod`), tags them `latest` + the commit SHA, and pushes to `git.markkop.dev/markkop/minha-casa-{phoenix-api,web}`.
+   - `deploy`: SSHes into the VPS with a restricted deploy key (forced command, see below) and runs `docker compose pull && up -d` for those two services.
+
+**The restricted deploy key:** the VPS root account has an SSH key (stored as the `DEPLOY_SSH_KEY` secret on both Forgejo repos) that can *only* run `/usr/local/bin/ci-deploy.sh` (`no-pty`, no port/agent forwarding). That script accepts `deploy minha-casa` or `deploy todo-idle-quest` via `$SSH_ORIGINAL_COMMAND` and runs the matching `docker compose pull && up -d`. It has no other capability.
+
+**Important — this does not run migrations.** CI only pulls the new image and recreates the container. After any deploy that includes an Ecto migration, run it manually (see below).
+
+**Caveat — infra changes need a manual sync.** `/docker/minha-casa` on the VPS is a git checkout used only to hold the compose files and `.env.prod` (not rebuilt by CI). If you change a compose file (new service, new Traefik label, etc.), copy it to the VPS explicitly — CI does not currently sync infra files, only application images:
+
+```bash
+scp infra/vps/docker-compose.db.yml infra/vps/docker-compose.web.yml \
+  root@<VPS_HOST>:/docker/minha-casa/infra/vps/
+```
 
 ## First deploy on the VPS
 
@@ -33,24 +61,8 @@ cp infra/vps/.env.prod.example .env.prod
 openssl rand -base64 36 # paste into POSTGRES_PASSWORD in .env.prod
 chmod +x infra/vps/scripts/*.sh
 ./infra/vps/scripts/generate-postgres-tls.sh
-docker compose -f infra/vps/docker-compose.db.yml --env-file .env.prod up -d
+docker compose -f infra/vps/docker-compose.db.yml -f infra/vps/docker-compose.web.yml --env-file .env.prod up -d
 ./infra/vps/scripts/db-smoke-test.sh
-```
-
-The VPS uses the shared `/docker/caddy` stack. Add host blocks there, not a second Caddy container:
-
-```caddyfile
-api.casas.markkop.dev {
-  reverse_proxy phoenix-api:4000
-}
-
-s3.casas.markkop.dev {
-  reverse_proxy minio:9000
-}
-
-minio.casas.markkop.dev {
-  reverse_proxy minio:9001
-}
 ```
 
 Run Phoenix migrations after the first backend deploy:
@@ -62,36 +74,26 @@ docker compose -f infra/vps/docker-compose.db.yml --env-file .env.prod exec phoe
 
 ## Updating the VPS
 
-The production checkout lives at `/docker/minha-casa`. The shared Caddy stack lives outside this repo at `/docker/caddy`; update `/docker/caddy/Caddyfile` for public host routing instead of adding another Caddy service to this Compose file.
+**Normal path:** push to `main` on GitHub. CI/CD (above) builds, pushes, and redeploys `phoenix-api` and `web` automatically within a few minutes. If your change includes a migration, run it manually right after the deploy finishes (command above).
 
-Before pulling, check whether production is behind by more than the commit you are deploying:
-
-```bash
-cd /docker/minha-casa
-git status --short --branch
-git fetch origin main
-git log --oneline HEAD..origin/main
-```
-
-Deploy Phoenix backend changes with a rebuild, migration, recreate, and health check:
+**Manual/fallback path** (useful for debugging CI, or deploying without waiting for the pipeline): the production checkout still lives at `/docker/minha-casa` for holding compose files and `.env.prod`.
 
 ```bash
-cd /docker/minha-casa
-git pull --ff-only origin main
+cd /docker/minha-casa/infra/vps
+docker compose -f docker-compose.db.yml -f docker-compose.web.yml --env-file /docker/minha-casa/.env.prod build phoenix-api web
 
-docker compose -f infra/vps/docker-compose.db.yml --env-file .env.prod build phoenix-api
-
-docker compose -f infra/vps/docker-compose.db.yml --env-file .env.prod run --rm --no-deps phoenix-api \
+docker compose -f docker-compose.db.yml -f docker-compose.web.yml --env-file /docker/minha-casa/.env.prod run --rm --no-deps phoenix-api \
   /app/bin/minha_casa_ai eval "MinhaCasaAi.Release.migrate()"
 
-docker compose -f infra/vps/docker-compose.db.yml --env-file .env.prod up -d --no-deps --force-recreate phoenix-api
+docker compose -f docker-compose.db.yml -f docker-compose.web.yml --env-file /docker/minha-casa/.env.prod up -d --no-deps --force-recreate phoenix-api web
 
-docker compose -f infra/vps/docker-compose.db.yml --env-file .env.prod ps phoenix-api
+docker compose -f docker-compose.db.yml -f docker-compose.web.yml --env-file /docker/minha-casa/.env.prod ps phoenix-api web
 docker inspect -f "{{.State.Health.Status}}" minha-casa-phoenix-api-1
+docker inspect -f "{{.State.Health.Status}}" minha-casa-web-1
 docker logs --tail=80 minha-casa-phoenix-api-1
 ```
 
-For public API smoke checks, use the production API host configured in Caddy, currently `https://api.casas.markkop.dev`.
+For public API smoke checks, use `https://api.casas.markkop.dev`.
 
 ## Data model note
 
@@ -107,28 +109,13 @@ SELECT version FROM schema_migrations ORDER BY version DESC LIMIT 5;
 SQL
 ```
 
-## Frontend env vars
+## Frontend
 
-Set these wherever the SvelteKit frontend runs:
+The SvelteKit frontend (`apps/web`) is self-hosted on the VPS via `infra/vps/docker-compose.web.yml`, built from `apps/web/Dockerfile.prod` (`@sveltejs/adapter-node`). All of its env vars live in the same VPS `.env.prod` as the rest of the stack — see `infra/vps/.env.prod.example` for the full list (`BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET`, `PUBLIC_GOOGLE_MAPS_API_KEY`, `WEB_HOSTNAME`, etc.). It talks to `phoenix-api` and Postgres over the internal Docker network (`minha_casa_internal`), not over the public internet.
 
-```env
-DATABASE_URL=postgresql://minhacasa:<POSTGRES_PASSWORD>@<VPS_HOST>:5433/minha_casa_prod
-DATABASE_SSL=true
-DATABASE_POOL_MAX=5
-BETTER_AUTH_URL=https://<minha-casa-domain>
-PUBLIC_APP_URL=https://<minha-casa-domain>
-BETTER_AUTH_SECRET=<openssl rand -base64 32>
-BETTER_AUTH_TRUSTED_ORIGINS=https://<minha-casa-domain>,http://localhost:5173
-GOOGLE_CLIENT_ID=<from Google Cloud Console>
-GOOGLE_CLIENT_SECRET=<from Google Cloud Console>
-PUBLIC_API_URL=https://<api-domain>
-PHOENIX_API_URL=https://<api-domain>
-INTERNAL_API_SECRET=<same value as VPS .env.prod>
-```
+Also keep the existing production values for OpenAI, ScrapingAnt, Brave Search, Google Maps, and share links — these are only needed by `phoenix-api`, not the frontend.
 
-Also keep the existing production values for OpenAI, ScrapingAnt, Brave Search, Google Maps, and share links. OpenAI, ScrapingAnt, and Brave Search should be available to Phoenix on the VPS.
-
-**Stripe (billing):** set `STRIPE_SECRET_KEY` and `STRIPE_WEBHOOK_SECRET` in VPS `.env.prod` and wire them into `phoenix-api` in `infra/vps/docker-compose.db.yml`. Restricted keys (`rk_live_...`) work as drop-in replacements for secret keys. The Svelte app on Vercel does **not** need Stripe env vars — it proxies billing to Phoenix.
+**Stripe (billing):** set `STRIPE_SECRET_KEY` and `STRIPE_WEBHOOK_SECRET` in VPS `.env.prod` and wire them into `phoenix-api` in `infra/vps/docker-compose.db.yml`. Restricted keys (`rk_live_...`) work as drop-in replacements for secret keys. The frontend proxies billing to Phoenix and does not need Stripe env vars itself.
 
 ### Langfuse (optional)
 
@@ -143,32 +130,30 @@ LANGFUSE_ENV=production
 LANGFUSE_PROMPT_LABEL=production
 ```
 
-Phoenix on the VPS uses `LANGFUSE_HOST=http://langfuse-web:3000` in `.env.prod` (not the public URL).
+Phoenix on the VPS uses `LANGFUSE_HOST=http://langfuse-web:3000` in `.env.prod` (not the public URL). Langfuse is only used by the backend — the frontend has no Langfuse integration.
 
 ```env
 SCRAPINGANT_API_KEY=<from ScrapingAnt dashboard>
 ```
 
-**Production domain (example):** `https://casas.markkop.dev` — use your real hostname in Google OAuth and in `BETTER_AUTH_*` / `PUBLIC_APP_URL`.
+**Production domain:** `https://casas.markkop.dev` — used in Google OAuth and in `BETTER_AUTH_*` / `WEB_HOSTNAME`.
 
-Do not run migrations from the frontend host or a developer laptop against
-production. Build the Phoenix release on the VPS, take a database backup, and
-run `MinhaCasaAi.Release.migrate()` there as shown above.
+Do not run migrations from a developer laptop against production. Build/deploy the Phoenix release on the VPS (via CI or the manual path above), take a database backup, and run `MinhaCasaAi.Release.migrate()` there as shown above.
 
 ## Google OAuth Console
 
 Use Web Application credentials:
 
 - Authorized JavaScript origins:
-  - `https://<minha-casa-domain>`
+  - `https://casas.markkop.dev`
   - `http://localhost:5173`
 - Authorized redirect URIs:
-  - `https://<minha-casa-domain>/api/auth/callback/google`
+  - `https://casas.markkop.dev/api/auth/callback/google`
   - `http://localhost:5173/api/auth/callback/google`
 - Consent screen links:
-  - Homepage: `https://<minha-casa-domain>`
-  - Privacy: `https://<minha-casa-domain>/privacy`
-  - Terms: `https://<minha-casa-domain>/terms`
+  - Homepage: `https://casas.markkop.dev`
+  - Privacy: `https://casas.markkop.dev/privacy`
+  - Terms: `https://casas.markkop.dev/terms`
 
 ## Operations
 
@@ -184,11 +169,14 @@ docker compose -f infra/vps/docker-compose.db.yml --env-file .env.prod restart m
 
 # Restart Phoenix only
 docker compose -f infra/vps/docker-compose.db.yml --env-file .env.prod restart phoenix-api
+
+# Restart the frontend only
+docker compose -f infra/vps/docker-compose.web.yml --env-file .env.prod restart web
 ```
 
 Do not run `docker compose down -v` or `docker volume prune` unless you explicitly intend to delete the Minha Casa database volume.
 
 ## Notes
 
-- This setup still exposes Postgres publicly for the current frontend/API routes. Once all server routes move to Phoenix or the frontend moves to the VPS, Postgres can be made private to the Docker network.
-- The shared Caddy exposes Phoenix and MinIO over HTTPS. Keep MinIO console protected by a strong password and restrict it further at the firewall if possible.
+- Postgres is still exposed on the public port (`POSTGRES_PUBLIC_PORT`, default `5433`) for direct developer/admin access. The app itself (Phoenix and the frontend) talks to Postgres over the internal Docker network only, so this port can be firewalled off or removed if external DB access is no longer needed.
+- Keep the MinIO console (`minio.casas.markkop.dev`) protected by a strong password and restrict it further at the firewall if possible.
