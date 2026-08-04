@@ -100,12 +100,11 @@ These backups are local to the VPS and do not protect against total VPS or disk
 loss. Validate dumps with `pg_restore --list`, archives with `tar -tzf`, and
 perform periodic scratch restores.
 
-The cutover snapshot is retained at
-`/docker/backups/pre-coolify-20260804T173458Z`, with a separately verified copy
-at `~/Backups/minha-casa-coolify/pre-coolify-20260804T173458Z` on the operator
-workstation. The former Dokploy/Swarm containers and volumes remain stopped for
-the seven-day rollback window; do not start them beside Coolify because their
-published ports and data mounts overlap.
+The former Dokploy/Swarm stack, legacy Compose containers, retired source
+checkouts, and cutover archive were permanently removed on August 4, 2026.
+Coolify is the only supported production control plane. Recovery starts from
+the verified PostgreSQL dumps under `/docker/backups/coolify` and, when needed,
+the current-stack weekly archive.
 
 Do not use `docker compose down -v`, edit the persisted-data bind paths, or
 delete their backing Docker volumes without a separately verified backup.
