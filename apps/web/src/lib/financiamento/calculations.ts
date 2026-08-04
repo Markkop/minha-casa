@@ -1022,6 +1022,8 @@ export const gerarCenarioCompleto = ({
       `r${reformaEm ?? "n"}`,
       `a${aporteEm ?? "n"}`,
       `cap${capitalDisponivel}`,
+      `ct${capitalTotalCenario}`,
+      `man${manutencao}`,
       `ren${rendaMensal}`,
       `cus${custoMensal}`,
       `ma${aporteConfig.modo}`,

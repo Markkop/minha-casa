@@ -312,6 +312,41 @@ describe("scenario graph views", () => {
     expect(new Set(view.cenarios.map((cenario) => cenario.id)).size).toBe(3);
   });
 
+  it("keeps distinct ids when total cash varies with fixed entrada", () => {
+    const base = createInitialSimulatorParams();
+    const view = buildScenarioGraphViewFromParams({
+      ...base,
+      capitalDisponivel: 800_000,
+      entradaDisponivel: 600_000,
+      scenarioVariations: {
+        ...emptyScenarioVariations(),
+        capitalDisponivel: [700_000, 900_000]
+      }
+    });
+
+    expect(view.cenarios).toHaveLength(3);
+    expect(
+      view.cenarios.map((cenario) => cenario.capitalDisponivel).sort((a, b) => a - b)
+    ).toEqual([700_000, 800_000, 900_000]);
+    expect(new Set(view.cenarios.map((cenario) => cenario.id)).size).toBe(3);
+  });
+
+  it("keeps distinct ids when property maintenance varies", () => {
+    const base = createInitialSimulatorParams();
+    const view = buildScenarioGraphViewFromParams({
+      ...base,
+      temImovelParaNegociar: true,
+      custoManutencaoImovelMensal: 1_000,
+      scenarioVariations: {
+        ...emptyScenarioVariations(),
+        custoManutencaoImovelMensal: [500, 2_000]
+      }
+    });
+
+    expect(view.cenarios).toHaveLength(3);
+    expect(new Set(view.cenarios.map((cenario) => cenario.id)).size).toBe(3);
+  });
+
   it("builds comparison graph data from saved visible scenario lines", () => {
     const paramsA = createInitialSimulatorParams();
     const allA = buildFilteredCenariosFromParams(paramsA);
