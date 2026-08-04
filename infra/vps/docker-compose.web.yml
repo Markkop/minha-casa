@@ -1,0 +1,67 @@
+# SvelteKit frontend (apps/web) on the production VPS, self-hosted via
+# @sveltejs/adapter-node. Talks to Phoenix over the internal network and to
+# Postgres directly (Better Auth). Routed by Dokploy's Traefik.
+#
+# Run with the app stack:
+#   docker compose -f infra/vps/docker-compose.db.yml \
+#     -f infra/vps/docker-compose.web.yml --env-file .env.prod up -d
+#
+# UI: https://casas.markkop.dev
+
+services:
+  web:
+    image: ${WEB_IMAGE:-git.markkop.dev/markkop/minha-casa-web:latest}
+    build:
+      context: ../..
+      dockerfile: apps/web/Dockerfile.prod
+    container_name: minha-casa-web-1
+    restart: unless-stopped
+    depends_on:
+      minha-casa-db:
+        condition: service_healthy
+      phoenix-api:
+        condition: service_healthy
+    environment:
+      HOST: "0.0.0.0"
+      PORT: "3000"
+      NODE_ENV: production
+      DATABASE_URL: postgresql://${POSTGRES_USER:?set POSTGRES_USER}:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}@minha-casa-db:5432/${POSTGRES_DB:?set POSTGRES_DB}
+      DATABASE_SSL: "false"
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:?set BETTER_AUTH_SECRET}
+      BETTER_AUTH_URL: ${BETTER_AUTH_URL:-https://casas.markkop.dev}
+      BETTER_AUTH_TRUSTED_ORIGINS: ${BETTER_AUTH_TRUSTED_ORIGINS:-https://casas.markkop.dev}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      PUBLIC_API_URL: http://phoenix-api:4000
+      PHOENIX_API_URL: http://phoenix-api:4000
+      INTERNAL_BACKEND_URL: http://phoenix-api:4000
+      BACKEND_API_URL: http://phoenix-api:4000
+      INTERNAL_API_SECRET: ${INTERNAL_API_SECRET:?set INTERNAL_API_SECRET}
+      PUBLIC_GOOGLE_MAPS_API_KEY: ${PUBLIC_GOOGLE_MAPS_API_KEY:-}
+      OVERPASS_API_URL: ${OVERPASS_API_URL:-https://overpass-api.de/api/interpreter}
+      NOMINATIM_REVERSE_URL: ${NOMINATIM_REVERSE_URL:-https://nominatim.openstreetmap.org/reverse}
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+    networks:
+      - minha_casa_internal
+      - dokploy-network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=dokploy-network"
+      - "traefik.http.routers.minha-casa-web.rule=Host(`${WEB_HOSTNAME:-casas.markkop.dev}`)"
+      - "traefik.http.routers.minha-casa-web.entrypoints=web"
+      - "traefik.http.routers.minha-casa-web.middlewares=redirect-to-https@file"
+      - "traefik.http.routers.minha-casa-web-secure.rule=Host(`${WEB_HOSTNAME:-casas.markkop.dev}`)"
+      - "traefik.http.routers.minha-casa-web-secure.entrypoints=websecure"
+      - "traefik.http.routers.minha-casa-web-secure.tls.certresolver=letsencrypt"
+      - "traefik.http.services.minha-casa-web.loadbalancer.server.port=3000"
+
+networks:
+  minha_casa_internal:
+    external: true
+    name: vps_minha_casa_internal
+  dokploy-network:
+    external: true

@@ -1,0 +1,35 @@
+# Production image for apps/web (SvelteKit + @sveltejs/adapter-node).
+# Build from the repo root so the pnpm workspace resolves correctly:
+#   docker build -f apps/web/Dockerfile.prod -t minha-casa-web .
+
+FROM node:22-alpine AS base
+RUN npm install -g pnpm@10.32.1
+WORKDIR /repo
+
+FROM base AS deps
+COPY package.json pnpm-workspace.yaml pnpm-lock.yaml .npmrc ./
+COPY apps/web/package.json apps/web/package.json
+RUN pnpm install --frozen-lockfile
+
+FROM deps AS build
+COPY apps/web apps/web
+RUN pnpm --dir apps/web build
+
+FROM base AS prod-deps
+COPY package.json pnpm-workspace.yaml pnpm-lock.yaml .npmrc ./
+COPY apps/web/package.json apps/web/package.json
+RUN pnpm install --prod --frozen-lockfile
+
+FROM node:22-alpine AS runner
+WORKDIR /repo/apps/web
+ENV NODE_ENV=production
+ENV HOST=0.0.0.0
+ENV PORT=3000
+COPY --from=prod-deps /repo/node_modules /repo/node_modules
+COPY --from=prod-deps /repo/apps/web/node_modules ./node_modules
+COPY --from=build /repo/apps/web/build ./build
+COPY apps/web/package.json ./package.json
+
+EXPOSE 3000
+
+CMD ["node", "build"]

@@ -3,7 +3,7 @@
 #   docker compose -f infra/vps/docker-compose.db.yml \
 #     -f infra/vps/docker-compose.langfuse.yml --env-file .env.prod up -d
 #
-# UI (via Caddy): https://langfuse.casas.markkop.dev
+# UI (via Dokploy's Traefik): https://langfuse.casas.markkop.dev
 
 services:
   langfuse-db-init:
@@ -130,7 +130,17 @@ services:
       LANGFUSE_INIT_USER_PASSWORD: ${LANGFUSE_INIT_USER_PASSWORD:?set LANGFUSE_INIT_USER_PASSWORD}
     networks:
       - minha_casa_internal
-      - caddy_net
+      - dokploy-network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=dokploy-network"
+      - "traefik.http.routers.minha-casa-langfuse.rule=Host(`${LANGFUSE_HOSTNAME:-langfuse.casas.markkop.dev}`)"
+      - "traefik.http.routers.minha-casa-langfuse.entrypoints=web"
+      - "traefik.http.routers.minha-casa-langfuse.middlewares=redirect-to-https@file"
+      - "traefik.http.routers.minha-casa-langfuse-secure.rule=Host(`${LANGFUSE_HOSTNAME:-langfuse.casas.markkop.dev}`)"
+      - "traefik.http.routers.minha-casa-langfuse-secure.entrypoints=websecure"
+      - "traefik.http.routers.minha-casa-langfuse-secure.tls.certresolver=letsencrypt"
+      - "traefik.http.services.minha-casa-langfuse.loadbalancer.server.port=3000"
 
   langfuse-worker:
     image: langfuse/langfuse-worker:3
@@ -154,7 +164,7 @@ networks:
   minha_casa_internal:
     external: true
     name: vps_minha_casa_internal
-  caddy_net:
+  dokploy-network:
     external: true
 
 volumes:

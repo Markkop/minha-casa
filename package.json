@@ -12,7 +12,7 @@
     "build": "pnpm build:web",
     "build:web": "pnpm --dir apps/web build",
     "start": "pnpm start:web",
-    "start:web": "pnpm --dir apps/web preview",
+    "start:web": "pnpm --dir apps/web start",
     "lint": "pnpm lint:web",
     "db:setup": "bash scripts/db-setup.sh",
     "db:migrate": "bash scripts/db-migrate.sh",

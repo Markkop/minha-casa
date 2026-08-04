@@ -4,7 +4,7 @@
 #   - Postgres remains the source of truth.
 #   - Phoenix runs the AI backend, workflows, WhatsApp webhooks, MCP, and attachments.
 #   - MinIO stores AI/chat attachments.
-#   - The shared /docker/caddy stack exposes Phoenix/MinIO through caddy_net.
+#   - Dokploy's Traefik (dokploy-network) exposes Phoenix/MinIO via Docker labels.
 #   - Do not reuse Todo Idle Quest containers, DBs, users, volumes, or ports.
 #
 # Prerequisites on VPS:
@@ -58,7 +58,28 @@ services:
       - minha_casa_minio:/data
     networks:
       - minha_casa_internal
-      - caddy_net
+      - dokploy-network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=dokploy-network"
+      - "traefik.http.routers.minha-casa-s3.rule=Host(`${MINIO_HOSTNAME:-s3.casas.markkop.dev}`)"
+      - "traefik.http.routers.minha-casa-s3.entrypoints=web"
+      - "traefik.http.routers.minha-casa-s3.middlewares=redirect-to-https@file"
+      - "traefik.http.routers.minha-casa-s3.service=minha-casa-s3-svc"
+      - "traefik.http.routers.minha-casa-s3-secure.rule=Host(`${MINIO_HOSTNAME:-s3.casas.markkop.dev}`)"
+      - "traefik.http.routers.minha-casa-s3-secure.entrypoints=websecure"
+      - "traefik.http.routers.minha-casa-s3-secure.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.minha-casa-s3-secure.service=minha-casa-s3-svc"
+      - "traefik.http.services.minha-casa-s3-svc.loadbalancer.server.port=9000"
+      - "traefik.http.routers.minha-casa-minio-console.rule=Host(`${MINIO_CONSOLE_HOSTNAME:-minio.casas.markkop.dev}`)"
+      - "traefik.http.routers.minha-casa-minio-console.entrypoints=web"
+      - "traefik.http.routers.minha-casa-minio-console.middlewares=redirect-to-https@file"
+      - "traefik.http.routers.minha-casa-minio-console.service=minha-casa-minio-console-svc"
+      - "traefik.http.routers.minha-casa-minio-console-secure.rule=Host(`${MINIO_CONSOLE_HOSTNAME:-minio.casas.markkop.dev}`)"
+      - "traefik.http.routers.minha-casa-minio-console-secure.entrypoints=websecure"
+      - "traefik.http.routers.minha-casa-minio-console-secure.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.minha-casa-minio-console-secure.service=minha-casa-minio-console-svc"
+      - "traefik.http.services.minha-casa-minio-console-svc.loadbalancer.server.port=9001"
 
   minio-init:
     image: minio/mc:RELEASE.2025-08-13T08-35-41Z
@@ -80,6 +101,7 @@ services:
       - minha_casa_internal
 
   phoenix-api:
+    image: ${PHOENIX_API_IMAGE:-git.markkop.dev/markkop/minha-casa-phoenix-api:latest}
     build:
       context: ../../backend
       dockerfile: Dockerfile
@@ -141,7 +163,17 @@ services:
       retries: 20
     networks:
       - minha_casa_internal
-      - caddy_net
+      - dokploy-network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=dokploy-network"
+      - "traefik.http.routers.minha-casa-api.rule=Host(`${API_HOSTNAME:-api.casas.markkop.dev}`)"
+      - "traefik.http.routers.minha-casa-api.entrypoints=web"
+      - "traefik.http.routers.minha-casa-api.middlewares=redirect-to-https@file"
+      - "traefik.http.routers.minha-casa-api-secure.rule=Host(`${API_HOSTNAME:-api.casas.markkop.dev}`)"
+      - "traefik.http.routers.minha-casa-api-secure.entrypoints=websecure"
+      - "traefik.http.routers.minha-casa-api-secure.tls.certresolver=letsencrypt"
+      - "traefik.http.services.minha-casa-api.loadbalancer.server.port=4000"
 
   hermes-agent:
     image: nousresearch/hermes-agent:latest
@@ -174,7 +206,7 @@ services:
 networks:
   minha_casa_internal:
     driver: bridge
-  caddy_net:
+  dokploy-network:
     external: true
 
 volumes:

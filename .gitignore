@@ -52,3 +52,8 @@ next-env.d.ts
 # svelte / sveltekit
 **/.svelte-kit
 apps/web/build/
+
+# vps backups (local only, never commit)
+.vps-backups/
+.dokploy-admin
+.forgejo-admin

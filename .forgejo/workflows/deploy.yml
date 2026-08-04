@@ -1,0 +1,57 @@
+name: Build and Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+env:
+  REGISTRY: git.markkop.dev
+  IMAGE_OWNER: markkop
+
+jobs:
+  build-and-push:
+    runs-on: docker
+    container:
+      image: docker:27-cli
+    steps:
+      - name: Install Node.js (required by JS-based actions)
+        run: apk add --no-cache nodejs
+
+      - uses: actions/checkout@v4
+
+      - name: Log in to Forgejo registry
+        run: echo "${{ secrets.REGISTRY_TOKEN }}" | docker login "$REGISTRY" -u "$IMAGE_OWNER" --password-stdin
+
+      - name: Build and push phoenix-api
+        run: |
+          docker build \
+            -t "$REGISTRY/$IMAGE_OWNER/minha-casa-phoenix-api:latest" \
+            -t "$REGISTRY/$IMAGE_OWNER/minha-casa-phoenix-api:${{ github.sha }}" \
+            backend
+          docker push "$REGISTRY/$IMAGE_OWNER/minha-casa-phoenix-api:latest"
+          docker push "$REGISTRY/$IMAGE_OWNER/minha-casa-phoenix-api:${{ github.sha }}"
+
+      - name: Build and push web
+        run: |
+          docker build \
+            -f apps/web/Dockerfile.prod \
+            -t "$REGISTRY/$IMAGE_OWNER/minha-casa-web:latest" \
+            -t "$REGISTRY/$IMAGE_OWNER/minha-casa-web:${{ github.sha }}" \
+            .
+          docker push "$REGISTRY/$IMAGE_OWNER/minha-casa-web:latest"
+          docker push "$REGISTRY/$IMAGE_OWNER/minha-casa-web:${{ github.sha }}"
+
+  deploy:
+    needs: build-and-push
+    runs-on: docker
+    container:
+      image: alpine:3.20
+    steps:
+      - name: Deploy over SSH
+        run: |
+          apk add --no-cache openssh-client >/dev/null
+          mkdir -p ~/.ssh
+          printf '%s\n' "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_ed25519 root@${{ secrets.DEPLOY_HOST }} "deploy minha-casa"
