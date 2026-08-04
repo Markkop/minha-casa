@@ -1,0 +1,11 @@
+# Persistent override for Coolify's own control-plane containers.
+# Install as /data/coolify/source/docker-compose.custom.yml.
+services:
+  coolify:
+    ports: !override
+      - "127.0.0.1:8000:8080"
+
+  soketi:
+    ports: !override
+      - "127.0.0.1:6001:6001"
+      - "127.0.0.1:6002:6002"

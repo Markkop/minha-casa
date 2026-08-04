@@ -7,7 +7,8 @@ Compose application managed by Coolify. The production manifest is
 ## Deployment flow
 
 1. `git push origin main` pushes to GitHub and Forgejo.
-2. Forgejo calls the authenticated deploy webhook for the Minha Casa resource.
+2. Forgejo calls Coolify's HMAC-authenticated Gitea webhook for the Minha Casa
+   resource on pushes to `main`.
 3. Coolify clones Forgejo with a deploy key and builds the Phoenix and SvelteKit
    images directly from the repository.
 4. Phoenix runs `MinhaCasaAi.Release.migrate()` before starting. A failed
@@ -80,16 +81,31 @@ health, restarts, and environment variables.
 Daily PostgreSQL dumps are stored in:
 
 ```text
-/docker/backups/coolify/minha-casa
+/docker/backups/coolify/minha-casa/daily
 ```
 
-Weekly maintenance archives preserve MinIO, Hermes, and ClickHouse volumes.
-ClickHouse must be stopped temporarily for a consistent volume archive. Redis
-is transient and is not restored.
+The versioned backup implementation is `infra/coolify/backup-vps.sh`; it is
+installed as `/usr/local/sbin/coolify-local-backup`. Cron runs verified logical
+dumps daily at 03:15 UTC and a cold archive Sundays at 04:15 UTC. Daily dumps
+are retained for 14 days. Four weeks of cold archives are retained under
+`/docker/backups/coolify/weekly` and include MinIO, Hermes, ClickHouse, Forgejo
+repositories, and the Coolify control-plane configuration and SSH keys.
+
+The weekly job briefly stops the Minha Casa writers and Forgejo while it
+archives their state, then restarts the exact containers it stopped. Redis is
+transient and is not restored. The cron definition is versioned at
+`infra/coolify/coolify-local-backups.cron` and installed under `/etc/cron.d`.
 
 These backups are local to the VPS and do not protect against total VPS or disk
 loss. Validate dumps with `pg_restore --list`, archives with `tar -tzf`, and
 perform periodic scratch restores.
+
+The cutover snapshot is retained at
+`/docker/backups/pre-coolify-20260804T173458Z`, with a separately verified copy
+at `~/Backups/minha-casa-coolify/pre-coolify-20260804T173458Z` on the operator
+workstation. The former Dokploy/Swarm containers and volumes remain stopped for
+the seven-day rollback window; do not start them beside Coolify because their
+published ports and data mounts overlap.
 
 Do not use `docker compose down -v`, edit the persisted-data bind paths, or
 delete their backing Docker volumes without a separately verified backup.
@@ -107,6 +123,23 @@ Also verify in Coolify that migrations completed and all long-running services
 are healthy. Test an authenticated API request, one MinIO object round-trip,
 Hermes connectivity, and one Langfuse trace before declaring a deployment
 complete.
+
+The S3 root intentionally returns HTTP 403 without credentials; that proves the
+MinIO router is reachable and is not a failed health check.
+
+## Coolify control plane
+
+`infra/coolify/docker-compose.control-plane.yml` is installed as
+`/data/coolify/source/docker-compose.custom.yml`. It binds Coolify ports 8000,
+6001, and 6002 to VPS loopback; the public dashboard and realtime connections
+use `https://coolify.markkop.dev` through Traefik. Keep the Hostinger provider
+firewall limited to TCP 22, 80, 443, and 2222 (plus UDP 443 if HTTP/3 is
+desired), and explicitly block public TCP 8080. Docker-published ports can
+bypass UFW, so provider firewall rules are the authoritative perimeter.
+
+Coolify API access is disabled after migration, and automatic Coolify updates
+are disabled for production. Take a verified control-plane backup and apply
+updates manually from the dashboard.
 
 ## OAuth and webhooks
 
