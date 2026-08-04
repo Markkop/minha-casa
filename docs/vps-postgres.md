@@ -126,12 +126,28 @@ complete.
 The S3 root intentionally returns HTTP 403 without credentials; that proves the
 MinIO router is reachable and is not a failed health check.
 
+## Host kernel tunings
+
+Langfuse Redis recommends `vm.overcommit_memory = 1` so background persistence
+does not fail under memory pressure. Apply once on the VPS and persist across
+reboot:
+
+```bash
+sysctl -w vm.overcommit_memory=1
+printf 'vm.overcommit_memory = 1\n' > /etc/sysctl.d/99-redis-overcommit.conf
+sysctl --system
+sysctl vm.overcommit_memory   # expect = 1
+```
+
 ## Coolify control plane
 
 `infra/coolify/docker-compose.control-plane.yml` is installed as
-`/data/coolify/source/docker-compose.custom.yml`. It binds Coolify ports 8000,
-6001, and 6002 to VPS loopback; the public dashboard and realtime connections
-use `https://coolify.markkop.dev` through Traefik. Keep the Hostinger provider
+`/data/coolify/source/docker-compose.custom.yml`. It binds Coolify port 8000 to
+VPS loopback (`127.0.0.1`) and the Docker host gateway (`10.0.0.1`) so
+Sentinel can push metrics via `host.docker.internal` without exposing the
+control plane publicly. Soketi ports 6001 and 6002 remain loopback-only. The
+public dashboard and realtime connections use `https://coolify.markkop.dev`
+through Traefik. Keep the Hostinger provider
 firewall limited to TCP 22, 80, 443, and 2222 (plus UDP 443 if HTTP/3 is
 desired), and explicitly block public TCP 8080. Docker-published ports can
 bypass UFW, so provider firewall rules are the authoritative perimeter.
