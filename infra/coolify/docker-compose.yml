@@ -107,7 +107,7 @@ services:
 
   phoenix-api:
     build:
-      context: ../../backend
+      context: ./backend
       dockerfile: Dockerfile
     restart: unless-stopped
     depends_on:
@@ -170,7 +170,7 @@ services:
 
   web:
     build:
-      context: ../..
+      context: .
       dockerfile: apps/web/Dockerfile.prod
     restart: unless-stopped
     depends_on:
