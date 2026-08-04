@@ -5,6 +5,7 @@ import {
   HOVER_Y_HYSTERESIS,
   monthAtX,
   niceTickStep,
+  normalizeTickValue,
   xForMonth,
   type ChartHover
 } from "$lib/components/financiamento/debt-timeline-chart-math";
@@ -213,7 +214,7 @@ export function buildSignedYAxisScale(values: number[]): SignedYAxisScale {
   const ticks: number[] = [];
 
   for (let value = min; value <= resolvedMax + step * 1e-9; value += step) {
-    ticks.push(Math.round(value));
+    ticks.push(normalizeTickValue(value, step));
   }
 
   return { min, max: resolvedMax, step, ticks };

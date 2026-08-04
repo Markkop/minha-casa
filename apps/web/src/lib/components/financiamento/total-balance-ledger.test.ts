@@ -211,6 +211,12 @@ describe("buildBalanceLedger", () => {
 });
 
 describe("signed ledger chart helpers", () => {
+  it("keeps fractional ticks unique for values close to zero", () => {
+    const scale = buildSignedYAxisScale([-0.1, 0.1]);
+
+    expect(new Set(scale.ticks).size).toBe(scale.ticks.length);
+  });
+
   it("builds ticks spanning negative and positive balances with zero included", () => {
     const scale = buildSignedYAxisScale([-125_000, 375_000]);
     expect(scale.min).toBeLessThan(-125_000);

@@ -425,6 +425,16 @@ export function niceTickStep(start: number, stop: number, count: number): number
   return base * power;
 }
 
+/** Preserve fractional nice steps without carrying floating-point accumulation noise. */
+export function normalizeTickValue(value: number, step: number): number {
+  if (!Number.isFinite(value) || !Number.isFinite(step) || step === 0) return value;
+  const decimalPlaces = Math.min(
+    12,
+    Math.max(0, -Math.floor(Math.log10(Math.abs(step)))) + 2
+  );
+  return Number(value.toFixed(decimalPlaces));
+}
+
 export type YAxisScale = {
   max: number;
   step: number;
@@ -443,7 +453,7 @@ export function buildNiceYAxisScale(dataMax: number): YAxisScale {
     const max = Math.ceil(padded / step) * step;
     const ticks: number[] = [];
     for (let value = 0; value <= max + step * 1e-9; value += step) {
-      ticks.push(Math.round(value));
+      ticks.push(normalizeTickValue(value, step));
     }
 
     if (ticks.length < 4 || ticks.length > 11) continue;
@@ -464,7 +474,7 @@ export function buildNiceYAxisScale(dataMax: number): YAxisScale {
   const max = Math.ceil(padded / step) * step;
   const ticks: number[] = [];
   for (let value = 0; value <= max + step * 1e-9; value += step) {
-    ticks.push(Math.round(value));
+    ticks.push(normalizeTickValue(value, step));
   }
   return { max, step, ticks };
 }

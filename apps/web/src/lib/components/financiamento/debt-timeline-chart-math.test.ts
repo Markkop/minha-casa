@@ -313,6 +313,13 @@ describe("monthTotalOutflow", () => {
 });
 
 describe("buildNiceYAxisScale", () => {
+  it("keeps fractional ticks unique for a fully paid-off financing scale", () => {
+    const scale = buildNiceYAxisScale(1);
+
+    expect(scale.ticks).toEqual([0, 0.2, 0.4, 0.6, 0.8, 1, 1.2]);
+    expect(new Set(scale.ticks).size).toBe(scale.ticks.length);
+  });
+
   it("uses 100k steps for ~806k saldo devedor", () => {
     const scale = buildNiceYAxisScale(806_000);
     expect(scale.step).toBe(100_000);
