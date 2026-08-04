@@ -114,4 +114,5 @@ Prompts are defined in `backend/lib/minha_casa_ai/integrations/langfuse/prompt_d
 - Listing parse, saved-link metadata, WhatsApp/Telegram assistant (OpenAI Responses)
 - Property analysis Hermes steps (`clima`, `riscos`, `mercado`, `ambientes`, `idade`, `xray:*`)
 
-Production: see [`infra/vps/LANGFUSE.md`](../vps/LANGFUSE.md) and `infra/vps/docker-compose.langfuse.yml`.
+Production: see [`docs/vps-postgres.md`](../../docs/vps-postgres.md) and
+[`infra/coolify/docker-compose.yml`](../coolify/docker-compose.yml).

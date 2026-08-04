@@ -326,7 +326,10 @@ describe("scenario graph views", () => {
 
     expect(view.cenarios).toHaveLength(3);
     expect(
-      view.cenarios.map((cenario) => cenario.capitalDisponivel).sort((a, b) => a - b)
+      view.cenarios
+        .map((cenario) => cenario.capitalDisponivel)
+        .filter((value): value is number => value !== undefined)
+        .sort((a, b) => a - b)
     ).toEqual([700_000, 800_000, 900_000]);
     expect(new Set(view.cenarios.map((cenario) => cenario.id)).size).toBe(3);
   });

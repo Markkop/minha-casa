@@ -8,7 +8,7 @@ Minha Casa helps users manage and organize real estate listings with AI-powered 
 
 ## Tech Stack
 
-- **Frontend**: SvelteKit in `apps/web` with `@sveltejs/adapter-vercel`, TypeScript 5, and Tailwind CSS v4
+- **Frontend**: SvelteKit in `apps/web` with `@sveltejs/adapter-node`, TypeScript 5, and Tailwind CSS v4
 - **API Backend**: Phoenix/Elixir service in `backend/` for browser APIs, parsing, workflows, chat, MCP, WhatsApp/Telegram webhooks, and MinIO attachments
 - **Database**: PostgreSQL (`pg` pool) — production on VPS, local via Docker or VPS tunnel
 - **Data layer**: Ecto owns the complete PostgreSQL schema and Phoenix domain model; Better Auth uses PostgreSQL directly
@@ -41,18 +41,21 @@ pnpm install
 
 ### 3. Set up environment variables
 
-Copy `.env.example` to `.env.local` and fill in values. For local dev against the production VPS database:
+Copy `.env.example` to `.env.local` and fill in values. Local development should
+normally use the Docker database started by `pnpm db:setup`:
 
 ```env
-DATABASE_URL=postgresql://minhacasa:<password>@<VPS_HOST>:5433/minha_casa_prod
-DATABASE_SSL=true
+DATABASE_URL=postgresql://minhacasa:minhacasa_local_password@localhost:5435/minha_casa_local
+DATABASE_SSL=false
 BETTER_AUTH_SECRET=<strong-random-secret>
 BETTER_AUTH_URL=http://localhost:5173
 PUBLIC_APP_URL=http://localhost:5173
 OPENAI_API_KEY=<openai-api-key>
 ```
 
-Do not put `sslmode=require` in the URL when `DATABASE_SSL=true` — the app strips it for self-signed VPS TLS. See [docs/vps-postgres.md](docs/vps-postgres.md).
+Production PostgreSQL is private. For exceptional administrative access, use
+the SSH tunnel in [docs/vps-postgres.md](docs/vps-postgres.md); do not point
+routine development at production.
 
 ### 4. Set up the database
 

@@ -1,0 +1,316 @@
+# Minha Casa production stack managed by Coolify from this repository.
+#
+# Coolify builds web/Phoenix from source, provides the private network, and
+# configures public routing from SERVICE_FQDN_* variables. Secrets must be set
+# in Coolify's environment-variable UI and must never be committed here.
+
+services:
+  minha-casa-db:
+    image: postgres@sha256:6f30057d31f5861b66f3545d4821f987aacf1dd920765f0acadea0c58ff975b1
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?set POSTGRES_USER in Coolify}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in Coolify}
+      POSTGRES_DB: ${POSTGRES_DB:?set POSTGRES_DB in Coolify}
+    ports:
+      - "127.0.0.1:${POSTGRES_TUNNEL_PORT:-5433}:5432"
+    volumes:
+      - minha_casa_pgdata:/var/lib/postgresql/data
+      - /docker/backups/coolify/minha-casa:/backups
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  minio:
+    image: minio/minio@sha256:14cea493d9a34af32f524e538b8346cf79f3321eff8e708c1e2960462bd8936e
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      SERVICE_FQDN_MINIOS3_9000: https://s3.casas.markkop.dev
+      SERVICE_FQDN_MINIOCONSOLE_9001: https://minio.casas.markkop.dev
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY:-minhacasa}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY:?set MINIO_SECRET_KEY in Coolify}
+    volumes:
+      - minha_casa_minio:/data
+
+  minio-init:
+    image: minio/mc@sha256:a7fe349ef4bd8521fb8497f55c6042871b2ae640607cf99d9bede5e9bdf11727
+    exclude_from_hc: true
+    depends_on:
+      minio:
+        condition: service_started
+    environment:
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:-minhacasa}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:?set MINIO_SECRET_KEY in Coolify}
+      MINIO_BUCKET: ${MINIO_BUCKET:-minha-casa-ai}
+      LANGFUSE_S3_BUCKET: ${LANGFUSE_S3_BUCKET:-langfuse-events}
+    entrypoint:
+      - /bin/sh
+      - -lc
+      - |
+        until mc alias set local http://minio:9000 "$${MINIO_ACCESS_KEY}" "$${MINIO_SECRET_KEY}"; do sleep 2; done
+        mc mb --ignore-existing "local/$${MINIO_BUCKET}"
+        mc mb --ignore-existing "local/$${LANGFUSE_S3_BUCKET}"
+
+  hermes-agent:
+    image: nousresearch/hermes-agent@sha256:b6e41c155d6bfce5ad83c5d0fec670086db8a43250e4511c9474134be5482d33
+    restart: unless-stopped
+    command:
+      - /bin/sh
+      - -lc
+      - |
+        sed -i -E "s|^([[:space:]]*)default: .*|\1default: \"$${HERMES_INFERENCE_MODEL:-gpt-5.4-mini}\"|; s|^([[:space:]]*)provider: .*|\1provider: \"$${HERMES_INFERENCE_PROVIDER:-custom}\"|; s|^([[:space:]]*)base_url: .*|\1base_url: \"$${CUSTOM_BASE_URL:-https://api.openai.com/v1}\"|" /opt/data/config.yaml 2>/dev/null || true
+        /opt/hermes/.venv/bin/hermes gateway run
+    environment:
+      API_SERVER_ENABLED: "true"
+      API_SERVER_HOST: 0.0.0.0
+      API_SERVER_PORT: "8642"
+      API_SERVER_KEY: ${HERMES_API_KEY:?set HERMES_API_KEY in Coolify}
+      HERMES_INFERENCE_PROVIDER: ${HERMES_INFERENCE_PROVIDER:-custom}
+      HERMES_INFERENCE_MODEL: ${HERMES_INFERENCE_MODEL:-gpt-5.4-mini}
+      HERMES_MODEL: ${HERMES_INFERENCE_MODEL:-gpt-5.4-mini}
+      CUSTOM_BASE_URL: ${HERMES_CUSTOM_BASE_URL:-https://api.openai.com/v1}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+    expose:
+      - "8642"
+    volumes:
+      - minha_casa_hermes_data:/opt/data
+      - minha_casa_hermes_jobs:/work/hermes-jobs
+
+  phoenix-api:
+    build:
+      context: ../../backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      minha-casa-db:
+        condition: service_healthy
+      minio:
+        condition: service_started
+      hermes-agent:
+        condition: service_started
+    environment:
+      SERVICE_FQDN_MINHACASAAPI_4000: https://api.casas.markkop.dev
+      PORT: "4000"
+      DATABASE_URL: postgresql://${POSTGRES_USER:?}:${POSTGRES_PASSWORD:?}@minha-casa-db:5432/${POSTGRES_DB:?}
+      DATABASE_SSL: "false"
+      DATABASE_POOL_MAX: ${DATABASE_POOL_MAX:-10}
+      SECRET_KEY_BASE: ${PHOENIX_SECRET_KEY_BASE:?set PHOENIX_SECRET_KEY_BASE in Coolify}
+      INTERNAL_API_SECRET: ${INTERNAL_API_SECRET:?set INTERNAL_API_SECRET in Coolify}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-5.4-mini}
+      OPENAI_REASONING_EFFORT: ${OPENAI_REASONING_EFFORT:-low}
+      SCRAPINGANT_API_KEY: ${SCRAPINGANT_API_KEY:-}
+      BRAVE_SEARCH_API_KEY: ${BRAVE_SEARCH_API_KEY:-}
+      GOOGLE_MAPS_SERVER_API_KEY: ${GOOGLE_MAPS_SERVER_API_KEY:-${PUBLIC_GOOGLE_MAPS_API_KEY:-}}
+      MINIO_ENDPOINT: http://minio:9000
+      MINIO_BUCKET: ${MINIO_BUCKET:-minha-casa-ai}
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:-minhacasa}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:?set MINIO_SECRET_KEY in Coolify}
+      RETENTION_PURGE_ENABLED: ${RETENTION_PURGE_ENABLED:-true}
+      WHATSAPP_VERIFY_TOKEN: ${WHATSAPP_VERIFY_TOKEN:-}
+      WHATSAPP_ACCESS_TOKEN: ${WHATSAPP_ACCESS_TOKEN:-}
+      WHATSAPP_PHONE_NUMBER_ID: ${WHATSAPP_PHONE_NUMBER_ID:-}
+      WHATSAPP_APP_SECRET: ${WHATSAPP_APP_SECRET:-}
+      APP_PUBLIC_URL: ${APP_PUBLIC_URL:-https://casas.markkop.dev}
+      BETTER_AUTH_JWKS_URL: ${BETTER_AUTH_JWKS_URL:-http://web:3000/api/auth/jwks}
+      CORS_ORIGINS: ${CORS_ORIGINS:-https://casas.markkop.dev}
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      TELEGRAM_WEBHOOK_SECRET: ${TELEGRAM_WEBHOOK_SECRET:-}
+      ASSISTANT_LLM_ENABLED: ${ASSISTANT_LLM_ENABLED:-true}
+      HERMES_API_URL: http://hermes-agent:8642
+      HERMES_API_KEY: ${HERMES_API_KEY:?set HERMES_API_KEY in Coolify}
+      HERMES_JOBS_DIR: /work/hermes-jobs
+      HERMES_ANALYSIS_TIMEOUT_MS: ${HERMES_ANALYSIS_TIMEOUT_MS:-1800000}
+      PROPERTY_ANALYSIS_ENGINE: ${PROPERTY_ANALYSIS_ENGINE:-hermes}
+      LANGFUSE_HOST: http://langfuse-web:3000
+      LANGFUSE_PUBLIC_KEY: ${LANGFUSE_PUBLIC_KEY:-}
+      LANGFUSE_SECRET_KEY: ${LANGFUSE_SECRET_KEY:-}
+      LANGFUSE_ENABLED: ${LANGFUSE_ENABLED:-true}
+      LANGFUSE_ENV: ${LANGFUSE_ENV:-production}
+      LANGFUSE_PROMPT_LABEL: ${LANGFUSE_PROMPT_LABEL:-production}
+    volumes:
+      - minha_casa_hermes_jobs:/work/hermes-jobs
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:4000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
+
+  web:
+    build:
+      context: ../..
+      dockerfile: apps/web/Dockerfile.prod
+    restart: unless-stopped
+    depends_on:
+      minha-casa-db:
+        condition: service_healthy
+      phoenix-api:
+        condition: service_healthy
+    environment:
+      SERVICE_FQDN_MINHACASAWEB_3000: https://casas.markkop.dev
+      HOST: "0.0.0.0"
+      PORT: "3000"
+      NODE_ENV: production
+      DATABASE_URL: postgresql://${POSTGRES_USER:?}:${POSTGRES_PASSWORD:?}@minha-casa-db:5432/${POSTGRES_DB:?}
+      DATABASE_SSL: "false"
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:?set BETTER_AUTH_SECRET in Coolify}
+      BETTER_AUTH_URL: ${BETTER_AUTH_URL:-https://casas.markkop.dev}
+      BETTER_AUTH_TRUSTED_ORIGINS: ${BETTER_AUTH_TRUSTED_ORIGINS:-https://casas.markkop.dev}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      PUBLIC_API_URL: http://phoenix-api:4000
+      PHOENIX_API_URL: http://phoenix-api:4000
+      INTERNAL_BACKEND_URL: http://phoenix-api:4000
+      BACKEND_API_URL: http://phoenix-api:4000
+      INTERNAL_API_SECRET: ${INTERNAL_API_SECRET:?set INTERNAL_API_SECRET in Coolify}
+      PUBLIC_GOOGLE_MAPS_API_KEY: ${PUBLIC_GOOGLE_MAPS_API_KEY:-}
+      OVERPASS_API_URL: ${OVERPASS_API_URL:-https://overpass-api.de/api/interpreter}
+      NOMINATIM_REVERSE_URL: ${NOMINATIM_REVERSE_URL:-https://nominatim.openstreetmap.org/reverse}
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 20s
+
+  langfuse-db-init:
+    image: postgres@sha256:6f30057d31f5861b66f3545d4821f987aacf1dd920765f0acadea0c58ff975b1
+    exclude_from_hc: true
+    depends_on:
+      minha-casa-db:
+        condition: service_healthy
+    environment:
+      PGPASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in Coolify}
+      PGUSER: ${POSTGRES_USER:?set POSTGRES_USER in Coolify}
+      PGHOST: minha-casa-db
+    entrypoint:
+      - /bin/sh
+      - -lc
+      - |
+        psql -d postgres -tc "SELECT 1 FROM pg_database WHERE datname = 'langfuse'" | grep -q 1 || psql -d postgres -c "CREATE DATABASE langfuse"
+
+  langfuse-clickhouse:
+    image: clickhouse/clickhouse-server@sha256:1ffa82edee000a42c09313bd9f1293d94c570aee74babc1b3ca9983a35fa597b
+    restart: unless-stopped
+    user: "101:101"
+    environment:
+      CLICKHOUSE_DB: default
+      CLICKHOUSE_USER: ${LANGFUSE_CLICKHOUSE_USER:-clickhouse}
+      CLICKHOUSE_PASSWORD: ${LANGFUSE_CLICKHOUSE_PASSWORD:?set LANGFUSE_CLICKHOUSE_PASSWORD in Coolify}
+      TZ: UTC
+    volumes:
+      - minha_casa_langfuse_clickhouse:/var/lib/clickhouse
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://127.0.0.1:8123/ping || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+
+  langfuse-redis:
+    image: redis@sha256:6ab0b6e7381779332f97b8ca76193e45b0756f38d4c0dcda72dbb3c32061ab99
+    restart: unless-stopped
+    command: redis-server --requirepass ${LANGFUSE_REDIS_PASSWORD:?set LANGFUSE_REDIS_PASSWORD in Coolify} --maxmemory-policy noeviction
+    volumes:
+      - minha_casa_langfuse_redis:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${LANGFUSE_REDIS_PASSWORD:?}", "ping"]
+      interval: 3s
+      timeout: 10s
+      retries: 10
+
+  langfuse-web:
+    image: langfuse/langfuse@sha256:88ca1ec907c8411f76c4602d2aac753045c18b5ae455cddfe08f609e07852976
+    restart: unless-stopped
+    depends_on:
+      langfuse-db-init:
+        condition: service_completed_successfully
+      langfuse-clickhouse:
+        condition: service_healthy
+      langfuse-redis:
+        condition: service_healthy
+      minio:
+        condition: service_started
+    environment:
+      SERVICE_FQDN_LANGFUSE_3000: https://langfuse.casas.markkop.dev
+      <<: &langfuse_environment
+        HOSTNAME: "0.0.0.0"
+        NEXTAUTH_URL: ${LANGFUSE_NEXTAUTH_URL:-https://langfuse.casas.markkop.dev}
+        NEXTAUTH_SECRET: ${LANGFUSE_NEXTAUTH_SECRET:?set LANGFUSE_NEXTAUTH_SECRET in Coolify}
+        SALT: ${LANGFUSE_SALT:?set LANGFUSE_SALT in Coolify}
+        ENCRYPTION_KEY: ${LANGFUSE_ENCRYPTION_KEY:?set LANGFUSE_ENCRYPTION_KEY in Coolify}
+        TELEMETRY_ENABLED: ${LANGFUSE_TELEMETRY_ENABLED:-false}
+        LANGFUSE_ENABLE_EXPERIMENTAL_FEATURES: "false"
+        DATABASE_URL: postgresql://${POSTGRES_USER:?}:${POSTGRES_PASSWORD:?}@minha-casa-db:5432/langfuse
+        CLICKHOUSE_MIGRATION_URL: clickhouse://langfuse-clickhouse:9000
+        CLICKHOUSE_URL: http://langfuse-clickhouse:8123
+        CLICKHOUSE_USER: ${LANGFUSE_CLICKHOUSE_USER:-clickhouse}
+        CLICKHOUSE_PASSWORD: ${LANGFUSE_CLICKHOUSE_PASSWORD:?set LANGFUSE_CLICKHOUSE_PASSWORD in Coolify}
+        CLICKHOUSE_CLUSTER_ENABLED: "false"
+        REDIS_HOST: langfuse-redis
+        REDIS_PORT: "6379"
+        REDIS_AUTH: ${LANGFUSE_REDIS_PASSWORD:?set LANGFUSE_REDIS_PASSWORD in Coolify}
+        REDIS_TLS_ENABLED: "false"
+        LANGFUSE_S3_EVENT_UPLOAD_BUCKET: ${LANGFUSE_S3_BUCKET:-langfuse-events}
+        LANGFUSE_S3_EVENT_UPLOAD_REGION: auto
+        LANGFUSE_S3_EVENT_UPLOAD_ACCESS_KEY_ID: ${MINIO_ACCESS_KEY:-minhacasa}
+        LANGFUSE_S3_EVENT_UPLOAD_SECRET_ACCESS_KEY: ${MINIO_SECRET_KEY:?set MINIO_SECRET_KEY in Coolify}
+        LANGFUSE_S3_EVENT_UPLOAD_ENDPOINT: http://minio:9000
+        LANGFUSE_S3_EVENT_UPLOAD_FORCE_PATH_STYLE: "true"
+        LANGFUSE_S3_EVENT_UPLOAD_PREFIX: events/
+        LANGFUSE_S3_MEDIA_UPLOAD_BUCKET: ${LANGFUSE_S3_BUCKET:-langfuse-events}
+        LANGFUSE_S3_MEDIA_UPLOAD_REGION: auto
+        LANGFUSE_S3_MEDIA_UPLOAD_ACCESS_KEY_ID: ${MINIO_ACCESS_KEY:-minhacasa}
+        LANGFUSE_S3_MEDIA_UPLOAD_SECRET_ACCESS_KEY: ${MINIO_SECRET_KEY:?set MINIO_SECRET_KEY in Coolify}
+        LANGFUSE_S3_MEDIA_UPLOAD_ENDPOINT: http://minio:9000
+        LANGFUSE_S3_MEDIA_UPLOAD_FORCE_PATH_STYLE: "true"
+        LANGFUSE_S3_MEDIA_UPLOAD_PREFIX: media/
+        LANGFUSE_INIT_ORG_ID: ${LANGFUSE_INIT_ORG_ID:?set LANGFUSE_INIT_ORG_ID in Coolify}
+        LANGFUSE_INIT_ORG_NAME: ${LANGFUSE_INIT_ORG_NAME:-Minha Casa}
+        LANGFUSE_INIT_PROJECT_ID: ${LANGFUSE_INIT_PROJECT_ID:?set LANGFUSE_INIT_PROJECT_ID in Coolify}
+        LANGFUSE_INIT_PROJECT_NAME: ${LANGFUSE_INIT_PROJECT_NAME:-minha-casa-prod}
+        LANGFUSE_INIT_PROJECT_PUBLIC_KEY: ${LANGFUSE_INIT_PROJECT_PUBLIC_KEY:?set LANGFUSE_INIT_PROJECT_PUBLIC_KEY in Coolify}
+        LANGFUSE_INIT_PROJECT_SECRET_KEY: ${LANGFUSE_INIT_PROJECT_SECRET_KEY:?set LANGFUSE_INIT_PROJECT_SECRET_KEY in Coolify}
+        LANGFUSE_INIT_USER_EMAIL: ${LANGFUSE_INIT_USER_EMAIL:?set LANGFUSE_INIT_USER_EMAIL in Coolify}
+        LANGFUSE_INIT_USER_NAME: ${LANGFUSE_INIT_USER_NAME:-Admin}
+        LANGFUSE_INIT_USER_PASSWORD: ${LANGFUSE_INIT_USER_PASSWORD:?set LANGFUSE_INIT_USER_PASSWORD in Coolify}
+
+  langfuse-worker:
+    image: langfuse/langfuse-worker@sha256:cf7ac3d5d29bce3d2f4626d5b3231665c5585a81599b5f54fd8e30f648874403
+    restart: unless-stopped
+    depends_on:
+      langfuse-db-init:
+        condition: service_completed_successfully
+      langfuse-clickhouse:
+        condition: service_healthy
+      langfuse-redis:
+        condition: service_healthy
+      minio:
+        condition: service_started
+    environment:
+      <<: *langfuse_environment
+
+volumes:
+  minha_casa_pgdata:
+    external: true
+    name: vps_minha_casa_pgdata
+  minha_casa_minio:
+    external: true
+    name: vps_minha_casa_minio
+  minha_casa_hermes_data:
+    external: true
+    name: vps_minha_casa_hermes_data
+  minha_casa_hermes_jobs:
+    external: true
+    name: vps_minha_casa_hermes_jobs
+  minha_casa_langfuse_clickhouse:
+    external: true
+    name: vps_minha_casa_langfuse_clickhouse
+  minha_casa_langfuse_redis:
+    name: coolify_minha_casa_langfuse_redis

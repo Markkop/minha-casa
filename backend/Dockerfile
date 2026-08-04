@@ -35,4 +35,4 @@ COPY --from=build /app/_build/prod/rel/minha_casa_ai ./
 
 EXPOSE 4000
 
-CMD ["/app/bin/minha_casa_ai", "start"]
+CMD ["/bin/sh", "-c", "/app/bin/minha_casa_ai eval 'MinhaCasaAi.Release.migrate()' && exec /app/bin/minha_casa_ai start"]

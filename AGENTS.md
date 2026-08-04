@@ -26,6 +26,11 @@ docker run --rm -v "$(pwd)/backend:/app" -w /app elixir:1.18-otp-27-alpine \
 
 ## Production VPS
 
+Production is managed by Coolify at `https://coolify.markkop.dev` from
+`infra/coolify/docker-compose.yml`. Forgejo webhooks trigger source builds; do
+not use the retired Forgejo Actions/registry/`ci-deploy.sh` flow. See
+`docs/vps-postgres.md` before changing production infrastructure.
+
 When needed, access the production VPS using `.ssh-prod` at the repository root. The file is ignored by git and uses this format:
 
 ```text
@@ -40,6 +45,10 @@ VPS_TARGET="$(sed -n '1p' .ssh-prod)"
 VPS_PASSWORD="$(sed -n '2p' .ssh-prod)"
 sshpass -p "$VPS_PASSWORD" ssh -o StrictHostKeyChecking=no "$VPS_TARGET" "hostname"
 ```
+
+PostgreSQL is private on VPS loopback port 5433. Use the SSH tunnel documented
+in `docs/vps-postgres.md`; never expose the database publicly. Do not rely on
+Coolify-generated container names and never use `docker compose down -v`.
 
 ## Svelte
 
