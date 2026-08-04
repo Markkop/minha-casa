@@ -115,7 +115,7 @@ delete their backing Docker volumes without a separately verified backup.
 ```bash
 curl -fsS https://api.casas.markkop.dev/health
 curl -fsS -o /dev/null https://casas.markkop.dev/
-curl -fsS -o /dev/null https://s3.casas.markkop.dev/
+test "$(curl -sS -o /dev/null -w '%{http_code}' https://s3.casas.markkop.dev/)" = 403
 curl -fsS -o /dev/null https://langfuse.casas.markkop.dev/
 ```
 
