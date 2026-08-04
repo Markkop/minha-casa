@@ -1,0 +1,54 @@
+# Forgejo is managed as a Coolify custom service because it is the Git source
+# used by the application resources. The database volume and repository data
+# directory are intentionally reused from the pre-Coolify installation.
+services:
+  forgejo-db:
+    image: postgres@sha256:6f30057d31f5861b66f3545d4821f987aacf1dd920765f0acadea0c58ff975b1
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: forgejo
+      POSTGRES_PASSWORD: ${FORGEJO_DB_PASSWORD}
+      POSTGRES_DB: forgejo
+    volumes:
+      - /var/lib/docker/volumes/forgejo_forgejo_db_data/_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U forgejo -d forgejo"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  forgejo:
+    image: codeberg.org/forgejo/forgejo@sha256:7b25db4c437426c8ee049a64b54b28a5eedddf2d479c867f5a2150597a767b29
+    restart: unless-stopped
+    depends_on:
+      forgejo-db:
+        condition: service_healthy
+    environment:
+      USER_UID: 1000
+      USER_GID: 1000
+      FORGEJO__database__DB_TYPE: postgres
+      FORGEJO__database__HOST: forgejo-db:5432
+      FORGEJO__database__NAME: forgejo
+      FORGEJO__database__USER: forgejo
+      FORGEJO__database__PASSWD: ${FORGEJO_DB_PASSWORD}
+      FORGEJO__server__DOMAIN: git.markkop.dev
+      FORGEJO__server__ROOT_URL: https://git.markkop.dev/
+      FORGEJO__server__SSH_DOMAIN: git.markkop.dev
+      FORGEJO__server__SSH_PORT: 2222
+      FORGEJO__server__SSH_LISTEN_PORT: 22
+      FORGEJO__server__HTTP_PORT: 3000
+      FORGEJO__packages__ENABLED: "true"
+      FORGEJO__service__DISABLE_REGISTRATION: "true"
+      FORGEJO__service__REQUIRE_SIGNIN_VIEW: "false"
+      FORGEJO__security__INSTALL_LOCK: "true"
+      SERVICE_FQDN_FORGEJO_3000: https://git.markkop.dev
+    volumes:
+      - /docker/forgejo/forgejo-data:/data
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro
+    ports:
+      - "2222:22"
+    expose:
+      - "3000"
+    labels:
+      - "traefik.http.services.forgejo.loadbalancer.server.port=3000"

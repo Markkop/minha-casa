@@ -25,6 +25,17 @@ The Coolify Compose resource contains:
 - MinIO plus the idempotent bucket initializer.
 - Langfuse v3, ClickHouse 24.8, and Redis 7.
 
+The Compose file deliberately bind-mounts the existing data directories below
+`/var/lib/docker/volumes`. Coolify rewrites named Compose volumes to
+resource-scoped names, including volumes declared `external`; changing these
+bind paths would silently start the services with empty storage. Verify every
+mount against `docker inspect` before changing a data service.
+
+Forgejo is a separate Coolify custom service defined by
+`infra/coolify/forgejo-compose.yml`. It reuses
+`forgejo_forgejo_db_data` through its host data path and
+`/docker/forgejo/forgejo-data` for repositories.
+
 The migration intentionally pins the third-party image digests that were
 running before the cutover. Upgrade Langfuse/ClickHouse independently; Langfuse
 v4 must not be introduced as part of an infrastructure migration.
@@ -80,8 +91,8 @@ These backups are local to the VPS and do not protect against total VPS or disk
 loss. Validate dumps with `pg_restore --list`, archives with `tar -tzf`, and
 perform periodic scratch restores.
 
-Do not use `docker compose down -v` and do not delete any named volume through
-Coolify without a separately verified backup.
+Do not use `docker compose down -v`, edit the persisted-data bind paths, or
+delete their backing Docker volumes without a separately verified backup.
 
 ## Deployment verification
 

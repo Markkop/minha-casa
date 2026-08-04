@@ -49,6 +49,9 @@ sshpass -p "$VPS_PASSWORD" ssh -o StrictHostKeyChecking=no "$VPS_TARGET" "hostna
 PostgreSQL is private on VPS loopback port 5433. Use the SSH tunnel documented
 in `docs/vps-postgres.md`; never expose the database publicly. Do not rely on
 Coolify-generated container names and never use `docker compose down -v`.
+Production data uses explicit `/var/lib/docker/volumes/.../_data` bind mounts
+because Coolify rewrites named Compose volumes; do not change those paths
+without checking the live mounts and taking a verified backup.
 
 ## Svelte
 
