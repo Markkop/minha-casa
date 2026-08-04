@@ -256,6 +256,8 @@ services:
   langfuse-web:
     image: langfuse/langfuse@sha256:88ca1ec907c8411f76c4602d2aac753045c18b5ae455cddfe08f609e07852976
     restart: unless-stopped
+    expose:
+      - "3000"
     depends_on:
       langfuse-db-init:
         condition: service_completed_successfully
