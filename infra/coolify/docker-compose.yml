@@ -34,6 +34,32 @@ services:
       MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY:?set MINIO_SECRET_KEY in Coolify}
     volumes:
       - /var/lib/docker/volumes/vps_minha_casa_minio/_data:/data
+    expose:
+      - "9000"
+      - "9001"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.middlewares.minha-casa-minio-redirect.redirectscheme.scheme=https"
+      - "traefik.http.routers.minha-casa-s3-http.entrypoints=http"
+      - "traefik.http.routers.minha-casa-s3-http.rule=Host(`s3.casas.markkop.dev`)"
+      - "traefik.http.routers.minha-casa-s3-http.middlewares=minha-casa-minio-redirect"
+      - "traefik.http.routers.minha-casa-s3-http.service=minha-casa-s3"
+      - "traefik.http.routers.minha-casa-s3.entrypoints=https"
+      - "traefik.http.routers.minha-casa-s3.rule=Host(`s3.casas.markkop.dev`)"
+      - "traefik.http.routers.minha-casa-s3.tls=true"
+      - "traefik.http.routers.minha-casa-s3.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.minha-casa-s3.service=minha-casa-s3"
+      - "traefik.http.services.minha-casa-s3.loadbalancer.server.port=9000"
+      - "traefik.http.routers.minha-casa-minio-http.entrypoints=http"
+      - "traefik.http.routers.minha-casa-minio-http.rule=Host(`minio.casas.markkop.dev`)"
+      - "traefik.http.routers.minha-casa-minio-http.middlewares=minha-casa-minio-redirect"
+      - "traefik.http.routers.minha-casa-minio-http.service=minha-casa-minio"
+      - "traefik.http.routers.minha-casa-minio.entrypoints=https"
+      - "traefik.http.routers.minha-casa-minio.rule=Host(`minio.casas.markkop.dev`)"
+      - "traefik.http.routers.minha-casa-minio.tls=true"
+      - "traefik.http.routers.minha-casa-minio.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.minha-casa-minio.service=minha-casa-minio"
+      - "traefik.http.services.minha-casa-minio.loadbalancer.server.port=9001"
 
   minio-init:
     image: minio/mc@sha256:a7fe349ef4bd8521fb8497f55c6042871b2ae640607cf99d9bede5e9bdf11727
