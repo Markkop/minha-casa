@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { onMount } from "svelte";
   import {
     AlertCircle,
     BriefcaseBusiness,
@@ -12,6 +11,7 @@
     Users
   } from "@lucide/svelte";
   import { goto } from "$app/navigation";
+  import AnchoredPopover from "$lib/components/ui/AnchoredPopover.svelte";
   import { cn } from "$lib/utils";
   import { workspaceTopBarControlClass } from "$lib/workspace-chrome";
   import type { WorkspaceProfile } from "$lib/workspace/client";
@@ -27,17 +27,6 @@
   const profilesState = getWorkspaceProfilesContext();
 
   const label = $derived(profilesState.activeProfile?.label || "Pessoal");
-
-  onMount(() => {
-    window.addEventListener("click", closeOnOutside);
-    return () => {
-      window.removeEventListener("click", closeOnOutside);
-    };
-  });
-
-  function closeOnOutside(event: MouseEvent) {
-    if (!(event.target as HTMLElement | null)?.closest("[data-profile-switcher]")) open = false;
-  }
 
   async function selectProfile(profile: WorkspaceProfile) {
     try {
@@ -93,28 +82,36 @@
 {:else}
   {@const ActiveIcon = iconFor(profilesState.activeProfile?.type || "personal")}
   <div data-profile-switcher class={cn("relative min-w-0 max-w-full", breadcrumb ? "" : className)}>
-    <button
-      type="button"
-      class={cn(
-        breadcrumb
-          ? cn(workspaceTopBarControlClass, "min-w-0 max-w-full", className || "max-w-[38vw] md:max-w-[260px]")
-          : "inline-flex h-9 min-w-0 items-center gap-2 rounded-md border border-app-border bg-app-surface px-3 text-sm text-app-fg shadow-xs transition hover:bg-app-surface-muted",
-        !breadcrumb && compact ? "max-w-[13rem]" : "",
-        !breadcrumb && !compact ? "w-full max-w-[18rem]" : ""
-      )}
-      aria-haspopup="menu"
-      aria-expanded={open}
-      aria-label="Selecionar perfil"
-      onclick={(event) => { event.stopPropagation(); open = !open; }}
-      disabled={profilesState.loading}
+    <AnchoredPopover
+      bind:open
+      align="auto"
+      side="auto"
+      rootClass="relative min-w-0 max-w-full"
+      panelClass="w-72 overflow-hidden py-1 text-sm"
     >
-      <ActiveIcon class={cn("shrink-0 text-app-muted", breadcrumb ? "size-3.5" : "h-4 w-4")} />
-      <span class="min-w-0 truncate">{profilesState.loading ? "Carregando..." : label}</span>
-      <ChevronDown class={cn("ml-auto shrink-0 text-app-muted", breadcrumb ? "size-3.5" : "h-4 w-4")} />
-    </button>
+      {#snippet trigger()}
+        <button
+          type="button"
+          class={cn(
+            breadcrumb
+              ? cn(workspaceTopBarControlClass, "min-w-0 max-w-full", className || "max-w-[38vw] md:max-w-[260px]")
+              : "inline-flex h-9 min-w-0 items-center gap-2 rounded-md border border-app-border bg-app-surface px-3 text-sm text-app-fg shadow-xs transition hover:bg-app-surface-muted",
+            !breadcrumb && compact ? "max-w-[13rem]" : "",
+            !breadcrumb && !compact ? "w-full max-w-[18rem]" : ""
+          )}
+          aria-haspopup="menu"
+          aria-expanded={open}
+          aria-label="Selecionar perfil"
+          onclick={(event) => { event.stopPropagation(); open = !open; }}
+          disabled={profilesState.loading}
+        >
+          <ActiveIcon class={cn("shrink-0 text-app-muted", breadcrumb ? "size-3.5" : "h-4 w-4")} />
+          <span class="min-w-0 truncate">{profilesState.loading ? "Carregando..." : label}</span>
+          <ChevronDown class={cn("ml-auto shrink-0 text-app-muted", breadcrumb ? "size-3.5" : "h-4 w-4")} />
+        </button>
+      {/snippet}
 
-    {#if open}
-      <div role="menu" class="app-floating-surface absolute left-0 top-10 z-50 w-72 overflow-hidden rounded-md border border-app-border py-1 text-sm text-app-fg">
+      <div role="menu">
         <div class="border-b border-app-border px-3 py-2 text-xs font-medium text-app-muted">Perfis e workspaces</div>
         {#each profilesState.profiles as profile (profile.id)}
           {@const ProfileIcon = iconFor(profile.type)}
@@ -144,6 +141,6 @@
           </a>
         {/if}
       </div>
-    {/if}
+    </AnchoredPopover>
   </div>
 {/if}

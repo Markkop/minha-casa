@@ -4,6 +4,7 @@
   import { Check, ChevronDown, FolderOpen, Pencil, Plus, Star, Trash2 } from "@lucide/svelte";
   import CollectionModal from "$lib/components/listings/CollectionModal.svelte";
   import ShareCollectionModal from "$lib/components/listings/ShareCollectionModal.svelte";
+  import AnchoredPopover from "$lib/components/ui/AnchoredPopover.svelte";
   import { getCollectionsContext } from "$lib/collections-context.svelte";
   import type { Collection } from "$lib/listings/types";
   import { cn } from "$lib/utils";
@@ -67,41 +68,39 @@
     showShareModal = true;
     open = false;
   }
-
-  function closeOnOutside(event: MouseEvent) {
-    const target = event.target as HTMLElement | null;
-    if (!target?.closest("[data-collection-breadcrumb]")) open = false;
-  }
 </script>
 
-<svelte:window onclick={closeOnOutside} />
-
 <div data-collection-breadcrumb class="relative z-[2] min-w-0 max-w-full">
-  <button
-    type="button"
-    data-testid="global-collection-breadcrumb"
-    class={cn(
-      workspaceTopBarControlClass,
-      "min-w-0 max-w-full",
-      className || "max-w-[44vw] md:max-w-[340px]"
-    )}
-    aria-label="Selecionar coleção"
-    disabled={ctx.isLoading}
-    onclick={(event) => {
-      event.stopPropagation();
-      open = !open;
-    }}
+  <AnchoredPopover
+    bind:open
+    align="auto"
+    side="auto"
+    rootClass="relative min-w-0 max-w-full"
+    panelClass="w-72 overflow-hidden py-1 text-sm"
   >
-    <FolderOpen class="size-3.5 shrink-0 text-app-muted" />
-    <span class="min-w-0 truncate">{label}</span>
-    <ChevronDown class="size-3.5 shrink-0 text-app-muted" />
-  </button>
+    {#snippet trigger()}
+      <button
+        type="button"
+        data-testid="global-collection-breadcrumb"
+        class={cn(
+          workspaceTopBarControlClass,
+          "min-w-0 max-w-full",
+          className || "max-w-[44vw] md:max-w-[340px]"
+        )}
+        aria-label="Selecionar coleção"
+        disabled={ctx.isLoading}
+        onclick={(event) => {
+          event.stopPropagation();
+          open = !open;
+        }}
+      >
+        <FolderOpen class="size-3.5 shrink-0 text-app-muted" />
+        <span class="min-w-0 truncate">{label}</span>
+        <ChevronDown class="size-3.5 shrink-0 text-app-muted" />
+      </button>
+    {/snippet}
 
-  {#if open}
-    <div
-      role="menu"
-      class="app-floating-surface absolute left-0 top-10 z-50 w-72 overflow-hidden rounded-md border border-app-border py-1 text-sm text-app-fg"
-    >
+    <div role="menu">
       <div class="px-3 py-1.5 text-xs font-medium text-app-muted">Coleções</div>
       {#if ctx.collections.length === 0}
         <div class="px-3 py-2 text-app-muted">Nenhuma coleção</div>
@@ -155,7 +154,7 @@
         </button>
       {/if}
     </div>
-  {/if}
+  </AnchoredPopover>
 </div>
 
 <CollectionModal
