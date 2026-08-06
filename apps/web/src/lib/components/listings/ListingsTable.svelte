@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount, untrack } from "svelte";
+  import { onMount } from "svelte";
   import { Home } from "@lucide/svelte";
   import {
     coerceFeatureCatalog,
@@ -24,7 +24,6 @@
   import { computeListingToolbarVisibility } from "$lib/listings/listing-toolbar-visibility";
   import ListingsTableToolbar from "$lib/components/listings/ListingsTableToolbar.svelte";
   import ListingsTableAddButtons from "$lib/components/listings/ListingsTableAddButtons.svelte";
-  import ListingsTableConfigButton from "$lib/components/listings/ListingsTableConfigButton.svelte";
   import ListingsTableDesktop from "$lib/components/listings/ListingsTableDesktop.svelte";
   import ListingsTableMobile from "$lib/components/listings/ListingsTableMobile.svelte";
   import EditModal from "$lib/components/listings/EditModal.svelte";
@@ -54,12 +53,6 @@
     rowInteractionsRegistry.prune(new Set(listings.map((listing: Property) => listing.id)));
   });
 
-  $effect(() => {
-    void pendingAdd.clipboardProfileKey;
-    void pendingAdd.hasAnyListings;
-    untrack(() => pendingAdd.clipboardAutoDetect.refreshEligibility());
-  });
-
   let copiedVisibleMarkdown = $state(false);
   let editingListing = $state<Property | null>(null);
   let focusImageUrl = $state(false);
@@ -72,10 +65,8 @@
     tableState.initFromLocalStorage();
     void loadFeatureCatalog();
     const detachImportQueue = pendingAdd.attachImportQueueListener();
-    const detachClipboardAutoDetect = pendingAdd.attachClipboardAutoDetect();
     return () => {
       detachImportQueue();
-      detachClipboardAutoDetect();
     };
   });
 
@@ -178,14 +169,12 @@
       </div>
       <div class="mx-auto flex items-center justify-center gap-2">
         {@render addListingToolbarButtons(true)}
-        <ListingsTableConfigButton clipboardAutoDetect={pendingAdd.clipboardAutoDetect} />
       </div>
     </div>
   </section>
 {:else}
   <section class={cn(LISTINGS_SECTION_CLASS, LISTINGS_SECTION_MOBILE_BREAKOUT_CLASS, "max-md:flex max-md:flex-col max-md:gap-2")}>
     <ListingsTableToolbar
-      clipboardAutoDetect={pendingAdd.clipboardAutoDetect}
       bind:searchQuery={
         () => tableState.searchQuery,
         (value) => (tableState.searchQuery = value)

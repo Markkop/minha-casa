@@ -20,11 +20,6 @@ import {
 } from "$lib/components/listings/pending-add-types";
 import type { CollectionsContextValue } from "$lib/collections-context.svelte";
 import { looksLikeUrl } from "$lib/listings/clipboard-listing-detection";
-import { createClipboardAutoDetect } from "$lib/listings/clipboard-auto-detect.svelte";
-import {
-  hasAnyProfileListings,
-  resolveClipboardProfileKey
-} from "$lib/listings/clipboard-auto-detect-policy";
 import { readClipboardListingPayload } from "$lib/listings/clipboard-read";
 import {
   classifyClipboardReadError,
@@ -49,19 +44,6 @@ async function buildInlineParseInput(value: string, file: File | null): Promise<
 }
 
 export function createListingsTablePendingAdd(getCtx: () => CollectionsContextValue) {
-  function getClipboardProfileKey() {
-    return resolveClipboardProfileKey(getCtx().collections);
-  }
-
-  function getHasAnyListings() {
-    const ctx = getCtx();
-    return hasAnyProfileListings(ctx.collections, ctx.listings.length);
-  }
-
-  const clipboardAutoDetect = createClipboardAutoDetect({
-    getProfileKey: getClipboardProfileKey,
-    getHasAnyListings
-  });
   let isSubmittingAdd = $state(false);
   let clipboardAddError = $state<string | null>(null);
   let clipboardFailureKind = $state<ClipboardReadFailureKind | null>(null);
@@ -586,11 +568,6 @@ export function createListingsTablePendingAdd(getCtx: () => CollectionsContextVa
     return () => window.removeEventListener(LISTING_IMPORT_QUEUE_EVENT, listener);
   }
 
-  function attachClipboardAutoDetect() {
-    clipboardAutoDetect.attachListeners();
-    return () => clipboardAutoDetect.detachListeners();
-  }
-
   function handleRetryPending(rowId: string) {
     const row = pendingAddRows.find((item) => item.id === rowId);
     if (!row) return;
@@ -671,7 +648,6 @@ export function createListingsTablePendingAdd(getCtx: () => CollectionsContextVa
       const clipboard = navigator.clipboard;
       if (!clipboard) throw new Error("Clipboard unavailable");
       const { text, files } = await readClipboardListingPayload(clipboard);
-      clipboardAutoDetect.activateCurrentProfile();
       if (!text && files.length === 0) {
         clipboardAddError = null;
         clipboardFailureKind = null;
@@ -679,7 +655,6 @@ export function createListingsTablePendingAdd(getCtx: () => CollectionsContextVa
       }
       clipboardAddError = null;
       clipboardFailureKind = null;
-      clipboardAutoDetect.clearMatch();
       await submitAdd(text, files);
       return "submitted";
     } catch (error) {
@@ -696,15 +671,6 @@ export function createListingsTablePendingAdd(getCtx: () => CollectionsContextVa
     },
     get clipboardFailureKind() {
       return clipboardFailureKind;
-    },
-    get clipboardAutoDetect() {
-      return clipboardAutoDetect;
-    },
-    get hasAnyListings() {
-      return getHasAnyListings();
-    },
-    get clipboardProfileKey() {
-      return getClipboardProfileKey();
     },
     get pendingAddRows() {
       return pendingAddRows;
@@ -731,7 +697,6 @@ export function createListingsTablePendingAdd(getCtx: () => CollectionsContextVa
     saveMergeAsNew,
     queueParsedListings,
     attachImportQueueListener,
-    attachClipboardAutoDetect,
     removePendingRow
   };
 }

@@ -16,9 +16,7 @@
   import ListingsSortPopover from "$lib/components/listings/ListingsSortPopover.svelte";
   import PropertyTypeFilterCycleButton from "$lib/components/listings/PropertyTypeFilterCycleButton.svelte";
   import ToolbarAnchoredPopover from "$lib/components/listings/ToolbarAnchoredPopover.svelte";
-  import ListingsTableConfigButton from "$lib/components/listings/ListingsTableConfigButton.svelte";
   import Input from "$lib/components/ui/Input.svelte";
-  import type { ClipboardAutoDetectState } from "$lib/listings/clipboard-auto-detect.svelte";
   import ImageColumnHeaderToggle from "$lib/components/listings/ImageColumnHeaderToggle.svelte";
   import {
     LISTINGS_TABLE_COLUMNS,
@@ -31,7 +29,6 @@
   type PropertyTypeFilter = "all" | "house" | "apartment";
 
   let {
-    clipboardAutoDetect,
     searchQuery = $bindable(""),
     showTypeFilters,
     propertyTypeFilter = $bindable("all"),
@@ -58,7 +55,6 @@
     onImageColumnViewChange,
     addListingToolbarButtons
   }: {
-    clipboardAutoDetect: ClipboardAutoDetectState;
     searchQuery?: string;
     showTypeFilters: boolean;
     propertyTypeFilter?: PropertyTypeFilter;
@@ -262,7 +258,5 @@
         {/if}
       </div>
     </ToolbarAnchoredPopover>
-
-    <ListingsTableConfigButton {clipboardAutoDetect} />
   </div>
 </div>
